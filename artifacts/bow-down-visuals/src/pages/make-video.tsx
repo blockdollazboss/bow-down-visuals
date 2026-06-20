@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Video } from "lucide-react";
-import { GenerationResult } from "@/components/GenerationResult";
+import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
 
 const formSchema = z.object({
   artistName: z.string().min(1, "Artist name is required"),
@@ -28,6 +28,7 @@ export default function MakeVideo() {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [lastValues, setLastValues] = useState<Record<string, unknown>>({});
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,6 +47,7 @@ export default function MakeVideo() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLastValues(values as Record<string, unknown>);
     setIsGenerating(true);
     setResult(null);
     try {
@@ -81,7 +83,18 @@ export default function MakeVideo() {
       </div>
 
       {result ? (
-        <GenerationResult result={result} onReset={() => setResult(null)} />
+        <GenerationResult
+          result={result}
+          onReset={() => setResult(null)}
+          saveMetadata={{
+            projectType: "video",
+            artistName: String(lastValues.artistName ?? ""),
+            songTitle: String(lastValues.songTitle ?? ""),
+            genre: String(lastValues.genre ?? ""),
+            mood: String(lastValues.mood ?? ""),
+            inputData: lastValues,
+          }}
+        />
       ) : (
         <div className="bg-card border border-card-border p-6 md:p-8 rounded-2xl shadow-xl">
           <Form {...form}>

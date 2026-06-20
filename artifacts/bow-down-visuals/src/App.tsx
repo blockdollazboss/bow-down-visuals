@@ -1,12 +1,17 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { Loader2 } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import MakeSong from "@/pages/make-song";
 import MakeVideo from "@/pages/make-video";
@@ -17,18 +22,63 @@ import Pricing from "@/pages/pricing";
 
 const queryClient = new QueryClient();
 
-function Router() {
+const AUTH_ROUTES = ["/login", "/signup"];
+
+function AppShell() {
+  const { loading, user } = useAuth();
+  const isAuthPage = AUTH_ROUTES.some(r => window.location.pathname.endsWith(r));
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/make-song" component={MakeSong} />
-      <Route path="/make-video" component={MakeVideo} />
-      <Route path="/song-and-video" component={SongAndVideo} />
-      <Route path="/promo-clip" component={PromoClip} />
-      <Route path="/thumbnail" component={Thumbnail} />
-      <Route path="/pricing" component={Pricing} />
-      <Route component={NotFound} />
+      {/* Public auth routes — no sidebar */}
+      <Route path="/login">
+        {user ? <Redirect to="/dashboard" /> : <Login />}
+      </Route>
+      <Route path="/signup">
+        {user ? <Redirect to="/dashboard" /> : <Signup />}
+      </Route>
+
+      {/* All other routes — with sidebar */}
+      <Route>
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+            <AppSidebar />
+            <main className="flex-1 w-full overflow-y-auto">
+              <Switch>
+                <Route path="/" component={Home} />
+                <Route path="/pricing" component={Pricing} />
+                <Route path="/dashboard">
+                  <ProtectedRoute><Dashboard /></ProtectedRoute>
+                </Route>
+                <Route path="/make-song">
+                  <ProtectedRoute><MakeSong /></ProtectedRoute>
+                </Route>
+                <Route path="/make-video">
+                  <ProtectedRoute><MakeVideo /></ProtectedRoute>
+                </Route>
+                <Route path="/song-and-video">
+                  <ProtectedRoute><SongAndVideo /></ProtectedRoute>
+                </Route>
+                <Route path="/promo-clip">
+                  <ProtectedRoute><PromoClip /></ProtectedRoute>
+                </Route>
+                <Route path="/thumbnail">
+                  <ProtectedRoute><Thumbnail /></ProtectedRoute>
+                </Route>
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+          </div>
+        </SidebarProvider>
+      </Route>
     </Switch>
   );
 }
@@ -37,16 +87,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <SidebarProvider>
-            <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-              <AppSidebar />
-              <main className="flex-1 w-full overflow-y-auto">
-                <Router />
-              </main>
-            </div>
-          </SidebarProvider>
-        </WouterRouter>
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppShell />
+          </WouterRouter>
+        </AuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

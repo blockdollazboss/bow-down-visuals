@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Mic2 } from "lucide-react";
-import { GenerationResult } from "@/components/GenerationResult";
+import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
 
 const formSchema = z.object({
   artistName: z.string().min(1, "Artist name is required"),
@@ -42,6 +42,7 @@ export default function SongAndVideo() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<string | null>(null);
+  const [lastValues, setLastValues] = useState<Record<string, unknown>>({});
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -76,6 +77,7 @@ export default function SongAndVideo() {
   }, [isGenerating]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setLastValues(values as Record<string, unknown>);
     setIsGenerating(true);
     setResult(null);
     try {
@@ -111,7 +113,18 @@ export default function SongAndVideo() {
       </div>
 
       {result ? (
-        <GenerationResult result={result} onReset={() => setResult(null)} />
+        <GenerationResult
+          result={result}
+          onReset={() => setResult(null)}
+          saveMetadata={{
+            projectType: "song-video",
+            artistName: String(lastValues.artistName ?? ""),
+            songTitle: String(lastValues.songTitle ?? ""),
+            genre: String(lastValues.genre ?? ""),
+            mood: String(lastValues.mood ?? ""),
+            inputData: lastValues,
+          }}
+        />
       ) : (
         <div className="bg-card border border-card-border p-6 md:p-8 rounded-2xl shadow-xl">
           <Form {...form}>
