@@ -12,6 +12,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Mic2 } from "lucide-react";
 import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
+import { OutOfCredits } from "@/components/OutOfCredits";
+import { CREDIT_COSTS } from "@/constants/credits";
+import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
+
+const CREDIT_COST = CREDIT_COSTS["song-video"];
 
 const formSchema = z.object({
   artistName: z.string().min(1, "Artist name is required"),
@@ -39,6 +45,7 @@ const STEPS = [
 
 export default function SongAndVideo() {
   const { toast } = useToast();
+  const { profile, refreshProfile } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<string | null>(null);
@@ -77,6 +84,10 @@ export default function SongAndVideo() {
   }, [isGenerating]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!profile || profile.credits < CREDIT_COST) {
+      toast({ title: "Not enough credits", description: "Upgrade your plan to keep creating.", variant: "destructive" });
+      return;
+    }
     setLastValues(values as Record<string, unknown>);
     setIsGenerating(true);
     setResult(null);
@@ -88,6 +99,11 @@ export default function SongAndVideo() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Generation failed");
+      try {
+        const sb = getSupabase();
+        await sb.rpc("deduct_credits", { credits_to_deduct: CREDIT_COST });
+        await refreshProfile();
+      } catch { /* deduction failed silently */ }
       setResult(data.result);
     } catch (err: unknown) {
       toast({
@@ -125,6 +141,8 @@ export default function SongAndVideo() {
             inputData: lastValues,
           }}
         />
+      ) : profile && profile.credits < CREDIT_COST ? (
+        <OutOfCredits />
       ) : (
         <div className="bg-card border border-card-border p-6 md:p-8 rounded-2xl shadow-xl">
           <Form {...form}>
