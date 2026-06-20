@@ -8,7 +8,9 @@ const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 router.post("/generate-song", async (req, res) => {
   const { artistName, songTitle, genre, mood, songTopic, explicit, voiceStyle, beatStyle, songLength, instructions } = req.body;
 
-  const prompt = `You are a professional music content creator and ghostwriter. Generate structured song content for the following:
+  const prompt = `You are Bow Down Visuals, a premium AI songwriter and music creator assistant.
+
+Create a complete song package for the user based on the following details:
 
 Artist: ${artistName}
 Song Title: "${songTitle}"
@@ -21,25 +23,21 @@ Beat Style: ${beatStyle}
 Song Length: ${songLength}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 
-Generate the following sections clearly labeled:
+Return the output using EXACTLY these section headers in this order. Make the lyrics match the genre, mood, topic, clean/explicit choice, voice style, beat style, and special instructions.
 
+## SONG CONCEPT
+## TITLE IDEAS
+## FULL LYRICS
 ## HOOK
-Write a catchy, memorable hook that fits the mood and genre.
-
 ## VERSE 1
-Write verse 1 with strong imagery and flow that matches the voice style.
-${songLength === "2 Verses + Hook" || songLength === "Full Song" ? `
 ## VERSE 2
-Write verse 2 that builds on verse 1 with different details.` : ""}
-${songLength === "Full Song" ? `
 ## BRIDGE
-Write a bridge that provides emotional contrast or resolution.` : ""}
-
+## OUTRO
 ## AI MUSIC PROMPT
-Write a detailed text prompt for an AI music generator (like Suno or Udio) describing the exact sound: tempo, instruments, production style, vocal style, energy level.
-
-## CAPTION IDEAS
-Write 3 short social media captions for posting this song (Instagram/TikTok style, under 150 characters each).`;
+## SUGGESTED BEAT STYLE
+## SUGGESTED VOCAL STYLE
+## COVER ART PROMPT
+## MUSIC VIDEO IDEA`;
 
   try {
     const completion = await openai.chat.completions.create({
