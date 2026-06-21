@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Mic2, Music, Video, Film, Image as ImageIcon,
-  Archive, FolderOpen, Mail, ArrowRight, Settings,
-  Zap, ChevronRight, Star
+  Archive, FolderOpen, Mail, ArrowRight,
+  ChevronRight, Star
 } from "lucide-react";
+import { TopBar } from "@/components/layout/top-bar";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -59,71 +60,33 @@ const CARDS = [
   {
     title: "Artist Vault",
     description:
-      "Save artist style rules, image references, colors, tattoos, jewelry, and branding for consistent visuals.",
+      "Save your artist profile once. Voice style, beat style, visual brand — every tool pulls from your vault.",
     icon: Archive,
-    href: "#",
+    href: "/artist-vault",
     featured: false,
-    cta: "Coming Soon",
-    comingSoon: true,
+    cta: "Open Vault",
   },
   {
     title: "My Projects",
     description:
-      "View saved songs, videos, prompts, and promo packs.",
+      "View all your saved songs, videos, promo packs, and thumbnail concepts in one place.",
     icon: FolderOpen,
-    href: "#",
+    href: "/my-projects",
     featured: false,
     cta: "View Projects",
-    comingSoon: true,
   },
   {
     title: "Join Waitlist",
     description:
-      "Get early access to real music and video generation features.",
+      "Get early access, 100 bonus credits, and a locked-in founding rate before the public launch.",
     icon: Mail,
-    href: "/#waitlist",
+    href: "/waitlist",
     featured: false,
     cta: "Join Waitlist",
     isWaitlist: true,
   },
 ];
 
-/* ─────────────────────────── TOP BAR ─────────────────────────── */
-
-function TopBar() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Logo */}
-        <Link href="/" className="flex flex-col leading-none cursor-pointer shrink-0">
-          <span className="text-white font-black text-base tracking-tight">BOW DOWN</span>
-          <span className="text-primary font-black text-sm tracking-widest -mt-0.5">VISUALS</span>
-        </Link>
-
-        {/* Right side */}
-        <div className="flex items-center gap-3 md:gap-5">
-          {/* Credits */}
-          <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5">
-            <Zap className="h-3.5 w-3.5 text-primary" />
-            <span className="text-sm font-bold text-white">3</span>
-            <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
-          </div>
-
-          {/* My Projects */}
-          <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-white/50 hover:text-white transition-colors">
-            <FolderOpen className="h-4 w-4" />
-            <span>My Projects</span>
-          </button>
-
-          {/* Settings */}
-          <button className="flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 /* ─────────────────────────── CARD ─────────────────────────── */
 

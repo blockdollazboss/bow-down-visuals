@@ -7,9 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Film, Settings, FolderOpen, Zap, ArrowLeft,
+  Film, ArrowLeft,
   Copy, CheckCheck, Loader2, Download, Save, ChevronRight,
 } from "lucide-react";
+import { TopBar } from "@/components/layout/top-bar";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -225,33 +226,6 @@ Engagement CTAs:
   };
 }
 
-/* ─────────────────────────── TOP BAR ─────────────────────────── */
-
-function TopBar() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="flex flex-col leading-none cursor-pointer shrink-0">
-          <span className="text-white font-black text-base tracking-tight">BOW DOWN</span>
-          <span className="text-primary font-black text-sm tracking-widest -mt-0.5">VISUALS</span>
-        </Link>
-        <div className="flex items-center gap-3 md:gap-5">
-          <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5">
-            <Zap className="h-3.5 w-3.5 text-primary" />
-            <span className="text-sm font-bold text-white">3</span>
-            <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
-          </div>
-          <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-white/50 hover:text-white transition-colors">
-            <FolderOpen className="h-4 w-4" /><span>My Projects</span>
-          </button>
-          <button className="flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 /* ─────────────────────────── FORM HELPERS ─────────────────────────── */
 
