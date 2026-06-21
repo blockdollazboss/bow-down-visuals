@@ -46,7 +46,7 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="p-4">
         <Link href="/" className="flex items-center gap-2 cursor-pointer">
-          <div className="font-black text-xl tracking-tight text-white purple-glow-sm">
+          <div className="font-black text-xl tracking-tight text-white gold-glow-sm">
             BOW DOWN<br />
             <span className="text-primary text-lg">VISUALS</span>
           </div>

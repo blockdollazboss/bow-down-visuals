@@ -28,7 +28,7 @@ function NavBar() {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-28 w-auto"
-            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
+            style={{ filter: "brightness(1.1) drop-shadow(0 0 8px rgba(218,165,32,0.6))" }}
           />
         </Link>
         <nav className="hidden md:flex items-center gap-1">
@@ -152,8 +152,8 @@ export default function Waitlist() {
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-purple-600/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-purple-900/8 rounded-full blur-[100px]" />
+        <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-yellow-600/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-yellow-900/8 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative z-10">
@@ -205,7 +205,7 @@ export default function Waitlist() {
                   </Button>
                 </Link>
                 <Link href="/dashboard">
-                  <Button className="purple-glow font-semibold gap-2">
+                  <Button className="gold-glow font-semibold gap-2">
                     <Zap className="h-4 w-4" /> Try the Tools
                   </Button>
                 </Link>
@@ -302,7 +302,7 @@ export default function Waitlist() {
                   type="submit"
                   size="lg"
                   disabled={loading}
-                  className="w-full purple-glow font-bold text-base rounded-xl gap-3"
+                  className="w-full gold-glow font-bold text-base rounded-xl gap-3"
                   style={{ height: "52px" }}
                 >
                   {loading ? "Joining the waitlist..." : <><Zap className="h-5 w-5" /> Join the Waitlist <ArrowRight className="h-4 w-4" /></>}

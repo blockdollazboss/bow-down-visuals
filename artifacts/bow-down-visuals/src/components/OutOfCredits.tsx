@@ -16,7 +16,7 @@ export function OutOfCredits() {
       </div>
       <div className="flex flex-col sm:flex-row gap-3">
         <Link href="/waitlist">
-          <Button size="lg" className="purple-glow gap-2">
+          <Button size="lg" className="gold-glow gap-2">
             Join the Waitlist <ArrowRight className="h-4 w-4" />
           </Button>
         </Link>

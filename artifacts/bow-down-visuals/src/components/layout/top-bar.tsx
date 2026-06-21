@@ -30,7 +30,7 @@ export function TopBar() {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-28 w-auto"
-            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
+            style={{ filter: "brightness(1.1) drop-shadow(0 0 8px rgba(218,165,32,0.6))" }}
           />
         </Link>
 

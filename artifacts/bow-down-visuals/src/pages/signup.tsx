@@ -53,7 +53,7 @@ export default function Signup() {
           <p className="text-muted-foreground text-lg">
             We sent a confirmation link to your email. Click it to activate your account, then sign in.
           </p>
-          <Button onClick={() => setLocation("/login")} className="purple-glow">
+          <Button onClick={() => setLocation("/login")} className="gold-glow">
             Go to Sign In
           </Button>
         </div>
@@ -70,13 +70,13 @@ export default function Signup() {
               src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Bow Down Visuals"
               className="h-80 w-auto"
-              style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 10px rgba(138,43,226,0.7))" }}
+              style={{ filter: "brightness(1.1) drop-shadow(0 0 10px rgba(218,165,32,0.7))" }}
             />
           </div>
           <p className="mt-1 text-muted-foreground">Create your free creator account</p>
         </div>
 
-        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl purple-glow-sm">
+        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField control={form.control} name="displayName" render={({ field }) => (
@@ -125,7 +125,7 @@ export default function Signup() {
                 </div>
               )}
 
-              <Button data-testid="btn-signup" type="submit" size="lg" className="w-full purple-glow" disabled={loading}>
+              <Button data-testid="btn-signup" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : "Create Free Account"}
               </Button>
             </form>

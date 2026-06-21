@@ -159,8 +159,8 @@ function DashboardCard({ card }: { card: CardData }) {
           <span
             className={`text-sm font-semibold flex items-center gap-1.5 transition-colors
               ${card.featured
-                ? "text-white group-hover:text-purple-200"
-                : "text-primary group-hover:text-purple-300"
+                ? "text-white group-hover:text-yellow-200"
+                : "text-primary group-hover:text-yellow-300"
               }`}
           >
             {card.cta}
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/8 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
@@ -206,7 +206,7 @@ export default function Dashboard() {
         {/* Quick-action row */}
         <div className="flex flex-wrap items-center gap-3 mb-10">
           <Link href="/song-and-video">
-            <Button className="purple-glow font-semibold gap-2 rounded-full">
+            <Button className="gold-glow font-semibold gap-2 rounded-full">
               <Mic2 className="h-4 w-4" /> Make Song + Video
             </Button>
           </Link>

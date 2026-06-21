@@ -27,7 +27,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "Make a Song": "text-purple-400",
+  "Make a Song": "text-yellow-400",
   "Make a Music Video": "text-blue-400",
   "Make Song + Video": "text-pink-400",
   "Promo Clip Maker": "text-green-400",
@@ -167,7 +167,7 @@ export default function MyProjects() {
       <TopBar />
 
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-purple-600/8 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
@@ -221,7 +221,7 @@ export default function MyProjects() {
               </p>
             </div>
             <Link href="/dashboard">
-              <Button className="purple-glow font-semibold gap-2">
+              <Button className="gold-glow font-semibold gap-2">
                 <Music className="h-4 w-4" /> Go to Dashboard
               </Button>
             </Link>

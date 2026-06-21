@@ -47,13 +47,13 @@ export default function Login() {
               src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Bow Down Visuals"
               className="h-80 w-auto"
-              style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 10px rgba(138,43,226,0.7))" }}
+              style={{ filter: "brightness(1.1) drop-shadow(0 0 10px rgba(218,165,32,0.7))" }}
             />
           </div>
           <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
         </div>
 
-        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl purple-glow-sm">
+        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField control={form.control} name="email" render={({ field }) => (
@@ -82,7 +82,7 @@ export default function Login() {
                 </div>
               )}
 
-              <Button data-testid="btn-login" type="submit" size="lg" className="w-full purple-glow" disabled={loading}>
+              <Button data-testid="btn-login" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
               </Button>
             </form>

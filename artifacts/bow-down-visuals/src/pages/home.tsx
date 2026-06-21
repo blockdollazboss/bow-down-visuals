@@ -189,7 +189,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-28 w-auto"
-            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
+            style={{ filter: "brightness(1.1) drop-shadow(0 0 8px rgba(218,165,32,0.6))" }}
           />
         </Link>
 
@@ -212,7 +212,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
             Join Waitlist
           </Button>
           <Link href="/dashboard">
-            <Button size="sm" className="purple-glow font-semibold px-5">
+            <Button size="sm" className="gold-glow font-semibold px-5">
               Start Creating
             </Button>
           </Link>
@@ -245,7 +245,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
               Join Waitlist
             </Button>
             <Link href="/dashboard">
-              <Button size="sm" className="w-full purple-glow font-semibold">Start Creating</Button>
+              <Button size="sm" className="w-full gold-glow font-semibold">Start Creating</Button>
             </Link>
           </div>
         </div>
@@ -259,9 +259,9 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-5 pt-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-purple-500/8 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] bg-purple-700/8 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-yellow-600/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-yellow-500/8 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] bg-yellow-700/8 rounded-full blur-[80px] pointer-events-none" />
       </div>
 
       {/* Grid overlay */}
@@ -280,7 +280,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-56 w-auto"
-            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 24px rgba(138,43,226,0.8))" }}
+            style={{ filter: "brightness(1.1) drop-shadow(0 0 24px rgba(218,165,32,0.8))" }}
           />
         </div>
 
@@ -293,7 +293,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
           Create Songs,{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-primary to-purple-300">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
             Music Videos,
           </span>{" "}
           and Promo Clips With AI
@@ -312,7 +312,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
           <Link href="/dashboard">
-            <Button size="lg" className="w-full sm:w-auto purple-glow text-base h-14 px-10 rounded-full font-bold gap-2">
+            <Button size="lg" className="w-full sm:w-auto gold-glow text-base h-14 px-10 rounded-full font-bold gap-2">
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -383,7 +383,7 @@ function HowItWorks() {
 
 function WhatYouCanMake() {
   return (
-    <section className="py-24 px-5 bg-gradient-to-b from-transparent via-purple-950/10 to-transparent">
+    <section className="py-24 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -446,7 +446,7 @@ function BuiltForCreators() {
 
 function FeaturedTools() {
   return (
-    <section id="tools" className="py-28 px-5 bg-gradient-to-b from-transparent via-purple-950/10 to-transparent">
+    <section id="tools" className="py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -499,7 +499,7 @@ function FeaturedTools() {
               </div>
 
               {!tool.comingSoon && (
-                <Link href={tool.href} className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-purple-300 transition-colors group/link">
+                <Link href={tool.href} className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link">
                   Try this tool <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
                 </Link>
               )}
@@ -568,7 +568,7 @@ function PricingSection({ onWaitlist }: { onWaitlist: () => void }) {
                 </Button>
               ) : (
                 <Link href="/dashboard">
-                  <Button className="w-full purple-glow font-semibold">Get Started Free</Button>
+                  <Button className="w-full gold-glow font-semibold">Get Started Free</Button>
                 </Link>
               )}
             </div>
@@ -583,7 +583,7 @@ function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-28 px-5 bg-gradient-to-b from-transparent via-purple-950/8 to-transparent">
+    <section id="faq" className="py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -643,7 +643,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
     <section ref={ref} id="waitlist" className="py-28 px-5">
       <div className="max-w-2xl mx-auto text-center space-y-8">
         <div className="relative">
-          <div className="absolute -inset-20 bg-purple-600/8 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs mb-6">
             Early Access
           </Badge>
@@ -661,7 +661,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
             <h3 className="text-xl font-bold text-white mb-2">You're on the list.</h3>
             <p className="text-white/60 text-sm">We'll hit you first when doors open. In the meantime, start creating with your 3 free credits.</p>
             <Link href="/dashboard">
-              <Button className="purple-glow mt-5 font-semibold gap-2">
+              <Button className="gold-glow mt-5 font-semibold gap-2">
                 Start Creating Now <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -680,7 +680,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               type="submit"
               size="lg"
               disabled={loading}
-              className="purple-glow h-12 px-7 font-bold shrink-0"
+              className="gold-glow h-12 px-7 font-bold shrink-0"
             >
               {loading ? "Joining..." : "Join Waitlist"}
             </Button>

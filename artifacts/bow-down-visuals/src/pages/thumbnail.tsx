@@ -127,7 +127,7 @@ function ResultSection({ data, onClear }: { data: Record<string, string>; onClea
         ))}
       </div>
       <div className="flex items-center gap-2 flex-wrap pt-2">
-        <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
+        <Button onClick={handleCopy} className="gold-glow font-semibold gap-2">
           {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy Result"}
         </Button>
@@ -193,7 +193,7 @@ export default function Thumbnail() {
     <div className="min-h-screen bg-black text-white">
       <TopBar />
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-purple-600/8 rounded-full blur-[100px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
       <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
@@ -257,7 +257,7 @@ export default function Thumbnail() {
               <Textarea {...register("specialRequests")} placeholder="Specific visual elements, references, things to include or avoid, cultural context..." className={textareaClass} style={{ minHeight: "100px" }} />
             </div>
             <div className="pt-2">
-              <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto purple-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
+              <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
                 {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your pack...</> : <><ImageIcon className="h-5 w-5" /> Generate Thumbnail Pack</>}
               </Button>
               <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>

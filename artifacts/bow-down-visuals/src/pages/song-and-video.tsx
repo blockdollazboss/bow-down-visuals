@@ -194,7 +194,7 @@ function ResultSection({ data, onClear }: { data: Record<string, string>; onClea
         ))}
       </div>
       <div className="flex items-center gap-2 flex-wrap pt-2">
-        <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
+        <Button onClick={handleCopy} className="gold-glow font-semibold gap-2">
           {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy Result"}
         </Button>
@@ -273,7 +273,7 @@ export default function SongAndVideo() {
       <TopBar />
 
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/8 rounded-full blur-[110px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/8 rounded-full blur-[110px]" />
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
@@ -414,7 +414,7 @@ export default function SongAndVideo() {
               form="song-video-form"
               size="lg"
               disabled={loading}
-              className="w-full sm:w-auto purple-glow font-bold text-base px-12 rounded-xl gap-3"
+              className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3"
               style={{ height: "56px" }}
             >
               {loading ? (

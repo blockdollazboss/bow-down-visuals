@@ -144,7 +144,7 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
           <Button
             onClick={handleSave}
             disabled={saving || !user}
-            className="purple-glow shrink-0"
+            className="gold-glow shrink-0"
             size="sm"
             data-testid="btn-save-project"
           >

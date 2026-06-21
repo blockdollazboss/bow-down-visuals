@@ -20,7 +20,7 @@ function NavBar() {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-28 w-auto"
-            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
+            style={{ filter: "brightness(1.1) drop-shadow(0 0 8px rgba(218,165,32,0.6))" }}
           />
         </Link>
         <nav className="hidden md:flex items-center gap-1">
@@ -30,7 +30,7 @@ function NavBar() {
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/dashboard">
-            <Button size="sm" className="purple-glow hidden sm:flex gap-2 font-semibold">
+            <Button size="sm" className="gold-glow hidden sm:flex gap-2 font-semibold">
               <Zap className="h-3.5 w-3.5" /> Start Free
             </Button>
           </Link>
@@ -45,7 +45,7 @@ function NavBar() {
             <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors">{l.label}</Link>
           ))}
           <div className="pt-2">
-            <Link href="/dashboard"><Button className="purple-glow w-full gap-2 mt-1">Start Free</Button></Link>
+            <Link href="/dashboard"><Button className="gold-glow w-full gap-2 mt-1">Start Free</Button></Link>
           </div>
         </div>
       )}
@@ -150,7 +150,7 @@ export default function Pricing() {
     <div className="min-h-screen bg-black text-white">
       <NavBar />
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-60px] left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[-60px] left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/10 rounded-full blur-[120px]" />
       </div>
 
       <div className="relative z-10">
@@ -199,7 +199,7 @@ export default function Pricing() {
                 </div>
 
                 <Link href={plan.href} className="mb-6">
-                  <Button className={`w-full font-bold h-11 ${plan.featured ? "purple-glow" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-white"}`}
+                  <Button className={`w-full font-bold h-11 ${plan.featured ? "gold-glow" : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-white"}`}
                     variant={plan.featured ? "default" : "outline"}>
                     {plan.cta} {plan.featured && <ArrowRight className="h-4 w-4 ml-1" />}
                   </Button>
@@ -269,7 +269,7 @@ export default function Pricing() {
           <p className="text-white/45 text-lg mb-8">Free to start. No credit card required. Upgrade when you're ready.</p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link href="/dashboard">
-              <Button size="lg" className="purple-glow font-bold px-10 h-12 gap-2">
+              <Button size="lg" className="gold-glow font-bold px-10 h-12 gap-2">
                 <Zap className="h-4 w-4" /> Start Free
               </Button>
             </Link>
