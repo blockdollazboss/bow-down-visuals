@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { label: "Artist Vault", href: "/artist-vault" },
   { label: "Pricing", href: "/pricing" },
   { label: "Waitlist", href: "/waitlist" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export function TopBar() {

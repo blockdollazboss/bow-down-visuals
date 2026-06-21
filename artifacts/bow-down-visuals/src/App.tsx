@@ -18,6 +18,7 @@ import ArtistVault from "@/pages/artist-vault";
 import MyProjects  from "@/pages/my-projects";
 import Pricing     from "@/pages/pricing";
 import Waitlist    from "@/pages/waitlist";
+import Contact     from "@/pages/contact";
 import Login       from "@/pages/login";
 import Signup      from "@/pages/signup";
 import NotFound    from "@/pages/not-found";
@@ -46,6 +47,7 @@ function AppShell() {
         <Route path="/"><Home /></Route>
         <Route path="/pricing"><Pricing /></Route>
         <Route path="/waitlist"><Waitlist /></Route>
+        <Route path="/contact"><Contact /></Route>
 
         {/* Protected app pages */}
         <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
