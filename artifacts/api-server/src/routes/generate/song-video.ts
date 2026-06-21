@@ -78,15 +78,6 @@ Generate ALL of the following sections clearly labeled:
       console.log(`[generate-song-video] success userId=${req.userId} creditsAfter=${creditsAfter}`);
     }
 
-    const title = [artistName, songTitle].filter(Boolean).join(" — ") || TOOL_TYPE;
-    await req.userSupabase!.from("projects").insert({
-      user_id: req.userId,
-      title,
-      type: TOOL_TYPE,
-      content,
-      credits_used: CREDIT_COST,
-    });
-
     res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";

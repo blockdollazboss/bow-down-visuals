@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Copy, Check, Save, Loader2 } from "lucide-react";
+import { Copy, Check, Save, Loader2, Download } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 interface Section {
@@ -57,6 +57,7 @@ export interface SaveMetadata {
   genre?: string;
   mood?: string;
   inputData: Record<string, unknown>;
+  creditsUsed?: number;
 }
 
 interface GenerationResultProps {
@@ -67,11 +68,16 @@ interface GenerationResultProps {
 
 export function GenerationResult({ result, onReset, saveMetadata }: GenerationResultProps) {
   const sections = parseSections(result);
-  const { user } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [projectTitle, setProjectTitle] = useState(saveMetadata.songTitle ?? "");
+  const [projectTitle, setProjectTitle] = useState(
+    [saveMetadata.artistName, saveMetadata.songTitle].filter(Boolean).join(" — ") ||
+    saveMetadata.songTitle ||
+    saveMetadata.artistName ||
+    ""
+  );
 
   function handleCopyAll() {
     navigator.clipboard.writeText(result);
@@ -85,20 +91,31 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
     }
     setSaving(true);
     try {
-      const sb = getSupabase();
-      const { error } = await sb.from("projects").insert({
-        user_id: user.id,
-        project_type: saveMetadata.projectType,
-        artist_name: saveMetadata.artistName ?? null,
-        song_title: projectTitle || saveMetadata.songTitle || null,
-        genre: saveMetadata.genre ?? null,
-        mood: saveMetadata.mood ?? null,
-        input_data: saveMetadata.inputData,
-        output_data: { result },
+      const token = await getAccessToken();
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({
+          projectType: saveMetadata.projectType,
+          title: projectTitle || saveMetadata.projectType,
+          artistName: saveMetadata.artistName ?? null,
+          songTitle: saveMetadata.songTitle ?? null,
+          genre: saveMetadata.genre ?? null,
+          mood: saveMetadata.mood ?? null,
+          inputData: saveMetadata.inputData,
+          outputData: { result },
+          creditsUsed: saveMetadata.creditsUsed ?? 1,
+        }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({ error: "Save failed" }))) as { error?: string };
+        throw new Error(err.error ?? "Save failed");
+      }
       setSaved(true);
-      toast({ title: "Project saved!", description: "Find it in your Dashboard under My Projects." });
+      toast({ title: "Project saved!", description: "Find it in My Projects." });
     } catch (err: unknown) {
       toast({
         title: "Save failed",
@@ -111,18 +128,30 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
   }
 
   return (
-    <div className="space-y-6" data-testid="generation-result">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 mt-10" data-testid="generation-result">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
         <div>
-          <h2 className="text-2xl font-black text-white">Generated Results</h2>
-          <p className="text-muted-foreground text-sm mt-1">Copy any section or save the full project.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-bold tracking-widest text-primary uppercase">Result Ready</span>
+          </div>
+          <h2 className="text-2xl font-black text-white">{saveMetadata.projectType}</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={handleCopyAll} className="border-border text-muted-foreground hover:text-white" data-testid="btn-copy-all">
-            <Copy className="h-3.5 w-3.5 mr-1.5" /> Copy All
+          <Button variant="outline" size="sm" onClick={handleCopyAll}
+            className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
+            data-testid="btn-copy-all">
+            <Copy className="h-4 w-4" /> Copy All
           </Button>
-          <Button variant="outline" size="sm" onClick={onReset} className="border-border text-muted-foreground hover:text-white" data-testid="btn-generate-again">
+          <Button variant="outline" size="sm" onClick={onReset}
+            className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2"
+            data-testid="btn-generate-again">
             Generate Again
+          </Button>
+          <Button variant="outline" size="sm" disabled
+            className="border-white/5 text-white/25 cursor-not-allowed gap-2">
+            <Download className="h-3.5 w-3.5" /> Download
+            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
           </Button>
         </div>
       </div>
@@ -137,7 +166,7 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
               value={projectTitle}
               onChange={e => setProjectTitle(e.target.value)}
               placeholder="Project title..."
-              className="max-w-xs h-8 text-sm"
+              className="max-w-xs h-8 text-sm bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 rounded-lg"
               data-testid="input-project-title"
             />
           </div>
@@ -154,23 +183,31 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
       ) : (
         <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3">
           <Check className="h-5 w-5 text-green-400" />
-          <p className="text-green-400 font-medium text-sm">Project saved! View it in your Dashboard.</p>
+          <p className="text-green-400 font-medium text-sm">Saved! View it in <a href="/my-projects" className="underline underline-offset-2">My Projects</a>.</p>
         </div>
       )}
 
       {/* Sections */}
       <div className="space-y-4">
-        {sections.map((section, i) => (
-          <div key={i} className="bg-card border border-card-border rounded-xl overflow-hidden" data-testid={`result-section-${i}`}>
+        {sections.length > 0 ? sections.map((section, i) => (
+          <div key={i} className="bg-card border border-card-border rounded-xl overflow-hidden"
+            data-testid={`result-section-${i}`}>
             <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
-              <h3 className="font-bold text-white text-sm tracking-wide uppercase">{section.title}</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                <h3 className="font-bold text-white text-sm tracking-wide uppercase">{section.title}</h3>
+              </div>
               <CopyButton text={section.content} />
             </div>
             <div className="px-5 py-4">
               <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-white/70 leading-relaxed">{result}</pre>
+          </div>
+        )}
       </div>
     </div>
   );

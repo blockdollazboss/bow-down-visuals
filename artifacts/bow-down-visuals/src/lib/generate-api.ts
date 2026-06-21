@@ -16,9 +16,9 @@ export function parseMarkdownSections(text: string): Record<string, string> {
 }
 
 export interface GenerateResult {
+  rawResult: string;
   sections: Record<string, string>;
   creditsRemaining?: number;
-  projectId?: string;
 }
 
 export async function callGenerateApi(
@@ -41,10 +41,10 @@ export async function callGenerateApi(
     throw new Error(errObj.error ?? errObj.message ?? "Generation failed");
   }
 
-  const data = (await res.json()) as { result: string; creditsRemaining?: number; projectId?: string };
+  const data = (await res.json()) as { result: string; creditsRemaining?: number };
   return {
+    rawResult: data.result,
     sections: parseMarkdownSections(data.result),
     creditsRemaining: data.creditsRemaining,
-    projectId: data.projectId,
   };
 }

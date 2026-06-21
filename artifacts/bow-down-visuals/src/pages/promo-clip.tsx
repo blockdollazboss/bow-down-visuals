@@ -6,14 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Film, ArrowLeft,
-  Copy, CheckCheck, Loader2, Download, FolderOpen, ChevronRight,
-} from "lucide-react";
+import { Film, ArrowLeft, Loader2, ChevronRight } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { GenerationResult } from "@/components/GenerationResult";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -260,84 +258,11 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
   );
 }
 
-/* ─────────────────────────── RESULT ─────────────────────────── */
-
-function ResultSection({ data, onClear }: { data: Record<string, string>; onClear: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  function handleCopy() {
-    const text = Object.entries(data).map(([k, v]) => `## ${k}\n\n${v}`).join("\n\n---\n\n");
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <div className="space-y-6 mt-10">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs font-bold tracking-widest text-primary uppercase">Result Ready</span>
-          </div>
-          <h2 className="text-2xl font-black text-white">Promo Clip Pack</h2>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button onClick={handleCopy} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
-            {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Copied!" : "Copy Result"}
-          </Button>
-          <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2">
-            Clear Result
-          </Button>
-          <Link href="/my-projects">
-            <Button variant="outline" size="sm" className="border-primary/20 bg-primary/5 text-primary/70 hover:bg-primary/10 hover:text-primary gap-2">
-              <FolderOpen className="h-4 w-4" /> Saved to My Projects
-            </Button>
-          </Link>
-          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
-            <Download className="h-4 w-4" /> Download
-            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
-          </Button>
-        </div>
-      </div>
-      <div className="space-y-4">
-        {Object.entries(data).map(([heading, content], i) => (
-          <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-              <h3 className="text-base font-bold text-white">{heading}</h3>
-            </div>
-            <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">{content}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center gap-2 flex-wrap pt-2">
-        <Button onClick={handleCopy} className="gold-glow font-semibold gap-2">
-          {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied ? "Copied!" : "Copy Result"}
-        </Button>
-        <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-1.5">
-          Clear Result
-        </Button>
-        <Link href="/my-projects">
-          <Button variant="outline" size="sm" className="border-primary/20 bg-primary/5 text-primary/70 hover:bg-primary/10 hover:text-primary gap-1.5">
-            <FolderOpen className="h-3.5 w-3.5" /> Saved to My Projects
-          </Button>
-        </Link>
-        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
-          <Download className="h-3.5 w-3.5" /> Download Coming Soon
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function PromoClip() {
   const { getAccessToken, refreshProfile } = useAuth();
-  const [result, setResult] = useState<Record<string, string> | null>(null);
+  const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -353,12 +278,12 @@ export default function PromoClip() {
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
-    setResult(null);
+    setRawResult(null);
     setError(null);
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { sections, creditsRemaining } = await callGenerateApi("/api/generate-promo-clips", {
+      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-promo-clips", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -368,7 +293,7 @@ export default function PromoClip() {
         songHook: values.songHook,
         instructions: values.specialInstructions,
       }, token);
-      setResult(sections);
+      setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -502,9 +427,21 @@ export default function PromoClip() {
           </div>
         )}
 
-        {result && (
+        {rawResult && (
           <div id="promo-result">
-            <ResultSection data={result} onClear={() => { setResult(null); setError(null); setOutOfCredits(false); }} />
+            <GenerationResult
+              result={rawResult}
+              onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); }}
+              saveMetadata={{
+                projectType: "Promo Clip Maker",
+                artistName: watched.artistName,
+                songTitle: watched.songTitle,
+                genre: watched.genre,
+                mood: watched.mood,
+                inputData: watched as unknown as Record<string, unknown>,
+                creditsUsed: 1,
+              }}
+            />
           </div>
         )}
 

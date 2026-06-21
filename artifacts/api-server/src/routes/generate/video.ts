@@ -72,15 +72,6 @@ Return the output using EXACTLY these section headers in this order. Make the vi
       console.log(`[generate-video-plan] success userId=${req.userId} creditsAfter=${creditsAfter}`);
     }
 
-    const title = [artistName, songTitle ? `${songTitle} Video` : "Music Video"].filter(Boolean).join(" — ") || TOOL_TYPE;
-    await req.userSupabase!.from("projects").insert({
-      user_id: req.userId,
-      title,
-      type: TOOL_TYPE,
-      content,
-      credits_used: CREDIT_COST,
-    });
-
     res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";

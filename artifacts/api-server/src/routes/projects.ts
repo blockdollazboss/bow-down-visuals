@@ -1,12 +1,58 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
+import { z } from "zod";
 
 const router = Router();
+
+const SaveProjectSchema = z.object({
+  projectType: z.string().min(1),
+  title: z.string().min(1),
+  artistName: z.string().optional().nullable(),
+  songTitle: z.string().optional().nullable(),
+  genre: z.string().optional().nullable(),
+  mood: z.string().optional().nullable(),
+  inputData: z.record(z.unknown()).optional().default({}),
+  outputData: z.record(z.unknown()).optional().default({}),
+  creditsUsed: z.number().int().min(0).optional().default(0),
+});
+
+router.post("/projects", requireAuth, async (req, res) => {
+  const parsed = SaveProjectSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid project data" });
+    return;
+  }
+  const d = parsed.data;
+
+  const { data: project, error } = await req.userSupabase!
+    .from("projects")
+    .insert({
+      user_id: req.userId,
+      project_type: d.projectType,
+      title: d.title,
+      artist_name: d.artistName ?? null,
+      song_title: d.songTitle ?? null,
+      genre: d.genre ?? null,
+      mood: d.mood ?? null,
+      input_data: d.inputData,
+      output_data: d.outputData,
+      credits_used: d.creditsUsed,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.status(201).json({ id: project?.id });
+});
 
 router.get("/projects", requireAuth, async (req, res) => {
   const { data: projects, error } = await req.userSupabase!
     .from("projects")
-    .select("id, title, type, content, credits_used, created_at")
+    .select("id, project_type, title, artist_name, song_title, genre, mood, output_data, credits_used, created_at")
     .eq("user_id", req.userId)
     .order("created_at", { ascending: false });
 

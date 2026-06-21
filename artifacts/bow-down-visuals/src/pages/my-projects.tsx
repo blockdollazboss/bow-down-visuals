@@ -4,91 +4,170 @@ import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  FolderOpen, Trash2, Loader2, Music, Video, Film, Image as ImageIcon,
-  Mic2, Copy, CheckCheck, ChevronDown, ChevronUp,
+  FolderOpen, Trash2, Loader2, Music, Video, Film,
+  Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface Project {
   id: string;
   title: string;
-  type: string;
-  content: string;
+  project_type: string;
+  artist_name: string | null;
+  song_title: string | null;
+  genre: string | null;
+  mood: string | null;
+  output_data: { result?: string } | null;
   credits_used: number;
   created_at: string;
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-  "Make a Song": <Music className="h-4 w-4" />,
-  "Make a Music Video": <Video className="h-4 w-4" />,
+  "Make a Song":       <Music className="h-4 w-4" />,
+  "Make a Music Video":<Video className="h-4 w-4" />,
   "Make Song + Video": <Mic2 className="h-4 w-4" />,
-  "Promo Clip Maker": <Film className="h-4 w-4" />,
-  "Thumbnail Maker": <ImageIcon className="h-4 w-4" />,
+  "Promo Clip Maker":  <Film className="h-4 w-4" />,
+  "Thumbnail Maker":   <ImageIcon className="h-4 w-4" />,
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "Make a Song": "text-yellow-400",
+  "Make a Song":        "text-yellow-400",
   "Make a Music Video": "text-blue-400",
-  "Make Song + Video": "text-pink-400",
-  "Promo Clip Maker": "text-green-400",
-  "Thumbnail Maker": "text-yellow-400",
+  "Make Song + Video":  "text-pink-400",
+  "Promo Clip Maker":   "text-green-400",
+  "Thumbnail Maker":    "text-yellow-400",
 };
 
-function ProjectCard({
-  project,
-  onDelete,
-}: {
-  project: Project;
-  onDelete: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
+/* ─── Result Modal ─── */
+function ResultModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const content = project.output_data?.result ?? "";
   const [copied, setCopied] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const preview = project.content.slice(0, 280).replace(/##\s+/g, "").trim();
-  const date = new Date(project.created_at).toLocaleDateString("en-US", {
-    month: "short", day: "numeric", year: "numeric",
-  });
 
   function handleCopy() {
-    navigator.clipboard.writeText(project.content);
+    navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 py-10">
+      <div className="w-full max-w-3xl bg-[#0d0d0d] border border-white/[0.08] rounded-2xl shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+          <div>
+            <p className="text-xs text-primary font-bold uppercase tracking-widest mb-0.5">
+              {project.project_type}
+            </p>
+            <h2 className="text-lg font-black text-white">{project.title}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCopy}
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
+            >
+              {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Copied!" : "Copy All"}
+            </Button>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="p-6">
+          {content ? (
+            <pre className="whitespace-pre-wrap font-sans text-sm text-white/70 leading-relaxed">
+              {content}
+            </pre>
+          ) : (
+            <p className="text-white/30 italic text-sm">No content saved.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Project Card ─── */
+function ProjectCard({
+  project,
+  onDelete,
+  onOpen,
+}: {
+  project: Project;
+  onDelete: (id: string) => void;
+  onOpen: (project: Project) => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const content = project.output_data?.result ?? "";
+  const preview = content.slice(0, 260).replace(/##\s+/g, "").trim();
+  const date = new Date(project.created_at).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+  const displayTitle =
+    project.title ||
+    [project.artist_name, project.song_title].filter(Boolean).join(" — ") ||
+    project.project_type;
+
+  const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
+  const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
+
   function handleDelete() {
-    if (!confirm(`Delete "${project.title}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return;
     setDeleting(true);
     onDelete(project.id);
   }
 
-  const iconColor = TYPE_COLORS[project.type] ?? "text-primary";
-  const icon = TYPE_ICONS[project.type] ?? <FolderOpen className="h-4 w-4" />;
-
   return (
-    <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-all overflow-hidden ${deleting ? "opacity-40 pointer-events-none" : ""}`}>
+    <div
+      className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-all overflow-hidden ${
+        deleting ? "opacity-40 pointer-events-none" : ""
+      }`}
+    >
       <div className="p-5 md:p-6">
-        <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={iconColor}>{icon}</span>
-              <span className="text-xs font-semibold text-white/40">{project.type}</span>
+              <span className="text-xs font-semibold text-white/40">{project.project_type}</span>
               <span className="text-white/15 text-xs">·</span>
               <span className="text-xs text-white/30">{date}</span>
-              <Badge className="text-[10px] border-white/10 bg-white/5 text-white/40 ml-1">
-                {project.credits_used} credit{project.credits_used !== 1 ? "s" : ""}
-              </Badge>
+              {project.credits_used > 0 && (
+                <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
+                  {project.credits_used} credit{project.credits_used !== 1 ? "s" : ""}
+                </Badge>
+              )}
             </div>
-            <h3 className="text-base font-bold text-white truncate">{project.title}</h3>
+            <h3 className="text-base font-bold text-white truncate">{displayTitle}</h3>
+            {(project.genre || project.mood) && (
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                {project.genre && (
+                  <span className="text-[11px] bg-white/[0.04] border border-white/[0.07] text-white/40 px-2 py-0.5 rounded-full">
+                    {project.genre}
+                  </span>
+                )}
+                {project.mood && (
+                  <span className="text-[11px] bg-white/[0.04] border border-white/[0.07] text-white/40 px-2 py-0.5 rounded-full">
+                    {project.mood}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={handleCopy}
-              className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/5 transition-colors"
-              title="Copy content"
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onOpen(project)}
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10 h-8 px-3 text-xs gap-1.5"
             >
-              {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-            </button>
+              <FolderOpen className="h-3.5 w-3.5" /> Open
+            </Button>
             <button
               onClick={handleDelete}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors"
@@ -99,33 +178,21 @@ function ProjectCard({
           </div>
         </div>
 
-        <p className="text-white/45 text-sm leading-relaxed line-clamp-3">{preview}</p>
-
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 mt-3 text-xs font-semibold text-primary/60 hover:text-primary transition-colors"
-        >
-          {expanded
-            ? <><ChevronUp className="h-3.5 w-3.5" /> Hide full content</>
-            : <><ChevronDown className="h-3.5 w-3.5" /> Show full content</>
-          }
-        </button>
+        {preview && (
+          <p className="text-white/35 text-sm leading-relaxed mt-3 line-clamp-2">{preview}</p>
+        )}
       </div>
-
-      {expanded && (
-        <div className="px-5 md:px-6 pb-5 border-t border-white/[0.05] pt-4">
-          <pre className="text-white/55 text-sm leading-relaxed whitespace-pre-wrap font-sans">{project.content}</pre>
-        </div>
-      )}
     </div>
   );
 }
 
+/* ─── Page ─── */
 export default function MyProjects() {
   const { user, getAccessToken } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openProject, setOpenProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (user) loadProjects();
@@ -157,6 +224,7 @@ export default function MyProjects() {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (openProject?.id === id) setOpenProject(null);
     } catch {
       alert("Failed to delete project. Please try again.");
     }
@@ -170,9 +238,17 @@ export default function MyProjects() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
+      {openProject && (
+        <ResultModal project={openProject} onClose={() => setOpenProject(null)} />
+      )}
+
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
-        {/* Header */}
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Dashboard
+        </Link>
+
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
@@ -188,11 +264,10 @@ export default function MyProjects() {
             My Projects
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
-            Every song, video plan, promo pack, and thumbnail you've generated — all saved here automatically.
+            Every song, video plan, promo pack, and thumbnail you've saved — all in one place.
           </p>
         </div>
 
-        {/* Content */}
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
@@ -215,9 +290,9 @@ export default function MyProjects() {
               <FolderOpen className="h-8 w-8 text-white/20" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white">No projects yet</h2>
+              <h2 className="text-xl font-bold text-white">No saved projects yet</h2>
               <p className="text-white/45 max-w-xs">
-                Generate your first song, music video, or promo pack and it will be saved here automatically.
+                Generate something, then hit Save Project to store it here for later.
               </p>
             </div>
             <Link href="/dashboard">
@@ -229,7 +304,12 @@ export default function MyProjects() {
         ) : (
           <div className="space-y-4">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} onDelete={handleDelete} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onDelete={handleDelete}
+                onOpen={setOpenProject}
+              />
             ))}
           </div>
         )}
