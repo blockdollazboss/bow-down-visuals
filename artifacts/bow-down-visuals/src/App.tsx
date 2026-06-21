@@ -69,6 +69,11 @@ function AppShell() {
         <MakeVideo />
       </Route>
 
+      {/* Make Song + Video — own full-width layout */}
+      <Route path="/song-and-video">
+        <SongAndVideo />
+      </Route>
+
       {/* Tool routes — with sidebar */}
       <Route>
         <SidebarProvider>
