@@ -189,7 +189,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-10 w-auto"
-            style={{ filter: "brightness(1.6) drop-shadow(0 0 6px rgba(218,165,32,0.55))" }}
+            style={{ filter: "brightness(2) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
           />
         </Link>
 
