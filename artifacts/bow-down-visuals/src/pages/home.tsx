@@ -182,13 +182,13 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-20 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-28 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-20 w-auto"
+            className="h-28 w-auto"
             style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
           />
         </Link>
@@ -274,6 +274,16 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       />
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-8">
+        {/* Hero Logo */}
+        <div className="flex justify-center">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Bow Down Visuals"
+            className="h-56 w-auto"
+            style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 24px rgba(138,43,226,0.8))" }}
+          />
+        </div>
+
         {/* Badge */}
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 text-sm font-medium text-primary">
           <Sparkles className="h-3.5 w-3.5" />
