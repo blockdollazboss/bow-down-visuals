@@ -14,7 +14,7 @@ export function SiteFooter() {
                 src={`${import.meta.env.BASE_URL}logo.png`}
                 alt="Bow Down Visuals"
                 className="h-44 w-auto"
-                style={{ filter: "brightness(1.1) drop-shadow(0 0 8px rgba(218,165,32,0.6))" }}
+                
               />
             </Link>
             <p className="text-white/30 text-sm mt-3 max-w-xs leading-relaxed">
