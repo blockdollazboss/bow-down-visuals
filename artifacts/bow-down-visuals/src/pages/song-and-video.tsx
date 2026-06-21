@@ -261,7 +261,7 @@ export default function SongAndVideo() {
       }, 100);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
-      if (msg === "out_of_credits") setOutOfCredits(true);
+      if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
       setLoading(false);

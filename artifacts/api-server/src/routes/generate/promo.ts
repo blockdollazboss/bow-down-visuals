@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { requireAuth, createUserSupabase } from "../../middlewares/require-auth";
+import { requireAuth, supabaseMutate } from "../../middlewares/require-auth";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -12,15 +12,13 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   const { artistName, songTitle, genre, mood, platform, promoGoal, songHook, instructions } = req.body as Record<string, string>;
 
-  const supabase = createUserSupabase(req.accessToken!);
+  const currentCredits = req.userCredits ?? 0;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", req.userId)
-    .single();
+  if (process.env["NODE_ENV"] === "development") {
+    console.log(`[generate-promo-clips] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
+  }
 
-  if (!profile || profile.credits < CREDIT_COST) {
+  if (currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
@@ -36,20 +34,20 @@ Genre: ${genre}
 Mood: ${mood}
 Platform: ${platform}
 Promo Goal: ${promoGoal}
-Song Hook / Best Bar: "${songHook}"
-${instructions ? `Additional Notes: ${instructions}` : ""}
+Song Hook/Key Line: ${songHook}
+${instructions ? `Special Instructions: ${instructions}` : ""}
 
-Return the output using EXACTLY these section headers. Make everything platform-ready, specific, and actionable for a music creator.
+Return the output using EXACTLY these section headers:
 
-## TIKTOK CLIP IDEAS
-## INSTAGRAM REEL IDEAS
-## YOUTUBE SHORTS IDEAS
-## HOOK CLIPS
-## CAPTION PACK
-## HASHTAG STRATEGY
-## POSTING SCHEDULE
-## STORY IDEAS
-## PROMO ROLLOUT PLAN`;
+## PROMO STRATEGY
+## CLIP 1
+## CLIP 2
+## CLIP 3
+## CLIP 4
+## CLIP 5
+## CAPTION IDEAS
+## HASHTAG SETS
+## POSTING SCHEDULE`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -58,24 +56,28 @@ Return the output using EXACTLY these section headers. Make everything platform-
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 2500,
+      max_tokens: 2000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
+    const creditsAfter = currentCredits - CREDIT_COST;
 
-    await supabase
-      .from("profiles")
-      .update({ credits: profile.credits - CREDIT_COST })
-      .eq("id", req.userId);
+    await supabaseMutate(req.accessToken!, "PATCH", "profiles", `id=eq.${req.userId}`, { credits: creditsAfter });
 
-    const title = [artistName, songTitle ? `${songTitle} Promo` : "Promo Pack"].filter(Boolean).join(" — ") || TOOL_TYPE;
-    const { data: project } = await supabase
-      .from("projects")
-      .insert({ user_id: req.userId, title, type: TOOL_TYPE, content, credits_used: CREDIT_COST })
-      .select("id")
-      .single();
+    if (process.env["NODE_ENV"] === "development") {
+      console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);
+    }
 
-    res.json({ result: content, projectId: project?.id, creditsRemaining: profile.credits - CREDIT_COST });
+    const title = [artistName, songTitle ? `${songTitle} Promo` : "Promo Clips"].filter(Boolean).join(" — ") || TOOL_TYPE;
+    await supabaseMutate(req.accessToken!, "POST", "projects", "", {
+      user_id: req.userId,
+      title,
+      type: TOOL_TYPE,
+      content,
+      credits_used: CREDIT_COST,
+    });
+
+    res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

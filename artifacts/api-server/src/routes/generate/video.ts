@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { requireAuth, createUserSupabase } from "../../middlewares/require-auth";
+import { requireAuth, supabaseMutate } from "../../middlewares/require-auth";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -12,15 +12,13 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 router.post("/generate-video-plan", requireAuth, async (req, res) => {
   const { artistName, songTitle, genre, mood, videoStyle, platform, videoLength, lyrics, artistDescription, instructions } = req.body as Record<string, string>;
 
-  const supabase = createUserSupabase(req.accessToken!);
+  const currentCredits = req.userCredits ?? 0;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", req.userId)
-    .single();
+  if (process.env["NODE_ENV"] === "development") {
+    console.log(`[generate-video-plan] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
+  }
 
-  if (!profile || profile.credits < CREDIT_COST) {
+  if (currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
@@ -65,20 +63,24 @@ Return the output using EXACTLY these section headers in this order. Make the vi
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
+    const creditsAfter = currentCredits - CREDIT_COST;
 
-    await supabase
-      .from("profiles")
-      .update({ credits: profile.credits - CREDIT_COST })
-      .eq("id", req.userId);
+    await supabaseMutate(req.accessToken!, "PATCH", "profiles", `id=eq.${req.userId}`, { credits: creditsAfter });
+
+    if (process.env["NODE_ENV"] === "development") {
+      console.log(`[generate-video-plan] success userId=${req.userId} creditsAfter=${creditsAfter}`);
+    }
 
     const title = [artistName, songTitle ? `${songTitle} Video` : "Music Video"].filter(Boolean).join(" — ") || TOOL_TYPE;
-    const { data: project } = await supabase
-      .from("projects")
-      .insert({ user_id: req.userId, title, type: TOOL_TYPE, content, credits_used: CREDIT_COST })
-      .select("id")
-      .single();
+    await supabaseMutate(req.accessToken!, "POST", "projects", "", {
+      user_id: req.userId,
+      title,
+      type: TOOL_TYPE,
+      content,
+      credits_used: CREDIT_COST,
+    });
 
-    res.json({ result: content, projectId: project?.id, creditsRemaining: profile.credits - CREDIT_COST });
+    res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { requireAuth, createUserSupabase } from "../../middlewares/require-auth";
+import { requireAuth, supabaseMutate } from "../../middlewares/require-auth";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -12,15 +12,13 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 router.post("/generate-song-video", requireAuth, async (req, res) => {
   const { artistName, songTitle, genre, mood, explicit, songTopic, voiceStyle, beatStyle, songLength, videoStyle, platform, videoLength, artistDescription, instructions } = req.body as Record<string, string>;
 
-  const supabase = createUserSupabase(req.accessToken!);
+  const currentCredits = req.userCredits ?? 0;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("credits")
-    .eq("id", req.userId)
-    .single();
+  if (process.env["NODE_ENV"] === "development") {
+    console.log(`[generate-song-video] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
+  }
 
-  if (!profile || profile.credits < CREDIT_COST) {
+  if (currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
@@ -48,31 +46,17 @@ ${instructions ? `Special Instructions: ${instructions}` : ""}
 Generate ALL of the following sections clearly labeled:
 
 ## HOOK
-Write a catchy, memorable hook perfect for the genre and mood.
-
 ## VERSE 1
-Write verse 1 with strong imagery and flow matching the voice style.
-
 ## VERSE 2
-Write verse 2 building on verse 1 with fresh details.
-
+## BRIDGE
+## OUTRO
 ## AI MUSIC PROMPT
-A detailed text prompt for Suno or Udio describing tempo, instruments, production style, vocal style, and energy.
-
-## VIDEO CONCEPT
-A 2-3 sentence high-level creative concept for the music video.
-
-## SCENE PROMPTS
-Write 4 detailed scene prompts (usable for AI video generation tools) with visual descriptions, color, lighting, and action.
-
-## THUMBNAIL IDEAS
-Write 3 specific thumbnail concepts with composition, color palette, text overlay, and mood.
-
-## CAPTIONS
-Write 5 platform-ready social media captions (mix of Instagram, TikTok, and Twitter styles).
-
-## PROMO IDEAS
-Write 3 creative promo ideas for the release rollout (teasers, countdowns, content ideas).`;
+## DIRECTOR'S TREATMENT
+## SCENE-BY-SCENE BREAKDOWN
+## AI VIDEO PROMPTS
+## PROMO CLIP IDEAS
+## THUMBNAIL PROMPTS
+## CAPTION IDEAS`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -85,20 +69,24 @@ Write 3 creative promo ideas for the release rollout (teasers, countdowns, conte
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
+    const creditsAfter = currentCredits - CREDIT_COST;
 
-    await supabase
-      .from("profiles")
-      .update({ credits: profile.credits - CREDIT_COST })
-      .eq("id", req.userId);
+    await supabaseMutate(req.accessToken!, "PATCH", "profiles", `id=eq.${req.userId}`, { credits: creditsAfter });
+
+    if (process.env["NODE_ENV"] === "development") {
+      console.log(`[generate-song-video] success userId=${req.userId} creditsAfter=${creditsAfter}`);
+    }
 
     const title = [artistName, songTitle].filter(Boolean).join(" — ") || TOOL_TYPE;
-    const { data: project } = await supabase
-      .from("projects")
-      .insert({ user_id: req.userId, title, type: TOOL_TYPE, content, credits_used: CREDIT_COST })
-      .select("id")
-      .single();
+    await supabaseMutate(req.accessToken!, "POST", "projects", "", {
+      user_id: req.userId,
+      title,
+      type: TOOL_TYPE,
+      content,
+      credits_used: CREDIT_COST,
+    });
 
-    res.json({ result: content, projectId: project?.id, creditsRemaining: profile.credits - CREDIT_COST });
+    res.json({ result: content, creditsRemaining: creditsAfter });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });
