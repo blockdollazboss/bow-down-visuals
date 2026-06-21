@@ -46,8 +46,8 @@ export default function Login() {
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Bow Down Visuals"
-              className="h-24 w-auto"
-              style={{ filter: "brightness(2) saturate(0) drop-shadow(0 0 10px rgba(138,43,226,0.7))" }}
+              className="h-32 w-auto"
+              style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 10px rgba(138,43,226,0.7))" }}
             />
           </div>
           <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
