@@ -274,6 +274,16 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       />
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-8">
+        {/* Hero Logo */}
+        <div className="flex justify-center pb-2">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Bow Down Visuals"
+            className="h-52 w-auto"
+            style={{ filter: "drop-shadow(0 0 18px rgba(218,165,32,0.45)) drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
+          />
+        </div>
+
         {/* Badge */}
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 text-sm font-medium text-primary">
           <Sparkles className="h-3.5 w-3.5" />
