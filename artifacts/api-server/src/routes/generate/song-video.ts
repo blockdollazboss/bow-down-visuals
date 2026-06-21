@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { requireAuth, supabaseMutate } from "../../middlewares/require-auth";
+import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -72,14 +72,14 @@ Generate ALL of the following sections clearly labeled:
     const content = completion.choices[0]?.message?.content ?? "";
     const creditsAfter = currentCredits - CREDIT_COST;
 
-    await supabaseMutate(req.accessToken!, "PATCH", "profiles", `id=eq.${req.userId}`, { credits: creditsAfter });
+    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
 
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-song-video] success userId=${req.userId} creditsAfter=${creditsAfter}`);
     }
 
     const title = [artistName, songTitle].filter(Boolean).join(" — ") || TOOL_TYPE;
-    await supabaseMutate(req.accessToken!, "POST", "projects", "", {
+    await req.userSupabase!.from("projects").insert({
       user_id: req.userId,
       title,
       type: TOOL_TYPE,

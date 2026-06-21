@@ -1,45 +1,42 @@
 import { Router } from "express";
-import { requireAuth, supabaseRow, supabaseMutate } from "../middlewares/require-auth";
+import { requireAuth } from "../middlewares/require-auth";
 
 const router = Router();
 
 // Dev-only credit top-up. Protected by requireAuth (needs valid Supabase JWT).
-// The +10 Credits button in the top bar is only rendered when import.meta.env.DEV is true,
-// so production users never see this button. The endpoint itself has no NODE_ENV guard
-// because that env var was unreliable inside the esbuild bundle.
+// Button only renders in the browser when import.meta.env.DEV is true.
 router.post("/dev/add-credits", requireAuth, async (req, res) => {
-  const { data: profile, httpStatus, rawError } = await supabaseRow<{ credits: number }>(
-    req.accessToken!,
-    "profiles",
-    `id=eq.${req.userId}&select=credits`,
-  );
+  const supabase = req.userSupabase!;
+
+  const { data: profile, error: fetchError } = await supabase
+    .from("profiles")
+    .select("credits")
+    .eq("id", req.userId!)
+    .single();
 
   if (process.env["NODE_ENV"] === "development") {
-    console.log(`[dev/add-credits] userId=${req.userId} profileHttpStatus=${httpStatus} rawError=${rawError} credits=${profile?.credits}`);
+    console.log(`[dev/add-credits] userId=${req.userId} credits=${profile?.credits} fetchError=${fetchError?.message ?? "none"}`);
   }
 
   if (!profile) {
-    res.status(404).json({ error: "Profile not found", httpStatus, rawError });
+    res.status(404).json({ error: "Profile not found", detail: fetchError?.message });
     return;
   }
 
   const newCredits = profile.credits + 10;
 
-  const { httpStatus: patchStatus, rawError: patchError } = await supabaseMutate(
-    req.accessToken!,
-    "PATCH",
-    "profiles",
-    `id=eq.${req.userId}`,
-    { credits: newCredits },
-  );
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ credits: newCredits })
+    .eq("id", req.userId!);
 
-  if (process.env["NODE_ENV"] === "development") {
-    console.log(`[dev/add-credits] patch httpStatus=${patchStatus} rawError=${patchError} newCredits=${newCredits}`);
+  if (updateError) {
+    res.status(500).json({ error: updateError.message });
+    return;
   }
 
-  if (patchError) {
-    res.status(500).json({ error: patchError });
-    return;
+  if (process.env["NODE_ENV"] === "development") {
+    console.log(`[dev/add-credits] updated newCredits=${newCredits}`);
   }
 
   res.json({ credits: newCredits });

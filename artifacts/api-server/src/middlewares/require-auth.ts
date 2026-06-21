@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Request, Response, NextFunction } from "express";
 
 declare global {
@@ -8,6 +8,7 @@ declare global {
       userEmail?: string;
       accessToken?: string;
       userCredits?: number;
+      userSupabase?: SupabaseClient;
     }
   }
 }
@@ -15,77 +16,17 @@ declare global {
 const SUPABASE_URL = process.env["SUPABASE_URL"] ?? "";
 const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? "";
 
-// Raw HTTP helper — bypasses the SDK's apikey header quirk with sb_publishable_* keys.
-// Returns { data, error } where data is the first matching row (or null).
-export async function supabaseRow<T = Record<string, unknown>>(
-  token: string,
-  table: string,
-  query: string, // e.g. "id=eq.abc&select=credits"
-): Promise<{ data: T | null; httpStatus: number; rawError: string | null }> {
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
-  let httpStatus = 0;
-  let rawError: string | null = null;
-  try {
-    const res = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-    });
-    httpStatus = res.status;
-    if (!res.ok) {
-      rawError = await res.text();
-      return { data: null, httpStatus, rawError };
-    }
-    const json = (await res.json()) as T[];
-    return { data: json[0] ?? null, httpStatus, rawError: null };
-  } catch (err) {
-    rawError = err instanceof Error ? err.message : String(err);
-    return { data: null, httpStatus, rawError };
-  }
-}
-
-// Mutate a row via PATCH or POST.
-export async function supabaseMutate(
-  token: string,
-  method: "PATCH" | "POST",
-  table: string,
-  query: string,
-  body: Record<string, unknown>,
-): Promise<{ httpStatus: number; rawError: string | null }> {
-  const url = `${SUPABASE_URL}/rest/v1/${table}${query ? `?${query}` : ""}`;
-  let httpStatus = 0;
-  let rawError: string | null = null;
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Prefer: method === "POST" ? "return=minimal" : "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
-    httpStatus = res.status;
-    if (!res.ok) {
-      rawError = await res.text();
-    }
-    return { httpStatus, rawError };
-  } catch (err) {
-    rawError = err instanceof Error ? err.message : String(err);
-    return { httpStatus, rawError };
-  }
-}
-
-// Kept for backward compat in dev.ts only.
-export function createUserSupabase(accessToken: string) {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { persistSession: false },
+// Creates a Supabase client with the user's session active — mirrors exactly
+// how the frontend SDK operates after signIn, which is required for the
+// sb_publishable_* key format to reach PostgREST correctly.
+export async function createSessionSupabase(accessToken: string): Promise<SupabaseClient> {
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
+  // setSession registers the JWT as the active session; subsequent table
+  // queries use it the same way the browser SDK does.
+  await client.auth.setSession({ access_token: accessToken, refresh_token: accessToken });
+  return client;
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -96,9 +37,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   const token = authHeader.slice(7);
 
-  // Validate the JWT via Supabase Auth (this always works regardless of key format).
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  // Validate token via auth.getUser (works regardless of key format).
+  const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+  const { data: { user }, error } = await anonClient.auth.getUser(token);
 
   if (error || !user) {
     res.status(401).json({ error: "Unauthorized" });
@@ -109,38 +50,42 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   req.userEmail = user.email;
   req.accessToken = token;
 
-  // Fetch the profile (credits) via raw HTTP so we bypass the SDK apikey quirk.
-  const { data: profile, httpStatus, rawError } = await supabaseRow<{ id: string; credits: number }>(
-    token,
-    "profiles",
-    `id=eq.${user.id}&select=id,credits`,
-  );
+  // Build a properly-sessioned client and attach to req for use in routes.
+  const userClient = await createSessionSupabase(token);
+  req.userSupabase = userClient;
+
+  // Fetch profile with credits.
+  const { data: profile, error: profileError } = await userClient
+    .from("profiles")
+    .select("id, credits")
+    .eq("id", user.id)
+    .single();
 
   if (process.env["NODE_ENV"] === "development") {
-    console.log(`[requireAuth] userId=${user.id} profileQuery httpStatus=${httpStatus} rawError=${rawError} credits=${profile?.credits}`);
+    console.log(`[requireAuth] userId=${user.id} profileOk=${!!profile} profileError=${profileError?.message ?? "none"} credits=${profile?.credits}`);
   }
 
   if (profile) {
     req.userCredits = profile.credits;
   } else {
-    // Profile doesn't exist yet — create it with 10 starter credits.
-    const { httpStatus: insertStatus, rawError: insertError } = await supabaseMutate(
-      token,
-      "POST",
-      "profiles",
-      "",
-      {
+    // Profile doesn't exist yet — create it.
+    const { data: newProfile, error: insertError } = await userClient
+      .from("profiles")
+      .insert({
         id: user.id,
         email: user.email ?? "",
         display_name: (user.user_metadata as Record<string, unknown>)?.display_name ?? null,
         plan: "free",
         credits: 10,
-      },
-    );
+      })
+      .select("credits")
+      .single();
+
     if (process.env["NODE_ENV"] === "development") {
-      console.log(`[requireAuth] profile insert httpStatus=${insertStatus} rawError=${insertError}`);
+      console.log(`[requireAuth] insert newProfile=${!!newProfile} insertError=${insertError?.message ?? "none"}`);
     }
-    req.userCredits = 10;
+
+    req.userCredits = newProfile?.credits ?? 10;
   }
 
   next();

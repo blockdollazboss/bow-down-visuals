@@ -1,12 +1,10 @@
 import { Router } from "express";
-import { requireAuth, createUserSupabase } from "../middlewares/require-auth";
+import { requireAuth } from "../middlewares/require-auth";
 
 const router = Router();
 
 router.get("/projects", requireAuth, async (req, res) => {
-  const supabase = createUserSupabase(req.accessToken!);
-
-  const { data: projects, error } = await supabase
+  const { data: projects, error } = await req.userSupabase!
     .from("projects")
     .select("id, title, type, content, credits_used, created_at")
     .eq("user_id", req.userId)
@@ -21,10 +19,9 @@ router.get("/projects", requireAuth, async (req, res) => {
 });
 
 router.delete("/projects/:id", requireAuth, async (req, res) => {
-  const supabase = createUserSupabase(req.accessToken!);
   const { id } = req.params;
 
-  const { error } = await supabase
+  const { error } = await req.userSupabase!
     .from("projects")
     .delete()
     .eq("id", id)

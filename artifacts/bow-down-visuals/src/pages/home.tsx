@@ -1,5 +1,5 @@
 import { useState, useRef, forwardRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -175,10 +175,15 @@ const FAQS = [
 
 function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
   const [open, setOpen] = useState(false);
+  const [, navigate] = useLocation();
 
-  function scrollTo(id: string) {
-    document.querySelector(id)?.scrollIntoView({ behavior: "smooth" });
+  function scrollTo(href: string) {
     setOpen(false);
+    if (href.startsWith("/")) {
+      navigate(href);
+    } else {
+      document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   return (
