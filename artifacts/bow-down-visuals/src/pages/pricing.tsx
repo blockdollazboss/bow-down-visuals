@@ -19,7 +19,7 @@ function NavBar() {
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-14 w-auto"
+            className="h-16 w-auto"
             style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
           />
         </Link>
