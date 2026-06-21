@@ -99,7 +99,18 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
   }
+
+  html, body {
+    background-color: hsl(0 0% 4%);
+  }
 }
 
 .gold-glow { box-shadow: 0 0 20px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.12); }
 .gold-glow-sm { box-shadow: 0 0 10px rgba(218, 165, 32, 0.25); }
+
+/* Brick texture — true staggered brick via SVG tile */
+html, body, .bg-background, [class*="min-h-screen"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'%3E%3Cline x1='0' y1='50' x2='200' y2='50' stroke='%23505050' stroke-width='1.5' stroke-opacity='0.35'/%3E%3Cline x1='100' y1='0' x2='100' y2='50' stroke='%23505050' stroke-width='1.5' stroke-opacity='0.35'/%3E%3Cline x1='50' y1='50' x2='50' y2='100' stroke='%23505050' stroke-width='1.5' stroke-opacity='0.35'/%3E%3Cline x1='150' y1='50' x2='150' y2='100' stroke='%23505050' stroke-width='1.5' stroke-opacity='0.35'/%3E%3C/svg%3E") !important;
+  background-size: 200px 100px !important;
+  background-position: 0 0 !important;
+}
