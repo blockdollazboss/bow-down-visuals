@@ -182,13 +182,13 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-20 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-16 w-auto"
+            className="h-20 w-auto"
             style={{ filter: "brightness(3) saturate(0) drop-shadow(0 0 8px rgba(138,43,226,0.65))" }}
           />
         </Link>
