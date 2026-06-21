@@ -8,6 +8,7 @@ import promoRouter from "./generate/promo";
 import thumbnailRouter from "./generate/thumbnail";
 import projectsRouter from "./projects";
 import waitlistRouter from "./waitlist";
+import devRouter from "./dev";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(promoRouter);
 router.use(thumbnailRouter);
 router.use(projectsRouter);
 router.use(waitlistRouter);
+router.use(devRouter);
 
 export default router;
