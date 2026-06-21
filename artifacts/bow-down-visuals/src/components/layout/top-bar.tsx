@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Zap, FolderOpen, Settings, Menu, X } from "lucide-react";
-
-interface TopBarProps {
-  credits?: number;
-  showCredits?: boolean;
-}
+import { Zap, FolderOpen, LogOut, Menu, X, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
@@ -14,9 +10,15 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing" },
 ];
 
-export function TopBar({ credits = 3, showCredits = true }: TopBarProps) {
+export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { user, profile, signOut } = useAuth();
+
+  async function handleSignOut() {
+    await signOut();
+    setLocation("/");
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
@@ -45,20 +47,37 @@ export function TopBar({ credits = 3, showCredits = true }: TopBarProps) {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
-          {showCredits && (
+        <div className="flex items-center gap-2.5">
+          {user && profile && (
             <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5">
               <Zap className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-bold text-white">{credits}</span>
+              <span className="text-sm font-bold text-white">{profile.credits}</span>
               <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
             </div>
           )}
-          <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-white/45 hover:text-white transition-colors">
-            <FolderOpen className="h-4 w-4" />
-          </Link>
-          <button className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings className="h-4 w-4" />
-          </button>
+
+          {user ? (
+            <>
+              <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-white/45 hover:text-white transition-colors">
+                <FolderOpen className="h-4 w-4" />
+              </Link>
+              <div className="hidden md:flex items-center gap-1 text-xs text-white/30 font-medium truncate max-w-[120px]">
+                <User className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{profile?.display_name ?? user.email?.split("@")[0]}</span>
+              </div>
+              <button
+                onClick={handleSignOut}
+                title="Sign Out"
+                className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/5 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <Link href="/login" className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 transition-colors">
+              Sign In
+            </Link>
+          )}
 
           {/* Mobile hamburger */}
           <button
@@ -87,10 +106,23 @@ export function TopBar({ credits = 3, showCredits = true }: TopBarProps) {
               {link.label}
             </Link>
           ))}
-          <div className="pt-2 border-t border-white/[0.05] mt-2">
-            <button className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white/40 w-full hover:text-white hover:bg-white/[0.04] transition-colors">
-              <Settings className="h-4 w-4" /> Settings
-            </button>
+          <div className="pt-2 border-t border-white/[0.05] mt-2 space-y-1">
+            {user ? (
+              <button
+                onClick={() => { setMenuOpen(false); handleSignOut(); }}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400/70 w-full hover:text-red-400 hover:bg-red-500/5 transition-colors"
+              >
+                <LogOut className="h-4 w-4" /> Sign Out
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-primary w-full hover:bg-primary/5 transition-colors"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       )}

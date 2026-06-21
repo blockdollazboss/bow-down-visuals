@@ -1,9 +1,10 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Home        from "@/pages/home";
 import Dashboard   from "@/pages/dashboard";
@@ -44,17 +45,17 @@ function AppShell() {
       <Route path="/pricing"><Pricing /></Route>
       <Route path="/waitlist"><Waitlist /></Route>
 
-      {/* App pages */}
-      <Route path="/dashboard"><Dashboard /></Route>
-      <Route path="/my-projects"><MyProjects /></Route>
-      <Route path="/artist-vault"><ArtistVault /></Route>
+      {/* Protected app pages */}
+      <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
+      <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
+      <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
 
-      {/* Tool pages */}
-      <Route path="/make-song"><MakeSong /></Route>
-      <Route path="/make-video"><MakeVideo /></Route>
-      <Route path="/song-and-video"><SongAndVideo /></Route>
-      <Route path="/promo-clip"><PromoClip /></Route>
-      <Route path="/thumbnail"><Thumbnail /></Route>
+      {/* Protected tool pages */}
+      <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
+      <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
+      <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
+      <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
+      <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
 
       <Route component={NotFound} />
     </Switch>

@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Image as ImageIcon, ArrowLeft, Copy, CheckCheck, Loader2, Download, Save, ChevronRight } from "lucide-react";
+import { Image as ImageIcon, ArrowLeft, Copy, CheckCheck, Loader2, Download, FolderOpen, ChevronRight } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
+import { useAuth } from "@/contexts/AuthContext";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface FormValues {
   artistName: string;
@@ -103,9 +105,11 @@ function ResultSection({ data, onClear }: { data: Record<string, string>; onClea
           <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2">
             Clear Result
           </Button>
-          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
-            <Save className="h-3.5 w-3.5" /> Save <Badge variant="outline" className="border-white/10 text-white/20 text-[10px] ml-1">Soon</Badge>
-          </Button>
+          <Link href="/my-projects">
+            <Button variant="outline" size="sm" className="border-primary/20 bg-primary/5 text-primary/70 hover:bg-primary/10 hover:text-primary gap-1.5">
+              <FolderOpen className="h-3.5 w-3.5" /> Saved to My Projects
+            </Button>
+          </Link>
           <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
             <Download className="h-3.5 w-3.5" /> Download <Badge variant="outline" className="border-white/10 text-white/20 text-[10px] ml-1">Soon</Badge>
           </Button>
@@ -130,9 +134,11 @@ function ResultSection({ data, onClear }: { data: Record<string, string>; onClea
         <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-1.5">
           Clear Result
         </Button>
-        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
-          <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
-        </Button>
+        <Link href="/my-projects">
+          <Button variant="outline" size="sm" className="border-primary/20 bg-primary/5 text-primary/70 hover:bg-primary/10 hover:text-primary gap-1.5">
+            <FolderOpen className="h-3.5 w-3.5" /> Saved to My Projects
+          </Button>
+        </Link>
         <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
           <Download className="h-3.5 w-3.5" /> Download Coming Soon
         </Button>
@@ -142,9 +148,11 @@ function ResultSection({ data, onClear }: { data: Record<string, string>; onClea
 }
 
 export default function Thumbnail() {
+  const { getAccessToken, refreshProfile } = useAuth();
   const [result, setResult] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [outOfCredits, setOutOfCredits] = useState(false);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: { artistName: "", songTitle: "", platform: "", artStyle: "", colorTheme: "", mood: "", featuredText: "", specialRequests: "" },
   });
@@ -154,8 +162,10 @@ export default function Thumbnail() {
     setLoading(true);
     setResult(null);
     setError(null);
+    setOutOfCredits(false);
     try {
-      const data = await callGenerateApi("/api/generate-thumbnail", {
+      const token = await getAccessToken();
+      const { sections, creditsRemaining } = await callGenerateApi("/api/generate-thumbnail", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         platform: values.platform,
@@ -164,13 +174,16 @@ export default function Thumbnail() {
         mood: values.mood,
         featuredText: values.featuredText,
         requests: values.specialRequests,
-      });
-      setResult(data);
+      }, token);
+      setResult(sections);
+      if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("thumb-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
+      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      if (msg === "out_of_credits") setOutOfCredits(true);
+      else setError(msg);
     } finally {
       setLoading(false);
     }
@@ -252,6 +265,8 @@ export default function Thumbnail() {
           </form>
         </div>
 
+        {outOfCredits && <OutOfCredits />}
+
         {error && (
           <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
             <p className="text-red-400 text-sm font-medium">{error}</p>
@@ -260,7 +275,7 @@ export default function Thumbnail() {
 
         {result && (
           <div id="thumb-result">
-            <ResultSection data={result} onClear={() => { setResult(null); setError(null); }} />
+            <ResultSection data={result} onClear={() => { setResult(null); setError(null); setOutOfCredits(false); }} />
           </div>
         )}
 

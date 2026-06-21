@@ -20,6 +20,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  getAccessToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -74,6 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchProfile(client, user.id);
   }
 
+  async function getAccessToken(): Promise<string | null> {
+    try {
+      const client = getSupabase();
+      const { data: { session } } = await client.auth.getSession();
+      return session?.access_token ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async function signUp(email: string, password: string, displayName: string) {
     const client = getSupabase();
     const { error } = await client.auth.signUp({
@@ -96,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signOut, refreshProfile, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

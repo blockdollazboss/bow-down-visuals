@@ -15,19 +15,36 @@ export function parseMarkdownSections(text: string): Record<string, string> {
   return sections;
 }
 
+export interface GenerateResult {
+  sections: Record<string, string>;
+  creditsRemaining?: number;
+  projectId?: string;
+}
+
 export async function callGenerateApi(
   endpoint: string,
-  body: Record<string, unknown>
-): Promise<Record<string, string>> {
+  body: Record<string, unknown>,
+  token?: string | null
+): Promise<GenerateResult> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));
-    throw new Error((err as { error?: string }).error ?? "Generation failed");
+    const errObj = err as { error?: string; message?: string };
+    throw new Error(errObj.error ?? errObj.message ?? "Generation failed");
   }
-  const data = (await res.json()) as { result: string };
-  return parseMarkdownSections(data.result);
+
+  const data = (await res.json()) as { result: string; creditsRemaining?: number; projectId?: string };
+  return {
+    sections: parseMarkdownSections(data.result),
+    creditsRemaining: data.creditsRemaining,
+    projectId: data.projectId,
+  };
 }

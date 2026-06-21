@@ -90,7 +90,19 @@ const CARDS = [
 
 /* ─────────────────────────── CARD ─────────────────────────── */
 
-function DashboardCard({ card }: { card: typeof CARDS[number] }) {
+interface CardData {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  href: string;
+  featured: boolean;
+  cta: string;
+  badge?: string;
+  comingSoon?: boolean;
+  isWaitlist?: boolean;
+}
+
+function DashboardCard({ card }: { card: CardData }) {
   const inner = (
     <div
       className={`relative group flex flex-col h-full p-7 rounded-2xl border transition-all duration-300 cursor-pointer
