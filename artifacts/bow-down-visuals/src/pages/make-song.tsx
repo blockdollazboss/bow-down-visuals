@@ -11,6 +11,7 @@ import {
   Copy, CheckCheck, ChevronRight, Loader2, Download, Save
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { callGenerateApi } from "@/lib/generate-api";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -43,43 +44,6 @@ const MOODS = [
 
 const LENGTHS = ["30 seconds", "60 seconds", "2 minutes", "Full song"];
 
-/* ─────────────────────────── PLACEHOLDER RESULT ─────────────────────────── */
-
-function buildPlaceholder(v: SongFormValues) {
-  const artist = v.artistName || "The Artist";
-  const title = v.songTitle || "Untitled";
-  const genre = v.genre || "Hip Hop";
-  const mood = v.mood || "Emotional";
-  const topic = v.songTopic || "the come-up";
-
-  return {
-    "Song Concept": `A ${mood.toLowerCase()} ${genre} track about ${topic}. The story follows ${artist} navigating real moments with raw honesty — built for listeners who feel everything deeply. The energy stays consistent throughout, locking in a signature sound that defines this era of ${artist}'s brand.`,
-
-    "Title Ideas": `• "${title}"\n• "${title} (The Anthem)"\n• "No More Waiting"\n• "From the Ground Up"\n• "${artist}'s World"`,
-
-    "Full Lyrics": `[Intro]\nYeah, it's ${artist}\nThis one's for the real ones\n\n[Hook]\nEvery night I'm up, chasing what I need\nCan't stop now, I got too much to believe\n${mood === "Dark" ? "Shadows on my back, still I plant my seed" : "Sun behind my name, let the whole world see"}\nThis is for the ones who know what it means to bleed\n\n[Verse 1]\nStarted from the bottom, didn't have a clue\nNow they all watching, wonder what I'll do\n${genre === "Drill" ? "In the trenches, every day I push through" : "In the studio, making every line true"}\nDedicated to the ones who never doubted you\n\n[Verse 2]\nEverybody talks but few know the real\nI've been working silent, that's the only deal\nLate nights, early mornings — that's how you build\n${mood === "Luxury" ? "Now the lifestyle matches everything I feel" : "Still I move in silence, staying focused and skilled"}\n\n[Bridge]\nThey said I'd never make it, look at me now\nEvery doubt they gave me turned into my crown\nNot just for the money, I'm doing this for life\nEvery sacrifice I made was sharpening my knife\n\n[Outro]\nYeah… ${artist}\n${title}\nThis is just the beginning\nBow Down.`,
-
-    "Hook": `Every night I'm up, chasing what I need\nCan't stop now, I got too much to believe\n${mood === "Dark" ? "Shadows on my back, still I plant my seed" : "Sun behind my name, let the whole world see"}\nThis is for the ones who know what it means to bleed`,
-
-    "Verse 1": `Started from the bottom, didn't have a clue\nNow they all watching, wonder what I'll do\n${genre === "Drill" ? "In the trenches, every day I push through" : "In the studio, making every line true"}\nDedicated to the ones who never doubted you`,
-
-    "Verse 2": `Everybody talks but few know the real\nI've been working silent, that's the only deal\nLate nights, early mornings — that's how you build\n${mood === "Luxury" ? "Now the lifestyle matches everything I feel" : "Still I move in silence, staying focused and skilled"}`,
-
-    "Bridge": `They said I'd never make it, look at me now\nEvery doubt they gave me turned into my crown\nNot just for the money, I'm doing this for life\nEvery sacrifice I made was sharpening my knife`,
-
-    "Outro": `Yeah… ${artist}\n${title}\nThis is just the beginning\nBow Down.`,
-
-    "AI Music Prompt": `Generate a ${mood.toLowerCase()} ${genre} instrumental with ${v.beatStyle || "punchy 808s and layered hi-hats"}. BPM range: ${genre === "Drill" ? "140–145" : genre === "R&B" ? "75–85" : "90–105"}. Key: ${mood === "Dark" ? "F minor" : "G major"}. Include atmospheric pads, ${v.beatStyle || "trap-style drums"}, and melodic elements that evoke ${topic}. The drop should hit at 0:32. Master for streaming at -14 LUFS.`,
-
-    "Suggested Beat Style": `${v.beatStyle || `Dark melodic ${genre} — rolling 808 bass, crisp snare, layered hi-hats, and a haunting piano or synth lead. Tempo: 140 BPM. Key: F minor. The intro should breathe for 8 bars before the full beat drops.`}`,
-
-    "Suggested Vocal Style": `${v.voiceStyle || `Confident and controlled delivery with subtle ad-libs. Punch in on every 2nd and 4th beat. Use light autotune for texture — not pitch correction. Layer the hook 3x with harmony on the last syllable of each line. Record ${v.cleanOrExplicit === "Clean" ? "clean takes with radio-friendly substitutions" : "explicit takes with full raw delivery"}.`}`,
-
-    "Cover Art Prompt": `Dark studio environment, dramatic single-point lighting from above. ${artist} standing center frame, wearing all black, head slightly tilted. Neon purple light leaks in the background spelling "${title}". Cinematic color grade — deep blacks, cool highlights, purple tones. Aspect ratio: 1:1 for streaming, 16:9 for YouTube. Text: "${title}" in bold white serif at the bottom third.`,
-
-    "Music Video Idea": `Open on a time-lapse of an empty city at 3AM — streets wet from rain, streetlights reflecting. Cut to ${artist} alone in a studio, headphones on, writing in a notebook. As the hook hits, quick-cut montage: early mornings, late nights, practice sessions. The bridge pulls back to a rooftop at golden hour — city panorama — representing the breakthrough. Final shot: ${artist} walking away from camera as lights come on across the skyline. Director's style: cinematic, intimate, story-driven.`,
-  };
-}
 
 
 /* ─────────────────────────── FORM FIELD WRAPPERS ─────────────────────────── */
@@ -137,7 +101,7 @@ function StyledSelect({
 
 /* ─────────────────────────── RESULT SECTION ─────────────────────────── */
 
-function ResultSection({ data }: { data: Record<string, string> }) {
+function ResultSection({ data, onClear }: { data: Record<string, string>; onClear: () => void }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -153,7 +117,6 @@ function ResultSection({ data }: { data: Record<string, string> }) {
 
   return (
     <div className="space-y-6 mt-10">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -163,43 +126,27 @@ function ResultSection({ data }: { data: Record<string, string> }) {
           <h2 className="text-2xl font-black text-white">Song Package</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            onClick={handleCopy}
-            variant="outline"
-            size="sm"
-            className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
-          >
+          <Button onClick={handleCopy} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
             {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copied!" : "Copy Result"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="border-white/5 text-white/25 cursor-not-allowed gap-2"
-          >
+          <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2">
+            Clear Result
+          </Button>
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
             <Save className="h-4 w-4" /> Save Project
             <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            className="border-white/5 text-white/25 cursor-not-allowed gap-2"
-          >
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
             <Download className="h-4 w-4" /> Download
             <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
           </Button>
         </div>
       </div>
 
-      {/* Sections */}
       <div className="space-y-4">
         {sections.map(([heading, content], i) => (
-          <div
-            key={heading}
-            className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors"
-          >
+          <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
             <div className="flex items-center gap-3 mb-4">
               <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
               <h3 className="text-base font-bold text-white">{heading}</h3>
@@ -209,14 +156,13 @@ function ResultSection({ data }: { data: Record<string, string> }) {
         ))}
       </div>
 
-      {/* Bottom action row */}
       <div className="flex items-center gap-2 flex-wrap pt-2">
-        <Button
-          onClick={handleCopy}
-          className="purple-glow font-semibold gap-2"
-        >
+        <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
           {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy Result"}
+        </Button>
+        <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-1.5">
+          Clear Result
         </Button>
         <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
           <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
@@ -234,6 +180,7 @@ function ResultSection({ data }: { data: Record<string, string> }) {
 export default function MakeSong() {
   const [result, setResult] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SongFormValues>({
     defaultValues: {
@@ -245,16 +192,32 @@ export default function MakeSong() {
 
   const watched = watch();
 
-  function onSubmit(values: SongFormValues) {
+  async function onSubmit(values: SongFormValues) {
     setLoading(true);
     setResult(null);
-    setTimeout(() => {
-      setResult(buildPlaceholder(values));
-      setLoading(false);
+    setError(null);
+    try {
+      const data = await callGenerateApi("/api/generate-song", {
+        artistName: values.artistName,
+        songTitle: values.songTitle,
+        genre: values.genre,
+        mood: values.mood,
+        songTopic: values.songTopic,
+        explicit: values.cleanOrExplicit,
+        voiceStyle: values.voiceStyle,
+        beatStyle: values.beatStyle,
+        songLength: values.songLength,
+        instructions: values.specialInstructions,
+      });
+      setResult(data);
       setTimeout(() => {
         document.getElementById("song-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    }, 1400);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -422,10 +385,15 @@ export default function MakeSong() {
           </form>
         </div>
 
-        {/* Result */}
+        {error && (
+          <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+            <p className="text-red-400 text-sm font-medium">{error}</p>
+          </div>
+        )}
+
         {result && (
           <div id="song-result">
-            <ResultSection data={result} />
+            <ResultSection data={result} onClear={() => { setResult(null); setError(null); }} />
           </div>
         )}
 

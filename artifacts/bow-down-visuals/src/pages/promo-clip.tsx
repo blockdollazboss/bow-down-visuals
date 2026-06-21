@@ -11,6 +11,7 @@ import {
   Copy, CheckCheck, Loader2, Download, Save, ChevronRight,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { callGenerateApi } from "@/lib/generate-api";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -259,7 +260,7 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 
 /* ─────────────────────────── RESULT ─────────────────────────── */
 
-function ResultSection({ data }: { data: Record<string, string> }) {
+function ResultSection({ data, onClear }: { data: Record<string, string>; onClear: () => void }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -284,6 +285,9 @@ function ResultSection({ data }: { data: Record<string, string> }) {
             {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copied!" : "Copy Result"}
           </Button>
+          <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2">
+            Clear Result
+          </Button>
           <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
             <Save className="h-4 w-4" /> Save Project
             <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
@@ -294,7 +298,6 @@ function ResultSection({ data }: { data: Record<string, string> }) {
           </Button>
         </div>
       </div>
-
       <div className="space-y-4">
         {Object.entries(data).map(([heading, content], i) => (
           <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
@@ -306,11 +309,13 @@ function ResultSection({ data }: { data: Record<string, string> }) {
           </div>
         ))}
       </div>
-
       <div className="flex items-center gap-2 flex-wrap pt-2">
         <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
           {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           {copied ? "Copied!" : "Copy Result"}
+        </Button>
+        <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-1.5">
+          Clear Result
         </Button>
         <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
           <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
@@ -328,6 +333,7 @@ function ResultSection({ data }: { data: Record<string, string> }) {
 export default function PromoClip() {
   const [result, setResult] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -338,16 +344,30 @@ export default function PromoClip() {
 
   const watched = watch();
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     setLoading(true);
     setResult(null);
-    setTimeout(() => {
-      setResult(buildPlaceholder(values));
-      setLoading(false);
+    setError(null);
+    try {
+      const data = await callGenerateApi("/api/generate-promo-clips", {
+        artistName: values.artistName,
+        songTitle: values.songTitle,
+        genre: values.genre,
+        mood: values.mood,
+        platform: values.platform,
+        promoGoal: values.promoGoal,
+        songHook: values.songHook,
+        instructions: values.specialInstructions,
+      });
+      setResult(data);
       setTimeout(() => {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    }, 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -462,10 +482,15 @@ export default function PromoClip() {
           </form>
         </div>
 
-        {/* Result */}
+        {error && (
+          <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+            <p className="text-red-400 text-sm font-medium">{error}</p>
+          </div>
+        )}
+
         {result && (
           <div id="promo-result">
-            <ResultSection data={result} />
+            <ResultSection data={result} onClear={() => { setResult(null); setError(null); }} />
           </div>
         )}
 

@@ -11,6 +11,7 @@ import {
   Copy, CheckCheck, Loader2, Download, Save, ChevronRight, Music, Video,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { callGenerateApi } from "@/lib/generate-api";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -140,54 +141,18 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 
 /* ─────────────────────────── RESULT SECTION ─────────────────────────── */
 
-function ResultBlock({ label, sections }: { label: string; icon: React.ReactNode; sections: Record<string, string> }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3 py-3 border-b border-white/[0.08]">
-        <span className="text-xs font-black tracking-widest text-primary uppercase">{label}</span>
-      </div>
-      {Object.entries(sections).map(([heading, content], i) => (
-        <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
-            <h3 className="text-base font-bold text-white">{heading}</h3>
-          </div>
-          <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">{content}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ResultSection({ data }: { data: ReturnType<typeof buildPlaceholder> }) {
+function ResultSection({ data, onClear }: { data: Record<string, string>; onClear: () => void }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    const songText   = Object.entries(data.song).map(([k, v]) => `## ${k}\n\n${v}`).join("\n\n---\n\n");
-    const visualText = Object.entries(data.visual).map(([k, v]) => `## ${k}\n\n${v}`).join("\n\n---\n\n");
-    navigator.clipboard.writeText(`# SONG PACKAGE\n\n${songText}\n\n\n# VISUAL PACKAGE\n\n${visualText}`);
+    const text = Object.entries(data).map(([k, v]) => `## ${k}\n\n${v}`).join("\n\n---\n\n");
+    navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const ActionButtons = ({ size = "sm" }: { size?: "sm" | "default" }) => (
-    <div className="flex items-center gap-2 flex-wrap">
-      <Button onClick={handleCopy} size={size} className={size === "default" ? "purple-glow font-semibold gap-2" : "border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"} variant={size === "default" ? "default" : "outline"}>
-        {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-        {copied ? "Copied!" : "Copy Result"}
-      </Button>
-      <Button size="sm" variant="outline" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
-        <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
-      </Button>
-      <Button size="sm" variant="outline" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
-        <Download className="h-3.5 w-3.5" /> Download Coming Soon
-      </Button>
-    </div>
-  );
-
   return (
-    <div className="space-y-8 mt-10">
-      {/* Header */}
+    <div className="space-y-6 mt-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -196,29 +161,49 @@ function ResultSection({ data }: { data: ReturnType<typeof buildPlaceholder> }) 
           </div>
           <h2 className="text-2xl font-black text-white">Song + Video Package</h2>
         </div>
-        <ActionButtons size="sm" />
-      </div>
-
-      {/* Song Package */}
-      <ResultBlock label="Song Package" icon={<Music className="h-4 w-4" />} sections={data.song} />
-
-      {/* Divider */}
-      <div className="flex items-center gap-4 py-2">
-        <div className="flex-1 h-px bg-white/[0.06]" />
-        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/25 bg-primary/5">
-          <Video className="h-3.5 w-3.5 text-primary" />
-          <span className="text-xs font-bold text-primary uppercase tracking-widest">Visual Package</span>
-          <Music className="h-3.5 w-3.5 text-primary" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={handleCopy} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
+            {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied!" : "Copy Result"}
+          </Button>
+          <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-2">
+            Clear Result
+          </Button>
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
+            <Save className="h-4 w-4" /> Save Project
+            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
+          </Button>
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
+            <Download className="h-4 w-4" /> Download
+            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
+          </Button>
         </div>
-        <div className="flex-1 h-px bg-white/[0.06]" />
       </div>
-
-      {/* Visual Package */}
-      <ResultBlock label="Visual Package" icon={<Video className="h-4 w-4" />} sections={data.visual} />
-
-      {/* Bottom actions */}
-      <div className="pt-2">
-        <ActionButtons size="default" />
+      <div className="space-y-4">
+        {Object.entries(data).map(([heading, content], i) => (
+          <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="text-base font-bold text-white">{heading}</h3>
+            </div>
+            <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">{content}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap pt-2">
+        <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
+          {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Copied!" : "Copy Result"}
+        </Button>
+        <Button onClick={onClear} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white gap-1.5">
+          Clear Result
+        </Button>
+        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
+          <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
+        </Button>
+        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
+          <Download className="h-3.5 w-3.5" /> Download Coming Soon
+        </Button>
       </div>
     </div>
   );
@@ -227,8 +212,9 @@ function ResultSection({ data }: { data: ReturnType<typeof buildPlaceholder> }) 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function SongAndVideo() {
-  const [result, setResult] = useState<ReturnType<typeof buildPlaceholder> | null>(null);
+  const [result, setResult] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -240,16 +226,34 @@ export default function SongAndVideo() {
 
   const watched = watch();
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
     setLoading(true);
     setResult(null);
-    setTimeout(() => {
-      setResult(buildPlaceholder(values));
-      setLoading(false);
+    setError(null);
+    try {
+      const data = await callGenerateApi("/api/generate-song-video", {
+        artistName: values.artistName,
+        songTitle: values.songTitle,
+        genre: values.genre,
+        mood: values.mood,
+        explicit: values.cleanOrExplicit,
+        songTopic: values.songTopic,
+        voiceStyle: values.voiceStyle,
+        beatStyle: values.beatStyle,
+        videoStyle: values.videoStyle,
+        platform: values.platform,
+        artistDescription: values.artistDescription,
+        instructions: values.specialInstructions,
+      });
+      setResult(data);
       setTimeout(() => {
         document.getElementById("sv-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
-    }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -411,10 +415,15 @@ export default function SongAndVideo() {
           </div>
         </div>
 
-        {/* Result */}
+        {error && (
+          <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+            <p className="text-red-400 text-sm font-medium">{error}</p>
+          </div>
+        )}
+
         {result && (
           <div id="sv-result">
-            <ResultSection data={result} />
+            <ResultSection data={result} onClear={() => { setResult(null); setError(null); }} />
           </div>
         )}
 
