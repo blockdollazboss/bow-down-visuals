@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { label: "Tools", href: "#tools" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
+  { label: "Waitlist", href: "/waitlist" },
 ];
 
 const STEPS = [

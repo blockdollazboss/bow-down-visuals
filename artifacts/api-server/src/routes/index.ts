@@ -7,6 +7,7 @@ import songVideoRouter from "./generate/song-video";
 import promoRouter from "./generate/promo";
 import thumbnailRouter from "./generate/thumbnail";
 import projectsRouter from "./projects";
+import waitlistRouter from "./waitlist";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(songVideoRouter);
 router.use(promoRouter);
 router.use(thumbnailRouter);
 router.use(projectsRouter);
+router.use(waitlistRouter);
 
 export default router;

@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { label: "My Projects", href: "/my-projects" },
   { label: "Artist Vault", href: "/artist-vault" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Waitlist", href: "/waitlist" },
 ];
 
 export function TopBar() {
