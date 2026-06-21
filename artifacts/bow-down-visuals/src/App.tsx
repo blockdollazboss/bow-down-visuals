@@ -59,6 +59,11 @@ function AppShell() {
         <Dashboard />
       </Route>
 
+      {/* Make a Song — own full-width layout */}
+      <Route path="/make-song">
+        <MakeSong />
+      </Route>
+
       {/* Tool routes — with sidebar */}
       <Route>
         <SidebarProvider>
@@ -66,9 +71,6 @@ function AppShell() {
             <AppSidebar />
             <main className="flex-1 w-full overflow-y-auto">
               <Switch>
-                <Route path="/make-song">
-                  <ProtectedRoute><MakeSong /></ProtectedRoute>
-                </Route>
                 <Route path="/make-video">
                   <ProtectedRoute><MakeVideo /></ProtectedRoute>
                 </Route>
