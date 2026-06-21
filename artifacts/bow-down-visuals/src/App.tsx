@@ -46,15 +46,21 @@ function AppShell() {
         {user ? <Redirect to="/dashboard" /> : <Signup />}
       </Route>
 
-      {/* All other routes — with sidebar */}
+      {/* Public marketing routes — no sidebar */}
+      <Route path="/">
+        <Home />
+      </Route>
+      <Route path="/pricing">
+        <Pricing />
+      </Route>
+
+      {/* App routes — with sidebar */}
       <Route>
         <SidebarProvider>
           <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
             <AppSidebar />
             <main className="flex-1 w-full overflow-y-auto">
               <Switch>
-                <Route path="/" component={Home} />
-                <Route path="/pricing" component={Pricing} />
                 <Route path="/dashboard">
                   <ProtectedRoute><Dashboard /></ProtectedRoute>
                 </Route>
