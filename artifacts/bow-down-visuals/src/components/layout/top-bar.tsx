@@ -23,14 +23,14 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-28 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-28 w-auto"
-            
+            className="h-10 w-auto"
+            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
           />
         </Link>
 

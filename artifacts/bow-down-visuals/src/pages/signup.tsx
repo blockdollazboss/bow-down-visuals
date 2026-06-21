@@ -69,8 +69,8 @@ export default function Signup() {
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Bow Down Visuals"
-              className="h-80 w-auto"
-              
+              className="h-36 w-auto"
+            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
             />
           </div>
           <p className="mt-1 text-muted-foreground">Create your free creator account</p>

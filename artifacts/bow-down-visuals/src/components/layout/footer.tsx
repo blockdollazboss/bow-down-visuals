@@ -13,8 +13,8 @@ export function SiteFooter() {
               <img
                 src={`${import.meta.env.BASE_URL}logo.png`}
                 alt="Bow Down Visuals"
-                className="h-44 w-auto"
-                
+                className="h-20 w-auto"
+            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
               />
             </Link>
             <p className="text-white/30 text-sm mt-3 max-w-xs leading-relaxed">

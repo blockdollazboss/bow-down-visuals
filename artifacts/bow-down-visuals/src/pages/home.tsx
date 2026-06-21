@@ -182,14 +182,14 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-28 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-28 w-auto"
-            
+            className="h-10 w-auto"
+            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
           />
         </Link>
 
@@ -259,9 +259,9 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-5 pt-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-yellow-600/10 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-yellow-500/8 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] bg-yellow-700/8 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-yellow-600/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-yellow-600/4 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] bg-yellow-700/4 rounded-full blur-[80px] pointer-events-none" />
       </div>
 
       {/* Grid overlay */}
@@ -274,16 +274,6 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       />
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-8">
-        {/* Hero Logo */}
-        <div className="flex justify-center">
-          <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
-            alt="Bow Down Visuals"
-            className="h-56 w-auto"
-            
-          />
-        </div>
-
         {/* Badge */}
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 text-sm font-medium text-primary">
           <Sparkles className="h-3.5 w-3.5" />
