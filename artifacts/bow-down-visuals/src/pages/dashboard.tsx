@@ -1,182 +1,271 @@
-import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mic2, Music, Video, Film, Image as ImageIcon, FolderOpen, Coins, Clock, ChevronRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
+import {
+  Mic2, Music, Video, Film, Image as ImageIcon,
+  Archive, FolderOpen, Mail, ArrowRight, Settings,
+  Zap, ChevronRight, Star
+} from "lucide-react";
 
-interface Project {
-  id: string;
-  project_type: string;
-  artist_name: string | null;
-  song_title: string | null;
-  created_at: string;
-}
+/* ─────────────────────────── DATA ─────────────────────────── */
 
-const TYPE_LABELS: Record<string, string> = {
-  song: "Song",
-  video: "Music Video",
-  "song-video": "Song + Video",
-  promo: "Promo Clip",
-  thumbnail: "Thumbnail",
-};
-
-const TYPE_ICONS: Record<string, typeof Music> = {
-  song: Music,
-  video: Video,
-  "song-video": Mic2,
-  promo: Film,
-  thumbnail: ImageIcon,
-};
-
-const tools = [
-  { title: "Make Song + Video", description: "Generate lyrics + a complete music video treatment together.", icon: Mic2, href: "/song-and-video", highlight: true },
-  { title: "Make a Song", description: "Generate song lyrics, hooks, and structure based on your genre and mood.", icon: Music, href: "/make-song" },
-  { title: "Make a Music Video", description: "Create a detailed, scene-by-scene treatment for your next shoot.", icon: Video, href: "/make-video" },
-  { title: "Promo Clip Maker", description: "Plan your social media rollout with teaser concepts and captions.", icon: Film, href: "/promo-clip" },
-  { title: "Thumbnail Maker", description: "Generate compelling thumbnail ideas and cover art concepts.", icon: ImageIcon, href: "/thumbnail" },
+const CARDS = [
+  {
+    title: "Make Song + Video",
+    description:
+      "Create lyrics, AI music prompts, video treatments, scene prompts, captions, and promo ideas in one workflow.",
+    icon: Mic2,
+    href: "/song-and-video",
+    featured: true,
+    badge: "Most Popular",
+    cta: "Start Workflow",
+  },
+  {
+    title: "Make a Song",
+    description:
+      "Generate song ideas, hooks, verses, lyrics, beat direction, vocal style, and AI music prompts.",
+    icon: Music,
+    href: "/make-song",
+    featured: false,
+    cta: "Make a Song",
+  },
+  {
+    title: "Make a Music Video",
+    description:
+      "Turn lyrics into a cinematic video treatment, scene list, AI video prompts, thumbnails, and captions.",
+    icon: Video,
+    href: "/make-video",
+    featured: false,
+    cta: "Make a Video",
+  },
+  {
+    title: "Promo Clip Maker",
+    description:
+      "Create TikTok, Reel, and YouTube Short ideas for promoting your next release.",
+    icon: Film,
+    href: "/promo-clip",
+    featured: false,
+    cta: "Make Promo",
+  },
+  {
+    title: "Thumbnail Maker",
+    description:
+      "Generate cover art, thumbnail, and visual branding prompts.",
+    icon: ImageIcon,
+    href: "/thumbnail",
+    featured: false,
+    cta: "Make Thumbnail",
+  },
+  {
+    title: "Artist Vault",
+    description:
+      "Save artist style rules, image references, colors, tattoos, jewelry, and branding for consistent visuals.",
+    icon: Archive,
+    href: "#",
+    featured: false,
+    cta: "Coming Soon",
+    comingSoon: true,
+  },
+  {
+    title: "My Projects",
+    description:
+      "View saved songs, videos, prompts, and promo packs.",
+    icon: FolderOpen,
+    href: "#",
+    featured: false,
+    cta: "View Projects",
+    comingSoon: true,
+  },
+  {
+    title: "Join Waitlist",
+    description:
+      "Get early access to real music and video generation features.",
+    icon: Mail,
+    href: "/#waitlist",
+    featured: false,
+    cta: "Join Waitlist",
+    isWaitlist: true,
+  },
 ];
 
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+/* ─────────────────────────── TOP BAR ─────────────────────────── */
+
+function TopBar() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Logo */}
+        <Link href="/" className="flex flex-col leading-none cursor-pointer shrink-0">
+          <span className="text-white font-black text-base tracking-tight">BOW DOWN</span>
+          <span className="text-primary font-black text-sm tracking-widest -mt-0.5">VISUALS</span>
+        </Link>
+
+        {/* Right side */}
+        <div className="flex items-center gap-3 md:gap-5">
+          {/* Credits */}
+          <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5">
+            <Zap className="h-3.5 w-3.5 text-primary" />
+            <span className="text-sm font-bold text-white">3</span>
+            <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
+          </div>
+
+          {/* My Projects */}
+          <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-white/50 hover:text-white transition-colors">
+            <FolderOpen className="h-4 w-4" />
+            <span>My Projects</span>
+          </button>
+
+          {/* Settings */}
+          <button className="flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
 }
 
+/* ─────────────────────────── CARD ─────────────────────────── */
+
+function DashboardCard({ card }: { card: typeof CARDS[number] }) {
+  const inner = (
+    <div
+      className={`relative group flex flex-col h-full p-7 rounded-2xl border transition-all duration-300 cursor-pointer
+        ${card.featured
+          ? "bg-primary/10 border-primary/40 shadow-[0_0_35px_rgba(147,51,234,0.15)] hover:shadow-[0_0_50px_rgba(147,51,234,0.25)]"
+          : card.comingSoon
+          ? "bg-white/[0.015] border-white/[0.05] opacity-60 cursor-default"
+          : card.isWaitlist
+          ? "bg-white/[0.02] border-white/[0.06] hover:border-primary/25 hover:bg-primary/5"
+          : "bg-white/[0.02] border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5"
+        }`}
+    >
+      {/* Featured badge */}
+      {card.badge && (
+        <div className="absolute -top-3 left-6">
+          <Badge className="bg-primary text-white border-0 text-xs font-bold tracking-wide gap-1">
+            <Star className="h-2.5 w-2.5" /> {card.badge}
+          </Badge>
+        </div>
+      )}
+
+      {/* Coming soon badge */}
+      {card.comingSoon && (
+        <div className="absolute top-4 right-4">
+          <Badge variant="outline" className="border-white/10 text-white/30 text-xs">
+            Soon
+          </Badge>
+        </div>
+      )}
+
+      {/* Icon */}
+      <div
+        className={`h-13 w-13 rounded-xl flex items-center justify-center mb-6 shrink-0 transition-colors
+          ${card.featured
+            ? "bg-primary text-white"
+            : "bg-white/5 group-hover:bg-primary/15"
+          }`}
+        style={{ height: "52px", width: "52px" }}
+      >
+        <card.icon className={`h-6 w-6 ${card.featured ? "text-white" : "text-primary"}`} />
+      </div>
+
+      {/* Text */}
+      <div className="flex-1 space-y-2">
+        <h3 className="text-xl font-bold text-white leading-tight">{card.title}</h3>
+        <p className="text-sm text-white/50 leading-relaxed">{card.description}</p>
+      </div>
+
+      {/* CTA */}
+      <div className="mt-6 flex items-center gap-2">
+        {card.comingSoon ? (
+          <span className="text-sm text-white/25 font-semibold">{card.cta}</span>
+        ) : (
+          <span
+            className={`text-sm font-semibold flex items-center gap-1.5 transition-colors
+              ${card.featured
+                ? "text-white group-hover:text-purple-200"
+                : "text-primary group-hover:text-purple-300"
+              }`}
+          >
+            {card.cta}
+            <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  if (card.comingSoon) return <div>{inner}</div>;
+  return <Link href={card.href}>{inner}</Link>;
+}
+
+/* ─────────────────────────── PAGE ─────────────────────────── */
+
 export default function Dashboard() {
-  const { profile, user } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(true);
-
-  useEffect(() => {
-    if (!user) return;
-    async function fetchProjects() {
-      try {
-        const sb = getSupabase();
-        const { data } = await sb
-          .from("projects")
-          .select("id, project_type, artist_name, song_title, created_at")
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(6);
-        setProjects(data ?? []);
-      } catch {
-        // silently fail
-      } finally {
-        setLoadingProjects(false);
-      }
-    }
-    fetchProjects();
-  }, [user]);
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-white mb-2">Creator Hub</h1>
-          <p className="text-muted-foreground text-lg">
-            Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}. What are we building today?
+    <div className="min-h-screen bg-black text-white">
+      <TopBar />
+
+      {/* Background glow */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
+
+        {/* Page header */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-1 w-8 bg-primary rounded-full" />
+            <span className="text-xs font-bold tracking-widest text-primary/70 uppercase">Creator Studio</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+            Creator Dashboard
+          </h1>
+          <p className="text-white/50 text-lg max-w-xl">
+            Start your next song, visual, promo pack, or release idea.
           </p>
         </div>
 
-        <Card className="w-full md:w-auto bg-card/50 border-primary/20 backdrop-blur-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Coins className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Available Balance</p>
-              <p className="text-2xl font-bold text-white">
-                {profile?.credits ?? "—"} Credits
-              </p>
-            </div>
-            <Badge variant="outline" className="border-primary/30 text-primary capitalize ml-2">
-              {profile?.plan ?? "starter"}
-            </Badge>
-          </CardContent>
-        </Card>
-      </div>
+        {/* Quick-action row */}
+        <div className="flex flex-wrap items-center gap-3 mb-10">
+          <Link href="/song-and-video">
+            <Button className="purple-glow font-semibold gap-2 rounded-full">
+              <Mic2 className="h-4 w-4" /> Make Song + Video
+            </Button>
+          </Link>
+          <Link href="/make-song">
+            <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-full gap-2">
+              <Music className="h-4 w-4" /> Make a Song
+            </Button>
+          </Link>
+          <Link href="/make-video">
+            <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-full gap-2">
+              <Video className="h-4 w-4" /> Make a Video
+            </Button>
+          </Link>
+        </div>
 
-      {/* Tool cards */}
-      <section>
-        <h2 className="text-lg font-bold text-white mb-4">Create</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tools.map((tool) => (
-            <Link key={tool.title} href={tool.href}>
-              <Card data-testid={`card-tool-${tool.href.replace("/", "")}`} className={`h-full cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:purple-glow ${tool.highlight ? "border-primary shadow-[0_0_15px_rgba(147,51,234,0.15)] bg-primary/5" : "bg-card hover:border-primary/50"}`}>
-                <CardHeader>
-                  <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 ${tool.highlight ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}>
-                    <tool.icon className="h-6 w-6" />
-                  </div>
-                  <CardTitle className="text-xl">{tool.title}</CardTitle>
-                  <CardDescription className="text-sm mt-2 text-muted-foreground/80">{tool.description}</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
+        {/* Cards grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {CARDS.map((card) => (
+            <DashboardCard key={card.title} card={card} />
           ))}
         </div>
-      </section>
 
-      {/* My Projects */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">My Projects</h2>
-          {projects.length > 0 && (
-            <span className="text-xs text-muted-foreground">{projects.length} recent</span>
-          )}
+        {/* Footer note */}
+        <div className="mt-16 pt-8 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-white/20 text-sm">
+            © 2026 Bow Down Visuals. Create the Song. Create the Video. Promote the Release.
+          </p>
+          <Link href="/">
+            <Button variant="ghost" size="sm" className="text-white/30 hover:text-white gap-1.5">
+              Back to Homepage <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </Link>
         </div>
-
-        {loadingProjects ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-24 bg-card border border-border rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : projects.length === 0 ? (
-          <Card className="border-dashed border-border bg-transparent">
-            <CardContent className="p-10 flex flex-col items-center gap-3 text-center">
-              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-                <FolderOpen className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground">No saved projects yet.</p>
-              <p className="text-sm text-muted-foreground/70">Generate something and click <strong className="text-white">Save Project</strong> to store it here.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => {
-              const Icon = TYPE_ICONS[project.project_type] ?? Music;
-              return (
-                <Card key={project.id} data-testid={`card-project-${project.id}`} className="bg-card border-border hover:border-primary/40 transition-colors cursor-pointer group">
-                  <CardContent className="p-5 flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-white truncate">
-                        {project.song_title || project.artist_name || "Untitled"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {TYPE_LABELS[project.project_type] ?? project.project_type}
-                      </p>
-                      <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground/60">
-                        <Clock className="h-3 w-3" />
-                        {timeAgo(project.created_at)}
-                      </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors shrink-0 mt-1" />
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      </div>
     </div>
   );
 }

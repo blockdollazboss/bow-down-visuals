@@ -54,16 +54,18 @@ function AppShell() {
         <Pricing />
       </Route>
 
-      {/* App routes — with sidebar */}
+      {/* Dashboard — own full-width layout */}
+      <Route path="/dashboard">
+        <Dashboard />
+      </Route>
+
+      {/* Tool routes — with sidebar */}
       <Route>
         <SidebarProvider>
           <div className="flex min-h-screen w-full bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
             <AppSidebar />
             <main className="flex-1 w-full overflow-y-auto">
               <Switch>
-                <Route path="/dashboard">
-                  <ProtectedRoute><Dashboard /></ProtectedRoute>
-                </Route>
                 <Route path="/make-song">
                   <ProtectedRoute><MakeSong /></ProtectedRoute>
                 </Route>
