@@ -42,11 +42,15 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-black text-white tracking-tight">
-            BOW DOWN<br />
-            <span className="text-primary">VISUALS</span>
-          </h1>
-          <p className="mt-3 text-muted-foreground">Sign in to your creator account</p>
+          <div className="flex justify-center mb-4">
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Bow Down Visuals"
+              className="h-24 w-auto"
+              style={{ filter: "drop-shadow(0 0 3px rgba(255,255,255,0.5))" }}
+            />
+          </div>
+          <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl purple-glow-sm">

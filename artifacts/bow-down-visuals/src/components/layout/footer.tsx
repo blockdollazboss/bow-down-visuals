@@ -9,9 +9,13 @@ export function SiteFooter() {
 
           {/* Brand */}
           <div className="shrink-0">
-            <Link href="/" className="flex flex-col leading-none cursor-pointer">
-              <span className="text-white font-black text-xl tracking-tight">BOW DOWN</span>
-              <span className="text-primary font-black text-base tracking-widest -mt-0.5">VISUALS</span>
+            <Link href="/" className="cursor-pointer inline-block">
+              <img
+                src={`${import.meta.env.BASE_URL}logo.png`}
+                alt="Bow Down Visuals"
+                className="h-16 w-auto"
+                style={{ filter: "drop-shadow(0 0 2px rgba(255,255,255,0.45))" }}
+              />
             </Link>
             <p className="text-white/30 text-sm mt-3 max-w-xs leading-relaxed">
               Create the Song. Create the Video. Promote the Release.
