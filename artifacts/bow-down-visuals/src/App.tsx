@@ -74,6 +74,11 @@ function AppShell() {
         <SongAndVideo />
       </Route>
 
+      {/* Promo Clip Maker — own full-width layout */}
+      <Route path="/promo-clip">
+        <PromoClip />
+      </Route>
+
       {/* Tool routes — with sidebar */}
       <Route>
         <SidebarProvider>
