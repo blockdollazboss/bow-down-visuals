@@ -406,10 +406,6 @@ export default function MakeSong() {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-16 pt-8 border-t border-white/[0.05] text-center">
-          <p className="text-white/20 text-sm">© 2026 Bow Down Visuals. Create the Song. Create the Video. Promote the Release.</p>
-        </div>
       </div>
     </div>
   );

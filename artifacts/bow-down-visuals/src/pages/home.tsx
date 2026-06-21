@@ -680,35 +680,6 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
 });
 WaitlistSection.displayName = "WaitlistSection";
 
-function Footer() {
-  return (
-    <footer className="border-t border-white/[0.06] py-12 px-5">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="text-center md:text-left">
-          <div className="font-black text-white text-lg leading-none">BOW DOWN</div>
-          <div className="font-black text-primary text-base tracking-widest">VISUALS</div>
-          <p className="text-white/30 text-xs mt-2 max-w-xs">
-            Create the Song. Create the Video. Promote the Release.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/35">
-          <Link href="/dashboard" className="hover:text-white transition-colors">Dashboard</Link>
-          <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-          <button
-            onClick={() => document.querySelector("#faq")?.scrollIntoView({ behavior: "smooth" })}
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            FAQ
-          </button>
-        </div>
-
-        <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
-      </div>
-    </footer>
-  );
-}
-
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
@@ -729,7 +700,6 @@ export default function Home() {
       <PricingSection onWaitlist={scrollToWaitlist} />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
-      <Footer />
     </div>
   );
 }

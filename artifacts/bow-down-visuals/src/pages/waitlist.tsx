@@ -375,15 +375,6 @@ export default function Waitlist() {
           </div>
         </section>
 
-        {/* ── FOOTER ── */}
-        <div className="border-t border-white/[0.05] py-8 text-center px-5">
-          <div className="flex items-center justify-center gap-6 mb-4 flex-wrap">
-            {[{ label: "Home", href: "/" }, { label: "Tools", href: "/dashboard" }, { label: "Pricing", href: "/pricing" }].map((l) => (
-              <Link key={l.href} href={l.href} className="text-sm text-white/30 hover:text-white transition-colors">{l.label}</Link>
-            ))}
-          </div>
-          <p className="text-white/20 text-sm">© 2026 Bow Down Visuals. Create the Song. Create the Video. Promote the Release.</p>
-        </div>
 
       </div>
     </div>

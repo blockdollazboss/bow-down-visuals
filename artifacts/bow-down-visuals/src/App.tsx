@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
+import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
 import Dashboard   from "@/pages/dashboard";
 import MakeSong    from "@/pages/make-song";
@@ -35,30 +36,33 @@ function AppShell() {
   }
 
   return (
-    <Switch>
-      {/* Auth routes */}
-      <Route path="/login"><Login /></Route>
-      <Route path="/signup"><Signup /></Route>
+    <>
+      <Switch>
+        {/* Auth routes */}
+        <Route path="/login"><Login /></Route>
+        <Route path="/signup"><Signup /></Route>
 
-      {/* Marketing */}
-      <Route path="/"><Home /></Route>
-      <Route path="/pricing"><Pricing /></Route>
-      <Route path="/waitlist"><Waitlist /></Route>
+        {/* Marketing */}
+        <Route path="/"><Home /></Route>
+        <Route path="/pricing"><Pricing /></Route>
+        <Route path="/waitlist"><Waitlist /></Route>
 
-      {/* Protected app pages */}
-      <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
-      <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
-      <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
+        {/* Protected app pages */}
+        <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
+        <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
+        <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
 
-      {/* Protected tool pages */}
-      <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
-      <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
-      <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
-      <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
-      <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
+        {/* Protected tool pages */}
+        <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
+        <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
+        <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
+        <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
+        <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
 
-      <Route component={NotFound} />
-    </Switch>
+        <Route component={NotFound} />
+      </Switch>
+      <SiteFooter />
+    </>
   );
 }
 

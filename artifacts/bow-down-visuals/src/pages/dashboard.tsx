@@ -229,17 +229,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Footer note */}
-        <div className="mt-16 pt-8 border-t border-white/[0.05] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-white/20 text-sm">
-            © 2026 Bow Down Visuals. Create the Song. Create the Video. Promote the Release.
-          </p>
-          <Link href="/">
-            <Button variant="ghost" size="sm" className="text-white/30 hover:text-white gap-1.5">
-              Back to Homepage <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </Link>
-        </div>
       </div>
     </div>
   );
