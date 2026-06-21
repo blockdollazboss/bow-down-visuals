@@ -1,255 +1,517 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Video } from "lucide-react";
-import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
-import { OutOfCredits } from "@/components/OutOfCredits";
-import { CREDIT_COSTS } from "@/constants/credits";
-import { useAuth } from "@/contexts/AuthContext";
-import { getSupabase } from "@/lib/supabase";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Video, Settings, FolderOpen, Zap, ArrowLeft,
+  Copy, CheckCheck, Loader2, Download, Save, ChevronRight,
+} from "lucide-react";
 
-const CREDIT_COST = CREDIT_COSTS.video;
+/* ─────────────────────────── TYPES ─────────────────────────── */
 
-const formSchema = z.object({
-  artistName: z.string().min(1, "Artist name is required"),
-  songTitle: z.string().min(1, "Song title is required"),
-  genre: z.string().min(1, "Genre is required"),
-  mood: z.string().min(1, "Mood is required"),
-  videoStyle: z.string().min(1, "Video style is required"),
-  platform: z.string().min(1, "Platform is required"),
-  videoLength: z.string().min(1, "Video length is required"),
-  lyrics: z.string().min(10, "Please provide the lyrics"),
-  artistDescription: z.string().min(10, "Please describe the artist"),
-  instructions: z.string().optional(),
-});
+interface VideoFormValues {
+  artistName: string;
+  songTitle: string;
+  genre: string;
+  mood: string;
+  videoStyle: string;
+  platform: string;
+  videoLength: string;
+  lyrics: string;
+  artistDescription: string;
+  specialInstructions: string;
+}
 
-export default function MakeVideo() {
-  const { toast } = useToast();
-  const { profile, refreshProfile } = useAuth();
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const [lastValues, setLastValues] = useState<Record<string, unknown>>({});
+/* ─────────────────────────── OPTIONS ─────────────────────────── */
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      artistName: "",
-      songTitle: "",
-      genre: "",
-      mood: "",
-      videoStyle: "",
-      platform: "",
-      videoLength: "",
-      lyrics: "",
-      artistDescription: "",
-      instructions: "",
-    },
-  });
+const GENRES = [
+  "Hip Hop","Drill","Trap","R&B","Pop",
+  "Afrobeats","Dancehall","Gospel","Kids Music","Rock","Country","Other",
+];
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!profile || profile.credits < CREDIT_COST) {
-      toast({ title: "Not enough credits", description: "Upgrade your plan to keep creating.", variant: "destructive" });
-      return;
-    }
-    setLastValues(values as Record<string, unknown>);
-    setIsGenerating(true);
-    setResult(null);
-    try {
-      const res = await fetch("/api/generate-video-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
-      try {
-        const sb = getSupabase();
-        await sb.rpc("deduct_credits", { credits_to_deduct: CREDIT_COST });
-        await refreshProfile();
-      } catch { /* deduction failed silently */ }
-      setResult(data.result);
-    } catch (err: unknown) {
-      toast({
-        title: "Error",
-        description: err instanceof Error ? err.message : "Something went wrong",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+const MOODS = [
+  "Luxury","Dark","Emotional","Street","Romantic",
+  "Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly",
+];
+
+const VIDEO_STYLES = [
+  "Street Cinematic","Luxury Rap Video","Brooklyn Drill","Dark Emotional Story",
+  "Performance Video","Club Video","Cartoon Music Video","Anime Music Video",
+  "Kids Nursery Rhyme","Romantic R&B Visual","Documentary Style",
+];
+
+const PLATFORMS = [
+  "TikTok / Reels / Shorts - 9:16",
+  "YouTube Music Video - 16:9",
+  "Square Social Post - 1:1",
+  "All Formats",
+];
+
+const LENGTHS = ["15 seconds","30 seconds","60 seconds","Full song"];
+
+/* ─────────────────────────── PLACEHOLDER RESULT ─────────────────────────── */
+
+function buildPlaceholder(v: VideoFormValues) {
+  const artist = v.artistName || "The Artist";
+  const title = v.songTitle || "Untitled";
+  const genre = v.genre || "Hip Hop";
+  const mood = v.mood || "Dark";
+  const style = v.videoStyle || "Street Cinematic";
+  const platform = v.platform || "YouTube Music Video - 16:9";
+  const length = v.videoLength || "Full song";
+
+  const isVertical = platform.includes("9:16");
+  const aspectNote = isVertical ? "9:16 vertical (1080×1920)" : platform.includes("1:1") ? "1:1 square (1080×1080)" : "16:9 widescreen (1920×1080)";
+
+  return {
+    "Director's Treatment": `"${title}" by ${artist} is a ${mood.toLowerCase()} ${style.toLowerCase()} visual built for ${platform.split(" -")[0]}. The concept follows ${artist} through a raw, unfiltered narrative that mirrors the emotional core of the lyrics. Every frame is intentional — color, light, and movement serve the story. The pacing locks with the beat: slow-burn on the verses, explosive on the hook. This is not just a music video; it's a world-building exercise for the ${artist} brand.
+
+Director's Note: Shoot ${length === "Full song" ? "over 2 production days" : "in a focused single-day shoot"}. Prioritize practical lighting and real locations over studio sets. The goal is authenticity — raw, premium, and undeniable.`,
+
+    "Visual Style": `Color Grade: ${mood === "Dark" || mood === "Pain" ? "Deep blacks, cool blue shadows, minimal highlights. Think 2AM streetlight energy." : mood === "Luxury" ? "Warm gold tones, rich shadows, cinematic depth. Think high-fashion editorial." : mood === "Romantic" ? "Soft warm tones, natural light, shallow depth of field. Think intimate and vulnerable." : "High contrast, punchy colors, dynamic range. Think raw energy captured on film."}
+
+Lighting: ${style.includes("Luxury") ? "High-key with rim lights, neon accents, practicals in the background." : style.includes("Drill") ? "Low-key motivated lighting — street practicals only. Harsh shadows." : "Mixed natural and practical lighting for an organic, documentary feel."}
+
+Camera Movement: ${genre === "Drill" || mood === "Dark" ? "Handheld for verse sections — locked off for the hook. Close-ups heavy." : "Fluid steadicam on verses, drone establishing shots, tight close-ups on the hook."}
+
+Aspect Ratio: ${aspectNote}`,
+
+    "Main Locations": `Location 1 — Hero Environment
+${style.includes("Street") || style.includes("Drill") ? "Urban alley or rooftop — city skyline in background. Graffiti walls, chain-link fences, industrial texture." : style.includes("Luxury") ? "High-rise penthouse interior, luxury car exterior, upscale restaurant or lounge." : style.includes("Kids") ? "Bright colorful classroom, playground, animated bedroom set." : "Studio environment with custom set dressing — controlled lighting, branded backdrop."}
+
+Location 2 — Contrast/Flashback Environment  
+${mood === "Emotional" || mood === "Pain" ? "Childhood bedroom or empty church — personal and intimate. Minimal props. Natural window light." : mood === "Victory" ? "Stadium exterior or city overlook — wide-open space showing scale and achievement." : "Abstract environment — fog machine, colored gels, minimal set for the hook sequence."}
+
+Location 3 — Outro/Closer
+Wide open exterior — the artist alone. Backlit silhouette against the skyline. Final frame: face to camera, direct eye contact. No cuts. Hold for 3 seconds.`,
+
+    "Wardrobe & Artist Look": `Main Look — Verse Sections
+${style.includes("Luxury") ? "Designer fit — monochromatic. All black or all white preferred. Statement jewelry. Clean sneakers or dress shoes." : style.includes("Drill") ? "Street-authentic fit — puffer jacket or hoodie, fitted pants, fresh sneakers. Minimal color, no logos." : style.includes("Kids") || genre === "Kids Music" ? "Bright primary colors, fun patterns, comfortable movement-friendly fit." : "Genre-appropriate streetwear — authentic to the artist's real brand, not costumized."}
+
+Hook Look — Changed fit for visual variety
+Contrast to the verse look. If verse is dark, hook is lighter. If verse is casual, hook elevates.
+
+Accessories
+${mood === "Luxury" ? "Chains, rings, watches — intentional and styled, not random." : genre === "Gospel" ? "Minimal jewelry — clean and dignified. The message is the statement." : "Keep it authentic to the artist's everyday look. No styling that feels borrowed."}`,
+
+    "Scene-by-Scene Breakdown": `[00:00–00:08] — Cold Open
+Static wide shot of the ${style.includes("Street") ? "empty city block at dawn" : style.includes("Luxury") ? "penthouse window overlooking the city" : "artist's environment"}. No artist yet. Just atmosphere. Sound design: ambient ${mood === "Dark" ? "city noise, distant sirens" : "morning birds, wind"}.
+
+[00:08–00:20] — Intro / Artist Introduction
+${artist} enters frame from the left. Slow motion, 50% speed. Camera pushes in. Direct eye contact with lens. Beat drops on the cut to normal speed.
+
+[00:20–01:00] — Verse 1
+${length !== "15 seconds" ? "Handheld camera. Close-ups on face, hands, environment. Intercut between artist performing and b-roll of the world they're describing. Each line gets a matching visual." : "Single-location tight performance. Camera orbits slowly. Every cut lands on a beat."}
+
+${length === "Full song" ? `[01:00–01:20] — Pre-Hook
+Energy builds. Camera movement speeds up. Quick cuts — 12 frames each. Artist moving toward camera. Visual metaphor for momentum.
+
+[01:20–01:50] — Hook
+WIDE SHOT. Artist center frame, environment in full view. Locked-off camera. Slow zoom. This is the moment. If there are background performers, they activate here.
+
+[01:50–02:30] — Verse 2
+Return to handheld. New location or new lighting condition. The story deepens. Close-ups more extreme — eyes, hands, details.
+
+[02:30–02:50] — Bridge
+The emotional peak. Slow motion. Single location. Minimal movement. Just the artist and the camera. Color grade shifts slightly — more desaturated.
+
+[02:50–03:20] — Final Hook / Outro
+Full energy. All elements together. Camera pulls back to reveal the full scope of the environment. Artist walks away from camera. Final frame: their back, heading toward the horizon.` : ""}`,
+
+    "AI Video Prompts": `Prompt 1 — Main Performance Shot
+"${style} music video, ${artist} performing to camera, ${mood.toLowerCase()} atmosphere, ${genre} aesthetic, cinematic lighting, ${isVertical ? "vertical 9:16 frame" : "widescreen 16:9 frame"}, 4K quality, professional color grade, realistic, detailed --ar ${isVertical ? "9:16" : "16:9"}"
+
+Prompt 2 — Environment / Location Shot
+"${style.includes("Street") ? "empty urban alley at night, street lights, wet pavement reflection, cinematic" : style.includes("Luxury") ? "luxury penthouse interior, golden hour light, city skyline through floor-to-ceiling windows, cinematic" : "atmospheric music video environment, moody lighting, cinematic"}, no people, establishing shot, ${genre} music video aesthetic, 4K --ar ${isVertical ? "9:16" : "16:9"}"
+
+Prompt 3 — Close-Up Detail Shot
+"extreme close-up, artist hands and jewelry, ${mood.toLowerCase()} music video, dramatic side lighting, shallow depth of field, bokeh background, cinematic 4K --ar ${isVertical ? "9:16" : "16:9"}"
+
+Prompt 4 — Hook Wide Shot
+"wide shot music video, ${artist.toLowerCase()} centered, ${style.toLowerCase()} visual style, dynamic composition, ${mood.toLowerCase()} color palette, cinematic, professional music video, 4K --ar ${isVertical ? "9:16" : "16:9"}"`,
+
+    "Negative Prompts": `Avoid in all generations:
+• Blurry faces or hands
+• Distorted fingers or jewelry
+• Low resolution or pixelated textures
+• Overly saturated or neon-colored skin tones
+• Text or watermarks in frame
+• Generic stock footage look
+• Incorrect aspect ratio
+• Cheap or flat lighting
+• Unnatural posing or stiff body language
+• Background clutter that distracts from the artist`,
+
+    "Promo Clip Ideas": `Clip 1 — Teaser (15 sec, ${isVertical ? "9:16" : "16:9"})
+Best 3 shots from the video — no lyrics, just music and visuals. End card: "${title} — Out Now" with release date. No dialogue.
+
+Clip 2 — Behind the Scenes (30–60 sec)
+Raw behind-the-scenes footage from shoot day. Show the process, not just the product. Makes the release feel real and earned.
+
+Clip 3 — Hook Highlight (15 sec)
+Just the hook section on loop with lyrics overlaid as captions. High rewatch value. Optimized for TikTok sound-off viewing.
+
+Clip 4 — Day-of-Release Drop
+"It's here." — Black screen, white text. Then the first 5 seconds of the video. Link in bio. Maximum curiosity with minimal explanation.`,
+
+    "Thumbnail Prompts": `YouTube Thumbnail (16:9)
+"${artist} music video thumbnail, close-up face, intense expression, ${mood.toLowerCase()} background, ${style.toLowerCase()} aesthetic, bold title text '${title}' in bottom third, high contrast, professional, YouTube thumbnail design, 1920×1080"
+
+Instagram / Square Thumbnail (1:1)
+"square music video cover art, ${artist}, ${style.toLowerCase()} visual, centered composition, title '${title}' in clean bold font, ${mood.toLowerCase()} color palette, professional, 1080×1080"
+
+Vertical Thumbnail / TikTok Cover (9:16)
+"vertical music video thumbnail, ${artist} full body shot, ${style.toLowerCase()} style, dramatic lighting, '${title}' text at top, 1080×1920, TikTok cover format, premium"`,
+
+    "Caption Ideas": `Drop caption (Post day):
+🎬 "${title}" — The visual is here.
+Watch the full music video now. Link in bio.
+#${genre.replace(/\s/g, "")} #${artist.replace(/\s/g, "")} #MusicVideo #NewMusic
+
+Teaser caption (3–5 days before):
+The video is coming.
+"${title}" 🎥
+[Release date] — set your reminder.
+#${genre.replace(/\s/g, "")} #ComingSoon
+
+Hook highlight caption:
+This hook is different. 🔥
+"${title}" — full video link in bio.
+#${genre.replace(/\s/g, "")} #NewMusic #${mood}
+
+Story / Reel caption:
+Started in the studio. Ended on a rooftop.
+"${title}" is out now.
+→ Link in bio`,
+  };
+}
+
+/* ─────────────────────────── TOP BAR ─────────────────────────── */
+
+function TopBar() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/85 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
+        <Link href="/" className="flex flex-col leading-none cursor-pointer shrink-0">
+          <span className="text-white font-black text-base tracking-tight">BOW DOWN</span>
+          <span className="text-primary font-black text-sm tracking-widest -mt-0.5">VISUALS</span>
+        </Link>
+        <div className="flex items-center gap-3 md:gap-5">
+          <div className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5">
+            <Zap className="h-3.5 w-3.5 text-primary" />
+            <span className="text-sm font-bold text-white">3</span>
+            <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
+          </div>
+          <button className="hidden sm:flex items-center gap-1.5 text-sm font-medium text-white/50 hover:text-white transition-colors">
+            <FolderOpen className="h-4 w-4" />
+            <span>My Projects</span>
+          </button>
+          <button className="flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors">
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ─────────────────────────── FORM HELPERS ─────────────────────────── */
+
+function FieldWrapper({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+const inputClass =
+  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
+
+const textareaClass =
+  "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none";
+
+const selectClass =
+  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] transition-colors appearance-none cursor-pointer";
+
+function StyledSelect({
+  name, placeholder, options, value, onChange,
+}: {
+  name: string; placeholder: string; options: string[];
+  value: string; onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <select
+        name={name}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={selectClass}
+        style={{ colorScheme: "dark" }}
+      >
+        <option value="" disabled style={{ background: "#111" }}>{placeholder}</option>
+        {options.map((o) => (
+          <option key={o} value={o} style={{ background: "#111" }}>{o}</option>
+        ))}
+      </select>
+      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30 rotate-90 pointer-events-none" />
+    </div>
+  );
+}
+
+/* ─────────────────────────── RESULT ─────────────────────────── */
+
+function ResultSection({ data }: { data: Record<string, string> }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    const text = Object.entries(data)
+      .map(([k, v]) => `## ${k}\n\n${v}`)
+      .join("\n\n---\n\n");
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 md:p-10 space-y-8">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Video className="h-5 w-5 text-primary" />
+    <div className="space-y-6 mt-10">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.06]">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+            <span className="text-xs font-bold tracking-widest text-primary uppercase">Result Ready</span>
           </div>
-          <h1 className="text-3xl font-black text-white">Make a Music Video</h1>
+          <h2 className="text-2xl font-black text-white">Music Video Plan</h2>
         </div>
-        <p className="text-muted-foreground text-lg">Create a detailed, scene-by-scene treatment for your next shoot.</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={handleCopy} variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
+            {copied ? <CheckCheck className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied!" : "Copy Result"}
+          </Button>
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
+            <Save className="h-4 w-4" /> Save Project
+            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
+          </Button>
+          <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-2">
+            <Download className="h-4 w-4" /> Download
+            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
+          </Button>
+        </div>
       </div>
 
-      {result ? (
-        <GenerationResult
-          result={result}
-          onReset={() => setResult(null)}
-          saveMetadata={{
-            projectType: "video",
-            artistName: String(lastValues.artistName ?? ""),
-            songTitle: String(lastValues.songTitle ?? ""),
-            genre: String(lastValues.genre ?? ""),
-            mood: String(lastValues.mood ?? ""),
-            inputData: lastValues,
-          }}
-        />
-      ) : profile && profile.credits < CREDIT_COST ? (
-        <OutOfCredits />
-      ) : (
-        <div className="bg-card border border-card-border p-6 md:p-8 rounded-2xl shadow-xl">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="artistName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Artist Name</FormLabel>
-                    <FormControl><Input data-testid="input-artist-name" placeholder="e.g. Lil Metro" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="songTitle" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Song Title</FormLabel>
-                    <FormControl><Input data-testid="input-song-title" placeholder="e.g. Midnight Run" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
+      <div className="space-y-4">
+        {Object.entries(data).map(([heading, content], i) => (
+          <div key={heading} className="p-6 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:border-primary/20 transition-colors">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+              <h3 className="text-base font-bold text-white">{heading}</h3>
+            </div>
+            <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">{content}</p>
+          </div>
+        ))}
+      </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="genre" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Genre</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger data-testid="select-genre"><SelectValue placeholder="Select genre" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {["Hip-Hop", "R&B", "Pop", "Trap", "Drill", "Afrobeats", "Gospel", "Other"].map(g => (
-                          <SelectItem key={g} value={g}>{g}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="mood" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mood</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger data-testid="select-mood"><SelectValue placeholder="Select mood" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {["Hype", "Chill", "Romantic", "Aggressive", "Inspirational", "Dark", "Playful"].map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
+      <div className="flex items-center gap-2 flex-wrap pt-2">
+        <Button onClick={handleCopy} className="purple-glow font-semibold gap-2">
+          {copied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied ? "Copied!" : "Copy Result"}
+        </Button>
+        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
+          <Save className="h-3.5 w-3.5" /> Save Project Coming Soon
+        </Button>
+        <Button variant="outline" size="sm" disabled className="border-white/5 text-white/25 cursor-not-allowed gap-1.5">
+          <Download className="h-3.5 w-3.5" /> Download Coming Soon
+        </Button>
+      </div>
+    </div>
+  );
+}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField control={form.control} name="videoStyle" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Video Style</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger data-testid="select-video-style"><SelectValue placeholder="Select style" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {["Cinematic", "Performance", "Narrative", "Animated", "Lyric Video", "Documentary", "Mixed"].map(s => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="platform" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Platform</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger data-testid="select-platform"><SelectValue placeholder="Select platform" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {["YouTube", "Instagram Reels", "TikTok", "All Platforms"].map(p => (
-                          <SelectItem key={p} value={p}>{p}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </div>
+/* ─────────────────────────── PAGE ─────────────────────────── */
 
-              <FormField control={form.control} name="videoLength" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Video Length</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger data-testid="select-video-length"><SelectValue placeholder="Select length" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {["30 seconds", "1 minute", "3 minutes", "Full Music Video"].map(l => (
-                        <SelectItem key={l} value={l}>{l}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )} />
+export default function MakeVideo() {
+  const [result, setResult] = useState<Record<string, string> | null>(null);
+  const [loading, setLoading] = useState(false);
 
-              <FormField control={form.control} name="lyrics" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lyrics</FormLabel>
-                  <FormControl>
-                    <Textarea data-testid="textarea-lyrics" placeholder="Paste your lyrics here to base the treatment on..." className="h-32" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
+    defaultValues: {
+      artistName: "", songTitle: "", genre: "", mood: "",
+      videoStyle: "", platform: "", videoLength: "",
+      lyrics: "", artistDescription: "", specialInstructions: "",
+    },
+  });
 
-              <FormField control={form.control} name="artistDescription" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Artist Description</FormLabel>
-                  <FormControl>
-                    <Textarea data-testid="textarea-artist-description" placeholder="Describe yourself, your look, vibe, and typical visual style..." className="h-24" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+  const watched = watch();
 
-              <FormField control={form.control} name="instructions" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Special Instructions (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea data-testid="textarea-instructions" placeholder="Specific locations? Cameos? Props? Add them here." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+  function onSubmit(values: VideoFormValues) {
+    setLoading(true);
+    setResult(null);
+    setTimeout(() => {
+      setResult(buildPlaceholder(values));
+      setLoading(false);
+      setTimeout(() => {
+        document.getElementById("video-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }, 1600);
+  }
 
-              <Button data-testid="btn-generate-video" type="submit" size="lg" className="w-full text-lg h-14 purple-glow" disabled={isGenerating}>
-                {isGenerating ? (
-                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating Treatment...</>
-                ) : "Generate Video Treatment"}
-              </Button>
-            </form>
-          </Form>
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <TopBar />
+
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-purple-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
+
+        {/* Breadcrumb */}
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back to Dashboard
+        </Link>
+
+        {/* Page header */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
+              <Video className="h-5 w-5 text-white" />
+            </div>
+            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">
+              1 credit
+            </Badge>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+            Make a Music Video
+          </h1>
+          <p className="text-white/50 text-lg max-w-2xl">
+            Turn your lyrics into a cinematic music video treatment, scene list, AI video prompts, thumbnails, captions, and promo ideas.
+          </p>
         </div>
-      )}
+
+        {/* Form */}
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
+            {/* Row 1: Artist + Song Title */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FieldWrapper label="Artist Name">
+                <Input
+                  {...register("artistName", { required: true })}
+                  placeholder="e.g. Lil Nova"
+                  className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
+                />
+                {errors.artistName && <p className="text-red-400 text-xs mt-1">Artist name is required</p>}
+              </FieldWrapper>
+              <FieldWrapper label="Song Title">
+                <Input
+                  {...register("songTitle")}
+                  placeholder="e.g. On My Way Up"
+                  className={inputClass}
+                />
+              </FieldWrapper>
+            </div>
+
+            {/* Row 2: Genre + Mood */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FieldWrapper label="Genre">
+                <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
+                  value={watched.genre} onChange={(v) => setValue("genre", v)} />
+              </FieldWrapper>
+              <FieldWrapper label="Mood">
+                <StyledSelect name="mood" placeholder="Select mood..." options={MOODS}
+                  value={watched.mood} onChange={(v) => setValue("mood", v)} />
+              </FieldWrapper>
+            </div>
+
+            {/* Row 3: Video Style + Platform */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FieldWrapper label="Video Style">
+                <StyledSelect name="videoStyle" placeholder="Select style..." options={VIDEO_STYLES}
+                  value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
+              </FieldWrapper>
+              <FieldWrapper label="Platform">
+                <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS}
+                  value={watched.platform} onChange={(v) => setValue("platform", v)} />
+              </FieldWrapper>
+            </div>
+
+            {/* Row 4: Video Length */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <FieldWrapper label="Video Length">
+                <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
+                  value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
+              </FieldWrapper>
+            </div>
+
+            {/* Lyrics */}
+            <FieldWrapper label="Lyrics">
+              <Textarea
+                {...register("lyrics")}
+                placeholder="Paste your lyrics here — verses, hook, bridge, outro..."
+                className={textareaClass}
+                style={{ minHeight: "160px" }}
+              />
+            </FieldWrapper>
+
+            {/* Artist Description */}
+            <FieldWrapper label="Artist Description">
+              <Textarea
+                {...register("artistDescription", { required: true })}
+                placeholder="Describe the artist's look, personality, and visual brand. Include style references, typical wardrobe, vibe, and anything important for the video treatment..."
+                className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
+                style={{ minHeight: "120px" }}
+              />
+              {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Artist description is required</p>}
+            </FieldWrapper>
+
+            {/* Special Instructions */}
+            <FieldWrapper label="Special Instructions">
+              <Textarea
+                {...register("specialInstructions")}
+                placeholder="Any specific shots, locations, themes, cultural elements, things to avoid, or references you want included..."
+                className={textareaClass}
+                style={{ minHeight: "100px" }}
+              />
+            </FieldWrapper>
+
+            {/* Submit */}
+            <div className="pt-2">
+              <Button
+                type="submit"
+                size="lg"
+                disabled={loading}
+                className="w-full sm:w-auto purple-glow font-bold text-base px-12 rounded-xl gap-3"
+                style={{ height: "52px" }}
+              >
+                {loading ? (
+                  <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
+                ) : (
+                  <><Video className="h-5 w-5" /> Generate Music Video Plan</>
+                )}
+              </Button>
+              <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>
+            </div>
+          </form>
+        </div>
+
+        {/* Result */}
+        {result && (
+          <div id="video-result">
+            <ResultSection data={result} />
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-16 pt-8 border-t border-white/[0.05] text-center">
+          <p className="text-white/20 text-sm">© 2026 Bow Down Visuals. Create the Song. Create the Video. Promote the Release.</p>
+        </div>
+      </div>
     </div>
   );
 }
