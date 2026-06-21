@@ -18,7 +18,8 @@ router.post("/generate-video-plan", requireAuth, async (req, res) => {
     console.log(`[generate-video-plan] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
   }
 
-  if (currentCredits < CREDIT_COST) {
+  const isDev = process.env["NODE_ENV"] === "development";
+  if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
