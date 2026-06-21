@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Zap, FolderOpen, LogOut, Menu, X, User } from "lucide-react";
+import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+
+const IS_DEV = import.meta.env.DEV;
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
@@ -15,11 +17,25 @@ const NAV_LINKS = [
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [location, setLocation] = useLocation();
-  const { user, profile, signOut } = useAuth();
+  const [addingCredits, setAddingCredits] = useState(false);
+  const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
 
   async function handleSignOut() {
     await signOut();
     setLocation("/");
+  }
+
+  async function handleAddTestCredits() {
+    setAddingCredits(true);
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch("/api/dev/add-credits", { method: "POST", headers });
+      if (res.ok) await refreshProfile();
+    } finally {
+      setAddingCredits(false);
+    }
   }
 
   return (
@@ -60,6 +76,18 @@ export function TopBar() {
               <span className="text-sm font-bold text-white">{profile.credits}</span>
               <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
             </div>
+          )}
+
+          {IS_DEV && user && (
+            <button
+              onClick={handleAddTestCredits}
+              disabled={addingCredits}
+              title="Add 10 Test Credits (dev only)"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
+            >
+              {addingCredits ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              +10 Credits
+            </button>
           )}
 
           {user ? (
