@@ -12,6 +12,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
+import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -147,6 +148,7 @@ export default function SongAndVideo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -157,6 +159,23 @@ export default function SongAndVideo() {
   });
 
   const watched = watch();
+
+  function handleVaultLoad(vault: ArtistVault) {
+    if (!watched.artistName) setValue("artistName", vault.artist_name);
+    if (!watched.genre && vault.genre) setValue("genre", vault.genre);
+    if (!watched.videoStyle && vault.visual_style) setValue("videoStyle", vault.visual_style);
+    if (!watched.artistDescription) {
+      const parts = [
+        vault.artist_description,
+        vault.hair ? `Hair: ${vault.hair}` : null,
+        vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
+        vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,
+        vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
+      ].filter(Boolean);
+      if (parts.length > 0) setValue("artistDescription", parts.join(". "));
+    }
+    setLoadedVault(vault);
+  }
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -178,6 +197,7 @@ export default function SongAndVideo() {
         platform: values.platform,
         artistDescription: values.artistDescription,
         instructions: values.specialInstructions,
+        artistVault: loadedVault,
       }, token);
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
@@ -251,6 +271,8 @@ export default function SongAndVideo() {
               <span className="text-sm font-bold text-white/70 uppercase tracking-wider">Song Details</span>
             </div>
             <form id="song-video-form" onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
+
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FieldWrapper label="Artist Name">

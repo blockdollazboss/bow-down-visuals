@@ -7,6 +7,7 @@ import songVideoRouter from "./generate/song-video";
 import promoRouter from "./generate/promo";
 import thumbnailRouter from "./generate/thumbnail";
 import projectsRouter from "./projects";
+import artistVaultsRouter from "./artist-vaults";
 import waitlistRouter from "./waitlist";
 import devRouter from "./dev";
 
@@ -20,6 +21,7 @@ router.use(songVideoRouter);
 router.use(promoRouter);
 router.use(thumbnailRouter);
 router.use(projectsRouter);
+router.use(artistVaultsRouter);
 router.use(waitlistRouter);
 router.use(devRouter);
 

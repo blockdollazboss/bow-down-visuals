@@ -12,6 +12,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
+import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 
 interface FormValues {
   artistName: string;
@@ -53,10 +54,18 @@ export default function Thumbnail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: { artistName: "", songTitle: "", platform: "", artStyle: "", colorTheme: "", mood: "", featuredText: "", specialRequests: "" },
   });
   const watched = watch();
+
+  function handleVaultLoad(vault: ArtistVault) {
+    if (!watched.artistName) setValue("artistName", vault.artist_name);
+    if (!watched.artStyle && vault.visual_style) setValue("artStyle", vault.visual_style);
+    if (!watched.colorTheme && vault.brand_colors) setValue("colorTheme", vault.brand_colors);
+    setLoadedVault(vault);
+  }
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -74,6 +83,7 @@ export default function Thumbnail() {
         mood: values.mood,
         featuredText: values.featuredText,
         requests: values.specialRequests,
+        artistVault: loadedVault,
       }, token);
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
@@ -117,6 +127,7 @@ export default function Thumbnail() {
 
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Artist Name</Label>

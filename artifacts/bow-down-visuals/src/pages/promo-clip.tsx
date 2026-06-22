@@ -12,6 +12,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
+import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -266,6 +267,7 @@ export default function PromoClip() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -275,6 +277,12 @@ export default function PromoClip() {
   });
 
   const watched = watch();
+
+  function handleVaultLoad(vault: ArtistVault) {
+    if (!watched.artistName) setValue("artistName", vault.artist_name);
+    if (!watched.genre && vault.genre) setValue("genre", vault.genre);
+    setLoadedVault(vault);
+  }
 
   async function onSubmit(values: FormValues) {
     setLoading(true);
@@ -292,6 +300,7 @@ export default function PromoClip() {
         promoGoal: values.promoGoal,
         songHook: values.songHook,
         instructions: values.specialInstructions,
+        artistVault: loadedVault,
       }, token);
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
@@ -351,6 +360,8 @@ export default function PromoClip() {
         {/* Form */}
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
+            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
 
             {/* Row 1 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

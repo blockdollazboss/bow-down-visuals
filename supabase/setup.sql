@@ -113,6 +113,52 @@ do $$ begin
   end if;
 end $$;
 
+-- ─────────────────────────── ARTIST VAULTS ───────────────────────────────────
+
+create table if not exists artist_vaults (
+  id                    uuid        primary key default gen_random_uuid(),
+  user_id               uuid        not null references auth.users(id) on delete cascade,
+  artist_name           text        not null default '',
+  artist_type           text,
+  artist_description    text,
+  genre                 text,
+  visual_style          text,
+  hair                  text,
+  tattoos               text,
+  jewelry               text,
+  clothing_style        text,
+  brand_colors          text,
+  logo_description      text,
+  image_reference_notes text,
+  do_not_change_rules   text,
+  special_style_rules   text,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now()
+);
+
+alter table artist_vaults enable row level security;
+
+drop policy if exists "Users can read own artist vaults"   on artist_vaults;
+drop policy if exists "Users can create own artist vaults" on artist_vaults;
+drop policy if exists "Users can update own artist vaults" on artist_vaults;
+drop policy if exists "Users can delete own artist vaults" on artist_vaults;
+
+create policy "Users can read own artist vaults"
+  on artist_vaults for select
+  using (auth.uid() = user_id);
+
+create policy "Users can create own artist vaults"
+  on artist_vaults for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own artist vaults"
+  on artist_vaults for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own artist vaults"
+  on artist_vaults for delete
+  using (auth.uid() = user_id);
+
 -- ─────────────────────────── WAITLIST (optional) ─────────────────────────────
 
 create table if not exists waitlist (

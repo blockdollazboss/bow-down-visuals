@@ -6,7 +6,6 @@ const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 1;
-const TOOL_TYPE = "Promo Clip Maker";
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -34,10 +33,39 @@ Do not copy real artists' exact lyrics, songs, videos, or celebrity likenesses.
 Do not include copyrighted logos unless the user says they own them.
 Do not mention copyrighted brands unless the user specifically provides them.`;
 
+type VaultData = Record<string, string | null | undefined>;
+
+function buildVaultContext(vault: VaultData | null | undefined): string {
+  if (!vault) return "";
+  const lines: string[] = [
+    "",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "ARTIST VAULT — BRAND STYLE RULES",
+    "Apply ALL of the following to every section of your output.",
+    "This artist's outputs must match their established brand identity.",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+  ];
+  if (vault["artistType"]) lines.push(`Artist Type: ${vault["artistType"]}`);
+  if (vault["artistDescription"]) lines.push(`Artist Description: ${vault["artistDescription"]}`);
+  if (vault["visualStyle"]) lines.push(`Visual Style: ${vault["visualStyle"]}`);
+  if (vault["brandColors"]) lines.push(`Brand Colors: ${vault["brandColors"]}`);
+  if (vault["imageReferenceNotes"]) lines.push(`Image Reference Notes: ${vault["imageReferenceNotes"]}`);
+  if (vault["doNotChangeRules"]) {
+    lines.push("", `⛔ DO NOT CHANGE RULES — NEVER VIOLATE THESE:\n${vault["doNotChangeRules"]}`);
+  }
+  if (vault["specialStyleRules"]) {
+    lines.push("", `✅ SPECIAL STYLE RULES — ALWAYS APPLY THESE:\n${vault["specialStyleRules"]}`);
+  }
+  return lines.join("\n");
+}
+
 router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   const {
     artistName, songTitle, genre, mood, platform, promoGoal, songHook, instructions,
   } = req.body as Record<string, string>;
+
+  const artistVault = req.body.artistVault as VaultData | null | undefined;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -66,6 +94,7 @@ Primary Platform: ${platform || "TikTok"}
 Promo Goal: ${promoGoal || "Drive streams"}
 Song Hook / Key Lyric: ${songHook}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
+${buildVaultContext(artistVault)}
 
 Return the output using EXACTLY these ## section headers in this order. Make every idea platform-specific, creative, and ready to execute.
 

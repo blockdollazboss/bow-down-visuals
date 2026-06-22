@@ -6,7 +6,6 @@ const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 2;
-const TOOL_TYPE = "Make Song + Video";
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -34,12 +33,46 @@ Do not copy real artists' exact lyrics, songs, videos, or celebrity likenesses.
 Do not include copyrighted logos unless the user says they own them.
 Do not mention copyrighted brands unless the user specifically provides them.`;
 
+type VaultData = Record<string, string | null | undefined>;
+
+function buildVaultContext(vault: VaultData | null | undefined): string {
+  if (!vault) return "";
+  const lines: string[] = [
+    "",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "ARTIST VAULT — BRAND STYLE RULES",
+    "Apply ALL of the following to every section of your output.",
+    "This artist's outputs must match their established brand identity.",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+  ];
+  if (vault["artistType"]) lines.push(`Artist Type: ${vault["artistType"]}`);
+  if (vault["artistDescription"]) lines.push(`Artist Description: ${vault["artistDescription"]}`);
+  if (vault["visualStyle"]) lines.push(`Visual Style: ${vault["visualStyle"]}`);
+  if (vault["hair"]) lines.push(`Hair: ${vault["hair"]}`);
+  if (vault["tattoos"]) lines.push(`Tattoos: ${vault["tattoos"]}`);
+  if (vault["jewelry"]) lines.push(`Jewelry: ${vault["jewelry"]}`);
+  if (vault["clothingStyle"]) lines.push(`Clothing Style: ${vault["clothingStyle"]}`);
+  if (vault["brandColors"]) lines.push(`Brand Colors: ${vault["brandColors"]}`);
+  if (vault["logoDescription"]) lines.push(`Logo Description: ${vault["logoDescription"]}`);
+  if (vault["imageReferenceNotes"]) lines.push(`Image Reference Notes: ${vault["imageReferenceNotes"]}`);
+  if (vault["doNotChangeRules"]) {
+    lines.push("", `⛔ DO NOT CHANGE RULES — NEVER VIOLATE THESE:\n${vault["doNotChangeRules"]}`);
+  }
+  if (vault["specialStyleRules"]) {
+    lines.push("", `✅ SPECIAL STYLE RULES — ALWAYS APPLY THESE:\n${vault["specialStyleRules"]}`);
+  }
+  return lines.join("\n");
+}
+
 router.post("/generate-song-video", requireAuth, async (req, res) => {
   const {
-    artistName, songTitle, genre, mood, cleanOrExplicit, songTopic,
+    artistName, songTitle, genre, mood, explicit, songTopic,
     voiceStyle, beatStyle, songLength, videoStyle, platform,
     artistDescription, instructions,
   } = req.body as Record<string, string>;
+
+  const artistVault = req.body.artistVault as VaultData | null | undefined;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -56,7 +89,7 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
     return;
   }
 
-  const explicit = cleanOrExplicit?.toLowerCase() === "explicit";
+  const isExplicit = explicit?.toLowerCase() === "explicit";
 
   const prompt = `Create a complete, premium Song + Video package for the following release. The song and video must feel like they were designed together — same world, same story, same energy.
 
@@ -66,7 +99,7 @@ Artist: ${artistName || "Unknown Artist"}
 Song Title: "${songTitle || "Untitled"}"
 Genre: ${genre || "Hip Hop"}
 Mood: ${mood || "Dark"}
-Content Rating: ${explicit ? "Explicit — adult language allowed" : "Clean — no profanity"}
+Content Rating: ${isExplicit ? "Explicit — adult language allowed" : "Clean — no profanity"}
 Song Topic / Story: ${songTopic}
 Voice Style: ${voiceStyle || "Not specified"}
 Beat Style: ${beatStyle || "Not specified"}
@@ -75,6 +108,7 @@ Video Style: ${videoStyle || "Cinematic"}
 Platform: ${platform || "YouTube"}
 Artist Description: ${artistDescription || "Not specified"}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
+${buildVaultContext(artistVault)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PART 1 — SONG PACKAGE
