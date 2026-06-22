@@ -13,7 +13,8 @@ import { FinalVideoExport } from "@/components/FinalVideoExport";
 
 /* ─── Helpers ─── */
 
-function parseDuration(ts: string): string {
+function parseDuration(ts: string | undefined | null): string {
+  if (!ts) return "";
   const m = ts.match(/(\d+):(\d+)\s*[-–—]\s*(\d+):(\d+)/);
   if (!m) return "";
   const start = parseInt(m[1]!) * 60 + parseInt(m[2]!);
