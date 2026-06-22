@@ -69,6 +69,7 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
   const [progress, setProgress]           = useState<number | null>(null);
   const [error, setError]                 = useState<string | null>(null);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+  const [urlError, setUrlError]           = useState(false);
 
   const onUpdateRef        = useRef(onUpdate);
   const promptUsedRef      = useRef<string>("");
@@ -138,6 +139,7 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
     setError(null);
     setProgress(null);
     setShowRegenConfirm(false);
+    setUrlError(false);
     onGeneratingStart();
     try {
       const token = await getAccessToken();
@@ -169,6 +171,7 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
     setError(null);
     setProgress(null);
     setShowRegenConfirm(false);
+    setUrlError(false);
     onUpdateRef.current({
       demoClipUrl: null,
       generationStatus: null,
