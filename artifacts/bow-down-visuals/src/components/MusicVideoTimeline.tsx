@@ -419,25 +419,43 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
         </div>
       )}
 
-      {/* ── Main body: demo clip (placeholder) + prompt ── */}
-      <div className="flex flex-col sm:flex-row gap-0 sm:gap-0">
-        {/* Demo clip column — old placeholder fallback */}
-        <div className="sm:w-44 shrink-0 p-3 sm:border-r border-white/[0.05]">
-          <button
-            onClick={() => setShowDemo((v) => !v)}
-            className="w-full aspect-video bg-gradient-to-br from-[#180f00] to-[#0a0900] rounded-lg border border-primary/10 flex flex-col items-center justify-center gap-1.5 hover:border-primary/25 transition-colors group cursor-pointer"
-            data-testid={`timeline-demo-btn-${index}`}
-          >
-            <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Play className="h-3.5 w-3.5 text-primary/40 ml-0.5" />
-            </div>
-            <span className="text-[9px] text-white/20 group-hover:text-white/35 transition-colors">Demo Clip</span>
-          </button>
-          {showDemo && <DemoClipInline onClose={() => setShowDemo(false)} />}
-        </div>
+      {/* ── Main body ── */}
+      <div className="p-4 space-y-4">
 
-        {/* Prompt column */}
-        <div className="flex-1 p-4 space-y-3">
+        {/* ── Scene metadata: Visual Description + Camera Direction ── */}
+        {(scene.action || scene.location || scene.cameraMovement || scene.lighting) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-white/[0.04]">
+            {(scene.action || scene.location) && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                  <Eye className="h-3 w-3" /> Visual Description
+                </span>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  {[scene.action, scene.location].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            )}
+            {scene.cameraMovement && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                  <Film className="h-3 w-3" /> Camera Direction
+                </span>
+                <p className="text-xs text-white/50 leading-relaxed">{scene.cameraMovement}</p>
+              </div>
+            )}
+            {scene.lighting && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                  <Music2 className="h-3 w-3" /> Lighting
+                </span>
+                <p className="text-xs text-white/50 leading-relaxed">{scene.lighting}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── AI Video Prompt ── */}
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-black text-primary/50 uppercase tracking-widest">AI Video Prompt</span>
             <div className="flex items-center gap-1">
@@ -480,38 +498,50 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
               </div>
             </div>
           ) : (
-            <p className="text-sm text-white/50 leading-relaxed bg-white/[0.02] rounded-lg px-3 py-2 border border-white/[0.04] min-h-[60px]">
+            <p className="text-sm text-white/55 leading-relaxed bg-white/[0.02] rounded-lg px-3 py-2.5 border border-white/[0.05] min-h-[60px]">
               {scene.aiVideoPrompt || <span className="italic text-white/20">No prompt yet — click Edit to add one</span>}
             </p>
           )}
-
-          {/* Negative prompt */}
-          {scene.negativePrompt && (
-            <p className="text-[11px] text-white/20 leading-relaxed">
-              <span className="font-bold text-white/15">Negative: </span>{scene.negativePrompt}
-            </p>
-          )}
-
-          {/* Actions row */}
-          <div className="flex items-center gap-2 flex-wrap pt-1">
-            <button
-              onClick={() => onUpdate({ approved: !scene.approved })}
-              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
-                scene.approved
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "border-white/10 bg-white/5 text-white/35 hover:border-primary/30 hover:text-primary/60"
-              }`}
-              data-testid={`timeline-approve-btn-${index}`}
-            >
-              {scene.approved
-                ? <><CheckCircle2 className="h-3.5 w-3.5" /> Approved</>
-                : <><Circle className="h-3.5 w-3.5" /> Approve Scene</>}
-            </button>
-          </div>
-
-          {/* ── Generate Runway Clip (new real generation) ── */}
-          <RunwayClipGenerator scene={scene} onUpdate={onUpdate} />
         </div>
+
+        {/* ── Negative Prompt ── */}
+        {scene.negativePrompt && (
+          <p className="text-[11px] text-white/25 leading-relaxed bg-white/[0.02] rounded-lg px-3 py-2 border border-white/[0.04]">
+            <span className="font-black text-white/20 uppercase tracking-wider text-[9px]">Negative: </span>
+            {scene.negativePrompt}
+          </p>
+        )}
+
+        {/* ── Two Action Buttons ── */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={() => setShowDemo((v) => !v)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-sm font-bold text-white/40 hover:border-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+            data-testid={`timeline-demo-btn-${index}`}
+          >
+            <Play className="h-4 w-4" />
+            Generate Demo Clip
+          </button>
+          <button
+            onClick={() => onUpdate({ approved: !scene.approved })}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-bold transition-all ${
+              scene.approved
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-white/10 bg-white/[0.03] text-white/40 hover:border-primary/30 hover:text-primary/70 hover:bg-primary/5"
+            }`}
+            data-testid={`timeline-approve-btn-${index}`}
+          >
+            {scene.approved
+              ? <><CheckCircle2 className="h-4 w-4" /> Approved</>
+              : <><Circle className="h-4 w-4" /> Approve Scene</>}
+          </button>
+        </div>
+
+        {/* Demo Clip Placeholder */}
+        {showDemo && <DemoClipInline onClose={() => setShowDemo(false)} />}
+
+        {/* ── Generate Runway Clip (real generation) ── */}
+        <RunwayClipGenerator scene={scene} onUpdate={onUpdate} />
       </div>
     </div>
   );
