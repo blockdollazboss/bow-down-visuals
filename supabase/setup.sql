@@ -132,9 +132,40 @@ create table if not exists artist_vaults (
   image_reference_notes text,
   do_not_change_rules   text,
   special_style_rules   text,
+  photo_url             text,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now()
 );
+
+-- If the table already exists, add the photo_url column safely
+alter table artist_vaults add column if not exists photo_url text;
+
+-- ─────────────────────────── STORAGE: ARTIST PHOTOS ──────────────────────────
+
+insert into storage.buckets (id, name, public)
+values ('artist-photos', 'artist-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Authenticated users can upload artist photos" on storage.objects;
+drop policy if exists "Anyone can view artist photos"                on storage.objects;
+drop policy if exists "Users can delete own artist photos"          on storage.objects;
+drop policy if exists "Users can update own artist photos"          on storage.objects;
+
+create policy "Authenticated users can upload artist photos"
+  on storage.objects for insert
+  with check (bucket_id = 'artist-photos' and auth.role() = 'authenticated');
+
+create policy "Anyone can view artist photos"
+  on storage.objects for select
+  using (bucket_id = 'artist-photos');
+
+create policy "Users can delete own artist photos"
+  on storage.objects for delete
+  using (bucket_id = 'artist-photos' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "Users can update own artist photos"
+  on storage.objects for update
+  using (bucket_id = 'artist-photos' and auth.uid()::text = (storage.foldername(name))[1]);
 
 alter table artist_vaults enable row level security;
 

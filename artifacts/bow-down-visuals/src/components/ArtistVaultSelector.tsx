@@ -20,6 +20,7 @@ export interface ArtistVault {
   image_reference_notes: string | null;
   do_not_change_rules: string | null;
   special_style_rules: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 

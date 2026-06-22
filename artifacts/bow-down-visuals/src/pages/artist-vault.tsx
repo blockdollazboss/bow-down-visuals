@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
-  Loader2, Trash2, Pencil, Eye, X, Plus,
+  Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -31,6 +32,7 @@ interface ArtistVaultRecord {
   image_reference_notes: string | null;
   do_not_change_rules: string | null;
   special_style_rules: string | null;
+  photo_url: string | null;
   created_at: string;
 }
 
@@ -132,10 +134,16 @@ function VaultModal({ vault, onClose, onEdit }: {
       <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <span className="text-white font-black text-xl">
-                {(vault.artist_name || "A")[0].toUpperCase()}
-              </span>
+            <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0">
+              {vault.photo_url ? (
+                <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full bg-primary flex items-center justify-center">
+                  <span className="text-white font-black text-xl">
+                    {(vault.artist_name || "A")[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <h2 className="text-xl font-black text-white truncate">{vault.artist_name}</h2>
@@ -203,10 +211,16 @@ function VaultCard({ vault, onOpen, onEdit, onDelete }: {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-colors">
       <div className="flex items-start gap-3 mb-3">
-        <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-          <span className="text-white font-black text-lg">
-            {(vault.artist_name || "A")[0].toUpperCase()}
-          </span>
+        <div className="h-10 w-10 rounded-xl overflow-hidden shrink-0">
+          {vault.photo_url ? (
+            <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-primary flex items-center justify-center">
+              <span className="text-white font-black text-lg">
+                {(vault.artist_name || "A")[0].toUpperCase()}
+              </span>
+            </div>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-bold text-white truncate">{vault.artist_name}</h3>
@@ -251,7 +265,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete }: {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -259,6 +273,9 @@ export default function ArtistVault() {
   const [openVault, setOpenVault] = useState<ArtistVaultRecord | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
@@ -291,9 +308,56 @@ export default function ArtistVault() {
 
   useEffect(() => { fetchVaults(); }, []);
 
+  async function uploadPhoto(file: File) {
+    if (!user) return;
+    const MAX_MB = 5;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      setPhotoError(`Image must be under ${MAX_MB}MB`);
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("File must be an image (JPG, PNG, WebP)");
+      return;
+    }
+    setUploadingPhoto(true);
+    setPhotoError(null);
+    try {
+      const sb = getSupabase();
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await sb.storage
+        .from("artist-photos")
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = sb.storage
+        .from("artist-photos")
+        .getPublicUrl(filePath);
+      setPhotoUrl(publicUrl);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
+
+  async function removePhoto() {
+    if (!photoUrl || !user) { setPhotoUrl(null); return; }
+    try {
+      const sb = getSupabase();
+      const url = new URL(photoUrl);
+      const pathParts = url.pathname.split("/artist-photos/");
+      if (pathParts[1]) {
+        await sb.storage.from("artist-photos").remove([pathParts[1]]);
+      }
+    } catch { /* best-effort delete */ }
+    setPhotoUrl(null);
+  }
+
   function startNew() {
     setEditId(null);
     reset();
+    setPhotoUrl(null);
+    setPhotoError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -313,6 +377,8 @@ export default function ArtistVault() {
     setValue("imageReferenceNotes", vault.image_reference_notes ?? "");
     setValue("doNotChangeRules", vault.do_not_change_rules ?? "");
     setValue("specialStyleRules", vault.special_style_rules ?? "");
+    setPhotoUrl(vault.photo_url ?? null);
+    setPhotoError(null);
     setOpenVault(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -338,6 +404,7 @@ export default function ArtistVault() {
         imageReferenceNotes: values.imageReferenceNotes || null,
         doNotChangeRules: values.doNotChangeRules || null,
         specialStyleRules: values.specialStyleRules || null,
+        photoUrl: photoUrl || null,
       };
       const url = editId ? `/api/artist-vaults/${editId}` : "/api/artist-vaults";
       const method = editId ? "PUT" : "POST";
@@ -357,6 +424,8 @@ export default function ArtistVault() {
       setSaveSuccess(true);
       setEditId(null);
       reset();
+      setPhotoUrl(null);
+      setPhotoError(null);
       setTimeout(() => setSaveSuccess(false), 5000);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : "Save failed. Please try again.");
@@ -369,12 +438,21 @@ export default function ArtistVault() {
     if (!window.confirm("Delete this artist profile? This cannot be undone.")) return;
     try {
       const token = await getAccessToken();
+      const vault = vaults.find((v) => v.id === id);
+      if (vault?.photo_url) {
+        try {
+          const sb = getSupabase();
+          const url = new URL(vault.photo_url);
+          const pathParts = url.pathname.split("/artist-photos/");
+          if (pathParts[1]) await sb.storage.from("artist-photos").remove([pathParts[1]]);
+        } catch { /* best-effort */ }
+      }
       await fetch(`/api/artist-vaults/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setVaults((prev) => prev.filter((v) => v.id !== id));
-      if (editId === id) { setEditId(null); reset(); }
+      if (editId === id) { setEditId(null); reset(); setPhotoUrl(null); }
     } catch {
       /* silent */
     }
@@ -527,6 +605,58 @@ export default function ArtistVault() {
                 <FieldWrapper label="Logo Description" hint="Describe your logo or brand mark">
                   <Input {...register("logoDescription")} placeholder="e.g. initials in gothic font with a crown above..." className={inputClass} />
                 </FieldWrapper>
+              </div>
+            </div>
+
+            {/* Artist Photo Upload */}
+            <div>
+              <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Artist Photo</p>
+              <div className="flex items-start gap-5">
+                {/* Preview */}
+                <div className="shrink-0">
+                  {photoUrl ? (
+                    <div className="relative h-24 w-24 rounded-xl overflow-hidden border border-white/[0.12]">
+                      <img src={photoUrl} alt="Artist" className="h-full w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="h-24 w-24 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-white/20" />
+                    </div>
+                  )}
+                </div>
+                {/* Controls */}
+                <div className="flex-1 space-y-2">
+                  <p className="text-xs text-white/40">Upload a front-facing photo. Used as your visual reference across all AI tools. Max 5MB (JPG, PNG, WebP).</p>
+                  <div className="flex flex-wrap gap-2">
+                    <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors ${uploadingPhoto ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
+                      {uploadingPhoto ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload className="h-4 w-4" /> {photoUrl ? "Replace Photo" : "Upload Photo"}</>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) uploadPhoto(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {photoUrl && (
+                      <button
+                        type="button"
+                        onClick={removePhoto}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-400/70 hover:text-red-400 bg-red-500/[0.04] hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 transition-colors"
+                      >
+                        <X className="h-4 w-4" /> Remove
+                      </button>
+                    )}
+                  </div>
+                  {photoError && <p className="text-xs text-red-400">{photoError}</p>}
+                </div>
               </div>
             </div>
 

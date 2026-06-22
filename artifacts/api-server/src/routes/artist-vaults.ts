@@ -19,6 +19,7 @@ const ArtistVaultSchema = z.object({
   imageReferenceNotes: z.string().optional().nullable(),
   doNotChangeRules: z.string().optional().nullable(),
   specialStyleRules: z.string().optional().nullable(),
+  photoUrl: z.string().url().optional().nullable(),
 });
 
 router.post("/artist-vaults", requireAuth, async (req, res) => {
@@ -47,6 +48,7 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
       image_reference_notes: d.imageReferenceNotes ?? null,
       do_not_change_rules: d.doNotChangeRules ?? null,
       special_style_rules: d.specialStyleRules ?? null,
+      photo_url: d.photoUrl ?? null,
     })
     .select("id")
     .single();
@@ -100,6 +102,7 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       image_reference_notes: d.imageReferenceNotes ?? null,
       do_not_change_rules: d.doNotChangeRules ?? null,
       special_style_rules: d.specialStyleRules ?? null,
+      photo_url: d.photoUrl ?? null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
