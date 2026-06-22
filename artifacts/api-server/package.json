@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@runwayml/sdk": "^4.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "@types/multer": "^2.1.0",
     "@workspace/api-zod": "workspace:*",

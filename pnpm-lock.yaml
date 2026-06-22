@@ -166,6 +166,9 @@ importers:
 
   artifacts/api-server:
     dependencies:
+      '@runwayml/sdk':
+        specifier: ^4.2.0
+        version: 4.2.0
       '@supabase/supabase-js':
         specifier: ^2.108.2
         version: 2.108.2
@@ -1539,6 +1542,10 @@ packages:
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+
+  '@runwayml/sdk@4.2.0':
+    resolution: {integrity: sha512-Ef7ujYKsX5HGn9MW0eixIdyOHODgosk4hLUvo9OFVag3w+tO0/xXtDwP7/oQV5Xlnxi6jh2fm7sLkirr4UVU7g==}
+    hasBin: true
 
   '@scalar/helpers@0.5.2':
     resolution: {integrity: sha512-Pi1GAl8jO6ungmGj2sjDfCfqiBNrKW6HXDZmminV94ybGU/KtRLOqHwd0n9FIhY3j0RYGpGC0VCuniCICfQPHg==}
@@ -4377,6 +4384,8 @@ snapshots:
 
   '@rollup/rollup-linux-x64-gnu@4.60.3':
     optional: true
+
+  '@runwayml/sdk@4.2.0': {}
 
   '@scalar/helpers@0.5.2': {}
 
