@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
-  Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle, Clapperboard,
+  Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
+  Clapperboard, FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +37,7 @@ export function FinalVideoExport({
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
-  const clips = scenes.filter((s) => !!s.demoClipUrl);
+  const clips = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
 
   const [status, setStatus] = useState<ExportStatus>(
     existingExport?.export_status === "completed" ? "completed" : "idle",
@@ -46,6 +47,8 @@ export function FinalVideoExport({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [testMode, setTestMode] = useState(false);
+  const [progressStep, setProgressStep] = useState<string>("");
 
   async function handleExport() {
     if (!projectId) {
@@ -59,11 +62,14 @@ export function FinalVideoExport({
 
     setStatus("exporting");
     setErrorMsg(null);
+    setProgressStep("Verifying clips…");
 
     try {
       const token = await getAccessToken();
       const clipUrls = clips.map((s) => s.demoClipUrl!);
       const timelineOrder = scenes.map((s) => s.id);
+
+      setProgressStep(`Downloading ${clips.length} clip${clips.length > 1 ? "s" : ""} · Normalizing resolution · Running FFmpeg…`);
 
       const res = await fetch("/api/export-final-video", {
         method: "POST",
@@ -71,34 +77,47 @@ export function FinalVideoExport({
           "Content-Type": "application/json",
           Authorization: `Bearer ${token ?? ""}`,
         },
-        body: JSON.stringify({ projectId, clipUrls, audioUrl: audioUrl ?? null, timelineOrder }),
+        body: JSON.stringify({
+          projectId,
+          clipUrls,
+          audioUrl: testMode ? null : (audioUrl ?? null),
+          timelineOrder,
+          testMode,
+        }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
 
       if (!res.ok) {
         const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `Export failed (${res.status})`);
+        throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
       }
 
-      const data = (await res.json()) as { url: string };
+      const data = (await res.json()) as { url: string; clipCount: number; audioIncluded: boolean; testMode?: boolean };
       setExportUrl(data.url);
       setStatus("completed");
+      setProgressStep("");
 
       const record: ExportRecord = {
         final_video_url: data.url,
         export_status: "completed",
         export_created_at: new Date().toISOString(),
         clips_used: clipUrls.length,
-        audio_used: !!audioUrl,
+        audio_used: data.audioIncluded,
         timeline_order: timelineOrder,
       };
-      onExportComplete?.(record);
-      toast({ title: "Export complete!", description: "Your final video is ready to download." });
+      if (!testMode) onExportComplete?.(record);
+      toast({
+        title: data.testMode ? "Test export complete!" : "Export complete!",
+        description: data.testMode
+          ? "Video-only test passed. Now export with audio."
+          : "Your final video is ready to download.",
+      });
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Export failed";
       setStatus("failed");
       setErrorMsg(msg);
+      setProgressStep("");
       toast({ title: "Export failed", description: msg, variant: "destructive" });
     }
   }
@@ -118,17 +137,25 @@ export function FinalVideoExport({
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-black text-white uppercase tracking-wider">Final Video Export</h3>
           <p className="text-xs text-white/40 mt-0.5">
-            {clips.length} clip{clips.length !== 1 ? "s" : ""} ready
-            {audioUrl ? " · with audio track" : " · no audio"}
+            {clips.length} clip{clips.length !== 1 ? "s" : ""}
+            {audioUrl && !testMode ? " · with audio track" : " · video only"}
+            {" · "}normalized to 1080×1920
           </p>
         </div>
         <StatusBadge status={status} />
       </div>
 
       <div className="p-5 space-y-4">
+
         {/* Completed — show player + download */}
         {status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
+            {testMode && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                <p className="text-xs text-blue-300">Test export (video only). If it looks correct, export again with audio.</p>
+              </div>
+            )}
             <video
               src={exportUrl}
               controls
@@ -145,23 +172,37 @@ export function FinalVideoExport({
             >
               <Button className="gold-glow w-full gap-2" data-testid="btn-download-final-video">
                 <Download className="h-4 w-4" />
-                Download Final Video
+                Download{testMode ? " Test Video" : " Final Video"}
               </Button>
             </a>
-            <p className="text-center text-xs text-white/30">
-              Exported {clips.length} clip{clips.length !== 1 ? "s" : ""}
-              {audioUrl ? " · audio track included" : ""}
-            </p>
+            {!testMode && (
+              <p className="text-center text-xs text-white/30">
+                {clips.length} clip{clips.length !== 1 ? "s" : ""}
+                {audioUrl ? " · audio track included" : " · no audio"}
+                {" · "}1080×1920 MP4
+              </p>
+            )}
+            {/* Allow re-export */}
+            <button
+              onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); }}
+              className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
+            >
+              Export again
+            </button>
           </div>
         )}
 
         {/* Failed */}
         {status === "failed" && (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-            <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-300">Export Failed</p>
-              {errorMsg && <p className="text-xs text-red-400/70 mt-0.5">{errorMsg}</p>}
+          <div className="space-y-2">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+              <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-red-300">Export Failed</p>
+                {errorMsg && (
+                  <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -171,24 +212,25 @@ export function FinalVideoExport({
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <div>
-              <p className="text-sm font-bold text-white">Exporting your video…</p>
-              <p className="text-xs text-white/40 mt-1">
-                Downloading clips · Running FFmpeg · Uploading
+              <p className="text-sm font-bold text-white">
+                {testMode ? "Running test export…" : "Exporting your video…"}
               </p>
+              <p className="text-xs text-white/40 mt-1">{progressStep || "Processing…"}</p>
             </div>
           </div>
         )}
 
-        {/* Idle / ready */}
+        {/* Idle / ready to export */}
         {(status === "idle" || status === "failed") && (
           <div className="space-y-3">
+
             {/* Warning */}
             {!confirmed && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Final video export may take time depending on clip length and number of scenes.
-                  The page must stay open during export.
+                  Each clip is downloaded, verified, normalized to 1080×1920, and stitched with FFmpeg.
+                  Keep the page open during export.
                 </p>
               </div>
             )}
@@ -199,15 +241,27 @@ export function FinalVideoExport({
                 <div key={clip.id} className="flex items-center gap-2 px-3 py-2">
                   <Film className="h-3 w-3 text-primary/60 shrink-0" />
                   <span className="text-xs text-white/50 flex-1 truncate">
-                    Scene {i + 1}
-                    {clip.section ? ` · ${clip.section}` : ""}
+                    Scene {i + 1}{clip.section ? ` · ${clip.section}` : ""}
                   </span>
-                  {clip.approved && (
-                    <span className="text-[10px] font-bold text-primary">★</span>
-                  )}
+                  {clip.approved && <span className="text-[10px] font-bold text-primary">★</span>}
                 </div>
               ))}
             </div>
+
+            {/* Test mode toggle */}
+            <button
+              onClick={() => setTestMode((v) => !v)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                testMode
+                  ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                  : "border-white/10 bg-white/[0.03] text-white/35 hover:border-white/20 hover:text-white/50"
+              }`}
+            >
+              <FlaskConical className="h-3.5 w-3.5 shrink-0" />
+              <span className="flex-1 text-left">
+                {testMode ? "✓ Video Only Test mode — audio skipped" : "Enable Video Only Test (skip audio)"}
+              </span>
+            </button>
 
             {!confirmed ? (
               <Button
@@ -217,7 +271,7 @@ export function FinalVideoExport({
                 data-testid="btn-confirm-export"
               >
                 <Film className="h-4 w-4" />
-                Export Final Video
+                {testMode ? "Export Video Only Test" : "Export Final Video"}
               </Button>
             ) : (
               <Button
@@ -226,7 +280,7 @@ export function FinalVideoExport({
                 data-testid="btn-start-export"
               >
                 <Film className="h-4 w-4" />
-                Confirm &amp; Start Export ({clips.length} clip{clips.length !== 1 ? "s" : ""})
+                Confirm &amp; Start {testMode ? "Test " : ""}Export ({clips.length} clip{clips.length !== 1 ? "s" : ""})
               </Button>
             )}
           </div>
@@ -240,7 +294,7 @@ function StatusBadge({ status }: { status: ExportStatus }) {
   if (status === "idle") {
     return (
       <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest border border-white/10 rounded-full px-2 py-0.5">
-        Ready to Export
+        Ready
       </span>
     );
   }
@@ -254,13 +308,13 @@ function StatusBadge({ status }: { status: ExportStatus }) {
   if (status === "completed") {
     return (
       <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest border border-green-400/30 bg-green-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-        <CheckCircle2 className="h-2.5 w-2.5" /> Export Complete
+        <CheckCircle2 className="h-2.5 w-2.5" /> Complete
       </span>
     );
   }
   return (
     <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest border border-red-400/30 bg-red-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-      <XCircle className="h-2.5 w-2.5" /> Export Failed
+      <XCircle className="h-2.5 w-2.5" /> Failed
     </span>
   );
 }
