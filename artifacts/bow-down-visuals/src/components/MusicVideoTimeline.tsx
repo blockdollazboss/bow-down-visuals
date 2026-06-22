@@ -151,6 +151,7 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
         body: JSON.stringify({
           promptText: scene.aiVideoPrompt,
           negativePrompt: scene.negativePrompt ?? "",
+          ratio: "720:1280",
         }),
       });
       const data = await res.json() as { taskId?: string; error?: string };

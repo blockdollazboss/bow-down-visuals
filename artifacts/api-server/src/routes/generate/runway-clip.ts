@@ -5,9 +5,10 @@ import { requireAuth } from "../../middlewares/require-auth";
 const router = Router();
 
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt } = req.body as {
+  const { promptText, negativePrompt, ratio } = req.body as {
     promptText?: string;
     negativePrompt?: string;
+    ratio?: "1280:720" | "720:1280";
   };
 
   if (!promptText?.trim()) {
@@ -34,7 +35,7 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
       model: "gen4.5",
       promptText: finalPrompt,
       duration: 5,
-      ratio: "1280:720",
+      ratio: ratio === "1280:720" ? "1280:720" : "720:1280",
     });
     res.json({ taskId: task.id });
   } catch (err: unknown) {
