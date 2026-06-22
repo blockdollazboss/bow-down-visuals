@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Video, ArrowLeft, Loader2, ChevronRight } from "lucide-react";
+import { Video, ArrowLeft, Loader2, ChevronRight, BarChart2, Check } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
+import type { SongStructure } from "@/lib/song-structure";
+import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -249,6 +251,9 @@ export default function MakeVideo() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
+  const [songStructure, setSongStructure] = useState<SongStructure | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
@@ -278,6 +283,28 @@ export default function MakeVideo() {
     setLoadedVault(vault);
   }
 
+  async function handleAnalyze() {
+    const lyrics = watched.lyrics;
+    if (!lyrics || lyrics.length < 10) return;
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/analyze-sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ lyrics }),
+      });
+      if (!res.ok) throw new Error("Analysis failed");
+      const data = (await res.json()) as SongStructure;
+      setSongStructure(data);
+    } catch {
+      setAnalyzeError("Analysis failed. You can still generate without it.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
   async function onSubmit(values: VideoFormValues) {
     setLoading(true);
     setRawResult(null);
@@ -297,6 +324,7 @@ export default function MakeVideo() {
         artistDescription: values.artistDescription,
         instructions: values.specialInstructions,
         artistVault: loadedVault,
+        songStructure: songStructure ?? undefined,
       }, token);
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
@@ -407,7 +435,7 @@ export default function MakeVideo() {
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Lyrics</Label>
               <AudioTranscribe
-                onTranscript={(text) => setValue("lyrics", text)}
+                onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
               />
               <Textarea
                 {...register("lyrics")}
@@ -415,7 +443,31 @@ export default function MakeVideo() {
                 className={textareaClass}
                 style={{ minHeight: "160px" }}
               />
+              {watched.lyrics.length > 10 && (
+                <div className="flex items-center gap-3 flex-wrap pt-1">
+                  <button
+                    type="button"
+                    onClick={handleAnalyze}
+                    disabled={analyzing}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    {analyzing ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
+                    ) : (
+                      <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>
+                    )}
+                  </button>
+                  {songStructure && !analyzing && (
+                    <span className="text-xs text-primary/60 flex items-center gap-1.5">
+                      <Check className="h-3 w-3" /> Analysis complete
+                    </span>
+                  )}
+                  {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
+                </div>
+              )}
             </div>
+
+            {songStructure && <SongSectionAnalysis analysis={songStructure} />}
 
             {/* Artist Description */}
             <FieldWrapper label="Artist Description">
@@ -479,6 +531,7 @@ export default function MakeVideo() {
                 mood: watched.mood,
                 inputData: watched as unknown as Record<string, unknown>,
                 creditsUsed: 1,
+                songStructure: songStructure ?? undefined,
               }}
             />
           </div>

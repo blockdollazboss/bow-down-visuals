@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
+import type { SongStructure } from "@/lib/song-structure";
+import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 
 interface Section {
   title: string;
@@ -58,6 +60,7 @@ export interface SaveMetadata {
   mood?: string;
   inputData: Record<string, unknown>;
   creditsUsed?: number;
+  songStructure?: SongStructure;
 }
 
 interface GenerationResultProps {
@@ -128,7 +131,10 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
           genre: saveMetadata.genre ?? null,
           mood: saveMetadata.mood ?? null,
           inputData: saveMetadata.inputData,
-          outputData: { result },
+          outputData: {
+            result,
+            ...(saveMetadata.songStructure ? { songStructure: saveMetadata.songStructure } : {}),
+          },
           creditsUsed: saveMetadata.creditsUsed ?? 1,
         }),
       });
@@ -212,6 +218,11 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
           <Check className="h-5 w-5 text-green-400" />
           <p className="text-green-400 font-medium text-sm">Saved! View it in <a href="/my-projects" className="underline underline-offset-2">My Projects</a>.</p>
         </div>
+      )}
+
+      {/* Song Structure Analysis (if available) */}
+      {saveMetadata.songStructure && (
+        <SongSectionAnalysis analysis={saveMetadata.songStructure} />
       )}
 
       {/* Sections */}

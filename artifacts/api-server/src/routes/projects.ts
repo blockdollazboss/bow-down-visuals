@@ -52,7 +52,7 @@ router.post("/projects", requireAuth, async (req, res) => {
 router.get("/projects", requireAuth, async (req, res) => {
   const { data: projects, error } = await req.userSupabase!
     .from("projects")
-    .select("id, project_type, title, artist_name, song_title, genre, mood, output_data, credits_used, created_at")
+    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
     .eq("user_id", req.userId)
     .order("created_at", { ascending: false });
 

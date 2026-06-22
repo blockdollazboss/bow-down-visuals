@@ -10,6 +10,7 @@ import projectsRouter from "./projects";
 import artistVaultsRouter from "./artist-vaults";
 import waitlistRouter from "./waitlist";
 import transcribeRouter from "./transcribe";
+import analyzeSectionsRouter from "./analyze-sections";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -25,6 +26,7 @@ router.use(projectsRouter);
 router.use(artistVaultsRouter);
 router.use(waitlistRouter);
 router.use(transcribeRouter);
+router.use(analyzeSectionsRouter);
 router.use(devRouter);
 
 export default router;

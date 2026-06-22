@@ -65,6 +65,27 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
   return lines.join("\n");
 }
 
+type SongStructureData = Record<string, unknown> | null | undefined;
+
+function formatSongStructure(s: SongStructureData): string {
+  if (!s) return "";
+  const sections = (s["sections"] as Array<{ name: string; startTime?: string; endTime?: string; notes?: string }>) ?? [];
+  const promo15 = s["promo15"] as { section: string; reason: string } | undefined;
+  const promo30 = s["promo30"] as { section: string; reason: string } | undefined;
+  const videoPacing = s["videoPacing"] as string | undefined;
+  const energyMap = s["energyMap"] as string | undefined;
+  const lines: string[] = ["Song Sections:"];
+  for (const sec of sections) {
+    const time = sec.startTime ? ` [${sec.startTime}${sec.endTime ? `–${sec.endTime}` : ""}]` : "";
+    lines.push(`  • ${sec.name}${time}${sec.notes ? `: ${sec.notes}` : ""}`);
+  }
+  if (promo15?.section) lines.push(`Best 15s promo: ${promo15.section} — ${promo15.reason}`);
+  if (promo30?.section) lines.push(`Best 30s promo: ${promo30.section} — ${promo30.reason}`);
+  if (videoPacing) lines.push(`Video Pacing: ${videoPacing}`);
+  if (energyMap) lines.push(`Energy Arc: ${energyMap}`);
+  return lines.join("\n");
+}
+
 router.post("/generate-song-video", requireAuth, async (req, res) => {
   const {
     artistName, songTitle, genre, mood, explicit, songTopic,
@@ -73,6 +94,7 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
   } = req.body as Record<string, string>;
 
   const artistVault = req.body.artistVault as VaultData | null | undefined;
+  const songStructure = req.body.songStructure as SongStructureData;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -108,6 +130,7 @@ Video Style: ${videoStyle || "Cinematic"}
 Platform: ${platform || "YouTube"}
 Artist Description: ${artistDescription || "Not specified"}
 ${existingLyrics ? `\nExisting Lyrics (use as the base — preserve the core content, polish and expand as needed):\n${existingLyrics}` : ""}
+${songStructure ? `\nSONG STRUCTURE ANALYSIS — use this to align lyrics and video breakdown to these sections:\n${formatSongStructure(songStructure)}` : ""}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 ${buildVaultContext(artistVault)}
 

@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film,
-  Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown,
+  Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
+import type { SongStructure } from "@/lib/song-structure";
+import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 
 interface Project {
   id: string;
@@ -18,9 +20,24 @@ interface Project {
   song_title: string | null;
   genre: string | null;
   mood: string | null;
-  output_data: { result?: string } | null;
+  input_data: Record<string, unknown> | null;
+  output_data: { result?: string; songStructure?: SongStructure } | null;
   credits_used: number;
   created_at: string;
+}
+
+function extractLyricsFromProject(project: Project): string | null {
+  const inputLyrics = project.input_data?.["lyrics"];
+  if (typeof inputLyrics === "string" && inputLyrics.length > 10) return inputLyrics;
+  const inputExisting = project.input_data?.["existingLyrics"];
+  if (typeof inputExisting === "string" && inputExisting.length > 10) return inputExisting;
+  const result = project.output_data?.result ?? "";
+  const match = result.match(/##\s*FULL LYRICS\s*\n([\s\S]+?)(?=\n##|$)/i);
+  if (match) {
+    const extracted = match[1].trim();
+    if (extracted.length > 10) return extracted;
+  }
+  return null;
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -41,8 +58,37 @@ const TYPE_COLORS: Record<string, string> = {
 
 /* ─── Result Modal ─── */
 function ResultModal({ project, onClose }: { project: Project; onClose: () => void }) {
+  const { getAccessToken } = useAuth();
   const content = project.output_data?.result ?? "";
   const [copied, setCopied] = useState(false);
+  const [localSongStructure, setLocalSongStructure] = useState<SongStructure | null>(
+    project.output_data?.songStructure ?? null
+  );
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+
+  const lyrics = extractLyricsFromProject(project);
+
+  async function handleAnalyze() {
+    if (!lyrics) return;
+    setAnalyzing(true);
+    setAnalyzeError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/analyze-sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ lyrics }),
+      });
+      if (!res.ok) throw new Error("Analysis failed");
+      const data = (await res.json()) as SongStructure;
+      setLocalSongStructure(data);
+    } catch {
+      setAnalyzeError("Analysis failed. Please try again.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   function handleCopy() {
     navigator.clipboard.writeText(content);
@@ -108,6 +154,40 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
             </button>
           </div>
         </div>
+
+        {/* Analyze Song Sections (shown when lyrics exist) */}
+        {lyrics && (
+          <div className="px-6 pt-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+              >
+                {analyzing ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
+                ) : localSongStructure ? (
+                  <><BarChart2 className="h-4 w-4" /> Re-analyze Sections</>
+                ) : (
+                  <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>
+                )}
+              </button>
+              {localSongStructure && !analyzing && (
+                <span className="text-xs text-primary/60 flex items-center gap-1.5">
+                  <Check className="h-3 w-3" /> Analysis complete
+                </span>
+              )}
+              {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
+            </div>
+            {localSongStructure && (
+              <div className="mt-4">
+                <SongSectionAnalysis analysis={localSongStructure} />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="p-6">
           {content ? (
             <pre className="whitespace-pre-wrap font-sans text-sm text-white/70 leading-relaxed">
