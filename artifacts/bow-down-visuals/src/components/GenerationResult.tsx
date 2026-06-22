@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Copy, Check, Save, Loader2, Download } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Copy, Check, Save, Loader2, FileText, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 
 interface Section {
   title: string;
@@ -84,6 +84,28 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
     toast({ title: "Copied!", description: "All content copied to clipboard." });
   }
 
+  function handleDownloadTxt() {
+    downloadTxt({
+      projectType: saveMetadata.projectType,
+      artistName:  saveMetadata.artistName,
+      songTitle:   saveMetadata.songTitle,
+      genre:       saveMetadata.genre,
+      mood:        saveMetadata.mood,
+      result,
+    });
+  }
+
+  function handleDownloadPdf() {
+    downloadPdf({
+      projectType: saveMetadata.projectType,
+      artistName:  saveMetadata.artistName,
+      songTitle:   saveMetadata.songTitle,
+      genre:       saveMetadata.genre,
+      mood:        saveMetadata.mood,
+      result,
+    });
+  }
+
   async function handleSave() {
     if (!user) {
       toast({ title: "Sign in required", description: "Sign in to save your projects.", variant: "destructive" });
@@ -148,10 +170,15 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
             data-testid="btn-generate-again">
             Generate Again
           </Button>
-          <Button variant="outline" size="sm" disabled
-            className="border-white/5 text-white/25 cursor-not-allowed gap-2">
-            <Download className="h-3.5 w-3.5" /> Download
-            <Badge variant="outline" className="border-white/10 text-white/25 text-[10px] ml-1">Soon</Badge>
+          <Button variant="outline" size="sm" onClick={handleDownloadTxt}
+            className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
+            data-testid="btn-download-txt">
+            <FileText className="h-3.5 w-3.5" /> TXT
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadPdf}
+            className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 gap-2"
+            data-testid="btn-download-pdf">
+            <FileDown className="h-3.5 w-3.5" /> PDF
           </Button>
         </div>
       </div>

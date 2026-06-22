@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film,
-  Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft,
+  Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 
 interface Project {
   id: string;
@@ -49,6 +50,30 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
     setTimeout(() => setCopied(false), 2000);
   }
 
+  function handleTxt() {
+    downloadTxt({
+      projectType: project.project_type,
+      artistName:  project.artist_name,
+      songTitle:   project.song_title,
+      genre:       project.genre,
+      mood:        project.mood,
+      createdAt:   project.created_at,
+      result:      content,
+    });
+  }
+
+  function handlePdf() {
+    downloadPdf({
+      projectType: project.project_type,
+      artistName:  project.artist_name,
+      songTitle:   project.song_title,
+      genre:       project.genre,
+      mood:        project.mood,
+      createdAt:   project.created_at,
+      result:      content,
+    });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/80 backdrop-blur-sm overflow-y-auto p-4 py-10">
       <div className="w-full max-w-3xl bg-[#0d0d0d] border border-white/[0.08] rounded-2xl shadow-2xl">
@@ -59,20 +84,26 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
             </p>
             <h2 className="text-lg font-black text-white">{project.title}</h2>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCopy}
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Button size="sm" variant="outline" onClick={handleCopy}
               className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
-            >
+              data-testid="btn-modal-copy">
               {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
               {copied ? "Copied!" : "Copy All"}
             </Button>
-            <button
-              onClick={onClose}
+            <Button size="sm" variant="outline" onClick={handleTxt}
+              className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
+              data-testid="btn-modal-txt">
+              <FileText className="h-4 w-4" /> TXT
+            </Button>
+            <Button size="sm" variant="outline" onClick={handlePdf}
+              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 gap-2"
+              data-testid="btn-modal-pdf">
+              <FileDown className="h-4 w-4" /> PDF
+            </Button>
+            <button onClick={onClose}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-colors"
-            >
+              data-testid="btn-modal-close">
               <X className="h-4 w-4" />
             </button>
           </div>
