@@ -7,10 +7,39 @@ const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 2;
 const TOOL_TYPE = "Make Song + Video";
-const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.\n\nYou help rappers, singers, producers, AI artists, content creators, and labels create songs, lyrics, music video plans, AI video prompts, promo clip ideas, thumbnails, captions, and release content.\n\nThink like a songwriter, music video director, cinematographer, editor, creative director, and social media strategist.\n\nMake everything original, cinematic, practical, and easy for a music creator to use.\n\nDo not copy real artists' exact songs, lyrics, videos, or celebrity likenesses. Do not include copyrighted logos unless the user says they own them.`;
+
+const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
+
+You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
+
+Think like:
+- a hit songwriter
+- a music video director
+- a cinematographer
+- a social media strategist
+- a creative director
+- a release rollout planner
+
+Make everything:
+- original
+- catchy
+- cinematic
+- commercially usable
+- clear
+- structured
+- premium
+- easy to copy into AI music/video tools
+
+Do not copy real artists' exact lyrics, songs, videos, or celebrity likenesses.
+Do not include copyrighted logos unless the user says they own them.
+Do not mention copyrighted brands unless the user specifically provides them.`;
 
 router.post("/generate-song-video", requireAuth, async (req, res) => {
-  const { artistName, songTitle, genre, mood, explicit, songTopic, voiceStyle, beatStyle, songLength, videoStyle, platform, videoLength, artistDescription, instructions } = req.body as Record<string, string>;
+  const {
+    artistName, songTitle, genre, mood, cleanOrExplicit, songTopic,
+    voiceStyle, beatStyle, songLength, videoStyle, platform,
+    artistDescription, instructions,
+  } = req.body as Record<string, string>;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -27,37 +56,114 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
     return;
   }
 
-  const prompt = `Generate a complete creative package for a new release:
+  const explicit = cleanOrExplicit?.toLowerCase() === "explicit";
 
-Artist: ${artistName}
-Song Title: "${songTitle}"
-Genre: ${genre}
-Mood: ${mood}
-Content Rating: ${explicit === "explicit" ? "Explicit" : "Clean"}
-Song Topic: ${songTopic}
-Voice Style: ${voiceStyle}
-Beat Style: ${beatStyle}
-Song Length: ${songLength}
-Video Style: ${videoStyle}
-Platform: ${platform}
-Video Length: ${videoLength}
-Artist Description: ${artistDescription}
+  const prompt = `Create a complete, premium Song + Video package for the following release. The song and video must feel like they were designed together — same world, same story, same energy.
+
+BOW DOWN VISUALS — CREATOR PACKAGE
+
+Artist: ${artistName || "Unknown Artist"}
+Song Title: "${songTitle || "Untitled"}"
+Genre: ${genre || "Hip Hop"}
+Mood: ${mood || "Dark"}
+Content Rating: ${explicit ? "Explicit — adult language allowed" : "Clean — no profanity"}
+Song Topic / Story: ${songTopic}
+Voice Style: ${voiceStyle || "Not specified"}
+Beat Style: ${beatStyle || "Not specified"}
+Song Length: ${songLength || "Not specified"}
+Video Style: ${videoStyle || "Cinematic"}
+Platform: ${platform || "YouTube"}
+Artist Description: ${artistDescription || "Not specified"}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 
-Generate ALL of the following sections clearly labeled:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 1 — SONG PACKAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Return the following sections with EXACTLY these ## headers:
+
+## SONG CONCEPT
+The creative vision and emotional core of this song.
+
+## BEST SONG TITLE
+The strongest title for this release.
+
+## ALTERNATE TITLE IDEAS
+5 alternate titles with a brief note on each.
+
+## FULL LYRICS
+Complete, polished lyrics: intro (if any), verse 1, hook, verse 2, hook, bridge, hook, outro. Label each part within the lyrics block.
 
 ## HOOK
+The hook on its own — catchy, repeatable, punchy.
+
 ## VERSE 1
+Full verse 1 only.
+
 ## VERSE 2
+Full verse 2 only.
+
 ## BRIDGE
+Bridge lyrics — shift the energy here.
+
 ## OUTRO
+Closing lines or ad libs.
+
 ## AI MUSIC PROMPT
+Detailed prompt ready to paste into Suno, Udio, or similar tools. Include: genre, sub-genre, BPM, key, mood, instrumentation, vocal style, mastering target.
+
+## BEAT DIRECTION
+Ideal beat breakdown: drums, bass, melody, samples/synths, energy arc, drops.
+
+## VOCAL DIRECTION
+How to perform it: delivery, flow, ad libs, energy shifts, breath control.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PART 2 — VISUAL PACKAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ## DIRECTOR'S TREATMENT
+Full creative vision for the video — narrative, tone, emotional arc, and how it connects to the song.
+
+## VISUAL CONCEPT
+The complete visual world: aesthetic, color story, texture, era, atmosphere.
+
+## COLOR PALETTE
+Primary, secondary, and accent colors. How lighting shifts scene to scene.
+
+## MAIN LOCATIONS
+3–5 locations with full descriptions: interior/exterior, time of day, lighting, mood.
+
+## WARDROBE & ARTIST LOOK
+Full wardrobe breakdown per scene or look change.
+
 ## SCENE-BY-SCENE BREAKDOWN
+Every scene with these labeled elements:
+- Timestamp
+- Section (Intro / Verse 1 / Hook / etc.)
+- Lyric/Line
+- Location
+- Action
+- Camera Movement
+- Lighting
+- Mood
+- AI Video Prompt
+- Negative Prompt
+
 ## AI VIDEO PROMPTS
-## PROMO CLIP IDEAS
+5 standalone ready-to-paste prompts for Runway, Sora, Kling, or Pika.
+
+## NEGATIVE PROMPTS
+Master exclusion list for all AI generations.
+
 ## THUMBNAIL PROMPTS
-## CAPTION IDEAS`;
+3 AI image prompts for video thumbnail options.
+
+## PROMO CLIP IDEAS
+5 short-form promo clip ideas with scene reference, framing, on-screen text, and platform.
+
+## CAPTION IDEAS
+5 ready-to-post captions — mix of hype, story, and CTA.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -66,7 +172,7 @@ Generate ALL of the following sections clearly labeled:
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 3000,
+      max_tokens: 6000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";

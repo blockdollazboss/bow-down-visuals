@@ -7,10 +7,38 @@ const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 1;
 const TOOL_TYPE = "Make a Song";
-const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.\n\nYou help rappers, singers, producers, AI artists, content creators, and labels create songs, lyrics, music video plans, AI video prompts, promo clip ideas, thumbnails, captions, and release content.\n\nThink like a songwriter, music video director, cinematographer, editor, creative director, and social media strategist.\n\nMake everything original, cinematic, practical, and easy for a music creator to use.\n\nDo not copy real artists' exact songs, lyrics, videos, or celebrity likenesses. Do not include copyrighted logos unless the user says they own them.`;
+
+const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
+
+You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
+
+Think like:
+- a hit songwriter
+- a music video director
+- a cinematographer
+- a social media strategist
+- a creative director
+- a release rollout planner
+
+Make everything:
+- original
+- catchy
+- cinematic
+- commercially usable
+- clear
+- structured
+- premium
+- easy to copy into AI music/video tools
+
+Do not copy real artists' exact lyrics, songs, videos, or celebrity likenesses.
+Do not include copyrighted logos unless the user says they own them.
+Do not mention copyrighted brands unless the user specifically provides them.`;
 
 router.post("/generate-song", requireAuth, async (req, res) => {
-  const { artistName, songTitle, genre, mood, songTopic, explicit, voiceStyle, beatStyle, songLength, instructions } = req.body as Record<string, string>;
+  const {
+    artistName, songTitle, genre, mood, songTopic,
+    cleanOrExplicit, voiceStyle, beatStyle, songLength, instructions,
+  } = req.body as Record<string, string>;
 
   const currentCredits = req.userCredits ?? 0;
 
@@ -27,34 +55,72 @@ router.post("/generate-song", requireAuth, async (req, res) => {
     return;
   }
 
-  const prompt = `Create a complete song package for the user based on the following details:
+  const explicit = cleanOrExplicit?.toLowerCase() === "explicit";
 
-Artist: ${artistName}
-Song Title: "${songTitle}"
-Genre: ${genre}
-Mood: ${mood}
-Topic: ${songTopic}
-Content Rating: ${explicit === "explicit" ? "Explicit (adult language allowed)" : "Clean (no profanity)"}
-Voice Style: ${voiceStyle}
-Beat Style: ${beatStyle}
-Song Length: ${songLength}
+  const prompt = `Create a complete, premium song package for the following release. Make it ready to use in AI music tools, recording sessions, and promo campaigns.
+
+BOW DOWN VISUALS — CREATOR PACKAGE
+
+Artist: ${artistName || "Unknown Artist"}
+Song Title: "${songTitle || "Untitled"}"
+Genre: ${genre || "Hip Hop"}
+Mood: ${mood || "Dark"}
+Topic / Story: ${songTopic}
+Content Rating: ${explicit ? "Explicit — adult language allowed, no filter" : "Clean — absolutely no profanity or explicit content"}
+Voice Style: ${voiceStyle || "Not specified"}
+Beat Style: ${beatStyle || "Not specified"}
+Song Length: ${songLength || "Not specified"}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 
-Return the output using EXACTLY these section headers in this order. Make the lyrics match the genre, mood, topic, clean/explicit choice, voice style, beat style, and special instructions.
+Return the output using EXACTLY these ## section headers in this order. Write full, original, high-quality content for every section. Make the lyrics match the genre, mood, topic, voice style, and beat style.
 
 ## SONG CONCEPT
-## TITLE IDEAS
+Describe the story, emotion, and creative vision behind this song. What is it really about? What feeling should it leave the listener with?
+
+## BEST SONG TITLE
+Suggest the strongest title for this release (may differ from or improve on the working title).
+
+## ALTERNATE TITLE IDEAS
+List 5 alternate title options with a one-line note on each.
+
 ## FULL LYRICS
+Write complete, polished lyrics: intro (if any), verse 1, hook, verse 2, hook, bridge, hook, outro. Label each section clearly within the lyrics block.
+
 ## HOOK
+Write the hook on its own — clean, punchy, and highly repeatable. This is what people remember.
+
 ## VERSE 1
+Full verse 1 lyrics only.
+
 ## VERSE 2
+Full verse 2 lyrics only.
+
 ## BRIDGE
+Bridge lyrics — shift the energy or emotion here.
+
 ## OUTRO
+Outro lines or ad libs to close the song.
+
 ## AI MUSIC PROMPT
-## SUGGESTED BEAT STYLE
-## SUGGESTED VOCAL STYLE
+Write a detailed prompt ready to paste into Suno, Udio, or similar AI music tools. Include: genre, sub-genre, tempo (BPM), key, mood, instrumentation, arrangement notes, vocal style, and mastering target (e.g. -14 LUFS streaming).
+
+## BEAT DIRECTION
+Describe the ideal beat in detail: drum pattern, bassline, melodic elements, samples or synths, energy arc, drops, and any production references.
+
+## VOCAL DIRECTION
+Describe how the artist should perform this: delivery, flow, cadence, ad libs, where to go hard vs. soft, breath control notes.
+
+## MIXING & MASTERING VIBE
+Describe the sonic goal: frequency balance, vocal placement, reverb/delay character, loudness target, reference tracks (generic descriptions only, no copyrighted names).
+
 ## COVER ART PROMPT
-## MUSIC VIDEO IDEA`;
+Write a detailed AI image generation prompt for the cover art. Include: subject, composition, lighting, color palette, mood, style, and any text treatment.
+
+## MUSIC VIDEO IDEA
+Give a one-paragraph cinematic concept for the music video. Describe the setting, visual tone, key scenes, and overall feel.
+
+## PROMO CAPTION IDEAS
+Write 5 ready-to-post captions for social media — mix of hype, storytelling, and call-to-action styles.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -63,7 +129,7 @@ Return the output using EXACTLY these section headers in this order. Make the ly
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 2000,
+      max_tokens: 4000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
