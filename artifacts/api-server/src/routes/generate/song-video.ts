@@ -69,7 +69,7 @@ router.post("/generate-song-video", requireAuth, async (req, res) => {
   const {
     artistName, songTitle, genre, mood, explicit, songTopic,
     voiceStyle, beatStyle, songLength, videoStyle, platform,
-    artistDescription, instructions,
+    artistDescription, instructions, existingLyrics,
   } = req.body as Record<string, string>;
 
   const artistVault = req.body.artistVault as VaultData | null | undefined;
@@ -107,6 +107,7 @@ Song Length: ${songLength || "Not specified"}
 Video Style: ${videoStyle || "Cinematic"}
 Platform: ${platform || "YouTube"}
 Artist Description: ${artistDescription || "Not specified"}
+${existingLyrics ? `\nExisting Lyrics (use as the base — preserve the core content, polish and expand as needed):\n${existingLyrics}` : ""}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 ${buildVaultContext(artistVault)}
 

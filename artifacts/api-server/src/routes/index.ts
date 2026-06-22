@@ -9,6 +9,7 @@ import thumbnailRouter from "./generate/thumbnail";
 import projectsRouter from "./projects";
 import artistVaultsRouter from "./artist-vaults";
 import waitlistRouter from "./waitlist";
+import transcribeRouter from "./transcribe";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -23,6 +24,7 @@ router.use(thumbnailRouter);
 router.use(projectsRouter);
 router.use(artistVaultsRouter);
 router.use(waitlistRouter);
+router.use(transcribeRouter);
 router.use(devRouter);
 
 export default router;

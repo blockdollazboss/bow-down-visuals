@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { AudioTranscribe } from "@/components/AudioTranscribe";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -403,14 +404,18 @@ export default function MakeVideo() {
             </div>
 
             {/* Lyrics */}
-            <FieldWrapper label="Lyrics">
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Lyrics</Label>
+              <AudioTranscribe
+                onTranscript={(text) => setValue("lyrics", text)}
+              />
               <Textarea
                 {...register("lyrics")}
-                placeholder="Paste your lyrics here — verses, hook, bridge, outro..."
+                placeholder="Paste your lyrics here — or upload audio above to auto-transcribe them..."
                 className={textareaClass}
                 style={{ minHeight: "160px" }}
               />
-            </FieldWrapper>
+            </div>
 
             {/* Artist Description */}
             <FieldWrapper label="Artist Description">

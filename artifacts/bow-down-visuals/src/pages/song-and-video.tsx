@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { AudioTranscribe } from "@/components/AudioTranscribe";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -29,6 +30,7 @@ interface FormValues {
   platform: string;
   artistDescription: string;
   specialInstructions: string;
+  existingLyrics: string;
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
@@ -155,6 +157,7 @@ export default function SongAndVideo() {
       artistName: "", songTitle: "", genre: "", mood: "",
       songTopic: "", cleanOrExplicit: "", voiceStyle: "", beatStyle: "",
       videoStyle: "", platform: "", artistDescription: "", specialInstructions: "",
+      existingLyrics: "",
     },
   });
 
@@ -197,6 +200,7 @@ export default function SongAndVideo() {
         platform: values.platform,
         artistDescription: values.artistDescription,
         instructions: values.specialInstructions,
+        existingLyrics: values.existingLyrics || undefined,
         artistVault: loadedVault,
       }, token);
       setRawResult(rawResult);
@@ -313,6 +317,21 @@ export default function SongAndVideo() {
               <FieldWrapper label="Beat Style">
                 <Input {...register("beatStyle")} placeholder="e.g. dark 808s, trap drums, live piano, boom bap, guitar loop..." className={inputClass} />
               </FieldWrapper>
+
+              {/* Existing Lyrics (optional — transcribe from audio) */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
+                  Existing Lyrics
+                  <span className="ml-2 text-[10px] font-normal text-white/25 normal-case tracking-normal">Optional — AI will use these as the base</span>
+                </Label>
+                <AudioTranscribe onTranscript={(text) => setValue("existingLyrics", text)} />
+                <Textarea
+                  {...register("existingLyrics")}
+                  placeholder="Have an existing track? Upload the audio above to auto-transcribe the lyrics — or paste them here. The AI will use these as the foundation for your song package..."
+                  className={textareaClass}
+                  style={{ minHeight: "140px" }}
+                />
+              </div>
 
             </form>
           </div>
