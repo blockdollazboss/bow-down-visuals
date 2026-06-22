@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { SceneData } from "@/lib/scene-parser";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { FinalVideoExport } from "@/components/FinalVideoExport";
 
 /* ─── Helpers ─── */
 
@@ -816,12 +817,23 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
 
 /* ─── Main Export ─── */
 
+interface ExportRecord {
+  final_video_url: string;
+  export_status: string;
+  export_created_at: string;
+  clips_used: number;
+  audio_used: boolean;
+  timeline_order?: string[];
+}
+
 interface MusicVideoTimelineProps {
   scenes: SceneData[];
   onScenesChange: (scenes: SceneData[]) => void;
   audioUrl?: string | null;
   projectId?: string | null;
   onSaveSuccess?: () => void;
+  existingExport?: ExportRecord | null;
+  onExportComplete?: (record: ExportRecord) => void;
 }
 
 export function MusicVideoTimeline({
@@ -830,6 +842,8 @@ export function MusicVideoTimeline({
   audioUrl,
   projectId,
   onSaveSuccess,
+  existingExport,
+  onExportComplete,
 }: MusicVideoTimelineProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -997,6 +1011,15 @@ export function MusicVideoTimeline({
 
       {/* ── Final Video Preview ── */}
       <FinalVideoPreview scenes={scenes} />
+
+      {/* ── Final Video Export ── */}
+      <FinalVideoExport
+        scenes={scenes}
+        projectId={projectId}
+        audioUrl={audioUrl}
+        existingExport={existingExport}
+        onExportComplete={onExportComplete}
+      />
 
       {/* ── Bottom Save ── */}
       <div className="flex justify-end pt-2">

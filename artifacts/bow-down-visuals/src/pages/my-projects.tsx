@@ -14,6 +14,15 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import type { SceneData } from "@/lib/scene-parser";
 
+interface ExportRecord {
+  final_video_url: string;
+  export_status: string;
+  export_created_at: string;
+  clips_used: number;
+  audio_used: boolean;
+  timeline_order?: string[];
+}
+
 interface Project {
   id: string;
   title: string;
@@ -23,7 +32,17 @@ interface Project {
   genre: string | null;
   mood: string | null;
   input_data: Record<string, unknown> | null;
-  output_data: { result?: string; songStructure?: SongStructure; scenes?: SceneData[] } | null;
+  output_data: {
+    result?: string;
+    songStructure?: SongStructure;
+    scenes?: SceneData[];
+    final_video_url?: string;
+    export_status?: string;
+    export_created_at?: string;
+    clips_used?: number;
+    audio_used?: boolean;
+    timeline_order?: string[];
+  } | null;
   credits_used: number;
   created_at: string;
 }
@@ -63,10 +82,12 @@ function ResultModal({
   project,
   onClose,
   onScenesSaved,
+  onExportComplete,
 }: {
   project: Project;
   onClose: () => void;
   onScenesSaved?: (scenes: SceneData[]) => void;
+  onExportComplete?: (record: ExportRecord) => void;
 }) {
   const { getAccessToken } = useAuth();
   const content = project.output_data?.result ?? "";
@@ -77,6 +98,23 @@ function ResultModal({
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [modalScenes, setModalScenes] = useState<SceneData[]>(project.output_data?.scenes ?? []);
+
+  const audioUrl =
+    (project.input_data?.["audioUrl"] as string | undefined) ??
+    (project.input_data?.["audio_url"] as string | undefined) ??
+    null;
+
+  const existingExport: ExportRecord | null =
+    project.output_data?.final_video_url
+      ? {
+          final_video_url: project.output_data.final_video_url,
+          export_status: project.output_data.export_status ?? "completed",
+          export_created_at: project.output_data.export_created_at ?? "",
+          clips_used: project.output_data.clips_used ?? 0,
+          audio_used: project.output_data.audio_used ?? false,
+          timeline_order: project.output_data.timeline_order,
+        }
+      : null;
 
   const lyrics = extractLyricsFromProject(project);
 
@@ -206,7 +244,10 @@ function ResultModal({
               scenes={modalScenes}
               onScenesChange={setModalScenes}
               projectId={project.id}
+              audioUrl={audioUrl}
               onSaveSuccess={() => onScenesSaved?.(modalScenes)}
+              existingExport={existingExport}
+              onExportComplete={onExportComplete}
             />
           </div>
         )}
@@ -391,11 +432,27 @@ export default function MyProjects() {
           project={openProject}
           onClose={() => setOpenProject(null)}
           onScenesSaved={(savedScenes) => {
-            /* Update both the open project reference and the list so that
-               re-opening the modal shows the saved scene order. */
             const updatedProject: Project = {
               ...openProject,
               output_data: { ...openProject.output_data, scenes: savedScenes },
+            };
+            setOpenProject(updatedProject);
+            setProjects((prev) =>
+              prev.map((p) => (p.id === openProject.id ? updatedProject : p)),
+            );
+          }}
+          onExportComplete={(record) => {
+            const updatedProject: Project = {
+              ...openProject,
+              output_data: {
+                ...openProject.output_data,
+                final_video_url: record.final_video_url,
+                export_status: record.export_status,
+                export_created_at: record.export_created_at,
+                clips_used: record.clips_used,
+                audio_used: record.audio_used,
+                timeline_order: record.timeline_order,
+              },
             };
             setOpenProject(updatedProject);
             setProjects((prev) =>
