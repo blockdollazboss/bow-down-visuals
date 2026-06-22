@@ -59,7 +59,15 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 /* ─── Result Modal ─── */
-function ResultModal({ project, onClose }: { project: Project; onClose: () => void }) {
+function ResultModal({
+  project,
+  onClose,
+  onScenesSaved,
+}: {
+  project: Project;
+  onClose: () => void;
+  onScenesSaved?: (scenes: SceneData[]) => void;
+}) {
   const { getAccessToken } = useAuth();
   const content = project.output_data?.result ?? "";
   const [copied, setCopied] = useState(false);
@@ -198,6 +206,7 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
               scenes={modalScenes}
               onScenesChange={setModalScenes}
               projectId={project.id}
+              onSaveSuccess={() => onScenesSaved?.(modalScenes)}
             />
           </div>
         )}
@@ -378,7 +387,22 @@ export default function MyProjects() {
       </div>
 
       {openProject && (
-        <ResultModal project={openProject} onClose={() => setOpenProject(null)} />
+        <ResultModal
+          project={openProject}
+          onClose={() => setOpenProject(null)}
+          onScenesSaved={(savedScenes) => {
+            /* Update both the open project reference and the list so that
+               re-opening the modal shows the saved scene order. */
+            const updatedProject: Project = {
+              ...openProject,
+              output_data: { ...openProject.output_data, scenes: savedScenes },
+            };
+            setOpenProject(updatedProject);
+            setProjects((prev) =>
+              prev.map((p) => (p.id === openProject.id ? updatedProject : p)),
+            );
+          }}
+        />
       )}
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
