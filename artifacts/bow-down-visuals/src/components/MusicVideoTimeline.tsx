@@ -542,10 +542,28 @@ export function MusicVideoTimeline({
   const clippedCount  = scenes.filter((s) => s.demoClipUrl).length;
 
   const handleUpdate = useCallback(
-    (id: string, patch: Partial<SceneData>) => {
-      onScenesChange(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    async (id: string, patch: Partial<SceneData>) => {
+      const updatedScenes = scenes.map((s) => (s.id === id ? { ...s, ...patch } : s));
+      onScenesChange(updatedScenes);
+
+      if ("demoClipUrl" in patch && patch.demoClipUrl && projectId) {
+        try {
+          const token = await getAccessToken();
+          await fetch(`/api/projects/${projectId}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token ?? ""}`,
+            },
+            body: JSON.stringify({ scenes: updatedScenes }),
+          });
+          toast({ title: "Clip saved!", description: "Your Runway clip has been saved to this project." });
+        } catch {
+          toast({ title: "Clip ready but not saved", description: "Click Save Timeline to persist it.", variant: "destructive" });
+        }
+      }
     },
-    [scenes, onScenesChange]
+    [scenes, onScenesChange, projectId, getAccessToken, toast]
   );
 
   function handleMoveUp(index: number) {
