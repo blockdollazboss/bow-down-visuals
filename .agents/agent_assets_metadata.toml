@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "6u7eagGihXagt4nYXnbEL"
+uri = "file://tmp-clips/runway-test-scene.mp4"
+type = "video"
+title = "Runway Test — Dark Studio Neon Lights (9:16)"
