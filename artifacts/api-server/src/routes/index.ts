@@ -12,6 +12,7 @@ import waitlistRouter from "./waitlist";
 import transcribeRouter from "./transcribe";
 import analyzeSectionsRouter from "./analyze-sections";
 import demoClipRouter from "./generate/demo-clip";
+import runwayClipRouter from "./generate/runway-clip";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -29,6 +30,7 @@ router.use(waitlistRouter);
 router.use(transcribeRouter);
 router.use(analyzeSectionsRouter);
 router.use(demoClipRouter);
+router.use(runwayClipRouter);
 router.use(devRouter);
 
 export default router;

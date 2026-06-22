@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Film, ArrowUp, ArrowDown, Trash2, Plus, Pencil, Play,
   CheckCircle2, Circle, Save, Loader2, Clock, X, Check,
-  Music2, Clapperboard, Eye, AlertCircle, RefreshCw,
+  Music2, Clapperboard, Eye, AlertCircle, RefreshCw, Zap,
+  TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SceneData } from "@/lib/scene-parser";
@@ -39,33 +40,60 @@ function sectionColor(s: string): string {
 }
 
 function statusBadge(scene: SceneData) {
-  if (scene.approved)        return { label: "Approved", cls: "text-primary bg-primary/15 border-primary/30" };
+  if (scene.approved)        return { label: "Approved",   cls: "text-primary bg-primary/15 border-primary/30" };
   if (scene.demoClipUrl)     return { label: "Clip Ready", cls: "text-green-300 bg-green-500/10 border-green-500/25" };
-  if (scene.aiVideoPrompt)   return { label: "Ready",    cls: "text-green-300 bg-green-500/10 border-green-500/25" };
-  return                            { label: "Pending",  cls: "text-white/35 bg-white/5 border-white/10" };
+  if (scene.aiVideoPrompt)   return { label: "Ready",      cls: "text-green-300 bg-green-500/10 border-green-500/25" };
+  return                            { label: "Pending",    cls: "text-white/35 bg-white/5 border-white/10" };
 }
 
-/* ─── Demo Clip Area (inside TimelineRow) ─── */
+/* ─── Old Demo Clip Placeholder (fallback) ─── */
 
-type GenState = "idle" | "starting" | "polling" | "done" | "error";
+function DemoClipInline({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="mt-3 rounded-xl overflow-hidden border border-primary/20 bg-black">
+      <div className="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-primary/15">
+        <span className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
+          <Film className="h-3 w-3" /> Demo Clip Preview
+        </span>
+        <button onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="relative aspect-video bg-gradient-to-br from-[#1a1209] via-[#0d0d0d] to-[#120a00] flex flex-col items-center justify-center gap-3 overflow-hidden">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="absolute rounded-full bg-primary/5 animate-pulse"
+            style={{ width: `${90 + i * 45}px`, height: `${90 + i * 45}px`, top: `${15 + i * 9}%`, left: `${10 + i * 13}%`, animationDelay: `${i * 0.4}s`, animationDuration: `${2 + i * 0.5}s` }} />
+        ))}
+        <div className="relative z-10 flex flex-col items-center gap-2">
+          <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center animate-pulse">
+            <Play className="h-6 w-6 text-primary ml-1" />
+          </div>
+          <p className="text-white/40 text-xs text-center max-w-[200px] leading-relaxed">
+            AI video generation coming soon.<br />Paste your prompt into Runway, Sora, or Kling.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-interface DemoClipAreaProps {
+/* ─── Runway Clip Generator ─── */
+
+type RunwayState = "idle" | "confirm" | "starting" | "polling" | "done" | "error";
+
+interface RunwayClipProps {
   scene: SceneData;
-  index: number;
   onUpdate: (patch: Partial<SceneData>) => void;
 }
 
-function DemoClipArea({ scene, index, onUpdate }: DemoClipAreaProps) {
+function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
   const { getAccessToken } = useAuth();
 
-  const [genState, setGenState] = useState<GenState>(() =>
-    scene.demoClipUrl ? "done" : "idle"
-  );
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [state, setState]       = useState<RunwayState>(() => scene.demoClipUrl ? "done" : "idle");
+  const [taskId, setTaskId]     = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(scene.demoClipUrl);
-  const [showVideo, setShowVideo] = useState(false);
 
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
@@ -81,7 +109,7 @@ function DemoClipArea({ scene, index, onUpdate }: DemoClipAreaProps) {
     pollRef.current = setInterval(async () => {
       try {
         const token = await getAccessToken();
-        const res = await fetch(`/api/generate-demo-clip/${id}`, {
+        const res = await fetch(`/api/generate-runway-clip/${id}`, {
           headers: { Authorization: `Bearer ${token ?? ""}` },
         });
         const data = await res.json() as {
@@ -91,31 +119,30 @@ function DemoClipArea({ scene, index, onUpdate }: DemoClipAreaProps) {
           stopPolling();
           setVideoUrl(data.url);
           onUpdateRef.current({ demoClipUrl: data.url });
-          setGenState("done");
-          setShowVideo(true);
+          setState("done");
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
-          setError(data.error ?? "Generation failed");
-          setGenState("error");
+          setError(data.error ?? "Runway returned a failure with no message");
+          setState("error");
         } else {
-          setProgress(data.progress ?? null);
+          setProgress(typeof data.progress === "number" ? data.progress : null);
         }
-      } catch {
+      } catch (e) {
         stopPolling();
-        setError("Network error while polling — please retry");
-        setGenState("error");
+        setError(e instanceof Error ? e.message : "Network error while polling Runway");
+        setState("error");
       }
     }, 5000);
   }
 
   async function handleGenerate() {
     if (!scene.aiVideoPrompt) return;
-    setGenState("starting");
+    setState("starting");
     setError(null);
     setProgress(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-demo-clip", {
+      const res = await fetch("/api/generate-runway-clip", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -127,134 +154,127 @@ function DemoClipArea({ scene, index, onUpdate }: DemoClipAreaProps) {
         }),
       });
       const data = await res.json() as { taskId?: string; error?: string };
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? "Failed to start");
+      if (!res.ok || !data.taskId) {
+        throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      }
       setTaskId(data.taskId);
-      setGenState("polling");
+      setState("polling");
       startPolling(data.taskId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start generation");
-      setGenState("error");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start Runway generation");
+      setState("error");
     }
   }
 
-  function handleReset() {
-    stopPolling();
-    setVideoUrl(null);
-    setTaskId(null);
-    setProgress(null);
-    setError(null);
-    setGenState("idle");
-    setShowVideo(false);
-  }
-
   /* ── Video ready ── */
-  if (genState === "done" && videoUrl) {
+  if (state === "done" && videoUrl) {
     return (
-      <div className="flex flex-col gap-2">
-        <button
-          onClick={() => setShowVideo((v) => !v)}
-          className="w-full aspect-video bg-black rounded-lg border border-primary/30 flex flex-col items-center justify-center gap-1.5 hover:border-primary/50 transition-colors group relative overflow-hidden"
-          data-testid={`timeline-demo-btn-${index}`}
-          title={showVideo ? "Hide clip" : "Show clip"}
-        >
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center group-hover:bg-primary/35 transition-colors">
-              <Play className="h-3.5 w-3.5 text-primary ml-0.5" />
-            </div>
-          </div>
-          <span className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] text-primary/60 group-hover:text-primary/80 font-bold tracking-wide">
-            {showVideo ? "Hide" : "Play Clip"}
+      <div className="mt-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black text-green-400/70 uppercase tracking-widest flex items-center gap-1.5">
+            <Zap className="h-3 w-3" /> Runway Clip Ready
           </span>
-        </button>
-        <button
-          onClick={handleReset}
-          className="flex items-center justify-center gap-1 text-[10px] text-white/20 hover:text-white/45 transition-colors"
-          title="Regenerate clip"
-        >
-          <RefreshCw className="h-2.5 w-2.5" /> Regenerate
-        </button>
-        {showVideo && (
-          <div className="mt-1 rounded-xl overflow-hidden border border-primary/20 bg-black col-span-full">
-            <div className="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-primary/15">
-              <span className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                <Film className="h-3 w-3" /> Runway Clip
-              </span>
-              <button onClick={() => setShowVideo(false)} className="text-white/30 hover:text-white transition-colors">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <video
-              key={videoUrl}
-              src={videoUrl}
-              controls
-              autoPlay
-              loop
-              className="w-full aspect-video"
-              style={{ background: "#000" }}
-            />
-          </div>
-        )}
+          <button
+            onClick={() => { setVideoUrl(null); setTaskId(null); setProgress(null); setError(null); setState("idle"); }}
+            className="text-[10px] text-white/20 hover:text-white/50 flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw className="h-2.5 w-2.5" /> Regenerate
+          </button>
+        </div>
+        <video
+          key={videoUrl}
+          src={videoUrl}
+          controls
+          autoPlay
+          loop
+          className="w-full rounded-xl border border-green-500/20"
+          style={{ background: "#000" }}
+        />
       </div>
     );
   }
 
   /* ── Generating ── */
-  if (genState === "starting" || genState === "polling") {
+  if (state === "starting" || state === "polling") {
     return (
-      <div
-        className="w-full aspect-video bg-gradient-to-br from-[#180f00] to-[#0a0900] rounded-lg border border-primary/20 flex flex-col items-center justify-center gap-2"
-        data-testid={`timeline-demo-btn-${index}`}
-      >
-        <Loader2 className="h-7 w-7 text-primary/70 animate-spin" />
-        <span className="text-[9px] text-primary/50 text-center leading-snug px-2">
-          {genState === "starting" ? "Starting…" : "Generating…"}
-          {"\n"}(30–90s)
-        </span>
-        {progress !== null && (
-          <div className="w-20 h-0.5 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-1000"
-              style={{ width: `${Math.round(progress * 100)}%` }}
-            />
-          </div>
-        )}
+      <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+        <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-primary/80">Generating Runway clip...</p>
+          <p className="text-[11px] text-white/30 mt-0.5">
+            {state === "starting" ? "Starting task…" : "Processing (30–90 seconds)…"}
+          </p>
+          {progress !== null && (
+            <div className="mt-2 w-full h-1 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-1000"
+                style={{ width: `${Math.round(progress * 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
-  /* ── Error ── */
-  if (genState === "error") {
+  /* ── Error (show exact Runway error) ── */
+  if (state === "error") {
     return (
-      <div className="w-full aspect-video bg-gradient-to-br from-[#180800] to-[#0a0000] rounded-lg border border-red-500/20 flex flex-col items-center justify-center gap-2 px-2">
-        <AlertCircle className="h-6 w-6 text-red-400/70" />
-        <span className="text-[9px] text-red-400/70 text-center leading-snug">{error ?? "Error"}</span>
+      <div className="mt-4 space-y-2">
+        <div className="flex gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5">
+          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-red-400">Runway Error</p>
+            <p className="text-[11px] text-red-300/70 mt-1 leading-relaxed break-words">{error}</p>
+          </div>
+        </div>
         <button
-          onClick={handleGenerate}
-          data-testid={`timeline-demo-btn-${index}`}
-          className="flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors mt-1"
+          onClick={() => { setError(null); setState("idle"); }}
+          className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 transition-colors"
         >
-          <RefreshCw className="h-2.5 w-2.5" /> Retry
+          <RefreshCw className="h-2.5 w-2.5" /> Try again
         </button>
       </div>
     );
   }
 
-  /* ── Idle: generate button ── */
-  return (
-    <button
-      onClick={handleGenerate}
-      disabled={!scene.aiVideoPrompt}
-      className="w-full aspect-video bg-gradient-to-br from-[#180f00] to-[#0a0900] rounded-lg border border-primary/10 flex flex-col items-center justify-center gap-1.5 hover:border-primary/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors group cursor-pointer"
-      data-testid={`timeline-demo-btn-${index}`}
-      title={scene.aiVideoPrompt ? "Generate Runway demo clip" : "Add a prompt to generate a clip"}
-    >
-      <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-        <Film className="h-3.5 w-3.5 text-primary/40 group-hover:text-primary/70 transition-colors" />
+  /* ── Confirm warning ── */
+  if (state === "confirm") {
+    return (
+      <div className="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-3">
+        <div className="flex gap-2">
+          <TriangleAlert className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-bold text-yellow-300">Runway video generation may use paid API credits.</p>
+            <p className="text-[11px] text-white/40 mt-1">Generate one test clip first to verify your settings.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" onClick={handleGenerate} className="gold-glow h-7 text-xs">
+            <Zap className="h-3 w-3 mr-1" /> Yes, Generate
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setState("idle")}
+            className="border-white/10 bg-white/5 text-white/50 h-7 text-xs">
+            Cancel
+          </Button>
+        </div>
       </div>
-      <span className="text-[9px] text-white/20 group-hover:text-primary/50 transition-colors font-semibold text-center leading-snug px-1">
-        Generate<br />Demo Clip
-      </span>
-    </button>
+    );
+  }
+
+  /* ── Idle: Generate Runway Clip button ── */
+  return (
+    <div className="mt-4">
+      <button
+        onClick={() => setState("confirm")}
+        disabled={!scene.aiVideoPrompt}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-primary/70 text-xs font-bold hover:border-primary/40 hover:bg-primary/10 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors group w-full justify-center"
+        title={scene.aiVideoPrompt ? "Generate a real Runway video clip" : "Add a prompt above first"}
+      >
+        <Zap className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
+        Generate Runway Clip
+      </button>
+    </div>
   );
 }
 
@@ -266,12 +286,7 @@ function AudioPlayer({ url }: { url: string }) {
         <Music2 className="h-4 w-4 text-primary/60" />
         <span className="text-xs font-black text-white/50 uppercase tracking-widest">Reference Audio</span>
       </div>
-      <audio
-        controls
-        src={url}
-        className="w-full h-10"
-        style={{ colorScheme: "dark" }}
-      />
+      <audio controls src={url} className="w-full h-10" style={{ colorScheme: "dark" }} />
     </div>
   );
 }
@@ -318,11 +333,12 @@ interface TimelineRowProps {
 }
 
 function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMoveDown, onRemove }: TimelineRowProps) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing]         = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(scene.aiVideoPrompt);
-  const [copied, setCopied] = useState(false);
+  const [showDemo, setShowDemo]       = useState(false);
+  const [copied, setCopied]           = useState(false);
   const duration = parseDuration(scene.timestamp);
-  const status = statusBadge(scene);
+  const status   = statusBadge(scene);
 
   function handleSaveEdit() {
     onUpdate({ aiVideoPrompt: editedPrompt });
@@ -342,9 +358,8 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
       } bg-[#0a0a0a]`}
       data-testid={`timeline-scene-${index}`}
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <div className={`flex items-center gap-2 px-4 py-3 border-b border-white/[0.05] ${scene.approved ? "bg-primary/[0.03]" : "bg-white/[0.01]"}`}>
-        {/* Approve toggle */}
         <button
           onClick={() => onUpdate({ approved: !scene.approved })}
           className="shrink-0 transition-transform hover:scale-110"
@@ -356,19 +371,16 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
             : <Circle className="h-5 w-5 text-white/15 hover:text-white/40 transition-colors" />}
         </button>
 
-        {/* Number */}
         <span className="text-xs font-black text-white/25 tabular-nums w-5 shrink-0">
           {String(index + 1).padStart(2, "0")}
         </span>
 
-        {/* Section badge */}
         {scene.section && (
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${sectionColor(scene.section)}`}>
             {scene.section}
           </span>
         )}
 
-        {/* Timestamp + duration */}
         {scene.timestamp && (
           <span className="flex items-center gap-1 text-xs text-white/30 shrink-0">
             <Clock className="h-3 w-3" /> {scene.timestamp}
@@ -376,54 +388,51 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
           </span>
         )}
 
-        {/* Status */}
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border hidden sm:inline-flex ${status.cls}`}>
           {status.label}
         </span>
 
-        {/* Move / remove actions */}
         <div className="ml-auto flex items-center gap-1">
-          <button
-            onClick={onMoveUp}
-            disabled={isFirst}
+          <button onClick={onMoveUp} disabled={isFirst}
             className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title="Move Up"
-            data-testid={`timeline-move-up-${index}`}
-          >
+            title="Move Up" data-testid={`timeline-move-up-${index}`}>
             <ArrowUp className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={onMoveDown}
-            disabled={isLast}
+          <button onClick={onMoveDown} disabled={isLast}
             className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-white/60 hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title="Move Down"
-            data-testid={`timeline-move-down-${index}`}
-          >
+            title="Move Down" data-testid={`timeline-move-down-${index}`}>
             <ArrowDown className="h-3.5 w-3.5" />
           </button>
-          <button
-            onClick={onRemove}
+          <button onClick={onRemove}
             className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            title="Remove Scene"
-            data-testid={`timeline-remove-${index}`}
-          >
+            title="Remove Scene" data-testid={`timeline-remove-${index}`}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Lyric line */}
+      {/* ── Lyric line ── */}
       {scene.lyricLine && (
         <div className="px-4 py-2 border-b border-white/[0.04]">
           <p className="text-xs italic text-white/30">"{scene.lyricLine}"</p>
         </div>
       )}
 
-      {/* Main body: demo clip + prompt */}
+      {/* ── Main body: demo clip (placeholder) + prompt ── */}
       <div className="flex flex-col sm:flex-row gap-0 sm:gap-0">
-        {/* Demo clip column */}
-        <div className="sm:w-44 shrink-0 p-3 sm:border-r border-white/[0.05] flex flex-col gap-2">
-          <DemoClipArea scene={scene} index={index} onUpdate={onUpdate} />
+        {/* Demo clip column — old placeholder fallback */}
+        <div className="sm:w-44 shrink-0 p-3 sm:border-r border-white/[0.05]">
+          <button
+            onClick={() => setShowDemo((v) => !v)}
+            className="w-full aspect-video bg-gradient-to-br from-[#180f00] to-[#0a0900] rounded-lg border border-primary/10 flex flex-col items-center justify-center gap-1.5 hover:border-primary/25 transition-colors group cursor-pointer"
+            data-testid={`timeline-demo-btn-${index}`}
+          >
+            <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/15 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+              <Play className="h-3.5 w-3.5 text-primary/40 ml-0.5" />
+            </div>
+            <span className="text-[9px] text-white/20 group-hover:text-white/35 transition-colors">Demo Clip</span>
+          </button>
+          {showDemo && <DemoClipInline onClose={() => setShowDemo(false)} />}
         </div>
 
         {/* Prompt column */}
@@ -498,6 +507,9 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
                 : <><Circle className="h-3.5 w-3.5" /> Approve Scene</>}
             </button>
           </div>
+
+          {/* ── Generate Runway Clip (new real generation) ── */}
+          <RunwayClipGenerator scene={scene} onUpdate={onUpdate} />
         </div>
       </div>
     </div>
@@ -556,18 +568,9 @@ export function MusicVideoTimeline({
   function handleAddScene() {
     const newScene: SceneData = {
       id: `scene-${Date.now()}`,
-      timestamp: "",
-      section: "",
-      lyricLine: "",
-      location: "",
-      action: "",
-      cameraMovement: "",
-      lighting: "",
-      mood: "",
-      aiVideoPrompt: "",
-      negativePrompt: "",
-      approved: false,
-      demoClipUrl: null,
+      timestamp: "", section: "", lyricLine: "", location: "",
+      action: "", cameraMovement: "", lighting: "", mood: "",
+      aiVideoPrompt: "", negativePrompt: "", approved: false, demoClipUrl: null,
     };
     onScenesChange([...scenes, newScene]);
   }
@@ -586,7 +589,7 @@ export function MusicVideoTimeline({
           body: JSON.stringify({ scenes }),
         });
         if (!res.ok) throw new Error("Save failed");
-        toast({ title: "Timeline saved!", description: "Scene order, prompts, and approvals updated." });
+        toast({ title: "Timeline saved!", description: "Scenes, prompts, clips, and approvals updated." });
         onSaveSuccess?.();
       } else {
         toast({
@@ -614,9 +617,9 @@ export function MusicVideoTimeline({
           <div>
             <h2 className="text-lg font-black text-white uppercase tracking-wider">Music Video Timeline</h2>
             <p className="text-xs text-white/30 mt-0.5">
-              {scenes.length} scenes
+              {scenes.length} scene{scenes.length !== 1 ? "s" : ""}
               {approvedCount > 0 && <> · <span className="text-primary">{approvedCount} approved</span></>}
-              {clippedCount > 0  && <> · <span className="text-green-400">{clippedCount} clip{clippedCount > 1 ? "s" : ""} ready</span></>}
+              {clippedCount  > 0 && <> · <span className="text-green-400">{clippedCount} clip{clippedCount !== 1 ? "s" : ""} ready</span></>}
             </p>
           </div>
         </div>
