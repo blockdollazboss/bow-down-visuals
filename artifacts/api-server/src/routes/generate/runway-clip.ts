@@ -4,6 +4,15 @@ import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
 
+/** DEV: confirm RUNWAYML_API_SECRET exists without revealing its value */
+router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
+  const key = process.env["RUNWAYML_API_SECRET"];
+  res.json({
+    secretExists: !!key,
+    secretLength: key ? key.length : 0,
+  });
+});
+
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
   const { promptText, negativePrompt, ratio } = req.body as {
     promptText?: string;

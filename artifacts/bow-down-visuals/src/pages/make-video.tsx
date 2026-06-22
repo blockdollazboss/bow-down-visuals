@@ -545,6 +545,29 @@ export default function MakeVideo() {
               onScenesChange={setScenes}
               onSaved={setSavedProjectId}
             />
+
+            {import.meta.env.DEV && (
+              <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-2">
+                <p className="text-[10px] font-black text-yellow-400/80 uppercase tracking-widest">DEV · Scene Parser Debug</p>
+                <p className="text-xs text-white/40 font-mono">
+                  Scenes parsed: <span className={scenes.length > 0 ? "text-green-400" : "text-red-400"}>{scenes.length}</span>
+                  {scenes.length === 0 && " ⚠ No scenes found — check AI response format below"}
+                </p>
+                {scenes.length > 0 && scenes.map((s, i) => (
+                  <div key={s.id} className="text-[10px] font-mono text-white/30 pl-2 border-l border-yellow-500/10">
+                    Scene {i + 1}: {s.aiVideoPrompt
+                      ? <span className="text-green-400/70">prompt="{s.aiVideoPrompt.slice(0, 60)}…"</span>
+                      : <span className="text-red-400/70">⚠ no aiVideoPrompt (will use fallback from action/location)</span>}
+                  </div>
+                ))}
+                {scenes.length === 0 && (
+                  <p className="text-[10px] font-mono text-white/25 pl-2 border-l border-yellow-500/10">
+                    Parser looks for "## SCENE-BY-SCENE BREAKDOWN" header in AI output, then "Scene 1:", "Timestamp:", "AI Video Prompt:" fields per scene.
+                  </p>
+                )}
+              </div>
+            )}
+
             <MusicVideoTimeline
               scenes={scenes}
               onScenesChange={setScenes}

@@ -3,7 +3,6 @@ import {
   Film, ArrowUp, ArrowDown, Trash2, Plus, Pencil, Play,
   CheckCircle2, Circle, Save, Loader2, Clock, X, Check,
   Music2, Clapperboard, Eye, AlertCircle, RefreshCw, Zap,
-  TriangleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { SceneData } from "@/lib/scene-parser";
@@ -79,7 +78,9 @@ function DemoClipInline({ onClose }: { onClose: () => void }) {
 
 /* ─── Runway Clip Generator ─── */
 
-type RunwayState = "idle" | "confirm" | "starting" | "polling" | "done" | "error";
+const IS_DEV = import.meta.env.DEV;
+
+type RunwayState = "idle" | "starting" | "polling" | "done" | "error";
 
 interface RunwayClipProps {
   scene: SceneData;
@@ -115,13 +116,16 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
         const data = await res.json() as {
           status: string; url?: string; progress?: number; error?: string;
         };
+        if (IS_DEV) console.log("[Runway] poll:", data.status, data.progress ?? "");
         if (data.status === "succeeded" && data.url) {
           stopPolling();
+          if (IS_DEV) console.log("[Runway] done — url:", data.url);
           setVideoUrl(data.url);
           onUpdateRef.current({ demoClipUrl: data.url });
           setState("done");
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
+          if (IS_DEV) console.log("[Runway] failed:", data.error);
           setError(data.error ?? "Runway returned a failure with no message");
           setState("error");
         } else {
@@ -135,8 +139,17 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
     }, 5000);
   }
 
+  /** Build the best available prompt for this scene */
+  function buildPrompt(): string {
+    if (scene.aiVideoPrompt.trim()) return scene.aiVideoPrompt.trim();
+    const fallback = [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
+      .filter(Boolean).join(", ");
+    return fallback || "cinematic music video scene, dramatic lighting, luxury aesthetic";
+  }
+
   async function handleGenerate() {
-    if (!scene.aiVideoPrompt) return;
+    const promptText = buildPrompt();
+    if (IS_DEV) console.log("[Runway] starting — prompt:", promptText.slice(0, 80));
     setState("starting");
     setError(null);
     setProgress(null);
@@ -149,7 +162,7 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
           Authorization: `Bearer ${token ?? ""}`,
         },
         body: JSON.stringify({
-          promptText: scene.aiVideoPrompt,
+          promptText,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
         }),
@@ -158,11 +171,14 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
       if (!res.ok || !data.taskId) {
         throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
       }
+      if (IS_DEV) console.log("[Runway] task created:", data.taskId);
       setTaskId(data.taskId);
       setState("polling");
       startPolling(data.taskId);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start Runway generation");
+      const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
+      if (IS_DEV) console.log("[Runway] error:", msg);
+      setError(msg);
       setState("error");
     }
   }
@@ -191,6 +207,11 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
           className="w-full rounded-xl border border-green-500/20"
           style={{ background: "#000" }}
         />
+        {IS_DEV && (
+          <p className="text-[9px] font-mono text-white/20 break-all px-1">
+            DEV · taskId: {taskId} · url: {videoUrl.slice(0, 70)}…
+          </p>
+        )}
       </div>
     );
   }
@@ -203,7 +224,7 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold text-primary/80">Generating Runway clip...</p>
           <p className="text-[11px] text-white/30 mt-0.5">
-            {state === "starting" ? "Starting task…" : "Processing (30–90 seconds)…"}
+            {state === "starting" ? "Starting task…" : "Processing — this takes 30–90 seconds…"}
           </p>
           {progress !== null && (
             <div className="mt-2 w-full h-1 rounded-full bg-white/10 overflow-hidden">
@@ -212,6 +233,12 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
                 style={{ width: `${Math.round(progress * 100)}%` }}
               />
             </div>
+          )}
+          {IS_DEV && taskId && (
+            <p className="text-[9px] font-mono text-white/20 mt-1">
+              DEV · taskId: {taskId} · state: {state}
+              {progress !== null ? ` · progress: ${Math.round(progress * 100)}%` : ""}
+            </p>
           )}
         </div>
       </div>
@@ -239,41 +266,24 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
     );
   }
 
-  /* ── Confirm warning ── */
-  if (state === "confirm") {
-    return (
-      <div className="mt-4 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-3">
-        <div className="flex gap-2">
-          <TriangleAlert className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-yellow-300">Runway video generation may use paid API credits.</p>
-            <p className="text-[11px] text-white/40 mt-1">Generate one test clip first to verify your settings.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" onClick={handleGenerate} className="gold-glow h-7 text-xs">
-            <Zap className="h-3 w-3 mr-1" /> Yes, Generate
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setState("idle")}
-            className="border-white/10 bg-white/5 text-white/50 h-7 text-xs">
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Idle: Generate Runway Clip button ── */
+  /* ── Idle: one-click Generate Runway Clip (no confirm step) ── */
+  const hasPrompt = !!scene.aiVideoPrompt.trim();
   return (
-    <div className="mt-4">
+    <div className="mt-4 space-y-1.5">
+      {IS_DEV && (
+        <p className="text-[9px] font-mono text-white/20 bg-white/[0.02] rounded px-2 py-1 leading-relaxed">
+          DEV · {hasPrompt
+            ? `aiVideoPrompt: "${scene.aiVideoPrompt.slice(0, 60)}…"`
+            : `⚠ no aiVideoPrompt — fallback: "${buildPrompt().slice(0, 60)}…"`}
+        </p>
+      )}
       <button
-        onClick={() => setState("confirm")}
-        disabled={!scene.aiVideoPrompt}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-primary/70 text-xs font-bold hover:border-primary/40 hover:bg-primary/10 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors group w-full justify-center"
-        title={scene.aiVideoPrompt ? "Generate a real Runway video clip" : "Add a prompt above first"}
+        onClick={handleGenerate}
+        className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:border-primary/50 hover:bg-primary/20 transition-all group w-full justify-center"
       >
-        <Zap className="h-3.5 w-3.5 group-hover:text-primary transition-colors" />
+        <Zap className="h-3.5 w-3.5" />
         Generate Runway Clip
+        {!hasPrompt && <span className="text-primary/50 font-normal ml-1">(using scene info)</span>}
       </button>
     </div>
   );
@@ -308,12 +318,12 @@ function FinalVideoPreview() {
             <Clapperboard className="h-8 w-8 text-primary/40" />
           </div>
           <div className="text-center space-y-1">
-            <p className="text-white/60 font-semibold text-sm">This is a demo timeline preview.</p>
-            <p className="text-white/25 text-xs">Real video rendering coming soon.</p>
+            <p className="text-white/60 font-semibold text-sm">Generate clips scene by scene below.</p>
+            <p className="text-white/25 text-xs">Click "Generate Runway Clip" on any scene card to produce a real video preview.</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 bg-primary/5">
             <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-xs font-bold text-primary/60 uppercase tracking-wider">Timeline Preview Mode</span>
+            <span className="text-xs font-bold text-primary/60 uppercase tracking-wider">Scene-by-Scene Mode</span>
           </div>
         </div>
       </div>
