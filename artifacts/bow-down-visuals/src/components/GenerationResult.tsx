@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Copy, Check, Save, Loader2, FileText, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
+import { SceneStudio } from "@/components/SceneStudio";
+import { parseScenes, type SceneData } from "@/lib/scene-parser";
 
 interface Section {
   title: string;
   content: string;
+  isSceneBreakdown?: boolean;
 }
 
 function parseSections(raw: string): Section[] {
@@ -21,7 +24,12 @@ function parseSections(raw: string): Section[] {
   for (const line of lines) {
     if (line.startsWith("## ")) {
       if (current) sections.push(current);
-      current = { title: line.replace(/^## /, "").trim(), content: "" };
+      const title = line.replace(/^## /, "").trim();
+      current = {
+        title,
+        content: "",
+        isSceneBreakdown: /scene.by.scene|scene breakdown/i.test(title),
+      };
     } else if (current) {
       current.content += line + "\n";
     }
@@ -67,9 +75,10 @@ interface GenerationResultProps {
   result: string;
   onReset: () => void;
   saveMetadata: SaveMetadata;
+  initialScenes?: SceneData[];
 }
 
-export function GenerationResult({ result, onReset, saveMetadata }: GenerationResultProps) {
+export function GenerationResult({ result, onReset, saveMetadata, initialScenes }: GenerationResultProps) {
   const sections = parseSections(result);
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -81,6 +90,18 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
     saveMetadata.artistName ||
     ""
   );
+
+  // Scene studio state — initialise from raw breakdown or from saved data
+  const [scenes, setScenes] = useState<SceneData[]>(() => {
+    if (initialScenes && initialScenes.length > 0) return initialScenes;
+    const breakdownSection = sections.find((s) => s.isSceneBreakdown);
+    if (breakdownSection) return parseScenes(breakdownSection.content);
+    return [];
+  });
+
+  const handleScenesChange = useCallback((updated: SceneData[]) => {
+    setScenes(updated);
+  }, []);
 
   function handleCopyAll() {
     navigator.clipboard.writeText(result);
@@ -134,6 +155,7 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
           outputData: {
             result,
             ...(saveMetadata.songStructure ? { songStructure: saveMetadata.songStructure } : {}),
+            ...(scenes.length > 0 ? { scenes } : {}),
           },
           creditsUsed: saveMetadata.creditsUsed ?? 1,
         }),
@@ -235,10 +257,14 @@ export function GenerationResult({ result, onReset, saveMetadata }: GenerationRe
                 <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="font-bold text-white text-sm tracking-wide uppercase">{section.title}</h3>
               </div>
-              <CopyButton text={section.content} />
+              {!section.isSceneBreakdown && <CopyButton text={section.content} />}
             </div>
             <div className="px-5 py-4">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
+              {section.isSceneBreakdown && scenes.length > 0 ? (
+                <SceneStudio scenes={scenes} onScenesChange={handleScenesChange} />
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
+              )}
             </div>
           </div>
         )) : (

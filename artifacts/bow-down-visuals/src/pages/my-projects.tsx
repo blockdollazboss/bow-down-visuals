@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
+import { SceneStudio } from "@/components/SceneStudio";
+import type { SceneData } from "@/lib/scene-parser";
 
 interface Project {
   id: string;
@@ -21,7 +23,7 @@ interface Project {
   genre: string | null;
   mood: string | null;
   input_data: Record<string, unknown> | null;
-  output_data: { result?: string; songStructure?: SongStructure } | null;
+  output_data: { result?: string; songStructure?: SongStructure; scenes?: SceneData[] } | null;
   credits_used: number;
   created_at: string;
 }
@@ -185,6 +187,16 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
                 <SongSectionAnalysis analysis={localSongStructure} />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Scene Studio (shown when scenes were saved with the project) */}
+        {project.output_data?.scenes && project.output_data.scenes.length > 0 && (
+          <div className="px-6 pb-2">
+            <SceneStudio
+              scenes={project.output_data.scenes}
+              onScenesChange={() => {}}
+            />
           </div>
         )}
 
