@@ -182,7 +182,7 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
     });
   }
 
-  const hasClip   = !!scene.demoClipUrl;
+  const hasClip   = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
   const hasPrompt = !!scene.aiVideoPrompt.trim();
 
   /* ─── Render ─── */
