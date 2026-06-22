@@ -56,6 +56,7 @@ alter table projects enable row level security;
 drop policy if exists "Users can read own projects"   on projects;
 drop policy if exists "Users can create own projects" on projects;
 drop policy if exists "Users can delete own projects" on projects;
+drop policy if exists "Users can update own projects" on projects;
 drop policy if exists "Users can manage own projects" on projects;
 
 create policy "Users can read own projects"
@@ -65,6 +66,10 @@ create policy "Users can read own projects"
 create policy "Users can create own projects"
   on projects for insert
   with check (auth.uid() = user_id);
+
+create policy "Users can update own projects"
+  on projects for update
+  using (auth.uid() = user_id);
 
 create policy "Users can delete own projects"
   on projects for delete

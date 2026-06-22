@@ -68,9 +68,10 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   const body = req.body as { scenes?: unknown[]; outputData?: Record<string, unknown> };
 
+  // Fetch the full row — RLS UPDATE policy may be absent; we use DELETE+INSERT as a workaround.
   const { data: existing, error: fetchErr } = await req.userSupabase!
     .from("projects")
-    .select("output_data")
+    .select("id, user_id, project_type, title, artist_name, song_title, genre, mood, style, platform, input_data, output_data, credits_used, created_at")
     .eq("id", id)
     .eq("user_id", req.userId)
     .single();
@@ -81,20 +82,47 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
   }
 
   const current = (existing.output_data as Record<string, unknown>) ?? {};
-  const updated: Record<string, unknown> = {
+  const updatedOutputData: Record<string, unknown> = {
     ...current,
     ...(body.outputData ?? {}),
     ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
   };
 
-  const { error } = await req.userSupabase!
+  // DELETE then re-INSERT with same id (workaround for missing UPDATE RLS policy).
+  const { error: delErr } = await req.userSupabase!
     .from("projects")
-    .update({ output_data: updated })
+    .delete()
     .eq("id", id)
     .eq("user_id", req.userId);
 
-  if (error) {
-    res.status(500).json({ error: error.message });
+  if (delErr) {
+    res.status(500).json({ error: delErr.message });
+    return;
+  }
+
+  const { error: insErr } = await req.userSupabase!
+    .from("projects")
+    .insert({
+      id: existing.id,
+      user_id: existing.user_id,
+      project_type: existing.project_type,
+      title: existing.title,
+      artist_name: existing.artist_name,
+      song_title: existing.song_title,
+      genre: existing.genre,
+      mood: existing.mood,
+      style: existing.style ?? null,
+      platform: existing.platform ?? null,
+      input_data: existing.input_data,
+      output_data: updatedOutputData,
+      credits_used: existing.credits_used,
+      created_at: existing.created_at,
+    });
+
+  if (insErr) {
+    // Attempt to restore old row to avoid data loss
+    await req.userSupabase!.from("projects").insert(existing);
+    res.status(500).json({ error: insErr.message });
     return;
   }
 

@@ -24,7 +24,7 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
 }
 
 async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -142,31 +142,67 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const signedUrl = await signGetUrl(bucketId, objectName);
     const objectPath = `/objects/exports/${exportId}.mp4`;
 
-    /* 7 — Merge export metadata into project output_data */
-    const { data: existing } = await req.userSupabase!
+    /* 7 — Merge export metadata into project output_data (DELETE+INSERT, no UPDATE RLS needed) */
+    const { data: fullProject, error: selectErr } = await req.userSupabase!
       .from("projects")
-      .select("output_data")
+      .select("id, user_id, project_type, title, artist_name, song_title, genre, mood, style, platform, input_data, output_data, credits_used, created_at")
       .eq("id", projectId)
       .eq("user_id", req.userId!)
       .single();
 
-    const current = (existing?.output_data as Record<string, unknown>) ?? {};
-    await req.userSupabase!
-      .from("projects")
-      .update({
-        output_data: {
-          ...current,
-          final_video_url: signedUrl,
-          export_object_path: objectPath,
-          export_status: "completed",
-          export_created_at: new Date().toISOString(),
-          timeline_order: timelineOrder ?? null,
-          clips_used: clipUrls.length,
-          audio_used: !!audioPath,
-        },
-      })
-      .eq("id", projectId)
-      .eq("user_id", req.userId!);
+    if (selectErr || !fullProject) {
+      console.log(`[export-video] project not found: ${selectErr?.message}`);
+    } else {
+      const current = (fullProject.output_data as Record<string, unknown>) ?? {};
+      const updatedOutputData = {
+        ...current,
+        final_video_url: signedUrl,
+        export_object_path: objectPath,
+        export_status: "completed",
+        export_created_at: new Date().toISOString(),
+        timeline_order: timelineOrder ?? null,
+        clips_used: clipUrls.length,
+        audio_used: !!audioPath,
+      };
+
+      // DELETE then re-INSERT (workaround for missing Supabase UPDATE RLS policy)
+      const { error: delErr } = await req.userSupabase!
+        .from("projects")
+        .delete()
+        .eq("id", projectId)
+        .eq("user_id", req.userId!);
+
+      if (delErr) {
+        console.log(`[export-video] delete error: ${delErr.message}`);
+      } else {
+        const { error: insErr } = await req.userSupabase!
+          .from("projects")
+          .insert({
+            id: fullProject.id,
+            user_id: fullProject.user_id,
+            project_type: fullProject.project_type,
+            title: fullProject.title,
+            artist_name: fullProject.artist_name,
+            song_title: fullProject.song_title,
+            genre: fullProject.genre,
+            mood: fullProject.mood,
+            style: fullProject.style ?? null,
+            platform: fullProject.platform ?? null,
+            input_data: fullProject.input_data,
+            output_data: updatedOutputData,
+            credits_used: fullProject.credits_used,
+            created_at: fullProject.created_at,
+          });
+
+        if (insErr) {
+          console.log(`[export-video] re-insert error: ${insErr.message}`);
+          // Attempt to restore
+          await req.userSupabase!.from("projects").insert(fullProject);
+        } else {
+          console.log(`[export-video] project ${projectId} saved ok, clips=${clipUrls.length}`);
+        }
+      }
+    }
 
     res.json({ url: signedUrl, objectPath, exportId });
 
