@@ -132,18 +132,6 @@ Return the output using EXACTLY these ## section headers in this order. Write fu
 ## DIRECTOR'S TREATMENT
 Write a full director's statement: the overarching creative vision, tone, narrative arc, and emotional journey of this video. What is the video really about beneath the visuals?
 
-## VISUAL CONCEPT
-Describe the complete visual world: aesthetic references (described generically), color story, texture, era, atmosphere, and how the visuals serve the music.
-
-## COLOR PALETTE
-List the exact color palette: primary, secondary, and accent colors with hex codes or descriptive names. Describe how lighting shifts across the video.
-
-## MAIN LOCATIONS
-List 3–5 primary shooting locations with detailed descriptions. For each: interior/exterior, time of day, lighting conditions, mood, and why it fits the song.
-
-## WARDROBE & ARTIST LOOK
-Describe the artist's wardrobe in full detail for each location or scene change: clothing, accessories, footwear, hair, and overall visual brand impact.
-
 ## SCENE-BY-SCENE BREAKDOWN
 Write a detailed breakdown of every scene. For each scene include ALL of the following on separate labeled lines:
 - Timestamp: (e.g. 0:00–0:15)
@@ -156,6 +144,18 @@ Write a detailed breakdown of every scene. For each scene include ALL of the fol
 - Mood: (emotional tone of this scene)
 - AI Video Prompt: (ready-to-paste prompt for Runway, Sora, Kling, or Pika)
 - Negative Prompt: (what to exclude from this scene)
+
+## VISUAL CONCEPT
+Describe the complete visual world: aesthetic references (described generically), color story, texture, era, atmosphere, and how the visuals serve the music.
+
+## COLOR PALETTE
+List the exact color palette: primary, secondary, and accent colors with hex codes or descriptive names. Describe how lighting shifts across the video.
+
+## MAIN LOCATIONS
+List 3–5 primary shooting locations with detailed descriptions. For each: interior/exterior, time of day, lighting conditions, mood, and why it fits the song.
+
+## WARDROBE & ARTIST LOOK
+Describe the artist's wardrobe in full detail for each location or scene change: clothing, accessories, footwear, hair, and overall visual brand impact.
 
 ## CAMERA DIRECTIONS
 Write an overall camera direction guide: lens choices, shot types used throughout, camera movement philosophy, and any signature visual techniques.
@@ -182,7 +182,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 4000,
+      max_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
