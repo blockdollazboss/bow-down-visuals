@@ -1,8 +1,39 @@
 import { Router } from "express";
+import { createWriteStream, unlinkSync, existsSync } from "fs";
+import { pipeline } from "stream/promises";
+import { randomUUID } from "crypto";
+import path from "path";
+import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
+import { objectStorageClient } from "../../lib/objectStorage";
 
 const router = Router();
+const SIDECAR = "http://127.0.0.1:1106";
+
+async function downloadToFile(url: string, dest: string): Promise<void> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  if (!res.ok) throw new Error(`Download failed (${res.status}): ${url.slice(0, 80)}`);
+  const ws = createWriteStream(dest);
+  await pipeline(res.body as Parameters<typeof pipeline>[0], ws);
+}
+
+async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
+  const { signed_url } = (await res.json()) as { signed_url: string };
+  return signed_url;
+}
+
+function cleanup(f: string) {
+  try { if (existsSync(f)) unlinkSync(f); } catch { /* best-effort */ }
+}
 
 /** DEV: confirm RUNWAYML_API_SECRET exists without revealing its value */
 router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
@@ -68,7 +99,47 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
     const task = await client.tasks.retrieve(taskId);
 
     if (task.status === "SUCCEEDED") {
-      res.json({ status: "succeeded", url: task.output[0] ?? null });
+      const runwayUrl = task.output[0] ?? null;
+      if (!runwayUrl) {
+        res.json({ status: "succeeded", url: null });
+        return;
+      }
+
+      /* — Re-upload to GCS so the URL never expires — */
+      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+      if (!bucketId) {
+        /* fallback: return the Runway URL directly (will expire) */
+        req.log.warn("[runway-clip] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — returning raw Runway URL");
+        res.json({ status: "succeeded", url: runwayUrl });
+        return;
+      }
+
+      const tmpFile = path.join(os.tmpdir(), `runway-${randomUUID()}.mp4`);
+      try {
+        req.log.info({ taskId }, "[runway-clip] downloading clip from Runway");
+        await downloadToFile(runwayUrl, tmpFile);
+
+        const objectName = `clips/${randomUUID()}.mp4`;
+        const bucket = objectStorageClient.bucket(bucketId);
+        const gcsFile = bucket.file(objectName);
+
+        req.log.info({ objectName }, "[runway-clip] uploading clip to GCS");
+        await gcsFile.save(readFileSync(tmpFile), {
+          contentType: "video/mp4",
+          resumable: false,
+        });
+
+        const signedUrl = await signGetUrl(bucketId, objectName);
+        req.log.info({ objectName }, "[runway-clip] clip saved to GCS, returning signed URL");
+        res.json({ status: "succeeded", url: signedUrl, objectPath: objectName });
+      } catch (uploadErr: unknown) {
+        req.log.error({ err: uploadErr }, "[runway-clip] GCS upload failed, returning raw Runway URL as fallback");
+        /* fallback to Runway URL — will expire but at least the user sees their clip */
+        res.json({ status: "succeeded", url: runwayUrl });
+      } finally {
+        cleanup(tmpFile);
+      }
+
     } else if (task.status === "FAILED") {
       const failed = task as { status: "FAILED"; failure?: string };
       res.json({ status: "failed", error: failed.failure ?? "Runway returned a failure with no message" });

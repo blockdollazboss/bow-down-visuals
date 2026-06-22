@@ -242,16 +242,28 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
       {/* Clip video player */}
       {hasClip && !isPolling && (
         <div className="space-y-1.5">
-          <video
-            key={scene.demoClipUrl!}
-            src={scene.demoClipUrl!}
-            controls
-            autoPlay
-            loop
-            playsInline
-            className="w-full rounded-xl border border-green-500/20"
-            style={{ background: "#000" }}
-          />
+          {urlError ? (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-yellow-500/25 bg-yellow-500/5">
+              <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-yellow-300">Clip link expired</p>
+                <p className="text-[11px] text-yellow-300/60 mt-0.5">Click "Regenerate" below to create a new clip — it will be saved permanently.</p>
+              </div>
+            </div>
+          ) : (
+            <video
+              key={scene.demoClipUrl!}
+              src={scene.demoClipUrl!}
+              controls
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="w-full rounded-xl border border-green-500/20"
+              style={{ background: "#000" }}
+              onError={() => setUrlError(true)}
+            />
+          )}
           {IS_DEV && (
             <p className="text-[9px] font-mono text-white/15 break-all px-0.5">
               DEV · {scene.demoClipUrl!.slice(0, 72)}…
