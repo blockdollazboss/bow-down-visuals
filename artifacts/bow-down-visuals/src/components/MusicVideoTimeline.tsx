@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
-  Film, ArrowUp, ArrowDown, Trash2, Plus, Pencil, Play,
+  Film, ArrowUp, ArrowDown, Trash2, Plus, Pencil,
   CheckCircle2, Circle, Save, Loader2, Clock, X, Check,
   Music2, Clapperboard, Eye, AlertCircle, RefreshCw, Zap,
 } from "lucide-react";
@@ -38,67 +38,39 @@ function sectionColor(s: string): string {
   return "bg-white/10 text-white/50 border-white/20";
 }
 
-function statusBadge(scene: SceneData) {
-  if (scene.approved)        return { label: "Approved",   cls: "text-primary bg-primary/15 border-primary/30" };
-  if (scene.demoClipUrl)     return { label: "Clip Ready", cls: "text-green-300 bg-green-500/10 border-green-500/25" };
-  if (scene.aiVideoPrompt)   return { label: "Ready",      cls: "text-green-300 bg-green-500/10 border-green-500/25" };
-  return                            { label: "Pending",    cls: "text-white/35 bg-white/5 border-white/10" };
-}
-
-/* ─── Old Demo Clip Placeholder (fallback) ─── */
-
-function DemoClipInline({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="mt-3 rounded-xl overflow-hidden border border-primary/20 bg-black">
-      <div className="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-primary/15">
-        <span className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-          <Film className="h-3 w-3" /> Demo Clip Preview
-        </span>
-        <button onClick={onClose} className="text-white/30 hover:text-white transition-colors">
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      <div className="relative aspect-video bg-gradient-to-br from-[#1a1209] via-[#0d0d0d] to-[#120a00] flex flex-col items-center justify-center gap-3 overflow-hidden">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="absolute rounded-full bg-primary/5 animate-pulse"
-            style={{ width: `${90 + i * 45}px`, height: `${90 + i * 45}px`, top: `${15 + i * 9}%`, left: `${10 + i * 13}%`, animationDelay: `${i * 0.4}s`, animationDuration: `${2 + i * 0.5}s` }} />
-        ))}
-        <div className="relative z-10 flex flex-col items-center gap-2">
-          <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center animate-pulse">
-            <Play className="h-6 w-6 text-primary ml-1" />
-          </div>
-          <p className="text-white/40 text-xs text-center max-w-[200px] leading-relaxed">
-            AI video generation coming soon.<br />Paste your prompt into Runway, Sora, or Kling.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+function statusBadge(scene: SceneData, isPolling: boolean) {
+  if (isPolling)                                            return { label: "Generating",    cls: "text-yellow-300 bg-yellow-500/10 border-yellow-500/25" };
+  if (scene.approved && scene.generationStatus === "completed") return { label: "Approved",   cls: "text-primary bg-primary/15 border-primary/30" };
+  if (scene.generationStatus === "completed")               return { label: "Completed",    cls: "text-green-300 bg-green-500/10 border-green-500/25" };
+  if (scene.generationStatus === "failed")                  return { label: "Failed",       cls: "text-red-300 bg-red-500/10 border-red-500/25" };
+  return                                                           { label: "Not Generated", cls: "text-white/35 bg-white/5 border-white/10" };
 }
 
 /* ─── Runway Clip Generator ─── */
 
 const IS_DEV = import.meta.env.DEV;
 
-type RunwayState = "idle" | "starting" | "polling" | "done" | "error";
-
 interface RunwayClipProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
+  isLocked: boolean;
+  onGeneratingStart: () => void;
+  onGeneratingEnd: () => void;
 }
 
-function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
+function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onGeneratingEnd }: RunwayClipProps) {
   const { getAccessToken } = useAuth();
 
-  const [state, setState]       = useState<RunwayState>(() => scene.demoClipUrl ? "done" : "idle");
-  const [taskId, setTaskId]     = useState<string | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError]       = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string | null>(scene.demoClipUrl);
+  const [isPolling, setIsPolling]         = useState(false);
+  const [taskId, setTaskId]               = useState<string | null>(null);
+  const [progress, setProgress]           = useState<number | null>(null);
+  const [error, setError]                 = useState<string | null>(null);
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false);
 
-  const onUpdateRef   = useRef(onUpdate);
-  const promptUsedRef = useRef<string>("");
-  useEffect(() => { onUpdateRef.current = onUpdate; });
+  const onUpdateRef        = useRef(onUpdate);
+  const promptUsedRef      = useRef<string>("");
+  const onGeneratingEndRef = useRef(onGeneratingEnd);
+  useEffect(() => { onUpdateRef.current = onUpdate; onGeneratingEndRef.current = onGeneratingEnd; });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   function stopPolling() {
@@ -114,14 +86,12 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
         const res = await fetch(`/api/generate-runway-clip/${id}`, {
           headers: { Authorization: `Bearer ${token ?? ""}` },
         });
-        const data = await res.json() as {
-          status: string; url?: string; progress?: number; error?: string;
-        };
+        const data = await res.json() as { status: string; url?: string; progress?: number; error?: string };
         if (IS_DEV) console.log("[Runway] poll:", data.status, data.progress ?? "");
         if (data.status === "succeeded" && data.url) {
           stopPolling();
-          if (IS_DEV) console.log("[Runway] done — url:", data.url);
-          setVideoUrl(data.url);
+          setIsPolling(false);
+          onGeneratingEndRef.current();
           onUpdateRef.current({
             demoClipUrl: data.url,
             provider: "Runway",
@@ -129,24 +99,27 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
             promptUsed: promptUsedRef.current,
             generatedAt: new Date().toISOString(),
           });
-          setState("done");
+          if (IS_DEV) console.log("[Runway] done:", data.url);
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
-          if (IS_DEV) console.log("[Runway] failed:", data.error);
+          setIsPolling(false);
           setError(data.error ?? "Runway returned a failure with no message");
-          setState("error");
+          onUpdateRef.current({ generationStatus: "failed" });
+          onGeneratingEndRef.current();
+          if (IS_DEV) console.log("[Runway] failed:", data.error);
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
         }
       } catch (e) {
         stopPolling();
+        setIsPolling(false);
         setError(e instanceof Error ? e.message : "Network error while polling Runway");
-        setState("error");
+        onUpdateRef.current({ generationStatus: "failed" });
+        onGeneratingEndRef.current();
       }
     }, 5000);
   }
 
-  /** Build the best available prompt for this scene */
   function buildPrompt(): string {
     if (scene.aiVideoPrompt.trim()) return scene.aiVideoPrompt.trim();
     const fallback = [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
@@ -154,150 +127,231 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
     return fallback || "cinematic music video scene, dramatic lighting, luxury aesthetic";
   }
 
-  async function handleGenerate() {
+  async function doGenerate() {
     const promptText = buildPrompt();
     promptUsedRef.current = promptText;
-    if (IS_DEV) console.log("[Runway] starting — prompt:", promptText.slice(0, 80));
-    setState("starting");
+    if (IS_DEV) console.log("[Runway] starting:", promptText.slice(0, 80));
+    setIsPolling(true);
     setError(null);
     setProgress(null);
+    setShowRegenConfirm(false);
+    onGeneratingStart();
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/generate-runway-clip", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token ?? ""}`,
-        },
-        body: JSON.stringify({
-          promptText,
-          negativePrompt: scene.negativePrompt ?? "",
-          ratio: "720:1280",
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ promptText, negativePrompt: scene.negativePrompt ?? "", ratio: "720:1280" }),
       });
       const data = await res.json() as { taskId?: string; error?: string };
-      if (!res.ok || !data.taskId) {
-        throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
-      }
-      if (IS_DEV) console.log("[Runway] task created:", data.taskId);
+      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      if (IS_DEV) console.log("[Runway] task:", data.taskId);
       setTaskId(data.taskId);
-      setState("polling");
       startPolling(data.taskId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
-      if (IS_DEV) console.log("[Runway] error:", msg);
+      setIsPolling(false);
       setError(msg);
-      setState("error");
+      onUpdateRef.current({ generationStatus: "failed" });
+      onGeneratingEndRef.current();
+      if (IS_DEV) console.log("[Runway] error:", msg);
     }
   }
 
-  /* ── Video ready ── */
-  if (state === "done" && videoUrl) {
-    return (
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black text-green-400/70 uppercase tracking-widest flex items-center gap-1.5">
-            <Zap className="h-3 w-3" /> Runway Clip Ready
-          </span>
-          <button
-            onClick={() => { setVideoUrl(null); setTaskId(null); setProgress(null); setError(null); setState("idle"); }}
-            className="text-[10px] text-white/20 hover:text-white/50 flex items-center gap-1 transition-colors"
-          >
-            <RefreshCw className="h-2.5 w-2.5" /> Regenerate
-          </button>
-        </div>
-        <video
-          key={videoUrl}
-          src={videoUrl}
-          controls
-          autoPlay
-          loop
-          className="w-full rounded-xl border border-green-500/20"
-          style={{ background: "#000" }}
-        />
-        {scene.generatedAt && (
-          <p className="text-[10px] text-white/25 px-1">
-            {scene.provider ?? "Runway"} · {new Date(scene.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-          </p>
-        )}
-        {IS_DEV && (
-          <p className="text-[9px] font-mono text-white/20 break-all px-1">
-            DEV · taskId: {taskId} · url: {videoUrl.slice(0, 70)}…
-          </p>
-        )}
-      </div>
-    );
+  function handleRemoveClip() {
+    stopPolling();
+    if (isPolling) onGeneratingEndRef.current();
+    setIsPolling(false);
+    setTaskId(null);
+    setError(null);
+    setProgress(null);
+    setShowRegenConfirm(false);
+    onUpdateRef.current({
+      demoClipUrl: null,
+      generationStatus: null,
+      provider: null,
+      promptUsed: null,
+      generatedAt: null,
+      approved: false,
+    });
   }
 
-  /* ── Generating ── */
-  if (state === "starting" || state === "polling") {
-    return (
-      <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
-        <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-primary/80">Generating Runway clip...</p>
-          <p className="text-[11px] text-white/30 mt-0.5">
-            {state === "starting" ? "Starting task…" : "Processing — this takes 30–90 seconds…"}
-          </p>
-          {progress !== null && (
-            <div className="mt-2 w-full h-1 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-1000"
-                style={{ width: `${Math.round(progress * 100)}%` }}
-              />
-            </div>
-          )}
-          {IS_DEV && taskId && (
-            <p className="text-[9px] font-mono text-white/20 mt-1">
-              DEV · taskId: {taskId} · state: {state}
-              {progress !== null ? ` · progress: ${Math.round(progress * 100)}%` : ""}
+  const hasClip   = !!scene.demoClipUrl;
+  const hasPrompt = !!scene.aiVideoPrompt.trim();
+
+  /* ─── Render ─── */
+  return (
+    <div className="mt-4 space-y-3 border-t border-white/[0.04] pt-4">
+
+      {/* Status row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Runway</span>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+          isPolling                                                     ? "text-yellow-300 bg-yellow-500/10 border-yellow-500/25" :
+          scene.approved && scene.generationStatus === "completed"     ? "text-primary bg-primary/15 border-primary/30" :
+          scene.generationStatus === "completed"                        ? "text-green-300 bg-green-500/10 border-green-500/25" :
+          scene.generationStatus === "failed"                           ? "text-red-300 bg-red-500/10 border-red-500/25" :
+                                                                          "text-white/30 bg-white/5 border-white/10"
+        }`}>
+          {isPolling                                                     && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
+          {scene.approved && scene.generationStatus === "completed"     && <CheckCircle2 className="h-2.5 w-2.5" />}
+          {scene.generationStatus === "completed" && !scene.approved    && <Zap className="h-2.5 w-2.5" />}
+          {isPolling ? "Generating" :
+           scene.approved && scene.generationStatus === "completed" ? "Approved" :
+           scene.generationStatus === "completed" ? "Completed" :
+           scene.generationStatus === "failed" ? "Failed" :
+           "Not Generated"}
+        </span>
+        {scene.generatedAt && !isPolling && (
+          <span className="text-[9px] text-white/20">
+            {new Date(scene.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+      </div>
+
+      {/* Generating: spinner + progress */}
+      {isPolling && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+          <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-primary/80">Generating Runway clip…</p>
+            <p className="text-[11px] text-white/30 mt-0.5">This takes 30–90 seconds</p>
+            {progress !== null && (
+              <div className="mt-2 w-full h-1 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-primary rounded-full transition-all duration-1000" style={{ width: `${Math.round(progress * 100)}%` }} />
+              </div>
+            )}
+            {IS_DEV && taskId && (
+              <p className="text-[9px] font-mono text-white/20 mt-1">DEV · taskId: {taskId}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {!isPolling && error && (
+        <div className="flex gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5">
+          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-red-300/70 leading-relaxed break-words flex-1">{error}</p>
+        </div>
+      )}
+
+      {/* Clip video player */}
+      {hasClip && !isPolling && (
+        <div className="space-y-1.5">
+          <video
+            key={scene.demoClipUrl!}
+            src={scene.demoClipUrl!}
+            controls
+            autoPlay
+            loop
+            playsInline
+            className="w-full rounded-xl border border-green-500/20"
+            style={{ background: "#000" }}
+          />
+          {IS_DEV && (
+            <p className="text-[9px] font-mono text-white/15 break-all px-0.5">
+              DEV · {scene.demoClipUrl!.slice(0, 72)}…
             </p>
           )}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  /* ── Error (show exact Runway error) ── */
-  if (state === "error") {
-    return (
-      <div className="mt-4 space-y-2">
-        <div className="flex gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5">
-          <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-red-400">Runway Error</p>
-            <p className="text-[11px] text-red-300/70 mt-1 leading-relaxed break-words">{error}</p>
-          </div>
+      {/* Regenerate confirm inline */}
+      {showRegenConfirm && !isPolling && (
+        <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl border border-yellow-500/25 bg-yellow-500/5">
+          <span className="text-[11px] text-yellow-300/80 font-medium flex-1">
+            This will use Runway API credits. Continue?
+          </span>
+          <button
+            onClick={doGenerate}
+            className="px-3 py-1 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/30 transition-colors"
+          >
+            Yes, Regenerate
+          </button>
+          <button
+            onClick={() => setShowRegenConfirm(false)}
+            className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-bold hover:bg-white/10 transition-colors"
+          >
+            Cancel
+          </button>
         </div>
-        <button
-          onClick={() => { setError(null); setState("idle"); }}
-          className="flex items-center gap-1 text-[11px] text-white/30 hover:text-white/60 transition-colors"
-        >
-          <RefreshCw className="h-2.5 w-2.5" /> Try again
-        </button>
-      </div>
-    );
-  }
+      )}
 
-  /* ── Idle: one-click Generate Runway Clip (no confirm step) ── */
-  const hasPrompt = !!scene.aiVideoPrompt.trim();
-  return (
-    <div className="mt-4 space-y-1.5">
-      {IS_DEV && (
-        <p className="text-[9px] font-mono text-white/20 bg-white/[0.02] rounded px-2 py-1 leading-relaxed">
-          DEV · {hasPrompt
-            ? `aiVideoPrompt: "${scene.aiVideoPrompt.slice(0, 60)}…"`
-            : `⚠ no aiVideoPrompt — fallback: "${buildPrompt().slice(0, 60)}…"`}
+      {/* Action buttons */}
+      {!isPolling && !showRegenConfirm && (
+        <div className="flex flex-wrap gap-2">
+
+          {/* Generate (no clip) */}
+          {!hasClip && (
+            <button
+              onClick={doGenerate}
+              disabled={isLocked}
+              title={isLocked ? "Another clip is generating. Please wait." : undefined}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:border-primary/50 hover:bg-primary/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="btn-generate-runway-clip"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Generate Runway Clip
+              {!hasPrompt && <span className="text-primary/50 font-normal">(using scene info)</span>}
+            </button>
+          )}
+
+          {/* Regenerate (has clip) */}
+          {hasClip && (
+            <button
+              onClick={() => setShowRegenConfirm(true)}
+              disabled={isLocked}
+              title={isLocked ? "Another clip is generating. Please wait." : undefined}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:border-primary/30 hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="btn-regenerate-runway-clip"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Regenerate
+            </button>
+          )}
+
+          {/* Approve / Unapprove */}
+          {hasClip && (
+            <button
+              onClick={() => onUpdate({ approved: !scene.approved })}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
+                scene.approved
+                  ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/5 hover:border-primary/20"
+                  : "border-white/10 bg-white/[0.03] text-white/50 hover:border-primary/30 hover:text-primary hover:bg-primary/10"
+              }`}
+              data-testid="btn-approve-clip"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {scene.approved ? "Approved ✓" : "Approve Clip"}
+            </button>
+          )}
+
+          {/* Remove clip */}
+          {hasClip && (
+            <button
+              onClick={handleRemoveClip}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/35 text-xs font-bold hover:border-red-500/30 hover:text-red-400 hover:bg-red-500/5 transition-all"
+              data-testid="btn-remove-clip"
+            >
+              <X className="h-3.5 w-3.5" /> Remove Clip
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Locked notice (shown under generate button) */}
+      {isLocked && !isPolling && !hasClip && (
+        <p className="text-[11px] text-white/25 flex items-center gap-1.5 pl-0.5">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          Another clip is generating. Please wait.
         </p>
       )}
-      <button
-        onClick={handleGenerate}
-        className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:border-primary/50 hover:bg-primary/20 transition-all group w-full justify-center"
-      >
-        <Zap className="h-3.5 w-3.5" />
-        Generate Runway Clip
-        {!hasPrompt && <span className="text-primary/50 font-normal ml-1">(using scene info)</span>}
-      </button>
+
+      {IS_DEV && !isPolling && (
+        <p className="text-[9px] font-mono text-white/15 leading-relaxed">
+          DEV · {hasPrompt ? `prompt: "${scene.aiVideoPrompt.slice(0, 50)}…"` : `fallback: "${buildPrompt().slice(0, 50)}…"`}
+        </p>
+      )}
     </div>
   );
 }
@@ -354,15 +408,18 @@ interface TimelineRowProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
+  isLocked: boolean;
+  isThisGenerating: boolean;
+  onGeneratingStart: () => void;
+  onGeneratingEnd: () => void;
 }
 
-function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMoveDown, onRemove }: TimelineRowProps) {
-  const [editing, setEditing]         = useState(false);
+function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMoveDown, onRemove, isLocked, isThisGenerating, onGeneratingStart, onGeneratingEnd }: TimelineRowProps) {
+  const [editing, setEditing]           = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(scene.aiVideoPrompt);
-  const [showDemo, setShowDemo]       = useState(false);
-  const [copied, setCopied]           = useState(false);
+  const [copied, setCopied]             = useState(false);
   const duration = parseDuration(scene.timestamp);
-  const status   = statusBadge(scene);
+  const status   = statusBadge(scene, isThisGenerating);
 
   function handleSaveEdit() {
     onUpdate({ aiVideoPrompt: editedPrompt });
@@ -541,36 +598,14 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
           </p>
         )}
 
-        {/* ── Two Action Buttons ── */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <button
-            onClick={() => setShowDemo((v) => !v)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-sm font-bold text-white/40 hover:border-white/20 hover:text-white/60 hover:bg-white/[0.06] transition-all"
-            data-testid={`timeline-demo-btn-${index}`}
-          >
-            <Play className="h-4 w-4" />
-            Generate Demo Clip
-          </button>
-          <button
-            onClick={() => onUpdate({ approved: !scene.approved })}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-bold transition-all ${
-              scene.approved
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-white/10 bg-white/[0.03] text-white/40 hover:border-primary/30 hover:text-primary/70 hover:bg-primary/5"
-            }`}
-            data-testid={`timeline-approve-btn-${index}`}
-          >
-            {scene.approved
-              ? <><CheckCircle2 className="h-4 w-4" /> Approved</>
-              : <><Circle className="h-4 w-4" /> Approve Scene</>}
-          </button>
-        </div>
-
-        {/* Demo Clip Placeholder */}
-        {showDemo && <DemoClipInline onClose={() => setShowDemo(false)} />}
-
-        {/* ── Generate Runway Clip (real generation) ── */}
-        <RunwayClipGenerator scene={scene} onUpdate={onUpdate} />
+        {/* ── Runway Clip Generator (Generate / Regenerate / Approve / Remove) ── */}
+        <RunwayClipGenerator
+          scene={scene}
+          onUpdate={onUpdate}
+          isLocked={isLocked}
+          onGeneratingStart={onGeneratingStart}
+          onGeneratingEnd={onGeneratingEnd}
+        />
       </div>
     </div>
   );
@@ -596,6 +631,7 @@ export function MusicVideoTimeline({
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [activeGeneratingId, setActiveGeneratingId] = useState<string | null>(null);
 
   const approvedCount = scenes.filter((s) => s.approved).length;
   const clippedCount  = scenes.filter((s) => s.demoClipUrl).length;
@@ -605,7 +641,13 @@ export function MusicVideoTimeline({
       const updatedScenes = scenes.map((s) => (s.id === id ? { ...s, ...patch } : s));
       onScenesChange(updatedScenes);
 
-      if ("demoClipUrl" in patch && patch.demoClipUrl && projectId) {
+      const shouldAutoSave =
+        projectId &&
+        (("demoClipUrl" in patch && patch.demoClipUrl) ||
+         ("approved" in patch) ||
+         ("generationStatus" in patch && patch.generationStatus === "completed"));
+
+      if (shouldAutoSave) {
         try {
           const token = await getAccessToken();
           await fetch(`/api/projects/${projectId}`, {
@@ -616,9 +658,11 @@ export function MusicVideoTimeline({
             },
             body: JSON.stringify({ scenes: updatedScenes }),
           });
-          toast({ title: "Clip saved!", description: "Your Runway clip has been saved to this project." });
+          if ("demoClipUrl" in patch && patch.demoClipUrl) {
+            toast({ title: "Clip saved!", description: "Your Runway clip has been saved to this project." });
+          }
         } catch {
-          toast({ title: "Clip ready but not saved", description: "Click Save Timeline to persist it.", variant: "destructive" });
+          toast({ title: "Changes not saved", description: "Click Save Timeline to persist.", variant: "destructive" });
         }
       }
     },
@@ -731,6 +775,10 @@ export function MusicVideoTimeline({
             onMoveUp={() => handleMoveUp(i)}
             onMoveDown={() => handleMoveDown(i)}
             onRemove={() => handleRemove(scene.id)}
+            isLocked={activeGeneratingId !== null && activeGeneratingId !== scene.id}
+            isThisGenerating={activeGeneratingId === scene.id}
+            onGeneratingStart={() => setActiveGeneratingId(scene.id)}
+            onGeneratingEnd={() => setActiveGeneratingId(null)}
           />
         ))}
       </div>
