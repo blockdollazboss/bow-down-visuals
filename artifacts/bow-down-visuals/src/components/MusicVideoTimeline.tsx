@@ -96,7 +96,8 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
   const [error, setError]       = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(scene.demoClipUrl);
 
-  const onUpdateRef = useRef(onUpdate);
+  const onUpdateRef   = useRef(onUpdate);
+  const promptUsedRef = useRef<string>("");
   useEffect(() => { onUpdateRef.current = onUpdate; });
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -121,7 +122,13 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
           stopPolling();
           if (IS_DEV) console.log("[Runway] done — url:", data.url);
           setVideoUrl(data.url);
-          onUpdateRef.current({ demoClipUrl: data.url });
+          onUpdateRef.current({
+            demoClipUrl: data.url,
+            provider: "Runway",
+            generationStatus: "completed",
+            promptUsed: promptUsedRef.current,
+            generatedAt: new Date().toISOString(),
+          });
           setState("done");
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
@@ -149,6 +156,7 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
 
   async function handleGenerate() {
     const promptText = buildPrompt();
+    promptUsedRef.current = promptText;
     if (IS_DEV) console.log("[Runway] starting — prompt:", promptText.slice(0, 80));
     setState("starting");
     setError(null);
@@ -207,6 +215,11 @@ function RunwayClipGenerator({ scene, onUpdate }: RunwayClipProps) {
           className="w-full rounded-xl border border-green-500/20"
           style={{ background: "#000" }}
         />
+        {scene.generatedAt && (
+          <p className="text-[10px] text-white/25 px-1">
+            {scene.provider ?? "Runway"} · {new Date(scene.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+          </p>
+        )}
         {IS_DEV && (
           <p className="text-[9px] font-mono text-white/20 break-all px-1">
             DEV · taskId: {taskId} · url: {videoUrl.slice(0, 70)}…
@@ -402,6 +415,12 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border hidden sm:inline-flex ${status.cls}`}>
           {status.label}
         </span>
+
+        {scene.provider && scene.generationStatus === "completed" && (
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 hidden sm:inline-flex items-center gap-1">
+            <Zap className="h-2.5 w-2.5" /> {scene.provider}
+          </span>
+        )}
 
         <div className="ml-auto flex items-center gap-1">
           <button onClick={onMoveUp} disabled={isFirst}
@@ -630,6 +649,7 @@ export function MusicVideoTimeline({
       timestamp: "", section: "", lyricLine: "", location: "",
       action: "", cameraMovement: "", lighting: "", mood: "",
       aiVideoPrompt: "", negativePrompt: "", approved: false, demoClipUrl: null,
+      provider: null, generationStatus: null, promptUsed: null, generatedAt: null,
     };
     onScenesChange([...scenes, newScene]);
   }

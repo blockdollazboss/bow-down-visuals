@@ -303,6 +303,20 @@ function ProjectCard({
           </div>
         </div>
 
+        {(() => {
+          const savedScenes = (project.output_data?.scenes ?? []) as { demoClipUrl?: string | null; provider?: string | null }[];
+          const clipCount = savedScenes.filter((s) => s.demoClipUrl).length;
+          if (clipCount === 0) return null;
+          return (
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400">
+                <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                {clipCount} Runway clip{clipCount !== 1 ? "s" : ""} saved
+              </span>
+            </div>
+          );
+        })()}
+
         {preview && (
           <p className="text-white/35 text-sm leading-relaxed mt-3 line-clamp-2">{preview}</p>
         )}

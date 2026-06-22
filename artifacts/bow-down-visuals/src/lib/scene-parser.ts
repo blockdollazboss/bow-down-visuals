@@ -12,6 +12,11 @@ export interface SceneData {
   negativePrompt: string;
   approved: boolean;
   demoClipUrl: string | null;
+  /** Runway-specific generation metadata */
+  provider: string | null;
+  generationStatus: "pending" | "completed" | "failed" | null;
+  promptUsed: string | null;
+  generatedAt: string | null;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
@@ -115,6 +120,10 @@ function buildScenesFromBlocks(blocks: string[]): SceneData[] {
         negativePrompt,
         approved: false,
         demoClipUrl: null,
+        provider: null,
+        generationStatus: null,
+        promptUsed: null,
+        generatedAt: null,
       });
     }
   }
