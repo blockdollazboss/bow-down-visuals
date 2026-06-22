@@ -5,10 +5,11 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface Props {
   onTranscript: (text: string) => void;
+  onFileUrl?: (url: string | null) => void;
   className?: string;
 }
 
-export function AudioTranscribe({ onTranscript, className = "" }: Props) {
+export function AudioTranscribe({ onTranscript, onFileUrl, className = "" }: Props) {
   const { getAccessToken } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [transcribing, setTranscribing] = useState(false);
@@ -16,14 +17,17 @@ export function AudioTranscribe({ onTranscript, className = "" }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setFile(e.target.files?.[0] ?? null);
+    const f = e.target.files?.[0] ?? null;
+    setFile(f);
     setError(null);
+    if (onFileUrl) onFileUrl(f ? URL.createObjectURL(f) : null);
     e.target.value = "";
   }
 
   function clearFile() {
     setFile(null);
     setError(null);
+    if (onFileUrl) onFileUrl(null);
   }
 
   async function handleTranscribe() {

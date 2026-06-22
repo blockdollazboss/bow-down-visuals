@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
-import { SceneStudio } from "@/components/SceneStudio";
+import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import type { SceneData } from "@/lib/scene-parser";
 
 interface Project {
@@ -68,6 +68,7 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
   );
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [modalScenes, setModalScenes] = useState<SceneData[]>(project.output_data?.scenes ?? []);
 
   const lyrics = extractLyricsFromProject(project);
 
@@ -190,12 +191,13 @@ function ResultModal({ project, onClose }: { project: Project; onClose: () => vo
           </div>
         )}
 
-        {/* Scene Studio (shown when scenes were saved with the project) */}
-        {project.output_data?.scenes && project.output_data.scenes.length > 0 && (
-          <div className="px-6 pb-2">
-            <SceneStudio
-              scenes={project.output_data.scenes}
-              onScenesChange={() => {}}
+        {/* Music Video Timeline (shown when scenes were saved with the project) */}
+        {modalScenes.length > 0 && (
+          <div className="px-6 pb-4">
+            <MusicVideoTimeline
+              scenes={modalScenes}
+              onScenesChange={setModalScenes}
+              projectId={project.id}
             />
           </div>
         )}

@@ -64,6 +64,43 @@ router.get("/projects", requireAuth, async (req, res) => {
   res.json({ projects: projects ?? [] });
 });
 
+router.patch("/projects/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const body = req.body as { scenes?: unknown[]; outputData?: Record<string, unknown> };
+
+  const { data: existing, error: fetchErr } = await req.userSupabase!
+    .from("projects")
+    .select("output_data")
+    .eq("id", id)
+    .eq("user_id", req.userId)
+    .single();
+
+  if (fetchErr || !existing) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  const current = (existing.output_data as Record<string, unknown>) ?? {};
+  const updated: Record<string, unknown> = {
+    ...current,
+    ...(body.outputData ?? {}),
+    ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
+  };
+
+  const { error } = await req.userSupabase!
+    .from("projects")
+    .update({ output_data: updated })
+    .eq("id", id)
+    .eq("user_id", req.userId);
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json({ success: true });
+});
+
 router.delete("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
 

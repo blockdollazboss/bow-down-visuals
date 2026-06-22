@@ -12,10 +12,12 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
+import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
+import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -156,6 +158,9 @@ export default function SongAndVideo() {
   const [songStructure, setSongStructure] = useState<SongStructure | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [scenes, setScenes] = useState<SceneData[]>([]);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -232,6 +237,8 @@ export default function SongAndVideo() {
         songStructure: songStructure ?? undefined,
       }, token);
       setRawResult(rawResult);
+      setScenes(parseScenes(extractBreakdownContent(rawResult)));
+      setSavedProjectId(null);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("sv-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -352,7 +359,7 @@ export default function SongAndVideo() {
                   Existing Lyrics
                   <span className="ml-2 text-[10px] font-normal text-white/25 normal-case tracking-normal">Optional — AI will use these as the base</span>
                 </Label>
-                <AudioTranscribe onTranscript={(text) => { setValue("existingLyrics", text); setSongStructure(null); }} />
+                <AudioTranscribe onTranscript={(text) => { setValue("existingLyrics", text); setSongStructure(null); }} onFileUrl={setAudioUrl} />
                 <Textarea
                   {...register("existingLyrics")}
                   placeholder="Have an existing track? Upload the audio above to auto-transcribe the lyrics — or paste them here. The AI will use these as the foundation for your song package..."
@@ -457,7 +464,7 @@ export default function SongAndVideo() {
           <div id="sv-result">
             <GenerationResult
               result={rawResult}
-              onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); }}
+              onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); setScenes([]); setSavedProjectId(null); }}
               saveMetadata={{
                 projectType: "Make Song + Video",
                 artistName: watched.artistName,
@@ -468,6 +475,15 @@ export default function SongAndVideo() {
                 creditsUsed: 2,
                 songStructure: songStructure ?? undefined,
               }}
+              scenes={scenes}
+              onScenesChange={setScenes}
+              onSaved={setSavedProjectId}
+            />
+            <MusicVideoTimeline
+              scenes={scenes}
+              onScenesChange={setScenes}
+              audioUrl={audioUrl}
+              projectId={savedProjectId}
             />
           </div>
         )}

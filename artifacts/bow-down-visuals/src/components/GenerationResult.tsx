@@ -76,9 +76,12 @@ interface GenerationResultProps {
   onReset: () => void;
   saveMetadata: SaveMetadata;
   initialScenes?: SceneData[];
+  scenes?: SceneData[];
+  onScenesChange?: (s: SceneData[]) => void;
+  onSaved?: (projectId: string) => void;
 }
 
-export function GenerationResult({ result, onReset, saveMetadata, initialScenes }: GenerationResultProps) {
+export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, onSaved }: GenerationResultProps) {
   const sections = parseSections(result);
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -91,17 +94,21 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes 
     ""
   );
 
-  // Scene studio state — initialise from raw breakdown or from saved data
-  const [scenes, setScenes] = useState<SceneData[]>(() => {
+  // Internal fallback scenes (uncontrolled mode)
+  const [internalScenes, setInternalScenes] = useState<SceneData[]>(() => {
     if (initialScenes && initialScenes.length > 0) return initialScenes;
     const breakdownSection = sections.find((s) => s.isSceneBreakdown);
     if (breakdownSection) return parseScenes(breakdownSection.content);
     return [];
   });
 
+  // Use external scenes if caller is controlling them, else internal
+  const scenes = externalScenes !== undefined ? externalScenes : internalScenes;
+
   const handleScenesChange = useCallback((updated: SceneData[]) => {
-    setScenes(updated);
-  }, []);
+    if (onScenesChange) onScenesChange(updated);
+    else setInternalScenes(updated);
+  }, [onScenesChange]);
 
   function handleCopyAll() {
     navigator.clipboard.writeText(result);
@@ -164,7 +171,9 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes 
         const err = (await res.json().catch(() => ({ error: "Save failed" }))) as { error?: string };
         throw new Error(err.error ?? "Save failed");
       }
+      const saved_data = (await res.json()) as { id: string };
       setSaved(true);
+      if (onSaved && saved_data.id) onSaved(saved_data.id);
       toast({ title: "Project saved!", description: "Find it in My Projects." });
     } catch (err: unknown) {
       toast({

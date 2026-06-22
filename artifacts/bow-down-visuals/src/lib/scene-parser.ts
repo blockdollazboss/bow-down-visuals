@@ -44,6 +44,12 @@ function extractField(lines: string[], ...prefixes: string[]): string {
  *    **Scene 1** / **Scene 1:** / ### Scene 1 / Scene 1:
  *    followed by bullet lines with "- Label: value"
  */
+/** Pull the raw text of the Scene-by-Scene Breakdown section from a full result string */
+export function extractBreakdownContent(result: string): string {
+  const m = result.match(/##\s*SCENE[- ]BY[- ]SCENE BREAKDOWN\s*\n([\s\S]+?)(?=\n##|$)/i);
+  return m ? m[1].trim() : "";
+}
+
 export function parseScenes(breakdownContent: string): SceneData[] {
   if (!breakdownContent || breakdownContent.trim().length < 20) return [];
 
