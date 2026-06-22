@@ -17,7 +17,7 @@ function NavBar() {
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="cursor-pointer shrink-0">
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
             className="h-10 w-auto"
             style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}

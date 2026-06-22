@@ -44,10 +44,9 @@ export function TopBar() {
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={`${import.meta.env.BASE_URL}logo.gif`}
             alt="Bow Down Visuals"
-            className="h-10 w-auto"
-            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
+            className="h-12 w-auto"
           />
         </Link>
 

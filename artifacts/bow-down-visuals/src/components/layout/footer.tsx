@@ -11,10 +11,9 @@ export function SiteFooter() {
           <div className="shrink-0">
             <Link href="/" className="cursor-pointer inline-block">
               <img
-                src={`${import.meta.env.BASE_URL}logo.png`}
+                src={`${import.meta.env.BASE_URL}logo-static.png`}
                 alt="Bow Down Visuals"
                 className="h-20 w-auto"
-                style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
               />
             </Link>
             <p className="text-white/50 text-sm font-semibold mt-2">Bow Down Visuals</p>
