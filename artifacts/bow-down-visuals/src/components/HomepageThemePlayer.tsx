@@ -63,16 +63,22 @@ export function HomepageThemePlayer() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ── Try autoplay muted once file confirmed ── */
+  /* ── Try autoplay unmuted, fall back to muted if browser blocks it ── */
   useEffect(() => {
     if (status !== "ready") return;
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = volume;
-    audio.muted = true;
+    audio.muted = false;
     audio.play()
-      .then(() => { setPlaying(true); setMuted(true); })
-      .catch(() => { /* blocked by browser — user must click play */ });
+      .then(() => { setPlaying(true); setMuted(false); })
+      .catch(() => {
+        // Browser blocked unmuted autoplay — try muted as fallback
+        audio.muted = true;
+        audio.play()
+          .then(() => { setPlaying(true); setMuted(true); })
+          .catch(() => { /* fully blocked — user must click play */ });
+      });
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Stop + reset on unmount (user navigated away) ── */
