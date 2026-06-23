@@ -10,8 +10,8 @@ const NAV_LINKS = [
   { label: "Make a Song", href: "/make-song" },
   { label: "Make a Music Video", href: "/make-video" },
   { label: "Make Song + Video", href: "/song-and-video" },
-  { label: "My Projects", href: "/my-projects" },
-  { label: "Video Editor", href: "/video-editor" },
+  { label: "Promo Clips", href: "/promo-clip" },
+  { label: "Thumbnail Maker", href: "/thumbnail" },
   { label: "Artist Vault", href: "/artist-vault" },
 ];
 
