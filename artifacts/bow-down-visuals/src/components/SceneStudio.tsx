@@ -3,6 +3,7 @@ import {
   Camera, Clock, MapPin, Zap, Film, Loader2,
   Sparkles, Video, CheckCircle2, AlertCircle, X,
   ChevronDown, ChevronUp, RotateCcw,
+  ArrowUp, ArrowDown, Trash2, Plus, Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -270,6 +271,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
   const { toast } = useToast();
 
   const [collapsed, setCollapsed]         = useState(false);
+  const [showPrompt, setShowPrompt]       = useState(false);
   const [aiPrompt, setAiPrompt]           = useState(scene.aiVideoPrompt);
   const [negPrompt, setNegPrompt]         = useState(scene.negativePrompt);
   const [improving, setImproving]         = useState(false);
@@ -291,6 +293,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
   }
 
   async function handleImprovePrompt() {
+    setShowPrompt(true);
     if (!aiPrompt.trim()) {
       toast({ title: "Enter a prompt first", description: "Type an AI Video Prompt before improving it.", variant: "destructive" });
       return;
@@ -342,9 +345,15 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
     }
   }
 
+  const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+  const summary =
+    scene.lyricLine || scene.action || scene.location || `Scene ${index + 1}`;
+
   return (
     <div
-      className="rounded-2xl border border-white/10 bg-white/[0.025] overflow-hidden transition-colors hover:border-white/20"
+      className={`rounded-2xl border bg-white/[0.025] overflow-hidden transition-colors ${
+        scene.approved ? "border-primary/40" : "border-white/10 hover:border-white/20"
+      }`}
       data-testid={`scene-card-${index}`}
     >
       {/* ── Card header ── */}
@@ -369,132 +378,176 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
           </span>
         )}
 
-        {/* Clip status indicator */}
-        {scene.generationStatus === "completed" && (
-          <span className="ml-auto flex items-center gap-1 text-[10px] font-bold text-green-400">
-            <CheckCircle2 className="h-3 w-3" /> Clip Ready
-          </span>
-        )}
-
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="ml-auto text-white/30 hover:text-white/60 transition-colors shrink-0"
-          aria-label={collapsed ? "Expand" : "Collapse"}
-        >
-          {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-        </button>
+        {/* Status indicator */}
+        <span className="ml-auto flex items-center gap-2 shrink-0">
+          {scene.approved && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-primary">
+              <CheckCircle2 className="h-3 w-3" /> Approved
+            </span>
+          )}
+          {!scene.approved && hasClip && (
+            <span className="flex items-center gap-1 text-[10px] font-bold text-green-400">
+              <CheckCircle2 className="h-3 w-3" /> Clip Ready
+            </span>
+          )}
+          {/* Collapse toggle */}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="text-white/30 hover:text-white/60 transition-colors"
+            aria-label={collapsed ? "Expand" : "Collapse"}
+          >
+            {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+          </button>
+        </span>
       </div>
 
       {/* ── Card body ── */}
       {!collapsed && (
         <div className="px-5 py-4 space-y-4">
 
-          {/* Lyric line */}
-          {scene.lyricLine && (
-            <p className="text-sm text-white/40 italic leading-relaxed border-l-2 border-primary/20 pl-3">
-              "{scene.lyricLine}"
-            </p>
-          )}
+          {/* Scene summary (always visible) */}
+          <p className="text-sm text-white/55 leading-relaxed border-l-2 border-primary/20 pl-3">
+            {scene.lyricLine ? <span className="italic">"{summary}"</span> : summary}
+          </p>
 
-          {/* Visual description + Camera direction */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            {(scene.location || scene.action) && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-3 space-y-1.5">
-                <p className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
-                  <MapPin className="h-2.5 w-2.5" /> Visual Description
-                </p>
-                {scene.location && (
-                  <p className="text-xs text-white/60 leading-relaxed">
-                    <span className="text-white/30">Location: </span>{scene.location}
-                  </p>
-                )}
-                {scene.action && (
-                  <p className="text-xs text-white/60 leading-relaxed flex items-start gap-1.5">
-                    <Zap className="h-3 w-3 text-primary/40 shrink-0 mt-0.5" />
-                    {scene.action}
-                  </p>
-                )}
-              </div>
-            )}
+          {/* Action buttons (always visible) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleImprovePrompt}
+              disabled={improving}
+              className="h-8 text-xs gap-1.5 border-primary/20 bg-primary/5 text-primary/80 hover:bg-primary/15 hover:text-primary font-bold"
+              data-testid={`btn-improve-prompt-${index}`}
+            >
+              {improving
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Improving…</>
+                : <><Sparkles className="h-3.5 w-3.5" /> Improve Prompt for Artist</>}
+            </Button>
 
-            {(scene.cameraMovement || scene.lighting || scene.mood) && (
-              <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-3 space-y-1.5">
-                <p className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
-                  <Camera className="h-2.5 w-2.5" /> Camera Direction
-                </p>
-                {scene.cameraMovement && (
-                  <p className="text-xs text-white/60 leading-relaxed">
-                    <span className="text-white/30">Camera: </span>{scene.cameraMovement}
-                  </p>
-                )}
-                {scene.lighting && (
-                  <p className="text-xs text-white/60 leading-relaxed">
-                    <span className="text-white/30">Lighting: </span>{scene.lighting}
-                  </p>
-                )}
-                {scene.mood && (
-                  <p className="text-xs text-white/60 leading-relaxed">
-                    <span className="text-white/30">Mood: </span>{scene.mood}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+            <button
+              onClick={() => setShowPrompt((s) => !s)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
+              data-testid={`btn-toggle-prompt-${index}`}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              {showPrompt ? "Hide AI Prompt" : "AI Prompt & Details"}
+              {showPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
 
-          {/* AI Video Prompt */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
-                <Zap className="h-2.5 w-2.5" /> AI Video Prompt
-              </label>
+            {hasClip && (
               <Button
                 size="sm"
+                onClick={() => handleUpdate({ approved: !scene.approved })}
                 variant="outline"
-                onClick={handleImprovePrompt}
-                disabled={improving}
-                className="h-6 text-[10px] px-2.5 gap-1 border-primary/20 bg-primary/5 text-primary/70 hover:bg-primary/15 hover:text-primary font-bold uppercase tracking-wide"
-                data-testid={`btn-improve-prompt-${index}`}
+                className={`h-8 text-xs gap-1.5 font-bold ${
+                  scene.approved
+                    ? "border-primary/40 bg-primary/15 text-primary hover:bg-primary/10"
+                    : "border-white/10 bg-white/[0.03] text-white/50 hover:text-primary hover:border-primary/30 hover:bg-primary/10"
+                }`}
+                data-testid={`btn-approve-clip-${index}`}
               >
-                {improving
-                  ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Improving…</>
-                  : <><Sparkles className="h-2.5 w-2.5" /> Improve Prompt for Artist</>}
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {scene.approved ? "Approved ✓" : "Approve Clip"}
               </Button>
+            )}
+          </div>
+
+          {/* AI Video Prompt & scene details (collapsed by default) */}
+          {showPrompt && (
+            <div className="space-y-4 pt-1">
+              {/* Visual description + Camera direction */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {(scene.location || scene.action) && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-3 space-y-1.5">
+                    <p className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                      <MapPin className="h-2.5 w-2.5" /> Visual Description
+                    </p>
+                    {scene.location && (
+                      <p className="text-xs text-white/60 leading-relaxed">
+                        <span className="text-white/30">Location: </span>{scene.location}
+                      </p>
+                    )}
+                    {scene.action && (
+                      <p className="text-xs text-white/60 leading-relaxed flex items-start gap-1.5">
+                        <Zap className="h-3 w-3 text-primary/40 shrink-0 mt-0.5" />
+                        {scene.action}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {(scene.cameraMovement || scene.lighting || scene.mood) && (
+                  <div className="rounded-xl bg-white/[0.03] border border-white/[0.05] px-3.5 py-3 space-y-1.5">
+                    <p className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                      <Camera className="h-2.5 w-2.5" /> Camera Direction
+                    </p>
+                    {scene.cameraMovement && (
+                      <p className="text-xs text-white/60 leading-relaxed">
+                        <span className="text-white/30">Camera: </span>{scene.cameraMovement}
+                      </p>
+                    )}
+                    {scene.lighting && (
+                      <p className="text-xs text-white/60 leading-relaxed">
+                        <span className="text-white/30">Lighting: </span>{scene.lighting}
+                      </p>
+                    )}
+                    {scene.mood && (
+                      <p className="text-xs text-white/60 leading-relaxed">
+                        <span className="text-white/30">Mood: </span>{scene.mood}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* AI Video Prompt */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-primary/70 uppercase tracking-widest flex items-center gap-1.5">
+                  <Zap className="h-2.5 w-2.5" /> AI Video Prompt
+                </label>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onBlur={saveAiPrompt}
+                  rows={4}
+                  placeholder="Describe the visual for this scene…"
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white/80 leading-relaxed resize-none focus:outline-none focus:border-primary/40 transition-colors placeholder:text-white/20"
+                  data-testid={`textarea-ai-prompt-${index}`}
+                />
+              </div>
+
+              {/* Negative Prompt */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">
+                  Negative Prompt
+                </label>
+                <textarea
+                  value={negPrompt}
+                  onChange={(e) => setNegPrompt(e.target.value)}
+                  onBlur={saveNegPrompt}
+                  rows={2}
+                  placeholder="Things to avoid in the video (e.g. blurry, text, watermark)…"
+                  className="w-full bg-white/[0.02] border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white/50 leading-relaxed resize-none focus:outline-none focus:border-white/20 transition-colors placeholder:text-white/15"
+                  data-testid={`textarea-neg-prompt-${index}`}
+                />
+              </div>
             </div>
-            <textarea
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              onBlur={saveAiPrompt}
-              rows={4}
-              placeholder="Describe the visual for this scene…"
-              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white/80 leading-relaxed resize-none focus:outline-none focus:border-primary/40 transition-colors placeholder:text-white/20"
-              data-testid={`textarea-ai-prompt-${index}`}
-            />
-          </div>
+          )}
 
-          {/* Negative Prompt */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-white/30 uppercase tracking-widest block">
-              Negative Prompt
-            </label>
-            <textarea
-              value={negPrompt}
-              onChange={(e) => setNegPrompt(e.target.value)}
-              onBlur={saveNegPrompt}
-              rows={2}
-              placeholder="Things to avoid in the video (e.g. blurry, text, watermark)…"
-              className="w-full bg-white/[0.02] border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-white/50 leading-relaxed resize-none focus:outline-none focus:border-white/20 transition-colors placeholder:text-white/15"
-              data-testid={`textarea-neg-prompt-${index}`}
-            />
-          </div>
-
-          {/* Generate Runway Clip */}
+          {/* Generate Runway Clip + preview */}
           <div className="pt-1 border-t border-white/[0.04]">
             <InlineRunwayGenerator
               scene={{ ...scene, aiVideoPrompt: aiPrompt, negativePrompt: negPrompt }}
               onUpdate={(patch) => handleUpdate(patch)}
             />
           </div>
+
+          {/* Silent preview note */}
+          <p className="text-[11px] text-white/30 flex items-start gap-1.5">
+            <Film className="h-3 w-3 text-primary/40 shrink-0 mt-0.5" />
+            Runway clips are silent previews. Your uploaded song will be added during final export.
+          </p>
 
         </div>
       )}
@@ -509,9 +562,18 @@ interface SceneStudioProps {
   artistVault?: ArtistVault | null;
   videoStyle?: string;
   platform?: string;
+  /** When true, expose scene-management controls (reorder, add, remove). */
+  manageable?: boolean;
+  /** Explicit save action (e.g. persist timeline to project). Renders a Save button when provided. */
+  onSave?: () => void;
+  /** Saving spinner state for the Save button. */
+  saving?: boolean;
 }
 
-export function SceneStudio({ scenes, onScenesChange, artistVault, videoStyle, platform }: SceneStudioProps) {
+export function SceneStudio({
+  scenes, onScenesChange, artistVault, videoStyle, platform,
+  manageable = false, onSave, saving = false,
+}: SceneStudioProps) {
   const handleUpdate = useCallback(
     (id: string, patch: Partial<SceneData>) => {
       onScenesChange(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -519,14 +581,41 @@ export function SceneStudio({ scenes, onScenesChange, artistVault, videoStyle, p
     [scenes, onScenesChange],
   );
 
-  if (scenes.length === 0) return null;
+  const moveScene = useCallback(
+    (index: number, dir: -1 | 1) => {
+      const target = index + dir;
+      if (target < 0 || target >= scenes.length) return;
+      const next = [...scenes];
+      [next[index], next[target]] = [next[target], next[index]];
+      onScenesChange(next);
+    },
+    [scenes, onScenesChange],
+  );
+
+  const removeScene = useCallback(
+    (id: string) => onScenesChange(scenes.filter((s) => s.id !== id)),
+    [scenes, onScenesChange],
+  );
+
+  const addScene = useCallback(() => {
+    const newScene: SceneData = {
+      id: `scene-${Date.now()}`,
+      timestamp: "", section: "", lyricLine: "", location: "",
+      action: "", cameraMovement: "", lighting: "", mood: "",
+      aiVideoPrompt: "", negativePrompt: "", approved: false, demoClipUrl: null,
+      provider: null, generationStatus: null, promptUsed: null, generatedAt: null,
+    };
+    onScenesChange([...scenes, newScene]);
+  }, [scenes, onScenesChange]);
+
+  if (scenes.length === 0 && !manageable) return null;
 
   const clipsReady = scenes.filter((s) => s.generationStatus === "completed").length;
 
   return (
     <div className="space-y-4" data-testid="scene-studio">
       {/* Section heading */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
             <Film className="h-4.5 w-4.5 text-primary" style={{ width: "1.125rem", height: "1.125rem" }} />
@@ -541,20 +630,68 @@ export function SceneStudio({ scenes, onScenesChange, artistVault, videoStyle, p
             </p>
           </div>
         </div>
+        {manageable && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm" variant="outline" onClick={addScene}
+              className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white gap-1.5 h-9"
+              data-testid="btn-add-scene"
+            >
+              <Plus className="h-4 w-4" /> Add Scene
+            </Button>
+            {onSave && (
+              <Button
+                size="sm" onClick={onSave} disabled={saving}
+                className="gold-glow font-bold gap-1.5 h-9"
+                data-testid="btn-save-scenes"
+              >
+                {saving
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                  : <><Save className="h-4 w-4" /> Save</>}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Cards */}
       <div className="space-y-4">
         {scenes.map((scene, i) => (
-          <SceneCard
-            key={scene.id}
-            scene={scene}
-            index={i}
-            onUpdate={handleUpdate}
-            artistVault={artistVault}
-            videoStyle={videoStyle}
-            platform={platform}
-          />
+          <div key={scene.id} className="space-y-1.5">
+            {manageable && (
+              <div className="flex items-center justify-end gap-1">
+                <button
+                  type="button" onClick={() => moveScene(i, -1)} disabled={i === 0}
+                  className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  title="Move up" data-testid={`btn-scene-up-${i}`}
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button" onClick={() => moveScene(i, 1)} disabled={i === scenes.length - 1}
+                  className="h-7 w-7 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                  title="Move down" data-testid={`btn-scene-down-${i}`}
+                >
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button" onClick={() => removeScene(scene.id)}
+                  className="h-7 w-7 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center justify-center text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  title="Remove scene" data-testid={`btn-scene-remove-${i}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+            <SceneCard
+              scene={scene}
+              index={i}
+              onUpdate={handleUpdate}
+              artistVault={artistVault}
+              videoStyle={videoStyle}
+              platform={platform}
+            />
+          </div>
         ))}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Copy, Check, Save, Loader2, FileText, FileDown } from "lucide-react";
+import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,6 +61,33 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function CollapsibleSection({ index, title, content, defaultOpen }: { index: number; title: string; content: string; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="bg-card border border-card-border rounded-xl overflow-hidden" data-testid={`result-section-${index}`}>
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex items-center gap-3 flex-1 text-left"
+          data-testid={`btn-toggle-section-${index}`}
+        >
+          <span className="text-xs font-bold text-primary/50 tabular-nums">{String(index + 1).padStart(2, "0")}</span>
+          <h3 className="font-bold text-white text-sm tracking-wide uppercase flex-1">{title}</h3>
+          {open ? <ChevronUp className="h-4 w-4 text-white/40" /> : <ChevronDown className="h-4 w-4 text-white/40" />}
+        </button>
+        <div className="pl-3">
+          <CopyButton text={content} />
+        </div>
+      </div>
+      {open && (
+        <div className="px-5 py-4">
+          <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{content}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface SaveMetadata {
   projectType: string;
   artistName?: string;
@@ -81,9 +108,11 @@ interface GenerationResultProps {
   onScenesChange?: (s: SceneData[]) => void;
   artistVault?: ArtistVault | null;
   onSaved?: (projectId: string) => void;
+  showScenes?: boolean;
+  collapsibleSections?: boolean;
 }
 
-export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, artistVault, onSaved }: GenerationResultProps) {
+export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, artistVault, onSaved, showScenes = true, collapsibleSections = false }: GenerationResultProps) {
   const sections = parseSections(result);
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -261,6 +290,15 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       {/* Plan sections — raw AI output */}
       <div className="space-y-4">
         {sections.length > 0 ? sections.map((section, i) => (
+          collapsibleSections ? (
+            <CollapsibleSection
+              key={i}
+              index={i}
+              title={section.title}
+              content={section.content}
+              defaultOpen={i === 0}
+            />
+          ) : (
           <div key={i} className="bg-card border border-card-border rounded-xl overflow-hidden"
             data-testid={`result-section-${i}`}>
             <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-secondary/50">
@@ -274,6 +312,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
               <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
             </div>
           </div>
+          )
         )) : (
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
             <pre className="whitespace-pre-wrap font-sans text-sm text-white/70 leading-relaxed">{result}</pre>
@@ -282,7 +321,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       </div>
 
       {/* Scene Cards For Video Generation — shown below the full plan */}
-      {scenes.length > 0 && (
+      {showScenes && scenes.length > 0 && (
         <div className="pt-4 border-t border-white/[0.06]">
           <SceneStudio
             scenes={scenes}

@@ -6,13 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Video, ArrowLeft, Loader2, ChevronRight, BarChart2, Check } from "lucide-react";
+import {
+  Video, ArrowLeft, Loader2, ChevronRight, ChevronLeft, BarChart2, Check,
+  Music2, Palette, Sparkles, Clapperboard, Film, Download, Volume2,
+} from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
-import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
+import { SceneStudio } from "@/components/SceneStudio";
+import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
+import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
+import { FinalVideoExport } from "@/components/FinalVideoExport";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import type { SongStructure } from "@/lib/song-structure";
@@ -248,6 +255,7 @@ function StyledSelect({
 
 export default function MakeVideo() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -259,6 +267,8 @@ export default function MakeVideo() {
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [savingScenes, setSavingScenes] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
@@ -335,9 +345,7 @@ export default function MakeVideo() {
       setScenes(parseScenes(extractBreakdownContent(rawResult)));
       setSavedProjectId(null);
       if (creditsRemaining !== undefined) refreshProfile();
-      setTimeout(() => {
-        document.getElementById("video-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
+      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
@@ -345,6 +353,78 @@ export default function MakeVideo() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /* Autosave scene edits to the saved project (mirrors MusicVideoTimeline) */
+  async function handleScenesChange(updated: SceneData[]) {
+    setScenes(updated);
+    if (!savedProjectId) return;
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/projects/${savedProjectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ scenes: updated }),
+      });
+    } catch {
+      /* silent — user can Save to persist */
+    }
+  }
+
+  /* Explicit scene save (mirrors MusicVideoTimeline "Save Timeline") */
+  async function saveScenes() {
+    if (!savedProjectId) {
+      toast({ title: "Save your project first", description: "Use Save Project in step 3 to enable saving scene changes.", variant: "destructive" });
+      return;
+    }
+    setSavingScenes(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/projects/${savedProjectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ scenes }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      toast({ title: "Scenes saved", description: "Your scene changes have been persisted." });
+    } catch {
+      toast({ title: "Save failed", description: "Could not save scene changes. Please try again.", variant: "destructive" });
+    } finally {
+      setSavingScenes(false);
+    }
+  }
+
+  /* ── Wizard navigation ── */
+  const STEPS = [
+    { n: 1, label: "Song Setup",      icon: Music2 },
+    { n: 2, label: "Visual Style",    icon: Palette },
+    { n: 3, label: "Generate Plan",   icon: Sparkles },
+    { n: 4, label: "Scene Clips",     icon: Clapperboard },
+    { n: 5, label: "Timeline",        icon: Film },
+    { n: 6, label: "Export",          icon: Download },
+  ];
+
+  const videoStyleVal = watched.videoStyle || undefined;
+  const platformVal = watched.platform || undefined;
+  const approvedScenes = scenes.filter((s) => s.approved && s.demoClipUrl);
+
+  function canAdvance(from: number): boolean {
+    if (from === 1) return !!watched.artistName?.trim();
+    if (from === 2) return !!watched.artistDescription?.trim();
+    if (from === 3) return !!rawResult;
+    return true;
+  }
+
+  function canReach(target: number): boolean {
+    if (target <= step) return true;
+    for (let s = step; s < target; s++) if (!canAdvance(s)) return false;
+    return true;
+  }
+
+  function goToStep(target: number) {
+    if (target < 1 || target > 6 || !canReach(target)) return;
+    setStep(target);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
   }
 
   return (
@@ -364,7 +444,7 @@ export default function MakeVideo() {
         </Link>
 
         {/* Page header */}
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
               <Video className="h-5 w-5 text-white" />
@@ -376,207 +456,382 @@ export default function MakeVideo() {
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
             Make a Music Video
           </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
-            Turn your lyrics into a cinematic music video treatment, scene list, AI video prompts, thumbnails, captions, and promo ideas.
+          <p className="text-white/50 text-base md:text-lg max-w-2xl">
+            A guided, step-by-step studio — from song setup to a cinematic AI music video.
           </p>
         </div>
 
-        {/* Form */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
-
-            {/* Row 1: Artist + Song Title */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Artist Name">
-                <Input
-                  {...register("artistName", { required: true })}
-                  placeholder="e.g. Lil Nova"
-                  className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
-                />
-                {errors.artistName && <p className="text-red-400 text-xs mt-1">Artist name is required</p>}
-              </FieldWrapper>
-              <FieldWrapper label="Song Title">
-                <Input
-                  {...register("songTitle")}
-                  placeholder="e.g. On My Way Up"
-                  className={inputClass}
-                />
-              </FieldWrapper>
-            </div>
-
-            {/* Row 2: Genre + Mood */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Genre">
-                <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
-                  value={watched.genre} onChange={(v) => setValue("genre", v)} />
-              </FieldWrapper>
-              <FieldWrapper label="Mood">
-                <StyledSelect name="mood" placeholder="Select mood..." options={MOODS}
-                  value={watched.mood} onChange={(v) => setValue("mood", v)} />
-              </FieldWrapper>
-            </div>
-
-            {/* Row 3: Video Style + Platform */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Video Style">
-                <StyledSelect name="videoStyle" placeholder="Select style..." options={VIDEO_STYLES}
-                  value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
-              </FieldWrapper>
-              <FieldWrapper label="Platform">
-                <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS}
-                  value={watched.platform} onChange={(v) => setValue("platform", v)} />
-              </FieldWrapper>
-            </div>
-
-            {/* Row 4: Video Length */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Video Length">
-                <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
-                  value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
-              </FieldWrapper>
-            </div>
-
-            {/* Lyrics */}
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Lyrics</Label>
-              <AudioTranscribe
-                onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
-                onFileUrl={setAudioUrl}
-              />
-              <Textarea
-                {...register("lyrics")}
-                placeholder="Paste your lyrics here — or upload audio above to auto-transcribe them..."
-                className={textareaClass}
-                style={{ minHeight: "160px" }}
-              />
-              {watched.lyrics.length > 10 && (
-                <div className="flex items-center gap-3 flex-wrap pt-1">
+        {/* ── Progress stepper ── */}
+        <div className="mb-8 overflow-x-auto">
+          <div className="flex items-center gap-1 min-w-max sm:min-w-0">
+            {STEPS.map((s, i) => {
+              const Icon = s.icon;
+              const isActive = step === s.n;
+              const isDone = step > s.n;
+              const reachable = canReach(s.n);
+              return (
+                <div key={s.n} className="flex items-center">
                   <button
                     type="button"
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                    onClick={() => goToStep(s.n)}
+                    disabled={!reachable}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
+                      isActive
+                        ? "bg-primary/15 border border-primary/40"
+                        : isDone
+                          ? "bg-white/[0.04] border border-white/10 hover:border-white/20"
+                          : "bg-transparent border border-white/[0.06] opacity-60"
+                    } ${!reachable ? "cursor-not-allowed" : "cursor-pointer"}`}
+                    data-testid={`step-tab-${s.n}`}
                   >
-                    {analyzing ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
-                    ) : (
-                      <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>
-                    )}
-                  </button>
-                  {songStructure && !analyzing && (
-                    <span className="text-xs text-primary/60 flex items-center gap-1.5">
-                      <Check className="h-3 w-3" /> Analysis complete
+                    <span className={`h-6 w-6 rounded-lg flex items-center justify-center shrink-0 ${
+                      isActive ? "bg-primary text-black" : isDone ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"
+                    }`}>
+                      {isDone ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
                     </span>
+                    <span className={`text-xs font-bold whitespace-nowrap ${
+                      isActive ? "text-primary" : isDone ? "text-white/70" : "text-white/40"
+                    } hidden sm:inline`}>
+                      {s.n}. {s.label}
+                    </span>
+                    <span className={`text-xs font-bold sm:hidden ${isActive ? "text-primary" : "text-white/40"}`}>
+                      {s.n}
+                    </span>
+                  </button>
+                  {i < STEPS.length - 1 && (
+                    <ChevronRight className="h-4 w-4 text-white/15 mx-0.5 shrink-0" />
                   )}
-                  {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
                 </div>
-              )}
-            </div>
-
-            {songStructure && <SongSectionAnalysis analysis={songStructure} />}
-
-            {/* Artist Description */}
-            <FieldWrapper label="Artist Description">
-              <Textarea
-                {...register("artistDescription", { required: true })}
-                placeholder="Describe the artist's look, personality, and visual brand. Include style references, typical wardrobe, vibe, and anything important for the video treatment..."
-                className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
-                style={{ minHeight: "120px" }}
-              />
-              {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Artist description is required</p>}
-            </FieldWrapper>
-
-            {/* Special Instructions */}
-            <FieldWrapper label="Special Instructions">
-              <Textarea
-                {...register("specialInstructions")}
-                placeholder="Any specific shots, locations, themes, cultural elements, things to avoid, or references you want included..."
-                className={textareaClass}
-                style={{ minHeight: "100px" }}
-              />
-            </FieldWrapper>
-
-            {/* Submit */}
-            <div className="pt-2">
-              <Button
-                type="submit"
-                size="lg"
-                disabled={loading}
-                className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3"
-                style={{ height: "52px" }}
-              >
-                {loading ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
-                ) : (
-                  <><Video className="h-5 w-5" /> Generate Music Video Plan</>
-                )}
-              </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>
-            </div>
-          </form>
+              );
+            })}
+          </div>
         </div>
 
-        {outOfCredits && <OutOfCredits />}
+        {outOfCredits && <div className="mb-6"><OutOfCredits /></div>}
 
         {error && (
-          <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+          <div className="mb-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
             <p className="text-red-400 text-sm font-medium">{error}</p>
           </div>
         )}
 
-        {rawResult && (
-          <div id="video-result">
-            <GenerationResult
-              result={rawResult}
-              onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); setScenes([]); setSavedProjectId(null); }}
-              saveMetadata={{
-                projectType: "Make a Music Video",
-                artistName: watched.artistName,
-                songTitle: watched.songTitle,
-                genre: watched.genre,
-                mood: watched.mood,
-                inputData: watched as unknown as Record<string, unknown>,
-                creditsUsed: 1,
-                songStructure: songStructure ?? undefined,
-              }}
-              scenes={scenes}
-              onScenesChange={setScenes}
-              artistVault={loadedVault}
-              onSaved={setSavedProjectId}
-            />
+        {/* ── Step content ── */}
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
 
-            {import.meta.env.DEV && (
-              <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 space-y-2">
-                <p className="text-[10px] font-black text-yellow-400/80 uppercase tracking-widest">DEV · Scene Parser Debug</p>
-                <p className="text-xs text-white/40 font-mono">
-                  Scenes parsed: <span className={scenes.length > 0 ? "text-green-400" : "text-red-400"}>{scenes.length}</span>
-                  {scenes.length === 0 && " ⚠ No scenes found — check AI response format below"}
-                </p>
-                {scenes.length > 0 && scenes.map((s, i) => (
-                  <div key={s.id} className="text-[10px] font-mono text-white/30 pl-2 border-l border-yellow-500/10">
-                    Scene {i + 1}: {s.aiVideoPrompt
-                      ? <span className="text-green-400/70">prompt="{s.aiVideoPrompt.slice(0, 60)}…"</span>
-                      : <span className="text-red-400/70">⚠ no aiVideoPrompt (will use fallback from action/location)</span>}
+          {/* STEP 1 — Song Setup */}
+          {step === 1 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Song Setup</h2>
+                <p className="text-sm text-white/40">Tell us about the track and add your lyrics.</p>
+              </div>
+
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <FieldWrapper label="Artist Name">
+                  <Input
+                    {...register("artistName", { required: true })}
+                    placeholder="e.g. Lil Nova"
+                    className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
+                  />
+                  {errors.artistName && <p className="text-red-400 text-xs mt-1">Artist name is required</p>}
+                </FieldWrapper>
+                <FieldWrapper label="Song Title">
+                  <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
+                </FieldWrapper>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <FieldWrapper label="Genre">
+                  <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
+                    value={watched.genre} onChange={(v) => setValue("genre", v)} />
+                </FieldWrapper>
+                <FieldWrapper label="Mood">
+                  <StyledSelect name="mood" placeholder="Select mood..." options={MOODS}
+                    value={watched.mood} onChange={(v) => setValue("mood", v)} />
+                </FieldWrapper>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Lyrics</Label>
+                <AudioTranscribe
+                  onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
+                  onFileUrl={setAudioUrl}
+                />
+                {audioUrl && <ReferenceAudioPlayer url={audioUrl} label="Your Song" />}
+                <Textarea
+                  {...register("lyrics")}
+                  placeholder="Paste your lyrics here — or upload audio above to auto-transcribe them..."
+                  className={textareaClass}
+                  style={{ minHeight: "160px" }}
+                />
+                {watched.lyrics.length > 10 && (
+                  <div className="flex items-center gap-3 flex-wrap pt-1">
+                    <button
+                      type="button"
+                      onClick={handleAnalyze}
+                      disabled={analyzing}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                    >
+                      {analyzing
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
+                        : <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>}
+                    </button>
+                    {songStructure && !analyzing && (
+                      <span className="text-xs text-primary/60 flex items-center gap-1.5">
+                        <Check className="h-3 w-3" /> Analysis complete
+                      </span>
+                    )}
+                    {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
                   </div>
-                ))}
-                {scenes.length === 0 && (
-                  <p className="text-[10px] font-mono text-white/25 pl-2 border-l border-yellow-500/10">
-                    Parser looks for "## SCENE-BY-SCENE BREAKDOWN" header in AI output, then "Scene 1:", "Timestamp:", "AI Video Prompt:" fields per scene.
-                  </p>
                 )}
               </div>
-            )}
 
-            <MusicVideoTimeline
-              scenes={scenes}
-              onScenesChange={setScenes}
-              audioUrl={audioUrl}
-              projectId={savedProjectId}
-            />
+              {songStructure && <SongSectionAnalysis analysis={songStructure} />}
+            </div>
+          )}
+
+          {/* STEP 2 — Visual Style */}
+          {step === 2 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Visual Style</h2>
+                <p className="text-sm text-white/40">Define the look, platform, and artist's visual brand.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <FieldWrapper label="Video Style">
+                  <StyledSelect name="videoStyle" placeholder="Select style..." options={VIDEO_STYLES}
+                    value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
+                </FieldWrapper>
+                <FieldWrapper label="Platform">
+                  <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS}
+                    value={watched.platform} onChange={(v) => setValue("platform", v)} />
+                </FieldWrapper>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <FieldWrapper label="Video Length">
+                  <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
+                    value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
+                </FieldWrapper>
+              </div>
+
+              <FieldWrapper label="Artist Description">
+                <Textarea
+                  {...register("artistDescription", { required: true })}
+                  placeholder="Describe the artist's look, personality, and visual brand. Include style references, typical wardrobe, vibe, and anything important for the video treatment..."
+                  className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
+                  style={{ minHeight: "120px" }}
+                />
+                {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Artist description is required</p>}
+              </FieldWrapper>
+
+              <FieldWrapper label="Special Instructions">
+                <Textarea
+                  {...register("specialInstructions")}
+                  placeholder="Any specific shots, locations, themes, cultural elements, things to avoid, or references you want included..."
+                  className={textareaClass}
+                  style={{ minHeight: "100px" }}
+                />
+              </FieldWrapper>
+            </div>
+          )}
+
+          {/* STEP 3 — Generate Plan */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Generate Plan</h2>
+                <p className="text-sm text-white/40">Create your Director's Treatment, scene breakdown, and AI prompts.</p>
+              </div>
+
+              {!rawResult ? (
+                <div className="rounded-2xl border border-primary/15 bg-primary/5 p-6 text-center space-y-4">
+                  <p className="text-white/60 text-sm max-w-md mx-auto">
+                    We'll use your song setup and visual style to generate a full cinematic plan. This uses 1 credit.
+                  </p>
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={handleSubmit(onSubmit)}
+                    disabled={loading}
+                    className="gold-glow font-bold text-base px-10 rounded-xl gap-3"
+                    style={{ height: "52px" }}
+                    data-testid="btn-generate-plan"
+                  >
+                    {loading
+                      ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
+                      : <><Sparkles className="h-5 w-5" /> Generate Music Video Plan</>}
+                  </Button>
+                  <p className="text-white/25 text-xs">Uses 1 credit per generation</p>
+                </div>
+              ) : (
+                <>
+                  <GenerationResult
+                    result={rawResult}
+                    onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); setScenes([]); setSavedProjectId(null); }}
+                    saveMetadata={{
+                      projectType: "Make a Music Video",
+                      artistName: watched.artistName,
+                      songTitle: watched.songTitle,
+                      genre: watched.genre,
+                      mood: watched.mood,
+                      inputData: watched as unknown as Record<string, unknown>,
+                      creditsUsed: 1,
+                      songStructure: songStructure ?? undefined,
+                    }}
+                    scenes={scenes}
+                    onScenesChange={setScenes}
+                    artistVault={loadedVault}
+                    onSaved={setSavedProjectId}
+                    showScenes={false}
+                    collapsibleSections
+                  />
+
+                  {/* Clean scene grid preview */}
+                  {scenes.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center gap-2">
+                        <Clapperboard className="h-4 w-4 text-primary/70" />
+                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                          {scenes.length} Scene{scenes.length !== 1 ? "s" : ""} Ready
+                        </h3>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {scenes.map((s, i) => (
+                          <div key={s.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 flex items-start gap-3">
+                            <span className="h-6 w-6 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-[11px] font-black text-primary">
+                              {i + 1}
+                            </span>
+                            <div className="min-w-0">
+                              {s.section && <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">{s.section}</p>}
+                              <p className="text-xs text-white/60 line-clamp-2">
+                                {s.lyricLine || s.action || s.location || `Scene ${i + 1}`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-white/30">Next: generate and approve clips for each scene in step 4.</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* STEP 4 — Scene Clips */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Scene Clips</h2>
+                <p className="text-sm text-white/40">Refine prompts, generate Runway clips, and approve the ones you want.</p>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+                <Volume2 className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
+                <p className="text-xs text-white/55 leading-relaxed">
+                  Runway clips are <span className="text-white/80 font-semibold">silent previews</span>. Your uploaded song will be added during final export.
+                </p>
+              </div>
+
+              {scenes.length > 0 ? (
+                <SceneStudio
+                  scenes={scenes}
+                  onScenesChange={handleScenesChange}
+                  artistVault={loadedVault}
+                  videoStyle={videoStyleVal}
+                  platform={platformVal}
+                  manageable
+                  onSave={saveScenes}
+                  saving={savingScenes}
+                />
+              ) : (
+                <p className="text-sm text-white/40">No scenes yet — go back to step 3 and generate your plan.</p>
+              )}
+            </div>
+          )}
+
+          {/* STEP 5 — Timeline Preview */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Timeline Preview</h2>
+                <p className="text-sm text-white/40">Watch your approved clips back-to-back, with your song playing separately.</p>
+              </div>
+
+              <ClipSequencePlayer
+                scenes={approvedScenes}
+                allScenes={scenes}
+                title="Approved Clips Preview"
+                emptyTitle="No approved clips yet."
+                emptyHint="Approve clips in step 4 — they'll play here in sequence."
+              />
+
+              <div className="flex items-start gap-2.5 rounded-xl border border-yellow-500/15 bg-yellow-500/5 px-4 py-3">
+                <Volume2 className="h-4 w-4 text-yellow-400/70 shrink-0 mt-0.5" />
+                <p className="text-xs text-white/55 leading-relaxed">
+                  The clip preview above has <span className="text-white/80 font-semibold">no sound</span> — clips are silent.
+                  Play your song below to hear how it pairs. The audio is combined automatically during final export.
+                </p>
+              </div>
+
+              {audioUrl
+                ? <ReferenceAudioPlayer url={audioUrl} label="Your Song" />
+                : <p className="text-xs text-white/30">Upload a song in step 1 to preview it here alongside the clips.</p>}
+            </div>
+          )}
+
+          {/* STEP 6 — Export (Beta) */}
+          {step === 6 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-black text-white">Export</h2>
+                <Badge className="bg-yellow-500/10 text-yellow-300 border-yellow-500/25 text-[10px] font-black tracking-widest uppercase">
+                  Beta
+                </Badge>
+              </div>
+              <p className="text-sm text-white/40 -mt-2">
+                Stitch your approved clips together with your song into a single video. This feature is in Beta — results may vary.
+              </p>
+
+              <FinalVideoExport
+                scenes={scenes}
+                projectId={savedProjectId}
+                audioUrl={audioUrl}
+              />
+            </div>
+          )}
+
+          {/* ── Footer nav ── */}
+          <div className="flex items-center justify-between gap-4 mt-10 pt-6 border-t border-white/[0.06]">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => goToStep(step - 1)}
+              disabled={step === 1}
+              className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white gap-2 disabled:opacity-30"
+              data-testid="btn-wizard-back"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back
+            </Button>
+
+            {step < 6 && (
+              <Button
+                type="button"
+                onClick={() => goToStep(step + 1)}
+                disabled={!canAdvance(step)}
+                className="gold-glow font-bold gap-2 disabled:opacity-40"
+                data-testid="btn-wizard-next"
+              >
+                {step === 3 && !rawResult ? "Generate plan to continue" : "Next"}
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
           </div>
-        )}
+        </div>
 
       </div>
     </div>

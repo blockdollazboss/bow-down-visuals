@@ -1,0 +1,75 @@
+The Bow Down Visuals website is too cluttered and confusing.
+
+Redesign the Make a Music Video workflow into a clean step-by-step wizard.
+
+Do not add Stripe.
+Do not add new video APIs.
+Do not work on final export until the layout is fixed.
+
+Important issue:
+Runway clips do not have sound by themselves. Add a clear message:
+Runway clips are silent previews. Your uploaded song will be added during final export.
+
+Create a cleaner Make a Music Video page with these steps:
+
+STEP 1: Song Setup
+- Artist Name
+- Song Title
+- Genre
+- Mood
+- Upload Song
+- Audio Preview
+- Paste Lyrics or Transcribe Lyrics
+
+STEP 2: Visual Style
+- Video Style
+- Platform
+- Video Length
+- Artist Vault Profile selector
+- Artist Description
+- Special Instructions
+
+STEP 3: Generate Video Plan
+- Button: Generate Music Video Plan
+- Show Director’s Treatment in a collapsible section
+- Show Scene Cards in a clean grid/list
+
+STEP 4: Scene Clips
+Each scene card should show:
+- Scene number
+- short scene summary
+- AI video prompt collapsed by default
+- buttons:
+  Improve Prompt for Artist
+  Generate Runway Clip
+  Preview Clip
+  Approve Clip
+
+Make the AI prompt expandable/collapsible so it does not clutter the page.
+
+Add message near clips:
+These scene clips are silent previews. Audio is added when you export the final music video.
+
+STEP 5: Timeline Preview
+- Show approved clips in order
+- Play clips one by one
+- Show uploaded song audio player separately
+- Do not pretend clips have sound
+
+STEP 6: Export Coming Soon / Export Beta
+- Show:
+Final export will combine your approved clips with your uploaded song.
+- Keep export button disabled or labeled Beta until the export works correctly.
+
+Design improvements:
+- Use a progress stepper at the top
+- Only show one step at a time
+- Add Next and Back buttons
+- Use clean cards
+- Reduce long text on the page
+- Collapse advanced prompt details
+- Make mobile layout simple
+- Keep premium dark cinematic Bow Down Visuals style
+
+Do not remove existing functionality.
+Reorganize it into the wizard layout.
