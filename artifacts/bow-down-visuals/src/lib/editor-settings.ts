@@ -617,6 +617,7 @@ export function normalizeStem(s: Partial<AudioStem>): AudioStem {
     fileType: s.fileType ?? "",
     fileSize: s.fileSize ?? 0,
     uploadedAt: s.uploadedAt ?? new Date().toISOString(),
+    ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
     muted: s.muted ?? false,
     solo: s.solo ?? false,
     locked: s.locked ?? false,
