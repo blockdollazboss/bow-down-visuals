@@ -1,6 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -154,6 +155,7 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     const creditsAfter = currentCredits - CREDIT_COST;
 
     await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    recordCreditUsage({ userId: req.userId!, action: "Promo Clips", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);

@@ -490,12 +490,14 @@ export default function Dashboard() {
           <div>
             <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">Quick Status</h2>
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5">
-              <StatTile
-                value={credits}
-                label="Credits remaining"
-                icon={Zap}
-                color="bg-primary/15 text-primary"
-              />
+              <Link href="/credit-history" className="block rounded-xl hover:ring-1 hover:ring-primary/30 transition-all" title="View credit history">
+                <StatTile
+                  value={credits}
+                  label="Credits remaining"
+                  icon={Zap}
+                  color="bg-primary/15 text-primary"
+                />
+              </Link>
               <StatTile
                 value={projectCount}
                 label="Saved projects"

@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { stripePaymentsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { stripePaymentsTable, creditUsageTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { logger } from "./logger";
 
 export interface PaymentRecord {
@@ -11,6 +11,13 @@ export interface PaymentRecord {
   creditsAmount: number;
   amountTotal?: number | null;
   currency?: string | null;
+}
+
+export interface CreditUsageRecord {
+  userId: string;
+  action: string;
+  creditsUsed: number;
+  projectId?: string | null;
 }
 
 /**
@@ -59,5 +66,32 @@ export async function getPaymentHistory(userId: string) {
     .select()
     .from(stripePaymentsTable)
     .where(eq(stripePaymentsTable.userId, userId))
-    .orderBy(stripePaymentsTable.createdAt);
+    .orderBy(desc(stripePaymentsTable.createdAt));
+}
+
+/**
+ * Record a credit spend event. Fire-and-forget safe — never throws.
+ */
+export async function recordCreditUsage(record: CreditUsageRecord): Promise<void> {
+  try {
+    await db.insert(creditUsageTable).values({
+      userId:      record.userId,
+      action:      record.action,
+      creditsUsed: record.creditsUsed,
+      projectId:   record.projectId ?? null,
+    });
+  } catch (err) {
+    logger.warn({ err, ...record }, "recordCreditUsage: failed to insert (non-fatal)");
+  }
+}
+
+/**
+ * Fetch all credit usage records for a user, newest first.
+ */
+export async function getCreditUsage(userId: string) {
+  return db
+    .select()
+    .from(creditUsageTable)
+    .where(eq(creditUsageTable.userId, userId))
+    .orderBy(desc(creditUsageTable.createdAt));
 }

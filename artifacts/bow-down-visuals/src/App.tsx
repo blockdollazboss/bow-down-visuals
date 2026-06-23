@@ -25,7 +25,8 @@ import BetaAccess  from "@/pages/beta-access";
 import Contact     from "@/pages/contact";
 import Login       from "@/pages/login";
 import Signup      from "@/pages/signup";
-import NotFound    from "@/pages/not-found";
+import NotFound      from "@/pages/not-found";
+import CreditHistory from "@/pages/credit-history";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +68,7 @@ function AppShell() {
         <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
         <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
         <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
+        <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
 
         <Route component={NotFound} />
       </Switch>

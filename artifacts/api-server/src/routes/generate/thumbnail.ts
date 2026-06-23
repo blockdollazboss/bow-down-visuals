@@ -1,6 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -141,6 +142,7 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
     const creditsAfter = currentCredits - CREDIT_COST;
 
     await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    recordCreditUsage({ userId: req.userId!, action: "Thumbnail Maker", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-thumbnail] success userId=${req.userId} creditsAfter=${creditsAfter}`);
