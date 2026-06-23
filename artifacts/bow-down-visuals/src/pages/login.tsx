@@ -35,7 +35,7 @@ export default function Login() {
       setError(error);
       setLoading(false);
     } else {
-      setLocation("/dashboard");
+      setLocation("/choose-artist");
     }
   }
 

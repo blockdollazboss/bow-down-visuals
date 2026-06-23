@@ -99,13 +99,14 @@ export function TopBar() {
 
           {user ? (
             <>
-              <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-white/45 hover:text-white transition-colors">
-                <FolderOpen className="h-4 w-4" />
-              </Link>
-              <div className="hidden md:flex items-center gap-1 text-xs text-white/30 font-medium truncate max-w-[120px]">
+                  <div className="hidden md:flex items-center gap-1 text-xs text-white/30 font-medium truncate max-w-[140px]">
                 <User className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{profile?.display_name ?? user.email?.split("@")[0]}</span>
               </div>
+              <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors border border-white/[0.06]" title="My Projects">
+                <FolderOpen className="h-3.5 w-3.5" />
+                <span>Projects</span>
+              </Link>
               <button
                 onClick={handleSignOut}
                 title="Sign Out"

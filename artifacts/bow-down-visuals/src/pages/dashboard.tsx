@@ -179,7 +179,7 @@ const COMING_SOON = [
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
-  const { profile, user } = useAuth();
+  const { profile, user, getAccessToken } = useAuth();
   const { activeArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -190,18 +190,36 @@ export default function Dashboard() {
   const credits = profile?.credits ?? 0;
 
   useEffect(() => {
-    fetch("/api/projects")
-      .then((r) => r.ok ? r.json() : { projects: [] })
-      .then((d) => setProjects(d.projects ?? []))
-      .catch(() => {});
-  }, []);
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/projects", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!cancelled) {
+        const d = res.ok ? await res.json() : { projects: [] };
+        setProjects(d.projects ?? []);
+      }
+    })().catch(() => {});
+    return () => { cancelled = true; };
+  }, [user, getAccessToken]);
 
   useEffect(() => {
-    fetch("/api/artist-vaults")
-      .then((r) => r.ok ? r.json() : { vaults: [] })
-      .then((d) => setVaultCount((d.vaults ?? []).length))
-      .catch(() => setVaultCount(0));
-  }, []);
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/artist-vaults", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!cancelled) {
+        const d = res.ok ? await res.json() : { vaults: [] };
+        setVaultCount((d.vaults ?? []).length);
+      }
+    })().catch(() => setVaultCount(0));
+    return () => { cancelled = true; };
+  }, [user, getAccessToken]);
 
   const recentProjects = projects.slice(0, 3);
   const projectCount = projects.length;
