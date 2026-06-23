@@ -225,7 +225,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     ffmpegArgs.push(
       "-c:v", "libx264",
-      "-preset", "fast",
+      "-preset", "ultrafast",
       "-crf", "22",
       "-pix_fmt", "yuv420p",
     );
