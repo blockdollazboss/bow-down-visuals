@@ -318,7 +318,7 @@ export default function MakeSong() {
                 ) : (
                   <>
                     <Music className="h-5 w-5" />
-                    Generate Song Package
+                    Create My Song
                   </>
                 )}
               </Button>

@@ -604,7 +604,7 @@ export default function MakeVideo() {
                     >
                       {analyzing
                         ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</>
-                        : <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>}
+                        : <><BarChart2 className="h-4 w-4" /> Find Hook &amp; Verses</>}
                     </button>
                     {songStructure && !analyzing && (
                       <span className="text-xs text-primary/60 flex items-center gap-1.5">
@@ -716,8 +716,8 @@ export default function MakeVideo() {
           {step === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Generate Video Plan</h2>
-                <p className="text-sm text-white/40">Generate your Director's Treatment, scene breakdown, and AI prompts.</p>
+                <h2 className="text-xl font-black text-white mb-1">Create Your Video Plan</h2>
+                <p className="text-sm text-white/40">Review your setup, then create your Director's Treatment, scene breakdown, and AI prompts.</p>
               </div>
 
               {!rawResult ? (
@@ -771,7 +771,7 @@ export default function MakeVideo() {
                     >
                       {loading
                         ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
-                        : <><Sparkles className="h-5 w-5" /> Generate Music Video Plan</>}
+                        : <><Sparkles className="h-5 w-5" /> Create Video Plan</>}
                     </Button>
                     <p className="text-white/25 text-xs text-center">Uses 1 credit per generation</p>
                   </div>

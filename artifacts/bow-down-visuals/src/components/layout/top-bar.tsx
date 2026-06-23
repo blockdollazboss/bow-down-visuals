@@ -12,7 +12,7 @@ const NAV_LINKS = [
   { label: "Make Song + Video", href: "/song-and-video" },
   { label: "Promo Clips", href: "/promo-clip" },
   { label: "Thumbnail Maker", href: "/thumbnail" },
-  { label: "Artist Vault", href: "/artist-vault" },
+  { label: "Artist Profiles", href: "/artist-vault" },
 ];
 
 export function TopBar() {

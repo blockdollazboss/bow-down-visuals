@@ -109,7 +109,7 @@ const TOOLS = [
     featured: false,
   },
   {
-    title: "Artist Vault",
+    title: "Artist Profiles",
     description: "Save your artist profile, style rules, and brand colors so every generation is on-brand automatically.",
     icon: Archive,
     cost: "Coming soon",

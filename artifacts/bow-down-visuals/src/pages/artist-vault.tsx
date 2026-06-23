@@ -489,9 +489,9 @@ export default function ArtistVault() {
             </div>
             <Badge className="bg-white/5 text-white/40 border-white/10 text-xs font-bold tracking-wide">Free</Badge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">Artist Vault</h1>
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">Artist Profiles</h1>
           <p className="text-white/50 text-lg max-w-2xl">
-            Save your artist profiles once. Load them on any generate tool to get AI outputs that match your look, brand, and style rules automatically.
+            Save your artist's look, style, colors, and brand once — then load it on any tool to keep all your visuals consistent.
           </p>
           <div className="flex flex-wrap gap-2 mt-5">
             {["Artist Description", "Visual Style", "Hair & Tattoos", "Jewelry", "Clothing", "Brand Colors", "Do Not Change Rules", "Special Style Rules"].map((t) => (

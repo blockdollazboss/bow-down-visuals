@@ -66,7 +66,7 @@ export default function ChooseArtist() {
             Choose Your Artist
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Select a saved artist profile to prefill your tools automatically, or continue without one.
+            Pick an artist profile to keep your songs, videos, colors, and style consistent. You can skip this and add one later.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export default function ChooseArtist() {
             </div>
             <div>
               <p className="text-white/60 font-semibold mb-1">No artist profiles yet</p>
-              <p className="text-sm text-white/35">Create your first artist vault to save your look, style, and brand rules.</p>
+              <p className="text-sm text-white/35">Create your first artist profile to save your look, style, and brand rules.</p>
             </div>
           </div>
         ) : (

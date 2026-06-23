@@ -288,7 +288,7 @@ export default function Dashboard() {
                 <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase">Active Artist</p>
                 <p className="text-sm text-white/40 flex items-center gap-1.5">
                   <AlertCircle className="h-3.5 w-3.5 text-white/20" />
-                  No artist selected. You can choose or create an artist later from Artist Vault.
+                  No artist selected. You can choose or create one from Artist Profiles.
                 </p>
               </>
             )}
@@ -305,6 +305,10 @@ export default function Dashboard() {
 
         {/* ── 2. HERO ACTION CARDS ── */}
         <section>
+          <div className="mb-5">
+            <h2 className="text-lg font-black text-white tracking-tight">What do you want to do?</h2>
+            <p className="text-sm text-white/35 mt-0.5">Pick a workflow below to get started.</p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
             <HeroCard
               icon={Mic2}
@@ -337,9 +341,9 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             <ToolChip icon={Music}      label="Make a Song"       href="/make-song" />
             <ToolChip icon={ImageIcon}  label="Thumbnail Maker"   href="/thumbnail" />
-            <ToolChip icon={Archive}    label="Artist Vault"      href="/artist-vault" />
-            <ToolChip icon={Headphones} label="Music Studio"      href="/video-editor" />
-            <ToolChip icon={FolderOpen} label="My Saved Projects" href="/my-projects" />
+            <ToolChip icon={Archive}    label="Artist Profiles"   href="/artist-vault" />
+            <ToolChip icon={Headphones} label="Music Mixer"        href="/video-editor" />
+            <ToolChip icon={FolderOpen} label="My Projects"        href="/my-projects" />
           </div>
         </section>
 
@@ -406,6 +410,32 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* ── ONBOARDING CHECKLIST ── */}
+        {(projects.length === 0 || vaultCount === 0) && (
+          <section className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-6">
+            <h2 className="text-sm font-black text-white tracking-tight mb-1">Getting Started</h2>
+            <p className="text-xs text-white/35 mb-5">New here? Follow these steps to create your first release.</p>
+            <div className="space-y-3">
+              {[
+                { label: "Create or choose an artist profile", done: (vaultCount ?? 0) > 0, href: "/artist-vault" },
+                { label: "Make a song or start a song + video", done: projects.some(p => p.project_type === "Make a Song" || p.project_type === "Make Song + Video"), href: "/make-song" },
+                { label: "Create a music video plan", done: projects.some(p => p.project_type === "Make a Music Video"), href: "/make-video" },
+                { label: "Open the video editor and export", done: false, href: "/my-projects" },
+              ].map(({ label, done, href }) => (
+                <Link key={label} href={done ? "#" : href}>
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${done ? "border-primary/20 bg-primary/[0.06] opacity-60" : "border-white/[0.07] bg-white/[0.02] hover:border-primary/30 cursor-pointer"}`}>
+                    <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 text-[10px] font-black ${done ? "border-primary bg-primary text-white" : "border-white/20"}`}>
+                      {done ? "✓" : ""}
+                    </div>
+                    <span className={`text-sm font-semibold ${done ? "line-through text-white/30" : "text-white/70"}`}>{label}</span>
+                    {!done && <ChevronRight className="h-3.5 w-3.5 text-white/20 ml-auto" />}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── 6. COMING SOON ── */}
         <section>

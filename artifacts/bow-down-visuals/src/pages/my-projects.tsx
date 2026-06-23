@@ -232,7 +232,7 @@ function ResultModal({
                 ) : localSongStructure ? (
                   <><BarChart2 className="h-4 w-4" /> Re-analyze Sections</>
                 ) : (
-                  <><BarChart2 className="h-4 w-4" /> Analyze Song Sections</>
+                  <><BarChart2 className="h-4 w-4" /> Find Hook &amp; Verses</>
                 )}
               </button>
               {localSongStructure && !analyzing && (
@@ -531,9 +531,9 @@ export default function MyProjects() {
               <FolderOpen className="h-8 w-8 text-white/20" />
             </div>
             <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white">No saved projects yet</h2>
+              <h2 className="text-xl font-bold text-white">No projects yet</h2>
               <p className="text-white/45 max-w-xs">
-                Generate something, then hit Save Project to store it here for later.
+                Start by making a song or music video. Hit Save Project after generating and it will appear here.
               </p>
             </div>
             <Link href="/dashboard">

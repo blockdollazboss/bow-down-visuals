@@ -723,7 +723,7 @@ export default function SongAndVideo() {
             <NavRow
               onBack={() => setStep(3)}
               onNext={handleGenerate}
-              nextLabel="Generate Song + Video Package"
+              nextLabel="Create Song + Video Package"
               nextIcon={<Sparkles className="h-4 w-4" />}
               loading={loading}
             />

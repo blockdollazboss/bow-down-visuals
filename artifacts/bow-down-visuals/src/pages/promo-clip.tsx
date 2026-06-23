@@ -391,10 +391,10 @@ export default function PromoClip() {
             </Badge>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Promo Clip Maker
+            Promo Clips
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
-            Create TikTok, Reels, and YouTube Shorts content to promote your next release.
+            Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.
           </p>
           <div className="flex flex-wrap gap-2 mt-5">
             {["15-Sec Promo","30-Sec Promo","Hook Clip Script","On-Screen Text","Captions","Hashtags","CTAs","Visual Shots","Clip Timing","Thumbnail Idea"].map((tag) => (
