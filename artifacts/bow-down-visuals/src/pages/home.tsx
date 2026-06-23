@@ -8,7 +8,7 @@ import { HomepageThemePlayer } from "@/components/HomepageThemePlayer";
 import {
   Music, Video, Film, Image as ImageIcon, Mic2, Archive,
   ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
-  Sparkles, Target, Users, ArrowRight, Star, Globe, Lock
+  Sparkles, Target, Users, ArrowRight, Star, Globe, Lock, AlertCircle
 } from "lucide-react";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
@@ -119,31 +119,11 @@ const TOOLS = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Starter",
-    price: "Free",
-    credits: "3 credits",
-    note: "to get you started",
-    perks: ["3 monthly credits", "All tools", "Basic generation"],
-    locked: false,
-  },
-  {
-    name: "Pro",
-    price: "Coming Soon",
-    credits: "50 credits/mo",
-    note: "for independent creators",
-    perks: ["50 monthly credits", "All tools", "Priority generation", "Artist Vault"],
-    locked: true,
-  },
-  {
-    name: "Label",
-    price: "Coming Soon",
-    credits: "Unlimited",
-    note: "for teams and labels",
-    perks: ["Unlimited credits", "All tools", "Team seats", "API access", "Dedicated support"],
-    locked: true,
-  },
+const CREDIT_PACKS = [
+  { credits: "10 Credits",  price: "$9",   packKey: "10",  perks: ["10 generation credits", "Never expires", "Instant top-up"] },
+  { credits: "50 Credits",  price: "$39",  packKey: "50",  perks: ["50 generation credits", "Never expires", "Instant top-up"] },
+  { credits: "150 Credits", price: "$99",  packKey: "150", perks: ["150 generation credits", "Never expires", "Best value"] },
+  { credits: "500 Credits", price: "$249", packKey: "500", perks: ["500 generation credits", "Never expires", "Pro volume"] },
 ];
 
 const FAQS = [
@@ -515,69 +495,61 @@ function FeaturedTools() {
   );
 }
 
-function PricingSection({ onWaitlist }: { onWaitlist: () => void }) {
+function PricingSection() {
   return (
     <section id="pricing" className="py-28 px-5">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-16 space-y-4">
+        <div className="text-center mb-12 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
-            Pricing Coming Soon
+            Credit Packs
           </Badge>
           <h2 className="text-4xl md:text-5xl font-black text-white">Simple, creator-first pricing</h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Start free. Scale when you're ready. No surprise charges.
+            Buy credits once, use them any time. No subscription required.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {PLANS.map((plan) => (
+        {/* Test mode notice */}
+        <div className="flex items-center justify-center gap-2 mb-10 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
+          <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+          <span className="text-sm text-yellow-200/70">
+            Payments are in <strong className="text-yellow-300">test mode</strong>. No real money is charged.
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+          {CREDIT_PACKS.map((pack) => (
             <div
-              key={plan.name}
-              className={`relative flex flex-col p-8 rounded-2xl border transition-all ${
-                !plan.locked
-                  ? "bg-primary/10 border-primary/40 shadow-[0_0_25px_rgba(147,51,234,0.12)]"
-                  : "bg-white/[0.02] border-white/[0.06]"
-              }`}
+              key={pack.packKey}
+              className="relative flex flex-col p-6 rounded-2xl border bg-white/[0.02] border-white/[0.06] transition-all hover:border-primary/30 hover:bg-primary/5"
             >
-              <div className="mb-6">
-                <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">{plan.name}</p>
-                <div className="text-3xl font-black text-white mb-1">
-                  {plan.locked ? (
-                    <span className="text-white/30 text-2xl">Launching soon</span>
-                  ) : (
-                    plan.price
-                  )}
-                </div>
-                <p className={`text-sm ${plan.locked ? "text-white/25" : "text-primary/80"} font-medium`}>
-                  {plan.credits} {!plan.locked && `— ${plan.note}`}
-                </p>
+              <div className="mb-5">
+                <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">{pack.credits}</p>
+                <div className="text-3xl font-black text-primary mb-1">{pack.price}</div>
               </div>
 
-              <ul className="space-y-2.5 flex-1 mb-8">
-                {plan.perks.map((perk) => (
-                  <li key={perk} className={`flex items-center gap-2.5 text-sm ${plan.locked ? "text-white/30" : "text-white/70"}`}>
-                    <CheckCircle2 className={`h-4 w-4 shrink-0 ${plan.locked ? "text-white/20" : "text-primary"}`} />
+              <ul className="space-y-2 flex-1 mb-6">
+                {pack.perks.map((perk) => (
+                  <li key={perk} className="flex items-center gap-2.5 text-sm text-white/60">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/60" />
                     {perk}
                   </li>
                 ))}
               </ul>
 
-              {plan.locked ? (
-                <Button
-                  onClick={onWaitlist}
-                  variant="outline"
-                  className="w-full border-white/10 text-white/40 hover:text-white hover:border-white/20"
-                >
-                  Join Waitlist
+              <Link href="/pricing">
+                <Button className="w-full font-semibold" variant="outline">
+                  Buy Credits
                 </Button>
-              ) : (
-                <Link href="/dashboard">
-                  <Button className="w-full gold-glow font-semibold">Get Started Free</Button>
-                </Link>
-              )}
+              </Link>
             </div>
           ))}
         </div>
+
+        <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
+          <Lock className="h-3 w-3" />
+          Sign in to purchase credits.
+        </p>
       </div>
     </section>
   );
@@ -715,7 +687,7 @@ export default function Home() {
       <WhatYouCanMake />
       <BuiltForCreators />
       <FeaturedTools />
-      <PricingSection onWaitlist={scrollToWaitlist} />
+      <PricingSection />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>
