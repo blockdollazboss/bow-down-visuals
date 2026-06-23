@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
+  RefreshCw,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
@@ -217,6 +218,7 @@ export default function VideoEditor() {
                 artistName={artistName}
                 songTitle={songTitle}
                 onGoToTimeline={() => setTab("timeline")}
+                onSetPreviewSceneId={setPreviewSceneId}
               />
             </div>
 
@@ -243,7 +245,35 @@ export default function VideoEditor() {
                       <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
                     </div>
                     {clipMode === "auto" ? (
-                      <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                      <>
+                        <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                        {/* Clip picker strip — lets users select a clip for Live Preview in auto mode */}
+                        {scenes.some(sceneHasClip) && (
+                          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+                            <p className="text-[11px] font-black text-white/35 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                              <Eye className="h-3.5 w-3.5" /> Preview a clip
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {scenes.filter(sceneHasClip).map((scene, i) => (
+                                <button
+                                  key={scene.id}
+                                  type="button"
+                                  onClick={() => setPreviewSceneId(scene.id)}
+                                  data-testid={`btn-preview-auto-${i}`}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
+                                    previewSceneId === scene.id
+                                      ? "border-primary/50 bg-primary/15 text-primary"
+                                      : "border-white/10 bg-white/[0.03] text-white/50 hover:border-primary/30 hover:text-primary"
+                                  }`}
+                                >
+                                  <Play className="h-3 w-3" />
+                                  {scene.section || `Scene ${i + 1}`}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <ClipsSection
                         scenes={scenes}
@@ -316,6 +346,7 @@ export default function VideoEditor() {
                   artistName={artistName}
                   songTitle={songTitle}
                   onGoToTimeline={() => setTab("timeline")}
+                  onSetPreviewSceneId={setPreviewSceneId}
                 />
               </div>
             </div>
@@ -329,7 +360,7 @@ export default function VideoEditor() {
 /* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
 
 function LivePreviewPanel({
-  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle, onGoToTimeline,
+  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle, onGoToTimeline, onSetPreviewSceneId,
 }: {
   tab: EditorTab;
   previewScene: SceneData | null;
@@ -340,105 +371,118 @@ function LivePreviewPanel({
   artistName: string;
   songTitle: string;
   onGoToTimeline: () => void;
+  onSetPreviewSceneId: (id: string) => void;
 }) {
-  const clipUrl = previewScene
-    ? ((previewScene as unknown as Record<string, unknown>)["clip_url"] as string | undefined) ??
-      ((previewScene as unknown as Record<string, unknown>)["clipUrl"] as string | undefined) ??
-      null
-    : null;
+  /* demoClipUrl is the canonical field on SceneData */
+  const clipUrl = previewScene?.demoClipUrl ?? null;
+
+  const clipCount = scenes.filter(sceneHasClip).length;
+
+  /* Shared video player used by clips / captions / effects / music tabs */
+  function VideoPlayer({ overlay }: { overlay?: ReactNode }) {
+    if (!clipUrl) {
+      return (
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
+          <Eye className="h-7 w-7 text-white/15" />
+          <div>
+            <p className="text-sm font-semibold text-white/30">
+              {scenes.length === 0 ? "No scenes loaded yet." : "Select a video clip to preview."}
+            </p>
+            <p className="text-[11px] text-white/20 mt-1">
+              {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video relative">
+        <video
+          key={clipUrl}
+          src={clipUrl}
+          controls
+          playsInline
+          className="w-full h-full object-contain"
+          data-testid="preview-video-player"
+        />
+        {overlay}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden" data-testid="live-preview-panel">
-      {/* Panel header */}
+      {/* Header */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
         <Monitor className="h-4 w-4 text-primary/70" />
         <span className="text-xs font-black text-white/60 uppercase tracking-widest">Live Preview</span>
         <span className="ml-auto text-[10px] font-bold text-primary/50 uppercase tracking-wider">{tab}</span>
       </div>
 
-      {/* Panel body */}
-      <div className="p-4">
+      <div className="p-4 space-y-3">
 
-        {/* CLIPS tab — video preview */}
+        {/* ── CLIPS tab ── */}
         {tab === "clips" && (
-          <div className="space-y-3">
-            {clipUrl ? (
-              <>
-                <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video">
-                  <video
-                    key={clipUrl}
-                    src={clipUrl}
-                    controls
-                    className="w-full h-full object-contain"
-                    playsInline
-                    data-testid="preview-video-player"
-                  />
-                </div>
-                <div className="px-1">
-                  <p className="text-xs font-bold text-white/70 truncate">{previewScene?.section || "Scene"}</p>
-                  <p className="text-[11px] text-white/35 truncate mt-0.5">{previewScene?.lyricLine || previewScene?.action || "—"}</p>
-                </div>
-              </>
-            ) : (
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
-                <Eye className="h-8 w-8 text-white/15" />
-                <div>
-                  <p className="text-sm font-semibold text-white/30">
-                    {scenes.length === 0
-                      ? "No scenes loaded yet."
-                      : "Select a scene clip to preview."}
-                  </p>
-                  <p className="text-xs text-white/20 mt-1">
-                    {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
-                  </p>
-                </div>
+          <>
+            <VideoPlayer />
+            {clipUrl && previewScene && (
+              <div className="px-0.5">
+                <p className="text-xs font-bold text-white/70 truncate">{previewScene.section || "Scene"}</p>
+                <p className="text-[11px] text-white/35 truncate mt-0.5">{previewScene.lyricLine || previewScene.action || "—"}</p>
               </div>
             )}
+            {!clipUrl && previewScene?.demoClipUrl === undefined && previewScene && (
+              <p className="text-[11px] text-red-400/70 px-0.5">Clip video URL missing. Regenerate this clip.</p>
+            )}
             {scenes.length > 0 && (
-              <div className="flex items-center justify-between text-[11px] text-white/30 px-1">
-                <span>{scenes.filter((s) => (s as unknown as Record<string, unknown>)["clip_url"] || (s as unknown as Record<string, unknown>)["clipUrl"]).length} of {scenes.length} scenes have clips</span>
+              <div className="flex items-center justify-between text-[11px] text-white/25 px-0.5">
+                <span>{clipCount} of {scenes.length} scenes have clips</span>
                 <span>{scenes.filter((s) => s.approved).length} approved</span>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* TIMELINE tab */}
+        {/* ── TIMELINE tab ── */}
         {tab === "timeline" && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
-              <ListVideo className="h-8 w-8 text-primary/50 mx-auto" />
-              <div>
-                <p className="text-sm font-bold text-white/70">
-                  {approvedCount > 0 ? `${approvedCount} clip${approvedCount !== 1 ? "s" : ""} in timeline` : "No clips in timeline yet"}
-                </p>
-                <p className="text-xs text-white/35 mt-1">
-                  {approvedCount > 0
-                    ? "Approved clips play in order below."
-                    : "Approve clips on the Clips tab to build your timeline."}
+          <>
+            {approvedCount > 0 ? (
+              <>
+                <div className="flex items-center gap-2 px-0.5 mb-1">
+                  <Play className="h-3.5 w-3.5 text-primary/70" />
+                  <span className="text-xs font-bold text-white/60">{approvedCount} clip{approvedCount !== 1 ? "s" : ""} in timeline</span>
+                </div>
+                <ClipSequencePlayer
+                  scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
+                  allScenes={scenes}
+                  title=""
+                  emptyTitle=""
+                  emptyHint=""
+                />
+              </>
+            ) : (
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
+                <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
+                <p className="text-sm font-bold text-white/50">No clips in timeline yet</p>
+                <p className="text-xs text-white/30 leading-relaxed">
+                  Timeline preview is in beta. Approve clips on the Clips tab to build your timeline.
                 </p>
               </div>
-              {approvedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={onGoToTimeline}
-                  className="flex items-center gap-2 mx-auto px-4 py-2 rounded-xl text-xs font-bold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/15 transition-colors"
-                >
-                  <Play className="h-3.5 w-3.5" /> Preview Timeline
-                </button>
-              )}
-            </div>
-          </div>
+            )}
+          </>
         )}
 
-        {/* MUSIC tab */}
+        {/* ── MUSIC / AUDIO tab ── */}
         {tab === "music" && (
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
-            <Volume2 className="h-8 w-8 text-blue-400/50 mx-auto" />
-            <p className="text-sm font-bold text-white/60 text-center">Audio Preview</p>
-            <p className="text-xs text-white/35 text-center leading-relaxed">
-              Runway clips are silent. Audio is layered during final export.
-            </p>
+          <>
+            <VideoPlayer
+              overlay={
+                <div className="absolute top-2 left-2 right-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/75 border border-white/10 text-[10px] text-white/70">
+                  <Volume2 className="h-3 w-3 text-blue-400 shrink-0" />
+                  Runway clips are silent. Your song audio is added during final export.
+                </div>
+              }
+            />
             {(audioUrl || settings.musicStudio.stems.length > 0) ? (
               <div className="rounded-lg border border-green-500/20 bg-green-500/[0.06] px-3 py-2 text-center">
                 <p className="text-xs font-bold text-green-400">✓ Audio source loaded</p>
@@ -453,57 +497,95 @@ function LivePreviewPanel({
                 <p className="text-xs text-white/30">No audio loaded yet</p>
               </div>
             )}
-          </div>
+          </>
         )}
 
-        {/* CAPTIONS tab */}
+        {/* ── CAPTIONS tab ── */}
         {tab === "captions" && (
-          <div className="space-y-3">
-            <div className="rounded-xl border border-white/[0.07] bg-black aspect-video flex items-end p-4 overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-              {settings.captions.mode !== "none" ? (
-                <div className="relative z-10 w-full">
-                  <div
-                    className="px-3 py-1.5 rounded-lg text-center mx-auto inline-block"
-                    style={{
-                      fontSize: `${settings.captions.fontSize ?? 18}px`,
-                      color: settings.captions.textColor || "#ffffff",
-                      background: settings.captions.background ? "rgba(0,0,0,0.6)" : "transparent",
-                    }}
-                  >
-                    {songTitle ? `♪ ${songTitle}` : "Your captions appear here"}
+          <>
+            {clipUrl ? (
+              <VideoPlayer
+                overlay={
+                  settings.captions.mode !== "none" ? (
+                    <div
+                      className={`absolute left-0 right-0 px-3 pb-3 flex justify-center pointer-events-none ${
+                        settings.captions.position === "top" ? "top-3" : "bottom-3"
+                      }`}
+                    >
+                      <div
+                        className="px-3 py-1 rounded-md text-center max-w-[90%]"
+                        style={{
+                          fontSize: "14px",
+                          color: settings.captions.textColor || "#ffffff",
+                          background: settings.captions.background ? "rgba(0,0,0,0.7)" : "transparent",
+                          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+                        }}
+                      >
+                        {songTitle ? `♪ ${songTitle}` : "Your captions appear here"}
+                      </div>
+                    </div>
+                  ) : null
+                }
+              />
+            ) : (
+              /* No clip yet — show the caption mock with a dark background */
+              <div className="rounded-xl border border-white/[0.07] bg-black aspect-video flex items-end p-4 overflow-hidden relative">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
+                {settings.captions.mode !== "none" ? (
+                  <div className="relative z-10 w-full flex justify-center">
+                    <div
+                      className="px-3 py-1.5 rounded-lg text-center"
+                      style={{
+                        fontSize: "14px",
+                        color: settings.captions.textColor || "#ffffff",
+                        background: settings.captions.background ? "rgba(0,0,0,0.6)" : "transparent",
+                      }}
+                    >
+                      {songTitle ? `♪ ${songTitle}` : "Select a clip before previewing captions."}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="relative z-10 w-full text-center">
-                  <p className="text-xs text-white/25">Captions off — select a mode to preview</p>
-                </div>
-              )}
-            </div>
-            <p className="text-[11px] text-white/30 text-center px-1">
+                ) : (
+                  <div className="relative z-10 w-full text-center">
+                    <p className="text-xs text-white/25">Captions off — select a mode to preview</p>
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-white/30 text-center">
               Mode: <span className="text-white/50 font-semibold capitalize">{settings.captions.mode}</span>
               {settings.captions.position && <> · {settings.captions.position}</>}
             </p>
-          </div>
+          </>
         )}
 
-        {/* EFFECTS tab */}
+        {/* ── EFFECTS tab ── */}
         {tab === "effects" && (
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
-            <Wand2 className="h-8 w-8 text-zinc-300/50 mx-auto" />
-            <p className="text-sm font-bold text-white/60 text-center">Effects Preview</p>
-            <p className="text-xs text-white/35 text-center leading-relaxed">
-              Effects are applied during final export. This is an edit-plan overlay.
+          <>
+            <VideoPlayer
+              overlay={
+                settings.effects.length > 0 ? (
+                  <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end pointer-events-none max-w-[80%]">
+                    {settings.effects.slice(0, 4).map((fx) => (
+                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold text-white/80">
+                        {fx}
+                      </span>
+                    ))}
+                    {settings.effects.length > 4 && (
+                      <span className="px-2 py-0.5 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold text-white/50">
+                        +{settings.effects.length - 4} more
+                      </span>
+                    )}
+                  </div>
+                ) : null
+              }
+            />
+            <p className="text-[11px] text-white/30 text-center">
+              Effect preview only. Final rendering applied at export.
             </p>
-            {settings.effects.length > 0 && (
-              <div className="rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 py-2 text-center">
-                <p className="text-xs font-bold text-zinc-200">{settings.effects.slice(0, 3).join(" · ")}{settings.effects.length > 3 ? ` +${settings.effects.length - 3} more` : ""}</p>
-              </div>
-            )}
-          </div>
+          </>
         )}
 
-        {/* BRANDING tab */}
+        {/* ── BRANDING tab ── */}
         {tab === "branding" && (
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
             <Palette className="h-8 w-8 text-yellow-400/50 mx-auto" />
@@ -523,36 +605,71 @@ function LivePreviewPanel({
           </div>
         )}
 
-        {/* EXPORT tab */}
+        {/* ── EXPORT tab ── */}
         {tab === "export" && (
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
-            <Download className="h-8 w-8 text-green-400/50 mx-auto" />
-            <p className="text-sm font-bold text-white/60 text-center">Export Summary</p>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
-                <span className="text-white/40">Approved clips</span>
-                <span className={`font-bold ${approvedCount > 0 ? "text-green-400" : "text-white/25"}`}>
-                  {approvedCount > 0 ? `${approvedCount} ready` : "None yet"}
-                </span>
+          <>
+            {clipUrl && (
+              <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video">
+                <video key={clipUrl} src={clipUrl} controls playsInline className="w-full h-full object-contain" />
               </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
-                <span className="text-white/40">Audio source</span>
-                <span className={`font-bold ${audioUrl || settings.musicStudio.stems.length > 0 ? "text-green-400" : "text-white/25"}`}>
-                  {audioUrl ? "Uploaded track" : settings.musicStudio.stems.length > 0 ? "Mixed stems" : "None"}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
-                <span className="text-white/40">Captions</span>
-                <span className="font-bold text-white/50 capitalize">{settings.captions.mode}</span>
-              </div>
-              <div className="flex justify-between items-center py-1.5">
-                <span className="text-white/40">Format</span>
-                <span className="font-bold text-white/50">{settings.export.format} · {settings.export.resolution}</span>
-              </div>
-            </div>
-            {approvedCount === 0 && (
-              <p className="text-[11px] text-white/25 text-center pt-1">Approve clips on the Clips tab to export.</p>
             )}
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-2">
+              <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-2">Export Summary</p>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
+                  <span className="text-white/40">Approved clips</span>
+                  <span className={`font-bold ${approvedCount > 0 ? "text-green-400" : "text-white/25"}`}>
+                    {approvedCount > 0 ? `${approvedCount} ready` : "None yet"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
+                  <span className="text-white/40">Audio</span>
+                  <span className={`font-bold ${audioUrl || settings.musicStudio.stems.length > 0 ? "text-green-400" : "text-white/25"}`}>
+                    {audioUrl ? "Uploaded track" : settings.musicStudio.stems.length > 0 ? "Mixed stems" : "None"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
+                  <span className="text-white/40">Captions</span>
+                  <span className="font-bold text-white/50 capitalize">{settings.captions.mode}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
+                  <span className="text-white/40">Effects</span>
+                  <span className="font-bold text-white/50">{settings.effects.length > 0 ? `${settings.effects.length} active` : "None"}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-white/40">Format</span>
+                  <span className="font-bold text-white/50">{settings.export.format} · {settings.export.resolution}</span>
+                </div>
+              </div>
+              {approvedCount === 0 && (
+                <p className="text-[11px] text-white/25 text-center pt-1">Approve clips on the Clips tab to export.</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Quick clip switcher (all tabs except timeline) ── */}
+        {tab !== "timeline" && clipCount > 1 && (
+          <div className="pt-1 border-t border-white/[0.05]">
+            <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <RefreshCw className="h-3 w-3" /> Switch clip
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {scenes.filter(sceneHasClip).map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onSetPreviewSceneId(s.id)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
+                    previewScene?.id === s.id
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-white/10 bg-white/[0.02] text-white/30 hover:text-white/60"
+                  }`}
+                >
+                  {s.section || `#${i + 1}`}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

@@ -1,0 +1,93 @@
+Fix Generate Captions From Lyrics in Bow Down Visuals Video Editor.
+
+Problem:
+The button "Generate Captions From Lyrics" is not working.
+
+Do not change Stripe.
+Do not change credits.
+Do not change Runway API.
+Do not change pricing.
+Do not break Live Preview.
+Do not break saved projects.
+
+Goal:
+When I click "Generate Captions From Lyrics", the editor should turn the song lyrics into caption lines and show them in the Captions tab.
+
+Fix these things:
+
+1. Find lyrics source
+The captions tool should look for lyrics in this order:
+- current project lyrics
+- saved song lyrics
+- uploaded/transcribed lyrics
+- lyrics text box in the editor
+- generated song result
+
+If no lyrics are found, show:
+No lyrics found. Paste lyrics or upload a song first.
+
+2. Add a lyrics box
+In the Captions tab, add a text area called:
+Lyrics For Captions
+
+If project lyrics exist, prefill this box automatically.
+
+3. Generate captions
+When user clicks:
+Generate Captions From Lyrics
+
+Do this:
+- split lyrics into short caption lines
+- remove section labels like [Hook], [Verse 1], [Chorus], [Bridge], [Outro]
+- keep the actual lyric lines
+- make each caption short and readable
+- create caption cards in order
+
+4. Caption format
+Each caption card should have:
+- caption text
+- start time
+- end time
+- edit button
+- delete button
+- preview button
+
+If no song duration is known:
+- auto-space captions every 2 seconds
+- each caption lasts 2 seconds
+- show note:
+Caption timing is estimated. You can adjust it manually.
+
+If song duration exists:
+- spread captions across the song duration evenly
+
+5. Live Preview connection
+When a caption is clicked:
+- show it in Live Preview over the selected clip
+- update preview text immediately when edited
+- if no clip is selected, still show a caption preview card
+
+6. Save captions
+Save generated captions with the project so they do not disappear after refresh.
+
+7. Manual captions
+Also allow:
+- Add Caption
+- Edit Caption Text
+- Edit Start Time
+- Edit End Time
+- Delete Caption
+
+8. Error handling
+Show clear messages:
+- No lyrics found
+- Captions generated successfully
+- Captions saved
+- Could not save captions
+- Select a clip to preview captions on video
+
+9. Do not charge credits for generating captions from lyrics yet.
+This should be a free editor tool for now.
+
+Keep the premium dark cinematic design.
+Only fix caption generation from lyrics.
