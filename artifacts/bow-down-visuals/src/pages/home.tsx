@@ -195,7 +195,6 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
             className="h-10 w-auto"
-            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
           />
         </Link>
 
@@ -279,14 +278,13 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         }}
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto space-y-8">
+      <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         {/* Hero Logo */}
-        <div className="flex justify-center pb-2">
+        <div className="flex justify-center">
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
             className="w-[520px] max-w-full h-auto"
-            style={{ filter: "drop-shadow(0 0 18px rgba(218,165,32,0.45)) drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
           />
         </div>
 
