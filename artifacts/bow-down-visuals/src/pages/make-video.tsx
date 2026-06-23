@@ -8,24 +8,23 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Video, ArrowLeft, Loader2, ChevronRight, ChevronLeft, BarChart2, Check,
-  Music2, Palette, Sparkles, Clapperboard, Film, Download, Volume2,
+  Music2, Palette, Sparkles, Clapperboard, Volume2, Download,
+  Film, Camera, MapPin, ChevronDown, ChevronUp, Save,
+  FileText, ExternalLink,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { GenerationResult } from "@/components/GenerationResult";
 import { SceneStudio } from "@/components/SceneStudio";
-import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
-import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
-import { FinalVideoExport } from "@/components/FinalVideoExport";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -34,11 +33,15 @@ interface VideoFormValues {
   songTitle: string;
   genre: string;
   mood: string;
+  lyrics: string;
+  artistDescription: string;
+  brandColors: string;
+  visualStyleRules: string;
+  doNotChangeRules: string;
   videoStyle: string;
   platform: string;
   videoLength: string;
-  lyrics: string;
-  artistDescription: string;
+  locationIdeas: string;
   specialInstructions: string;
 }
 
@@ -69,150 +72,24 @@ const PLATFORMS = [
 
 const LENGTHS = ["15 seconds","30 seconds","60 seconds","Full song"];
 
-/* ─────────────────────────── PLACEHOLDER RESULT ─────────────────────────── (removed) */
+/* ─────────────────────────── STEPPER DEFINITION ─────────────────────────── */
 
-function buildPlaceholder(v: VideoFormValues) {
-  const artist = v.artistName || "The Artist";
-  const title = v.songTitle || "Untitled";
-  const genre = v.genre || "Hip Hop";
-  const mood = v.mood || "Dark";
-  const style = v.videoStyle || "Street Cinematic";
-  const platform = v.platform || "YouTube Music Video - 16:9";
-  const length = v.videoLength || "Full song";
-
-  const isVertical = platform.includes("9:16");
-  const aspectNote = isVertical ? "9:16 vertical (1080×1920)" : platform.includes("1:1") ? "1:1 square (1080×1080)" : "16:9 widescreen (1920×1080)";
-
-  return {
-    "Director's Treatment": `"${title}" by ${artist} is a ${mood.toLowerCase()} ${style.toLowerCase()} visual built for ${platform.split(" -")[0]}. The concept follows ${artist} through a raw, unfiltered narrative that mirrors the emotional core of the lyrics. Every frame is intentional — color, light, and movement serve the story. The pacing locks with the beat: slow-burn on the verses, explosive on the hook. This is not just a music video; it's a world-building exercise for the ${artist} brand.
-
-Director's Note: Shoot ${length === "Full song" ? "over 2 production days" : "in a focused single-day shoot"}. Prioritize practical lighting and real locations over studio sets. The goal is authenticity — raw, premium, and undeniable.`,
-
-    "Visual Style": `Color Grade: ${mood === "Dark" || mood === "Pain" ? "Deep blacks, cool blue shadows, minimal highlights. Think 2AM streetlight energy." : mood === "Luxury" ? "Warm gold tones, rich shadows, cinematic depth. Think high-fashion editorial." : mood === "Romantic" ? "Soft warm tones, natural light, shallow depth of field. Think intimate and vulnerable." : "High contrast, punchy colors, dynamic range. Think raw energy captured on film."}
-
-Lighting: ${style.includes("Luxury") ? "High-key with rim lights, neon accents, practicals in the background." : style.includes("Drill") ? "Low-key motivated lighting — street practicals only. Harsh shadows." : "Mixed natural and practical lighting for an organic, documentary feel."}
-
-Camera Movement: ${genre === "Drill" || mood === "Dark" ? "Handheld for verse sections — locked off for the hook. Close-ups heavy." : "Fluid steadicam on verses, drone establishing shots, tight close-ups on the hook."}
-
-Aspect Ratio: ${aspectNote}`,
-
-    "Main Locations": `Location 1 — Hero Environment
-${style.includes("Street") || style.includes("Drill") ? "Urban alley or rooftop — city skyline in background. Graffiti walls, chain-link fences, industrial texture." : style.includes("Luxury") ? "High-rise penthouse interior, luxury car exterior, upscale restaurant or lounge." : style.includes("Kids") ? "Bright colorful classroom, playground, animated bedroom set." : "Studio environment with custom set dressing — controlled lighting, branded backdrop."}
-
-Location 2 — Contrast/Flashback Environment  
-${mood === "Emotional" || mood === "Pain" ? "Childhood bedroom or empty church — personal and intimate. Minimal props. Natural window light." : mood === "Victory" ? "Stadium exterior or city overlook — wide-open space showing scale and achievement." : "Abstract environment — fog machine, colored gels, minimal set for the hook sequence."}
-
-Location 3 — Outro/Closer
-Wide open exterior — the artist alone. Backlit silhouette against the skyline. Final frame: face to camera, direct eye contact. No cuts. Hold for 3 seconds.`,
-
-    "Wardrobe & Artist Look": `Main Look — Verse Sections
-${style.includes("Luxury") ? "Designer fit — monochromatic. All black or all white preferred. Statement jewelry. Clean sneakers or dress shoes." : style.includes("Drill") ? "Street-authentic fit — puffer jacket or hoodie, fitted pants, fresh sneakers. Minimal color, no logos." : style.includes("Kids") || genre === "Kids Music" ? "Bright primary colors, fun patterns, comfortable movement-friendly fit." : "Genre-appropriate streetwear — authentic to the artist's real brand, not costumized."}
-
-Hook Look — Changed fit for visual variety
-Contrast to the verse look. If verse is dark, hook is lighter. If verse is casual, hook elevates.
-
-Accessories
-${mood === "Luxury" ? "Chains, rings, watches — intentional and styled, not random." : genre === "Gospel" ? "Minimal jewelry — clean and dignified. The message is the statement." : "Keep it authentic to the artist's everyday look. No styling that feels borrowed."}`,
-
-    "Scene-by-Scene Breakdown": `[00:00–00:08] — Cold Open
-Static wide shot of the ${style.includes("Street") ? "empty city block at dawn" : style.includes("Luxury") ? "penthouse window overlooking the city" : "artist's environment"}. No artist yet. Just atmosphere. Sound design: ambient ${mood === "Dark" ? "city noise, distant sirens" : "morning birds, wind"}.
-
-[00:08–00:20] — Intro / Artist Introduction
-${artist} enters frame from the left. Slow motion, 50% speed. Camera pushes in. Direct eye contact with lens. Beat drops on the cut to normal speed.
-
-[00:20–01:00] — Verse 1
-${length !== "15 seconds" ? "Handheld camera. Close-ups on face, hands, environment. Intercut between artist performing and b-roll of the world they're describing. Each line gets a matching visual." : "Single-location tight performance. Camera orbits slowly. Every cut lands on a beat."}
-
-${length === "Full song" ? `[01:00–01:20] — Pre-Hook
-Energy builds. Camera movement speeds up. Quick cuts — 12 frames each. Artist moving toward camera. Visual metaphor for momentum.
-
-[01:20–01:50] — Hook
-WIDE SHOT. Artist center frame, environment in full view. Locked-off camera. Slow zoom. This is the moment. If there are background performers, they activate here.
-
-[01:50–02:30] — Verse 2
-Return to handheld. New location or new lighting condition. The story deepens. Close-ups more extreme — eyes, hands, details.
-
-[02:30–02:50] — Bridge
-The emotional peak. Slow motion. Single location. Minimal movement. Just the artist and the camera. Color grade shifts slightly — more desaturated.
-
-[02:50–03:20] — Final Hook / Outro
-Full energy. All elements together. Camera pulls back to reveal the full scope of the environment. Artist walks away from camera. Final frame: their back, heading toward the horizon.` : ""}`,
-
-    "AI Video Prompts": `Prompt 1 — Main Performance Shot
-"${style} music video, ${artist} performing to camera, ${mood.toLowerCase()} atmosphere, ${genre} aesthetic, cinematic lighting, ${isVertical ? "vertical 9:16 frame" : "widescreen 16:9 frame"}, 4K quality, professional color grade, realistic, detailed --ar ${isVertical ? "9:16" : "16:9"}"
-
-Prompt 2 — Environment / Location Shot
-"${style.includes("Street") ? "empty urban alley at night, street lights, wet pavement reflection, cinematic" : style.includes("Luxury") ? "luxury penthouse interior, golden hour light, city skyline through floor-to-ceiling windows, cinematic" : "atmospheric music video environment, moody lighting, cinematic"}, no people, establishing shot, ${genre} music video aesthetic, 4K --ar ${isVertical ? "9:16" : "16:9"}"
-
-Prompt 3 — Close-Up Detail Shot
-"extreme close-up, artist hands and jewelry, ${mood.toLowerCase()} music video, dramatic side lighting, shallow depth of field, bokeh background, cinematic 4K --ar ${isVertical ? "9:16" : "16:9"}"
-
-Prompt 4 — Hook Wide Shot
-"wide shot music video, ${artist.toLowerCase()} centered, ${style.toLowerCase()} visual style, dynamic composition, ${mood.toLowerCase()} color palette, cinematic, professional music video, 4K --ar ${isVertical ? "9:16" : "16:9"}"`,
-
-    "Negative Prompts": `Avoid in all generations:
-• Blurry faces or hands
-• Distorted fingers or jewelry
-• Low resolution or pixelated textures
-• Overly saturated or neon-colored skin tones
-• Text or watermarks in frame
-• Generic stock footage look
-• Incorrect aspect ratio
-• Cheap or flat lighting
-• Unnatural posing or stiff body language
-• Background clutter that distracts from the artist`,
-
-    "Promo Clip Ideas": `Clip 1 — Teaser (15 sec, ${isVertical ? "9:16" : "16:9"})
-Best 3 shots from the video — no lyrics, just music and visuals. End card: "${title} — Out Now" with release date. No dialogue.
-
-Clip 2 — Behind the Scenes (30–60 sec)
-Raw behind-the-scenes footage from shoot day. Show the process, not just the product. Makes the release feel real and earned.
-
-Clip 3 — Hook Highlight (15 sec)
-Just the hook section on loop with lyrics overlaid as captions. High rewatch value. Optimized for TikTok sound-off viewing.
-
-Clip 4 — Day-of-Release Drop
-"It's here." — Black screen, white text. Then the first 5 seconds of the video. Link in bio. Maximum curiosity with minimal explanation.`,
-
-    "Thumbnail Prompts": `YouTube Thumbnail (16:9)
-"${artist} music video thumbnail, close-up face, intense expression, ${mood.toLowerCase()} background, ${style.toLowerCase()} aesthetic, bold title text '${title}' in bottom third, high contrast, professional, YouTube thumbnail design, 1920×1080"
-
-Instagram / Square Thumbnail (1:1)
-"square music video cover art, ${artist}, ${style.toLowerCase()} visual, centered composition, title '${title}' in clean bold font, ${mood.toLowerCase()} color palette, professional, 1080×1080"
-
-Vertical Thumbnail / TikTok Cover (9:16)
-"vertical music video thumbnail, ${artist} full body shot, ${style.toLowerCase()} style, dramatic lighting, '${title}' text at top, 1080×1920, TikTok cover format, premium"`,
-
-    "Caption Ideas": `Drop caption (Post day):
-🎬 "${title}" — The visual is here.
-Watch the full music video now. Link in bio.
-#${genre.replace(/\s/g, "")} #${artist.replace(/\s/g, "")} #MusicVideo #NewMusic
-
-Teaser caption (3–5 days before):
-The video is coming.
-"${title}" 🎥
-[Release date] — set your reminder.
-#${genre.replace(/\s/g, "")} #ComingSoon
-
-Hook highlight caption:
-This hook is different. 🔥
-"${title}" — full video link in bio.
-#${genre.replace(/\s/g, "")} #NewMusic #${mood}
-
-Story / Reel caption:
-Started in the studio. Ended on a rooftop.
-"${title}" is out now.
-→ Link in bio`,
-  };
-}
-
+const STEPS = [
+  { n: 1, label: "Song Setup",       short: "Song",     icon: Music2 },
+  { n: 2, label: "Artist / Brand",   short: "Artist",   icon: Palette },
+  { n: 3, label: "Video Direction",  short: "Direction",icon: Camera },
+  { n: 4, label: "Generate Plan",    short: "Generate", icon: Sparkles },
+  { n: 5, label: "Scene Clips",      short: "Scenes",   icon: Clapperboard },
+  { n: 6, label: "Next Actions",     short: "Actions",  icon: Download },
+];
 
 /* ─────────────────────────── FORM HELPERS ─────────────────────────── */
 
-function FieldWrapper({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldWrapper({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{label}</Label>
+      {hint && <p className="text-xs text-white/35 -mt-1">{hint}</p>}
       {children}
     </div>
   );
@@ -252,39 +129,103 @@ function StyledSelect({
   );
 }
 
+/* ─────────────────────────── OUTPUT CARD ─────────────────────────── */
+
+interface OutputSection { label: string; content: string; icon: React.ElementType; defaultOpen?: boolean; }
+
+function OutputCard({ label, content, icon: Icon, defaultOpen = false }: OutputSection) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.03] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Icon className="h-3.5 w-3.5 text-primary" />
+          </span>
+          <span className="font-bold text-sm text-white">{label}</span>
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 text-white/30 shrink-0" /> : <ChevronDown className="h-4 w-4 text-white/30 shrink-0" />}
+      </button>
+      {open && (
+        <div className="px-5 pb-5 border-t border-white/[0.06]">
+          <pre className="text-sm text-white/65 leading-relaxed whitespace-pre-wrap pt-4 font-sans">{content}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── PARSE SECTIONS ─────────────────────────── */
+
+function parseSections(raw: string): Array<{ key: string; content: string }> {
+  const result: Array<{ key: string; content: string }> = [];
+  const parts = raw.split(/^## /m);
+  for (const part of parts) {
+    const newlineIdx = part.indexOf("\n");
+    if (newlineIdx === -1) continue;
+    const key = part.slice(0, newlineIdx).trim();
+    const content = part.slice(newlineIdx + 1).trim();
+    if (key && content) result.push({ key, content });
+  }
+  return result;
+}
+
+const SECTION_META: Record<string, { label: string; icon: React.ElementType }> = {
+  "DIRECTOR'S TREATMENT":   { label: "Director's Treatment",    icon: Video },
+  "VISUAL CONCEPT":         { label: "Visual Concept",          icon: Palette },
+  "COLOR PALETTE":          { label: "Color Palette",           icon: Palette },
+  "MAIN LOCATIONS":         { label: "Main Locations",          icon: MapPin },
+  "WARDROBE & ARTIST LOOK": { label: "Wardrobe & Artist Look",  icon: Music2 },
+  "CAMERA DIRECTIONS":      { label: "Camera Directions",       icon: Camera },
+  "SCENE-BY-SCENE BREAKDOWN": { label: "Scene-by-Scene Breakdown", icon: Clapperboard },
+  "AI VIDEO PROMPTS":       { label: "AI Video Prompts",        icon: Sparkles },
+  "NEGATIVE PROMPTS":       { label: "Negative Prompts",        icon: Film },
+  "THUMBNAIL PROMPTS":      { label: "Thumbnail Prompts",       icon: Film },
+  "PROMO CLIP IDEAS":       { label: "Promo Clip Ideas",        icon: Film },
+  "CAPTION IDEAS":          { label: "Caption Ideas",           icon: FileText },
+};
+
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeVideo() {
-  const { getAccessToken, refreshProfile } = useAuth();
+  const { getAccessToken, refreshProfile, user } = useAuth();
   const { toast } = useToast();
+
+  const [step, setStep] = useState(1);
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
   const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
   const [songStructure, setSongStructure] = useState<SongStructure | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
-  const [step, setStep] = useState(1);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [savingScenes, setSavingScenes] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
-      artistName: "", songTitle: "", genre: "", mood: "",
-      videoStyle: "", platform: "", videoLength: "",
-      lyrics: "", artistDescription: "", specialInstructions: "",
+      artistName: "", songTitle: "", genre: "", mood: "", lyrics: "",
+      artistDescription: "", brandColors: "", visualStyleRules: "", doNotChangeRules: "",
+      videoStyle: "", platform: "", videoLength: "", locationIdeas: "", specialInstructions: "",
     },
   });
 
   const watched = watch();
 
+  /* ── Vault load ── */
   function handleVaultLoad(vault: ArtistVault) {
     if (!watched.artistName) setValue("artistName", vault.artist_name);
-    if (!watched.genre && vault.genre) setValue("genre", vault.genre);
-    if (!watched.videoStyle && vault.visual_style) setValue("videoStyle", vault.visual_style);
     if (!watched.artistDescription) {
       const parts = [
         vault.artist_description,
@@ -292,13 +233,15 @@ export default function MakeVideo() {
         vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
         vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,
         vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
-        vault.brand_colors ? `Brand colors: ${vault.brand_colors}` : null,
       ].filter(Boolean);
       if (parts.length > 0) setValue("artistDescription", parts.join(". "));
     }
+    if (!watched.brandColors && vault.brand_colors) setValue("brandColors", vault.brand_colors);
+    if (!watched.videoStyle && vault.visual_style) setValue("videoStyle", vault.visual_style);
     setLoadedVault(vault);
   }
 
+  /* ── Analyze song sections ── */
   async function handleAnalyze() {
     const lyrics = watched.lyrics;
     if (!lyrics || lyrics.length < 10) return;
@@ -321,14 +264,26 @@ export default function MakeVideo() {
     }
   }
 
-  async function onSubmit(values: VideoFormValues) {
+  /* ── Generate video plan ── */
+  async function onGenerate(values: VideoFormValues) {
     setLoading(true);
     setRawResult(null);
     setError(null);
     setOutOfCredits(false);
+    setSaved(false);
+    setSavedProjectId(null);
+
+    const combinedInstructions = [
+      values.locationIdeas ? `Location Ideas: ${values.locationIdeas}` : "",
+      values.visualStyleRules ? `Visual Style Rules: ${values.visualStyleRules}` : "",
+      values.brandColors ? `Brand Colors: ${values.brandColors}` : "",
+      values.doNotChangeRules ? `Do Not Change: ${values.doNotChangeRules}` : "",
+      values.specialInstructions || "",
+    ].filter(Boolean).join("\n");
+
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-video-plan", {
+      const { rawResult: result, creditsRemaining } = await callGenerateApi("/api/generate-video-plan", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -338,13 +293,13 @@ export default function MakeVideo() {
         videoLength: values.videoLength,
         lyrics: values.lyrics,
         artistDescription: values.artistDescription,
-        instructions: values.specialInstructions,
+        instructions: combinedInstructions,
         artistVault: loadedVault,
         songStructure: songStructure ?? undefined,
       }, token);
-      setRawResult(rawResult);
-      setScenes(parseScenes(extractBreakdownContent(rawResult)));
-      setSavedProjectId(null);
+
+      setRawResult(result);
+      setScenes(parseScenes(extractBreakdownContent(result)));
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 80);
     } catch (err) {
@@ -356,7 +311,44 @@ export default function MakeVideo() {
     }
   }
 
-  /* Autosave scene edits to the saved project (mirrors MusicVideoTimeline) */
+  /* ── Save project ── */
+  async function handleSave() {
+    if (!user || !rawResult) return;
+    setSaving(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          projectType: "Make a Music Video",
+          title: [watched.artistName, watched.songTitle].filter(Boolean).join(" - ") || "Make a Music Video",
+          artistName: watched.artistName || null,
+          songTitle: watched.songTitle || null,
+          genre: watched.genre || null,
+          mood: watched.mood || null,
+          inputData: watched as unknown as Record<string, unknown>,
+          outputData: {
+            result: rawResult,
+            ...(songStructure ? { songStructure } : {}),
+            ...(scenes.length > 0 ? { scenes } : {}),
+          },
+          creditsUsed: 1,
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      const data = (await res.json()) as { id: string };
+      setSavedProjectId(data.id);
+      setSaved(true);
+      toast({ title: "Project saved!", description: "Find it in My Projects." });
+    } catch {
+      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ── Autosave scenes ── */
   async function handleScenesChange(updated: SceneData[]) {
     setScenes(updated);
     if (!savedProjectId) return;
@@ -367,15 +359,12 @@ export default function MakeVideo() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ scenes: updated }),
       });
-    } catch {
-      /* silent — user can Save to persist */
-    }
+    } catch { /* silent */ }
   }
 
-  /* Explicit scene save (mirrors MusicVideoTimeline "Save Timeline") */
   async function saveScenes() {
     if (!savedProjectId) {
-      toast({ title: "Save your project first", description: "Use Save Project in step 3 to enable saving scene changes.", variant: "destructive" });
+      toast({ title: "Save your project first", description: "Use Save Project in Next Actions.", variant: "destructive" });
       return;
     }
     setSavingScenes(true);
@@ -386,33 +375,20 @@ export default function MakeVideo() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ scenes }),
       });
-      if (!res.ok) throw new Error("save failed");
-      toast({ title: "Scenes saved", description: "Your scene changes have been persisted." });
+      if (!res.ok) throw new Error();
+      toast({ title: "Scenes saved" });
     } catch {
-      toast({ title: "Save failed", description: "Could not save scene changes. Please try again.", variant: "destructive" });
+      toast({ title: "Save failed", variant: "destructive" });
     } finally {
       setSavingScenes(false);
     }
   }
 
   /* ── Wizard navigation ── */
-  const STEPS = [
-    { n: 1, label: "Song Setup",      icon: Music2 },
-    { n: 2, label: "Visual Style",    icon: Palette },
-    { n: 3, label: "Generate Plan",   icon: Sparkles },
-    { n: 4, label: "Scene Clips",     icon: Clapperboard },
-    { n: 5, label: "Timeline",        icon: Film },
-    { n: 6, label: "Export",          icon: Download },
-  ];
-
-  const videoStyleVal = watched.videoStyle || undefined;
-  const platformVal = watched.platform || undefined;
-  const approvedScenes = scenes.filter((s) => s.approved && s.demoClipUrl);
-
   function canAdvance(from: number): boolean {
     if (from === 1) return !!watched.artistName?.trim();
     if (from === 2) return !!watched.artistDescription?.trim();
-    if (from === 3) return !!rawResult;
+    if (from === 4) return !!rawResult;
     return true;
   }
 
@@ -426,6 +402,57 @@ export default function MakeVideo() {
     if (target < 1 || target > 6 || !canReach(target)) return;
     setStep(target);
     setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
+  }
+
+  /* ── Parsed output sections ── */
+  const parsedSections = rawResult ? parseSections(rawResult) : [];
+  const videoStyleVal = watched.videoStyle || undefined;
+  const platformVal = watched.platform || undefined;
+
+  /* ── Next button label ── */
+  function nextLabel(s: number): string {
+    if (s === 1) return "Artist & Brand";
+    if (s === 2) return "Video Direction";
+    if (s === 3) return "Review & Generate";
+    if (s === 4) return rawResult ? "Scene Clips" : "Generate first";
+    if (s === 5) return "Next Actions";
+    return "Next";
+  }
+
+  /* ── Download helpers ── */
+  function handleDownloadTxt() {
+    if (!rawResult) return;
+    downloadTxt({
+      projectType: "Make a Music Video",
+      artistName: watched.artistName,
+      songTitle: watched.songTitle,
+      genre: watched.genre,
+      mood: watched.mood,
+      result: rawResult,
+    });
+  }
+
+  function handleDownloadPdf() {
+    if (!rawResult) return;
+    downloadPdf({
+      projectType: "Make a Music Video",
+      artistName: watched.artistName,
+      songTitle: watched.songTitle,
+      genre: watched.genre,
+      mood: watched.mood,
+      result: rawResult,
+    });
+  }
+
+  /* ── Reset ── */
+  function handleReset() {
+    setRawResult(null);
+    setError(null);
+    setOutOfCredits(false);
+    setScenes([]);
+    setSavedProjectId(null);
+    setSaved(false);
+    setStep(1);
   }
 
   return (
@@ -458,76 +485,72 @@ export default function MakeVideo() {
             Make a Music Video
           </h1>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
-            A guided, step-by-step studio — from song setup to a cinematic AI music video.
+            A step-by-step studio — from song setup to a cinematic AI music video plan.
           </p>
         </div>
 
-        {/* ── Progress stepper ── */}
-        <div className="mb-8 overflow-x-auto">
-          <div className="flex items-center gap-1 min-w-max sm:min-w-0">
-            {STEPS.map((s, i) => {
-              const Icon = s.icon;
+        {/* ── Stepper ── */}
+        <div className="mb-8">
+          {/* Progress bar */}
+          <div className="relative h-1 bg-white/[0.06] rounded-full mb-5 overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }}
+            />
+          </div>
+          {/* Step dots */}
+          <div className="flex items-center justify-between gap-1">
+            {STEPS.map((s) => {
               const isActive = step === s.n;
               const isDone = step > s.n;
               const reachable = canReach(s.n);
               return (
-                <div key={s.n} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => goToStep(s.n)}
-                    disabled={!reachable}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                      isActive
-                        ? "bg-primary/15 border border-primary/40"
-                        : isDone
-                          ? "bg-white/[0.04] border border-white/10 hover:border-white/20"
-                          : "bg-transparent border border-white/[0.06] opacity-60"
-                    } ${!reachable ? "cursor-not-allowed" : "cursor-pointer"}`}
-                    data-testid={`step-tab-${s.n}`}
-                  >
-                    <span className={`h-6 w-6 rounded-lg flex items-center justify-center shrink-0 ${
-                      isActive ? "bg-primary text-black" : isDone ? "bg-primary/20 text-primary" : "bg-white/5 text-white/40"
-                    }`}>
-                      {isDone ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
-                    </span>
-                    <span className={`text-xs font-bold whitespace-nowrap ${
-                      isActive ? "text-primary" : isDone ? "text-white/70" : "text-white/40"
-                    } hidden sm:inline`}>
-                      {s.n}. {s.label}
-                    </span>
-                    <span className={`text-xs font-bold sm:hidden ${isActive ? "text-primary" : "text-white/40"}`}>
-                      {s.n}
-                    </span>
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <ChevronRight className="h-4 w-4 text-white/15 mx-0.5 shrink-0" />
-                  )}
-                </div>
+                <button
+                  key={s.n}
+                  type="button"
+                  onClick={() => goToStep(s.n)}
+                  disabled={!reachable}
+                  className={`flex flex-col items-center gap-1.5 min-w-0 transition-opacity ${!reachable ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+                  data-testid={`step-tab-${s.n}`}
+                >
+                  <span className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
+                    isActive  ? "bg-primary border-primary text-black" :
+                    isDone    ? "bg-primary/20 border-primary/40 text-primary" :
+                    "bg-white/5 border-white/10 text-white/40"
+                  }`}>
+                    {isDone
+                      ? <Check className="h-3.5 w-3.5" />
+                      : <span className="text-xs font-black">{s.n}</span>}
+                  </span>
+                  <span className={`text-[10px] font-bold hidden sm:block whitespace-nowrap ${
+                    isActive ? "text-primary" : isDone ? "text-white/50" : "text-white/30"
+                  }`}>
+                    {s.short}
+                  </span>
+                </button>
               );
             })}
           </div>
         </div>
 
+        {/* ── Alerts ── */}
         {outOfCredits && <div className="mb-6"><OutOfCredits /></div>}
-
         {error && (
           <div className="mb-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
             <p className="text-red-400 text-sm font-medium">{error}</p>
           </div>
         )}
 
-        {/* ── Step content ── */}
+        {/* ── Step Content ── */}
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
 
           {/* STEP 1 — Song Setup */}
           {step === 1 && (
-            <div className="space-y-8">
+            <div className="space-y-7">
               <div>
                 <h2 className="text-xl font-black text-white mb-1">Song Setup</h2>
-                <p className="text-sm text-white/40">Tell us about the track and add your lyrics.</p>
+                <p className="text-sm text-white/40">Tell us about the track, upload your song, and add lyrics.</p>
               </div>
-
-              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FieldWrapper label="Artist Name">
@@ -536,7 +559,7 @@ export default function MakeVideo() {
                     placeholder="e.g. Lil Nova"
                     className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
                   />
-                  {errors.artistName && <p className="text-red-400 text-xs mt-1">Artist name is required</p>}
+                  {errors.artistName && <p className="text-red-400 text-xs mt-1">Required</p>}
                 </FieldWrapper>
                 <FieldWrapper label="Song Title">
                   <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
@@ -554,16 +577,18 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Lyrics</Label>
+              <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
                   onFileUrl={setAudioUrl}
                 />
                 {audioUrl && <ReferenceAudioPlayer url={audioUrl} label="Your Song" />}
+              </FieldWrapper>
+
+              <FieldWrapper label="Lyrics" hint="Paste lyrics below, or upload audio above and click Transcribe.">
                 <Textarea
                   {...register("lyrics")}
-                  placeholder="Paste your lyrics here — or upload audio above to auto-transcribe them..."
+                  placeholder="Paste your lyrics here — or transcribe from audio above..."
                   className={textareaClass}
                   style={{ minHeight: "160px" }}
                 />
@@ -587,18 +612,66 @@ export default function MakeVideo() {
                     {analyzeError && <p className="text-xs text-red-400/80">{analyzeError}</p>}
                   </div>
                 )}
-              </div>
+              </FieldWrapper>
 
               {songStructure && <SongSectionAnalysis analysis={songStructure} />}
             </div>
           )}
 
-          {/* STEP 2 — Visual Style */}
+          {/* STEP 2 — Artist / Brand */}
           {step === 2 && (
-            <div className="space-y-8">
+            <div className="space-y-7">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Visual Style</h2>
-                <p className="text-sm text-white/40">Define the look, platform, and artist's visual brand.</p>
+                <h2 className="text-xl font-black text-white mb-1">Artist / Brand</h2>
+                <p className="text-sm text-white/40">Load your vault profile or describe the artist's look and brand.</p>
+              </div>
+
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+
+              <FieldWrapper label="Artist Description">
+                <Textarea
+                  {...register("artistDescription", { required: true })}
+                  placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe, style references, typical vibe, and anything important for the video..."
+                  className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
+                  style={{ minHeight: "120px" }}
+                />
+                {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
+              </FieldWrapper>
+
+              <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
+                <Input
+                  {...register("brandColors")}
+                  placeholder="e.g. All black, silver accents, deep purple"
+                  className={inputClass}
+                />
+              </FieldWrapper>
+
+              <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
+                <Textarea
+                  {...register("visualStyleRules")}
+                  placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
+                  className={textareaClass}
+                  style={{ minHeight: "90px" }}
+                />
+              </FieldWrapper>
+
+              <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
+                <Textarea
+                  {...register("doNotChangeRules")}
+                  placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
+                  className={textareaClass}
+                  style={{ minHeight: "90px" }}
+                />
+              </FieldWrapper>
+            </div>
+          )}
+
+          {/* STEP 3 — Video Direction */}
+          {step === 3 && (
+            <div className="space-y-7">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Video Direction</h2>
+                <p className="text-sm text-white/40">Choose the style, platform, and creative direction for your video.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -612,129 +685,168 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Video Length">
-                  <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
-                    value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
-                </FieldWrapper>
-              </div>
-
-              <FieldWrapper label="Artist Description">
-                <Textarea
-                  {...register("artistDescription", { required: true })}
-                  placeholder="Describe the artist's look, personality, and visual brand. Include style references, typical wardrobe, vibe, and anything important for the video treatment..."
-                  className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
-                  style={{ minHeight: "120px" }}
-                />
-                {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Artist description is required</p>}
+              <FieldWrapper label="Video Length">
+                <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
+                  value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
               </FieldWrapper>
 
-              <FieldWrapper label="Special Instructions">
+              <FieldWrapper label="Location Ideas" hint="Suggest locations, environments, or settings for your scenes.">
+                <Textarea
+                  {...register("locationIdeas")}
+                  placeholder="e.g. Brooklyn streets at night, rooftop overlooking the city, abandoned warehouse..."
+                  className={textareaClass}
+                  style={{ minHeight: "90px" }}
+                />
+              </FieldWrapper>
+
+              <FieldWrapper label="Special Visual Instructions" hint="Specific shots, themes, cultural references, or things to avoid.">
                 <Textarea
                   {...register("specialInstructions")}
-                  placeholder="Any specific shots, locations, themes, cultural elements, things to avoid, or references you want included..."
+                  placeholder="Any specific shots, visual themes, cultural elements, or things to avoid..."
                   className={textareaClass}
-                  style={{ minHeight: "100px" }}
+                  style={{ minHeight: "90px" }}
                 />
               </FieldWrapper>
             </div>
           )}
 
-          {/* STEP 3 — Generate Plan */}
-          {step === 3 && (
+          {/* STEP 4 — Generate Video Plan */}
+          {step === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Generate Plan</h2>
-                <p className="text-sm text-white/40">Create your Director's Treatment, scene breakdown, and AI prompts.</p>
+                <h2 className="text-xl font-black text-white mb-1">Generate Video Plan</h2>
+                <p className="text-sm text-white/40">Generate your Director's Treatment, scene breakdown, and AI prompts.</p>
               </div>
 
               {!rawResult ? (
-                <div className="rounded-2xl border border-primary/15 bg-primary/5 p-6 text-center space-y-4">
-                  <p className="text-white/60 text-sm max-w-md mx-auto">
-                    We'll use your song setup and visual style to generate a full cinematic plan. This uses 1 credit.
-                  </p>
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={handleSubmit(onSubmit)}
-                    disabled={loading}
-                    className="gold-glow font-bold text-base px-10 rounded-xl gap-3"
-                    style={{ height: "52px" }}
-                    data-testid="btn-generate-plan"
-                  >
-                    {loading
-                      ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
-                      : <><Sparkles className="h-5 w-5" /> Generate Music Video Plan</>}
-                  </Button>
-                  <p className="text-white/25 text-xs">Uses 1 credit per generation</p>
+                <div className="space-y-5">
+                  {/* Summary tiles */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "Artist", value: watched.artistName || "—" },
+                      { label: "Song", value: watched.songTitle || "—" },
+                      { label: "Genre", value: watched.genre || "—" },
+                      { label: "Mood", value: watched.mood || "—" },
+                      { label: "Style", value: watched.videoStyle || "—" },
+                      { label: "Platform", value: watched.platform || "—" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                        <p className="text-[10px] font-bold text-white/35 uppercase tracking-wider mb-1">{label}</p>
+                        <p className="text-sm font-semibold text-white truncate">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* What you get */}
+                  <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5 space-y-4">
+                    <p className="text-sm font-bold text-white/70 uppercase tracking-wider">What you'll get</p>
+                    <ul className="space-y-2">
+                      {[
+                        "Director's Treatment",
+                        "Scene-by-Scene Breakdown",
+                        "AI Video Prompts (Runway-ready)",
+                        "Visual Concept & Color Palette",
+                        "Thumbnail Prompts",
+                        "Promo Clip Ideas",
+                        "Caption Ideas",
+                        ...(songStructure ? ["Song Structure Analysis ✓"] : []),
+                      ].map((item) => (
+                        <li key={item} className="flex items-center gap-2 text-sm text-white/60">
+                          <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      type="button"
+                      size="lg"
+                      onClick={handleSubmit(onGenerate)}
+                      disabled={loading}
+                      className="gold-glow font-bold text-base w-full gap-3 rounded-xl mt-2"
+                      style={{ height: "52px" }}
+                      data-testid="btn-generate-plan"
+                    >
+                      {loading
+                        ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
+                        : <><Sparkles className="h-5 w-5" /> Generate Music Video Plan</>}
+                    </Button>
+                    <p className="text-white/25 text-xs text-center">Uses 1 credit per generation</p>
+                  </div>
                 </div>
               ) : (
-                <>
-                  <GenerationResult
-                    result={rawResult}
-                    onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); setScenes([]); setSavedProjectId(null); }}
-                    saveMetadata={{
-                      projectType: "Make a Music Video",
-                      artistName: watched.artistName,
-                      songTitle: watched.songTitle,
-                      genre: watched.genre,
-                      mood: watched.mood,
-                      inputData: watched as unknown as Record<string, unknown>,
-                      creditsUsed: 1,
-                      songStructure: songStructure ?? undefined,
-                    }}
-                    scenes={scenes}
-                    onScenesChange={setScenes}
-                    artistVault={loadedVault}
-                    onSaved={setSavedProjectId}
-                    showScenes={false}
-                    collapsibleSections
-                  />
+                <div className="space-y-4">
+                  {/* Result ready header */}
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/20 bg-green-500/5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-400 shrink-0 animate-pulse" />
+                    <p className="text-sm font-bold text-white/80">Video plan ready</p>
+                    <button
+                      type="button"
+                      onClick={() => { setRawResult(null); setScenes([]); }}
+                      className="ml-auto text-xs text-white/30 hover:text-white/60 transition-colors"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
 
-                  {/* Clean scene grid preview */}
+                  {/* Collapsible output cards */}
+                  <div className="space-y-2">
+                    {parsedSections.map((section, i) => {
+                      const meta = SECTION_META[section.key] ?? { label: section.key.replace(/_/g, " "), icon: FileText };
+                      return (
+                        <OutputCard
+                          key={section.key}
+                          label={meta.label}
+                          content={section.content}
+                          icon={meta.icon}
+                          defaultOpen={i === 0}
+                        />
+                      );
+                    })}
+
+                    {/* Song Structure card if available */}
+                    {songStructure && (
+                      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+                        <div className="px-5 py-4 flex items-center gap-3">
+                          <span className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <BarChart2 className="h-3.5 w-3.5 text-primary" />
+                          </span>
+                          <span className="font-bold text-sm text-white">Song Structure Analysis</span>
+                        </div>
+                        <div className="px-5 pb-5 border-t border-white/[0.06]">
+                          <SongSectionAnalysis analysis={songStructure} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Scene count badge */}
                   {scenes.length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center gap-2">
-                        <Clapperboard className="h-4 w-4 text-primary/70" />
-                        <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                          {scenes.length} Scene{scenes.length !== 1 ? "s" : ""} Ready
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {scenes.map((s, i) => (
-                          <div key={s.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 flex items-start gap-3">
-                            <span className="h-6 w-6 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-[11px] font-black text-primary">
-                              {i + 1}
-                            </span>
-                            <div className="min-w-0">
-                              {s.section && <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">{s.section}</p>}
-                              <p className="text-xs text-white/60 line-clamp-2">
-                                {s.lyricLine || s.action || s.location || `Scene ${i + 1}`}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-white/30">Next: generate and approve clips for each scene in step 4.</p>
+                    <div className="flex items-center gap-2 pt-1">
+                      <Clapperboard className="h-4 w-4 text-primary/60" />
+                      <p className="text-sm text-white/50">
+                        <span className="text-white/80 font-semibold">{scenes.length} scenes</span> extracted — continue to Scene Clips to generate Runway videos.
+                      </p>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
 
-          {/* STEP 4 — Scene Clips */}
-          {step === 4 && (
+          {/* STEP 5 — Scene Clips */}
+          {step === 5 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-black text-white mb-1">Scene Clips</h2>
                 <p className="text-sm text-white/40">Refine prompts, generate Runway clips, and approve the ones you want.</p>
               </div>
 
+              {/* Runway note */}
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
                 <Volume2 className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
                 <p className="text-xs text-white/55 leading-relaxed">
-                  Runway clips are <span className="text-white/80 font-semibold">silent previews</span>. Your uploaded song will be added during final export.
+                  Runway clips are <span className="text-white/80 font-semibold">silent previews</span>. Your uploaded song or Music Studio mix will be added during final export.
                 </p>
               </div>
 
@@ -750,110 +862,165 @@ export default function MakeVideo() {
                   saving={savingScenes}
                 />
               ) : (
-                <p className="text-sm text-white/40">No scenes yet — go back to step 3 and generate your plan.</p>
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-6 py-10 text-center">
+                  <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
+                  <p className="text-sm text-white/40">No scenes yet — go back to step 4 and generate your plan.</p>
+                  <button
+                    type="button"
+                    onClick={() => goToStep(4)}
+                    className="mt-4 text-sm text-primary/70 hover:text-primary transition-colors"
+                  >
+                    ← Back to Generate Plan
+                  </button>
+                </div>
               )}
+            </div>
+          )}
 
-              {/* Open Video Editor — shown once Runway clips have been generated */}
-              {scenes.some((s) => s.demoClipUrl) && (
-                <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <Clapperboard className="h-5 w-5 text-primary shrink-0 mt-0.5 sm:mt-0" />
+          {/* STEP 6 — Next Actions */}
+          {step === 6 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-black text-white mb-1">Next Actions</h2>
+                <p className="text-sm text-white/40">Save your project, open the editor, and download your files.</p>
+              </div>
+
+              <div className="space-y-3">
+
+                {/* Save Project */}
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <Save className="h-4 w-4 text-primary" />
+                    </span>
                     <div>
-                      <p className="font-semibold text-white text-sm">Your clips are ready to edit</p>
-                      <p className="text-xs text-white/45">
-                        {savedProjectId
-                          ? "Open the Video Editor to arrange clips, mix audio in Music Studio, add captions, effects, and export."
-                          : "Save your project in step 3 to open it in the full Video Editor."}
+                      <p className="font-bold text-white text-sm">Save Project</p>
+                      <p className="text-xs text-white/40 mt-0.5">Save your video plan and scenes to My Projects.</p>
+                    </div>
+                  </div>
+                  {saved ? (
+                    <div className="flex items-center gap-2 text-green-400 font-bold text-sm shrink-0">
+                      <Check className="h-4 w-4" /> Project Saved
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving || !rawResult}
+                      className="gold-glow font-bold gap-2 shrink-0"
+                      data-testid="btn-save-project"
+                    >
+                      {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Project</>}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Open Video Editor */}
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <Clapperboard className="h-4 w-4 text-primary" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-white text-sm">Open Video Editor</p>
+                      <p className="text-xs text-white/40 mt-0.5">
+                        {savedProjectId ? "Edit scenes, add captions, mix audio, and export." : "Save your project first to open it in the editor."}
                       </p>
                     </div>
                   </div>
-                  {savedProjectId && (
-                    <OpenVideoEditorButton projectId={savedProjectId} testId="btn-step4-open-video-editor" />
+                  {savedProjectId ? (
+                    <Link href={`/video-editor?project=${savedProjectId}`}>
+                      <Button className="gold-glow font-bold gap-2 shrink-0" data-testid="btn-open-video-editor">
+                        <ExternalLink className="h-4 w-4" /> Open Editor
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      disabled
+                      className="font-bold gap-2 shrink-0 opacity-40"
+                      data-testid="btn-open-video-editor-disabled"
+                    >
+                      <ExternalLink className="h-4 w-4" /> Open Editor
+                    </Button>
                   )}
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* STEP 5 — Timeline Preview */}
-          {step === 5 && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-black text-white mb-1">Timeline Preview</h2>
-                <p className="text-sm text-white/40">Watch your approved clips back-to-back, with your song playing separately.</p>
-              </div>
-
-              <ClipSequencePlayer
-                scenes={approvedScenes}
-                allScenes={scenes}
-                title="Approved Clips Preview"
-                emptyTitle="No approved clips yet."
-                emptyHint="Approve clips in step 4 — they'll play here in sequence."
-              />
-
-              <div className="flex items-start gap-2.5 rounded-xl border border-yellow-500/15 bg-yellow-500/5 px-4 py-3">
-                <Volume2 className="h-4 w-4 text-yellow-400/70 shrink-0 mt-0.5" />
-                <p className="text-xs text-white/55 leading-relaxed">
-                  The clip preview above has <span className="text-white/80 font-semibold">no sound</span> — clips are silent.
-                  Play your song below to hear how it pairs. The audio is combined automatically during final export.
-                </p>
-              </div>
-
-              {audioUrl
-                ? <ReferenceAudioPlayer url={audioUrl} label="Your Song" />
-                : <p className="text-xs text-white/30">Upload a song in step 1 to preview it here alongside the clips.</p>}
-            </div>
-          )}
-
-          {/* STEP 6 — Export (Beta) */}
-          {step === 6 && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-black text-white">Export</h2>
-                <Badge className="bg-yellow-500/10 text-yellow-300 border-yellow-500/25 text-[10px] font-black tracking-widest uppercase">
-                  Beta
-                </Badge>
-              </div>
-              <p className="text-sm text-white/40 -mt-2">
-                Stitch your approved clips together with your song into a single video. This feature is in Beta — results may vary.
-              </p>
-
-              <FinalVideoExport
-                scenes={scenes}
-                projectId={savedProjectId}
-                audioUrl={audioUrl}
-              />
-
-              {/* Premium Video Editor entry */}
-              <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-transparent p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <Clapperboard className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-black text-white">Open Video Editor</h3>
-                  <p className="text-xs text-white/45 mt-0.5">
-                    AI Auto Edit presets or the Manual Pro editor — captions, transitions, effects and more.
-                  </p>
-                </div>
-                {savedProjectId ? (
-                  <Link href={`/video-editor?project=${savedProjectId}`}>
-                    <Button className="gold-glow font-bold gap-2 shrink-0" data-testid="btn-open-video-editor">
-                      <Sparkles className="h-4 w-4" /> Open Editor
+                {/* Generate Promo Clips */}
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <Film className="h-4 w-4 text-primary" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-white text-sm">Generate Promo Clips</p>
+                      <p className="text-xs text-white/40 mt-0.5">Create short-form promo content for TikTok, Reels, and YouTube Shorts.</p>
+                    </div>
+                  </div>
+                  <Link href="/promo-clip">
+                    <Button variant="outline" className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0">
+                      <ExternalLink className="h-4 w-4" /> Make Promo Clips
                     </Button>
                   </Link>
-                ) : (
-                  <div className="text-right shrink-0">
-                    <Button disabled className="font-bold gap-2 opacity-50" data-testid="btn-open-video-editor-disabled">
-                      <Sparkles className="h-4 w-4" /> Open Editor
-                    </Button>
-                    <p className="text-[11px] text-white/35 mt-1.5">Save your project first to edit it</p>
+                </div>
+
+                {/* Download TXT */}
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-white/50" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-white text-sm">Download TXT</p>
+                      <p className="text-xs text-white/40 mt-0.5">Plain text export of your full video plan.</p>
+                    </div>
                   </div>
-                )}
+                  <Button
+                    onClick={handleDownloadTxt}
+                    disabled={!rawResult}
+                    variant="outline"
+                    className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0"
+                    data-testid="btn-download-txt"
+                  >
+                    <Download className="h-4 w-4" /> Download TXT
+                  </Button>
+                </div>
+
+                {/* Download PDF */}
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                      <FileText className="h-4 w-4 text-white/50" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-white text-sm">Download PDF</p>
+                      <p className="text-xs text-white/40 mt-0.5">Premium branded PDF with your full video plan.</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleDownloadPdf}
+                    disabled={!rawResult}
+                    variant="outline"
+                    className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 gap-2 shrink-0"
+                    data-testid="btn-download-pdf"
+                  >
+                    <Download className="h-4 w-4" /> Download PDF
+                  </Button>
+                </div>
               </div>
+
+              {/* Start over */}
+              <p className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="text-xs text-white/30 hover:text-white/60 transition-colors"
+                >
+                  Start a new Music Video plan
+                </button>
+              </p>
             </div>
           )}
 
-          {/* ── Footer nav ── */}
+          {/* ── Footer navigation ── */}
           <div className="flex items-center justify-between gap-4 mt-10 pt-6 border-t border-white/[0.06]">
             <Button
               type="button"
@@ -874,8 +1041,7 @@ export default function MakeVideo() {
                 className="gold-glow font-bold gap-2 disabled:opacity-40"
                 data-testid="btn-wizard-next"
               >
-                {step === 3 && !rawResult ? "Generate plan to continue" : "Next"}
-                <ChevronRight className="h-4 w-4" />
+                {nextLabel(step)} <ChevronRight className="h-4 w-4" />
               </Button>
             )}
           </div>

@@ -1,0 +1,200 @@
+Update the Bow Down Visuals user flow and editor preview system.
+
+Do not add Stripe.
+Do not add new APIs.
+Do not break OpenAI generation.
+Do not break Runway generation.
+Do not break Supabase saved projects.
+Do not break Artist Vault.
+Do not break Music Studio.
+Do not break existing project folder near the signed-in user name.
+
+PART 1 — START CREATING FLOW
+
+When a user clicks Start Creating in the top-right toolbar:
+
+If user is not signed in:
+1. Send them to Sign In / Sign Up
+2. After successful login, send them to an Artist Selection page before the Creator Studio
+
+If user is already signed in:
+1. Send them directly to the Artist Selection page
+
+Create a new page/step called:
+Choose Your Artist
+
+This page should appear before the Creator Studio / Dashboard.
+
+The Choose Your Artist page should show saved Artist Vault profiles as large selectable bubble/cards.
+
+Each artist bubble/card should show:
+- artist image/avatar if available
+- artist name
+- artist type
+- genre
+- visual style
+- select button
+
+Design style:
+- premium dark cinematic
+- round bubble/card style
+- glowing purple border on hover
+- selected artist gets a bright purple/gold outline
+- clean mobile layout
+
+Add options:
+1. Use Saved Artist
+2. Create New Artist
+3. Continue Without Artist For Now
+
+If user chooses Use Saved Artist:
+- save selected artist profile as the active artist for the current session/user
+- send them to Creator Studio / Dashboard
+- show active artist name near the top of the dashboard
+
+If user chooses Create New Artist:
+- send them to Artist Vault creation form
+- after saving the new artist, return to Choose Your Artist page or Creator Studio
+
+If user chooses Continue Without Artist For Now:
+- send them to Creator Studio / Dashboard
+- show message:
+No artist selected. You can choose or create an artist later from Artist Vault.
+
+Add active artist selector to the dashboard:
+- show current active artist
+- button: Change Artist
+- Change Artist opens the Choose Your Artist page again
+
+When using tools like:
+- Make Song + Video
+- Make a Music Video
+- Promo Clips
+- Thumbnail Maker
+
+Automatically prefill or include the active artist’s Artist Vault data:
+- artist name
+- artist description
+- genre
+- visual style
+- hair
+- tattoos
+- jewelry
+- clothing style
+- brand colors
+- do-not-change rules
+- reference image notes
+
+Do not force artist selection forever. Users can continue without artist.
+
+PART 2 — CREATOR STUDIO PAGE
+
+Make the Creator Studio / Dashboard feel like the main studio after artist selection.
+
+At the top show:
+- Welcome back, [user name]
+- Active Artist: [artist name or None Selected]
+- Change Artist button
+- Credits
+- Project folder stays top right near signed-in name
+
+Main studio cards:
+- Make Song + Video
+- Make a Music Video
+- Promo Clips
+- Make a Song
+- Thumbnail Maker
+- Artist Vault
+- Music Studio
+- Recent Projects
+
+PART 3 — LIVE PREVIEWS WHILE EDITING
+
+I do not see previews while editing. Add clear preview panels.
+
+Video Editor should always have a visible preview area.
+
+Inside Video Editor, create a sticky/right-side preview panel on desktop and a top preview panel on mobile called:
+Live Preview
+
+The Live Preview should update depending on the selected tab:
+
+Clips tab:
+- show selected Runway clip preview
+- if no clip selected, show:
+Select a scene clip to preview.
+
+Timeline tab:
+- show timeline preview player
+- play approved clips in order
+- if no clips, show:
+Generate or approve clips to preview your timeline.
+
+Music Studio tab:
+- show audio preview player
+- show selected mix/export preview if available
+- show:
+Runway clips are silent. Audio is added during final export.
+
+Captions tab:
+- show video preview with sample caption overlay
+- when user edits caption text/style/position, update the preview visually
+
+Effects tab:
+- show selected clip with preview labels/overlays for selected effects
+- if effect is not fully renderable yet, show it as a preview/edit-plan overlay
+
+Export tab:
+- show final export preview if available
+- if no final export exists, show a preview summary:
+Approved clips + selected audio + captions + branding will be combined during export.
+
+PART 4 — PREVIEW BUTTONS
+
+Add visible Preview buttons everywhere editing happens:
+
+Scene cards:
+- Preview Clip
+
+Timeline:
+- Preview Timeline
+
+Music Studio:
+- Preview Mix
+
+Captions:
+- Preview Captions
+
+Effects:
+- Preview Effects
+
+Export:
+- Preview Final Setup
+
+PART 5 — PREVIEW STATE
+
+When user clicks any scene/clip/caption/effect:
+- update the Live Preview panel immediately
+- highlight the selected item
+- show what is being previewed
+
+Save preview/editor state with the project:
+- selected active artist
+- selected clip
+- selected timeline order
+- selected caption style
+- selected effects
+- selected audio source
+
+PART 6 — CLEAN UX
+
+Do not clutter the page.
+Use tabs, collapsible sections, and one clear preview panel.
+
+Keep:
+- premium dark cinematic design
+- black background
+- purple glow accents
+- silver/white text
+- clean creator studio layout
+- mobile responsive design
