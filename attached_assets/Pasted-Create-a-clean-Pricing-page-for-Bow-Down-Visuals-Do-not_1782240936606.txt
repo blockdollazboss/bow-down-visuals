@@ -1,0 +1,102 @@
+Create a clean Pricing page for Bow Down Visuals.
+
+Do not connect Stripe yet.
+Do not add real payments yet.
+Do not break Beta Access, login, saved projects, Runway, Music Mixer, Video Editor, or Artist Profiles.
+
+Goal:
+Show clear pricing plans so users understand what Bow Down Visuals will offer.
+
+Add headline:
+Choose Your Creator Plan
+
+Subheadline:
+Start with AI songs, video plans, promo clips, artist profiles, and editing tools. Full paid access is coming soon.
+
+Add a Beta notice:
+Bow Down Visuals is currently in beta. Payments are not live yet. Join the beta list for early access.
+
+Pricing plans:
+
+1. Starter
+Price: $19/month
+Best for: New creators
+Includes:
+- 25 credits monthly
+- Make songs
+- Make music video plans
+- Promo clip packs
+- Thumbnail prompts
+- Save projects
+
+Button:
+Join Beta
+
+2. Creator
+Price: $49/month
+Best for: Active artists
+Includes:
+- 100 credits monthly
+- Everything in Starter
+- Runway video clip generation
+- Artist Profiles
+- Music Mixer beta
+- Video Editor beta
+- Download TXT/PDF
+
+Button:
+Join Beta
+
+3. Pro Artist
+Price: $99/month
+Best for: serious music creators
+Includes:
+- 250 credits monthly
+- Everything in Creator
+- More video clip generations
+- Advanced promo packs
+- Music Studio tools
+- Priority beta access
+
+Button:
+Join Beta
+
+4. Studio
+Price: $199/month
+Best for: teams and labels
+Includes:
+- 600 credits monthly
+- Everything in Pro Artist
+- More saved projects
+- Higher usage limits
+- Team features coming soon
+
+Button:
+Join Beta
+
+Add one-time credit packs section:
+
+10 Credits — $9
+50 Credits — $39
+150 Credits — $99
+500 Credits — $249
+
+Show all credit pack buttons as:
+Coming Soon
+
+Add FAQ section:
+- What are credits?
+- Are payments live yet?
+- Can I use Bow Down Visuals during beta?
+- Do Runway clips cost credits?
+- Can I cancel later?
+- Does this make real songs with vocals yet?
+
+Simple answers:
+Payments are coming soon.
+Beta users can test selected tools.
+Credits are used for AI generations.
+Runway/video generation may use more credits.
+Real AI song vocals and beats are planned but not fully launched unless connected.
+
+Keep the design premium dark cinematic and beginner-friendly.
