@@ -1,233 +1,363 @@
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Mic2, Music, Video, Film, Image as ImageIcon,
-  Archive, FolderOpen, Mail, ArrowRight,
-  ChevronRight, Star
+  Archive, FolderOpen, Headphones, ArrowRight,
+  Zap, Users, Clock, Sparkles, ChevronRight,
+  TrendingUp, Star, Lock
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { useAuth } from "@/contexts/AuthContext";
 
-/* ─────────────────────────── DATA ─────────────────────────── */
+/* ─────────────────────── TYPES ─────────────────────── */
 
-const CARDS = [
-  {
-    title: "Make Song + Video",
-    description:
-      "Create lyrics, AI music prompts, video treatments, scene prompts, captions, and promo ideas in one workflow.",
-    icon: Mic2,
-    href: "/song-and-video",
-    featured: true,
-    badge: "Most Popular",
-    cta: "Start Workflow",
-  },
-  {
-    title: "Make a Song",
-    description:
-      "Generate song ideas, hooks, verses, lyrics, beat direction, vocal style, and AI music prompts.",
-    icon: Music,
-    href: "/make-song",
-    featured: false,
-    cta: "Make a Song",
-  },
-  {
-    title: "Make a Music Video",
-    description:
-      "Turn lyrics into a cinematic video treatment, scene list, AI video prompts, thumbnails, and captions.",
-    icon: Video,
-    href: "/make-video",
-    featured: false,
-    cta: "Make a Video",
-  },
-  {
-    title: "Promo Clip Maker",
-    description:
-      "Create TikTok, Reel, and YouTube Short ideas for promoting your next release.",
-    icon: Film,
-    href: "/promo-clip",
-    featured: false,
-    cta: "Make Promo",
-  },
-  {
-    title: "Thumbnail Maker",
-    description:
-      "Generate cover art, thumbnail, and visual branding prompts.",
-    icon: ImageIcon,
-    href: "/thumbnail",
-    featured: false,
-    cta: "Make Thumbnail",
-  },
-  {
-    title: "Artist Vault",
-    description:
-      "Save your artist profile once. Voice style, beat style, visual brand — every tool pulls from your vault.",
-    icon: Archive,
-    href: "/artist-vault",
-    featured: false,
-    cta: "Open Vault",
-  },
-  {
-    title: "My Projects",
-    description:
-      "View all your saved songs, videos, promo packs, and thumbnail concepts in one place.",
-    icon: FolderOpen,
-    href: "/my-projects",
-    featured: false,
-    cta: "View Projects",
-  },
-  {
-    title: "Join Waitlist",
-    description:
-      "Get early access, 100 bonus credits, and a locked-in founding rate before the public launch.",
-    icon: Mail,
-    href: "/waitlist",
-    featured: false,
-    cta: "Join Waitlist",
-    isWaitlist: true,
-  },
-];
+interface Project {
+  id: string;
+  title: string;
+  project_type: string;
+  artist_name: string | null;
+  song_title: string | null;
+  created_at: string;
+}
 
+/* ─────────────────────── HELPERS ─────────────────────── */
 
-/* ─────────────────────────── CARD ─────────────────────────── */
+const TYPE_COLORS: Record<string, string> = {
+  "Make Song + Video": "text-yellow-400",
+  "Make a Music Video": "text-blue-400",
+  "Make a Song": "text-green-400",
+  "Promo Clip Maker": "text-pink-400",
+  "Thumbnail Maker": "text-orange-400",
+};
 
-interface CardData {
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  "Make Song + Video": <Mic2 className="h-3.5 w-3.5" />,
+  "Make a Music Video": <Video className="h-3.5 w-3.5" />,
+  "Make a Song": <Music className="h-3.5 w-3.5" />,
+  "Promo Clip Maker": <Film className="h-3.5 w-3.5" />,
+  "Thumbnail Maker": <ImageIcon className="h-3.5 w-3.5" />,
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+}
+
+function firstName(name: string | null | undefined, email: string | null | undefined) {
+  if (name) return name.split(" ")[0];
+  if (email) return email.split("@")[0];
+  return "Creator";
+}
+
+/* ─────────────────────── HERO CARD ─────────────────────── */
+
+interface HeroCardProps {
+  icon: React.ElementType;
   title: string;
   description: string;
-  icon: React.ElementType;
-  href: string;
-  featured: boolean;
   cta: string;
-  badge?: string;
-  comingSoon?: boolean;
-  isWaitlist?: boolean;
+  href: string;
+  accent?: boolean;
 }
 
-function DashboardCard({ card }: { card: CardData }) {
-  const inner = (
-    <div
-      className={`relative group flex flex-col h-full p-7 rounded-2xl border transition-all duration-300 cursor-pointer
-        ${card.featured
-          ? "bg-primary/10 border-primary/40 shadow-[0_0_35px_rgba(147,51,234,0.15)] hover:shadow-[0_0_50px_rgba(147,51,234,0.25)]"
-          : card.comingSoon
-          ? "bg-white/[0.015] border-white/[0.05] opacity-60 cursor-default"
-          : card.isWaitlist
-          ? "bg-white/[0.02] border-white/[0.06] hover:border-primary/25 hover:bg-primary/5"
-          : "bg-white/[0.02] border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5"
-        }`}
-    >
-      {/* Featured badge */}
-      {card.badge && (
-        <div className="absolute -top-3 left-6">
-          <Badge className="bg-primary text-white border-0 text-xs font-bold tracking-wide gap-1">
-            <Star className="h-2.5 w-2.5" /> {card.badge}
-          </Badge>
-        </div>
-      )}
-
-      {/* Coming soon badge */}
-      {card.comingSoon && (
-        <div className="absolute top-4 right-4">
-          <Badge variant="outline" className="border-white/10 text-white/30 text-xs">
-            Soon
-          </Badge>
-        </div>
-      )}
-
-      {/* Icon */}
-      <div
-        className={`h-13 w-13 rounded-xl flex items-center justify-center mb-6 shrink-0 transition-colors
-          ${card.featured
-            ? "bg-primary text-white"
-            : "bg-white/5 group-hover:bg-primary/15"
-          }`}
-        style={{ height: "52px", width: "52px" }}
-      >
-        <card.icon className={`h-6 w-6 ${card.featured ? "text-white" : "text-primary"}`} />
-      </div>
-
-      {/* Text */}
-      <div className="flex-1 space-y-2">
-        <h3 className="text-xl font-bold text-white leading-tight">{card.title}</h3>
-        <p className="text-sm text-white/50 leading-relaxed">{card.description}</p>
-      </div>
-
-      {/* CTA */}
-      <div className="mt-6 flex items-center gap-2">
-        {card.comingSoon ? (
-          <span className="text-sm text-white/25 font-semibold">{card.cta}</span>
-        ) : (
-          <span
-            className={`text-sm font-semibold flex items-center gap-1.5 transition-colors
-              ${card.featured
-                ? "text-white group-hover:text-yellow-200"
-                : "text-primary group-hover:text-yellow-300"
-              }`}
-          >
-            {card.cta}
-            <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </span>
+function HeroCard({ icon: Icon, title, description, cta, href, accent }: HeroCardProps) {
+  return (
+    <Link href={href}>
+      <div className={`
+        group relative flex flex-col h-full p-7 rounded-2xl border transition-all duration-300 cursor-pointer
+        ${accent
+          ? "bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border-primary/50 shadow-[0_0_40px_rgba(147,51,234,0.18)] hover:shadow-[0_0_60px_rgba(147,51,234,0.28)] hover:-translate-y-0.5"
+          : "bg-white/[0.03] border-white/[0.07] hover:border-primary/35 hover:bg-primary/[0.05] hover:-translate-y-0.5"
+        }
+      `}>
+        {accent && (
+          <div className="absolute -top-3 left-6">
+            <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full shadow-lg">
+              <Star className="h-2.5 w-2.5" /> Most Popular
+            </span>
+          </div>
         )}
+        <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 shrink-0 transition-colors ${
+          accent ? "bg-primary text-white" : "bg-white/[0.06] group-hover:bg-primary/20"
+        }`}>
+          <Icon className={`h-5 w-5 ${accent ? "text-white" : "text-primary"}`} />
+        </div>
+        <h3 className="text-xl font-black text-white tracking-tight mb-2">{title}</h3>
+        <p className="text-sm text-white/45 leading-relaxed flex-1">{description}</p>
+        <div className={`mt-6 inline-flex items-center gap-2 text-sm font-bold transition-colors ${
+          accent ? "text-yellow-300 group-hover:text-yellow-200" : "text-primary group-hover:text-yellow-300"
+        }`}>
+          {cta}
+          <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        </div>
       </div>
+    </Link>
+  );
+}
+
+/* ─────────────────────── TOOL CHIP ─────────────────────── */
+
+function ToolChip({ icon: Icon, label, href }: { icon: React.ElementType; label: string; href: string }) {
+  return (
+    <Link href={href}>
+      <div className="group flex items-center gap-3 px-4 py-3.5 rounded-xl border border-white/[0.07] bg-white/[0.02] hover:border-primary/30 hover:bg-primary/[0.05] transition-all cursor-pointer">
+        <div className="h-8 w-8 rounded-lg bg-white/[0.05] group-hover:bg-primary/15 flex items-center justify-center shrink-0 transition-colors">
+          <Icon className="h-4 w-4 text-white/50 group-hover:text-primary transition-colors" />
+        </div>
+        <span className="text-sm font-semibold text-white/60 group-hover:text-white transition-colors">{label}</span>
+        <ChevronRight className="h-3.5 w-3.5 text-white/20 group-hover:text-primary group-hover:translate-x-0.5 ml-auto transition-all" />
+      </div>
+    </Link>
+  );
+}
+
+/* ─────────────────────── STAT TILE ─────────────────────── */
+
+function StatTile({ value, label, icon: Icon, color }: {
+  value: string | number; label: string; icon: React.ElementType; color: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 px-5 py-4 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+      <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${color}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <p className="text-2xl font-black text-white mt-0.5">{value}</p>
+      <p className="text-xs text-white/35 font-medium">{label}</p>
     </div>
   );
-
-  if (card.comingSoon) return <div>{inner}</div>;
-  return <Link href={card.href}>{inner}</Link>;
 }
 
-/* ─────────────────────────── PAGE ─────────────────────────── */
+/* ─────────────────────── RECENT PROJECT ROW ─────────────────────── */
+
+function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: string) => void }) {
+  const label = project.title ||
+    [project.artist_name, project.song_title].filter(Boolean).join(" — ") ||
+    project.project_type;
+  const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
+  const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-3.5 w-3.5" />;
+
+  return (
+    <div className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.10] hover:bg-white/[0.04] transition-all group">
+      <div className={`h-8 w-8 rounded-lg bg-white/[0.05] flex items-center justify-center shrink-0 ${iconColor}`}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-white truncate">{label}</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-white/30 font-medium">{project.project_type}</span>
+          {project.artist_name && (
+            <>
+              <span className="text-white/15">·</span>
+              <span className="text-[10px] text-white/30 truncate">{project.artist_name}</span>
+            </>
+          )}
+        </div>
+      </div>
+      <span className="text-[11px] text-white/20 shrink-0 hidden sm:block">{formatDate(project.created_at)}</span>
+      <button
+        onClick={() => onOpen(project.id)}
+        className="shrink-0 text-xs font-bold text-primary/70 hover:text-primary border border-primary/20 hover:border-primary/50 px-3 py-1.5 rounded-lg transition-all"
+      >
+        Open
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────── COMING SOON ─────────────────────── */
+
+const COMING_SOON = [
+  { label: "Real AI Vocals + Beats", icon: Mic2 },
+  { label: "Advanced Auto Editing", icon: TrendingUp },
+  { label: "Full Export Studio", icon: Sparkles },
+  { label: "Team Accounts", icon: Users },
+];
+
+/* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
+  const { profile, user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [vaultCount, setVaultCount] = useState<number | null>(null);
+  const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+
+  const name = firstName(profile?.display_name, user?.email);
+  const credits = profile?.credits ?? 0;
+
+  useEffect(() => {
+    fetch("/api/projects")
+      .then((r) => r.ok ? r.json() : { projects: [] })
+      .then((d) => setProjects(d.projects ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/artist-vaults")
+      .then((r) => r.ok ? r.json() : { vaults: [] })
+      .then((d) => setVaultCount((d.vaults ?? []).length))
+      .catch(() => setVaultCount(0));
+  }, []);
+
+  const recentProjects = projects.slice(0, 3);
+  const projectCount = projects.length;
+
+  function handleOpen(id: string) {
+    setOpenProjectId(id);
+    window.location.href = `/my-projects`;
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <TopBar />
 
-      {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/8 rounded-full blur-[100px]" />
+      {/* Ambient glows */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/7 rounded-full blur-[120px]" />
+        <div className="absolute top-1/2 -right-40 w-[400px] h-[400px] bg-blue-600/4 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16">
+      <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14 space-y-12">
 
-        {/* Page header */}
-        <div className="mb-12">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-1 w-8 bg-primary rounded-full" />
-            <span className="text-xs font-bold tracking-widest text-primary/70 uppercase">Creator Studio</span>
+        {/* ── 1. WELCOME HEADER ── */}
+        <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-0 sm:justify-between">
+          <div>
+            <p className="text-xs font-bold tracking-[0.2em] text-primary/60 uppercase mb-2">Creator Studio</p>
+            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight mb-1">
+              Welcome back, {name}
+            </h1>
+            <p className="text-white/35 text-base font-medium">
+              Create the Song. Create the Video. Promote the Release.
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Creator Dashboard
-          </h1>
-          <p className="text-white/50 text-lg max-w-xl">
-            Start your next song, visual, promo pack, or release idea.
-          </p>
+          <div className="flex items-center gap-2 self-start sm:self-auto px-4 py-2.5 rounded-xl border border-primary/25 bg-primary/[0.07]">
+            <Zap className="h-4 w-4 text-primary" />
+            <span className="text-sm font-black text-white">{credits}</span>
+            <span className="text-xs text-white/40 font-medium">credits</span>
+          </div>
         </div>
 
-        {/* Quick-action row */}
-        <div className="flex flex-wrap items-center gap-3 mb-10">
-          <Link href="/song-and-video">
-            <Button className="gold-glow font-semibold gap-2 rounded-full">
-              <Mic2 className="h-4 w-4" /> Make Song + Video
-            </Button>
-          </Link>
-          <Link href="/make-song">
-            <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-full gap-2">
-              <Music className="h-4 w-4" /> Make a Song
-            </Button>
-          </Link>
-          <Link href="/make-video">
-            <Button variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-full gap-2">
-              <Video className="h-4 w-4" /> Make a Video
-            </Button>
-          </Link>
+        {/* ── 2. HERO ACTION CARDS ── */}
+        <section>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+            <HeroCard
+              icon={Mic2}
+              title="Make Song + Video"
+              description="Create lyrics, AI music prompts, video plans, scene clips, captions, and promo content in one workflow."
+              cta="Start Full Workflow"
+              href="/song-and-video"
+              accent
+            />
+            <HeroCard
+              icon={Video}
+              title="Make a Music Video"
+              description="Upload a song or paste lyrics, generate a cinematic video plan, create Runway clips, and edit your visual."
+              cta="Create Video"
+              href="/make-video"
+            />
+            <HeroCard
+              icon={Film}
+              title="Promo Clips"
+              description="Turn your song or saved project into TikTok, Reels, YouTube Shorts, captions, and rollout ideas."
+              cta="Create Promo Pack"
+              href="/promo-clip"
+            />
+          </div>
+        </section>
+
+        {/* ── 3. SECONDARY TOOLS ── */}
+        <section>
+          <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">More Tools</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+            <ToolChip icon={Music}      label="Make a Song"       href="/make-song" />
+            <ToolChip icon={ImageIcon}  label="Thumbnail Maker"   href="/thumbnail" />
+            <ToolChip icon={Archive}    label="Artist Vault"      href="/artist-vault" />
+            <ToolChip icon={Headphones} label="Music Studio"      href="/video-editor" />
+            <ToolChip icon={FolderOpen} label="My Saved Projects" href="/my-projects" />
+          </div>
+        </section>
+
+        {/* ── 4 + 5. RECENT PROJECTS + STATS (side by side on desktop) ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Recent Projects */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase">Recent Projects</h2>
+              <Link href="/my-projects">
+                <span className="text-xs font-bold text-primary/60 hover:text-primary transition-colors flex items-center gap-1">
+                  View all <ChevronRight className="h-3 w-3" />
+                </span>
+              </Link>
+            </div>
+            {recentProjects.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-white/[0.05] bg-white/[0.01] text-center gap-3">
+                <FolderOpen className="h-8 w-8 text-white/10" />
+                <p className="text-sm text-white/25">No saved projects yet.</p>
+                <Link href="/song-and-video">
+                  <Button size="sm" className="gold-glow font-semibold gap-1.5 mt-1">
+                    <Mic2 className="h-3.5 w-3.5" /> Start your first project
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {recentProjects.map((p) => (
+                  <RecentProjectRow key={p.id} project={p} onOpen={handleOpen} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Stats */}
+          <div>
+            <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">Quick Status</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5">
+              <StatTile
+                value={credits}
+                label="Credits remaining"
+                icon={Zap}
+                color="bg-primary/15 text-primary"
+              />
+              <StatTile
+                value={projectCount}
+                label="Saved projects"
+                icon={FolderOpen}
+                color="bg-blue-500/15 text-blue-400"
+              />
+              <StatTile
+                value={vaultCount === null ? "—" : vaultCount}
+                label="Artist profiles"
+                icon={Archive}
+                color="bg-green-500/15 text-green-400"
+              />
+              <StatTile
+                value="∞"
+                label="Runway clips available"
+                icon={Film}
+                color="bg-pink-500/15 text-pink-400"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Cards grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {CARDS.map((card) => (
-            <DashboardCard key={card.title} card={card} />
-          ))}
-        </div>
+        {/* ── 6. COMING SOON ── */}
+        <section>
+          <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">Coming Soon</h2>
+          <div className="flex flex-wrap gap-2.5">
+            {COMING_SOON.map(({ label, icon: Icon }) => (
+              <div
+                key={label}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-white/[0.07] bg-white/[0.025] text-white/30 text-sm font-semibold"
+              >
+                <Lock className="h-3 w-3 text-white/20" />
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </div>
+            ))}
+          </div>
+        </section>
 
       </div>
     </div>
