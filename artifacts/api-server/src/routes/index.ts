@@ -20,6 +20,7 @@ import mixPlanRouter from "./generate/mix-plan";
 import musicExportRouter from "./music-export";
 import uploadWatermarkRouter from "./upload-watermark";
 import devRouter from "./dev";
+import stripePaymentsRouter from "./stripe-payments";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(mixPlanRouter);
 router.use(musicExportRouter);
 router.use(uploadWatermarkRouter);
 router.use(devRouter);
+router.use(stripePaymentsRouter);
 
 export default router;

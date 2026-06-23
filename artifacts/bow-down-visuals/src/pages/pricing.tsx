@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Check, Zap, HelpCircle, ChevronDown, ArrowRight,
-  Sparkles, AlertCircle, CreditCard, Lock, Menu, X,
+  Sparkles, AlertCircle, CreditCard, Lock, Menu, X, Loader2,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── nav ─── */
 
@@ -133,10 +134,10 @@ const PLANS = [
 ];
 
 const CREDIT_PACKS = [
-  { credits: "10 Credits",  price: "$9" },
-  { credits: "50 Credits",  price: "$39" },
-  { credits: "150 Credits", price: "$99" },
-  { credits: "500 Credits", price: "$249" },
+  { credits: "10 Credits",  price: "$9",   packKey: "10"  },
+  { credits: "50 Credits",  price: "$39",  packKey: "50"  },
+  { credits: "150 Credits", price: "$99",  packKey: "150" },
+  { credits: "500 Credits", price: "$249", packKey: "500" },
 ];
 
 const FAQ = [
@@ -165,6 +166,72 @@ const FAQ = [
     a: "AI song vocals and full beat generation are planned but not fully launched yet. Right now the platform creates professional lyrics, hooks, verses, AI music prompts, video treatments, and promo content — everything you need to direct and produce your release.",
   },
 ];
+
+/* ─── credit pack card ─── */
+
+function CreditPackCard({ pack }: { pack: { credits: string; price: string; packKey: string } }) {
+  const { user, getAccessToken } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function handleBuy() {
+    if (!user) {
+      window.location.href = "/login";
+      return;
+    }
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ pack: pack.packKey }),
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setErrorMsg(data.error ?? "Checkout failed. Please try again.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setErrorMsg("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex flex-col items-center text-center gap-4">
+      <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center">
+        <CreditCard className="h-5 w-5 text-primary" />
+      </div>
+      <div>
+        <p className="text-lg font-black text-white leading-tight">{pack.credits}</p>
+        <p className="text-2xl font-black text-primary mt-1">{pack.price}</p>
+      </div>
+      {errorMsg && (
+        <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
+      )}
+      <Button
+        size="sm"
+        onClick={handleBuy}
+        disabled={loading}
+        className="w-full font-bold gap-2 bg-white/[0.06] border border-white/[0.12] text-white hover:bg-white/[0.12] hover:border-primary/40 hover:text-primary transition-all"
+        variant="outline"
+      >
+        {loading ? (
+          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
+        ) : (
+          <><CreditCard className="h-3.5 w-3.5" /> Buy Credits</>
+        )}
+      </Button>
+    </div>
+  );
+}
 
 /* ─── faq accordion ─── */
 
@@ -300,33 +367,31 @@ export default function Pricing() {
           </p>
         </section>
 
-        {/* ── CREDIT PACKS ── */}
+        {/* ── TEST CREDIT PACKS ── */}
         <section className="max-w-4xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">One-Time Credit Packs</h2>
+          <div className="text-center mb-6">
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Test Credit Packs</h2>
             <p className="text-white/40 text-lg">Need extra credits without a subscription? Top up anytime.</p>
           </div>
+
+          {/* Test mode notice */}
+          <div className="flex items-center justify-center gap-2 mb-8 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
+            <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+            <span className="text-sm text-yellow-200/70">
+              Payments are currently in <strong className="text-yellow-300">test mode</strong>. No real money is charged.
+            </span>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {CREDIT_PACKS.map((pack) => (
-              <div key={pack.credits} className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex flex-col items-center text-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-lg font-black text-white leading-tight">{pack.credits}</p>
-                  <p className="text-2xl font-black text-primary mt-1">{pack.price}</p>
-                </div>
-                <Button
-                  disabled
-                  size="sm"
-                  className="w-full font-bold opacity-50 cursor-not-allowed border border-white/10 bg-white/[0.03] text-white/40 hover:bg-white/[0.03]"
-                  variant="outline"
-                >
-                  Coming Soon
-                </Button>
-              </div>
+              <CreditPackCard key={pack.packKey} pack={pack} />
             ))}
           </div>
+
+          <p className="text-center text-xs text-white/25 font-medium mt-5 flex items-center justify-center gap-1.5">
+            <Lock className="h-3 w-3" />
+            You must be signed in to purchase credits.
+          </p>
         </section>
 
         {/* ── FAQ ── */}

@@ -179,15 +179,59 @@ const COMING_SOON = [
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
-  const { profile, user, getAccessToken } = useAuth();
+  const { profile, user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const [, setLocation] = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [vaultCount, setVaultCount] = useState<number | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
+  const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
 
   const name = firstName(profile?.display_name, user?.email);
   const credits = profile?.credits ?? 0;
+
+  // Handle Stripe redirect back to dashboard
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const sessionId = params.get("session_id");
+
+    if (payment === "cancelled") {
+      setPaymentToast({ type: "cancelled", message: "Payment cancelled. No charges were made." });
+      window.history.replaceState({}, "", "/dashboard");
+      return;
+    }
+
+    if (payment === "success" && sessionId && user) {
+      window.history.replaceState({}, "", "/dashboard");
+      (async () => {
+        const token = await getAccessToken();
+        const res = await fetch("/api/checkout/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ sessionId }),
+        });
+        const data = await res.json() as { success?: boolean; added?: number; credits?: number; pack?: string; error?: string };
+        if (res.ok && data.success) {
+          await refreshProfile();
+          setPaymentToast({
+            type: "success",
+            message: `${data.added} credits added${data.pack ? ` (${data.pack})` : ""}! New balance: ${data.credits} credits.`,
+          });
+        } else {
+          setPaymentToast({
+            type: "error",
+            message: data.error ?? "Could not verify payment. Contact support if credits are missing.",
+          });
+        }
+      })().catch(() => {
+        setPaymentToast({ type: "error", message: "Network error verifying payment. Contact support if credits are missing." });
+      });
+    }
+  }, [user, getAccessToken, refreshProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -240,6 +284,26 @@ export default function Dashboard() {
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14 space-y-12">
+
+        {/* ── PAYMENT TOAST ── */}
+        {paymentToast && (
+          <div className={`flex items-start gap-3 px-5 py-4 rounded-2xl border text-sm font-medium animate-fade-in ${
+            paymentToast.type === "success"
+              ? "border-green-500/30 bg-green-500/[0.08] text-green-300"
+              : paymentToast.type === "cancelled"
+              ? "border-yellow-500/25 bg-yellow-500/[0.06] text-yellow-300/80"
+              : "border-red-500/25 bg-red-500/[0.06] text-red-300"
+          }`}>
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span className="flex-1">{paymentToast.message}</span>
+            <button
+              onClick={() => setPaymentToast(null)}
+              className="text-white/30 hover:text-white/60 transition-colors shrink-0 text-lg leading-none"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* ── 1. WELCOME HEADER ── */}
         <div className="flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-0 sm:justify-between">
