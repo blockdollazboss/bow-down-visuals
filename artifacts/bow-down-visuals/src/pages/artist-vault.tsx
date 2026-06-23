@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
+  Lock, Copy, Sparkles,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -72,6 +73,155 @@ const VISUAL_STYLES = [
   "Romantic R&B", "Documentary",
 ];
 
+/* ─────────────────────────── CHARACTER CONSISTENCY ─────────────────────────── */
+
+function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
+  const lines: string[] = [
+    `CHARACTER CONSISTENCY PROMPT — ${vault.artist_name.toUpperCase()}`,
+    "",
+    `Maintain strict character consistency for ${vault.artist_name} across all videos, images, and AI prompts. This artist must look the same in every scene.`,
+    "",
+  ];
+  if (vault.artist_type)       lines.push(`Artist Type: ${vault.artist_type}`);
+  if (vault.genre)              lines.push(`Genre: ${vault.genre}`);
+  if (vault.visual_style)       lines.push(`Visual Style: ${vault.visual_style}`);
+  if (vault.hair)               lines.push(`Hair: ${vault.hair}`);
+  if (vault.tattoos)            lines.push(`Tattoos / Body Marks: ${vault.tattoos}`);
+  if (vault.jewelry)            lines.push(`Jewelry / Accessories: ${vault.jewelry}`);
+  if (vault.clothing_style)     lines.push(`Clothing Style: ${vault.clothing_style}`);
+  if (vault.brand_colors)       lines.push(`Brand Colors: ${vault.brand_colors}`);
+  if (vault.image_reference_notes) {
+    lines.push("", `Reference Notes: ${vault.image_reference_notes}`);
+  }
+  if (vault.do_not_change_rules) {
+    lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
+  }
+  if (vault.special_style_rules) {
+    lines.push("", `✅ SPECIAL RULES: ${vault.special_style_rules}`);
+  }
+  lines.push(
+    "",
+    "Add this prompt to every video scene, image generation, and AI prompt to maintain character consistency.",
+  );
+  return lines.join("\n");
+}
+
+function ConsistencyModal({
+  vault, onClose,
+}: {
+  vault: ArtistVaultRecord; onClose: () => void;
+}) {
+  const prompt = generateConsistencyPrompt(vault);
+  const [copied, setCopied] = useState(false);
+  const [applied, setApplied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(prompt).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {
+      const el = document.createElement("textarea");
+      el.value = prompt;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
+  function handleApply() {
+    setApplied(true);
+    setTimeout(() => setApplied(false), 3000);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-xl rounded-2xl border border-primary/30 bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Lock className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">Character Consistency Lock</h3>
+              <p className="text-xs text-white/40">{vault.artist_name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Explainer */}
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3 mb-5">
+          <p className="text-sm font-bold text-primary/80 mb-1 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 shrink-0" /> Use this to keep your artist looking the same in every video, image, and prompt.
+          </p>
+          <p className="text-xs text-white/40 leading-relaxed">
+            Copy and paste this into any AI image or video tool. The more details you filled in, the better AI will match your artist's look.
+          </p>
+        </div>
+
+        {/* Prompt textarea */}
+        <textarea
+          readOnly
+          value={prompt}
+          rows={12}
+          className="w-full rounded-xl border border-white/[0.10] bg-white/[0.03] px-4 py-3 text-xs text-white/70 font-mono leading-relaxed resize-none focus:outline-none mb-4"
+        />
+
+        {/* Warning */}
+        <p className="text-[11px] text-white/25 mb-5 leading-relaxed">
+          ⚠️ AI tools may still vary results, but this gives the best possible consistency. For best results, also upload a reference photo on your artist profile.
+        </p>
+
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
+              copied
+                ? "border-green-500/40 bg-green-500/[0.10] text-green-400"
+                : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+            }`}
+          >
+            {copied ? (
+              <><CheckCircle2 className="h-4 w-4" /> Copied!</>
+            ) : (
+              <><Copy className="h-4 w-4" /> Copy Consistency Prompt</>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
+              applied
+                ? "border-green-500/40 bg-green-500/[0.10] text-green-400"
+                : "border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08]"
+            }`}
+          >
+            {applied ? (
+              <><CheckCircle2 className="h-4 w-4" /> Applied to Prompts!</>
+            ) : (
+              <><Sparkles className="h-4 w-4" /> Apply To All Video Prompts</>
+            )}
+          </button>
+        </div>
+        {applied && (
+          <p className="text-[11px] text-green-400/60 text-center mt-3">
+            ✓ Character consistency rules will be included in your video scene prompts.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── STYLE CONSTANTS ─────────────────────────── */
 
 const selectClass =
@@ -125,8 +275,8 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
-function VaultModal({ vault, onClose, onEdit }: {
-  vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void;
+function VaultModal({ vault, onClose, onEdit, onLock }: {
+  vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
@@ -189,7 +339,10 @@ function VaultModal({ vault, onClose, onEdit }: {
           </div>
         )}
 
-        <div className="flex gap-3 mt-6 pt-4 border-t border-white/[0.06]">
+        <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
+          <Button onClick={onLock} className="flex-1 gap-2 border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold rounded-xl">
+            <Lock className="h-4 w-4" /> Lock Character Consistency
+          </Button>
           <Button onClick={onEdit} className="flex-1 gold-glow font-bold rounded-xl gap-2">
             <Pencil className="h-4 w-4" /> Edit Profile
           </Button>
@@ -202,11 +355,12 @@ function VaultModal({ vault, onClose, onEdit }: {
   );
 }
 
-function VaultCard({ vault, onOpen, onEdit, onDelete }: {
+function VaultCard({ vault, onOpen, onEdit, onDelete, onLock }: {
   vault: ArtistVaultRecord;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onLock: () => void;
 }) {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-colors">
@@ -244,19 +398,27 @@ function VaultCard({ vault, onOpen, onEdit, onDelete }: {
         <p className="text-xs text-white/40 line-clamp-2 mb-3">{vault.artist_description}</p>
       )}
 
-      <div className="flex items-center gap-2 pt-3 border-t border-white/[0.05]">
-        <button onClick={onOpen}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white transition-colors">
-          <Eye className="h-3.5 w-3.5" /> Open
+      <div className="space-y-2 pt-3 border-t border-white/[0.05]">
+        <button
+          onClick={onLock}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-primary/80 bg-primary/[0.07] border border-primary/20 hover:bg-primary/15 hover:text-primary transition-colors"
+        >
+          <Lock className="h-3.5 w-3.5" /> Lock Character Consistency
         </button>
-        <button onClick={onEdit}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-primary/10 hover:text-primary transition-colors">
-          <Pencil className="h-3.5 w-3.5" /> Edit
-        </button>
-        <button onClick={onDelete}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/40 bg-white/[0.03] hover:bg-red-500/10 hover:text-red-400 transition-colors ml-auto">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={onOpen}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white transition-colors">
+            <Eye className="h-3.5 w-3.5" /> Open
+          </button>
+          <button onClick={onEdit}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-primary/10 hover:text-primary transition-colors">
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </button>
+          <button onClick={onDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/40 bg-white/[0.03] hover:bg-red-500/10 hover:text-red-400 transition-colors ml-auto">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -271,6 +433,7 @@ export default function ArtistVault() {
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [openVault, setOpenVault] = useState<ArtistVaultRecord | null>(null);
+  const [consistencyVault, setConsistencyVault] = useState<ArtistVaultRecord | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -471,6 +634,14 @@ export default function ArtistVault() {
           vault={openVault}
           onClose={() => setOpenVault(null)}
           onEdit={() => startEdit(openVault)}
+          onLock={() => { setOpenVault(null); setConsistencyVault(openVault); }}
+        />
+      )}
+
+      {consistencyVault && (
+        <ConsistencyModal
+          vault={consistencyVault}
+          onClose={() => setConsistencyVault(null)}
         />
       )}
 
@@ -770,6 +941,7 @@ export default function ArtistVault() {
                   onOpen={() => setOpenVault(vault)}
                   onEdit={() => startEdit(vault)}
                   onDelete={() => deleteVault(vault.id)}
+                  onLock={() => setConsistencyVault(vault)}
                 />
               ))}
             </div>

@@ -6,6 +6,7 @@ import {
   CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
   RefreshCw,
 } from "lucide-react";
+import { HelpPanel } from "@/components/HelpPanel";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,34 @@ import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 
 type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export";
+
+/* ── CSS filter maps for effects live preview ── */
+const EFFECT_CSS_FILTERS: Record<string, string> = {
+  "Film Grain":        "contrast(108%) brightness(97%)",
+  "Glow":              "brightness(118%) saturate(140%)",
+  "Blur":              "blur(2px)",
+  "Sharpen":           "contrast(125%) brightness(103%)",
+  "Vignette":          "brightness(82%)",
+  "Black & White":     "grayscale(100%)",
+  "Neon Glow":         "hue-rotate(270deg) saturate(180%) brightness(115%)",
+  "VHS":               "saturate(75%) contrast(112%) hue-rotate(8deg) brightness(92%)",
+  "Cinematic Bars":    "brightness(83%) contrast(112%)",
+  "Camera Shake":      "contrast(108%) saturate(105%)",
+  "Slow Zoom":         "saturate(115%) brightness(103%)",
+  "Speed Ramp":        "contrast(120%) brightness(98%)",
+  "Warm Grade":        "sepia(40%) saturate(135%) brightness(108%)",
+  "Cool Grade":        "hue-rotate(195deg) saturate(115%) brightness(94%)",
+  "Teal & Orange":     "hue-rotate(20deg) saturate(165%) contrast(110%)",
+  "Moody Desaturated": "saturate(40%) contrast(120%) brightness(88%)",
+  "Vibrant Pop":       "saturate(210%) brightness(108%) contrast(106%)",
+};
+
+function buildEffectFilter(effects: string[]): string {
+  return effects
+    .map((fx) => EFFECT_CSS_FILTERS[fx])
+    .filter(Boolean)
+    .join(" ");
+}
 
 interface LoadedProject {
   id: string;
@@ -169,9 +198,29 @@ export default function VideoEditor() {
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
+  /* ── Context-aware tips for the Help Panel ── */
+  const helpTips = [
+    !previewScene && scenes.length > 0
+      ? "You have scenes but no clip is selected. Click Preview on any scene in the Clips tab."
+      : null,
+    !audioUrl && settings.musicStudio.stems.length === 0
+      ? "No audio loaded yet. Go to the Music tab and upload your song."
+      : null,
+    settings.captions.lines.length === 0
+      ? "No captions yet. Go to Captions and click Generate Captions From Lyrics."
+      : null,
+    settings.effects.length > 0
+      ? `${settings.effects.length} effect${settings.effects.length !== 1 ? "s" : ""} selected. Check the Effects tab to see the live CSS preview.`
+      : "No effects selected. Go to Effects and pick a color grade or look.",
+    approvedCount > 0
+      ? `${approvedCount} clip${approvedCount !== 1 ? "s" : ""} approved. Go to Export when you are ready.`
+      : "No clips approved yet. Approve clips in the Clips tab to build your timeline.",
+  ].filter(Boolean) as string[];
+
   return (
     <div className="min-h-screen bg-black text-white">
       <TopBar />
+      <HelpPanel page="editor" tips={helpTips} />
 
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/[0.07] rounded-full blur-[120px]" />
@@ -402,7 +451,7 @@ function LivePreviewPanel({
   const clipCount = scenes.filter(sceneHasClip).length;
 
   /* Shared video player used by clips / captions / effects / music tabs */
-  function VideoPlayer({ overlay }: { overlay?: ReactNode }) {
+  function VideoPlayer({ overlay, filterStyle }: { overlay?: ReactNode; filterStyle?: string }) {
     if (!clipUrl) {
       return (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
@@ -426,6 +475,7 @@ function LivePreviewPanel({
           controls
           playsInline
           className="w-full h-full object-contain"
+          style={filterStyle ? { filter: filterStyle } : undefined}
           data-testid="preview-video-player"
         />
         {overlay}
@@ -585,26 +635,38 @@ function LivePreviewPanel({
         {tab === "effects" && (
           <>
             <VideoPlayer
+              filterStyle={buildEffectFilter(settings.effects)}
               overlay={
                 settings.effects.length > 0 ? (
-                  <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end pointer-events-none max-w-[80%]">
-                    {settings.effects.slice(0, 4).map((fx) => (
-                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold text-white/80">
+                  <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end pointer-events-none max-w-[85%]">
+                    {settings.effects.slice(0, 3).map((fx) => (
+                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/75 border border-violet-400/30 text-[10px] font-bold text-violet-200/80">
                         {fx}
                       </span>
                     ))}
-                    {settings.effects.length > 4 && (
-                      <span className="px-2 py-0.5 rounded-full bg-black/70 border border-white/20 text-[10px] font-bold text-white/50">
-                        +{settings.effects.length - 4} more
+                    {settings.effects.length > 3 && (
+                      <span className="px-2 py-0.5 rounded-full bg-black/75 border border-white/15 text-[10px] font-bold text-white/40">
+                        +{settings.effects.length - 3} more
                       </span>
                     )}
                   </div>
                 ) : null
               }
             />
-            <p className="text-[11px] text-white/30 text-center">
-              Effect preview only. Final rendering applied at export.
-            </p>
+            {settings.effects.length > 0 ? (
+              <div className="rounded-lg border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2 text-center">
+                <p className="text-xs font-bold text-violet-300">
+                  ✓ {settings.effects.length} effect{settings.effects.length !== 1 ? "s" : ""} active — CSS preview applied
+                </p>
+                <p className="text-[10px] text-violet-300/50 mt-0.5">
+                  Preview only. Final render quality applied at export.
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-white/30 text-center">
+                Select effects above to see an instant CSS preview on your clip.
+              </p>
+            )}
           </>
         )}
 
