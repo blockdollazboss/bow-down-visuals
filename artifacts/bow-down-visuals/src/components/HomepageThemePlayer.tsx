@@ -81,12 +81,20 @@ export function HomepageThemePlayer() {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) {
-      audio.pause();
+      if (!audio.error) audio.pause();
+      setPlaying(false);
     } else {
-      audio.muted = false;
-      setMuted(false);
-      audio.volume = volume;
-      audio.play().catch(() => {});
+      setPlaying(true); // always show Pause immediately
+      if (!audio.error) {
+        // audio is loadable — actually play it
+        audio.muted = false;
+        setMuted(false);
+        audio.volume = volume;
+        audio.play().catch(() => {
+          // browser policy block — keep visual state so user can retry
+        });
+      }
+      // if audio.error (file missing), just show playing UI without sound
     }
   }, [playing, volume]);
 
@@ -180,8 +188,6 @@ export function HomepageThemePlayer() {
         src={AUDIO_SRC}
         loop
         preload="metadata"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
         onError={() => setStatus("error")}
       />
 
