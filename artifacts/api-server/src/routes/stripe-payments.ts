@@ -41,9 +41,12 @@ router.get("/stripe-status", async (_req, res) => {
     "500": process.env["STRIPE_PRICE_500_CREDITS"],
   };
 
+  const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
   const status = {
     secretKeyPresent: !!secretKey,
     secretKeyPrefix: secretKey ? secretKey.slice(0, 7) : null,
+    webhookSecretPresent: !!webhookSecret,
+    webhookSecretPrefix: webhookSecret ? webhookSecret.slice(0, 6) : null,
     prices: Object.fromEntries(
       Object.entries(prices).map(([k, v]) => [k, { present: !!v, prefix: v ? v.slice(0, 8) : null }])
     ),
@@ -101,9 +104,9 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
       success_url: `${baseUrl}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/pricing?payment=cancelled`,
       metadata: {
-        userId: req.userId!,
-        credits: String(packInfo.credits),
-        pack: packInfo.label,
+        user_id: req.userId!,
+        credit_pack: packInfo.label,
+        credits_amount: String(packInfo.credits),
       },
     });
 

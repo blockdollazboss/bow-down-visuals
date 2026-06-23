@@ -206,8 +206,16 @@ export default function Dashboard() {
       window.history.replaceState({}, "", "/dashboard");
       setPaymentToast({
         type: "success",
-        message: "Test payment completed. Credit update webhook setup is next.",
+        message: "Payment successful! Credits are being added to your account.",
       });
+      // Refresh profile after a short delay to pick up webhook credit update
+      setTimeout(() => {
+        refreshProfile();
+      }, 2000);
+      // Second refresh at 5s in case webhook takes longer
+      setTimeout(() => {
+        refreshProfile();
+      }, 5000);
     }
   }, [user]);
 
