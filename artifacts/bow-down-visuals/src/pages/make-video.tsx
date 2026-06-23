@@ -79,7 +79,7 @@ const STEPS = [
   { n: 1, label: "Song Setup",       short: "Song",     icon: Music2 },
   { n: 2, label: "Artist / Brand",   short: "Artist",   icon: Palette },
   { n: 3, label: "Video Direction",  short: "Direction",icon: Camera },
-  { n: 4, label: "Generate Plan",    short: "Generate", icon: Sparkles },
+  { n: 4, label: "Create Plan",       short: "Create",   icon: Sparkles },
   { n: 5, label: "Scene Clips",      short: "Scenes",   icon: Clapperboard },
   { n: 6, label: "Next Actions",     short: "Actions",  icon: Download },
 ];
@@ -415,8 +415,8 @@ export default function MakeVideo() {
   function nextLabel(s: number): string {
     if (s === 1) return "Artist & Brand";
     if (s === 2) return "Video Direction";
-    if (s === 3) return "Review & Generate";
-    if (s === 4) return rawResult ? "Scene Clips" : "Generate first";
+    if (s === 3) return "Review & Create Plan";
+    if (s === 4) return rawResult ? "Scene Clips" : "Create plan first";
     if (s === 5) return "Next Actions";
     return "Next";
   }
