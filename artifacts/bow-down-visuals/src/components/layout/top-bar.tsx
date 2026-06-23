@@ -1,28 +1,30 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, Sparkles, History } from "lucide-react";
+import {
+  Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const IS_DEV = import.meta.env.DEV;
 
 const NAV_LINKS = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Make a Song", href: "/make-song" },
-  { label: "Make a Music Video", href: "/make-video" },
+  { label: "Dashboard",        href: "/dashboard" },
   { label: "Make Song + Video", href: "/song-and-video" },
-  { label: "Promo Clips", href: "/promo-clip" },
-  { label: "Thumbnail Maker", href: "/thumbnail" },
-  { label: "Artist Profiles", href: "/artist-vault" },
-  { label: "Beta Access", href: "/beta-access" },
+  { label: "Make Music Video",  href: "/make-video" },
+  { label: "Promo Clips",       href: "/promo-clip" },
+  { label: "Artist Profiles",   href: "/artist-vault" },
+  { label: "Pricing",           href: "/pricing" },
 ];
 
 export function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const [addingCredits, setAddingCredits] = useState(false);
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
 
   async function handleSignOut() {
+    setUserMenuOpen(false);
     await signOut();
     setLocation("/");
   }
@@ -40,21 +42,24 @@ export function TopBar() {
     }
   }
 
+  const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "Account";
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
+
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-16 w-auto" />
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-0.5">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 location === link.href
                   ? "text-white bg-white/[0.07]"
                   : "text-white/45 hover:text-white hover:bg-white/[0.04]"
@@ -66,19 +71,9 @@ export function TopBar() {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-2.5">
-          {user && profile && (
-            <Link
-              href="/credit-history"
-              className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5 hover:bg-primary/20 transition-colors"
-              title="Credit History"
-            >
-              <Zap className="h-3.5 w-3.5 text-primary" />
-              <span className="text-sm font-bold text-white">{profile.credits}</span>
-              <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
-            </Link>
-          )}
+        <div className="flex items-center gap-2">
 
+          {/* Dev credits button */}
           {IS_DEV && user && (
             <button
               onClick={handleAddTestCredits}
@@ -87,51 +82,95 @@ export function TopBar() {
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
             >
               {addingCredits ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              +10 Credits
+              +10
             </button>
           )}
 
-          {/* Start Creating CTA */}
-          <Link
-            href={user ? "/choose-artist" : "/login"}
-            className="hidden md:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-black hover:bg-primary/90 transition-colors shadow-[0_0_12px_rgba(218,165,32,0.40)]"
-            data-testid="btn-start-creating"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            Start Creating
-          </Link>
+          {/* Credits pill — single source of truth */}
+          {user && profile && (
+            <Link
+              href="/credit-history"
+              className="flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-3.5 py-1.5 hover:bg-primary/20 transition-colors"
+              title="View Credit History"
+            >
+              <Zap className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-black text-white">{profile.credits}</span>
+              <span className="text-xs text-primary/70 font-medium hidden sm:inline">credits</span>
+            </Link>
+          )}
 
           {user ? (
             <>
-              <div className="hidden md:flex items-center gap-1 text-xs text-white/30 font-medium truncate max-w-[140px]">
-                <User className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate">{profile?.display_name ?? user.email?.split("@")[0]}</span>
-              </div>
-              <Link href="/credit-history" className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors border border-white/[0.06]" title="Credit History">
-                <History className="h-3.5 w-3.5" />
-                <span>Credits</span>
-              </Link>
-              <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors border border-white/[0.06]" title="My Projects">
-                <FolderOpen className="h-3.5 w-3.5" />
-                <span>Projects</span>
-              </Link>
-              <button
-                onClick={handleSignOut}
-                title="Sign Out"
-                className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/5 transition-colors"
+              {/* My Projects icon */}
+              <Link
+                href="/my-projects"
+                title="My Projects"
+                className="hidden md:flex items-center justify-center h-9 w-9 rounded-lg border border-white/[0.08] bg-white/[0.02] text-white/40 hover:text-white hover:border-white/20 hover:bg-white/[0.05] transition-colors"
               >
-                <LogOut className="h-4 w-4" />
-              </button>
+                <FolderOpen className="h-4 w-4" />
+              </Link>
+
+              {/* User menu */}
+              <div className="relative hidden md:block">
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.02] text-white/50 hover:text-white hover:border-white/20 hover:bg-white/[0.05] transition-colors text-xs font-medium max-w-[140px]"
+                >
+                  <User className="h-3.5 w-3.5 shrink-0 text-white/30" />
+                  <span className="truncate">{displayName}</span>
+                  <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {userMenuOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1.5 w-44 z-50 rounded-xl border border-white/[0.10] bg-zinc-950/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+                      <div className="px-3.5 py-2.5 border-b border-white/[0.06]">
+                        <p className="text-[11px] font-bold text-white/50 truncate">{displayName}</p>
+                        <p className="text-[10px] text-white/25 truncate">{user.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <Link
+                          href="/credit-history"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-white/55 hover:text-white hover:bg-white/[0.05] transition-colors"
+                        >
+                          <Zap className="h-3.5 w-3.5 text-primary/60" />
+                          Credit History
+                        </Link>
+                        <Link
+                          href="/my-projects"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-white/55 hover:text-white hover:bg-white/[0.05] transition-colors"
+                        >
+                          <FolderOpen className="h-3.5 w-3.5 text-white/30" />
+                          My Projects
+                        </Link>
+                        <button
+                          onClick={handleSignOut}
+                          className="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.06] transition-colors w-full"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           ) : (
-            <Link href="/login" className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 transition-colors">
+            <Link
+              href="/login"
+              className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 transition-colors"
+            >
               Sign In
             </Link>
           )}
 
           {/* Mobile hamburger */}
           <button
-            className="flex md:hidden items-center justify-center h-8 w-8 rounded-lg text-white/60 hover:text-white transition-colors"
+            className="flex lg:hidden items-center justify-center h-8 w-8 rounded-lg text-white/60 hover:text-white transition-colors"
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -141,16 +180,7 @@ export function TopBar() {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
-          {/* Start Creating — mobile */}
-          <Link
-            href={user ? "/choose-artist" : "/login"}
-            onClick={() => setMenuOpen(false)}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-primary text-black mb-2"
-          >
-            <Sparkles className="h-4 w-4" /> Start Creating
-          </Link>
-
+        <div className="lg:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -169,21 +199,27 @@ export function TopBar() {
             {user ? (
               <>
                 <Link
+                  href="/my-projects"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-white/55 hover:text-white hover:bg-white/[0.04] transition-colors"
+                >
+                  <FolderOpen className="h-4 w-4 text-white/30" />
+                  My Projects
+                </Link>
+                <Link
                   href="/credit-history"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-primary/80 w-full hover:text-primary hover:bg-primary/5 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-primary/70 hover:text-primary hover:bg-primary/[0.05] transition-colors"
                 >
-                  <History className="h-4 w-4" />
-                  <span>Credit History</span>
+                  <Zap className="h-4 w-4" />
+                  Credit History
                   {profile && (
-                    <span className="ml-auto flex items-center gap-1 text-xs font-bold text-primary">
-                      <Zap className="h-3 w-3" />{profile.credits}
-                    </span>
+                    <span className="ml-auto text-xs font-black text-primary">{profile.credits} credits</span>
                   )}
                 </Link>
                 <button
                   onClick={() => { setMenuOpen(false); handleSignOut(); }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400/70 w-full hover:text-red-400 hover:bg-red-500/5 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400/60 w-full hover:text-red-400 hover:bg-red-500/[0.05] transition-colors"
                 >
                   <LogOut className="h-4 w-4" /> Sign Out
                 </button>
