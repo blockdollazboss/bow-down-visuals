@@ -471,33 +471,43 @@ export default function ArtistVault() {
 
   useEffect(() => { fetchVaults(); }, []);
 
+  const PHOTO_BUCKET = "artist-references";
+  const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
   async function uploadPhoto(file: File) {
     if (!user) return;
-    const MAX_MB = 5;
+    const MAX_MB = 10;
     if (file.size > MAX_MB * 1024 * 1024) {
-      setPhotoError(`Image must be under ${MAX_MB}MB`);
+      setPhotoError(`Image must be under ${MAX_MB}MB.`);
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      setPhotoError("File must be an image (JPG, PNG, WebP)");
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setPhotoError("Allowed types: JPG, JPEG, PNG, WebP.");
       return;
     }
     setUploadingPhoto(true);
     setPhotoError(null);
     try {
       const sb = getSupabase();
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const filePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const artistFolder = editId ?? "new";
+      const filePath = `${user.id}/${artistFolder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: uploadError } = await sb.storage
-        .from("artist-photos")
-        .upload(filePath, file, { upsert: true });
-      if (uploadError) throw uploadError;
+        .from(PHOTO_BUCKET)
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+      if (uploadError) {
+        const msg = uploadError.message ?? "";
+        if (msg.toLowerCase().includes("bucket") && msg.toLowerCase().includes("not found")) {
+          throw new Error(`Artist image bucket missing. Create Supabase bucket ${PHOTO_BUCKET}.`);
+        }
+        throw uploadError;
+      }
       const { data: { publicUrl } } = sb.storage
-        .from("artist-photos")
+        .from(PHOTO_BUCKET)
         .getPublicUrl(filePath);
       setPhotoUrl(publicUrl);
     } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : "Upload failed");
+      setPhotoError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
       setUploadingPhoto(false);
     }
@@ -508,9 +518,9 @@ export default function ArtistVault() {
     try {
       const sb = getSupabase();
       const url = new URL(photoUrl);
-      const pathParts = url.pathname.split("/artist-photos/");
+      const pathParts = url.pathname.split(`/${PHOTO_BUCKET}/`);
       if (pathParts[1]) {
-        await sb.storage.from("artist-photos").remove([pathParts[1]]);
+        await sb.storage.from(PHOTO_BUCKET).remove([pathParts[1]]);
       }
     } catch { /* best-effort delete */ }
     setPhotoUrl(null);
@@ -606,8 +616,8 @@ export default function ArtistVault() {
         try {
           const sb = getSupabase();
           const url = new URL(vault.photo_url);
-          const pathParts = url.pathname.split("/artist-photos/");
-          if (pathParts[1]) await sb.storage.from("artist-photos").remove([pathParts[1]]);
+          const pathParts = url.pathname.split("/artist-references/");
+          if (pathParts[1]) await sb.storage.from("artist-references").remove([pathParts[1]]);
         } catch { /* best-effort */ }
       }
       await fetch(`/api/artist-vaults/${id}`, {
@@ -797,7 +807,7 @@ export default function ArtistVault() {
                 </div>
                 {/* Controls */}
                 <div className="flex-1 space-y-2">
-                  <p className="text-xs text-white/40">Upload a front-facing photo. Used as your visual reference across all AI tools. Max 5MB (JPG, PNG, WebP).</p>
+                  <p className="text-xs text-white/40">Upload a front-facing photo. Used as your visual reference across all AI tools. Max 10MB (JPG, PNG, WebP).</p>
                   <div className="flex flex-wrap gap-2">
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors ${uploadingPhoto ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
                       {uploadingPhoto ? (
