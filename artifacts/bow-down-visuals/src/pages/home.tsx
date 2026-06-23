@@ -18,7 +18,7 @@ const NAV_LINKS = [
   { label: "Tools", href: "#tools" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
-  { label: "Waitlist", href: "/waitlist" },
+  { label: "Beta Access", href: "/beta-access" },
   { label: "Contact", href: "/contact" },
 ];
 
@@ -285,11 +285,13 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         {/* Homepage Theme Player */}
         <HomepageThemePlayer />
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 text-sm font-medium text-primary">
-          <Sparkles className="h-3.5 w-3.5" />
-          AI-Powered Music Creation Studio
-        </div>
+        {/* Beta badge */}
+        <Link href="/beta-access">
+          <div className="inline-flex items-center gap-2 bg-primary/15 border border-primary/40 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer">
+            <Sparkles className="h-3.5 w-3.5" />
+            Beta Access Open
+          </div>
+        </Link>
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
@@ -317,14 +319,15 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:border-white/25 font-semibold"
-            onClick={onWaitlist}
-          >
-            Join Waitlist
-          </Button>
+          <Link href="/beta-access">
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/35 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 font-bold gap-2"
+            >
+              <Sparkles className="h-4 w-4" /> Join Beta
+            </Button>
+          </Link>
         </div>
 
         {/* Social proof */}

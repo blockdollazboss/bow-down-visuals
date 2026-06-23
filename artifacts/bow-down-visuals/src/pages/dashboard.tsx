@@ -5,7 +5,7 @@ import {
   Mic2, Music, Video, Film, Image as ImageIcon,
   Archive, FolderOpen, Headphones, ArrowRight,
   Zap, Users, Clock, Sparkles, ChevronRight,
-  TrendingUp, Star, Lock, User, RefreshCw, AlertCircle,
+  TrendingUp, Star, Lock, User, RefreshCw, AlertCircle, Rocket,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -436,6 +436,31 @@ export default function Dashboard() {
             </div>
           </section>
         )}
+
+        {/* ── BETA ACCESS CARD ── */}
+        <section>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 px-6 py-5 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/[0.07] via-primary/[0.04] to-transparent">
+            <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Rocket className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-sm font-black text-white">Beta Access Open</p>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-[10px] font-bold text-primary tracking-wide">
+                  LIMITED SPOTS
+                </span>
+              </div>
+              <p className="text-sm text-white/40 leading-relaxed">
+                Invite other creators or request early access features. Beta members lock in the founding rate and get 100 bonus credits.
+              </p>
+            </div>
+            <Link href="/beta-access" className="shrink-0">
+              <Button size="sm" className="gold-glow font-bold gap-1.5 whitespace-nowrap">
+                <Sparkles className="h-3.5 w-3.5" /> Join Beta
+              </Button>
+            </Link>
+          </div>
+        </section>
 
         {/* ── 6. COMING SOON ── */}
         <section>

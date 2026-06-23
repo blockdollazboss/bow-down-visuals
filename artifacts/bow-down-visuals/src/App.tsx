@@ -21,6 +21,7 @@ import MyProjects  from "@/pages/my-projects";
 import VideoEditor from "@/pages/video-editor";
 import Pricing     from "@/pages/pricing";
 import Waitlist    from "@/pages/waitlist";
+import BetaAccess  from "@/pages/beta-access";
 import Contact     from "@/pages/contact";
 import Login       from "@/pages/login";
 import Signup      from "@/pages/signup";
@@ -50,6 +51,7 @@ function AppShell() {
         <Route path="/"><Home /></Route>
         <Route path="/pricing"><Pricing /></Route>
         <Route path="/waitlist"><Waitlist /></Route>
+        <Route path="/beta-access"><BetaAccess /></Route>
         <Route path="/contact"><Contact /></Route>
 
         {/* Protected app pages */}

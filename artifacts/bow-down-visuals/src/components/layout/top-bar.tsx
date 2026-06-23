@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { label: "Promo Clips", href: "/promo-clip" },
   { label: "Thumbnail Maker", href: "/thumbnail" },
   { label: "Artist Profiles", href: "/artist-vault" },
+  { label: "Beta Access", href: "/beta-access" },
 ];
 
 export function TopBar() {
