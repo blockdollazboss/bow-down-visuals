@@ -3,7 +3,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { createWriteStream, readFileSync, unlinkSync, existsSync, statSync } from "fs";
 import { pipeline } from "stream/promises";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -169,6 +169,29 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       { infos: clipInfos.map((c) => `${c.width}x${c.height} ${c.fps}fps ${c.duration.toFixed(2)}s [${c.codec}]`) },
       "[export] all clips verified",
     );
+
+    /* ── 1b: Dedup check — catch identical clip files ──
+     *  Fingerprint = SHA-256 of first 65536 bytes + file size.
+     *  If any two clips share a fingerprint the export would silently
+     *  repeat the same clip, so we surface it explicitly.
+     */
+    const clipFingerprints: string[] = [];
+    for (const cp of clipPaths) {
+      const size = statSync(cp).size;
+      const head = readFileSync(cp).subarray(0, 65536);
+      const fp   = createHash("sha256").update(head).digest("hex").slice(0, 16) + `_${size}`;
+      clipFingerprints.push(fp);
+    }
+    const uniqueFingerprints = new Set(clipFingerprints);
+    const identicalClipsDetected = uniqueFingerprints.size < clipPaths.length;
+    if (identicalClipsDetected) {
+      req.log.warn(
+        { fingerprints: clipFingerprints },
+        "[export] identical clips detected — two or more downloaded files have the same content",
+      );
+    } else {
+      req.log.info({ fingerprints: clipFingerprints }, "[export] all clips are distinct");
+    }
 
     /* ── 2: Download audio (skipped in testMode) ───── */
     let audioPath: string | null = null;
@@ -359,14 +382,16 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       clipCount: clipPaths.length,
       audioIncluded: !!audioPath,
       testMode: !!testMode,
-      ...(IS_DEV ? {
-        debug: {
+      debug: {
+        identicalClipsDetected,
+        fingerprints: clipFingerprints,
+        ...(IS_DEV ? {
           clips: clipInfos,
           output: outInfo,
           outputBytes: outSize,
           targetResolution: `${TARGET_W}x${TARGET_H}@${TARGET_FPS}fps`,
-        },
-      } : {}),
+        } : {}),
+      },
     });
 
   } catch (err: unknown) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createWriteStream, unlinkSync, existsSync } from "fs";
+import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
 import path from "path";

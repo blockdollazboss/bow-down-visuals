@@ -47,8 +47,13 @@ export function FinalVideoExport({
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
-  /* All scenes that have a real HTTP clip URL */
+  /* All scenes that have a real HTTP clip URL, in timeline order */
   const clips = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
+  const clipUrls = clips.map((s) => s.demoClipUrl!);
+
+  /* Detect duplicate URLs — same URL used for multiple scenes */
+  const uniqueUrls = new Set(clipUrls);
+  const hasDuplicateUrls = clipUrls.length > 1 && uniqueUrls.size < clipUrls.length;
 
   const [status, setStatus] = useState<ExportStatus>(
     existingExport?.export_status === "completed" ? "completed" : "idle",
@@ -71,16 +76,22 @@ export function FinalVideoExport({
       return;
     }
 
+    /* Hard block: duplicate URLs mean we'd encode the same clip twice */
+    if (hasDuplicateUrls) {
+      toast({
+        title: "Duplicate clip URLs detected",
+        description: "Two or more scenes share the same clip URL. Re-generate the affected clips then export again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setStatus("exporting");
     setErrorMsg(null);
     setProgressStep("Verifying clips…");
 
     try {
       const token = await getAccessToken();
-      /* Preserve scene order — use scenes array index, not clips subset */
-      const orderedClips = scenes
-        .filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
-      const clipUrls = orderedClips.map((s) => s.demoClipUrl!);
       const timelineOrder = scenes.map((s) => s.id);
 
       setProgressStep(
@@ -113,7 +124,17 @@ export function FinalVideoExport({
         clipCount: number;
         audioIncluded: boolean;
         testMode?: boolean;
+        debug?: { clips: unknown[]; identicalClipsDetected?: boolean };
       };
+
+      /* Server-side dedup check result */
+      if (data.debug?.identicalClipsDetected) {
+        throw new Error(
+          "Server detected that two or more downloaded clips are identical (same file content). " +
+          "Re-generate the affected Runway clips and try again.",
+        );
+      }
+
       setExportUrl(data.url);
       setStatus("completed");
       setProgressStep("");
@@ -130,7 +151,7 @@ export function FinalVideoExport({
       toast({
         title: data.testMode ? "Test export complete!" : "Export complete!",
         description: data.testMode
-          ? "Video-only test passed. Now export with audio."
+          ? "Video-only test passed. If both clips appear correctly, export again with audio."
           : "Your final video is ready to download.",
       });
     } catch (err: unknown) {
@@ -174,7 +195,7 @@ export function FinalVideoExport({
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                 <p className="text-xs text-blue-300">
-                  Test export (video only). If both clips appear in order, export again with audio.
+                  Test export (video only). Verify both clips play in order, then export again with audio.
                 </p>
               </div>
             )}
@@ -246,8 +267,32 @@ export function FinalVideoExport({
             {/* CLIPS INCLUDED IN EXPORT — always visible */}
             <ClipsIncludedList scenes={scenes} />
 
-            {/* Warning */}
-            {!confirmed && (
+            {/* Single-clip warning */}
+            {clips.length === 1 && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-200/80 leading-relaxed">
+                  Only 1 clip selected. Generate Runway clips for the other scenes to include them in the export.
+                </p>
+              </div>
+            )}
+
+            {/* Duplicate URL error — hard block */}
+            {hasDuplicateUrls && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-red-300">Duplicate clip URLs detected</p>
+                  <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">
+                    Two or more scenes point to the same clip URL — exporting now would repeat the same clip.
+                    Re-generate the affected scenes' Runway clips, then try again.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* General warning */}
+            {!confirmed && !hasDuplicateUrls && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
@@ -274,7 +319,17 @@ export function FinalVideoExport({
               </span>
             </button>
 
-            {!confirmed ? (
+            {hasDuplicateUrls ? (
+              /* Disabled button when duplicates block export */
+              <Button
+                disabled
+                className="w-full gap-2 opacity-50 cursor-not-allowed"
+                data-testid="btn-export-blocked"
+              >
+                <XCircle className="h-4 w-4" />
+                Export Blocked — Fix Duplicate Clips First
+              </Button>
+            ) : !confirmed ? (
               <Button
                 onClick={() => setConfirmed(true)}
                 variant="outline"
@@ -303,7 +358,12 @@ export function FinalVideoExport({
 
 /* ── Clips Included In Export list ── */
 function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
-  const allScenes = scenes;
+  const clipsWithUrls = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
+  const urlCounts = new Map<string, number>();
+  for (const s of clipsWithUrls) {
+    const u = s.demoClipUrl!;
+    urlCounts.set(u, (urlCounts.get(u) ?? 0) + 1);
+  }
 
   return (
     <div className="rounded-xl border border-white/10 overflow-hidden">
@@ -314,19 +374,26 @@ function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
       </div>
 
       <div className="divide-y divide-white/[0.04]">
-        {allScenes.map((scene, i) => {
+        {scenes.map((scene, i) => {
           const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
           const dur = parseDurationFromTimestamp(scene.timestamp);
+          const isDuplicate = hasClip && (urlCounts.get(scene.demoClipUrl!) ?? 0) > 1;
+          /* Show the last 44 chars of the URL so the user can spot duplicates */
+          const urlSnippet = hasClip
+            ? "…" + scene.demoClipUrl!.replace(/[?#].*$/, "").slice(-44)
+            : null;
 
           return (
-            <div key={scene.id} className="flex items-start gap-3 px-3 py-2.5">
+            <div key={scene.id} className={`flex items-start gap-3 px-3 py-2.5 ${isDuplicate ? "bg-red-500/5" : ""}`}>
               {/* Scene number */}
               <span className="text-[11px] font-black text-white/30 w-5 shrink-0 mt-0.5">
                 {i + 1}
               </span>
 
               {/* Clip status dot */}
-              <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${hasClip ? "bg-green-400" : "bg-white/20"}`} />
+              <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
+                isDuplicate ? "bg-red-400" : hasClip ? "bg-green-400" : "bg-white/20"
+              }`} />
 
               {/* Details */}
               <div className="flex-1 min-w-0 space-y-0.5">
@@ -338,12 +405,12 @@ function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
                 </p>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5">
                   <Pill
-                    label="clip URL"
-                    value={hasClip ? "yes" : "no"}
-                    color={hasClip ? "green" : "red"}
+                    label="clip"
+                    value={hasClip ? "ready" : "missing"}
+                    color={isDuplicate ? "red" : hasClip ? "green" : "red"}
                   />
                   {scene.provider && (
-                    <Pill label="provider" value={scene.provider} color="purple" />
+                    <Pill label="via" value={scene.provider} color="purple" />
                   )}
                   <Pill
                     label="status"
@@ -351,21 +418,30 @@ function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
                     color={scene.generationStatus === "completed" ? "green" : "amber"}
                   />
                   {dur !== null && (
-                    <Pill label="duration" value={`~${dur}s`} color="neutral" />
+                    <Pill label="~dur" value={`${dur}s`} color="neutral" />
                   )}
-                  {hasClip && (
-                    <a
-                      href={scene.demoClipUrl!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[10px] text-primary/50 hover:text-primary/80 transition-colors"
-                      title="Open clip URL"
-                    >
-                      <Link2 className="h-2.5 w-2.5" />
-                      view URL
-                    </a>
+                  {isDuplicate && (
+                    <Pill label="⚠" value="DUPLICATE URL" color="red" />
                   )}
                 </div>
+                {/* URL snippet so user can verify clips are distinct */}
+                {urlSnippet && (
+                  <p className={`text-[10px] font-mono truncate mt-0.5 ${isDuplicate ? "text-red-400/70" : "text-white/20"}`}>
+                    {urlSnippet}
+                  </p>
+                )}
+                {hasClip && (
+                  <a
+                    href={scene.demoClipUrl!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] text-primary/50 hover:text-primary/80 transition-colors"
+                    title="Open clip in new tab"
+                  >
+                    <Link2 className="h-2.5 w-2.5" />
+                    open clip
+                  </a>
+                )}
               </div>
 
               {/* Not-included badge */}
@@ -379,20 +455,22 @@ function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
         })}
       </div>
 
-      {/* Footer: total clips */}
+      {/* Footer */}
       {(() => {
-        const includedCount = allScenes.filter(
-          (s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"),
-        ).length;
+        const includedCount = clipsWithUrls.length;
+        const uniqueCount = new Set(clipsWithUrls.map((s) => s.demoClipUrl!)).size;
+        const dupCount = includedCount - uniqueCount;
         return (
-          <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between">
-            <span className="text-[10px] text-white/25">
-              {allScenes.length - includedCount > 0
-                ? `${allScenes.length - includedCount} scene${allScenes.length - includedCount > 1 ? "s" : ""} without clips will be skipped`
-                : "All scenes have clips"}
+          <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
+            <span className={`text-[10px] ${dupCount > 0 ? "text-red-400 font-bold" : "text-white/25"}`}>
+              {dupCount > 0
+                ? `⚠ ${dupCount} duplicate URL${dupCount > 1 ? "s" : ""} — clips will repeat`
+                : scenes.length - includedCount > 0
+                ? `${scenes.length - includedCount} scene${scenes.length - includedCount > 1 ? "s" : ""} without clips will be skipped`
+                : "All scenes have clips — ready to export"}
             </span>
-            <span className="text-[10px] font-bold text-white/40">
-              {includedCount} / {allScenes.length} clips
+            <span className="text-[10px] font-bold text-white/40 shrink-0">
+              {uniqueCount} unique / {includedCount} clips
             </span>
           </div>
         );
