@@ -243,7 +243,7 @@ export default function VideoEditor() {
             )}
 
             {tab === "export" && (
-              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} />
+              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
             )}
           </>
         )}

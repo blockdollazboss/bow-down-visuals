@@ -1,12 +1,13 @@
 import { useState } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
-  Clapperboard, FlaskConical, ExternalLink, Check, Minus,
+  Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/scene-parser";
+import type { VideoAudioSource, VideoFormat, ExportResolution } from "@/lib/editor-settings";
 
 interface ExportRecord {
   final_video_url: string;
@@ -14,6 +15,8 @@ interface ExportRecord {
   export_created_at: string;
   clips_used: number;
   audio_used: boolean;
+  audio_source?: string;
+  aspect_ratio?: string;
   timeline_order?: string[];
 }
 
@@ -21,13 +24,20 @@ interface FinalVideoExportProps {
   scenes: SceneData[];
   projectId?: string | null;
   audioUrl?: string | null;
+  audioSource?: VideoAudioSource;
+  audioSourceLabel?: string;
+  fadeAudioIn?: boolean;
+  fadeAudioOut?: boolean;
+  loopAudio?: boolean;
+  addWatermark?: boolean;
+  aspectRatio?: VideoFormat;
+  resolution?: ExportResolution;
   existingExport?: ExportRecord | null;
   onExportComplete?: (record: ExportRecord) => void;
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
 
-/** Parse "0:05-0:10" → duration in seconds (5) */
 function parseDuration(timestamp: string): number | null {
   const m = timestamp?.match(/(\d+):(\d+)\s*[-–]\s*(\d+):(\d+)/);
   if (!m) return null;
@@ -37,50 +47,48 @@ function parseDuration(timestamp: string): number | null {
   return dur > 0 ? dur : null;
 }
 
-/**
- * A scene is selected for export when it satisfies all three conditions:
- *   1. Clip URL exists and starts with "http"
- *   2. Provider is Runway (or URL is from the Runway CDN — backwards-compat for clips
- *      saved before the provider field was tracked)
- *   3. Status is "completed" OR scene is approved
- *      (falls back to true when generationStatus was never saved — old clips)
- */
 function isSelected(s: SceneData): boolean {
   if (!s.demoClipUrl || !s.demoClipUrl.startsWith("http")) return false;
-
   const isRunway =
     s.provider === "Runway" ||
-    s.demoClipUrl.includes("dnznrvs05pmza.cloudfront.net"); // Runway CDN (old clips)
-
+    s.demoClipUrl.includes("dnznrvs05pmza.cloudfront.net");
   const isComplete =
     s.generationStatus === "completed" ||
     s.approved === true ||
-    (!s.generationStatus && !!s.demoClipUrl); // backwards-compat: URL exists, status never tracked
-
+    (!s.generationStatus && !!s.demoClipUrl);
   return isRunway && isComplete;
 }
 
-/** Short description for a scene */
 function sceneLabel(s: SceneData, i: number): string {
   const parts = [s.section, s.lyricLine].filter(Boolean);
   return parts.length > 0 ? parts.join(" — ") : `Scene ${i + 1}`;
+}
+
+function audioSourceSummary(source: VideoAudioSource | undefined, label: string | undefined): string {
+  if (!source || source === "none") return "No audio";
+  return label ?? source;
 }
 
 export function FinalVideoExport({
   scenes,
   projectId,
   audioUrl,
+  audioSource = "uploaded",
+  audioSourceLabel,
+  fadeAudioIn = false,
+  fadeAudioOut = false,
+  loopAudio = false,
+  addWatermark = false,
+  aspectRatio = "9:16",
+  resolution = "1080p",
   existingExport,
   onExportComplete,
 }: FinalVideoExportProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
-  /* Ordered list of scenes that qualify for export */
   const selectedScenes = scenes.filter(isSelected);
   const clipUrls = selectedScenes.map((s) => s.demoClipUrl!);
-
-  /* Detect if two selected scenes share the exact same URL */
   const uniqueUrls = new Set(clipUrls);
   const hasDuplicateUrls = clipUrls.length > 1 && uniqueUrls.size < clipUrls.length;
 
@@ -94,9 +102,13 @@ export function FinalVideoExport({
   const [confirmed, setConfirmed] = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
 
-  /* Nothing to show if no scene has any clip at all */
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
+
+  const hasAudio = !!audioUrl && audioSource !== "none";
+  const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
+    : aspectRatio === "16:9" ? "1920×1080 · YouTube"
+    : "1080×1080 · Square";
 
   async function handleExport() {
     if (!projectId) {
@@ -104,7 +116,7 @@ export function FinalVideoExport({
       return;
     }
     if (selectedScenes.length === 0) {
-      toast({ title: "No clips ready", description: "Generate Runway clips on the scenes below first.", variant: "destructive" });
+      toast({ title: "No clips ready", description: "Generate Runway clips on the scenes first.", variant: "destructive" });
       return;
     }
     if (hasDuplicateUrls) {
@@ -125,8 +137,9 @@ export function FinalVideoExport({
       const timelineOrder = scenes.map((s) => s.id);
 
       setProgressStep(
-        `Downloading ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
-        ` · normalizing to 1080×1920 · running FFmpeg…`,
+        `Stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
+        ` · ${aspectRatio} · ${resolution}` +
+        (hasAudio ? ` · mixing audio…` : " · no audio…"),
       );
 
       const res = await fetch("/api/export-final-video", {
@@ -138,9 +151,15 @@ export function FinalVideoExport({
         body: JSON.stringify({
           projectId,
           clipUrls,
-          audioUrl: null,
+          audioUrl: hasAudio ? audioUrl : null,
           timelineOrder,
           testMode: false,
+          aspectRatio,
+          fadeAudioIn: hasAudio ? fadeAudioIn : false,
+          fadeAudioOut: hasAudio ? fadeAudioOut : false,
+          loopAudio: hasAudio ? loopAudio : false,
+          addWatermark,
+          audioSource,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
@@ -154,13 +173,15 @@ export function FinalVideoExport({
         url: string;
         clipCount: number;
         audioIncluded: boolean;
+        audioSource?: string;
+        duration?: number;
         testMode?: boolean;
         debug?: { identicalClipsDetected?: boolean };
       };
 
       if (data.debug?.identicalClipsDetected) {
         throw new Error(
-          "Server detected that two or more downloaded clips have identical content. " +
+          "Server detected two or more downloaded clips with identical content. " +
           "Re-generate the affected Runway clips and try again.",
         );
       }
@@ -174,13 +195,15 @@ export function FinalVideoExport({
         export_status: "completed",
         export_created_at: new Date().toISOString(),
         clips_used: clipUrls.length,
-        audio_used: false,
+        audio_used: data.audioIncluded,
+        audio_source: audioSource,
+        aspect_ratio: aspectRatio,
         timeline_order: timelineOrder,
       };
       onExportComplete?.(record);
       toast({
         title: "Export complete!",
-        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} stitched — video only (no audio yet).`,
+        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} · ${aspectRatio}${data.audioIncluded ? " · with audio" : " · video only"}.`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Export failed";
@@ -204,8 +227,9 @@ export function FinalVideoExport({
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-black text-white uppercase tracking-wider">Final Video Export</h3>
           <p className="text-xs text-white/40 mt-0.5">
-            {selectedScenes.length} of {scenes.length} scene{scenes.length !== 1 ? "s" : ""} selected
-            {" · "}video only · 1080×1920
+            {selectedScenes.length} of {scenes.length} clip{scenes.length !== 1 ? "s" : ""} selected
+            {" · "}{aspectLabel}
+            {hasAudio ? ` · ${audioSourceSummary(audioSource, audioSourceLabel)}` : " · no audio"}
           </p>
         </div>
         <StatusBadge status={status} />
@@ -216,18 +240,12 @@ export function FinalVideoExport({
         {/* ── Completed ── */}
         {status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-              <p className="text-xs text-blue-300">
-                Video only — no audio yet. Verify all clips appear in order, then we can add audio.
-              </p>
-            </div>
             <video
               src={exportUrl}
               controls
               playsInline
               className="w-full rounded-xl bg-black border border-white/10"
-              style={{ maxHeight: 360 }}
+              style={{ maxHeight: 400 }}
               data-testid="export-video-player"
             />
             <a
@@ -238,7 +256,7 @@ export function FinalVideoExport({
             >
               <Button className="gold-glow w-full gap-2" data-testid="btn-download-final-video">
                 <Download className="h-4 w-4" />
-                Download Export ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""})
+                Download Final Video ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}{hasAudio ? " + audio" : ""})
               </Button>
             </a>
             <button
@@ -246,7 +264,7 @@ export function FinalVideoExport({
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
               data-testid="btn-export-again"
             >
-              Export again with updated clips
+              Export again with updated settings
             </button>
           </div>
         )}
@@ -266,21 +284,45 @@ export function FinalVideoExport({
 
         {/* ── Exporting ── */}
         {status === "exporting" && (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
+          <div className="flex flex-col items-center gap-3 py-6 text-center" data-testid="export-status-exporting">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <div>
-              <p className="text-sm font-bold text-white">Exporting your video…</p>
+              <p className="text-sm font-bold text-white">Exporting Final Video…</p>
               <p className="text-xs text-white/40 mt-1">{progressStep || "Processing…"}</p>
+              <p className="text-[11px] text-white/25 mt-2">Keep this page open · takes ~30–90 s</p>
             </div>
           </div>
         )}
 
-        {/* ── Idle / Ready / Failed (pre-export panel) ── */}
+        {/* ── Idle / Ready ── */}
         {(status === "idle" || status === "failed") && (
           <div className="space-y-3">
 
-            {/* Clips Included In Export */}
+            {/* Clips panel */}
             <ClipsPanel scenes={scenes} />
+
+            {/* Audio summary */}
+            <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${
+              hasAudio ? "border-green-500/20 bg-green-500/[0.04]" : "border-white/[0.07] bg-white/[0.02]"
+            }`}>
+              {hasAudio
+                ? <Volume2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                : <VolumeX className="h-3.5 w-3.5 text-white/30 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className={`text-xs font-semibold ${hasAudio ? "text-green-300" : "text-white/40"}`}>
+                  {hasAudio ? `Audio: ${audioSourceSummary(audioSource, audioSourceLabel)}` : "No audio selected"}
+                </p>
+                {hasAudio && (
+                  <p className="text-[10px] text-white/30 mt-0.5">
+                    {[
+                      fadeAudioIn && "Fade in",
+                      fadeAudioOut && "Fade out",
+                      loopAudio && "Loop if shorter",
+                    ].filter(Boolean).join(" · ") || "No audio effects"}
+                  </p>
+                )}
+              </div>
+            </div>
 
             {/* Warnings */}
             {selectedScenes.length === 1 && (
@@ -298,8 +340,7 @@ export function FinalVideoExport({
                 <div>
                   <p className="text-xs font-bold text-red-300">Duplicate clip URLs detected</p>
                   <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">
-                    Two scenes point to the same URL. Exporting now would repeat the same clip.
-                    Re-generate those scenes first.
+                    Two scenes point to the same URL. Re-generate those scenes first.
                   </p>
                 </div>
               </div>
@@ -309,8 +350,9 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
                 <AlertTriangle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />
                 <p className="text-xs text-white/40 leading-relaxed">
-                  Each clip is downloaded fresh, normalized to 1080×1920 24fps, and stitched in timeline order.
-                  No audio in this export. Keep the page open — it takes ~30–60 s.
+                  Clips download fresh, normalize to {aspectLabel}, and stitch in timeline order.
+                  {hasAudio ? " Audio is mixed underneath." : " No audio in this export."}
+                  {" "}Keep the page open.
                 </p>
               </div>
             )}
@@ -334,7 +376,8 @@ export function FinalVideoExport({
                 data-testid="btn-confirm-export"
               >
                 <Film className="h-4 w-4" />
-                Export Final Video ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}, video only)
+                Export Final Video — {selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}
+                {hasAudio ? " + audio" : ", no audio"} · {aspectRatio}
               </Button>
             ) : (
               <Button
@@ -343,7 +386,7 @@ export function FinalVideoExport({
                 data-testid="btn-start-export"
               >
                 <Film className="h-4 w-4" />
-                Confirm &amp; Start Export — {selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}
+                Confirm &amp; Start Export
               </Button>
             )}
           </div>
@@ -353,9 +396,7 @@ export function FinalVideoExport({
   );
 }
 
-/* ─────────────────────────────────────────────────────────
-   Clips Included In Export panel
-───────────────────────────────────────────────────────── */
+/* ── Clips panel ─────────────────────────────────────── */
 function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
   const selectedCount = scenes.filter(isSelected).length;
   const urls = scenes.filter(isSelected).map((s) => s.demoClipUrl!);
@@ -364,7 +405,6 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
 
   return (
     <div className="rounded-xl border border-white/10 overflow-hidden">
-      {/* Table header */}
       <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06] flex items-center justify-between">
         <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">
           Clips Included In Export
@@ -374,7 +414,6 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
         </span>
       </div>
 
-      {/* Column headers */}
       <div className="grid grid-cols-[20px_1fr_60px_72px_44px_44px_40px] gap-x-2 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.04]">
         <span className="text-[9px] font-bold text-white/20 uppercase">#</span>
         <span className="text-[9px] font-bold text-white/20 uppercase">Description</span>
@@ -385,7 +424,6 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
         <span className="text-[9px] font-bold text-white/20 uppercase text-right">Dur.</span>
       </div>
 
-      {/* Rows */}
       <div className="divide-y divide-white/[0.04]">
         {scenes.map((scene, i) => {
           const selected  = isSelected(scene);
@@ -393,15 +431,13 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
           const isDupe    = hasUrl && (urlCounts.get(scene.demoClipUrl!) ?? 0) > 1;
           const dur       = parseDuration(scene.timestamp ?? "");
 
-          /* Reason not selected */
           let skipReason = "";
           if (!hasUrl) skipReason = "no clip URL";
           else if (!selected) {
             const isRunway =
               scene.provider === "Runway" ||
               scene.demoClipUrl!.includes("dnznrvs05pmza.cloudfront.net");
-            if (!isRunway) skipReason = "provider not Runway";
-            else skipReason = "status not completed";
+            skipReason = !isRunway ? "provider not Runway" : "status not completed";
           }
 
           return (
@@ -411,10 +447,7 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                 isDupe ? "bg-red-500/5" : selected ? "" : "opacity-50"
               }`}
             >
-              {/* # */}
               <span className="text-[11px] font-black text-white/30 pt-0.5">{i + 1}</span>
-
-              {/* Description + URL snippet + open link */}
               <div className="min-w-0">
                 <p className="text-[11px] text-white/70 font-medium truncate leading-tight">
                   {sceneLabel(scene, i)}
@@ -435,41 +468,21 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                     </a>
                   </div>
                 )}
-                {skipReason && (
-                  <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>
-                )}
-                {isDupe && (
-                  <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>
-                )}
+                {skipReason && <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>}
+                {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>}
               </div>
-
-              {/* Provider */}
-              <span className={`text-[10px] font-bold pt-0.5 ${
-                scene.provider === "Runway" ? "text-purple-400" : "text-white/25"
-              }`}>
+              <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-purple-400" : "text-white/25"}`}>
                 {scene.provider || "—"}
               </span>
-
-              {/* Status */}
               <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
                 {statusLabel(scene)}
               </span>
-
-              {/* URL exists */}
               <span className="flex items-center pt-1">
-                {hasUrl
-                  ? <Check className="h-3 w-3 text-green-400" />
-                  : <Minus className="h-3 w-3 text-white/20" />}
+                {hasUrl ? <Check className="h-3 w-3 text-green-400" /> : <Minus className="h-3 w-3 text-white/20" />}
               </span>
-
-              {/* Selected */}
               <span className="flex items-center pt-1">
-                {selected
-                  ? <Check className="h-3 w-3 text-green-400" />
-                  : <Minus className="h-3 w-3 text-white/20" />}
+                {selected ? <Check className="h-3 w-3 text-green-400" /> : <Minus className="h-3 w-3 text-white/20" />}
               </span>
-
-              {/* Duration */}
               <span className="text-[10px] text-white/30 text-right pt-0.5">
                 {dur !== null ? `${dur}s` : "—"}
               </span>
@@ -478,7 +491,6 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
         })}
       </div>
 
-      {/* Footer */}
       <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
         <span className="text-[10px] text-white/25">
           {selectedCount === 0
@@ -517,27 +529,27 @@ function StatusBadge({ status }: { status: ExportStatus }) {
   if (status === "idle") {
     return (
       <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest border border-white/10 rounded-full px-2 py-0.5">
-        Ready
+        Ready to Export
       </span>
     );
   }
   if (status === "exporting") {
     return (
       <span className="text-[10px] font-bold text-amber-400 uppercase tracking-widest border border-amber-400/30 bg-amber-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-        <Loader2 className="h-2.5 w-2.5 animate-spin" /> Exporting
+        <Loader2 className="h-2.5 w-2.5 animate-spin" /> Exporting Final Video…
       </span>
     );
   }
   if (status === "completed") {
     return (
       <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest border border-green-400/30 bg-green-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-        <CheckCircle2 className="h-2.5 w-2.5" /> Complete
+        <CheckCircle2 className="h-2.5 w-2.5" /> Export Complete
       </span>
     );
   }
   return (
     <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest border border-red-400/30 bg-red-400/10 rounded-full px-2 py-0.5 flex items-center gap-1">
-      <XCircle className="h-2.5 w-2.5" /> Failed
+      <XCircle className="h-2.5 w-2.5" /> Export Failed
     </span>
   );
 }

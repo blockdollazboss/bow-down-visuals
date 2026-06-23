@@ -14,10 +14,15 @@ const router = Router();
 const SIDECAR = "http://127.0.0.1:1106";
 const IS_DEV = process.env["NODE_ENV"] !== "production";
 
-/* ── Target resolution (vertical 9:16 default) ─── */
-const TARGET_W = 1080;
-const TARGET_H = 1920;
+/* ── Aspect ratio dimensions ──────────────────────────── */
+const ASPECT_DIMS: Record<string, [number, number]> = {
+  "9:16": [1080, 1920],
+  "16:9": [1920, 1080],
+  "1:1":  [1080, 1080],
+};
 const TARGET_FPS = 24;
+const FFMPEG_TIMEOUT_MS = 8 * 60 * 1000;
+const FADE_DURATION_S = 1.5;
 
 /* ── helpers ─────────────────────────────────────────── */
 
@@ -98,12 +103,30 @@ function cleanup(...files: string[]) {
 /* ── POST /api/export-final-video ────────────────────── */
 
 router.post("/export-final-video", requireAuth, async (req, res) => {
-  const { projectId, clipUrls, audioUrl, timelineOrder, testMode } = req.body as {
+  const {
+    projectId,
+    clipUrls,
+    audioUrl,
+    timelineOrder,
+    testMode,
+    aspectRatio = "9:16",
+    fadeAudioIn = false,
+    fadeAudioOut = false,
+    loopAudio = false,
+    addWatermark = false,
+    audioSource = "uploaded",
+  } = req.body as {
     projectId: string;
     clipUrls: string[];
     audioUrl?: string | null;
     timelineOrder?: string[];
     testMode?: boolean;
+    aspectRatio?: string;
+    fadeAudioIn?: boolean;
+    fadeAudioOut?: boolean;
+    loopAudio?: boolean;
+    addWatermark?: boolean;
+    audioSource?: string;
   };
 
   if (!projectId?.trim()) {
@@ -115,23 +138,33 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     return;
   }
 
+  const [TARGET_W, TARGET_H] = ASPECT_DIMS[aspectRatio] ?? ASPECT_DIMS["9:16"]!;
+
   const exportId = randomUUID();
   const tmpDir = os.tmpdir();
   const tmpFiles: string[] = [];
 
   try {
-    /* ── 1: Download & verify every clip ────────────── */
-    req.log.info({ clipCount: clipUrls.length, testMode: !!testMode }, "[export] starting");
+    req.log.info({
+      clipCount: clipUrls.length,
+      aspectRatio,
+      resolution: `${TARGET_W}x${TARGET_H}`,
+      audioSource,
+      hasAudio: !!audioUrl,
+      fadeAudioIn,
+      fadeAudioOut,
+      loopAudio,
+      addWatermark,
+      testMode: !!testMode,
+    }, "[export] starting");
 
+    /* ── 1: Download & verify every clip ── */
     const clipPaths: string[] = [];
     const clipInfos: VideoInfo[] = [];
 
     for (let i = 0; i < clipUrls.length; i++) {
       const url = clipUrls[i]!;
-
-      if (!url.startsWith("http")) {
-        throw new Error(`Clip ${i + 1}: invalid URL — "${url.slice(0, 60)}"`);
-      }
+      if (!url.startsWith("http")) throw new Error(`Clip ${i + 1}: invalid URL — "${url.slice(0, 60)}"`);
 
       const dest = path.join(tmpDir, `bdv-clip-${exportId}-${i}.mp4`);
       tmpFiles.push(dest);
@@ -154,27 +187,34 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       const info = await probeVideo(dest);
       req.log.info({ i: i + 1, info }, "[export] clip probed");
 
-      if (!info.hasVideo) {
-        throw new Error(`Clip ${i + 1} has no video stream (downloaded ${fileSize} bytes, codec: ${info.codec || "none"})`);
-      }
-      if (info.duration <= 0) {
-        throw new Error(`Clip ${i + 1} has zero duration`);
-      }
+      if (!info.hasVideo) throw new Error(`Clip ${i + 1} has no video stream`);
+      if (info.duration <= 0) throw new Error(`Clip ${i + 1} has zero duration`);
 
       clipPaths.push(dest);
       clipInfos.push(info);
     }
 
-    req.log.info(
-      { infos: clipInfos.map((c) => `${c.width}x${c.height} ${c.fps}fps ${c.duration.toFixed(2)}s [${c.codec}]`) },
-      "[export] all clips verified",
-    );
+    /* ── Compute total video duration ── */
+    const totalVideoDuration = clipInfos.reduce((sum, c) => sum + c.duration, 0);
 
-    /* ── 1b: Dedup check — catch identical clip files ──
-     *  Fingerprint = SHA-256 of first 65536 bytes + file size.
-     *  If any two clips share a fingerprint the export would silently
-     *  repeat the same clip, so we surface it explicitly.
-     */
+    if (IS_DEV) {
+      req.log.info({
+        clips: clipInfos.map((c, i) => ({
+          index: i + 1,
+          url: clipUrls[i]!.slice(0, 80),
+          resolution: `${c.width}x${c.height}`,
+          fps: c.fps,
+          duration: `${c.duration.toFixed(2)}s`,
+          codec: c.codec,
+        })),
+        totalDuration: `${totalVideoDuration.toFixed(2)}s`,
+        targetResolution: `${TARGET_W}x${TARGET_H}@${TARGET_FPS}fps`,
+        selectedAudioSource: audioSource,
+        audioUrl: audioUrl ? audioUrl.slice(0, 80) : null,
+      }, "[export][debug] clips included");
+    }
+
+    /* ── 1b: Dedup check ── */
     const clipFingerprints: string[] = [];
     for (const cp of clipPaths) {
       const size = statSync(cp).size;
@@ -185,32 +225,26 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const uniqueFingerprints = new Set(clipFingerprints);
     const identicalClipsDetected = uniqueFingerprints.size < clipPaths.length;
     if (identicalClipsDetected) {
-      req.log.warn(
-        { fingerprints: clipFingerprints },
-        "[export] identical clips detected — two or more downloaded files have the same content",
-      );
+      req.log.warn({ fingerprints: clipFingerprints }, "[export] identical clips detected");
     } else {
       req.log.info({ fingerprints: clipFingerprints }, "[export] all clips are distinct");
     }
 
-    /* ── 2: Download audio (skipped in testMode) ───── */
+    /* ── 2: Download audio ── */
     let audioPath: string | null = null;
     const useAudio = !testMode && !!audioUrl?.trim();
 
     if (useAudio) {
-      const ext = audioUrl!.includes(".mp3") ? ".mp3" : audioUrl!.includes(".ogg") ? ".ogg" : ".aac";
+      const ext = audioUrl!.includes(".mp3") ? ".mp3" : audioUrl!.includes(".ogg") ? ".ogg" : audioUrl!.includes(".wav") ? ".wav" : ".aac";
       audioPath = path.join(tmpDir, `bdv-audio-${exportId}${ext}`);
       tmpFiles.push(audioPath);
-      req.log.info({ audioUrl: audioUrl!.slice(0, 80) }, "[export] downloading audio");
+      req.log.info({ audioUrl: audioUrl!.slice(0, 80), audioSource }, "[export] downloading audio");
       await downloadToFile(audioUrl!, audioPath);
+      const audioSize = statSync(audioPath).size;
+      req.log.info({ audioSize, audioSource }, "[export] audio downloaded");
     }
 
-    /* ── 3: Build filter_complex — normalize + concat ─ */
-    /*
-     *  Each clip is independently scaled/padded to TARGET_W×TARGET_H at TARGET_FPS.
-     *  This handles mismatched resolutions, frame rates, and codecs from Runway.
-     *  Uses black letterbox/pillarbox padding to fill gaps.
-     */
+    /* ── 3: Build video filter_complex — normalize + concat + optional watermark ── */
     const scaleFilter = [
       `scale=${TARGET_W}:${TARGET_H}:force_original_aspect_ratio=decrease`,
       `pad=${TARGET_W}:${TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
@@ -223,10 +257,35 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       filterParts.push(`[${i}:v]${scaleFilter}[v${i}]`);
     }
     const concatInputs = clipPaths.map((_, i) => `[v${i}]`).join("");
-    filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vout]`);
+
+    if (addWatermark) {
+      filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vconcat]`);
+      const wm = `drawtext=text='Bow Down Visuals':fontsize=${TARGET_W >= 1920 ? 36 : 28}:fontcolor=white@0.35:x=(w-text_w)/2:y=h-${TARGET_H >= 1920 ? 70 : 55}:shadowcolor=black@0.5:shadowx=1:shadowy=1`;
+      filterParts.push(`[vconcat]${wm}[vout]`);
+    } else {
+      filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vout]`);
+    }
+
     const filterComplex = filterParts.join(";");
 
-    /* ── 4: Build FFmpeg args ─────────────────────── */
+    /* ── 4: Build audio filter chain ── */
+    const audioFilterParts: string[] = [];
+    if (audioPath) {
+      if (loopAudio) {
+        audioFilterParts.push(`aloop=loop=-1:size=2147483647`);
+        audioFilterParts.push(`atrim=duration=${totalVideoDuration.toFixed(3)}`);
+        audioFilterParts.push(`asetpts=PTS-STARTPTS`);
+      }
+      if (fadeAudioIn) {
+        audioFilterParts.push(`afade=t=in:st=0:d=${FADE_DURATION_S}`);
+      }
+      if (fadeAudioOut && totalVideoDuration > FADE_DURATION_S * 2) {
+        const fadeOutStart = Math.max(0, totalVideoDuration - FADE_DURATION_S);
+        audioFilterParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${FADE_DURATION_S}`);
+      }
+    }
+
+    /* ── 5: Build FFmpeg args ── */
     const outputPath = path.join(tmpDir, `bdv-export-${exportId}.mp4`);
     tmpFiles.push(outputPath);
 
@@ -254,7 +313,13 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     );
 
     if (audioPath) {
-      ffmpegArgs.push("-c:a", "aac", "-b:a", "192k", "-shortest");
+      if (audioFilterParts.length > 0) {
+        ffmpegArgs.push("-af", audioFilterParts.join(","));
+      }
+      ffmpegArgs.push("-c:a", "aac", "-b:a", "192k");
+      /* Cap output at video duration — avoids long silent tail when audio loops
+         or is longer than video. Also ensures video isn't cut short by -shortest. */
+      ffmpegArgs.push("-t", totalVideoDuration.toFixed(3));
     } else {
       ffmpegArgs.push("-an");
     }
@@ -262,12 +327,17 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     ffmpegArgs.push("-movflags", "+faststart", "-y", outputPath);
 
     if (IS_DEV) {
-      req.log.info({ filterComplex, args: ffmpegArgs.join(" ") }, "[export] FFmpeg command");
+      req.log.info({
+        filterComplex,
+        audioFilter: audioFilterParts.join(",") || "(none)",
+        ffmpegCommand: `ffmpeg ${ffmpegArgs.join(" ")}`,
+        totalDuration: `${totalVideoDuration.toFixed(2)}s`,
+      }, "[export][debug] FFmpeg command");
     }
 
-    /* ── 5: Run FFmpeg ───────────────────────────── */
+    /* ── 6: Run FFmpeg ── */
     try {
-      const { stderr } = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: 5 * 60 * 1000 });
+      const { stderr } = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: FFMPEG_TIMEOUT_MS });
       if (IS_DEV && stderr) req.log.info({ stderr: stderr.slice(-500) }, "[export] FFmpeg stderr (last 500)");
     } catch (ffErr: unknown) {
       const stderr = (ffErr as { stderr?: string }).stderr ?? "";
@@ -276,13 +346,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       throw new Error(`FFmpeg failed: ${msg.slice(0, 300)}`);
     }
 
-    /* ── 6: Verify output ────────────────────────── */
-    if (!existsSync(outputPath)) {
-      throw new Error("FFmpeg produced no output file");
-    }
+    /* ── 7: Verify output ── */
+    if (!existsSync(outputPath)) throw new Error("FFmpeg produced no output file");
 
     const outSize = statSync(outputPath).size;
     req.log.info({ outSize, outputPath }, "[export] output file written");
+
+    if (IS_DEV) {
+      req.log.info({ finalVideoBytes: outSize, finalVideoMB: (outSize / 1024 / 1024).toFixed(2) }, "[export][debug] final video file size");
+    }
 
     if (outSize < 1024) {
       throw new Error(`Output file too small (${outSize} bytes) — FFmpeg may have failed silently`);
@@ -291,14 +363,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const outInfo = await probeVideo(outputPath);
     req.log.info({ outInfo }, "[export] output probed");
 
-    if (!outInfo.hasVideo) {
-      throw new Error("Output file has no video stream — FFmpeg encoding failed");
-    }
-    if (outInfo.duration <= 0) {
-      throw new Error("Output file has zero duration — FFmpeg encoding may have produced empty video");
-    }
+    if (!outInfo.hasVideo) throw new Error("Output file has no video stream");
+    if (outInfo.duration <= 0) throw new Error("Output file has zero duration");
 
-    /* ── 7: Upload to GCS ───────────────────────── */
+    /* ── 8: Upload to GCS ── */
     const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
     if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
 
@@ -309,11 +377,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     await gcsFile.save(fileBuffer, { contentType: "video/mp4", resumable: false });
     req.log.info({ objectName, bytes: fileBuffer.length }, "[export] uploaded to GCS");
 
-    /* ── 8: Sign URL ─────────────────────────────── */
+    /* ── 9: Sign URL ── */
     const signedUrl = await signGetUrl(bucketId, objectName);
     const objectPath = `/objects/exports/${exportId}.mp4`;
 
-    /* ── 9: Save to project (skip for testMode) ──── */
+    /* ── 10: Save to project ── */
     if (!testMode) {
       const { data: fullProject, error: selectErr } = await req.userSupabase!
         .from("projects")
@@ -335,13 +403,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           timeline_order: timelineOrder ?? null,
           clips_used: clipUrls.length,
           audio_used: !!audioPath,
+          audio_source: audioSource,
+          aspect_ratio: aspectRatio,
         };
 
         const { error: delErr } = await req.userSupabase!
-          .from("projects")
-          .delete()
-          .eq("id", projectId)
-          .eq("user_id", req.userId!);
+          .from("projects").delete().eq("id", projectId).eq("user_id", req.userId!);
 
         if (delErr) {
           req.log.warn({ err: delErr.message }, "[export] delete error during save");
@@ -369,7 +436,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
             req.log.warn({ err: insErr.message }, "[export] re-insert error");
             await req.userSupabase!.from("projects").insert(fullProject);
           } else {
-            req.log.info({ projectId, clips: clipUrls.length }, "[export] project saved ok");
+            req.log.info({ projectId, clips: clipUrls.length, audioSource }, "[export] project saved ok");
           }
         }
       }
@@ -381,6 +448,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       exportId,
       clipCount: clipPaths.length,
       audioIncluded: !!audioPath,
+      audioSource,
+      aspectRatio,
+      duration: outInfo.duration,
       testMode: !!testMode,
       debug: {
         identicalClipsDetected,
@@ -390,6 +460,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           output: outInfo,
           outputBytes: outSize,
           targetResolution: `${TARGET_W}x${TARGET_H}@${TARGET_FPS}fps`,
+          totalVideoDuration,
+          audioFilters: audioFilterParts.join(",") || null,
+          watermark: addWatermark,
         } : {}),
       },
     });

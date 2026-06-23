@@ -42,7 +42,7 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [justExported, setJustExported] = useState<AudioExportRecord | null>(null);
   const ms = settings.musicStudio;
-  const usingMixForVideo = ms.videoAudio.source === "finalMix";
+  const usingMixForVideo = ms.videoAudio.source === "full-mix";
 
   function patchMaster(patch: Partial<MasterSettings>) {
     onChange({ ...settings, musicStudio: { ...ms, master: { ...ms.master, ...patch } } });
@@ -101,7 +101,7 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
     toast({ title: "Mix settings saved", description: "Your stems, volumes, mute/solo, pan, trims, master and AI mix are stored with this project." });
   }
   function handleUseForVideo() {
-    onChange({ ...settings, musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, source: "finalMix" } } });
+    onChange({ ...settings, musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, source: "full-mix" } } });
     toast({ title: "Using this mix for the video", description: "The video's soundtrack is now set to your Music Studio mix." });
   }
 

@@ -1,1 +1,2 @@
-- [Server-side fetch SSRF](server-fetch-ssrf.md) — api-server routes that fetch client-supplied URLs must allowlist the Supabase storage host (https + exact host); cap size + timeout child processes.
+- [Video Export Audio Integration](video-export-audio.md) — final video export now accepts audioSource/fadeIn/fadeOut/loopAudio/watermark/aspectRatio; "finalMix" source renamed to "full-mix".
+- [Server-Fetch SSRF Allowlist](server-fetch-ssrf.md) — audio export SSRF allowlist requires stem URLs to match SUPABASE_URL host; client must use Supabase public storage URLs.

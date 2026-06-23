@@ -1,11 +1,14 @@
-import { Volume2, Download, Music2 } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
-import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
+import { useMemo } from "react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   VIDEO_FORMATS,
-  type EditorSettings, type VideoFormat, type ExportResolution, type ExportQuality,
+  type EditorSettings,
+  type VideoFormat,
+  type ExportResolution,
+  type VideoAudioSource,
+  type AudioExportRecord,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 
@@ -15,96 +18,258 @@ interface ExportSectionProps {
   setSettings: (s: EditorSettings) => void;
   projectId: string;
   audioUrl: string | null;
+  onGoToMusicStudio?: () => void;
 }
+
+/* ── Audio source option definitions ───────────────────── */
+interface AudioSourceOption {
+  value: VideoAudioSource;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}
+
+const AUDIO_SOURCE_OPTIONS: AudioSourceOption[] = [
+  {
+    value: "uploaded",
+    label: "Uploaded Original Song",
+    description: "The song uploaded to this project",
+    icon: <Radio className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "full-mix",
+    label: "Exported Full Mix",
+    description: "Your exported stems mix (MP3/WAV)",
+    icon: <Music2 className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "instrumental",
+    label: "Exported Instrumental",
+    description: "Beat-only stem mix, no vocals",
+    icon: <Drum className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "acapella",
+    label: "Exported Acapella",
+    description: "Vocals only, no beat",
+    icon: <Mic2 className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "none",
+    label: "No Audio",
+    description: "Video only, silent",
+    icon: <VolumeX className="h-3.5 w-3.5" />,
+  },
+];
 
 const RESOLUTION_OPTIONS: { value: ExportResolution; label: string }[] = [
   { value: "720p", label: "720p" },
   { value: "1080p", label: "1080p" },
 ];
-const QUALITY_OPTIONS: { value: ExportQuality; label: string }[] = [
-  { value: "draft", label: "Draft" },
-  { value: "final", label: "Final" },
-];
 
-export function ExportSection({ scenes, settings, setSettings, projectId, audioUrl }: ExportSectionProps) {
-  const ms = settings.musicStudio;
-  const hasFinalMix = ms.stems.length > 0 || ms.aiMixPlan !== null;
-
-  function setVideoAudio(patch: Partial<typeof ms.videoAudio>) {
-    setSettings({ ...settings, musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, ...patch } } });
+/* ── Resolve audio URL from source + exports ──────────── */
+function resolveAudioUrl(
+  source: VideoAudioSource,
+  uploadedUrl: string | null,
+  exports: AudioExportRecord[],
+): string | null {
+  switch (source) {
+    case "uploaded": return uploadedUrl;
+    case "none": return null;
+    case "full-mix": {
+      const mp3 = exports.find((r) => r.kind === "full" && r.format === "mp3");
+      return mp3?.url ?? exports.find((r) => r.kind === "full")?.url ?? null;
+    }
+    case "instrumental":
+      return exports.find((r) => r.kind === "instrumental")?.url ?? null;
+    case "acapella":
+      return exports.find((r) => r.kind === "acapella")?.url ?? null;
   }
+}
+
+/* ── Check availability per source ──────────────────────  */
+function isSourceAvailable(
+  source: VideoAudioSource,
+  uploadedUrl: string | null,
+  exports: AudioExportRecord[],
+): boolean {
+  switch (source) {
+    case "none": return true;
+    case "uploaded": return !!uploadedUrl;
+    case "full-mix": return exports.some((r) => r.kind === "full");
+    case "instrumental": return exports.some((r) => r.kind === "instrumental");
+    case "acapella": return exports.some((r) => r.kind === "acapella");
+  }
+}
+
+/* ── Component ─────────────────────────────────────────── */
+export function ExportSection({
+  scenes, settings, setSettings, projectId, audioUrl, onGoToMusicStudio,
+}: ExportSectionProps) {
+  const ms = settings.musicStudio;
+  const va = ms.videoAudio;
+
+  function setVideoAudio(patch: Partial<typeof va>) {
+    setSettings({ ...settings, musicStudio: { ...ms, videoAudio: { ...va, ...patch } } });
+  }
+  function setExport(patch: Partial<typeof settings.export>) {
+    setSettings({ ...settings, export: { ...settings.export, ...patch } });
+  }
+
+  const resolvedAudioUrl = useMemo(
+    () => resolveAudioUrl(va.source, audioUrl, ms.exports),
+    [va.source, audioUrl, ms.exports],
+  );
+
+  const selectedOption = AUDIO_SOURCE_OPTIONS.find((o) => o.value === va.source)!;
+  const isAvailable = isSourceAvailable(va.source, audioUrl, ms.exports);
+
+  const audioSourceLabel = selectedOption?.label ?? "";
+  const aspectRatio = settings.export.format;
 
   return (
     <div className="space-y-5">
-      <EditorCard title="Audio" subtitle="How your song sits under the clips" icon={<Volume2 className="h-4 w-4" />}>
-        <div className="space-y-5">
-          {audioUrl ? <ReferenceAudioPlayer url={audioUrl} label="Your Song" /> : (
-            <p className="text-xs text-white/35">No song uploaded with this project.</p>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Audio start" hint={`${settings.audio.startSec.toFixed(1)}s`}>
-              <Slider value={[settings.audio.startSec]} min={0} max={60} step={0.5} onValueChange={([v]) => setSettings({ ...settings, audio: { ...settings.audio, startSec: v ?? 0 } })} />
-            </Field>
-            <Field label="Song volume" hint={`${settings.audio.volume}%`}>
-              <Slider value={[settings.audio.volume]} min={0} max={100} step={5} onValueChange={([v]) => setSettings({ ...settings, audio: { ...settings.audio, volume: v ?? 100 } })} />
-            </Field>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Chip active={settings.audio.fadeIn} onClick={() => setSettings({ ...settings, audio: { ...settings.audio, fadeIn: !settings.audio.fadeIn } })}>Fade in</Chip>
-            <Chip active={settings.audio.fadeOut} onClick={() => setSettings({ ...settings, audio: { ...settings.audio, fadeOut: !settings.audio.fadeOut } })}>Fade out</Chip>
-          </div>
-        </div>
-      </EditorCard>
 
-      <EditorCard title="Music ↔ Video Sync" subtitle="Which audio plays under the final video" icon={<Music2 className="h-4 w-4" />}>
-        <div className="space-y-5">
-          <Field label="Audio source">
-            <div className="flex flex-wrap gap-2">
-              <AudioSourceBtn
-                active={ms.videoAudio.source === "uploaded"}
-                onClick={() => setVideoAudio({ source: "uploaded" })}
-                label="Uploaded Song"
-                note="The original song on this project"
-                testId="audio-source-uploaded"
-              />
-              <AudioSourceBtn
-                active={ms.videoAudio.source === "finalMix"}
-                onClick={() => setVideoAudio({ source: "finalMix" })}
-                label="Music Studio Mix"
-                note={hasFinalMix ? "Your studio mix & master" : "Add stems or a mix plan first"}
-                disabled={!hasFinalMix}
-                testId="audio-source-finalmix"
-              />
+      {/* ── Audio Source ── */}
+      <EditorCard
+        title="Audio Source"
+        subtitle="Which audio plays under the final video"
+        icon={<Volume2 className="h-4 w-4" />}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-2">
+            {AUDIO_SOURCE_OPTIONS.map((opt) => {
+              const avail = isSourceAvailable(opt.value, audioUrl, ms.exports);
+              const active = va.source === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setVideoAudio({ source: opt.value })}
+                  data-testid={`audio-source-${opt.value}`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                    active
+                      ? "border-primary/50 bg-primary/10"
+                      : avail
+                      ? "border-white/10 bg-white/[0.03] hover:border-white/20"
+                      : "border-white/[0.06] bg-white/[0.02] opacity-60 hover:border-white/12"
+                  }`}
+                >
+                  <span className={`shrink-0 ${active ? "text-primary" : avail ? "text-white/50" : "text-white/25"}`}>
+                    {opt.icon}
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className={`text-sm font-bold block ${active ? "text-primary" : "text-white/80"}`}>
+                      {opt.label}
+                    </span>
+                    <span className="text-[11px] text-white/35 block">{opt.description}</span>
+                  </span>
+                  {avail ? (
+                    <span className="text-[10px] font-bold text-green-400/70 shrink-0">Available</span>
+                  ) : opt.value !== "none" ? (
+                    <span className="text-[10px] font-bold text-white/25 shrink-0">Not exported</span>
+                  ) : null}
+                  {active && (
+                    <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Not available warning */}
+          {!isAvailable && va.source !== "none" && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-amber-300">Audio source not available</p>
+                <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed">
+                  {va.source === "uploaded"
+                    ? "No song was uploaded to this project."
+                    : `No ${selectedOption?.label.toLowerCase() ?? "export"} found. Go to Music Studio to export audio first.`}
+                  {va.source !== "uploaded" && onGoToMusicStudio && (
+                    <>
+                      {" "}
+                      <button
+                        type="button"
+                        onClick={onGoToMusicStudio}
+                        className="underline text-amber-300 hover:text-amber-200 transition-colors"
+                      >
+                        Open Music Studio →
+                      </button>
+                    </>
+                  )}
+                </p>
+              </div>
             </div>
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Audio offset" hint={`${ms.videoAudio.startSec.toFixed(1)}s`}>
-              <Slider value={[ms.videoAudio.startSec]} min={0} max={60} step={0.5} onValueChange={([v]) => setVideoAudio({ startSec: v ?? 0 })} />
-            </Field>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Chip active={ms.videoAudio.matchVideoLength} onClick={() => setVideoAudio({ matchVideoLength: !ms.videoAudio.matchVideoLength })}>Match video length</Chip>
-            <Chip active={ms.videoAudio.fadeIn} onClick={() => setVideoAudio({ fadeIn: !ms.videoAudio.fadeIn })}>Fade in</Chip>
-            <Chip active={ms.videoAudio.fadeOut} onClick={() => setVideoAudio({ fadeOut: !ms.videoAudio.fadeOut })}>Fade out</Chip>
-          </div>
+          )}
         </div>
       </EditorCard>
 
-      <EditorCard title="Export Settings" subtitle="Format, resolution and quality" icon={<Download className="h-4 w-4" />}>
+      {/* ── Audio Options ── */}
+      {va.source !== "none" && (
+        <EditorCard
+          title="Audio Options"
+          subtitle="Fade and loop settings for the selected audio"
+          icon={<Music2 className="h-4 w-4" />}
+        >
+          <div className="flex flex-wrap gap-2">
+            <Chip
+              active={va.fadeIn}
+              onClick={() => setVideoAudio({ fadeIn: !va.fadeIn })}
+            >
+              Fade audio in
+            </Chip>
+            <Chip
+              active={va.fadeOut}
+              onClick={() => setVideoAudio({ fadeOut: !va.fadeOut })}
+            >
+              Fade audio out
+            </Chip>
+            <Chip
+              active={va.loopAudio}
+              onClick={() => setVideoAudio({ loopAudio: !va.loopAudio })}
+            >
+              Loop if shorter than video
+            </Chip>
+          </div>
+          {va.loopAudio && (
+            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+              If the audio is shorter than the video, it will repeat seamlessly until the video ends.
+            </p>
+          )}
+          {!va.loopAudio && (
+            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+              If audio is shorter than the video, it ends naturally — the video continues silently.
+            </p>
+          )}
+        </EditorCard>
+      )}
+
+      {/* ── Export Format ── */}
+      <EditorCard
+        title="Export Format"
+        subtitle="Aspect ratio and resolution"
+        icon={<Download className="h-4 w-4" />}
+      >
         <div className="space-y-5">
-          <Field label="Format">
-            <div className="flex flex-wrap gap-2">
+          <Field label="Aspect ratio">
+            <div className="grid grid-cols-3 gap-2">
               {VIDEO_FORMATS.map((f) => (
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setSettings({ ...settings, export: { ...settings.export, format: f.id as VideoFormat } })}
-                  className={`px-3.5 py-2 rounded-xl border text-sm font-black transition-colors ${
-                    settings.export.format === f.id ? "border-primary/50 bg-primary/10 text-primary" : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/20"
-                  }`}
+                  onClick={() => setExport({ format: f.id as VideoFormat })}
                   data-testid={`export-format-${f.id}`}
+                  className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border text-sm font-black transition-colors ${
+                    settings.export.format === f.id
+                      ? "border-primary/50 bg-primary/10 text-primary"
+                      : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/20"
+                  }`}
                 >
-                  {f.label}
+                  <AspectRatioIcon ratio={f.id as VideoFormat} active={settings.export.format === f.id} />
+                  <span>{f.label}</span>
+                  <span className="text-[9px] font-normal opacity-60 text-center leading-tight">{f.note}</span>
                 </button>
               ))}
             </div>
@@ -113,41 +278,55 @@ export function ExportSection({ scenes, settings, setSettings, projectId, audioU
             <Segmented
               value={settings.export.resolution}
               options={RESOLUTION_OPTIONS}
-              onChange={(v) => setSettings({ ...settings, export: { ...settings.export, resolution: v } })}
-            />
-          </Field>
-          <Field label="Quality">
-            <Segmented
-              value={settings.export.quality}
-              options={QUALITY_OPTIONS}
-              onChange={(v) => setSettings({ ...settings, export: { ...settings.export, quality: v } })}
+              onChange={(v) => setExport({ resolution: v })}
             />
           </Field>
         </div>
       </EditorCard>
 
-      <FinalVideoExport scenes={scenes} projectId={projectId} audioUrl={audioUrl} />
+      {/* ── Export Options ── */}
+      <EditorCard
+        title="Export Options"
+        subtitle="Watermark and branding"
+        icon={<Download className="h-4 w-4" />}
+      >
+        <div className="flex flex-wrap gap-2">
+          <Chip
+            active={settings.export.watermark}
+            onClick={() => setExport({ watermark: !settings.export.watermark })}
+          >
+            Bow Down Visuals watermark
+          </Chip>
+        </div>
+        {settings.export.watermark && (
+          <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+            A subtle "Bow Down Visuals" text watermark will be burned into the bottom-center of the video.
+          </p>
+        )}
+      </EditorCard>
+
+      {/* ── Final Video Export ── */}
+      <FinalVideoExport
+        scenes={scenes}
+        projectId={projectId}
+        audioUrl={resolvedAudioUrl}
+        audioSource={va.source}
+        audioSourceLabel={audioSourceLabel}
+        fadeAudioIn={va.fadeIn}
+        fadeAudioOut={va.fadeOut}
+        loopAudio={va.loopAudio}
+        addWatermark={settings.export.watermark}
+        aspectRatio={aspectRatio}
+        resolution={settings.export.resolution}
+      />
     </div>
   );
 }
 
-function AudioSourceBtn({
-  active, onClick, label, note, disabled, testId,
-}: {
-  active: boolean; onClick: () => void; label: string; note: string; disabled?: boolean; testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-testid={testId}
-      className={`flex flex-col items-start px-4 py-2.5 rounded-xl border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-        active ? "border-primary/50 bg-primary/10" : "border-white/10 bg-white/[0.03] hover:border-white/20"
-      }`}
-    >
-      <span className={`text-sm font-black ${active ? "text-primary" : "text-white/70"}`}>{label}</span>
-      <span className="text-[10px] text-white/35">{note}</span>
-    </button>
-  );
+/* ── Small aspect ratio preview icon ───────────────────── */
+function AspectRatioIcon({ ratio, active }: { ratio: VideoFormat; active: boolean }) {
+  const cls = `rounded border ${active ? "border-primary/60 bg-primary/20" : "border-white/25 bg-white/5"}`;
+  if (ratio === "9:16") return <div className={`${cls} w-4 h-7`} />;
+  if (ratio === "16:9") return <div className={`${cls} w-7 h-4`} />;
+  return <div className={`${cls} w-5 h-5`} />;
 }

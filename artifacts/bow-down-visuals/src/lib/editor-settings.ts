@@ -214,6 +214,7 @@ export interface ExportSettings {
   format: VideoFormat;
   resolution: ExportResolution;
   quality: ExportQuality;
+  watermark: boolean;
 }
 
 export interface AutoEditOptions {
@@ -472,7 +473,7 @@ export interface MasterSettings {
   fadeOut: boolean;
 }
 
-export type VideoAudioSource = "uploaded" | "finalMix";
+export type VideoAudioSource = "uploaded" | "full-mix" | "instrumental" | "acapella" | "none";
 
 export interface VideoAudioSync {
   /** Which audio plays under the video clips. */
@@ -480,6 +481,8 @@ export interface VideoAudioSync {
   startSec: number;
   fadeIn: boolean;
   fadeOut: boolean;
+  /** Loop audio if it is shorter than the total video duration. */
+  loopAudio: boolean;
   /** Trim/loop the audio to match the video length. */
   matchVideoLength: boolean;
 }
@@ -571,7 +574,7 @@ export function defaultEditorSettings(): EditorSettings {
     effects: [],
     overlays: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
-    export: { format: "9:16", resolution: "1080p", quality: "draft" },
+    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: false },
     musicStudio: defaultMusicStudioSettings(),
     updatedAt: new Date().toISOString(),
   };
@@ -622,6 +625,7 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
       startSec: 0,
       fadeIn: true,
       fadeOut: true,
+      loopAudio: false,
       matchVideoLength: true,
     },
     exportSelections: [],
@@ -740,11 +744,20 @@ export function normalizeStem(s: Partial<AudioStem>): AudioStem {
   };
 }
 
+function normalizeVideoAudioSource(raw: unknown): VideoAudioSource {
+  if (raw === "finalMix") return "full-mix"; // backward-compat: old name
+  if (raw === "uploaded" || raw === "full-mix" || raw === "instrumental" || raw === "acapella" || raw === "none") {
+    return raw;
+  }
+  return "uploaded";
+}
+
 export function normalizeMusicStudio(
   stored: Partial<MusicStudioSettings> | null | undefined,
 ): MusicStudioSettings {
   const base = defaultMusicStudioSettings();
   if (!stored) return base;
+  const storedVideoAudio = stored.videoAudio ?? {};
   return {
     ...base,
     ...stored,
@@ -752,7 +765,11 @@ export function normalizeMusicStudio(
     aiMix: { ...base.aiMix, ...(stored.aiMix ?? {}) },
     aiMixPlan: stored.aiMixPlan ?? null,
     master: { ...base.master, ...(stored.master ?? {}) },
-    videoAudio: { ...base.videoAudio, ...(stored.videoAudio ?? {}) },
+    videoAudio: {
+      ...base.videoAudio,
+      ...storedVideoAudio,
+      source: normalizeVideoAudioSource((storedVideoAudio as Partial<VideoAudioSync>).source),
+    },
     exportSelections: Array.isArray(stored.exportSelections) ? stored.exportSelections : [],
     exports: Array.isArray(stored.exports) ? stored.exports : [],
   };
