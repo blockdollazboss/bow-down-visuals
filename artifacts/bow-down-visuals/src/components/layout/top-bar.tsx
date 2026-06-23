@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -44,11 +45,7 @@ export function TopBar() {
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
-          <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
-            alt="Bow Down Visuals"
-            className="h-16 w-auto"
-          />
+          <AnimatedLogo className="h-16 w-auto" />
         </Link>
 
         {/* Desktop nav */}

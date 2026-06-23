@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -66,11 +67,7 @@ export default function Signup() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <img
-              src={`${import.meta.env.BASE_URL}logo-static.png`}
-              alt="Bow Down Visuals"
-              className="w-[320px] max-w-full h-auto"
-            />
+            <AnimatedLogo className="w-[320px] max-w-full h-auto" />
           </div>
           <p className="mt-1 text-muted-foreground">Create your free creator account</p>
         </div>

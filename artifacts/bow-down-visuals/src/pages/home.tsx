@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import {
   Music, Video, Film, Image as ImageIcon, Mic2, Archive,
   ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
@@ -191,11 +192,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-static.png`}
-            alt="Bow Down Visuals"
-            className="h-14 w-auto"
-          />
+          <AnimatedLogo className="h-14 w-auto" />
         </Link>
 
         {/* Desktop nav */}
@@ -281,11 +278,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         {/* Hero Logo */}
         <div className="flex justify-center -my-16">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-static.png`}
-            alt="Bow Down Visuals"
-            className="w-[680px] max-w-full h-auto"
-          />
+          <AnimatedLogo className="w-[680px] max-w-full h-auto" />
         </div>
 
         {/* Badge */}

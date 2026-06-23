@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,11 +25,7 @@ function NavBar() {
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
         <Link href="/" className="cursor-pointer shrink-0">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-static.png`}
-            alt="Bow Down Visuals"
-            className="h-14 w-auto"
-          />
+          <AnimatedLogo className="h-14 w-auto" />
         </Link>
         <nav className="hidden md:flex items-center gap-1">
           {NAV_LINKS.map((l) => (
