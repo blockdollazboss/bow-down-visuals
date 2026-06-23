@@ -537,11 +537,9 @@ function PricingSection() {
                 ))}
               </ul>
 
-              <Link href="/pricing">
-                <Button className="w-full font-semibold" variant="outline">
-                  Buy Credits
-                </Button>
-              </Link>
+              <Button asChild className="w-full font-semibold" variant="outline">
+                <Link href="/pricing#credit-packs">Buy Credits</Link>
+              </Button>
             </div>
           ))}
         </div>

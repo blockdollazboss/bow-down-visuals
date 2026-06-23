@@ -259,6 +259,13 @@ export default function Pricing() {
       setShowCancelled(true);
       window.history.replaceState({}, "", "/pricing");
     }
+    // Scroll to hash anchor (wouter SPA navigation doesn't trigger native hash scrolling)
+    if (window.location.hash) {
+      const id = window.location.hash.slice(1);
+      setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
   }, []);
 
   return (
@@ -396,7 +403,7 @@ export default function Pricing() {
         </section>
 
         {/* ── TEST CREDIT PACKS ── */}
-        <section className="max-w-4xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
+        <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
           <div className="text-center mb-6">
             <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Test Credit Packs</h2>
             <p className="text-white/40 text-lg">Need extra credits without a subscription? Top up anytime.</p>
