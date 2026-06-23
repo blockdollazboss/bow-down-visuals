@@ -119,6 +119,34 @@ export const CAPTION_STYLES = [
 
 export const CAPTION_POSITIONS = ["Top", "Center", "Bottom"] as const;
 
+export type CaptionMode = "auto" | "manual" | "hook" | "best-bar" | "none";
+export type CaptionStylePreset = "clean-white" | "drill" | "luxury" | "rnb" | "kids";
+
+export interface CaptionLine {
+  id: string;
+  startSec: number;
+  endSec: number;
+  text: string;
+}
+
+export const CAPTION_MODE_DEFS: { id: CaptionMode; label: string; description: string }[] = [
+  { id: "auto",     label: "Auto from Lyrics", description: "Split pasted lyrics into timed caption lines" },
+  { id: "manual",   label: "Manual Captions",  description: "Add rows with custom timing and text" },
+  { id: "hook",     label: "Hook Only",         description: "Show hook / chorus text as a caption" },
+  { id: "best-bar", label: "Best Bar",          description: "Burn one standout bar as a text overlay" },
+  { id: "none",     label: "No Captions",       description: "Export without any text overlay" },
+];
+
+export const CAPTION_STYLE_PRESET_DEFS: {
+  id: CaptionStylePreset; name: string; description: string; accent: string;
+}[] = [
+  { id: "clean-white", name: "Clean White", description: "Bold white · black shadow · bottom center", accent: "from-white/10 to-white/5 border-white/20" },
+  { id: "drill",       name: "Drill",       description: "Uppercase · white · red/purple outline", accent: "from-red-500/20 to-purple-500/10 border-red-500/30" },
+  { id: "luxury",      name: "Luxury",      description: "Gold text · elegant shadow · cinematic", accent: "from-yellow-500/20 to-amber-600/10 border-yellow-500/30" },
+  { id: "rnb",         name: "R&B",         description: "Soft white · smooth shadow · romantic", accent: "from-pink-500/20 to-purple-500/10 border-pink-500/20" },
+  { id: "kids",        name: "Kids",        description: "Big bright text · playful · clean", accent: "from-sky-400/20 to-emerald-400/10 border-sky-400/30" },
+];
+
 export const TRANSITIONS = [
   "Cut",
   "Crossfade",
@@ -190,15 +218,35 @@ export interface ClipEdit {
 
 export interface CaptionSettings {
   enabled: boolean;
-  style: string;
+  /** Caption workflow mode. */
+  mode: CaptionMode;
+  /** Visual style preset. */
+  stylePreset: CaptionStylePreset;
   position: string;
   /** Font size preset, see CAPTION_FONT_SIZES. */
   fontSize: string;
-  /** Optional title-card text shown over the intro / first clip. */
+  /** Hex colour string, e.g. "#ffffff". */
+  textColor: string;
+  outline: boolean;
+  background: boolean;
+  showArtistName: boolean;
+  showSongTitle: boolean;
+  /** Artist name to burn when showArtistName is true. */
+  artistNameText: string;
+  /** Song title to burn when showSongTitle is true. */
+  songTitleText: string;
+  /** Raw pasted lyrics for auto-caption generation. */
+  lyricsText: string;
+  /** Single hook text for "hook" mode. */
+  hookText: string;
+  /** Single best-bar text for "best-bar" mode. */
+  bestBarText: string;
+  /** Timed caption lines (populated by generate / manual entry). */
+  lines: CaptionLine[];
+  /** Legacy fields kept for backward compat. */
+  style: string;
   titleText: string;
-  /** Lyric caption text (edit-plan only, overrides per-scene lyric lines). */
   lyricText: string;
-  /** Caption appears this many seconds into each clip. */
   timingOffset: number;
 }
 
@@ -565,9 +613,22 @@ export function defaultEditorSettings(): EditorSettings {
     clips: {},
     captions: {
       enabled: true,
-      style: "Karaoke Highlight",
+      mode: "none",
+      stylePreset: "clean-white",
       position: "Bottom",
       fontSize: "Medium",
+      textColor: "#ffffff",
+      outline: true,
+      background: false,
+      showArtistName: false,
+      showSongTitle: false,
+      artistNameText: "",
+      songTitleText: "",
+      lyricsText: "",
+      hookText: "",
+      bestBarText: "",
+      lines: [],
+      style: "Karaoke Highlight",
       titleText: "",
       lyricText: "",
       timingOffset: 0,

@@ -427,6 +427,7 @@ export function ExportSection({
         customWatermarkUrl={settings.export.customWatermarkUrl}
         aspectRatio={aspectRatio}
         resolution={settings.export.resolution}
+        captions={settings.captions}
       />
     </div>
   );
