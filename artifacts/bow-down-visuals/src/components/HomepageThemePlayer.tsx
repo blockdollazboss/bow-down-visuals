@@ -233,10 +233,23 @@ export function HomepageThemePlayer() {
             <p style={{ color: `${GOLD_GLOW}0.65)` }} className="text-[9px] font-bold uppercase tracking-[0.18em]">
               BDV
             </p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-white/90 truncate leading-tight">
-                www.bowdownvisuals.com
-              </p>
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="overflow-hidden flex-1 min-w-0">
+                <style>{`
+                  @keyframes marquee {
+                    0%   { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                  }
+                  .marquee-text {
+                    display: inline-block;
+                    white-space: nowrap;
+                    animation: marquee 8s linear infinite;
+                  }
+                `}</style>
+                <p className="marquee-text text-sm font-semibold text-white/90 leading-tight">
+                  www.bowdownvisuals.com
+                </p>
+              </div>
               <EqBars active={playing && !muted} />
             </div>
           </div>
