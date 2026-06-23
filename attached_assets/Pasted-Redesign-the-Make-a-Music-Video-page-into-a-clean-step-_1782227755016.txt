@@ -1,0 +1,108 @@
+Redesign the Make a Music Video page into a clean step-by-step wizard.
+
+Do not add Stripe.
+Do not add new APIs.
+Do not break OpenAI generation.
+Do not break Runway generation.
+Do not break Music Studio.
+Do not break saved projects.
+Do not break Promo Clips.
+Do not change Make Song + Video.
+
+Goal:
+Make a Music Video should be simple, clean, and easy for music creators to use.
+
+Use a stepper at the top with these steps:
+
+Step 1: Song Setup
+Fields:
+- Artist Name
+- Song Title
+- Genre
+- Mood
+- Upload Song
+- Audio Preview
+- Paste Lyrics
+- Transcribe Lyrics button if audio exists
+- Analyze Song Sections button if lyrics exist
+
+Step 2: Artist / Brand
+Fields:
+- Select Artist Vault Profile
+- Artist Description
+- Brand Colors
+- Visual Style Rules
+- Special Do Not Change Rules
+
+Step 3: Video Direction
+Fields:
+- Video Style
+- Platform
+- Video Length
+- Location Ideas
+- Special Visual Instructions
+
+Step 4: Generate Video Plan
+Button:
+Generate Music Video Plan
+
+Output should show in clean collapsible cards:
+- Director’s Treatment
+- Visual Concept
+- Song Structure Analysis if available
+- Scene-by-Scene Breakdown
+- AI Video Prompts
+- Thumbnail Prompts
+- Promo Clip Ideas
+- Caption Ideas
+
+Step 5: Scene Clips
+Show scene cards in a clean layout.
+
+Each scene card should show:
+- Scene number
+- short scene summary
+- status
+- approved badge if approved
+- clip preview if generated
+
+Hide long prompt details by default under:
+Show Advanced Prompt
+
+Buttons on each scene:
+- Improve Prompt for Artist
+- Generate Runway Clip
+- Preview Clip
+- Approve Clip
+- Regenerate Clip
+
+Add clear note:
+Runway clips are silent previews. Your uploaded song or Music Studio mix will be added during final export.
+
+Step 6: Next Actions
+Show action buttons:
+- Save Project
+- Open Video Editor
+- Generate Promo Clips
+- Download TXT
+- Download PDF
+
+Important design:
+- only show one step at a time
+- add Next and Back buttons
+- show progress bar
+- collapse long text
+- keep premium dark cinematic style
+- make mobile clean
+- reduce clutter
+
+Keep existing functionality working:
+- credit deduction
+- generation
+- save project
+- Artist Vault connection
+- audio upload
+- transcription
+- song section analysis
+- Runway clip generation
+- downloads
