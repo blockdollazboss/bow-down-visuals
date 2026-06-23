@@ -250,6 +250,249 @@ export interface AutoEditPlan {
   generatedAt: string;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Music Studio (in-editor DAW) model.
+
+   Lives nested inside EditorSettings.musicStudio and persists in the
+   same project output_data.editorSettings blob (no DB migration).
+
+   Two workflows:
+   • AI Auto Mix & Master — pick a preset + a few sliders, generate a
+     structured mix plan (rendering "coming soon").
+   • Manual DAW — upload stems and shape mute/solo/volume/pan/trim per
+     track plus a global master chain.
+
+   Mixing/mastering shaping is *plan only* — it describes how the final
+   render should sound and is not baked into audio until rendering is
+   enabled. Stem uploads themselves are real and persist.
+───────────────────────────────────────────────────────────── */
+
+export type LoudnessTarget = "demo" | "streaming" | "loud";
+export type ReverbAmount = "none" | "light" | "medium" | "heavy";
+export type AutotuneStyle = "off" | "light" | "modern" | "heavy";
+export type EqTone = "dark" | "balanced" | "bright";
+export type FxLevel = "off" | "low" | "medium" | "high";
+
+export type MixPresetId = "radio" | "drill" | "rnb" | "club" | "pain" | "kids";
+
+export interface MixPreset {
+  id: MixPresetId;
+  name: string;
+  tagline: string;
+  description: string;
+  accent: string;
+}
+
+export const MIX_PRESETS: MixPreset[] = [
+  {
+    id: "radio",
+    name: "Radio Ready Hip-Hop",
+    tagline: "Punchy, clean, balanced",
+    description:
+      "Loud clear vocals over a tight beat with controlled low end. The safe pro sound for most rap records.",
+    accent: "from-yellow-500/20 to-amber-600/10",
+  },
+  {
+    id: "drill",
+    name: "Drill / Street",
+    tagline: "Dark, gritty, hard",
+    description:
+      "Aggressive vocals, heavy sliding 808s and a cold, raw master. Built for drill and street records.",
+    accent: "from-slate-500/20 to-blue-500/10",
+  },
+  {
+    id: "rnb",
+    name: "R&B Smooth",
+    tagline: "Warm, lush, intimate",
+    description:
+      "Silky vocals with rich reverb, smooth compression and a gentle master. Lets the vocal breathe.",
+    accent: "from-pink-500/20 to-purple-500/10",
+  },
+  {
+    id: "club",
+    name: "Club Loud",
+    tagline: "Huge, hyped, maximum",
+    description:
+      "Maximum loudness, big bass and wide stereo for a system-shaking party master.",
+    accent: "from-fuchsia-500/20 to-red-500/10",
+  },
+  {
+    id: "pain",
+    name: "Pain / Emotional",
+    tagline: "Raw, open, honest",
+    description:
+      "Up-front emotional vocals, light beat and dynamic master so feeling sits forward in the mix.",
+    accent: "from-zinc-500/20 to-slate-700/10",
+  },
+  {
+    id: "kids",
+    name: "Kids Clean",
+    tagline: "Bright, friendly, safe",
+    description:
+      "Bright clear vocals, gentle loudness and a clean, family-friendly balance for kids music.",
+    accent: "from-sky-400/20 to-emerald-400/10",
+  },
+];
+
+export const STEM_TYPES = [
+  "Lead Vocals",
+  "Background Vocals",
+  "Ad-libs",
+  "Beat / Instrumental",
+  "Drums",
+  "808 / Bass",
+  "Melody",
+  "Piano / Keys",
+  "Guitar",
+  "FX / Risers",
+  "Full Song Mix",
+  "Other Stem",
+] as const;
+
+export const STEM_EQ_PRESETS = [
+  "Off",
+  "Warm",
+  "Bright",
+  "Radio",
+  "Telephone",
+  "Boomy Cut",
+  "Air Boost",
+] as const;
+
+export const REVERB_AMOUNTS: ReverbAmount[] = ["none", "light", "medium", "heavy"];
+export const AUTOTUNE_STYLES: AutotuneStyle[] = ["off", "light", "modern", "heavy"];
+export const FX_LEVELS: FxLevel[] = ["off", "low", "medium", "high"];
+export const EQ_TONES: EqTone[] = ["dark", "balanced", "bright"];
+
+export const LOUDNESS_TARGETS: { id: LoudnessTarget; label: string; note: string }[] = [
+  { id: "demo", label: "Demo", note: "Quiet, dynamic" },
+  { id: "streaming", label: "Streaming", note: "Spotify / Apple level" },
+  { id: "loud", label: "Loud", note: "Max club loudness" },
+];
+
+/** Accepted stem upload audio formats. */
+export const STEM_ACCEPT = ".wav,.mp3,.m4a,.flac,audio/*";
+export const STEM_MAX_MB = 50;
+
+export const AUDIO_EXPORT_FORMATS = [
+  "Full Mix WAV",
+  "Full Mix MP3",
+  "Instrumental",
+  "Acapella",
+  "Clean Version",
+  "Performance Mix",
+  "Music Video Audio Mix",
+] as const;
+
+export interface StemEffects {
+  /** EQ tone preset, see STEM_EQ_PRESETS. */
+  eq: string;
+  autotune: AutotuneStyle;
+  reverb: ReverbAmount;
+  delay: ReverbAmount;
+  compression: FxLevel;
+  saturation: FxLevel;
+  deEsser: boolean;
+  noiseReduction: boolean;
+}
+
+export interface AudioStem {
+  id: string;
+  /** User-facing track name. */
+  name: string;
+  /** Stem category, see STEM_TYPES. */
+  type: string;
+  /** Public URL of the uploaded file. */
+  url: string;
+  /** Storage path within the bucket (used for deletion). */
+  storagePath: string;
+  fileType: string;
+  fileSize: number;
+  uploadedAt: string;
+  /* mixer state */
+  muted: boolean;
+  solo: boolean;
+  locked: boolean;
+  /** 0–100. */
+  volume: number;
+  /** -100 (L) … 100 (R). */
+  pan: number;
+  /** Seconds trimmed off the start (plan only). */
+  trimStart: number;
+  /** Seconds trimmed off the end (plan only). */
+  trimEnd: number;
+  /** Alignment offset on the timeline, in seconds (plan only). */
+  startTime: number;
+  effects: StemEffects;
+}
+
+export interface AiMixOptions {
+  preset: MixPresetId;
+  vocalLoudness: Intensity;
+  beatLoudness: Intensity;
+  bassStrength: Intensity;
+  vocalClarity: Intensity;
+  reverbAmount: ReverbAmount;
+  autotuneStyle: AutotuneStyle;
+  masterLoudness: LoudnessTarget;
+  /** Strip profanity / keep it family-safe in the plan. */
+  cleanRadioMode: boolean;
+}
+
+export interface AiMixPlan {
+  preset: string;
+  summary: string;
+  stemLevels: { name: string; level: string }[];
+  vocalChain: string[];
+  beatChain: string[];
+  masterChain: string[];
+  loudnessTarget: string;
+  exportRecommendation: string;
+  notes: string;
+  /** True when generated by deterministic fallback rather than AI. */
+  fallback?: boolean;
+  generatedAt: string;
+}
+
+export interface MasterSettings {
+  /** 0–100. */
+  volume: number;
+  limiter: boolean;
+  /** Bus compression amount 0–100. */
+  compression: number;
+  eqTone: EqTone;
+  /** 0–100 stereo width. */
+  stereoWidth: number;
+  /** 0–100 low-end boost. */
+  bassBoost: number;
+  loudnessTarget: LoudnessTarget;
+  fadeIn: boolean;
+  fadeOut: boolean;
+}
+
+export type VideoAudioSource = "uploaded" | "finalMix";
+
+export interface VideoAudioSync {
+  /** Which audio plays under the video clips. */
+  source: VideoAudioSource;
+  startSec: number;
+  fadeIn: boolean;
+  fadeOut: boolean;
+  /** Trim/loop the audio to match the video length. */
+  matchVideoLength: boolean;
+}
+
+export interface MusicStudioSettings {
+  mode: "auto" | "manual";
+  stems: AudioStem[];
+  aiMix: AiMixOptions;
+  aiMixPlan: AiMixPlan | null;
+  master: MasterSettings;
+  videoAudio: VideoAudioSync;
+  /** Chosen audio export deliverables, see AUDIO_EXPORT_FORMATS. */
+  exportSelections: string[];
+}
+
 export interface EditorSettings {
   mode: "auto" | "manual";
   autoEdit: AutoEditOptions;
@@ -261,6 +504,7 @@ export interface EditorSettings {
   overlays: string[];
   audio: AudioSettings;
   export: ExportSettings;
+  musicStudio: MusicStudioSettings;
   updatedAt: string;
 }
 
@@ -304,7 +548,99 @@ export function defaultEditorSettings(): EditorSettings {
     overlays: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft" },
+    musicStudio: defaultMusicStudioSettings(),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+export function defaultStemEffects(): StemEffects {
+  return {
+    eq: "Off",
+    autotune: "off",
+    reverb: "none",
+    delay: "none",
+    compression: "off",
+    saturation: "off",
+    deEsser: false,
+    noiseReduction: false,
+  };
+}
+
+export function defaultMusicStudioSettings(): MusicStudioSettings {
+  return {
+    mode: "auto",
+    stems: [],
+    aiMix: {
+      preset: "radio",
+      vocalLoudness: "medium",
+      beatLoudness: "medium",
+      bassStrength: "medium",
+      vocalClarity: "medium",
+      reverbAmount: "light",
+      autotuneStyle: "light",
+      masterLoudness: "streaming",
+      cleanRadioMode: false,
+    },
+    aiMixPlan: null,
+    master: {
+      volume: 100,
+      limiter: true,
+      compression: 40,
+      eqTone: "balanced",
+      stereoWidth: 50,
+      bassBoost: 30,
+      loudnessTarget: "streaming",
+      fadeIn: false,
+      fadeOut: true,
+    },
+    videoAudio: {
+      source: "uploaded",
+      startSec: 0,
+      fadeIn: true,
+      fadeOut: true,
+      matchVideoLength: true,
+    },
+    exportSelections: [],
+  };
+}
+
+/** Normalize a stored stem onto fresh defaults (backward-compat). */
+export function normalizeStem(s: Partial<AudioStem>): AudioStem {
+  return {
+    id: s.id ?? `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name: s.name ?? "Stem",
+    type: s.type ?? "Other Stem",
+    url: s.url ?? "",
+    storagePath: s.storagePath ?? "",
+    fileType: s.fileType ?? "",
+    fileSize: s.fileSize ?? 0,
+    uploadedAt: s.uploadedAt ?? new Date().toISOString(),
+    muted: s.muted ?? false,
+    solo: s.solo ?? false,
+    locked: s.locked ?? false,
+    volume: s.volume ?? 100,
+    pan: s.pan ?? 0,
+    trimStart: s.trimStart ?? 0,
+    trimEnd: s.trimEnd ?? 0,
+    startTime: s.startTime ?? 0,
+    effects: { ...defaultStemEffects(), ...(s.effects ?? {}) },
+  };
+}
+
+export function normalizeMusicStudio(
+  stored: Partial<MusicStudioSettings> | null | undefined,
+): MusicStudioSettings {
+  const base = defaultMusicStudioSettings();
+  if (!stored) return base;
+  return {
+    ...base,
+    ...stored,
+    stems: Array.isArray(stored.stems) ? stored.stems.map(normalizeStem) : [],
+    aiMix: { ...base.aiMix, ...(stored.aiMix ?? {}) },
+    aiMixPlan: stored.aiMixPlan ?? null,
+    master: { ...base.master, ...(stored.master ?? {}) },
+    videoAudio: { ...base.videoAudio, ...(stored.videoAudio ?? {}) },
+    exportSelections: Array.isArray(stored.exportSelections) ? stored.exportSelections : [],
   };
 }
 
@@ -325,6 +661,7 @@ export function normalizeEditorSettings(
     overlays: stored.overlays ?? [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },
+    musicStudio: normalizeMusicStudio(stored.musicStudio),
   };
 }
 

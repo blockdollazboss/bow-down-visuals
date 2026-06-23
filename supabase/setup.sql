@@ -172,6 +172,35 @@ create policy "Users can update own artist photos"
   on storage.objects for update
   using (bucket_id = 'artist-photos' and auth.uid()::text = (storage.foldername(name))[1]);
 
+-- ─────────────────────────── STORAGE: AUDIO STEMS ────────────────────────────
+-- Music Studio stem uploads (WAV/MP3/M4A/FLAC). Files are stored under a
+-- per-user folder: `${auth.uid}/...` so users can only delete their own.
+
+insert into storage.buckets (id, name, public)
+values ('audio-stems', 'audio-stems', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Authenticated users can upload audio stems" on storage.objects;
+drop policy if exists "Anyone can view audio stems"                on storage.objects;
+drop policy if exists "Users can delete own audio stems"           on storage.objects;
+drop policy if exists "Users can update own audio stems"           on storage.objects;
+
+create policy "Authenticated users can upload audio stems"
+  on storage.objects for insert
+  with check (bucket_id = 'audio-stems' and auth.role() = 'authenticated');
+
+create policy "Anyone can view audio stems"
+  on storage.objects for select
+  using (bucket_id = 'audio-stems');
+
+create policy "Users can delete own audio stems"
+  on storage.objects for delete
+  using (bucket_id = 'audio-stems' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "Users can update own audio stems"
+  on storage.objects for update
+  using (bucket_id = 'audio-stems' and auth.uid()::text = (storage.foldername(name))[1]);
+
 alter table artist_vaults enable row level security;
 
 drop policy if exists "Users can read own artist vaults"   on artist_vaults;
