@@ -18,6 +18,7 @@ import improvePromptRouter from "./generate/improve-prompt";
 import autoEditRouter from "./generate/auto-edit";
 import mixPlanRouter from "./generate/mix-plan";
 import musicExportRouter from "./music-export";
+import uploadWatermarkRouter from "./upload-watermark";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -41,6 +42,7 @@ router.use(improvePromptRouter);
 router.use(autoEditRouter);
 router.use(mixPlanRouter);
 router.use(musicExportRouter);
+router.use(uploadWatermarkRouter);
 router.use(devRouter);
 
 export default router;

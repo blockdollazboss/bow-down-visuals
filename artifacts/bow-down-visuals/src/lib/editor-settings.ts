@@ -215,6 +215,7 @@ export interface ExportSettings {
   resolution: ExportResolution;
   quality: ExportQuality;
   watermark: boolean;
+  customWatermarkUrl?: string | null;
 }
 
 export interface AutoEditOptions {
@@ -574,7 +575,7 @@ export function defaultEditorSettings(): EditorSettings {
     effects: [],
     overlays: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
-    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: false },
+    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null },
     musicStudio: defaultMusicStudioSettings(),
     updatedAt: new Date().toISOString(),
   };

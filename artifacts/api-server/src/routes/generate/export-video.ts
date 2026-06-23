@@ -114,6 +114,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     fadeAudioOut = false,
     loopAudio = false,
     addWatermark = false,
+    customWatermarkUrl,
     audioSource = "uploaded",
   } = req.body as {
     projectId: string;
@@ -126,6 +127,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     fadeAudioOut?: boolean;
     loopAudio?: boolean;
     addWatermark?: boolean;
+    customWatermarkUrl?: string | null;
     audioSource?: string;
   };
 
@@ -233,6 +235,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     /* ── 2: Download audio ── */
     let audioPath: string | null = null;
     const useAudio = !testMode && !!audioUrl?.trim();
+    const DEFAULT_WATERMARK = path.join(process.cwd(), "artifacts/bow-down-visuals/public/bdv-watermark.png");
 
     if (useAudio) {
       const ext = audioUrl!.includes(".mp3") ? ".mp3" : audioUrl!.includes(".ogg") ? ".ogg" : audioUrl!.includes(".wav") ? ".wav" : ".aac";
@@ -242,6 +245,28 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       await downloadToFile(audioUrl!, audioPath);
       const audioSize = statSync(audioPath).size;
       req.log.info({ audioSize, audioSource }, "[export] audio downloaded");
+    }
+
+    /* ── 2b: Resolve watermark image path ── */
+    let watermarkPath: string | null = null;
+    if (addWatermark) {
+      if (customWatermarkUrl?.startsWith("http")) {
+        const wmExt = /\.(jpe?g)($|\?)/.test(customWatermarkUrl) ? ".jpg"
+          : /\.webp($|\?)/.test(customWatermarkUrl) ? ".webp" : ".png";
+        const wmDest = path.join(tmpDir, `bdv-wm-${exportId}${wmExt}`);
+        tmpFiles.push(wmDest);
+        try {
+          await downloadToFile(customWatermarkUrl, wmDest);
+          watermarkPath = wmDest;
+          req.log.info({ bytes: statSync(wmDest).size }, "[export] custom watermark downloaded");
+        } catch (wmErr) {
+          req.log.warn({ err: String(wmErr) }, "[export] custom watermark download failed, falling back to default");
+          watermarkPath = DEFAULT_WATERMARK;
+        }
+      } else {
+        watermarkPath = DEFAULT_WATERMARK;
+      }
+      if (IS_DEV) req.log.info({ watermarkPath }, "[export][debug] watermark resolved");
     }
 
     /* ── 3: Build video filter_complex — normalize + concat + optional watermark ── */
@@ -258,10 +283,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
     const concatInputs = clipPaths.map((_, i) => `[v${i}]`).join("");
 
-    if (addWatermark) {
+    if (addWatermark && watermarkPath) {
+      const wmInputIdx = clipPaths.length + (audioPath ? 1 : 0);
+      const wmW = Math.round(TARGET_W * 0.20);
       filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vconcat]`);
-      const wm = `drawtext=text='Bow Down Visuals':fontsize=${TARGET_W >= 1920 ? 36 : 28}:fontcolor=white@0.35:x=(w-text_w)/2:y=h-${TARGET_H >= 1920 ? 70 : 55}:shadowcolor=black@0.5:shadowx=1:shadowy=1`;
-      filterParts.push(`[vconcat]${wm}[vout]`);
+      filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2[wm]`);
+      filterParts.push(`[vconcat][wm]overlay=W-w-24:H-h-24:format=auto[vout]`);
     } else {
       filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vout]`);
     }
@@ -296,6 +323,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
     if (audioPath) {
       ffmpegArgs.push("-i", audioPath);
+    }
+    if (addWatermark && watermarkPath) {
+      ffmpegArgs.push("-loop", "1", "-i", watermarkPath);
     }
 
     ffmpegArgs.push("-filter_complex", filterComplex);

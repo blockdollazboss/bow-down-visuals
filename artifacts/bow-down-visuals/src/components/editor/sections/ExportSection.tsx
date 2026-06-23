@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -11,6 +11,7 @@ import {
   type AudioExportRecord,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ExportSectionProps {
   scenes: SceneData[];
@@ -108,12 +109,52 @@ export function ExportSection({
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
+  const { getAccessToken } = useAuth();
+
+  const [wmUploading, setWmUploading] = useState(false);
+  const [wmError, setWmError] = useState<string | null>(null);
+  const wmInputRef = useRef<HTMLInputElement>(null);
 
   function setVideoAudio(patch: Partial<typeof va>) {
     setSettings({ ...settings, musicStudio: { ...ms, videoAudio: { ...va, ...patch } } });
   }
   function setExport(patch: Partial<typeof settings.export>) {
     setSettings({ ...settings, export: { ...settings.export, ...patch } });
+  }
+
+  async function handleWatermarkFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setWmError("Please choose a PNG, JPG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setWmError("Image must be under 5 MB.");
+      return;
+    }
+    setWmUploading(true);
+    setWmError(null);
+    try {
+      const token = await getAccessToken();
+      const buf = await file.arrayBuffer();
+      const res = await fetch("/api/upload-watermark", {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type,
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: buf,
+      });
+      if (!res.ok) {
+        const body = (await res.json()) as { error?: string };
+        throw new Error(body.error ?? `Upload failed (${res.status})`);
+      }
+      const { url } = (await res.json()) as { url: string };
+      setExport({ customWatermarkUrl: url });
+    } catch (err) {
+      setWmError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setWmUploading(false);
+    }
   }
 
   const resolvedAudioUrl = useMemo(
@@ -286,23 +327,90 @@ export function ExportSection({
 
       {/* ── Export Options ── */}
       <EditorCard
-        title="Export Options"
-        subtitle="Watermark and branding"
-        icon={<Download className="h-4 w-4" />}
+        title="Watermark"
+        subtitle="Burned into the bottom-right corner of the exported video"
+        icon={<ImageIcon className="h-4 w-4" />}
       >
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-4">
+          {/* Toggle */}
           <Chip
             active={settings.export.watermark}
             onClick={() => setExport({ watermark: !settings.export.watermark })}
           >
-            Bow Down Visuals watermark
+            Add watermark to video
           </Chip>
+
+          {settings.export.watermark && (
+            <div className="space-y-3">
+              {/* Custom watermark preview or BDV default */}
+              {settings.export.customWatermarkUrl ? (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                  <img
+                    src={settings.export.customWatermarkUrl}
+                    alt="Custom watermark"
+                    className="h-10 w-auto max-w-[120px] object-contain rounded"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white/80">Your custom watermark</p>
+                    <p className="text-[11px] text-white/35 mt-0.5">Will appear bottom-right on the video</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExport({ customWatermarkUrl: null });
+                      if (wmInputRef.current) wmInputRef.current.value = "";
+                    }}
+                    className="shrink-0 p-1 rounded-lg hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
+                    title="Remove custom watermark"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03]">
+                  <img
+                    src={`${import.meta.env.BASE_URL}bdv-watermark.png`}
+                    alt="Bow Down Visuals watermark"
+                    className="h-10 w-auto max-w-[120px] object-contain"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white/80">Bow Down Visuals logo</p>
+                    <p className="text-[11px] text-white/35 mt-0.5">Default — used automatically</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Upload custom */}
+              <div>
+                <input
+                  ref={wmInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleWatermarkFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => wmInputRef.current?.click()}
+                  disabled={wmUploading}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06] text-xs text-white/50 hover:text-white/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                >
+                  {wmUploading
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                    : <Upload className="h-3.5 w-3.5 shrink-0" />}
+                  <span>{wmUploading ? "Uploading…" : settings.export.customWatermarkUrl ? "Replace with a different image" : "Upload your own logo / watermark"}</span>
+                  <span className="ml-auto text-[10px] text-white/25">PNG · JPG · WebP · max 5 MB</span>
+                </button>
+                {wmError && (
+                  <p className="text-[11px] text-red-400 mt-1.5">{wmError}</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        {settings.export.watermark && (
-          <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
-            A subtle "Bow Down Visuals" text watermark will be burned into the bottom-center of the video.
-          </p>
-        )}
       </EditorCard>
 
       {/* ── Final Video Export ── */}
@@ -316,6 +424,7 @@ export function ExportSection({
         fadeAudioOut={va.fadeOut}
         loopAudio={va.loopAudio}
         addWatermark={settings.export.watermark}
+        customWatermarkUrl={settings.export.customWatermarkUrl}
         aspectRatio={aspectRatio}
         resolution={settings.export.resolution}
       />

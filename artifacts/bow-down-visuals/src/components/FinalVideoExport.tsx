@@ -30,6 +30,7 @@ interface FinalVideoExportProps {
   fadeAudioOut?: boolean;
   loopAudio?: boolean;
   addWatermark?: boolean;
+  customWatermarkUrl?: string | null;
   aspectRatio?: VideoFormat;
   resolution?: ExportResolution;
   existingExport?: ExportRecord | null;
@@ -79,6 +80,7 @@ export function FinalVideoExport({
   fadeAudioOut = false,
   loopAudio = false,
   addWatermark = false,
+  customWatermarkUrl,
   aspectRatio = "9:16",
   resolution = "1080p",
   existingExport,
@@ -159,6 +161,7 @@ export function FinalVideoExport({
           fadeAudioOut: hasAudio ? fadeAudioOut : false,
           loopAudio: hasAudio ? loopAudio : false,
           addWatermark,
+          customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
           audioSource,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
