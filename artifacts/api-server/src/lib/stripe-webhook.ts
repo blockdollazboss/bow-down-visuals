@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import type { Request, Response } from "express";
 import { logger } from "./logger";
 import { addCreditsToProfile, getSupabaseAdmin } from "./supabase-admin";
+import { isPaymentAlreadyRecorded, recordStripePayment } from "./payment-record";
 
 export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
@@ -63,6 +64,21 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
     return;
   }
 
+  // ── IDEMPOTENCY CHECK ─────────────────────────────────────────────────────
+  try {
+    const alreadyProcessed = await isPaymentAlreadyRecorded(session.id);
+    if (alreadyProcessed) {
+      logger.info({ sessionId: session.id }, "Stripe webhook: duplicate payment ignored — already recorded");
+      res.status(200).json({ received: true, duplicate: true });
+      return;
+    }
+  } catch (err: unknown) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, sessionId: session.id }, "Stripe webhook: idempotency check failed");
+    // Continue processing — better to double-credit than to silently fail
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);
@@ -91,6 +107,18 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       { userId, creditPack, creditsAmount, oldCredits, newCredits, created, sessionId: session.id },
       "Stripe webhook: credits added successfully"
     );
+
+    // Record the payment to prevent future duplicates
+    await recordStripePayment({
+      stripeSessionId:      session.id,
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      userId,
+      creditPack,
+      creditsAmount,
+      amountTotal:  session.amount_total,
+      currency:     session.currency,
+    });
+
     res.status(200).json({ received: true, success: true, credits: newCredits });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";

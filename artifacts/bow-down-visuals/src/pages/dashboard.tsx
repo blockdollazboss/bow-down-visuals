@@ -6,6 +6,7 @@ import {
   Archive, FolderOpen, Headphones, ArrowRight,
   Zap, Users, Clock, Sparkles, ChevronRight,
   TrendingUp, Star, Lock, User, RefreshCw, AlertCircle, Rocket,
+  Receipt, CheckCircle2,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,17 @@ interface Project {
   project_type: string;
   artist_name: string | null;
   song_title: string | null;
+  created_at: string;
+}
+
+interface PaymentHistory {
+  id: string;
+  stripe_session_id: string;
+  credit_pack: string | null;
+  credits_amount: number;
+  amount_total: number | null;
+  currency: string | null;
+  status: string | null;
   created_at: string;
 }
 
@@ -186,6 +198,7 @@ export default function Dashboard() {
   const [vaultCount, setVaultCount] = useState<number | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
 
   const name = firstName(profile?.display_name, user?.email);
   const credits = profile?.credits ?? 0;
@@ -276,6 +289,22 @@ export default function Dashboard() {
         setVaultCount((d.vaults ?? []).length);
       }
     })().catch(() => setVaultCount(0));
+    return () => { cancelled = true; };
+  }, [user, getAccessToken]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/payments/history", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!cancelled && res.ok) {
+        const d = await res.json() as { payments?: PaymentHistory[] };
+        setPaymentHistory((d.payments ?? []).reverse());
+      }
+    })().catch(() => {});
     return () => { cancelled = true; };
   }, [user, getAccessToken]);
 
@@ -540,7 +569,47 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* ── 6. COMING SOON ── */}
+        {/* ── 6. PAYMENT HISTORY ── */}
+        {paymentHistory.length > 0 && (
+          <section>
+            <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">Payment History</h2>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+              <div className="hidden sm:grid grid-cols-4 gap-4 px-5 py-3 border-b border-white/[0.05] text-[11px] font-bold text-white/25 uppercase tracking-widest">
+                <span>Date</span>
+                <span>Pack</span>
+                <span>Credits</span>
+                <span>Amount</span>
+              </div>
+              {paymentHistory.map((p) => {
+                const date = new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                const dollars = p.amount_total != null
+                  ? `$${(p.amount_total / 100).toFixed(2)}`
+                  : "—";
+                return (
+                  <div
+                    key={p.id}
+                    className="grid grid-cols-2 sm:grid-cols-4 gap-4 px-5 py-4 border-b border-white/[0.04] last:border-0 items-center"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                      <span className="text-xs text-white/50">{date}</span>
+                    </div>
+                    <div className="text-xs font-semibold text-white/70">
+                      {p.credit_pack ?? "Credits"}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="h-3 w-3 text-primary/60" />
+                      <span className="text-xs font-bold text-primary">+{p.credits_amount}</span>
+                    </div>
+                    <div className="text-xs text-white/40">{dollars}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── 7. COMING SOON ── */}
         <section>
           <h2 className="text-xs font-bold tracking-[0.18em] text-white/30 uppercase mb-4">Coming Soon</h2>
           <div className="flex flex-wrap gap-2.5">

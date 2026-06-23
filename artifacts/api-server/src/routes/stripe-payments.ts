@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 import { addCreditsToProfile } from "../lib/supabase-admin";
+import { isPaymentAlreadyRecorded, recordStripePayment, getPaymentHistory } from "../lib/payment-record";
 
 const router = Router();
 
@@ -131,7 +132,6 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     return;
   }
 
-  // Fail fast if service role key is missing
   if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]) {
     const msg = "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to Replit Secrets so Stripe payments can update credits securely.";
     logger.error(msg);
@@ -163,7 +163,6 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     return;
   }
 
-  // Support both old and new metadata field names
   const metaUserId = session.metadata?.user_id ?? session.metadata?.userId;
   const metaCredits = session.metadata?.credits_amount ?? session.metadata?.credits;
   const metaPack = session.metadata?.credit_pack ?? session.metadata?.pack ?? "";
@@ -187,17 +186,56 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
 
   logger.info({ creditsToAdd }, "checkout/verify: credits_amount found");
 
+  // ── IDEMPOTENCY CHECK ─────────────────────────────────────────────────────
+  try {
+    const alreadyProcessed = await isPaymentAlreadyRecorded(sessionId);
+    if (alreadyProcessed) {
+      logger.info({ sessionId, userId: req.userId }, "checkout/verify: duplicate payment ignored — already recorded");
+      // Return success with current info so the dashboard banner shows correctly
+      res.json({ success: true, duplicate: true, added: creditsToAdd, pack: metaPack });
+      return;
+    }
+  } catch (err: unknown) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, sessionId }, "checkout/verify: idempotency check failed — proceeding");
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   try {
     const { oldCredits, newCredits, created } = await addCreditsToProfile(req.userId!, creditsToAdd);
     logger.info(
       { userId: req.userId, creditsToAdd, oldCredits, newCredits, pack: metaPack, sessionId, created },
       "checkout/verify: credits applied successfully"
     );
+
+    // Record payment to prevent future duplicates
+    await recordStripePayment({
+      stripeSessionId:      sessionId,
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+      userId:               req.userId!,
+      creditPack:           metaPack,
+      creditsAmount:        creditsToAdd,
+      amountTotal:          session.amount_total,
+      currency:             session.currency,
+    });
+
     res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: metaPack });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg, userId: req.userId }, "checkout/verify: credit update failed");
     res.status(500).json({ error: `Credits verified but could not be applied: ${msg}` });
+  }
+});
+
+/* ── GET /api/payments/history ── */
+router.get("/payments/history", requireAuth, async (req, res) => {
+  try {
+    const history = await getPaymentHistory(req.userId!);
+    res.json({ payments: history });
+  } catch (err: unknown) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, userId: req.userId }, "payments/history: query failed");
+    res.status(500).json({ error: "Could not load payment history." });
   }
 });
 
