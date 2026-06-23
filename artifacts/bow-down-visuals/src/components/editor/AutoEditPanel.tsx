@@ -271,18 +271,19 @@ function PlanView({ plan, scenes }: { plan: AutoEditPlan; scenes: SceneData[] })
 
         {/* Clip order list */}
         <div className="rounded-xl border border-white/[0.07] overflow-hidden">
-          <div className="grid grid-cols-[28px_1fr_96px_96px_56px] gap-2 px-3 py-2 bg-white/[0.03] border-b border-white/[0.05]">
+          <div className="grid grid-cols-[28px_1fr_88px_88px_92px_48px] gap-2 px-3 py-2 bg-white/[0.03] border-b border-white/[0.05]">
             <span className="text-[9px] font-black text-white/30 uppercase">#</span>
             <span className="text-[9px] font-black text-white/30 uppercase">Scene</span>
             <span className="text-[9px] font-black text-white/30 uppercase">Transition</span>
             <span className="text-[9px] font-black text-white/30 uppercase">Effect</span>
+            <span className="text-[9px] font-black text-white/30 uppercase">Captions</span>
             <span className="text-[9px] font-black text-white/30 uppercase text-right">Dur.</span>
           </div>
           <div className="divide-y divide-white/[0.04]">
             {(plan.clips ?? []).map((c) => {
               const scene = sceneById.get(c.sceneId);
               return (
-                <div key={`${c.sceneId}-${c.order}`} className="grid grid-cols-[28px_1fr_96px_96px_56px] gap-2 items-center px-3 py-2.5">
+                <div key={`${c.sceneId}-${c.order}`} className="grid grid-cols-[28px_1fr_88px_88px_92px_48px] gap-2 items-center px-3 py-2.5">
                   <span className="text-[11px] font-black text-primary/60">{c.order}</span>
                   <div className="min-w-0">
                     <p className="text-[12px] text-white/75 truncate">{c.label}</p>
@@ -290,6 +291,7 @@ function PlanView({ plan, scenes }: { plan: AutoEditPlan; scenes: SceneData[] })
                   </div>
                   <span className="text-[11px] text-white/55 truncate">{c.transition}</span>
                   <span className="text-[11px] text-white/55 truncate">{c.effect}</span>
+                  <span className="text-[11px] text-white/45 truncate tabular-nums">{c.captionTiming || "—"}</span>
                   <span className="text-[11px] text-white/40 text-right tabular-nums">{c.durationSec}s</span>
                 </div>
               );

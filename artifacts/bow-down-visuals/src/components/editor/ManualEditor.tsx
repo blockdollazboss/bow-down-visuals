@@ -85,11 +85,11 @@ export function ManualEditor({ scenes, setScenes, settings, setSettings, project
       {/* ── EDIT ── */}
       <TabsContent value="edit" className="space-y-5 mt-0">
         <ClipSequencePlayer
-          scenes={scenes.filter(sceneHasClip)}
+          scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
           allScenes={scenes}
           title="Timeline Preview"
-          emptyTitle="No clips to preview yet."
-          emptyHint="Generate Runway clips on your scenes first — they'll play here in order."
+          emptyTitle="No approved clips to preview yet."
+          emptyHint="Generate Runway clips on your scenes, then approve them — approved clips play here in order."
         />
         <PlanNote />
         {scenes.length === 0 ? (
