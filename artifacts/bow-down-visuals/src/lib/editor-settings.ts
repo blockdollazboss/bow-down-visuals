@@ -147,6 +147,86 @@ export const CAPTION_STYLE_PRESET_DEFS: {
   { id: "kids",        name: "Kids",        description: "Big bright text · playful · clean", accent: "from-sky-400/20 to-emerald-400/10 border-sky-400/30" },
 ];
 
+/* ── Branding types ──────────────────────────────────── */
+
+export type IntroCardPreset =
+  | "luxury-dark" | "drill-street" | "rnb-smooth"
+  | "club-neon"   | "kids-bright"  | "clean-minimal";
+
+export type OutroCtaPreset =
+  | "stream-now" | "follow-for-more" | "new-music-out-now"
+  | "watch-full-video" | "created-with-bdv" | "custom";
+
+export type WatermarkPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+export type WatermarkOpacity  = "low" | "medium" | "high";
+export type WatermarkSize     = "small" | "medium" | "large";
+export type TitleStylePreset  = "clean-white" | "luxury-gold" | "minimal";
+export type CardDuration      = 1 | 2 | 3 | 5;
+
+export const INTRO_STYLE_DEFS: {
+  id: IntroCardPreset; name: string; description: string; accent: string;
+}[] = [
+  { id: "luxury-dark",   name: "Luxury Dark",   description: "Gold text · deep black · cinematic",       accent: "from-yellow-500/20 to-black/60 border-yellow-500/30" },
+  { id: "drill-street",  name: "Drill Street",  description: "White uppercase · red outline · raw",        accent: "from-red-500/20 to-black/60 border-red-500/30" },
+  { id: "rnb-smooth",    name: "R&B Smooth",    description: "Soft rose · deep purple · romantic",         accent: "from-pink-500/20 to-purple-900/30 border-pink-500/20" },
+  { id: "club-neon",     name: "Club Neon",     description: "Cyan/magenta · pure black · electric",       accent: "from-cyan-400/20 to-fuchsia-500/10 border-cyan-400/30" },
+  { id: "kids-bright",   name: "Kids Bright",   description: "Yellow · electric blue · playful",           accent: "from-yellow-400/20 to-sky-500/10 border-yellow-400/30" },
+  { id: "clean-minimal", name: "Clean Minimal", description: "White bg · black text · modern",             accent: "from-white/10 to-white/5 border-white/20" },
+];
+
+export const OUTRO_CTA_PRESETS: { id: OutroCtaPreset; label: string }[] = [
+  { id: "stream-now",        label: "Stream now" },
+  { id: "follow-for-more",   label: "Follow for more" },
+  { id: "new-music-out-now", label: "New music out now" },
+  { id: "watch-full-video",  label: "Watch full video" },
+  { id: "created-with-bdv",  label: "Created with Bow Down Visuals" },
+  { id: "custom",            label: "Custom text…" },
+];
+
+export interface IntroCardSettings {
+  enabled: boolean;
+  artistName: string;
+  songTitle: string;
+  tagline: string;
+  duration: CardDuration;
+  stylePreset: IntroCardPreset;
+}
+
+export interface OutroCardSettings {
+  enabled: boolean;
+  textLine1: string;
+  textLine2: string;
+  ctaPreset: OutroCtaPreset;
+  customCtaText: string;
+  duration: CardDuration;
+  stylePreset: IntroCardPreset;
+}
+
+export interface BrandingWatermarkSettings {
+  enabled: boolean;
+  bdvWatermark: boolean;
+  customLogoUrl: string | null;
+  position: WatermarkPosition;
+  opacity: WatermarkOpacity;
+  size: WatermarkSize;
+}
+
+export interface TitleOverlaySettings {
+  showArtistName: boolean;
+  artistNameText: string;
+  showSongTitle: boolean;
+  songTitleText: string;
+  showSectionLabels: boolean;
+  stylePreset: TitleStylePreset;
+}
+
+export interface BrandingSettings {
+  introCard: IntroCardSettings;
+  outroCard: OutroCardSettings;
+  watermark: BrandingWatermarkSettings;
+  titleOverlay: TitleOverlaySettings;
+}
+
 export const TRANSITIONS = [
   "Cut",
   "Crossfade",
@@ -581,6 +661,7 @@ export interface EditorSettings {
   audio: AudioSettings;
   export: ExportSettings;
   musicStudio: MusicStudioSettings;
+  branding: BrandingSettings;
   updatedAt: string;
 }
 
@@ -638,6 +719,41 @@ export function defaultEditorSettings(): EditorSettings {
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null },
     musicStudio: defaultMusicStudioSettings(),
+    branding: {
+      introCard: {
+        enabled: false,
+        artistName: "",
+        songTitle: "",
+        tagline: "",
+        duration: 3,
+        stylePreset: "luxury-dark",
+      },
+      outroCard: {
+        enabled: false,
+        textLine1: "",
+        textLine2: "",
+        ctaPreset: "follow-for-more",
+        customCtaText: "",
+        duration: 3,
+        stylePreset: "luxury-dark",
+      },
+      watermark: {
+        enabled: false,
+        bdvWatermark: true,
+        customLogoUrl: null,
+        position: "bottom-right",
+        opacity: "medium",
+        size: "medium",
+      },
+      titleOverlay: {
+        showArtistName: false,
+        artistNameText: "",
+        showSongTitle: false,
+        songTitleText: "",
+        showSectionLabels: false,
+        stylePreset: "clean-white",
+      },
+    },
     updatedAt: new Date().toISOString(),
   };
 }
@@ -855,6 +971,14 @@ export function normalizeEditorSettings(
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },
     musicStudio: normalizeMusicStudio(stored.musicStudio),
+    branding: stored.branding
+      ? {
+          introCard:    { ...base.branding.introCard,    ...(stored.branding.introCard    ?? {}) },
+          outroCard:    { ...base.branding.outroCard,    ...(stored.branding.outroCard    ?? {}) },
+          watermark:    { ...base.branding.watermark,    ...(stored.branding.watermark    ?? {}) },
+          titleOverlay: { ...base.branding.titleOverlay, ...(stored.branding.titleOverlay ?? {}) },
+        }
+      : base.branding,
   };
 }
 

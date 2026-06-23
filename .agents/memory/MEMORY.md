@@ -1,2 +1,6 @@
 - [Video Export Audio Integration](video-export-audio.md) — final video export now accepts audioSource/fadeIn/fadeOut/loopAudio/watermark/aspectRatio; "finalMix" source renamed to "full-mix".
 - [Server-Fetch SSRF Allowlist](server-fetch-ssrf.md) — audio export SSRF allowlist requires stem URLs to match SUPABASE_URL host; client must use Supabase public storage URLs.
+- [Branding system FFmpeg](branding-ffmpeg.md) — intro/outro lavfi inputs must precede clips; all input indices tracked with nextIdx counter; branding.watermark overrides legacy addWatermark.
+- [ASS caption time offset](caption-time-offset.md) — when intro card is enabled all ASS caption times shift by introDuration; buildAssContent takes timeOffset=0 param.
+- [DejaVu drawtext font path](drawtext-font.md) — confirmed path: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf for FFmpeg drawtext filters.
+- [Segmented control type constraint](segmented-types.md) — Segmented<T extends string> only accepts strings; convert numeric settings (CardDuration) with String/Number at call site.

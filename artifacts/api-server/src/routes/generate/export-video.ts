@@ -162,6 +162,7 @@ function buildAssContent(
   targetW: number,
   targetH: number,
   totalDuration: number,
+  timeOffset = 0,
 ): string {
   const s = resolveAssStyle(
     config.stylePreset,
@@ -176,21 +177,22 @@ function buildAssContent(
 
   const events: Array<{ start: number; end: number; text: string }> = [];
 
-  // Artist / title cards at the very beginning
-  let introOffset = 0.5;
+  // Artist / title cards at the very beginning (shifted by timeOffset when intro card precedes clips)
+  let introCursor = 0.5 + timeOffset;
   if (config.showArtistName && config.artistNameText) {
-    events.push({ start: introOffset, end: introOffset + 3, text: config.artistNameText });
-    introOffset += 3.5;
+    events.push({ start: introCursor, end: introCursor + 3, text: config.artistNameText });
+    introCursor += 3.5;
   }
   if (config.showSongTitle && config.songTitleText) {
-    events.push({ start: introOffset, end: introOffset + 3, text: config.songTitleText });
+    events.push({ start: introCursor, end: introCursor + 3, text: config.songTitleText });
   }
 
-  // Caption lines
+  // Caption lines (shifted by timeOffset so they align with clips after the intro card)
+  const clipEnd = timeOffset + totalDuration;
   for (const line of config.lines) {
     if (!line.text.trim()) continue;
-    const start = Math.max(0, line.startSec);
-    const end = line.endSec >= 999 ? totalDuration : Math.min(line.endSec, totalDuration);
+    const start = Math.max(0, line.startSec + timeOffset);
+    const end = line.endSec >= 999 ? clipEnd : Math.min(line.endSec + timeOffset, clipEnd);
     if (end <= start) continue;
     const text = config.stylePreset === "drill" ? line.text.toUpperCase() : line.text;
     events.push({ start, end, text });
@@ -245,6 +247,127 @@ ${dialogueLines}
 `;
 }
 const IS_DEV = process.env["NODE_ENV"] !== "production";
+
+/* ── Branding / card helpers ─────────────────────────── */
+
+const SANS_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+
+function escapeDrawtext(t: string): string {
+  return t
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/:/g, "\\:")
+    .replace(/%/g, "%%");
+}
+
+interface CardColors {
+  artistColor: string;
+  titleColor: string;
+  taglineColor: string;
+  uppercase: boolean;
+  borderW: number;
+  borderColor: string;
+}
+
+const CARD_COLORS: Record<string, CardColors> = {
+  "luxury-dark":   { artistColor: "0xFFD700", titleColor: "0xFFFFFF", taglineColor: "0xCCCCCC", uppercase: false, borderW: 2, borderColor: "0x000000" },
+  "drill-street":  { artistColor: "0xFFFFFF", titleColor: "0xFF3030", taglineColor: "0xCCCCCC", uppercase: true,  borderW: 3, borderColor: "0xFF0000" },
+  "rnb-smooth":    { artistColor: "0xE8B4CB", titleColor: "0xDDA0DD", taglineColor: "0xCC88CC", uppercase: false, borderW: 1, borderColor: "0x000000" },
+  "club-neon":     { artistColor: "0x00FFCC", titleColor: "0xFF00FF", taglineColor: "0xFFFFFF", uppercase: false, borderW: 2, borderColor: "0x000000" },
+  "kids-bright":   { artistColor: "0xFFFF00", titleColor: "0x00FF88", taglineColor: "0xFFFFFF", uppercase: false, borderW: 3, borderColor: "0x000000" },
+  "clean-minimal": { artistColor: "0x111111", titleColor: "0x444444", taglineColor: "0x777777", uppercase: false, borderW: 0, borderColor: "0xFFFFFF" },
+};
+
+const CARD_BG_HEX: Record<string, string> = {
+  "luxury-dark":   "0x0a0a0a",
+  "drill-street":  "0x0d0d0d",
+  "rnb-smooth":    "0x1a0a2e",
+  "club-neon":     "0x000000",
+  "kids-bright":   "0x1a2040",
+  "clean-minimal": "0xF5F5F5",
+};
+
+const OUTRO_CTA_TEXT_MAP: Record<string, string> = {
+  "stream-now":        "Stream now",
+  "follow-for-more":   "Follow for more",
+  "new-music-out-now": "New music out now",
+  "watch-full-video":  "Watch the full video",
+  "created-with-bdv":  "Created with Bow Down Visuals",
+};
+
+interface IntroConfig  { artistName: string; songTitle: string; tagline: string; stylePreset: string; }
+interface OutroConfig  { textLine1: string; textLine2: string; ctaPreset: string; customCtaText: string; stylePreset: string; }
+interface TitleConfig  { showArtistName: boolean; artistNameText: string; showSongTitle: boolean; songTitleText: string; stylePreset: string; }
+interface WmConfig     { bdvWatermark: boolean; customLogoUrl?: string | null; position: string; opacity: string; size: string; }
+
+function buildCardDrawtext(c: IntroConfig, targetW: number, targetH: number): string {
+  const col = CARD_COLORS[c.stylePreset] ?? CARD_COLORS["luxury-dark"]!;
+  const d = Math.min(targetW, targetH);
+  const aSize = Math.round(d * 0.07);
+  const tSize = Math.round(d * 0.05);
+  const gSize = Math.round(d * 0.034);
+  const parts: string[] = [];
+  if (c.artistName?.trim()) {
+    const txt = col.uppercase ? escapeDrawtext(c.artistName.toUpperCase()) : escapeDrawtext(c.artistName);
+    parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${txt}':fontsize=${aSize}:fontcolor=${col.artistColor}:x=(w-text_w)/2:y=h/2-${Math.round(d*0.12)}:borderw=${col.borderW}:bordercolor=${col.borderColor}`);
+  }
+  if (c.songTitle?.trim()) {
+    const txt = col.uppercase ? escapeDrawtext(c.songTitle.toUpperCase()) : escapeDrawtext(c.songTitle);
+    parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${txt}':fontsize=${tSize}:fontcolor=${col.titleColor}:x=(w-text_w)/2:y=h/2:borderw=${Math.max(0,col.borderW-1)}:bordercolor=${col.borderColor}`);
+  }
+  if (c.tagline?.trim()) {
+    parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(c.tagline)}':fontsize=${gSize}:fontcolor=${col.taglineColor}@0.80:x=(w-text_w)/2:y=h/2+${Math.round(d*0.10)}`);
+  }
+  return parts.length ? parts.join(",") : "copy";
+}
+
+function buildOutroDrawtext(c: OutroConfig, targetW: number, targetH: number): string {
+  const col = CARD_COLORS[c.stylePreset] ?? CARD_COLORS["luxury-dark"]!;
+  const d = Math.min(targetW, targetH);
+  const l1 = Math.round(d * 0.055);
+  const l2 = Math.round(d * 0.042);
+  const ct = Math.round(d * 0.034);
+  const ctaText = c.ctaPreset === "custom" ? c.customCtaText : (OUTRO_CTA_TEXT_MAP[c.ctaPreset] ?? "");
+  const parts: string[] = [];
+  if (c.textLine1?.trim()) parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(c.textLine1)}':fontsize=${l1}:fontcolor=${col.artistColor}:x=(w-text_w)/2:y=h/2-${Math.round(d*0.10)}:borderw=${col.borderW}:bordercolor=${col.borderColor}`);
+  if (c.textLine2?.trim()) parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(c.textLine2)}':fontsize=${l2}:fontcolor=${col.titleColor}:x=(w-text_w)/2:y=h/2+${Math.round(d*0.01)}`);
+  if (ctaText.trim())      parts.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(ctaText)}':fontsize=${ct}:fontcolor=${col.taglineColor}@0.80:x=(w-text_w)/2:y=h/2+${Math.round(d*0.12)}`);
+  return parts.length ? parts.join(",") : "copy";
+}
+
+const TITLE_COLORS: Record<string, { n: string; t: string }> = {
+  "clean-white": { n: "0xFFFFFF", t: "0xCCCCCC" },
+  "luxury-gold": { n: "0xFFD700", t: "0xFFFFFF" },
+  "minimal":     { n: "0xFFFFFF", t: "0xAAAAAA" },
+};
+
+function buildTitleFilters(cfg: TitleConfig | null | undefined, tW: number, tH: number, dur: number): string[] {
+  if (!cfg || (!cfg.showArtistName && !cfg.showSongTitle)) return [];
+  const col = TITLE_COLORS[cfg.stylePreset] ?? TITLE_COLORS["clean-white"]!;
+  const d = Math.min(tW, tH);
+  const ns = Math.round(d * 0.038);
+  const ts = Math.round(d * 0.030);
+  const mb = Math.round(tH * 0.08);
+  const sd = Math.min(5, dur).toFixed(3);
+  const out: string[] = [];
+  if (cfg.showArtistName && cfg.artistNameText?.trim()) {
+    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.artistNameText)}':fontsize=${ns}:fontcolor=${col.n}:x=30:y=h-${mb+ns+12}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
+  }
+  if (cfg.showSongTitle && cfg.songTitleText?.trim()) {
+    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.songTitleText)}':fontsize=${ts}:fontcolor=${col.t}:x=30:y=h-${mb}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
+  }
+  return out;
+}
+
+function buildWmPos(position: string): string {
+  const m = 24;
+  switch (position) {
+    case "top-left":    return `${m}:${m}`;
+    case "top-right":   return `W-w-${m}:${m}`;
+    case "bottom-left": return `${m}:H-h-${m}`;
+    default:            return `W-w-${m}:H-h-${m}`;
+  }
+}
 
 /* ── Aspect ratio dimensions ──────────────────────────── */
 const ASPECT_DIMS: Record<string, [number, number]> = {
@@ -349,6 +472,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     customWatermarkUrl,
     audioSource = "uploaded",
     captions,
+    branding,
   } = req.body as {
     projectId: string;
     clipUrls: string[];
@@ -363,6 +487,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     customWatermarkUrl?: string | null;
     audioSource?: string;
     captions?: CaptionBurnConfig | null;
+    branding?: {
+      introCard?:   IntroConfig  & { enabled?: boolean; duration?: number };
+      outroCard?:   OutroConfig  & { enabled?: boolean; duration?: number };
+      watermark?:   WmConfig     & { enabled?: boolean };
+      titleOverlay?: TitleConfig;
+    } | null;
   };
 
   if (!projectId?.trim()) {
@@ -430,8 +560,13 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       clipInfos.push(info);
     }
 
-    /* ── Compute total video duration ── */
-    const totalVideoDuration = clipInfos.reduce((sum, c) => sum + c.duration, 0);
+    /* ── Compute total video duration (clips + optional intro/outro cards) ── */
+    const totalClipsDuration = clipInfos.reduce((sum, c) => sum + c.duration, 0);
+    const introEnabled = !!(branding?.introCard?.enabled);
+    const outroEnabled = !!(branding?.outroCard?.enabled);
+    const introDuration = introEnabled ? (branding!.introCard!.duration ?? 3) : 0;
+    const outroDuration = outroEnabled ? (branding!.outroCard!.duration ?? 3) : 0;
+    const totalVideoDuration = totalClipsDuration + introDuration + outroDuration;
 
     if (IS_DEV) {
       req.log.info({
@@ -511,19 +646,55 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       (captions.lines.length > 0 || captions.showArtistName || captions.showSongTitle);
 
     if (captionsActive) {
-      const assContent = buildAssContent(captions!, TARGET_W, TARGET_H, totalVideoDuration);
+      // Caption times are relative to clips; if an intro card precedes them, shift by its duration
+      const captionTimeOffset = introDuration;
+      const assContent = buildAssContent(captions!, TARGET_W, TARGET_H, totalClipsDuration, captionTimeOffset);
       if (assContent.trim()) {
         captionsAssPath = path.join(tmpDir, `bdv-captions-${exportId}.ass`);
         tmpFiles.push(captionsAssPath);
         writeFileSync(captionsAssPath, assContent, "utf8");
         req.log.info(
-          { captionsAssPath, lines: captions!.lines.length, mode: captions!.mode },
+          { captionsAssPath, lines: captions!.lines.length, mode: captions!.mode, captionTimeOffset },
           "[export] ASS captions file written",
         );
       }
     }
 
-    /* ── 3: Build video filter_complex — normalize + concat + optional watermark ── */
+    /* ── 2d: Resolve branding watermark (overrides legacy addWatermark) ── */
+    const useBrandingWm = !!(branding?.watermark?.enabled);
+    let brandingWmPath: string | null = null;
+    if (useBrandingWm) {
+      const bwm = branding!.watermark!;
+      if (bwm.customLogoUrl?.startsWith("http")) {
+        const wmExt2 = /\.(jpe?g)($|\?)/.test(bwm.customLogoUrl) ? ".jpg"
+          : /\.webp($|\?)/.test(bwm.customLogoUrl) ? ".webp" : ".png";
+        const bwmDest = path.join(tmpDir, `bdv-bwm-${exportId}${wmExt2}`);
+        tmpFiles.push(bwmDest);
+        try {
+          await downloadToFile(bwm.customLogoUrl, bwmDest);
+          brandingWmPath = bwmDest;
+          req.log.info({ bytes: statSync(bwmDest).size }, "[export] branding custom logo downloaded");
+        } catch (e) {
+          req.log.warn({ err: String(e) }, "[export] branding logo failed, using BDV default");
+          brandingWmPath = bwm.bdvWatermark !== false ? DEFAULT_WATERMARK : null;
+        }
+      } else if (bwm.bdvWatermark !== false) {
+        brandingWmPath = DEFAULT_WATERMARK;
+      }
+    }
+    // branding.watermark wins; else fall back to legacy addWatermark toggle
+    const activeWmPath = useBrandingWm ? brandingWmPath : (addWatermark ? watermarkPath : null);
+
+    /* ── 3: Plan FFmpeg input indices ── */
+    let nextIdx = 0;
+    const introInputIdx = introEnabled ? nextIdx++ : -1;
+    const clipBaseIdx = nextIdx;
+    nextIdx += clipPaths.length;
+    const outroInputIdx = outroEnabled ? nextIdx++ : -1;
+    const audioInputIdx = audioPath ? nextIdx++ : -1;
+    const wmInputIdx = activeWmPath ? nextIdx++ : -1;
+
+    /* ── 3b: Build video filter_complex ── */
     const scaleFilter = [
       `scale=${TARGET_W}:${TARGET_H}:force_original_aspect_ratio=decrease`,
       `pad=${TARGET_W}:${TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
@@ -532,25 +703,68 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     ].join(",");
 
     const filterParts: string[] = [];
+
+    // Scale each clip to target resolution
     for (let i = 0; i < clipPaths.length; i++) {
-      filterParts.push(`[${i}:v]${scaleFilter}[v${i}]`);
-    }
-    const concatInputs = clipPaths.map((_, i) => `[v${i}]`).join("");
-
-    if (addWatermark && watermarkPath) {
-      const wmInputIdx = clipPaths.length + (audioPath ? 1 : 0);
-      const wmW = Math.round(TARGET_W * 0.20);
-      filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vconcat]`);
-      filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2[wm]`);
-      filterParts.push(`[vconcat][wm]overlay=W-w-24:H-h-24:format=auto[vout]`);
-    } else {
-      filterParts.push(`${concatInputs}concat=n=${clipPaths.length}:v=1:a=0[vout]`);
+      filterParts.push(`[${clipBaseIdx + i}:v]${scaleFilter}[v${i}]`);
     }
 
-    /* ── 3b: Inject ASS subtitle filter if captions were written ── */
+    // Intro card with optional drawtext
+    if (introInputIdx >= 0) {
+      const dt = buildCardDrawtext(branding!.introCard as IntroConfig, TARGET_W, TARGET_H);
+      filterParts.push(`[${introInputIdx}:v]${dt}[intro_card]`);
+    }
+
+    // Outro card with optional drawtext
+    if (outroInputIdx >= 0) {
+      const dt = buildOutroDrawtext(branding!.outroCard as OutroConfig, TARGET_W, TARGET_H);
+      filterParts.push(`[${outroInputIdx}:v]${dt}[outro_card]`);
+    }
+
+    // Build segment labels for concat
+    const segments: string[] = [];
+    if (introInputIdx >= 0) segments.push("[intro_card]");
+    for (let i = 0; i < clipPaths.length; i++) segments.push(`[v${i}]`);
+    if (outroInputIdx >= 0) segments.push("[outro_card]");
+
+    // Concat all segments
+    let workLabel = "vconcat";
+    filterParts.push(`${segments.join("")}concat=n=${segments.length}:v=1:a=0[${workLabel}]`);
+
+    // Title overlay drawtext chain (artist name + song title in lower-left)
+    const titleFilters = buildTitleFilters(
+      branding?.titleOverlay as TitleConfig | undefined ?? null,
+      TARGET_W, TARGET_H, totalVideoDuration,
+    );
+    for (let i = 0; i < titleFilters.length; i++) {
+      const nextLabel = `vtitle${i}`;
+      filterParts.push(`[${workLabel}]${titleFilters[i]}[${nextLabel}]`);
+      workLabel = nextLabel;
+    }
+
+    // Watermark overlay
+    if (wmInputIdx >= 0 && activeWmPath) {
+      const bwm = useBrandingWm ? branding!.watermark : null;
+      const wmW = bwm
+        ? ({ small: 100, medium: 150, large: 200 }[bwm.size] ?? 150)
+        : Math.round(TARGET_W * 0.20);
+      const wmAlpha = bwm
+        ? ({ low: "0.30", medium: "0.60", high: "0.90" }[bwm.opacity] ?? "0.60")
+        : "0.90";
+      const wmPos = bwm ? buildWmPos(bwm.position) : "W-w-24:H-h-24";
+      filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2,format=rgba,colorchannelmixer=aa=${wmAlpha}[wm]`);
+      filterParts.push(`[${workLabel}][wm]overlay=${wmPos}:format=auto[vwmed]`);
+      workLabel = "vwmed";
+    }
+
+    // Rename workLabel → vout (identity copy pass if not already named vout)
+    if (workLabel !== "vout") {
+      filterParts.push(`[${workLabel}]copy[vout]`);
+    }
+
+    /* ── 3c: Inject ASS subtitle filter if captions were written ── */
     let voutLabel = "vout";
     if (captionsAssPath) {
-      // Escape path for filter_complex (escape backslash then colon)
       const escapedPath = captionsAssPath
         .replace(/\\/g, "\\\\")
         .replace(/:/g, "\\:")
@@ -579,27 +793,40 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       }
     }
 
-    /* ── 5: Build FFmpeg args ── */
+    /* ── 5: Build FFmpeg args (new input ordering: intro? → clips → outro? → audio? → wm?) ── */
     const outputPath = path.join(tmpDir, `bdv-export-${exportId}.mp4`);
     tmpFiles.push(outputPath);
 
     const ffmpegArgs: string[] = [];
 
+    // [introInputIdx] lavfi color source for intro card
+    if (introInputIdx >= 0) {
+      const bgColor = CARD_BG_HEX[branding!.introCard!.stylePreset] ?? "0x0a0a0a";
+      ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${introDuration}:r=${TARGET_FPS}`);
+    }
+    // [clipBaseIdx..] clip video inputs
     for (const cp of clipPaths) {
       ffmpegArgs.push("-i", cp);
     }
+    // [outroInputIdx] lavfi color source for outro card
+    if (outroInputIdx >= 0) {
+      const bgColor = CARD_BG_HEX[branding!.outroCard!.stylePreset] ?? "0x0a0a0a";
+      ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${outroDuration}:r=${TARGET_FPS}`);
+    }
+    // [audioInputIdx] audio
     if (audioPath) {
       ffmpegArgs.push("-i", audioPath);
     }
-    if (addWatermark && watermarkPath) {
-      ffmpegArgs.push("-loop", "1", "-i", watermarkPath);
+    // [wmInputIdx] watermark still image (looped)
+    if (wmInputIdx >= 0 && activeWmPath) {
+      ffmpegArgs.push("-loop", "1", "-i", activeWmPath);
     }
 
     ffmpegArgs.push("-filter_complex", filterComplex);
     ffmpegArgs.push("-map", `[${voutLabel}]`);
 
-    if (audioPath) {
-      ffmpegArgs.push("-map", `${clipPaths.length}:a`);
+    if (audioPath && audioInputIdx >= 0) {
+      ffmpegArgs.push("-map", `${audioInputIdx}:a`);
     }
 
     ffmpegArgs.push(

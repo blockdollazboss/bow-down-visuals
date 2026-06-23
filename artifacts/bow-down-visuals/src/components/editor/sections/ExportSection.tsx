@@ -428,6 +428,7 @@ export function ExportSection({
         aspectRatio={aspectRatio}
         resolution={settings.export.resolution}
         captions={settings.captions}
+        branding={settings.branding}
       />
     </div>
   );

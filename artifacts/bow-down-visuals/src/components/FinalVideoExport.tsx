@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings } from "@/lib/editor-settings";
 
 interface ExportRecord {
   final_video_url: string;
@@ -36,6 +36,7 @@ interface FinalVideoExportProps {
   existingExport?: ExportRecord | null;
   onExportComplete?: (record: ExportRecord) => void;
   captions?: CaptionSettings | null;
+  branding?: BrandingSettings | null;
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
@@ -87,6 +88,7 @@ export function FinalVideoExport({
   existingExport,
   onExportComplete,
   captions,
+  branding,
 }: FinalVideoExportProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -166,6 +168,7 @@ export function FinalVideoExport({
           customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
           audioSource,
           captions: captions && captions.mode !== "none" ? captions : null,
+          branding: branding ?? null,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });

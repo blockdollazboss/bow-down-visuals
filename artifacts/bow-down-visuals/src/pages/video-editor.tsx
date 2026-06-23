@@ -3,7 +3,7 @@ import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
-  CheckCircle2, Circle,
+  CheckCircle2, Circle, Layers,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,9 @@ import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
+import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "export";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export";
 
 interface LoadedProject {
   id: string;
@@ -203,6 +204,7 @@ export default function VideoEditor() {
               <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
               <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
               <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
+              <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
               <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
             </div>
 
@@ -240,6 +242,15 @@ export default function VideoEditor() {
 
             {tab === "effects" && (
               <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
+            )}
+
+            {tab === "branding" && (
+              <BrandingSection
+                settings={settings}
+                setSettings={setSettings}
+                artistName={artistName}
+                songTitle={songTitle}
+              />
             )}
 
             {tab === "export" && (
