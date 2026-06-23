@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
-import { HomepageThemePlayer } from "@/components/HomepageThemePlayer";
 import {
   Music, Video, Film, Image as ImageIcon, Mic2, Archive,
   ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
@@ -281,9 +280,6 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         <div className="flex justify-center -my-16">
           <AnimatedLogo className="w-[680px] max-w-full h-auto" />
         </div>
-
-        {/* Homepage Theme Player */}
-        <HomepageThemePlayer />
 
         {/* Badge */}
         <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/25 rounded-full px-4 py-1.5 text-sm font-medium text-primary">

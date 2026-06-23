@@ -490,14 +490,14 @@ function LivePreviewPanel({
         {/* EFFECTS tab */}
         {tab === "effects" && (
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
-            <Wand2 className="h-8 w-8 text-purple-400/50 mx-auto" />
+            <Wand2 className="h-8 w-8 text-zinc-300/50 mx-auto" />
             <p className="text-sm font-bold text-white/60 text-center">Effects Preview</p>
             <p className="text-xs text-white/35 text-center leading-relaxed">
               Effects are applied during final export. This is an edit-plan overlay.
             </p>
             {settings.effects.length > 0 && (
-              <div className="rounded-lg border border-purple-500/20 bg-purple-500/[0.06] px-3 py-2 text-center">
-                <p className="text-xs font-bold text-purple-300">{settings.effects.slice(0, 3).join(" · ")}{settings.effects.length > 3 ? ` +${settings.effects.length - 3} more` : ""}</p>
+              <div className="rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 py-2 text-center">
+                <p className="text-xs font-bold text-zinc-200">{settings.effects.slice(0, 3).join(" · ")}{settings.effects.length > 3 ? ` +${settings.effects.length - 3} more` : ""}</p>
               </div>
             )}
           </div>

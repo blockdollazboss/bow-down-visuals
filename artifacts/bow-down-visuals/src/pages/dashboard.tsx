@@ -69,7 +69,7 @@ function HeroCard({ icon: Icon, title, description, cta, href, accent }: HeroCar
       <div className={`
         group relative flex flex-col h-full p-7 rounded-2xl border transition-all duration-300 cursor-pointer
         ${accent
-          ? "bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border-primary/50 shadow-[0_0_40px_rgba(147,51,234,0.18)] hover:shadow-[0_0_60px_rgba(147,51,234,0.28)] hover:-translate-y-0.5"
+          ? "bg-gradient-to-br from-primary/20 via-primary/10 to-transparent border-primary/50 shadow-[0_0_40px_rgba(218,165,32,0.18)] hover:shadow-[0_0_60px_rgba(218,165,32,0.28)] hover:-translate-y-0.5"
           : "bg-white/[0.03] border-white/[0.07] hover:border-primary/35 hover:bg-primary/[0.05] hover:-translate-y-0.5"
         }
       `}>
@@ -262,22 +262,22 @@ export default function Dashboard() {
         {/* ── 1b. ACTIVE ARTIST STRIP ── */}
         <div className={`flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 rounded-2xl border transition-all ${
           activeArtist
-            ? "border-purple-500/30 bg-purple-500/[0.06]"
+            ? "border-white/20 bg-white/[0.04]"
             : "border-white/[0.06] bg-white/[0.02]"
         }`}>
           <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center shrink-0 overflow-hidden ${
-            activeArtist ? "border-purple-500/40" : "border-white/10"
+            activeArtist ? "border-white/25" : "border-white/10"
           }`}>
             {activeArtist?.photo_url ? (
               <img src={activeArtist.photo_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
             ) : (
-              <User className={`h-5 w-5 ${activeArtist ? "text-purple-400" : "text-white/20"}`} />
+              <User className={`h-5 w-5 ${activeArtist ? "text-zinc-300" : "text-white/20"}`} />
             )}
           </div>
           <div className="flex-1 min-w-0">
             {activeArtist ? (
               <>
-                <p className="text-[10px] font-bold tracking-widest text-purple-400/70 uppercase">Active Artist</p>
+                <p className="text-[10px] font-bold tracking-widest text-zinc-300/70 uppercase">Active Artist</p>
                 <p className="text-sm font-black text-white truncate">{activeArtist.artist_name}</p>
                 {(activeArtist.genre || activeArtist.artist_type) && (
                   <p className="text-xs text-white/35 truncate">{[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}</p>
@@ -296,7 +296,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => setLocation("/choose-artist")}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-purple-500/30 bg-purple-500/[0.08] text-purple-300 hover:bg-purple-500/[0.15] transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/[0.05] text-zinc-200 hover:bg-white/[0.10] transition-colors shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             {activeArtist ? "Change Artist" : "Choose Artist"}

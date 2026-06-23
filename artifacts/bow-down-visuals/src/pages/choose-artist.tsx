@@ -54,13 +54,13 @@ export default function ChooseArtist() {
       <TopBar />
 
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/10 rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-white/[0.04] rounded-full blur-[120px]" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-16">
         <div className="text-center mb-10">
-          <div className="h-14 w-14 rounded-2xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center mx-auto mb-5">
-            <User className="h-6 w-6 text-purple-400" />
+          <div className="h-14 w-14 rounded-2xl bg-white/[0.07] border border-white/[0.18] flex items-center justify-center mx-auto mb-5">
+            <User className="h-6 w-6 text-zinc-300" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
             Choose Your Artist
@@ -72,7 +72,7 @@ export default function ChooseArtist() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-400/50" />
+            <Loader2 className="h-8 w-8 animate-spin text-zinc-300/50" />
           </div>
         ) : vaults.length === 0 ? (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-10 text-center space-y-5 mb-6">
@@ -95,26 +95,26 @@ export default function ChooseArtist() {
                   onClick={() => setSelectedId(isSelected ? null : vault.id)}
                   className={`group relative text-left rounded-2xl border p-5 transition-all duration-200 cursor-pointer ${
                     isSelected
-                      ? "border-purple-500/60 bg-purple-500/[0.08] shadow-[0_0_30px_rgba(147,51,234,0.2)]"
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-purple-500/40 hover:bg-purple-500/[0.04] hover:shadow-[0_0_20px_rgba(147,51,234,0.12)]"
+                      ? "border-white/40 bg-white/[0.05] shadow-[0_0_30px_rgba(200,200,210,0.15)]"
+                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.03] hover:shadow-[0_0_20px_rgba(200,200,210,0.08)]"
                   }`}
                   data-testid={`artist-card-${vault.id}`}
                 >
                   {isSelected && (
                     <span className="absolute top-3 right-3">
-                      <CheckCircle2 className="h-5 w-5 text-purple-400" />
+                      <CheckCircle2 className="h-5 w-5 text-zinc-300" />
                     </span>
                   )}
 
                   {/* Avatar */}
                   <div className={`h-16 w-16 rounded-full border-2 flex items-center justify-center mb-4 overflow-hidden ${
-                    isSelected ? "border-purple-500/50" : "border-white/10 group-hover:border-purple-500/30"
+                    isSelected ? "border-white/30" : "border-white/10 group-hover:border-white/20"
                   }`}>
                     {vault.photo_url ? (
                       <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
                     ) : (
                       <div className={`h-full w-full flex items-center justify-center text-2xl font-black ${
-                        isSelected ? "bg-purple-500/20 text-purple-300" : "bg-white/[0.04] text-white/30"
+                        isSelected ? "bg-white/[0.12] text-zinc-200" : "bg-white/[0.04] text-white/30"
                       }`}>
                         {vault.artist_name.charAt(0).toUpperCase()}
                       </div>
@@ -126,7 +126,7 @@ export default function ChooseArtist() {
                     {vault.artist_name}
                   </h3>
                   {vault.artist_type && (
-                    <p className="text-xs font-bold text-purple-400/80 uppercase tracking-wider mb-3">{vault.artist_type}</p>
+                    <p className="text-xs font-bold text-zinc-300/80 uppercase tracking-wider mb-3">{vault.artist_type}</p>
                   )}
 
                   <div className="space-y-1.5">
@@ -145,8 +145,8 @@ export default function ChooseArtist() {
                   </div>
 
                   {isSelected && (
-                    <div className="mt-3 pt-3 border-t border-purple-500/20">
-                      <p className="text-xs font-bold text-purple-400">Selected ✓</p>
+                    <div className="mt-3 pt-3 border-t border-white/[0.12]">
+                      <p className="text-xs font-bold text-zinc-300">Selected ✓</p>
                     </div>
                   )}
                 </button>
@@ -162,7 +162,7 @@ export default function ChooseArtist() {
             onClick={handleUseArtist}
             disabled={!selectedId}
             className="w-full h-14 text-base font-bold gap-3 rounded-2xl disabled:opacity-40"
-            style={{ background: selectedId ? "linear-gradient(135deg, #7c3aed, #9333ea)" : undefined }}
+            style={{ background: selectedId ? "linear-gradient(135deg, #9B7515, #DAA520)" : undefined }}
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { NavThemePlayer } from "@/components/NavThemePlayer";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -64,6 +65,9 @@ export function TopBar() {
           ))}
         </nav>
 
+        {/* Theme player — sits between nav and right-side actions */}
+        <NavThemePlayer />
+
         {/* Right side */}
         <div className="flex items-center gap-2.5">
           {user && profile && (
@@ -89,7 +93,7 @@ export function TopBar() {
           {/* Start Creating CTA */}
           <Link
             href={user ? "/choose-artist" : "/login"}
-            className="hidden md:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-black hover:bg-primary/90 transition-colors shadow-[0_0_12px_rgba(147,51,234,0.35)]"
+            className="hidden md:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-black hover:bg-primary/90 transition-colors shadow-[0_0_12px_rgba(218,165,32,0.40)]"
             data-testid="btn-start-creating"
           >
             <Sparkles className="h-3.5 w-3.5" />

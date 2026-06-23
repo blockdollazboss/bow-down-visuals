@@ -13,7 +13,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 
 /* ─── Section color badges ──────────────────────────────────── */
 const SECTION_COLORS: Record<string, string> = {
-  intro:  "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  intro:  "bg-white/[0.12] text-zinc-200 border-white/20",
   verse:  "bg-blue-500/20 text-blue-300 border-blue-500/30",
   hook:   "bg-primary/20 text-primary border-primary/30",
   chorus: "bg-primary/20 text-primary border-primary/30",

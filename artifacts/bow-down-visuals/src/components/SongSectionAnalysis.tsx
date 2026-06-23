@@ -7,9 +7,9 @@ const SECTION_STYLE: Record<string, { dot: string; badge: string }> = {
   "Hook / Chorus": { dot: "bg-yellow-400", badge: "text-yellow-300 bg-yellow-400/10 border-yellow-400/20" },
   "Chorus":        { dot: "bg-yellow-400", badge: "text-yellow-300 bg-yellow-400/10 border-yellow-400/20" },
   "Pre-Hook":      { dot: "bg-orange-400", badge: "text-orange-300 bg-orange-400/10 border-orange-400/20" },
-  "Verse 1":       { dot: "bg-purple-400", badge: "text-purple-300 bg-purple-400/10 border-purple-400/20" },
-  "Verse 2":       { dot: "bg-purple-400", badge: "text-purple-300 bg-purple-400/10 border-purple-400/20" },
-  "Verse 3":       { dot: "bg-purple-400", badge: "text-purple-300 bg-purple-400/10 border-purple-400/20" },
+  "Verse 1":       { dot: "bg-zinc-300", badge: "text-zinc-200 bg-white/[0.07] border-white/[0.15]" },
+  "Verse 2":       { dot: "bg-zinc-300", badge: "text-zinc-200 bg-white/[0.07] border-white/[0.15]" },
+  "Verse 3":       { dot: "bg-zinc-300", badge: "text-zinc-200 bg-white/[0.07] border-white/[0.15]" },
   "Bridge":        { dot: "bg-pink-400",   badge: "text-pink-300 bg-pink-400/10 border-pink-400/20" },
   "Outro":         { dot: "bg-green-400",  badge: "text-green-300 bg-green-400/10 border-green-400/20" },
 };
