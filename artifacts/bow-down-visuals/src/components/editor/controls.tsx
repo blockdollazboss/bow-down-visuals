@@ -144,6 +144,30 @@ export function Chip({
   );
 }
 
+/** Single-line text input matching the dark theme. */
+export function TextInput({
+  value,
+  onChange,
+  placeholder,
+  testId,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  testId?: string;
+}) {
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      data-testid={testId}
+      className="w-full bg-white/[0.04] border border-white/[0.1] rounded-lg px-3 py-2 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-primary/40 transition-colors"
+    />
+  );
+}
+
 /** Native styled <select> matching the dark theme. */
 export function Dropdown({
   value,

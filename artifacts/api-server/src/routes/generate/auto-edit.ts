@@ -43,8 +43,8 @@ type Input = z.infer<typeof Schema>;
 
 const TRANSITION_BY_INTENSITY: Record<string, string[]> = {
   low: ["Crossfade", "Fade to Black", "Slide"],
-  medium: ["Hard Cut", "Whip Pan", "Crossfade"],
-  high: ["Zoom Punch", "Flash", "Glitch", "Whip Pan"],
+  medium: ["Cut", "Whip Pan", "Crossfade"],
+  high: ["Zoom", "Flash", "Glitch", "Whip Pan"],
 };
 
 const DURATION_BY_INTENSITY: Record<string, number> = {
@@ -66,7 +66,7 @@ function buildFallbackPlan(input: Input): unknown {
     label: [s.section, s.lyricLine || s.action || s.location]
       .filter(Boolean)
       .join(" — ") || `Scene ${i + 1}`,
-    transition: i === 0 ? "Hard Cut" : transitions[i % transitions.length]!,
+    transition: i === 0 ? "Cut" : transitions[i % transitions.length]!,
     effect: "None",
     captionTiming:
       input.captionStyle && input.captionStyle !== "None"
@@ -138,8 +138,8 @@ Return ONLY valid JSON with this EXACT shape:
       "sceneId": "exact scene id from the list",
       "order": 1,
       "label": "short human label",
-      "transition": "one of: Hard Cut, Crossfade, Whip Pan, Zoom Punch, Glitch, Flash, Slide, Fade to Black",
-      "effect": "one of: None, Film Grain, VHS, Light Leaks, Chromatic Aberration, Slow Motion, Speed Ramp, Black & White, Warm Grade, Cool Grade, Camera Shake",
+      "transition": "one of: Cut, Crossfade, Flash, Glitch, Whip Pan, Zoom, Light Leak, Fade to Black, Slide, Spin",
+      "effect": "one of: None, Film Grain, Glow, Blur, Sharpen, Vignette, Black & White, Neon Glow, VHS, Cinematic Bars, Camera Shake, Slow Zoom, Speed Ramp",
       "captionTiming": "e.g. 0:00–0:03 or — if no captions",
       "durationSec": 3
     }
@@ -150,7 +150,7 @@ Return ONLY valid JSON with this EXACT shape:
 Rules:
 - Include EVERY scene from the list exactly once, ordered for the best edit.
 - Match transition frequency/aggression to the intensity settings and preset vibe.
-- First clip transition should be "Hard Cut".
+- First clip transition should be "Cut".
 - durationSec should reflect beat-cut intensity (high = ~2-3s, medium = ~4s, low = ~6s).
 - No markdown, no code fences, JSON only.`;
 

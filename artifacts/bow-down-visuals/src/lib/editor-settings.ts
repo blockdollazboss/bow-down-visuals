@@ -120,37 +120,54 @@ export const CAPTION_STYLES = [
 export const CAPTION_POSITIONS = ["Top", "Center", "Bottom"] as const;
 
 export const TRANSITIONS = [
-  "Hard Cut",
+  "Cut",
   "Crossfade",
-  "Whip Pan",
-  "Zoom Punch",
-  "Glitch",
   "Flash",
-  "Slide",
+  "Glitch",
+  "Whip Pan",
+  "Zoom",
+  "Light Leak",
   "Fade to Black",
+  "Slide",
+  "Spin",
 ] as const;
 
 export const EFFECTS = [
   "Film Grain",
-  "VHS",
-  "Light Leaks",
-  "Chromatic Aberration",
-  "Slow Motion",
-  "Speed Ramp",
+  "Glow",
+  "Blur",
+  "Sharpen",
+  "Vignette",
   "Black & White",
+  "Neon Glow",
+  "VHS",
+  "Cinematic Bars",
+  "Camera Shake",
+  "Slow Zoom",
+  "Speed Ramp",
+] as const;
+
+/** Color-grade presets (a subset of the Effects catalog applied as a look). */
+export const COLOR_GRADES = [
   "Warm Grade",
   "Cool Grade",
-  "Camera Shake",
+  "Teal & Orange",
+  "Moody Desaturated",
+  "Vibrant Pop",
 ] as const;
 
 export const OVERLAYS = [
-  "Watermark",
-  "Logo",
-  "Date Stamp",
-  "Lyrics",
-  "Artist Name",
-  "Social Handle",
+  "Smoke",
+  "Rain",
+  "Sparks",
+  "Lens Flare",
+  "Dust",
+  "Light Leaks",
+  "Animated Waveform",
+  "Logo / Watermark",
 ] as const;
+
+export const CAPTION_FONT_SIZES = ["Small", "Medium", "Large", "XL"] as const;
 
 export const INTENSITIES: Intensity[] = ["low", "medium", "high"];
 
@@ -175,6 +192,12 @@ export interface CaptionSettings {
   enabled: boolean;
   style: string;
   position: string;
+  /** Font size preset, see CAPTION_FONT_SIZES. */
+  fontSize: string;
+  /** Optional title-card text shown over the intro / first clip. */
+  titleText: string;
+  /** Lyric caption text (edit-plan only, overrides per-scene lyric lines). */
+  lyricText: string;
   /** Caption appears this many seconds into each clip. */
   timingOffset: number;
 }
@@ -247,7 +270,7 @@ export function defaultClipEdit(): ClipEdit {
     trimEnd: 0,
     muted: false,
     volume: 100,
-    transition: "Hard Cut",
+    transition: "Cut",
     effect: "None",
     replaceUrl: null,
   };
@@ -272,6 +295,9 @@ export function defaultEditorSettings(): EditorSettings {
       enabled: true,
       style: "Karaoke Highlight",
       position: "Bottom",
+      fontSize: "Medium",
+      titleText: "",
+      lyricText: "",
       timingOffset: 0,
     },
     effects: [],
