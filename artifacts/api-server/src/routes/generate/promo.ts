@@ -63,10 +63,10 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
 router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   const {
     artistName, songTitle, genre, mood, platform, promoGoal, songHook, instructions,
-  } = req.body as Record<string, string>;
+    promoType, lyrics, hasRunwayClips, clipCount,
+  } = req.body as Record<string, string | boolean | number>;
 
   const artistVault = req.body.artistVault as VaultData | null | undefined;
-
   const currentCredits = req.userCredits ?? 0;
 
   if (process.env["NODE_ENV"] === "development") {
@@ -82,54 +82,63 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
     return;
   }
 
-  const prompt = `Create a complete, platform-ready promo content pack for the following music release. Make every idea specific, scroll-stopping, and immediately actionable.
+  const promoTypeLine = promoType ? `\nPromo Type Focus: ${promoType} — tailor ALL output specifically for this promo format.` : "";
+  const lyricsBlock = lyrics
+    ? `\nFull Lyrics / Song Content:\n"""\n${String(lyrics).slice(0, 1200)}\n"""`
+    : songHook
+    ? `\nSong Hook / Key Lyric: ${songHook}`
+    : "";
+  const clipsLine = hasRunwayClips
+    ? `\nAI Video Clips Available: ${clipCount} Runway-generated video clips exist for this project. Reference these in your shot suggestions and timing breakdown.`
+    : "";
 
-BOW DOWN VISUALS — CREATOR PACKAGE
+  const prompt = `Create a complete, platform-ready promo content pack for the following music release. Every idea must be specific, scroll-stopping, and immediately actionable.
+
+BOW DOWN VISUALS — CREATOR PROMO PACKAGE
 
 Artist: ${artistName || "Unknown Artist"}
 Song / Project Title: "${songTitle || "Untitled"}"
 Genre: ${genre || "Hip Hop"}
 Mood: ${mood || "Dark"}
-Primary Platform: ${platform || "TikTok"}
-Promo Goal: ${promoGoal || "Drive streams"}
-Song Hook / Key Lyric: ${songHook}
+Primary Platform: ${platform || "TikTok 9:16"}
+Promo Goal: ${promoGoal || "Drive streams"}${promoTypeLine}${lyricsBlock}${clipsLine}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
 ${buildVaultContext(artistVault)}
 
-Return the output using EXACTLY these ## section headers in this order. Make every idea platform-specific, creative, and ready to execute.
+Return the output using EXACTLY these ## section headers in this order. Every idea must be platform-specific, creative, and ready to execute immediately.
 
-## TIKTOK IDEAS
-Write 3 TikTok promo clip concepts. For each: the clip concept, what the artist does on screen, the hook lyric to use, on-screen text, trending audio angle, and estimated duration.
+## BEST 15-SECOND PROMO IDEA
+Write the single best 15-second promo clip concept for this song. Include: visual setup, what happens second-by-second, the exact lyric or hook moment to feature, on-screen text, and which platforms it hits hardest.
 
-## INSTAGRAM REEL IDEAS
-Write 3 Instagram Reel concepts. For each: the visual setup, the lyric or moment to highlight, on-screen text treatment, caption hook, and reel duration.
+## BEST 30-SECOND PROMO IDEA
+Write the single best 30-second promo clip concept. Include: full shot-by-shot breakdown (every 5-10 seconds), on-screen text for each moment, transition style, and platform fit.
 
-## YOUTUBE SHORT IDEAS
-Write 3 YouTube Shorts concepts. For each: the concept, what happens in the first 3 seconds (the hook), on-screen text, end screen CTA, and length.
-
-## HOOK CLIP CONCEPTS
-Write 3 short-form clip ideas built entirely around the hook of the song. These should be designed to make the hook go viral. Include: visual concept, on-screen treatment, caption angle, and which platforms to post on.
-
-## BEST-BAR CLIP CONCEPTS
-Write 3 clip ideas that highlight the best lyric or punchline in the song. Include: the specific bar, visual treatment, text style (bold, animated, etc.), and platform.
+## HOOK CLIP SCRIPT
+Write a complete shot-by-shot script for a hook-focused promo clip (15-30 seconds). Include: scene descriptions, artist direction, on-screen text and its timing, audio cues, and visual mood. Format it as a proper shot script.
 
 ## ON-SCREEN TEXT
-Write 10 ready-to-use on-screen text options for clips: 5 lyric-based and 5 artist-brand/hype statements. Keep them punchy, short, and scroll-stopping.
+Write 12 ready-to-use on-screen text options: 4 lyric-based overlays, 4 hype/announcement statements, and 4 engagement-focused prompts. Keep each one punchy, scroll-stopping, and under 8 words where possible.
 
 ## CAPTION IDEAS
-Write 8 ready-to-post social media captions — include hype captions, storytelling captions, question-based engagement captions, and out-now announcement captions.
+Write 6 ready-to-post social media captions: 2 drop-day announcement captions, 2 engagement/question captions that drive comments, and 2 emotional/storytelling captions. Include relevant emojis and make each one complete and ready to paste.
 
 ## HASHTAGS
 Write 3 hashtag sets:
-- Set 1: Genre/niche hashtags (10 tags)
-- Set 2: Trending/broad reach hashtags (10 tags)
-- Set 3: Artist branding hashtags (5 custom tags the artist should own)
-
-## POSTING STRATEGY
-Write a 7-day posting schedule for this release: what to post each day, which platform, what format (clip, image, story, reel), and the goal of each post.
+- Set 1: Genre and niche hashtags (10 tags)
+- Set 2: Trending and broad-reach hashtags (8 tags)
+- Set 3: Artist branding hashtags to own (5 custom tags)
 
 ## CALL-TO-ACTION IDEAS
-Write 10 CTAs ready to add to clips and captions. Mix stream CTAs, follow CTAs, share CTAs, comment CTAs, and playlist-add CTAs.`;
+Write 10 CTAs ready to add to clips and captions: 3 stream CTAs, 2 follow CTAs, 2 share CTAs, 2 comment CTAs, and 1 playlist-add CTA. Make each one direct and compelling.
+
+## SUGGESTED VISUAL SHOTS
+Write 6 specific shot ideas with camera directions, locations, and visual details. Each shot should be executable on a phone or basic setup. Include: shot type, location, artist direction, lighting, and what makes it stop the scroll.
+
+## SUGGESTED CLIP TIMING
+Write a detailed timing breakdown for a 30-second promo clip. Break it down second-by-second (0-5s, 5-10s, 10-15s, 15-20s, 20-25s, 25-30s). For each window: what is happening visually, what text appears, what audio moment plays, and what the viewer feels.
+
+## THUMBNAIL FRAME SUGGESTION
+Write a specific description of the perfect thumbnail or cover frame for this promo content. Include: exact composition, color palette, what the artist is doing, text overlay (font style and positioning), background/setting, and the overall visual mood. Make it detailed enough to recreate exactly.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -138,7 +147,7 @@ Write 10 CTAs ready to add to clips and captions. Mix stream CTAs, follow CTAs, 
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 3500,
+      max_tokens: 4500,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
