@@ -1,8 +1,8 @@
 import { Router } from "express";
 import Stripe from "stripe";
-import pg from "pg";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
+import { addCreditsToProfile } from "../lib/supabase-admin";
 
 const router = Router();
 
@@ -35,6 +35,8 @@ function getBaseUrl(req?: import("express").Request): string {
 /* ── GET /api/stripe-status ── diagnostic, no auth ── */
 router.get("/stripe-status", async (_req, res) => {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
+  const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
   const prices = {
     "10":  process.env["STRIPE_PRICE_10_CREDITS"],
     "50":  process.env["STRIPE_PRICE_50_CREDITS"],
@@ -42,12 +44,12 @@ router.get("/stripe-status", async (_req, res) => {
     "500": process.env["STRIPE_PRICE_500_CREDITS"],
   };
 
-  const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
   const status = {
     secretKeyPresent: !!secretKey,
     secretKeyPrefix: secretKey ? secretKey.slice(0, 7) : null,
     webhookSecretPresent: !!webhookSecret,
     webhookSecretPrefix: webhookSecret ? webhookSecret.slice(0, 6) : null,
+    serviceRoleKeyPresent: !!serviceRoleKey,
     prices: Object.fromEntries(
       Object.entries(prices).map(([k, v]) => [k, { present: !!v, prefix: v ? v.slice(0, 8) : null }])
     ),
@@ -80,9 +82,9 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
 
   const priceId = process.env[packInfo.envKey];
   if (!priceId) {
-    res
-      .status(500)
-      .json({ error: `Stripe price ID not configured for the ${packInfo.label} pack. Add ${packInfo.envKey} to Replit Secrets.` });
+    res.status(500).json({
+      error: `Stripe price ID not configured for the ${packInfo.label} pack. Add ${packInfo.envKey} to Replit Secrets.`,
+    });
     return;
   }
 
@@ -116,9 +118,7 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
   } catch (err: unknown) {
     const stripeMsg = (err as { message?: string })?.message ?? "Unknown error";
     logger.error({ err, stripeMsg }, "create-checkout-session: Stripe API call failed");
-    res.status(500).json({
-      error: `Stripe error: ${stripeMsg}`,
-    });
+    res.status(500).json({ error: `Stripe error: ${stripeMsg}` });
   }
 });
 
@@ -128,6 +128,14 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
 
   if (!sessionId || typeof sessionId !== "string") {
     res.status(400).json({ error: "sessionId is required" });
+    return;
+  }
+
+  // Fail fast if service role key is missing
+  if (!process.env["SUPABASE_SERVICE_ROLE_KEY"]) {
+    const msg = "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to Replit Secrets so Stripe payments can update credits securely.";
+    logger.error(msg);
+    res.status(500).json({ error: msg });
     return;
   }
 
@@ -143,8 +151,9 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
   let session: Stripe.Checkout.Session;
   try {
     session = await stripe.checkout.sessions.retrieve(sessionId);
+    logger.info({ sessionId, paymentStatus: session.payment_status }, "checkout/verify: payment verified");
   } catch (err) {
-    logger.error({ err, sessionId }, "checkout/verify: failed to retrieve session");
+    logger.error({ err, sessionId }, "checkout/verify: failed to retrieve session from Stripe");
     res.status(400).json({ error: "Could not retrieve checkout session." });
     return;
   }
@@ -154,16 +163,20 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     return;
   }
 
-  // Support both old (userId/credits) and new (user_id/credits_amount) metadata field names
+  // Support both old and new metadata field names
   const metaUserId = session.metadata?.user_id ?? session.metadata?.userId;
   const metaCredits = session.metadata?.credits_amount ?? session.metadata?.credits;
   const metaPack = session.metadata?.credit_pack ?? session.metadata?.pack ?? "";
+
+  logger.info({ metaUserId, metaCredits, metaPack, sessionId }, "checkout/verify: metadata read");
 
   if (metaUserId !== req.userId) {
     logger.error({ metaUserId, reqUserId: req.userId, sessionId }, "checkout/verify: user_id mismatch");
     res.status(403).json({ error: "Session does not belong to this user." });
     return;
   }
+
+  logger.info({ userId: req.userId }, "checkout/verify: user_id found and matched");
 
   const creditsToAdd = parseInt(metaCredits ?? "0", 10);
   if (!creditsToAdd || creditsToAdd <= 0) {
@@ -172,41 +185,19 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     return;
   }
 
-  // Use direct Postgres via DATABASE_URL to bypass Supabase RLS reliably
-  let pool: pg.Pool;
-  try {
-    const connStr = process.env["DATABASE_URL"];
-    if (!connStr) throw new Error("DATABASE_URL not set");
-    pool = new pg.Pool({ connectionString: connStr });
-  } catch (err) {
-    logger.error({ err }, "checkout/verify: cannot connect to database");
-    res.status(500).json({ error: "Database not configured." });
-    return;
-  }
+  logger.info({ creditsToAdd }, "checkout/verify: credits_amount found");
 
   try {
-    const result = await pool.query<{ credits: number }>(
-      `UPDATE profiles SET credits = credits + $1 WHERE id = $2 RETURNING credits`,
-      [creditsToAdd, req.userId]
-    );
-
-    if (result.rowCount === 0) {
-      logger.error({ userId: req.userId }, "checkout/verify: no profile row found for user");
-      res.status(404).json({ error: "User profile not found." });
-      return;
-    }
-
-    const newCredits = result.rows[0].credits;
+    const { oldCredits, newCredits, created } = await addCreditsToProfile(req.userId!, creditsToAdd);
     logger.info(
-      { userId: req.userId, creditsToAdd, newCredits, pack: metaPack, sessionId },
+      { userId: req.userId, creditsToAdd, oldCredits, newCredits, pack: metaPack, sessionId, created },
       "checkout/verify: credits applied successfully"
     );
     res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: metaPack });
-  } catch (err) {
-    logger.error({ err, userId: req.userId }, "checkout/verify: database update failed");
-    res.status(500).json({ error: "Credits verified but could not be applied. Contact support." });
-  } finally {
-    await pool.end().catch(() => {});
+  } catch (err: unknown) {
+    const msg = (err as { message?: string })?.message ?? "unknown";
+    logger.error({ err, msg, userId: req.userId }, "checkout/verify: credit update failed");
+    res.status(500).json({ error: `Credits verified but could not be applied: ${msg}` });
   }
 });
 
