@@ -206,7 +206,7 @@ export default function Dashboard() {
       window.history.replaceState({}, "", "/dashboard");
       setPaymentToast({
         type: "success",
-        message: "Payment successful! Adding credits to your account…",
+        message: "Payment successful. Adding credits to your account…",
       });
 
       // Verify payment directly with Stripe and credit immediately — no webhook dependency
@@ -226,9 +226,11 @@ export default function Dashboard() {
           if (res.ok && data.success) {
             setPaymentToast({
               type: "success",
-              message: `${data.added} credits added! New total: ${data.credits} credits.`,
+              message: "Payment successful. Your credits were added.",
             });
             refreshProfile();
+            // Second refresh after a short delay to guarantee latest balance from Supabase
+            setTimeout(() => refreshProfile(), 3000);
           } else {
             setPaymentToast({
               type: "error",

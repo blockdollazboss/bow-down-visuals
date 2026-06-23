@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -251,6 +251,16 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 /* ─── page ─── */
 
 export default function Pricing() {
+  const [showCancelled, setShowCancelled] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "cancelled") {
+      setShowCancelled(true);
+      window.history.replaceState({}, "", "/pricing");
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-black text-white">
       <NavBar />
@@ -262,6 +272,24 @@ export default function Pricing() {
       </div>
 
       <div className="relative z-10">
+
+        {/* ── PAYMENT CANCELLED BANNER ── */}
+        {showCancelled && (
+          <div className="border-b border-yellow-500/20 bg-yellow-500/[0.06]">
+            <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex items-center justify-center gap-3">
+              <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
+              <span className="text-sm text-yellow-200/80">
+                Payment cancelled. No credits were added.
+              </span>
+              <button
+                onClick={() => setShowCancelled(false)}
+                className="text-white/30 hover:text-white/60 transition-colors text-lg leading-none ml-2"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── BETA NOTICE BANNER ── */}
         <div className="border-b border-primary/20 bg-primary/[0.06]">
