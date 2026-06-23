@@ -18,11 +18,51 @@ function getStripe(): Stripe {
   return new Stripe(key);
 }
 
-function getBaseUrl(): string {
+function getBaseUrl(req?: import("express").Request): string {
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
   if (domain) return `https://${domain}`;
+  const devDomain = process.env["REPLIT_DEV_DOMAIN"];
+  if (devDomain) return `https://${devDomain}`;
+  if (req) {
+    const proto = req.headers["x-forwarded-proto"] ?? "https";
+    const host = req.headers["host"];
+    if (host) return `${proto}://${host}`;
+  }
   return "http://localhost";
 }
+
+/* ── GET /api/stripe-status ── diagnostic, no auth ── */
+router.get("/stripe-status", async (_req, res) => {
+  const secretKey = process.env["STRIPE_SECRET_KEY"];
+  const prices = {
+    "10":  process.env["STRIPE_PRICE_10_CREDITS"],
+    "50":  process.env["STRIPE_PRICE_50_CREDITS"],
+    "150": process.env["STRIPE_PRICE_150_CREDITS"],
+    "500": process.env["STRIPE_PRICE_500_CREDITS"],
+  };
+
+  const status = {
+    secretKeyPresent: !!secretKey,
+    secretKeyPrefix: secretKey ? secretKey.slice(0, 7) : null,
+    prices: Object.fromEntries(
+      Object.entries(prices).map(([k, v]) => [k, { present: !!v, prefix: v ? v.slice(0, 8) : null }])
+    ),
+    stripeReachable: false,
+    stripeError: null as string | null,
+  };
+
+  if (secretKey) {
+    try {
+      const stripe = new Stripe(secretKey);
+      await stripe.paymentMethods.list({ limit: 1 });
+      status.stripeReachable = true;
+    } catch (err: unknown) {
+      status.stripeError = (err as { message?: string })?.message ?? "unknown";
+    }
+  }
+
+  res.json(status);
+});
 
 /* ── POST /api/create-checkout-session ── */
 router.post("/create-checkout-session", requireAuth, async (req, res) => {
@@ -52,7 +92,9 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
   }
 
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl = getBaseUrl(req);
+    logger.info({ userId: req.userId, pack: packInfo.label, priceId, baseUrl }, "Creating checkout session");
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{ price: priceId, quantity: 1 }],
@@ -67,9 +109,12 @@ router.post("/create-checkout-session", requireAuth, async (req, res) => {
 
     logger.info({ userId: req.userId, pack: packInfo.label }, "Checkout session created");
     res.json({ url: session.url });
-  } catch (err) {
-    logger.error({ err }, "create-checkout-session: Stripe API call failed");
-    res.status(500).json({ error: "Failed to create checkout session. Please try again." });
+  } catch (err: unknown) {
+    const stripeMsg = (err as { message?: string })?.message ?? "Unknown error";
+    logger.error({ err, stripeMsg }, "create-checkout-session: Stripe API call failed");
+    res.status(500).json({
+      error: `Stripe error: ${stripeMsg}`,
+    });
   }
 });
 
