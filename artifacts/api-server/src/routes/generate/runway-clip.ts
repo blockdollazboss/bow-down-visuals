@@ -14,12 +14,17 @@ const SIDECAR = "http://127.0.0.1:1106";
 const CREDIT_COST = 5;
 
 /**
- * Track which tasks have had credits charged so we can refund on failure.
- * Key: Runway taskId, Value: { userId, creditCost, creditsBefore }
- * Cleared on success (usage recorded) or failure (credits refunded).
- * In-memory only — clears on server restart (acceptable edge case).
+ * Tracks submitted Runway tasks so we can charge credits only on SUCCEEDED.
+ * Key: Runway taskId  Value: { userId }
+ *
+ * Credits are NOT charged at POST submission — only when the poll returns
+ * SUCCEEDED. If the task FAILS or is CANCELLED, no credits are ever charged.
+ * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
+ * In-memory only — a server restart before polling completes means credits
+ * won't be charged for that clip (acceptable; user gets a free clip, not
+ * a spurious charge).
  */
-const chargedTasks = new Map<string, { userId: string; creditCost: number }>();
+const pendingTasks = new Map<string, { userId: string }>();
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -33,7 +38,12 @@ async function signGetUrl(bucketName: string, objectName: string): Promise<strin
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
+    body: JSON.stringify({
+      bucket_name: bucketName,
+      object_name: objectName,
+      method: "GET",
+      expires_at: expiresAt,
+    }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
@@ -48,12 +58,16 @@ function cleanup(f: string) {
 /** DEV: confirm RUNWAYML_API_SECRET exists without revealing its value */
 router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
   const key = process.env["RUNWAYML_API_SECRET"];
-  res.json({
-    secretExists: !!key,
-    secretLength: key ? key.length : 0,
-  });
+  res.json({ secretExists: !!key, secretLength: key ? key.length : 0 });
 });
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   POST /generate-runway-clip
+   1. Verify user has ≥ 5 credits (block if not).
+   2. Submit job to Runway.
+   3. Track task in pendingTasks — credits NOT yet charged.
+   4. Return { taskId }.
+───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
   const { promptText, negativePrompt, ratio } = req.body as {
     promptText?: string;
@@ -72,9 +86,9 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Credit check ── */
-  const currentCredits = req.userCredits ?? 0;
+  /* ── Credit pre-check (gate, no deduction yet) ── */
   const isDev = process.env["NODE_ENV"] !== "production";
+  const currentCredits = req.userCredits ?? 0;
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
@@ -83,23 +97,8 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Deduct credits before submitting (refunded on failure) ── */
-  const creditsAfter = Math.max(0, currentCredits - CREDIT_COST);
-  if (!isDev) {
-    const { error: deductErr } = await req.userSupabase!
-      .from("profiles")
-      .update({ credits: creditsAfter })
-      .eq("id", req.userId!);
-    if (deductErr) {
-      req.log.error({ err: deductErr }, "[runway-clip] failed to deduct credits");
-      res.status(500).json({ error: "Failed to update credits. Please try again." });
-      return;
-    }
-    req.log.info({ userId: req.userId, creditsAfter }, "[runway-clip] credits deducted");
-  }
-
-  const base = promptText.slice(0, 900);
-  const neg = negativePrompt?.trim();
+  const base = promptText.trim().slice(0, 900);
+  const neg  = negativePrompt?.trim();
   const finalPrompt = neg ? `${base} | Avoid: ${neg}`.slice(0, 1000) : base;
 
   const client = new RunwayML({ apiKey });
@@ -112,25 +111,28 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
       ratio: ratio === "1280:720" ? "1280:720" : "720:1280",
     });
 
-    /* Track this task so we can refund if it fails */
-    if (!isDev) {
-      chargedTasks.set(task.id, { userId: req.userId!, creditCost: CREDIT_COST });
-    }
+    /* Track so we can charge on SUCCEEDED */
+    pendingTasks.set(task.id, { userId: req.userId! });
+    req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted, credits pending");
 
     res.json({ taskId: task.id });
   } catch (err: unknown) {
-    /* Runway submission failed — restore credits immediately */
-    if (!isDev) {
-      await req.userSupabase!.from("profiles").update({ credits: currentCredits }).eq("id", req.userId!);
-      req.log.info({ userId: req.userId, credits: currentCredits }, "[runway-clip] credits restored after submission failure");
-    }
+    /* Runway submission failed — credits were never touched */
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
+    req.log.error({ err: msg }, "[runway-clip] submission failed");
     res.status(500).json({ error: msg });
   }
 });
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   GET /generate-runway-clip/:taskId
+   Poll Runway task status.
+   - SUCCEEDED → charge 5 credits + record usage → return signed URL
+   - FAILED/CANCELLED → no charge ever → return error
+   - Still running → return { status: "processing", progress }
+───────────────────────────────────────────────────────────────────────────── */
 router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
-  const taskId = (req.params as { taskId: string }).taskId;
+  const { taskId } = req.params as { taskId: string };
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {
@@ -143,23 +145,51 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
   try {
     const task = await client.tasks.retrieve(taskId);
 
+    /* ── SUCCEEDED ── */
     if (task.status === "SUCCEEDED") {
-      const runwayUrl = task.output[0] ?? null;
+      const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
       if (!runwayUrl) {
+        /* Task says SUCCEEDED but no output URL — don't charge */
+        pendingTasks.delete(taskId);
         res.json({ status: "succeeded", url: null });
         return;
       }
 
-      /* — Re-upload to GCS so the URL never expires — */
+      const isDev = process.env["NODE_ENV"] !== "production";
+      const pending = pendingTasks.get(taskId);
+
+      /* ── Charge credits (only once, guarded by pendingTasks presence) ── */
+      if (!isDev && pending && pending.userId === req.userId) {
+        const currentCredits = req.userCredits ?? 0;
+        const creditsAfter = Math.max(0, currentCredits - CREDIT_COST);
+        const { error: deductErr } = await req.userSupabase!
+          .from("profiles")
+          .update({ credits: creditsAfter })
+          .eq("id", req.userId!);
+        if (deductErr) {
+          req.log.error({ err: deductErr }, "[runway-clip] credit deduction failed after SUCCEEDED — clip delivered anyway");
+        } else {
+          req.log.info({ taskId, userId: req.userId, creditsAfter }, "[runway-clip] 5 credits charged on success");
+          recordCreditUsage({
+            userId: req.userId!,
+            action: "Runway Video Clip",
+            creditsUsed: CREDIT_COST,
+            projectId: null,
+          }).catch(() => {});
+        }
+        pendingTasks.delete(taskId);
+      } else if (!isDev && pending && pending.userId !== req.userId) {
+        /* Different user polling — skip charge for this user, let owner's next poll handle it */
+        req.log.warn({ taskId, submitter: pending.userId, poller: req.userId }, "[runway-clip] userId mismatch on poll");
+      } else if (!isDev && !pending) {
+        /* pendingTasks entry already cleared (double-poll on SUCCEEDED) — skip duplicate charge */
+        req.log.info({ taskId }, "[runway-clip] SUCCEEDED poll after charge already processed — skipping duplicate");
+      }
+
+      /* ── Re-upload to GCS so the signed URL never expires ── */
       const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
       if (!bucketId) {
         req.log.warn("[runway-clip] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — returning raw Runway URL");
-        /* Record usage even in this fallback path */
-        const chargeInfo = chargedTasks.get(taskId);
-        if (chargeInfo) {
-          recordCreditUsage({ userId: chargeInfo.userId, action: "Runway Video Clip", creditsUsed: chargeInfo.creditCost }).catch(() => {});
-          chargedTasks.delete(taskId);
-        }
         res.json({ status: "succeeded", url: runwayUrl });
         return;
       }
@@ -174,54 +204,33 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
         const gcsFile = bucket.file(objectName);
 
         req.log.info({ objectName }, "[runway-clip] uploading clip to GCS");
-        await gcsFile.save(readFileSync(tmpFile), {
-          contentType: "video/mp4",
-          resumable: false,
-        });
+        await gcsFile.save(readFileSync(tmpFile), { contentType: "video/mp4", resumable: false });
 
         const signedUrl = await signGetUrl(bucketId, objectName);
-        req.log.info({ objectName }, "[runway-clip] clip saved to GCS, returning signed URL");
-
-        /* Record credit usage on success */
-        const chargeInfo = chargedTasks.get(taskId);
-        if (chargeInfo) {
-          recordCreditUsage({ userId: chargeInfo.userId, action: "Runway Video Clip", creditsUsed: chargeInfo.creditCost }).catch(() => {});
-          chargedTasks.delete(taskId);
-        }
+        req.log.info({ objectName }, "[runway-clip] clip saved, returning signed URL");
 
         res.json({ status: "succeeded", url: signedUrl, objectPath: objectName });
       } catch (uploadErr: unknown) {
-        req.log.error({ err: uploadErr }, "[runway-clip] GCS upload failed, returning raw Runway URL as fallback");
-        const chargeInfo = chargedTasks.get(taskId);
-        if (chargeInfo) {
-          recordCreditUsage({ userId: chargeInfo.userId, action: "Runway Video Clip", creditsUsed: chargeInfo.creditCost }).catch(() => {});
-          chargedTasks.delete(taskId);
-        }
+        req.log.error({ err: uploadErr }, "[runway-clip] GCS upload failed — returning raw Runway URL as fallback");
         res.json({ status: "succeeded", url: runwayUrl });
       } finally {
         cleanup(tmpFile);
       }
 
+    /* ── FAILED / CANCELLED — credits were never charged ── */
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
-      const failed = task as { status: string; failure?: string };
-      const errMsg = failed.failure ?? "Runway returned a failure with no message";
-
-      /* Refund credits if this task was charged */
-      const chargeInfo = chargedTasks.get(taskId);
-      if (chargeInfo && chargeInfo.userId === req.userId) {
-        const currentCredits = req.userCredits ?? 0;
-        const refundedCredits = currentCredits + chargeInfo.creditCost;
-        await req.userSupabase!.from("profiles").update({ credits: refundedCredits }).eq("id", chargeInfo.userId);
-        req.log.info({ taskId, userId: chargeInfo.userId, refundedCredits }, "[runway-clip] credits refunded after task failure");
-        chargedTasks.delete(taskId);
-      }
-
+      const errMsg = (task as { failure?: string }).failure ?? "Runway returned a failure with no message";
+      req.log.info({ taskId, status: task.status }, "[runway-clip] task failed — no credits charged");
+      pendingTasks.delete(taskId); /* clean up the pending entry */
       const status = task.status === "CANCELLED" ? "cancelled" : "failed";
-      res.json({ status, error: errMsg, creditsRefunded: !!chargeInfo });
+      res.json({ status, error: errMsg });
+
+    /* ── Still running ── */
     } else {
-      const running = task as { status: string; progress?: number };
+      const running = task as { progress?: number };
       res.json({ status: "processing", progress: running.progress ?? null });
     }
+
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to poll Runway task";
     res.status(500).json({ error: msg });
