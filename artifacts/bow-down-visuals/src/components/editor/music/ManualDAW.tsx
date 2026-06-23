@@ -1,12 +1,18 @@
 import { useState } from "react";
-import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapperboard } from "lucide-react";
+import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapperboard, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AUDIO_EXPORT_FORMATS, EQ_TONES, LOUDNESS_TARGETS,
   type EditorSettings, type MasterSettings, type EqTone, type LoudnessTarget,
+  type AudioExportRecord,
 } from "@/lib/editor-settings";
+import {
+  AUDIO_EXPORT_BUTTONS, requestAudioExport, buildExportRecord,
+  type AudioExportType, type AudioExportButton,
+} from "@/lib/audio-export";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
 import { StemList } from "@/components/editor/music/StemList";
 import { PreviewTransport } from "@/components/editor/music/PreviewTransport";
@@ -30,7 +36,11 @@ const TABS: { id: DawTab; label: string; icon: typeof ListMusic }[] = [
 
 export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
   const { toast } = useToast();
+  const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<DawTab>("tracks");
+  const [exporting, setExporting] = useState<AudioExportType | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [justExported, setJustExported] = useState<AudioExportRecord | null>(null);
   const ms = settings.musicStudio;
   const usingMixForVideo = ms.videoAudio.source === "finalMix";
 
@@ -42,6 +52,49 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
       ? ms.exportSelections.filter((f) => f !== fmt)
       : [...ms.exportSelections, fmt];
     onChange({ ...settings, musicStudio: { ...ms, exportSelections: next } });
+  }
+  async function startExport(btn: AudioExportButton) {
+    if (exporting) return;
+    setExportError(null);
+    setJustExported(null);
+    if (ms.stems.length === 0) {
+      setExportError("Upload at least one stem before exporting.");
+      return;
+    }
+    setExporting(btn.id);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to export audio.");
+      const resp = await requestAudioExport(token, {
+        exportType: btn.id,
+        masterVolume: ms.master.volume,
+        stems: ms.stems.map((s) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          url: s.url,
+          volume: s.volume,
+          muted: s.muted,
+          trimStart: s.trimStart,
+          trimEnd: s.trimEnd,
+          ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
+        })),
+      });
+      const record = buildExportRecord(btn, resp, {
+        masterVolume: ms.master.volume,
+        stems: ms.stems.map((s) => ({ name: s.name, volume: s.volume, muted: s.muted })),
+      });
+      onChange({
+        ...settings,
+        musicStudio: { ...ms, exports: [record, ...ms.exports].slice(0, 25) },
+      });
+      setJustExported(record);
+      toast({ title: "Export Complete", description: `${btn.label} is ready to download.` });
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed. Please try again.");
+    } finally {
+      setExporting(null);
+    }
   }
   function handleSave() {
     onChange({ ...settings, musicStudio: { ...ms } });
@@ -113,29 +166,119 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
       )}
 
       {tab === "export" && (
-        <EditorCard title="Audio Export" subtitle="Pick the deliverables you want" icon={<Download className="h-4 w-4" />}>
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <EditorCard title="Audio Export Beta" subtitle="Render your stem mix into a downloadable audio file" icon={<Download className="h-4 w-4" />}>
+            <div className="space-y-4">
+              {ms.stems.length === 0 ? (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                  <Info className="h-3.5 w-3.5 text-white/40 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-white/55 leading-relaxed">
+                    Upload stems in the <span className="text-white/80 font-semibold">Stems</span> tab to enable audio export.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {AUDIO_EXPORT_BUTTONS.map((b) => {
+                    const busy = exporting === b.id;
+                    return (
+                      <Button
+                        key={b.id}
+                        onClick={() => startExport(b)}
+                        disabled={exporting !== null}
+                        variant="outline"
+                        className="h-11 text-sm font-bold border-white/12 bg-white/[0.03] hover:bg-white/[0.06] text-white/85 justify-start"
+                        data-testid={`btn-export-${b.id}`}
+                      >
+                        {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                        {b.label}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {exporting && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.06] border border-primary/20" data-testid="export-status-running">
+                  <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                  <p className="text-xs font-bold text-primary">Exporting Audio…</p>
+                </div>
+              )}
+
+              {exportError && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/25" data-testid="export-error">
+                  <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-red-200/90 leading-relaxed">{exportError}</p>
+                </div>
+              )}
+
+              {justExported && !exporting && (
+                <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3" data-testid="export-complete">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <p className="text-xs font-black text-emerald-300">Export Complete</p>
+                    <span className="text-[10px] text-white/40 ml-auto truncate">{justExported.label} · {justExported.format.toUpperCase()}</span>
+                  </div>
+                  <audio controls src={justExported.url} className="w-full" data-testid="export-audio-player" />
+                  <a
+                    href={justExported.url}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    data-testid="btn-download-audio"
+                    className="inline-flex items-center justify-center gap-2 h-10 w-full rounded-lg bg-primary text-black text-sm font-black hover:bg-primary/90 transition-colors"
+                  >
+                    <Download className="h-4 w-4" /> Download Audio
+                  </a>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
+                <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                  This is the first version of audio export. Advanced mastering comes later.
+                </p>
+              </div>
+            </div>
+          </EditorCard>
+
+          {ms.exports.length > 0 && (
+            <EditorCard title="Previous Exports" subtitle="Saved with this project" icon={<ListMusic className="h-4 w-4" />}>
+              <div className="space-y-2">
+                {ms.exports.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5"
+                    data-testid={`export-record-${ex.id}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-white/85 truncate">{ex.label}</p>
+                      <p className="text-[10px] text-white/40">
+                        {ex.format.toUpperCase()} · {ex.stemsUsed.length} stem{ex.stemsUsed.length === 1 ? "" : "s"} · {new Date(ex.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <a
+                      href={ex.url}
+                      download
+                      target="_blank"
+                      rel="noreferrer"
+                      className="shrink-0 inline-flex items-center gap-1 h-8 px-3 rounded-lg border border-white/12 bg-white/[0.03] text-[11px] font-bold text-white/75 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </EditorCard>
+          )}
+
+          <EditorCard title="Planned Deliverables" subtitle="Tag formats to revisit later — saved with this project" icon={<Download className="h-4 w-4" />}>
             <div className="flex flex-wrap gap-2">
               {AUDIO_EXPORT_FORMATS.map((fmt) => (
                 <Chip key={fmt} active={ms.exportSelections.includes(fmt)} onClick={() => toggleExport(fmt)}>{fmt}</Chip>
               ))}
             </div>
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
-              <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Audio rendering &amp; export is coming soon. Your stems, mixer, effects and master settings are saved with this project.
-              </p>
-            </div>
-            <Button
-              disabled
-              variant="outline"
-              className="w-full h-11 text-sm font-bold border-white/10 bg-white/[0.02] text-white/45"
-              data-testid="btn-export-audio"
-            >
-              <Download className="h-4 w-4 mr-2" /> Export Audio — Coming Soon
-            </Button>
-          </div>
-        </EditorCard>
+          </EditorCard>
+        </div>
       )}
 
       <div className="flex flex-wrap gap-2 pt-1">

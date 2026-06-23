@@ -484,6 +484,26 @@ export interface VideoAudioSync {
   matchVideoLength: boolean;
 }
 
+export type AudioExportKind = "full" | "instrumental" | "acapella";
+
+export interface AudioExportRecord {
+  id: string;
+  /** Button label, e.g. "Export Full Mix MP3". */
+  label: string;
+  kind: AudioExportKind;
+  /** Public URL of the rendered audio file. */
+  url: string;
+  format: "mp3" | "wav";
+  /** Names of the stems included in this render. */
+  stemsUsed: string[];
+  /** Snapshot of the mix settings used for this export. */
+  mixSettings: {
+    masterVolume: number;
+    stems: { name: string; volume: number; muted: boolean }[];
+  };
+  createdAt: string;
+}
+
 export interface MusicStudioSettings {
   mode: "auto" | "manual";
   stems: AudioStem[];
@@ -493,6 +513,8 @@ export interface MusicStudioSettings {
   videoAudio: VideoAudioSync;
   /** Chosen audio export deliverables, see AUDIO_EXPORT_FORMATS. */
   exportSelections: string[];
+  /** Rendered audio exports (Audio Export Beta), newest first. */
+  exports: AudioExportRecord[];
 }
 
 export interface EditorSettings {
@@ -603,6 +625,7 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
       matchVideoLength: true,
     },
     exportSelections: [],
+    exports: [],
   };
 }
 
@@ -731,6 +754,7 @@ export function normalizeMusicStudio(
     master: { ...base.master, ...(stored.master ?? {}) },
     videoAudio: { ...base.videoAudio, ...(stored.videoAudio ?? {}) },
     exportSelections: Array.isArray(stored.exportSelections) ? stored.exportSelections : [],
+    exports: Array.isArray(stored.exports) ? stored.exports : [],
   };
 }
 
