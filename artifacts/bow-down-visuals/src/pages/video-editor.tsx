@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { HelpPanel } from "@/components/HelpPanel";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -75,6 +76,7 @@ export default function VideoEditor() {
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { activeArtist, consistencyPrompt } = useActiveArtist();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -198,6 +200,21 @@ export default function VideoEditor() {
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
+  /* ── Character consistency ── */
+  const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
+  function applyConsistencyToAllScenes() {
+    if (!consistencyPrompt || scenes.length === 0) return;
+    const updated = scenes.map((scene) => {
+      if (scene.aiVideoPrompt.startsWith(CONSISTENCY_MARKER)) return scene;
+      return { ...scene, aiVideoPrompt: `${consistencyPrompt}\n\n${scene.aiVideoPrompt}`.trimEnd() };
+    });
+    setScenes(updated);
+    toast({
+      title: "Character consistency applied!",
+      description: `Consistency prompt added to ${scenes.length} scene prompt${scenes.length !== 1 ? "s" : ""}.`,
+    });
+  }
+
   /* ── Context-aware tips for the Help Panel ── */
   const helpTips = [
     !previewScene && scenes.length > 0
@@ -294,6 +311,32 @@ export default function VideoEditor() {
 
               {/* LEFT: tabs + content */}
               <div>
+                {/* Active Artist pill */}
+                {activeArtist && (
+                  <div className="flex items-center gap-2.5 px-3 py-2 mb-4 rounded-xl border border-green-500/25 bg-green-500/[0.06]">
+                    <div className="h-7 w-7 rounded-lg overflow-hidden shrink-0">
+                      {activeArtist.photo_url ? (
+                        <img src={activeArtist.photo_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-primary/20 flex items-center justify-center">
+                          <span className="text-[10px] font-black text-primary">{activeArtist.artist_name[0]?.toUpperCase()}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-green-400 truncate">Active Artist: {activeArtist.artist_name}</p>
+                      {(activeArtist.artist_type || activeArtist.genre) && (
+                        <p className="text-[10px] text-white/35 truncate">{[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}</p>
+                      )}
+                    </div>
+                    {consistencyPrompt && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400/70 shrink-0">
+                        <CheckCircle2 className="h-3 w-3" /> Consistency Lock Active
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Tab nav */}
                 <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
                   <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
@@ -307,6 +350,24 @@ export default function VideoEditor() {
 
                 {tab === "clips" && (
                   <div className="space-y-6">
+                    {/* Apply consistency banner */}
+                    {consistencyPrompt && scenes.length > 0 && (
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/[0.06]">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-primary">Character Consistency Lock is active</p>
+                          <p className="text-[10px] text-white/40 mt-0.5">
+                            {activeArtist ? `${activeArtist.artist_name}'s consistency prompt will be added to all scene prompts.` : "A consistency prompt is saved."}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={applyConsistencyToAllScenes}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Apply to All Scenes
+                        </button>
+                      </div>
+                    )}
                     <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
                       <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
                       <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />

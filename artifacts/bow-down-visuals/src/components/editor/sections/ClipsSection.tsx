@@ -1,6 +1,7 @@
 import {
-  ArrowUp, ArrowDown, Copy, Trash2, Volume2, VolumeX, Check, Link2, Eye,
+  ArrowUp, ArrowDown, Copy, Trash2, Volume2, VolumeX, Check, Link2, Eye, ShieldCheck,
 } from "lucide-react";
+
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import type { SceneData } from "@/lib/scene-parser";
@@ -10,6 +11,8 @@ import {
 } from "@/lib/editor-settings";
 import { Field, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes, IconBtn } from "@/components/editor/sections/shared";
+
+const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
 
 interface ClipsSectionProps {
   scenes: SceneData[];
@@ -57,6 +60,7 @@ export function ClipsSection({ scenes, setScenes, settings, setSettings, onPrevi
             const edit = getClipEdit(settings, scene.id);
             const hasClip = sceneHasClip(scene);
             const isPreviewing = previewSceneId === scene.id;
+            const hasConsistency = scene.aiVideoPrompt.startsWith(CONSISTENCY_MARKER);
             return (
               <div
                 key={scene.id}
@@ -70,9 +74,16 @@ export function ClipsSection({ scenes, setScenes, settings, setSettings, onPrevi
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white/80 truncate">
-                      {scene.section || `Scene ${i + 1}`}
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold text-white/80 truncate">
+                        {scene.section || `Scene ${i + 1}`}
+                      </p>
+                      {hasConsistency && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/[0.12] border border-green-500/25 text-[9px] font-bold text-green-400 shrink-0">
+                          <ShieldCheck className="h-2.5 w-2.5" /> Consistency Applied
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-white/35 truncate">
                       {scene.lyricLine || scene.action || scene.location || "—"}
                     </p>

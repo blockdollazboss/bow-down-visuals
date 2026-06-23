@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
-  Lock, Copy, Sparkles,
+  Lock, Copy, Sparkles, User,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
@@ -77,10 +79,15 @@ const VISUAL_STYLES = [
 
 function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
   const lines: string[] = [
-    `CHARACTER CONSISTENCY PROMPT — ${vault.artist_name.toUpperCase()}`,
+    `[CHARACTER CONSISTENCY: ${vault.artist_name}]`,
+    "Use the active artist profile as the main character reference.",
+    "Keep the same face, skin tone, hairstyle, body type, tattoos, jewelry, clothing direction, colors, and overall identity.",
+    "Do not add random tattoos, logos, scars, jewelry, face marks, or accessories.",
+    vault.photo_url
+      ? "Use the uploaded artist reference image as the visual consistency guide."
+      : "No reference image uploaded — fill in details below as accurately as possible.",
     "",
-    `Maintain strict character consistency for ${vault.artist_name} across all videos, images, and AI prompts. This artist must look the same in every scene.`,
-    "",
+    `Artist: ${vault.artist_name}`,
   ];
   if (vault.artist_type)       lines.push(`Artist Type: ${vault.artist_type}`);
   if (vault.genre)              lines.push(`Genre: ${vault.genre}`);
@@ -90,6 +97,7 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
   if (vault.jewelry)            lines.push(`Jewelry / Accessories: ${vault.jewelry}`);
   if (vault.clothing_style)     lines.push(`Clothing Style: ${vault.clothing_style}`);
   if (vault.brand_colors)       lines.push(`Brand Colors: ${vault.brand_colors}`);
+  if (vault.photo_url)          lines.push(`Artist Reference Image URL: ${vault.photo_url}`);
   if (vault.image_reference_notes) {
     lines.push("", `Reference Notes: ${vault.image_reference_notes}`);
   }
@@ -101,7 +109,8 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
   }
   lines.push(
     "",
-    "Add this prompt to every video scene, image generation, and AI prompt to maintain character consistency.",
+    "⚠️ AI tools may still vary results, but this consistency lock gives the best chance of keeping the same character.",
+    "---",
   );
   return lines.join("\n");
 }
@@ -114,6 +123,7 @@ function ConsistencyModal({
   const prompt = generateConsistencyPrompt(vault);
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(false);
+  const { setConsistencyPrompt } = useActiveArtist();
 
   function handleCopy() {
     navigator.clipboard.writeText(prompt).then(() => {
@@ -132,6 +142,7 @@ function ConsistencyModal({
   }
 
   function handleApply() {
+    setConsistencyPrompt(prompt);
     setApplied(true);
     setTimeout(() => setApplied(false), 3000);
   }
@@ -275,8 +286,9 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
-function VaultModal({ vault, onClose, onEdit, onLock }: {
+function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
   vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
+  onSetActive: () => void; isActive: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
@@ -340,6 +352,16 @@ function VaultModal({ vault, onClose, onEdit, onLock }: {
         )}
 
         <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
+          <Button
+            onClick={onSetActive}
+            className={`flex-1 gap-2 font-bold rounded-xl ${
+              isActive
+                ? "border border-green-500/40 bg-green-500/[0.10] text-green-400 hover:bg-green-500/20"
+                : "border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08]"
+            }`}
+          >
+            {isActive ? <><CheckCircle2 className="h-4 w-4" /> Active Artist</> : <><User className="h-4 w-4" /> Set As Active Artist</>}
+          </Button>
           <Button onClick={onLock} className="flex-1 gap-2 border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold rounded-xl">
             <Lock className="h-4 w-4" /> Lock Character Consistency
           </Button>
@@ -355,12 +377,14 @@ function VaultModal({ vault, onClose, onEdit, onLock }: {
   );
 }
 
-function VaultCard({ vault, onOpen, onEdit, onDelete, onLock }: {
+function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isActive }: {
   vault: ArtistVaultRecord;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onLock: () => void;
+  onSetActive: () => void;
+  isActive: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-colors">
@@ -400,6 +424,18 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock }: {
 
       <div className="space-y-2 pt-3 border-t border-white/[0.05]">
         <button
+          onClick={onSetActive}
+          className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+            isActive
+              ? "border border-green-500/30 bg-green-500/[0.08] text-green-400"
+              : "border border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white"
+          }`}
+        >
+          {isActive
+            ? <><CheckCircle2 className="h-3.5 w-3.5" /> Active Artist</>
+            : <><User className="h-3.5 w-3.5" /> Set As Active Artist</>}
+        </button>
+        <button
           onClick={onLock}
           className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-primary/80 bg-primary/[0.07] border border-primary/20 hover:bg-primary/15 hover:text-primary transition-colors"
         >
@@ -434,6 +470,7 @@ export default function ArtistVault() {
   const [editId, setEditId] = useState<string | null>(null);
   const [openVault, setOpenVault] = useState<ArtistVaultRecord | null>(null);
   const [consistencyVault, setConsistencyVault] = useState<ArtistVaultRecord | null>(null);
+  const { activeArtist, setActiveArtist } = useActiveArtist();
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -645,6 +682,8 @@ export default function ArtistVault() {
           onClose={() => setOpenVault(null)}
           onEdit={() => startEdit(openVault)}
           onLock={() => { setOpenVault(null); setConsistencyVault(openVault); }}
+          onSetActive={() => { setActiveArtist(openVault as unknown as ArtistVault); setOpenVault(null); }}
+          isActive={activeArtist?.id === openVault?.id}
         />
       )}
 
@@ -952,6 +991,8 @@ export default function ArtistVault() {
                   onEdit={() => startEdit(vault)}
                   onDelete={() => deleteVault(vault.id)}
                   onLock={() => setConsistencyVault(vault)}
+                  onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
+                  isActive={activeArtist?.id === vault.id}
                 />
               ))}
             </div>

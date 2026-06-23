@@ -5,15 +5,22 @@ interface ActiveArtistContextValue {
   activeArtist: ArtistVault | null;
   setActiveArtist: (artist: ArtistVault | null) => void;
   clearActiveArtist: () => void;
+  consistencyPrompt: string | null;
+  setConsistencyPrompt: (prompt: string | null) => void;
+  clearConsistencyPrompt: () => void;
 }
 
 const ActiveArtistContext = createContext<ActiveArtistContextValue>({
   activeArtist: null,
   setActiveArtist: () => {},
   clearActiveArtist: () => {},
+  consistencyPrompt: null,
+  setConsistencyPrompt: () => {},
+  clearConsistencyPrompt: () => {},
 });
 
 const STORAGE_KEY = "bdv_active_artist";
+const CONSISTENCY_KEY = "bdv_consistency_prompt";
 
 function loadStored(): ArtistVault | null {
   try {
@@ -24,8 +31,17 @@ function loadStored(): ArtistVault | null {
   }
 }
 
+function loadStoredConsistency(): string | null {
+  try {
+    return localStorage.getItem(CONSISTENCY_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function ActiveArtistProvider({ children }: { children: ReactNode }) {
   const [activeArtist, setActiveArtistState] = useState<ArtistVault | null>(loadStored);
+  const [consistencyPrompt, setConsistencyPromptState] = useState<string | null>(loadStoredConsistency);
 
   function setActiveArtist(artist: ArtistVault | null) {
     setActiveArtistState(artist);
@@ -40,8 +56,26 @@ export function ActiveArtistProvider({ children }: { children: ReactNode }) {
     setActiveArtist(null);
   }
 
+  function setConsistencyPrompt(prompt: string | null) {
+    setConsistencyPromptState(prompt);
+    if (prompt) {
+      localStorage.setItem(CONSISTENCY_KEY, prompt);
+    } else {
+      localStorage.removeItem(CONSISTENCY_KEY);
+    }
+  }
+
+  function clearConsistencyPrompt() {
+    setConsistencyPrompt(null);
+  }
+
   return (
-    <ActiveArtistContext.Provider value={{ activeArtist, setActiveArtist, clearActiveArtist }}>
+    <ActiveArtistContext.Provider
+      value={{
+        activeArtist, setActiveArtist, clearActiveArtist,
+        consistencyPrompt, setConsistencyPrompt, clearConsistencyPrompt,
+      }}
+    >
       {children}
     </ActiveArtistContext.Provider>
   );
