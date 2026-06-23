@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Section color badges ──────────────────────────────────── */
 const SECTION_COLORS: Record<string, string> = {
@@ -38,7 +39,7 @@ interface RunwayGeneratorProps {
 }
 
 function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -46,6 +47,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
   const [progress, setProgress]         = useState<number | null>(null);
   const [error, setError]               = useState<string | null>(null);
   const [showConfirm, setShowConfirm]   = useState(false);
+  const [outOfCredits, setOutOfCredits] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const onUpdateRef = useRef(onUpdate);
@@ -121,8 +123,14 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
       setTaskId(data.taskId);
       startPolling(data.taskId);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
       setIsGenerating(false);
-      setError(e instanceof Error ? e.message : "Failed to start Runway generation");
+      if (msg === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
+      setError(msg);
       onUpdateRef.current({ generationStatus: "failed" });
     }
   }
@@ -167,6 +175,11 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
         </div>
       </div>
     );
+  }
+
+  /* Out of credits */
+  if (outOfCredits) {
+    return <OutOfCredits />;
   }
 
   /* Error state */

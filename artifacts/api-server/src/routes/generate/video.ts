@@ -6,7 +6,7 @@ import { recordCreditUsage } from "../../lib/payment-record";
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 2;
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 

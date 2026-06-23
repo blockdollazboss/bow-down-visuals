@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings } from "@/lib/editor-settings";
 
@@ -90,7 +91,7 @@ export function FinalVideoExport({
   captions,
   branding,
 }: FinalVideoExportProps) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
   const selectedScenes = scenes.filter(isSelected);
@@ -104,9 +105,10 @@ export function FinalVideoExport({
   const [exportUrl, setExportUrl] = useState<string | null>(
     existingExport?.final_video_url ?? null,
   );
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  const [confirmed, setConfirmed]       = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
+  const [outOfCredits, setOutOfCredits] = useState(false);
 
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
@@ -216,6 +218,13 @@ export function FinalVideoExport({
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Export failed";
+      if (msg === "out_of_credits") {
+        setStatus("idle");
+        setProgressStep("");
+        setOutOfCredits(true);
+        refreshProfile();
+        return;
+      }
       setStatus("failed");
       setErrorMsg(msg);
       setProgressStep("");
@@ -246,8 +255,11 @@ export function FinalVideoExport({
 
       <div className="p-5 space-y-4">
 
+        {/* ── Out of credits ── */}
+        {outOfCredits && <OutOfCredits />}
+
         {/* ── Completed ── */}
-        {status === "completed" && exportUrl && (
+        {!outOfCredits && status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
             <video
               src={exportUrl}

@@ -8,6 +8,7 @@ import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
+import { recordCreditUsage } from "../../lib/payment-record";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -504,6 +505,17 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Credit check (5 credits for final export) ── */
+  const EXPORT_CREDIT_COST = 5;
+  const currentCredits = req.userCredits ?? 0;
+  if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough credits. Please buy more credits to continue.",
+    });
+    return;
+  }
+
   const [TARGET_W, TARGET_H] = ASPECT_DIMS[aspectRatio] ?? ASPECT_DIMS["9:16"]!;
 
   const exportId = randomUUID();
@@ -964,6 +976,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           }
         }
       }
+    }
+
+    /* ── Deduct credits + record usage on export success ── */
+    if (!IS_DEV) {
+      const creditsAfter = currentCredits - EXPORT_CREDIT_COST;
+      await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      recordCreditUsage({ userId: req.userId!, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
+      req.log.info({ userId: req.userId, creditsAfter }, "[export] credits deducted");
     }
 
     res.json({

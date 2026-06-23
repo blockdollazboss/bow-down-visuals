@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Helpers ─── */
 
@@ -63,14 +64,15 @@ interface RunwayClipProps {
 }
 
 function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onGeneratingEnd }: RunwayClipProps) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, refreshProfile } = useAuth();
 
-  const [isPolling, setIsPolling]         = useState(false);
-  const [taskId, setTaskId]               = useState<string | null>(null);
-  const [progress, setProgress]           = useState<number | null>(null);
-  const [error, setError]                 = useState<string | null>(null);
+  const [isPolling, setIsPolling]               = useState(false);
+  const [taskId, setTaskId]                     = useState<string | null>(null);
+  const [progress, setProgress]                 = useState<number | null>(null);
+  const [error, setError]                       = useState<string | null>(null);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
-  const [urlError, setUrlError]           = useState(false);
+  const [urlError, setUrlError]                 = useState(false);
+  const [outOfCredits, setOutOfCredits]         = useState(false);
 
   const onUpdateRef        = useRef(onUpdate);
   const promptUsedRef      = useRef<string>("");
@@ -157,6 +159,12 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
       setIsPolling(false);
+      if (msg === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+        onGeneratingEndRef.current();
+        return;
+      }
       setError(msg);
       onUpdateRef.current({ generationStatus: "failed" });
       onGeneratingEndRef.current();
@@ -355,6 +363,13 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
               <X className="h-3.5 w-3.5" /> Remove Clip
             </button>
           )}
+        </div>
+      )}
+
+      {/* Out of credits */}
+      {outOfCredits && (
+        <div className="mt-2">
+          <OutOfCredits />
         </div>
       )}
 

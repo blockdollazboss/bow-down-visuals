@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
+import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -139,6 +140,8 @@ function buildFallbackPlan(input: Input): unknown {
   };
 }
 
+const CREDIT_COST = 2;
+
 router.post("/mix-plan", requireAuth, async (req, res) => {
   const parsed = Schema.safeParse(req.body);
   if (!parsed.success) {
@@ -146,6 +149,25 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
     return;
   }
   const input = parsed.data;
+
+  /* ── Credit check — only charge when real AI runs ── */
+  const currentCredits = req.userCredits ?? 0;
+  const isDev = process.env["NODE_ENV"] !== "production";
+  const openai = getOpenAI();
+
+  /* If no OpenAI key, serve fallback for free */
+  if (!openai) {
+    res.json(buildFallbackPlan(input));
+    return;
+  }
+
+  if (!isDev && currentCredits < CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough credits. Please buy more credits to continue.",
+    });
+    return;
+  }
 
   const stemLines =
     input.stems.length > 0
@@ -191,12 +213,6 @@ Rules:
 - Keep each list item short and practical (a real engineer instruction).
 - No markdown, no code fences, JSON only.`;
 
-  const openai = getOpenAI();
-  if (!openai) {
-    res.json(buildFallbackPlan(input));
-    return;
-  }
-
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -217,9 +233,16 @@ Rules:
 
     const validated = PlanSchema.safeParse(raw);
     if (!validated.success) {
-      req.log.warn({ issues: validated.error.issues }, "Mix plan output failed validation; using fallback");
+      req.log.warn({ issues: validated.error.issues }, "Mix plan output failed validation; using fallback (no charge)");
       res.json(buildFallbackPlan(input));
       return;
+    }
+
+    /* ── Deduct credits + record usage on success ── */
+    if (!isDev) {
+      const creditsAfter = currentCredits - CREDIT_COST;
+      await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      recordCreditUsage({ userId: req.userId!, action: "Music Mixer AI Mix Plan", creditsUsed: CREDIT_COST }).catch(() => {});
     }
 
     res.json({
@@ -228,7 +251,7 @@ Rules:
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {
-    req.log.error({ err }, "Mix plan generation failed; using fallback");
+    req.log.error({ err }, "Mix plan generation failed; using fallback (no charge)");
     res.json(buildFallbackPlan(input));
   }
 });

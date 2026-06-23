@@ -11,6 +11,7 @@ import {
   type Intensity, type ReverbAmount, type AutotuneStyle, type LoudnessTarget,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Segmented, Collapsible } from "@/components/editor/controls";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface AiAutoMixProps {
   settings: EditorSettings;
@@ -24,9 +25,10 @@ const reverbOpts = REVERB_AMOUNTS.map((r) => ({ value: r as ReverbAmount, label:
 const autotuneOpts = AUTOTUNE_STYLES.map((a) => ({ value: a as AutotuneStyle, label: a }));
 
 export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoMixProps) {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating]     = useState(false);
+  const [outOfCredits, setOutOfCredits] = useState(false);
 
   const ms = settings.musicStudio;
   const opts = ms.aiMix;
@@ -89,11 +91,13 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           : `Mix & master plan built for ${presetName}.`,
       });
     } catch (err) {
-      toast({
-        title: "Mix plan failed",
-        description: err instanceof Error ? err.message : "Could not generate plan.",
-        variant: "destructive",
-      });
+      const msg = err instanceof Error ? err.message : "Could not generate plan.";
+      if (msg === "out_of_credits") {
+        setOutOfCredits(true);
+        refreshProfile();
+      } else {
+        toast({ title: "Mix plan failed", description: msg, variant: "destructive" });
+      }
     } finally {
       setGenerating(false);
     }
@@ -163,9 +167,11 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         </div>
       </EditorCard>
 
+      {outOfCredits && <OutOfCredits />}
+
       <Button
         onClick={handleGenerate}
-        disabled={generating}
+        disabled={generating || outOfCredits}
         className="w-full h-12 text-sm font-black bg-primary text-black hover:bg-primary/90"
         data-testid="btn-create-mix-plan"
       >
