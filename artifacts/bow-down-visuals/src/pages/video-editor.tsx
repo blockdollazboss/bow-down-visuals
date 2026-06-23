@@ -148,6 +148,24 @@ export default function VideoEditor() {
     (project?.input_data?.["audio_url"] as string | undefined) ??
     null;
 
+  /* ── Lyrics: check project input_data first, then fall back to scene lyricLines ── */
+  const projectLyrics =
+    (project?.input_data?.["lyrics"] as string | undefined) ??
+    (project?.input_data?.["lyricsText"] as string | undefined) ??
+    (project?.input_data?.["songLyrics"] as string | undefined) ??
+    null;
+  const sceneLyricsJoined =
+    scenes.length > 0
+      ? scenes.map((s) => s.lyricLine).filter(Boolean).join("\n")
+      : "";
+  const lyricsForCaptions = projectLyrics ?? (sceneLyricsJoined || null);
+
+  /* ── Song duration from project metadata ── */
+  const songDuration =
+    (project?.input_data?.["songDuration"] as number | undefined) ??
+    (project?.input_data?.["duration"] as number | undefined) ??
+    null;
+
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
@@ -313,7 +331,12 @@ export default function VideoEditor() {
                 )}
 
                 {tab === "captions" && (
-                  <CaptionsSection settings={settings} setSettings={setSettings} />
+                  <CaptionsSection
+                    settings={settings}
+                    setSettings={setSettings}
+                    lyrics={lyricsForCaptions ?? undefined}
+                    songDuration={songDuration ?? undefined}
+                  />
                 )}
 
                 {tab === "effects" && (
