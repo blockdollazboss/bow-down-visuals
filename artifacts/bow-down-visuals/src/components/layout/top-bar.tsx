@@ -47,7 +47,7 @@ export function TopBar() {
           <img
             src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
-            className="h-12 w-auto"
+            className="h-16 w-auto"
           />
         </Link>
 
