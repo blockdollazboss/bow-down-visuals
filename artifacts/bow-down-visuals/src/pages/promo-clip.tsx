@@ -464,7 +464,38 @@ export default function PromoClip() {
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
               <StepHeader number={1} label="Select Your Project" done={!!selectedProject} />
 
-              {projectsLoading ? (
+              {/* ── COLLAPSED: project already selected ── */}
+              {selectedProject ? (
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0 text-black">
+                    <Check className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-white truncate">
+                      {selectedProject.artist_name || selectedProject.title}
+                      {selectedProject.song_title ? ` — ${selectedProject.song_title}` : ""}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[10px] bg-white/[0.04] text-white/25 px-2 py-0.5 rounded-full">{selectedProject.project_type}</span>
+                      {getClips(selectedProject).length > 0 && (
+                        <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                          {getClips(selectedProject).length} clip{getClips(selectedProject).length !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {extractLyrics(selectedProject) && (
+                        <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">lyrics</span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedProject(null); setPromoType(""); setPlatform(""); setSelectedClipIds([]); }}
+                    className="text-xs text-white/30 hover:text-white/70 transition-colors shrink-0 px-2 py-1 rounded-lg hover:bg-white/[0.05]"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : projectsLoading ? (
                 <div className="flex items-center gap-2 text-white/35 py-6">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading your projects…
                 </div>
@@ -497,8 +528,7 @@ export default function PromoClip() {
                     {filteredProjects.length === 0 ? (
                       <p className="text-white/30 text-sm py-4 col-span-2">No projects match your search.</p>
                     ) : filteredProjects.map((p) => {
-                      const isSelected = selectedProject?.id === p.id;
-                      const clipCount  = getClips(p).length;
+                      const clipCount = getClips(p).length;
                       return (
                         <button
                           key={p.id}
@@ -509,18 +539,10 @@ export default function PromoClip() {
                             setPlatform("");
                             setSelectedClipIds([]);
                           }}
-                          className={`flex items-start gap-3 text-left rounded-xl border p-3.5 transition-all ${
-                            isSelected
-                              ? "border-primary/50 bg-primary/[0.06]"
-                              : "border-white/[0.06] bg-transparent hover:border-white/15 hover:bg-white/[0.02]"
-                          }`}
+                          className="flex items-start gap-3 text-left rounded-xl border border-white/[0.06] bg-transparent hover:border-primary/40 hover:bg-primary/[0.03] p-3.5 transition-all"
                         >
-                          <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                            isSelected ? "bg-primary text-black" : "bg-white/[0.06] text-white/40"
-                          }`}>
-                            {isSelected
-                              ? <Check className="h-4 w-4" />
-                              : (TYPE_ICONS[p.project_type] ?? <Film className="h-3.5 w-3.5" />)}
+                          <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-white/[0.06] text-white/40">
+                            {TYPE_ICONS[p.project_type] ?? <Film className="h-3.5 w-3.5" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-white truncate">
