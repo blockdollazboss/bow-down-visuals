@@ -4,7 +4,7 @@ import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  FolderOpen, Trash2, Loader2, Music, Video, Film,
+  FolderOpen, Trash2, Loader2, Music, Video, Film, Clapperboard,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -291,6 +291,10 @@ function ProjectCard({
   const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
   const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
 
+  const hasClips = (project.output_data?.scenes ?? []).some(
+    (s) => (s as { demoClipUrl?: string | null }).demoClipUrl,
+  );
+
   function handleDelete() {
     if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return;
     setDeleting(true);
@@ -335,6 +339,17 @@ function ProjectCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {hasClips && (
+              <Link href={`/video-editor?project=${project.id}`}>
+                <Button
+                  size="sm"
+                  className="gold-glow h-8 px-3 text-xs gap-1.5 font-bold"
+                  data-testid={`btn-edit-${project.id}`}
+                >
+                  <Clapperboard className="h-3.5 w-3.5" /> Edit
+                </Button>
+              </Link>
+            )}
             <Button
               size="sm"
               variant="outline"

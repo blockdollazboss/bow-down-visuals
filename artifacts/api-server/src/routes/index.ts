@@ -15,6 +15,7 @@ import demoClipRouter from "./generate/demo-clip";
 import runwayClipRouter from "./generate/runway-clip";
 import exportVideoRouter from "./generate/export-video";
 import improvePromptRouter from "./generate/improve-prompt";
+import autoEditRouter from "./generate/auto-edit";
 import devRouter from "./dev";
 
 const router: IRouter = Router();
@@ -35,6 +36,7 @@ router.use(demoClipRouter);
 router.use(runwayClipRouter);
 router.use(exportVideoRouter);
 router.use(improvePromptRouter);
+router.use(autoEditRouter);
 router.use(devRouter);
 
 export default router;

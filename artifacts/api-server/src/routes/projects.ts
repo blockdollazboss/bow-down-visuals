@@ -64,6 +64,24 @@ router.get("/projects", requireAuth, async (req, res) => {
   res.json({ projects: projects ?? [] });
 });
 
+router.get("/projects/:id", requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  const { data: project, error } = await req.userSupabase!
+    .from("projects")
+    .select("id, project_type, title, artist_name, song_title, genre, mood, input_data, output_data, credits_used, created_at")
+    .eq("id", id)
+    .eq("user_id", req.userId)
+    .single();
+
+  if (error || !project) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  res.json({ project });
+});
+
 router.patch("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
   const body = req.body as { scenes?: unknown[]; outputData?: Record<string, unknown> };

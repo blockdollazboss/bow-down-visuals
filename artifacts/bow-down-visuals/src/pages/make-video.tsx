@@ -802,6 +802,33 @@ export default function MakeVideo() {
                 projectId={savedProjectId}
                 audioUrl={audioUrl}
               />
+
+              {/* Premium Video Editor entry */}
+              <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-transparent p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <Clapperboard className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-black text-white">Open Video Editor</h3>
+                  <p className="text-xs text-white/45 mt-0.5">
+                    AI Auto Edit presets or the Manual Pro editor — captions, transitions, effects and more.
+                  </p>
+                </div>
+                {savedProjectId ? (
+                  <Link href={`/video-editor?project=${savedProjectId}`}>
+                    <Button className="gold-glow font-bold gap-2 shrink-0" data-testid="btn-open-video-editor">
+                      <Sparkles className="h-4 w-4" /> Open Editor
+                    </Button>
+                  </Link>
+                ) : (
+                  <div className="text-right shrink-0">
+                    <Button disabled className="font-bold gap-2 opacity-50" data-testid="btn-open-video-editor-disabled">
+                      <Sparkles className="h-4 w-4" /> Open Editor
+                    </Button>
+                    <p className="text-[11px] text-white/35 mt-1.5">Save your project first to edit it</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

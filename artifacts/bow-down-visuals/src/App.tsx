@@ -16,6 +16,7 @@ import PromoClip   from "@/pages/promo-clip";
 import Thumbnail   from "@/pages/thumbnail";
 import ArtistVault from "@/pages/artist-vault";
 import MyProjects  from "@/pages/my-projects";
+import VideoEditor from "@/pages/video-editor";
 import Pricing     from "@/pages/pricing";
 import Waitlist    from "@/pages/waitlist";
 import Contact     from "@/pages/contact";
@@ -60,6 +61,7 @@ function AppShell() {
         <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
         <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
         <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
+        <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
 
         <Route component={NotFound} />
       </Switch>
