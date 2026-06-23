@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Play, Clapperboard } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapperboard } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -10,10 +9,13 @@ import {
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
 import { StemList } from "@/components/editor/music/StemList";
+import { PreviewTransport } from "@/components/editor/music/PreviewTransport";
+import type { MixPreview } from "@/components/editor/music/useMixPreview";
 
 interface ManualDAWProps {
   settings: EditorSettings;
   onChange: (next: EditorSettings) => void;
+  preview: MixPreview;
 }
 
 type DawTab = "tracks" | "mixer" | "effects" | "mastering" | "export";
@@ -26,7 +28,7 @@ const TABS: { id: DawTab; label: string; icon: typeof ListMusic }[] = [
   { id: "export", label: "Export", icon: Download },
 ];
 
-export function ManualDAW({ settings, onChange }: ManualDAWProps) {
+export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
   const { toast } = useToast();
   const [tab, setTab] = useState<DawTab>("tracks");
   const ms = settings.musicStudio;
@@ -43,10 +45,7 @@ export function ManualDAW({ settings, onChange }: ManualDAWProps) {
   }
   function handleSave() {
     onChange({ ...settings, musicStudio: { ...ms } });
-    toast({ title: "Mix settings saved", description: "Your tracks, mixer, effects and master are stored with this project." });
-  }
-  function handlePreview() {
-    toast({ title: "Mix preview coming soon", description: "Rendered playback of the full mix is on the way. Use each stem's player for now." });
+    toast({ title: "Mix settings saved", description: "Your stems, volumes, mute/solo, pan, trims, master and AI mix are stored with this project." });
   }
   function handleUseForVideo() {
     onChange({ ...settings, musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, source: "finalMix" } } });
@@ -55,6 +54,8 @@ export function ManualDAW({ settings, onChange }: ManualDAWProps) {
 
   return (
     <div className="space-y-5">
+      <PreviewTransport preview={preview} />
+
       <div className="flex flex-wrap gap-1.5 p-1 rounded-xl border border-white/[0.06] bg-white/[0.02]">
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -144,14 +145,6 @@ export function ManualDAW({ settings, onChange }: ManualDAWProps) {
           data-testid="btn-save-mix"
         >
           <Save className="h-4 w-4 mr-2" /> Save Mix Settings
-        </Button>
-        <Button
-          onClick={handlePreview}
-          variant="outline"
-          className="flex-1 min-w-[140px] h-11 text-sm font-bold border-white/12 bg-white/[0.03] text-white/75 hover:text-white hover:bg-white/[0.06]"
-          data-testid="btn-preview-mix"
-        >
-          <Play className="h-4 w-4 mr-2" /> Preview Mix
         </Button>
         <Button
           onClick={handleUseForVideo}

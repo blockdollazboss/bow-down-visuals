@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Check, SlidersHorizontal, ListMusic, Info } from "lucide-react";
+import { Sparkles, Loader2, Check, SlidersHorizontal, ListMusic, Info, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   MIX_PRESETS, INTENSITIES, REVERB_AMOUNTS, AUTOTUNE_STYLES, LOUDNESS_TARGETS,
+  applyAiMixToStems,
   type EditorSettings, type AiMixOptions, type AiMixPlan, type MixPresetId,
   type Intensity, type ReverbAmount, type AutotuneStyle, type LoudnessTarget,
 } from "@/lib/editor-settings";
@@ -33,6 +34,22 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
 
   function patch(p: Partial<AiMixOptions>) {
     onChange({ ...settings, musicStudio: { ...ms, aiMix: { ...opts, ...p } } });
+  }
+
+  function handleApplyMix() {
+    if (ms.stems.length === 0) {
+      toast({ title: "No stems to mix", description: "Upload stems in Manual Studio first, then apply the AI mix.", variant: "destructive" });
+      return;
+    }
+    const nextStems = applyAiMixToStems(ms.stems, opts);
+    onChange({ ...settings, musicStudio: { ...ms, mode: "manual", stems: nextStems } });
+    const locked = ms.stems.filter((s) => s.locked).length;
+    toast({
+      title: "AI mix settings applied",
+      description: locked > 0
+        ? `Preview volumes & pan set on your stems (${locked} locked stem${locked > 1 ? "s" : ""} kept). Switched to Manual Studio to preview.`
+        : "Preview volumes & pan set on your stems. Switched to Manual Studio so you can preview the mix.",
+    });
   }
 
   async function handleGenerate() {
@@ -170,10 +187,17 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
               <InfoTile label="Export" value={plan.exportRecommendation} />
             </div>
             {plan.notes && <p className="text-[11px] text-white/40 leading-relaxed">{plan.notes}</p>}
+            <Button
+              onClick={handleApplyMix}
+              className="w-full h-11 text-sm font-black bg-primary text-black hover:bg-primary/90"
+              data-testid="btn-apply-ai-mix"
+            >
+              <Wand2 className="h-4 w-4 mr-2" /> Apply AI Mix Settings
+            </Button>
             <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
               <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
               <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Rendering the finished mixed &amp; mastered audio is coming soon. For now this plan describes exactly how your track will be mixed.
+                Apply sets suggested preview volume &amp; pan on your stems so you can hear the balance in the browser. Final studio-quality rendering/export comes in the next phase.
               </p>
             </div>
           </div>

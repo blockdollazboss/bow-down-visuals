@@ -606,6 +606,93 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
   };
 }
 
+type StemRole = "lead" | "backing" | "adlib" | "beat" | "bass" | "drums" | "hats" | "melody" | "other";
+
+function classifyStem(stem: AudioStem): StemRole {
+  const t = `${stem.type} ${stem.name}`.toLowerCase();
+  if (/ad[- ]?lib/.test(t)) return "adlib";
+  if (/back|harmon|bgv/.test(t)) return "backing";
+  if (/lead|vocal|vox|verse|hook|rap/.test(t)) return "lead";
+  if (/808|bass|sub/.test(t)) return "bass";
+  if (/hi[- ]?hat|hat/.test(t)) return "hats";
+  if (/drum|perc|kick|snare/.test(t)) return "drums";
+  if (/beat|instrument|full song/.test(t)) return "beat";
+  if (/melod|synth|key|piano|guitar|string|pad/.test(t)) return "melody";
+  return "other";
+}
+
+const INTENSITY_VOL: Record<Intensity, number> = { low: 72, medium: 86, high: 100 };
+
+/**
+ * Derive preview volume + pan per stem from the AI mix options. Deterministic
+ * (no network) so "Apply AI Mix Settings" is instant and repeatable. These are
+ * preview values only — not final rendered mastering.
+ */
+export function suggestMixSettings(
+  stems: AudioStem[],
+  aiMix: AiMixOptions,
+): Record<string, { volume: number; pan: number }> {
+  const vocal = INTENSITY_VOL[aiMix.vocalLoudness];
+  const beat = INTENSITY_VOL[aiMix.beatLoudness];
+  const bass = INTENSITY_VOL[aiMix.bassStrength];
+  const clampVol = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+  const out: Record<string, { volume: number; pan: number }> = {};
+
+  let adlibIdx = 0;
+  let backIdx = 0;
+  for (const stem of stems) {
+    const role = classifyStem(stem);
+    let volume = 86;
+    let pan = 0;
+    switch (role) {
+      case "lead":
+        volume = vocal;
+        break;
+      case "backing":
+        volume = vocal - 16;
+        pan = backIdx % 2 === 0 ? -28 : 28;
+        backIdx += 1;
+        break;
+      case "adlib":
+        volume = vocal - 22;
+        pan = adlibIdx % 2 === 0 ? 35 : -35;
+        adlibIdx += 1;
+        break;
+      case "beat":
+        volume = beat;
+        break;
+      case "bass":
+        volume = bass;
+        break;
+      case "drums":
+        volume = beat - 6;
+        break;
+      case "hats":
+        volume = beat - 10;
+        pan = 12;
+        break;
+      case "melody":
+        volume = beat - 8;
+        pan = -15;
+        break;
+      default:
+        volume = 86;
+    }
+    out[stem.id] = { volume: clampVol(volume), pan };
+  }
+  return out;
+}
+
+/** Apply AI-suggested preview volume/pan onto stems (locked stems untouched). */
+export function applyAiMixToStems(stems: AudioStem[], aiMix: AiMixOptions): AudioStem[] {
+  const suggestion = suggestMixSettings(stems, aiMix);
+  return stems.map((s) => {
+    const next = suggestion[s.id];
+    if (!next || s.locked) return s;
+    return { ...s, volume: next.volume, pan: next.pan };
+  });
+}
+
 /** Normalize a stored stem onto fresh defaults (backward-compat). */
 export function normalizeStem(s: Partial<AudioStem>): AudioStem {
   return {

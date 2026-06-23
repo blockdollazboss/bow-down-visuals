@@ -2,6 +2,7 @@ import { Sparkles, SlidersHorizontal } from "lucide-react";
 import type { EditorSettings, MusicStudioSettings } from "@/lib/editor-settings";
 import { AiAutoMix } from "@/components/editor/music/AiAutoMix";
 import { ManualDAW } from "@/components/editor/music/ManualDAW";
+import { useMixPreview } from "@/components/editor/music/useMixPreview";
 
 interface MusicStudioProps {
   settings: EditorSettings;
@@ -17,6 +18,7 @@ const MODES: { id: MusicStudioSettings["mode"]; label: string; note: string; ico
 
 export function MusicStudio({ settings, onChange, artistName, songTitle }: MusicStudioProps) {
   const ms = settings.musicStudio;
+  const preview = useMixPreview(ms.stems, ms.master);
 
   function setMode(mode: MusicStudioSettings["mode"]) {
     onChange({ ...settings, musicStudio: { ...ms, mode } });
@@ -55,7 +57,7 @@ export function MusicStudio({ settings, onChange, artistName, songTitle }: Music
       {ms.mode === "auto" ? (
         <AiAutoMix settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} />
       ) : (
-        <ManualDAW settings={settings} onChange={onChange} />
+        <ManualDAW settings={settings} onChange={onChange} preview={preview} />
       )}
     </div>
   );
