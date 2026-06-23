@@ -202,36 +202,14 @@ export default function Dashboard() {
       return;
     }
 
-    if (payment === "success" && sessionId && user) {
+    if (payment === "success") {
       window.history.replaceState({}, "", "/dashboard");
-      (async () => {
-        const token = await getAccessToken();
-        const res = await fetch("/api/checkout/verify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ sessionId }),
-        });
-        const data = await res.json() as { success?: boolean; added?: number; credits?: number; pack?: string; error?: string };
-        if (res.ok && data.success) {
-          await refreshProfile();
-          setPaymentToast({
-            type: "success",
-            message: `${data.added} credits added${data.pack ? ` (${data.pack})` : ""}! New balance: ${data.credits} credits.`,
-          });
-        } else {
-          setPaymentToast({
-            type: "error",
-            message: data.error ?? "Could not verify payment. Contact support if credits are missing.",
-          });
-        }
-      })().catch(() => {
-        setPaymentToast({ type: "error", message: "Network error verifying payment. Contact support if credits are missing." });
+      setPaymentToast({
+        type: "success",
+        message: "Test payment completed. Credit update webhook setup is next.",
       });
     }
-  }, [user, getAccessToken, refreshProfile]);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
