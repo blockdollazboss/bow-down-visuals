@@ -21,39 +21,39 @@ import { getSupabase } from "@/lib/supabase";
 
 interface ArtistVaultRecord {
   id: string;
+  user_id: string;
   artist_name: string;
   artist_type: string | null;
-  artist_description: string | null;
   genre: string | null;
+  voice_style: string | null;
   visual_style: string | null;
   hair: string | null;
   tattoos: string | null;
   jewelry: string | null;
   clothing_style: string | null;
   brand_colors: string | null;
-  logo_description: string | null;
-  image_reference_notes: string | null;
+  personality: string | null;
   do_not_change_rules: string | null;
-  special_style_rules: string | null;
-  photo_url: string | null;
+  reference_image_url: string | null;
+  reference_image_path: string | null;
+  consistency_prompt: string | null;
+  is_active: boolean;
   created_at: string;
 }
 
 interface FormValues {
   artistName: string;
   artistType: string;
-  artistDescription: string;
   genre: string;
+  voiceStyle: string;
   visualStyle: string;
   hair: string;
   tattoos: string;
   jewelry: string;
   clothingStyle: string;
   brandColors: string;
-  logoDescription: string;
-  imageReferenceNotes: string;
+  personality: string;
   doNotChangeRules: string;
-  specialStyleRules: string;
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
@@ -83,7 +83,7 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
     "Use the active artist profile as the main character reference.",
     "Keep the same face, skin tone, hairstyle, body type, tattoos, jewelry, clothing direction, colors, and overall identity.",
     "Do not add random tattoos, logos, scars, jewelry, face marks, or accessories.",
-    vault.photo_url
+    vault.reference_image_url
       ? "Use the uploaded artist reference image as the visual consistency guide."
       : "No reference image uploaded — fill in details below as accurately as possible.",
     "",
@@ -97,15 +97,10 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
   if (vault.jewelry)            lines.push(`Jewelry / Accessories: ${vault.jewelry}`);
   if (vault.clothing_style)     lines.push(`Clothing Style: ${vault.clothing_style}`);
   if (vault.brand_colors)       lines.push(`Brand Colors: ${vault.brand_colors}`);
-  if (vault.photo_url)          lines.push(`Artist Reference Image URL: ${vault.photo_url}`);
-  if (vault.image_reference_notes) {
-    lines.push("", `Reference Notes: ${vault.image_reference_notes}`);
-  }
+  if (vault.personality)        lines.push(`Personality: ${vault.personality}`);
+  if (vault.reference_image_url) lines.push(`Artist Reference Image URL: ${vault.reference_image_url}`);
   if (vault.do_not_change_rules) {
     lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
-  }
-  if (vault.special_style_rules) {
-    lines.push("", `✅ SPECIAL RULES: ${vault.special_style_rules}`);
   }
   lines.push(
     "",
@@ -297,8 +292,8 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0">
-              {vault.photo_url ? (
-                <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+              {vault.reference_image_url ? (
+                <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
               ) : (
                 <div className="h-full w-full bg-primary flex items-center justify-center">
                   <span className="text-white font-black text-xl">
@@ -328,26 +323,20 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <DetailRow label="Artist Description" value={vault.artist_description} />
+          <DetailRow label="Voice Style" value={vault.voice_style} />
+          <DetailRow label="Personality" value={vault.personality} />
           <DetailRow label="Hair" value={vault.hair} />
           <DetailRow label="Tattoos" value={vault.tattoos} />
           <DetailRow label="Jewelry" value={vault.jewelry} />
           <DetailRow label="Clothing Style" value={vault.clothing_style} />
           <DetailRow label="Brand Colors" value={vault.brand_colors} />
-          <DetailRow label="Logo Description" value={vault.logo_description} />
-          <DetailRow label="Image Reference Notes" value={vault.image_reference_notes} />
+          <DetailRow label="Visual Style" value={vault.visual_style} />
         </div>
 
         {vault.do_not_change_rules && (
           <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 mb-3">
             <p className="text-xs text-red-400/80 uppercase tracking-wider font-semibold mb-1">⛔ Do Not Change Rules</p>
             <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.do_not_change_rules}</p>
-          </div>
-        )}
-        {vault.special_style_rules && (
-          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 mb-3">
-            <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold mb-1">✅ Special Style Rules</p>
-            <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.special_style_rules}</p>
           </div>
         )}
 
@@ -390,8 +379,8 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
     <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-colors">
       <div className="flex items-start gap-3 mb-3">
         <div className="h-10 w-10 rounded-xl overflow-hidden shrink-0">
-          {vault.photo_url ? (
-            <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+          {vault.reference_image_url ? (
+            <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
           ) : (
             <div className="h-full w-full bg-primary flex items-center justify-center">
               <span className="text-white font-black text-lg">
@@ -418,8 +407,8 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
         </div>
       </div>
 
-      {vault.artist_description && (
-        <p className="text-xs text-white/40 line-clamp-2 mb-3">{vault.artist_description}</p>
+      {vault.personality && (
+        <p className="text-xs text-white/40 line-clamp-2 mb-3">{vault.personality}</p>
       )}
 
       <div className="space-y-2 pt-3 border-t border-white/[0.05]">
@@ -474,15 +463,15 @@ export default function ArtistVault() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
-      artistName: "", artistType: "", artistDescription: "",
-      genre: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
-      clothingStyle: "", brandColors: "", logoDescription: "",
-      imageReferenceNotes: "", doNotChangeRules: "", specialStyleRules: "",
+      artistName: "", artistType: "",
+      genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
+      clothingStyle: "", brandColors: "", personality: "", doNotChangeRules: "",
     },
   });
 
@@ -543,6 +532,7 @@ export default function ArtistVault() {
         .from(PHOTO_BUCKET)
         .getPublicUrl(filePath);
       setPhotoUrl(publicUrl);
+      setPhotoPath(filePath);
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : "Upload failed. Please try again.");
     } finally {
@@ -551,22 +541,24 @@ export default function ArtistVault() {
   }
 
   async function removePhoto() {
-    if (!photoUrl || !user) { setPhotoUrl(null); return; }
+    if (!photoUrl || !user) { setPhotoUrl(null); setPhotoPath(null); return; }
     try {
       const sb = getSupabase();
-      const url = new URL(photoUrl);
-      const pathParts = url.pathname.split(`/${PHOTO_BUCKET}/`);
-      if (pathParts[1]) {
-        await sb.storage.from(PHOTO_BUCKET).remove([pathParts[1]]);
-      }
+      const pathToRemove = photoPath ?? (() => {
+        const url = new URL(photoUrl);
+        return url.pathname.split(`/${PHOTO_BUCKET}/`)[1] ?? null;
+      })();
+      if (pathToRemove) await sb.storage.from(PHOTO_BUCKET).remove([pathToRemove]);
     } catch { /* best-effort delete */ }
     setPhotoUrl(null);
+    setPhotoPath(null);
   }
 
   function startNew() {
     setEditId(null);
     reset();
     setPhotoUrl(null);
+    setPhotoPath(null);
     setPhotoError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -575,19 +567,18 @@ export default function ArtistVault() {
     setEditId(vault.id);
     setValue("artistName", vault.artist_name);
     setValue("artistType", vault.artist_type ?? "");
-    setValue("artistDescription", vault.artist_description ?? "");
     setValue("genre", vault.genre ?? "");
+    setValue("voiceStyle", vault.voice_style ?? "");
     setValue("visualStyle", vault.visual_style ?? "");
     setValue("hair", vault.hair ?? "");
     setValue("tattoos", vault.tattoos ?? "");
     setValue("jewelry", vault.jewelry ?? "");
     setValue("clothingStyle", vault.clothing_style ?? "");
     setValue("brandColors", vault.brand_colors ?? "");
-    setValue("logoDescription", vault.logo_description ?? "");
-    setValue("imageReferenceNotes", vault.image_reference_notes ?? "");
+    setValue("personality", vault.personality ?? "");
     setValue("doNotChangeRules", vault.do_not_change_rules ?? "");
-    setValue("specialStyleRules", vault.special_style_rules ?? "");
-    setPhotoUrl(vault.photo_url ?? null);
+    setPhotoUrl(vault.reference_image_url ?? null);
+    setPhotoPath(vault.reference_image_path ?? null);
     setPhotoError(null);
     setOpenVault(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -599,22 +590,44 @@ export default function ArtistVault() {
     setSaveSuccess(false);
     try {
       const token = await getAccessToken();
-      const body = {
-        artistName: values.artistName,
-        artistType: values.artistType || null,
-        artistDescription: values.artistDescription || null,
+      const partialVault: ArtistVaultRecord = {
+        id: editId ?? "",
+        user_id: user?.id ?? "",
+        artist_name: values.artistName,
+        artist_type: values.artistType || null,
         genre: values.genre || null,
-        visualStyle: values.visualStyle || null,
+        voice_style: values.voiceStyle || null,
+        visual_style: values.visualStyle || null,
         hair: values.hair || null,
         tattoos: values.tattoos || null,
         jewelry: values.jewelry || null,
-        clothingStyle: values.clothingStyle || null,
-        brandColors: values.brandColors || null,
-        logoDescription: values.logoDescription || null,
-        imageReferenceNotes: values.imageReferenceNotes || null,
-        doNotChangeRules: values.doNotChangeRules || null,
-        specialStyleRules: values.specialStyleRules || null,
-        photoUrl: photoUrl || null,
+        clothing_style: values.clothingStyle || null,
+        brand_colors: values.brandColors || null,
+        personality: values.personality || null,
+        do_not_change_rules: values.doNotChangeRules || null,
+        reference_image_url: photoUrl || null,
+        reference_image_path: photoPath || null,
+        consistency_prompt: null,
+        is_active: false,
+        created_at: "",
+      };
+      const consistency = generateConsistencyPrompt(partialVault);
+      const body = {
+        artistName: partialVault.artist_name,
+        artistType: partialVault.artist_type,
+        genre: partialVault.genre,
+        voiceStyle: partialVault.voice_style,
+        visualStyle: partialVault.visual_style,
+        hair: partialVault.hair,
+        tattoos: partialVault.tattoos,
+        jewelry: partialVault.jewelry,
+        clothingStyle: partialVault.clothing_style,
+        brandColors: partialVault.brand_colors,
+        personality: partialVault.personality,
+        doNotChangeRules: partialVault.do_not_change_rules,
+        referenceImageUrl: partialVault.reference_image_url,
+        referenceImagePath: partialVault.reference_image_path,
+        consistencyPrompt: consistency,
       };
       const url = editId ? `/api/artist-vaults/${editId}` : "/api/artist-vaults";
       const method = editId ? "PUT" : "POST";
@@ -649,12 +662,14 @@ export default function ArtistVault() {
     try {
       const token = await getAccessToken();
       const vault = vaults.find((v) => v.id === id);
-      if (vault?.photo_url) {
+      if (vault?.reference_image_url) {
         try {
           const sb = getSupabase();
-          const url = new URL(vault.photo_url);
-          const pathParts = url.pathname.split("/artist-references/");
-          if (pathParts[1]) await sb.storage.from("artist-references").remove([pathParts[1]]);
+          const pathToRemove = vault.reference_image_path ?? (() => {
+            const u = new URL(vault.reference_image_url!);
+            return u.pathname.split("/artist-references/")[1] ?? null;
+          })();
+          if (pathToRemove) await sb.storage.from("artist-references").remove([pathToRemove]);
         } catch { /* best-effort */ }
       }
       await fetch(`/api/artist-vaults/${id}`, {
@@ -662,7 +677,7 @@ export default function ArtistVault() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setVaults((prev) => prev.filter((v) => v.id !== id));
-      if (editId === id) { setEditId(null); reset(); setPhotoUrl(null); }
+      if (editId === id) { setEditId(null); reset(); setPhotoUrl(null); setPhotoPath(null); }
     } catch {
       /* silent */
     }
@@ -774,10 +789,10 @@ export default function ArtistVault() {
               </FieldWrapper>
             </div>
 
-            {/* Artist Description */}
-            <FieldWrapper label="Artist Description" hint="Describe who you are as an artist — story, sound, vibe, energy">
+            {/* Personality */}
+            <FieldWrapper label="Personality" hint="Describe your artist's energy, attitude, story, and vibe">
               <Textarea
-                {...register("artistDescription")}
+                {...register("personality")}
                 placeholder="e.g. Young Black artist from Atlanta, street-meets-luxury sound, raw emotion with commercial appeal. Known for cinematic visuals and hard-hitting bars. Started with nothing, now building a legacy..."
                 className={textareaClass}
                 style={{ minHeight: "120px" }}
@@ -822,8 +837,8 @@ export default function ArtistVault() {
                 <FieldWrapper label="Brand Colors" hint="Your signature color palette">
                   <Input {...register("brandColors")} placeholder="e.g. black, gold, and deep red..." className={inputClass} />
                 </FieldWrapper>
-                <FieldWrapper label="Logo Description" hint="Describe your logo or brand mark">
-                  <Input {...register("logoDescription")} placeholder="e.g. initials in gothic font with a crown above..." className={inputClass} />
+                <FieldWrapper label="Voice Style" hint="How your artist sounds — tone, delivery, energy">
+                  <Input {...register("voiceStyle")} placeholder="e.g. deep baritone, melodic trap, aggressive delivery..." className={inputClass} />
                 </FieldWrapper>
               </div>
             </div>
@@ -880,34 +895,12 @@ export default function ArtistVault() {
               </div>
             </div>
 
-            {/* Image reference notes */}
-            <FieldWrapper label="Image Reference Notes" hint="Describe visual inspirations or aesthetic references for AI tools">
-              <Textarea
-                {...register("imageReferenceNotes")}
-                placeholder="e.g. dark cinematic like Drake's Scorpion era, luxury but street raw, always a black and gold color story, moody low-key lighting..."
-                className={textareaClass}
-                style={{ minHeight: "100px" }}
-              />
-            </FieldWrapper>
-
             {/* Do Not Change Rules */}
             <div className="rounded-xl border border-red-500/15 bg-red-500/[0.03] p-5">
               <FieldWrapper label="⛔ Do Not Change Rules" hint="Hard rules the AI must NEVER violate for this artist">
                 <Textarea
                   {...register("doNotChangeRules")}
                   placeholder="e.g. Never show the artist without jewelry. Never use cartoon or anime visual style. Do not use pastel or pink colors. Never generate the artist without their signature chain. Never make lyrics sound too soft or pop..."
-                  className={textareaClass}
-                  style={{ minHeight: "110px" }}
-                />
-              </FieldWrapper>
-            </div>
-
-            {/* Special Style Rules */}
-            <div className="rounded-xl border border-primary/15 bg-primary/[0.03] p-5">
-              <FieldWrapper label="✅ Special Style Rules" hint="Instructions the AI should always follow for this artist">
-                <Textarea
-                  {...register("specialStyleRules")}
-                  placeholder="e.g. Always include crown symbolism. Lyrics should always use street elevated language. Thumbnails always have gold text on dark background. Video scenes should always include dramatic lighting. Always reference loyalty and legacy themes..."
                   className={textareaClass}
                   style={{ minHeight: "110px" }}
                 />
