@@ -256,7 +256,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
         <SongSectionAnalysis analysis={saveMetadata.songStructure} />
       )}
 
-      {/* Sections */}
+      {/* Plan sections — raw AI output */}
       <div className="space-y-4">
         {sections.length > 0 ? sections.map((section, i) => (
           <div key={i} className="bg-card border border-card-border rounded-xl overflow-hidden"
@@ -266,14 +266,10 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
                 <span className="text-xs font-bold text-primary/50 tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <h3 className="font-bold text-white text-sm tracking-wide uppercase">{section.title}</h3>
               </div>
-              {!section.isSceneBreakdown && <CopyButton text={section.content} />}
+              <CopyButton text={section.content} />
             </div>
             <div className="px-5 py-4">
-              {section.isSceneBreakdown && scenes.length > 0 ? (
-                <SceneStudio scenes={scenes} onScenesChange={handleScenesChange} />
-              ) : (
-                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
-              )}
+              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">{section.content}</pre>
             </div>
           </div>
         )) : (
@@ -282,6 +278,13 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
           </div>
         )}
       </div>
+
+      {/* Scene Cards For Video Generation — shown below the full plan */}
+      {scenes.length > 0 && (
+        <div className="pt-4 border-t border-white/[0.06]">
+          <SceneStudio scenes={scenes} onScenesChange={handleScenesChange} />
+        </div>
+      )}
     </div>
   );
 }
