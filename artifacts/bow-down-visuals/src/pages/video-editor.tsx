@@ -2,19 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
-  Check, CloudOff, Save,
+  Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
+  sceneHasClip,
   type EditorSettings,
 } from "@/lib/editor-settings";
 import { AutoEditPanel } from "@/components/editor/AutoEditPanel";
-import { ManualEditor } from "@/components/editor/ManualEditor";
+import { ClipsSection } from "@/components/editor/sections/ClipsSection";
+import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
+import { EffectsSection } from "@/components/editor/sections/EffectsSection";
+import { ExportSection } from "@/components/editor/sections/ExportSection";
+import { MusicStudio } from "@/components/editor/music/MusicStudio";
+
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "export";
 
 interface LoadedProject {
   id: string;
@@ -42,6 +50,8 @@ export default function VideoEditor() {
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [tab, setTab] = useState<EditorTab>("clips");
+  const [clipMode, setClipMode] = useState<"auto" | "manual">("auto");
 
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,46 +186,79 @@ export default function VideoEditor() {
               </div>
             </div>
 
-            {/* Mode toggle */}
-            <div className="inline-flex p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
-              <ModeButton
-                active={settings.mode === "auto"}
-                onClick={() => setSettings({ ...settings, mode: "auto" })}
-                icon={<Sparkles className="h-4 w-4" />}
-                label="AI Auto Edit"
-                testId="mode-auto"
-              />
-              <ModeButton
-                active={settings.mode === "manual"}
-                onClick={() => setSettings({ ...settings, mode: "manual" })}
-                icon={<SlidersHorizontal className="h-4 w-4" />}
-                label="Manual Pro Editor"
-                testId="mode-manual"
-              />
+            {/* Top nav tabs */}
+            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
+              <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
+              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
+              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
+              <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
+              <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
+              <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
             </div>
 
-            {settings.mode === "auto" ? (
-              <AutoEditPanel
-                scenes={scenes}
-                settings={settings}
-                onChange={setSettings}
-                artistName={artistName}
-                songTitle={songTitle}
+            {tab === "clips" && (
+              <div className="space-y-6">
+                <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                  <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
+                  <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
+                </div>
+                {clipMode === "auto" ? (
+                  <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                ) : (
+                  <ClipsSection scenes={scenes} setScenes={setScenes} settings={settings} setSettings={setSettings} />
+                )}
+              </div>
+            )}
+
+            {tab === "timeline" && (
+              <ClipSequencePlayer
+                scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
+                allScenes={scenes}
+                title="Timeline Preview"
+                emptyTitle="No approved clips to preview yet."
+                emptyHint="Generate Runway clips on your scenes, then approve them — approved clips play here in order."
               />
-            ) : (
-              <ManualEditor
-                scenes={scenes}
-                setScenes={setScenes}
-                settings={settings}
-                setSettings={setSettings}
-                projectId={project!.id}
-                audioUrl={audioUrl}
-              />
+            )}
+
+            {tab === "music" && (
+              <MusicStudio settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+            )}
+
+            {tab === "captions" && (
+              <CaptionsSection settings={settings} setSettings={setSettings} />
+            )}
+
+            {tab === "effects" && (
+              <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
+            )}
+
+            {tab === "export" && (
+              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} />
             )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+function TabButton({
+  active, onClick, icon, label, testId,
+}: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
+        active ? "bg-primary text-black" : "text-white/50 hover:text-white/80"
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

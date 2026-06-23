@@ -1,6 +1,3 @@
-- [React muted video prop bug](react-muted-video.md) — React's `muted` JSX prop does NOT set DOM muted property; use a callback ref to set `el.muted = true` imperatively.
-- [Scene reorder persistence](scene-reorder-persistence.md) — After save, parent state must be updated via onSaveSuccess→onScenesSaved chain or reopening modal uses stale output_data.
-- [Runway URL expiry](runway-url-expiry.md) — Runway presigned S3 URLs expire after ~24h; show graceful "expired URL" overlay, don't silently break the video player.
-- [Object storage server upload](object-storage-server-upload.md) — For server-side GCS uploads use objectStorageClient.bucket(bucketId).file(path).save(buffer); sign GET URLs via Replit sidecar at 127.0.0.1:1106.
-- [Supabase RLS UPDATE workaround](supabase-rls-workaround.md) — projects table has no UPDATE policy; all writes use DELETE+INSERT with same UUID
-- [Vite babel JSX generics](vite-babel-jsx-generics.md) — `<Comp<T> ...>` generic JSX type args parse in tsc but crash vite:react-babel; type the props/options instead.
+- [Editor settings persistence](bow-down-editor.md) — all video-editor state (incl. musicStudio) lives in output_data.editorSettings; no DB migration, normalize on load for back-compat.
+- [Vite babel JSX generics](vite-jsx-generics.md) — Vite react-babel crashes on JSX generic call sites like `<Segmented<T>>`; use typed option arrays passed as props instead.
+- [Supabase storage RLS](supabase-storage-rls.md) — per-user buckets must scope INSERT to folder ownership, not just authenticated.

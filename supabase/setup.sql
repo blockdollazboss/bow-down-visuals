@@ -187,7 +187,7 @@ drop policy if exists "Users can update own audio stems"           on storage.ob
 
 create policy "Authenticated users can upload audio stems"
   on storage.objects for insert
-  with check (bucket_id = 'audio-stems' and auth.role() = 'authenticated');
+  with check (bucket_id = 'audio-stems' and auth.uid()::text = (storage.foldername(name))[1]);
 
 create policy "Anyone can view audio stems"
   on storage.objects for select
