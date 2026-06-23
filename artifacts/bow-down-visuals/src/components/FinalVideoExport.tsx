@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
-  Clapperboard, FlaskConical,
+  Clapperboard, FlaskConical, Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,6 +27,16 @@ interface FinalVideoExportProps {
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
 
+/** Parse "0:05-0:10" → duration in seconds (5) */
+function parseDurationFromTimestamp(timestamp: string): number | null {
+  const m = timestamp?.match(/(\d+):(\d+)\s*[-–]\s*(\d+):(\d+)/);
+  if (!m) return null;
+  const start = parseInt(m[1]!) * 60 + parseInt(m[2]!);
+  const end   = parseInt(m[3]!) * 60 + parseInt(m[4]!);
+  const dur = end - start;
+  return dur > 0 ? dur : null;
+}
+
 export function FinalVideoExport({
   scenes,
   projectId,
@@ -37,6 +47,7 @@ export function FinalVideoExport({
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
+  /* All scenes that have a real HTTP clip URL */
   const clips = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
 
   const [status, setStatus] = useState<ExportStatus>(
@@ -66,10 +77,15 @@ export function FinalVideoExport({
 
     try {
       const token = await getAccessToken();
-      const clipUrls = clips.map((s) => s.demoClipUrl!);
+      /* Preserve scene order — use scenes array index, not clips subset */
+      const orderedClips = scenes
+        .filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
+      const clipUrls = orderedClips.map((s) => s.demoClipUrl!);
       const timelineOrder = scenes.map((s) => s.id);
 
-      setProgressStep(`Downloading ${clips.length} clip${clips.length > 1 ? "s" : ""} · Normalizing resolution · Running FFmpeg…`);
+      setProgressStep(
+        `Downloading ${clips.length} clip${clips.length > 1 ? "s" : ""} · normalizing to 1080×1920 · running FFmpeg…`,
+      );
 
       const res = await fetch("/api/export-final-video", {
         method: "POST",
@@ -92,7 +108,12 @@ export function FinalVideoExport({
         throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
       }
 
-      const data = (await res.json()) as { url: string; clipCount: number; audioIncluded: boolean; testMode?: boolean };
+      const data = (await res.json()) as {
+        url: string;
+        clipCount: number;
+        audioIncluded: boolean;
+        testMode?: boolean;
+      };
       setExportUrl(data.url);
       setStatus("completed");
       setProgressStep("");
@@ -112,7 +133,6 @@ export function FinalVideoExport({
           ? "Video-only test passed. Now export with audio."
           : "Your final video is ready to download.",
       });
-
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Export failed";
       setStatus("failed");
@@ -147,13 +167,15 @@ export function FinalVideoExport({
 
       <div className="p-5 space-y-4">
 
-        {/* Completed — show player + download */}
+        {/* ── Completed — show player + download ── */}
         {status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
             {testMode && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                <p className="text-xs text-blue-300">Test export (video only). If it looks correct, export again with audio.</p>
+                <p className="text-xs text-blue-300">
+                  Test export (video only). If both clips appear in order, export again with audio.
+                </p>
               </div>
             )}
             <video
@@ -182,7 +204,6 @@ export function FinalVideoExport({
                 {" · "}1080×1920 MP4
               </p>
             )}
-            {/* Allow re-export */}
             <button
               onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); }}
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
@@ -192,22 +213,20 @@ export function FinalVideoExport({
           </div>
         )}
 
-        {/* Failed */}
+        {/* ── Failed ── */}
         {status === "failed" && (
-          <div className="space-y-2">
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-red-300">Export Failed</p>
-                {errorMsg && (
-                  <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
-                )}
-              </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-red-300">Export Failed</p>
+              {errorMsg && (
+                <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
+              )}
             </div>
           </div>
         )}
 
-        {/* Exporting */}
+        {/* ── Exporting ── */}
         {status === "exporting" && (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
@@ -220,33 +239,23 @@ export function FinalVideoExport({
           </div>
         )}
 
-        {/* Idle / ready to export */}
+        {/* ── Idle / Ready ── */}
         {(status === "idle" || status === "failed") && (
           <div className="space-y-3">
+
+            {/* CLIPS INCLUDED IN EXPORT — always visible */}
+            <ClipsIncludedList scenes={scenes} />
 
             {/* Warning */}
             {!confirmed && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Each clip is downloaded, verified, normalized to 1080×1920, and stitched with FFmpeg.
+                  Each clip is downloaded from its saved URL, normalized to 1080×1920, and stitched with FFmpeg.
                   Keep the page open during export.
                 </p>
               </div>
             )}
-
-            {/* Clip summary */}
-            <div className="rounded-lg bg-white/[0.03] border border-white/[0.06] divide-y divide-white/[0.04]">
-              {clips.map((clip, i) => (
-                <div key={clip.id} className="flex items-center gap-2 px-3 py-2">
-                  <Film className="h-3 w-3 text-primary/60 shrink-0" />
-                  <span className="text-xs text-white/50 flex-1 truncate">
-                    Scene {i + 1}{clip.section ? ` · ${clip.section}` : ""}
-                  </span>
-                  {clip.approved && <span className="text-[10px] font-bold text-primary">★</span>}
-                </div>
-              ))}
-            </div>
 
             {/* Test mode toggle */}
             <button
@@ -259,7 +268,9 @@ export function FinalVideoExport({
             >
               <FlaskConical className="h-3.5 w-3.5 shrink-0" />
               <span className="flex-1 text-left">
-                {testMode ? "✓ Video Only Test mode — audio skipped" : "Enable Video Only Test (skip audio)"}
+                {testMode
+                  ? "✓ Video Only Test mode — audio skipped"
+                  : "Enable Video Only Test (skip audio)"}
               </span>
             </button>
 
@@ -287,6 +298,124 @@ export function FinalVideoExport({
         )}
       </div>
     </div>
+  );
+}
+
+/* ── Clips Included In Export list ── */
+function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
+  const allScenes = scenes;
+
+  return (
+    <div className="rounded-xl border border-white/10 overflow-hidden">
+      <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06]">
+        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+          Clips Included In Export
+        </p>
+      </div>
+
+      <div className="divide-y divide-white/[0.04]">
+        {allScenes.map((scene, i) => {
+          const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+          const dur = parseDurationFromTimestamp(scene.timestamp);
+
+          return (
+            <div key={scene.id} className="flex items-start gap-3 px-3 py-2.5">
+              {/* Scene number */}
+              <span className="text-[11px] font-black text-white/30 w-5 shrink-0 mt-0.5">
+                {i + 1}
+              </span>
+
+              {/* Clip status dot */}
+              <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${hasClip ? "bg-green-400" : "bg-white/20"}`} />
+
+              {/* Details */}
+              <div className="flex-1 min-w-0 space-y-0.5">
+                <p className="text-xs text-white/70 truncate font-medium">
+                  {scene.section || `Scene ${i + 1}`}
+                  {scene.lyricLine ? (
+                    <span className="text-white/30 font-normal"> — {scene.lyricLine}</span>
+                  ) : null}
+                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                  <Pill
+                    label="clip URL"
+                    value={hasClip ? "yes" : "no"}
+                    color={hasClip ? "green" : "red"}
+                  />
+                  {scene.provider && (
+                    <Pill label="provider" value={scene.provider} color="purple" />
+                  )}
+                  <Pill
+                    label="status"
+                    value={scene.generationStatus ?? "unknown"}
+                    color={scene.generationStatus === "completed" ? "green" : "amber"}
+                  />
+                  {dur !== null && (
+                    <Pill label="duration" value={`~${dur}s`} color="neutral" />
+                  )}
+                  {hasClip && (
+                    <a
+                      href={scene.demoClipUrl!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] text-primary/50 hover:text-primary/80 transition-colors"
+                      title="Open clip URL"
+                    >
+                      <Link2 className="h-2.5 w-2.5" />
+                      view URL
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Not-included badge */}
+              {!hasClip && (
+                <span className="text-[10px] font-bold text-white/20 uppercase tracking-wider shrink-0 mt-0.5">
+                  skipped
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer: total clips */}
+      {(() => {
+        const includedCount = allScenes.filter(
+          (s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"),
+        ).length;
+        return (
+          <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between">
+            <span className="text-[10px] text-white/25">
+              {allScenes.length - includedCount > 0
+                ? `${allScenes.length - includedCount} scene${allScenes.length - includedCount > 1 ? "s" : ""} without clips will be skipped`
+                : "All scenes have clips"}
+            </span>
+            <span className="text-[10px] font-bold text-white/40">
+              {includedCount} / {allScenes.length} clips
+            </span>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+type PillColor = "green" | "red" | "amber" | "purple" | "neutral";
+
+function Pill({ label, value, color }: { label: string; value: string; color: PillColor }) {
+  const colors: Record<PillColor, string> = {
+    green:   "text-green-400",
+    red:     "text-red-400",
+    amber:   "text-amber-400",
+    purple:  "text-purple-400",
+    neutral: "text-white/40",
+  };
+  return (
+    <span className="text-[10px] text-white/25">
+      {label}:{" "}
+      <span className={`font-bold ${colors[color]}`}>{value}</span>
+    </span>
   );
 }
 
