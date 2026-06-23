@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
-  Clapperboard, FlaskConical, Link2,
+  Clapperboard, FlaskConical, ExternalLink, Check, Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,13 +28,42 @@ interface FinalVideoExportProps {
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
 
 /** Parse "0:05-0:10" → duration in seconds (5) */
-function parseDurationFromTimestamp(timestamp: string): number | null {
+function parseDuration(timestamp: string): number | null {
   const m = timestamp?.match(/(\d+):(\d+)\s*[-–]\s*(\d+):(\d+)/);
   if (!m) return null;
   const start = parseInt(m[1]!) * 60 + parseInt(m[2]!);
   const end   = parseInt(m[3]!) * 60 + parseInt(m[4]!);
-  const dur = end - start;
+  const dur   = end - start;
   return dur > 0 ? dur : null;
+}
+
+/**
+ * A scene is selected for export when it satisfies all three conditions:
+ *   1. Clip URL exists and starts with "http"
+ *   2. Provider is Runway (or URL is from the Runway CDN — backwards-compat for clips
+ *      saved before the provider field was tracked)
+ *   3. Status is "completed" OR scene is approved
+ *      (falls back to true when generationStatus was never saved — old clips)
+ */
+function isSelected(s: SceneData): boolean {
+  if (!s.demoClipUrl || !s.demoClipUrl.startsWith("http")) return false;
+
+  const isRunway =
+    s.provider === "Runway" ||
+    s.demoClipUrl.includes("dnznrvs05pmza.cloudfront.net"); // Runway CDN (old clips)
+
+  const isComplete =
+    s.generationStatus === "completed" ||
+    s.approved === true ||
+    (!s.generationStatus && !!s.demoClipUrl); // backwards-compat: URL exists, status never tracked
+
+  return isRunway && isComplete;
+}
+
+/** Short description for a scene */
+function sceneLabel(s: SceneData, i: number): string {
+  const parts = [s.section, s.lyricLine].filter(Boolean);
+  return parts.length > 0 ? parts.join(" — ") : `Scene ${i + 1}`;
 }
 
 export function FinalVideoExport({
@@ -47,11 +76,11 @@ export function FinalVideoExport({
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
-  /* All scenes that have a real HTTP clip URL, in timeline order */
-  const clips = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
-  const clipUrls = clips.map((s) => s.demoClipUrl!);
+  /* Ordered list of scenes that qualify for export */
+  const selectedScenes = scenes.filter(isSelected);
+  const clipUrls = selectedScenes.map((s) => s.demoClipUrl!);
 
-  /* Detect duplicate URLs — same URL used for multiple scenes */
+  /* Detect if two selected scenes share the exact same URL */
   const uniqueUrls = new Set(clipUrls);
   const hasDuplicateUrls = clipUrls.length > 1 && uniqueUrls.size < clipUrls.length;
 
@@ -63,20 +92,21 @@ export function FinalVideoExport({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
-  const [testMode, setTestMode] = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
+
+  /* Nothing to show if no scene has any clip at all */
+  const anyClip = scenes.some((s) => !!s.demoClipUrl);
+  if (!anyClip) return null;
 
   async function handleExport() {
     if (!projectId) {
       toast({ title: "Save project first", description: "Save your project before exporting.", variant: "destructive" });
       return;
     }
-    if (clips.length === 0) {
+    if (selectedScenes.length === 0) {
       toast({ title: "No clips ready", description: "Generate Runway clips on the scenes below first.", variant: "destructive" });
       return;
     }
-
-    /* Hard block: duplicate URLs mean we'd encode the same clip twice */
     if (hasDuplicateUrls) {
       toast({
         title: "Duplicate clip URLs detected",
@@ -95,7 +125,8 @@ export function FinalVideoExport({
       const timelineOrder = scenes.map((s) => s.id);
 
       setProgressStep(
-        `Downloading ${clips.length} clip${clips.length > 1 ? "s" : ""} · normalizing to 1080×1920 · running FFmpeg…`,
+        `Downloading ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
+        ` · normalizing to 1080×1920 · running FFmpeg…`,
       );
 
       const res = await fetch("/api/export-final-video", {
@@ -107,9 +138,9 @@ export function FinalVideoExport({
         body: JSON.stringify({
           projectId,
           clipUrls,
-          audioUrl: testMode ? null : (audioUrl ?? null),
+          audioUrl: null,
           timelineOrder,
-          testMode,
+          testMode: false,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
@@ -124,13 +155,12 @@ export function FinalVideoExport({
         clipCount: number;
         audioIncluded: boolean;
         testMode?: boolean;
-        debug?: { clips: unknown[]; identicalClipsDetected?: boolean };
+        debug?: { identicalClipsDetected?: boolean };
       };
 
-      /* Server-side dedup check result */
       if (data.debug?.identicalClipsDetected) {
         throw new Error(
-          "Server detected that two or more downloaded clips are identical (same file content). " +
+          "Server detected that two or more downloaded clips have identical content. " +
           "Re-generate the affected Runway clips and try again.",
         );
       }
@@ -144,15 +174,13 @@ export function FinalVideoExport({
         export_status: "completed",
         export_created_at: new Date().toISOString(),
         clips_used: clipUrls.length,
-        audio_used: data.audioIncluded,
+        audio_used: false,
         timeline_order: timelineOrder,
       };
-      if (!testMode) onExportComplete?.(record);
+      onExportComplete?.(record);
       toast({
-        title: data.testMode ? "Test export complete!" : "Export complete!",
-        description: data.testMode
-          ? "Video-only test passed. If both clips appear correctly, export again with audio."
-          : "Your final video is ready to download.",
+        title: "Export complete!",
+        description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} stitched — video only (no audio yet).`,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Export failed";
@@ -163,14 +191,12 @@ export function FinalVideoExport({
     }
   }
 
-  if (clips.length === 0) return null;
-
   return (
     <div
       className="rounded-2xl border border-primary/20 bg-black/40 overflow-hidden"
       data-testid="final-video-export"
     >
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-primary/10">
         <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
           <Clapperboard className="h-4 w-4 text-primary" />
@@ -178,9 +204,8 @@ export function FinalVideoExport({
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-black text-white uppercase tracking-wider">Final Video Export</h3>
           <p className="text-xs text-white/40 mt-0.5">
-            {clips.length} clip{clips.length !== 1 ? "s" : ""}
-            {audioUrl && !testMode ? " · with audio track" : " · video only"}
-            {" · "}normalized to 1080×1920
+            {selectedScenes.length} of {scenes.length} scene{scenes.length !== 1 ? "s" : ""} selected
+            {" · "}video only · 1080×1920
           </p>
         </div>
         <StatusBadge status={status} />
@@ -188,17 +213,15 @@ export function FinalVideoExport({
 
       <div className="p-5 space-y-4">
 
-        {/* ── Completed — show player + download ── */}
+        {/* ── Completed ── */}
         {status === "completed" && exportUrl && (
           <div className="space-y-3" data-testid="export-result">
-            {testMode && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                <p className="text-xs text-blue-300">
-                  Test export (video only). Verify both clips play in order, then export again with audio.
-                </p>
-              </div>
-            )}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <FlaskConical className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+              <p className="text-xs text-blue-300">
+                Video only — no audio yet. Verify all clips appear in order, then we can add audio.
+              </p>
+            </div>
             <video
               src={exportUrl}
               controls
@@ -215,21 +238,15 @@ export function FinalVideoExport({
             >
               <Button className="gold-glow w-full gap-2" data-testid="btn-download-final-video">
                 <Download className="h-4 w-4" />
-                Download{testMode ? " Test Video" : " Final Video"}
+                Download Export ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""})
               </Button>
             </a>
-            {!testMode && (
-              <p className="text-center text-xs text-white/30">
-                {clips.length} clip{clips.length !== 1 ? "s" : ""}
-                {audioUrl ? " · audio track included" : " · no audio"}
-                {" · "}1080×1920 MP4
-              </p>
-            )}
             <button
               onClick={() => { setStatus("idle"); setExportUrl(null); setConfirmed(false); }}
               className="w-full text-center text-[11px] text-white/25 hover:text-white/50 transition-colors"
+              data-testid="btn-export-again"
             >
-              Export again
+              Export again with updated clips
             </button>
           </div>
         )}
@@ -252,82 +269,62 @@ export function FinalVideoExport({
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
             <div>
-              <p className="text-sm font-bold text-white">
-                {testMode ? "Running test export…" : "Exporting your video…"}
-              </p>
+              <p className="text-sm font-bold text-white">Exporting your video…</p>
               <p className="text-xs text-white/40 mt-1">{progressStep || "Processing…"}</p>
             </div>
           </div>
         )}
 
-        {/* ── Idle / Ready ── */}
+        {/* ── Idle / Ready / Failed (pre-export panel) ── */}
         {(status === "idle" || status === "failed") && (
           <div className="space-y-3">
 
-            {/* CLIPS INCLUDED IN EXPORT — always visible */}
-            <ClipsIncludedList scenes={scenes} />
+            {/* Clips Included In Export */}
+            <ClipsPanel scenes={scenes} />
 
-            {/* Single-clip warning */}
-            {clips.length === 1 && (
+            {/* Warnings */}
+            {selectedScenes.length === 1 && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Only 1 clip selected. Generate Runway clips for the other scenes to include them in the export.
+                  Only 1 clip is selected. Generate Runway clips for other scenes to include them.
                 </p>
               </div>
             )}
 
-            {/* Duplicate URL error — hard block */}
             {hasDuplicateUrls && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                 <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-bold text-red-300">Duplicate clip URLs detected</p>
                   <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">
-                    Two or more scenes point to the same clip URL — exporting now would repeat the same clip.
-                    Re-generate the affected scenes' Runway clips, then try again.
+                    Two scenes point to the same URL. Exporting now would repeat the same clip.
+                    Re-generate those scenes first.
                   </p>
                 </div>
               </div>
             )}
 
-            {/* General warning */}
-            {!confirmed && !hasDuplicateUrls && (
-              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Each clip is downloaded from its saved URL, normalized to 1080×1920, and stitched with FFmpeg.
-                  Keep the page open during export.
+            {!confirmed && !hasDuplicateUrls && selectedScenes.length > 0 && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
+                <AlertTriangle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />
+                <p className="text-xs text-white/40 leading-relaxed">
+                  Each clip is downloaded fresh, normalized to 1080×1920 24fps, and stitched in timeline order.
+                  No audio in this export. Keep the page open — it takes ~30–60 s.
                 </p>
               </div>
             )}
 
-            {/* Test mode toggle */}
-            <button
-              onClick={() => setTestMode((v) => !v)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                testMode
-                  ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
-                  : "border-white/10 bg-white/[0.03] text-white/35 hover:border-white/20 hover:text-white/50"
-              }`}
-            >
-              <FlaskConical className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1 text-left">
-                {testMode
-                  ? "✓ Video Only Test mode — audio skipped"
-                  : "Enable Video Only Test (skip audio)"}
-              </span>
-            </button>
-
+            {/* Export button */}
             {hasDuplicateUrls ? (
-              /* Disabled button when duplicates block export */
-              <Button
-                disabled
-                className="w-full gap-2 opacity-50 cursor-not-allowed"
-                data-testid="btn-export-blocked"
-              >
+              <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
                 <XCircle className="h-4 w-4" />
                 Export Blocked — Fix Duplicate Clips First
+              </Button>
+            ) : selectedScenes.length === 0 ? (
+              <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
+                <Film className="h-4 w-4" />
+                No Clips Ready to Export
               </Button>
             ) : !confirmed ? (
               <Button
@@ -337,7 +334,7 @@ export function FinalVideoExport({
                 data-testid="btn-confirm-export"
               >
                 <Film className="h-4 w-4" />
-                {testMode ? "Export Video Only Test" : "Export Final Video"}
+                Export Final Video ({selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}, video only)
               </Button>
             ) : (
               <Button
@@ -346,7 +343,7 @@ export function FinalVideoExport({
                 data-testid="btn-start-export"
               >
                 <Film className="h-4 w-4" />
-                Confirm &amp; Start {testMode ? "Test " : ""}Export ({clips.length} clip{clips.length !== 1 ? "s" : ""})
+                Confirm &amp; Start Export — {selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}
               </Button>
             )}
           </div>
@@ -356,145 +353,164 @@ export function FinalVideoExport({
   );
 }
 
-/* ── Clips Included In Export list ── */
-function ClipsIncludedList({ scenes }: { scenes: SceneData[] }) {
-  const clipsWithUrls = scenes.filter((s) => !!s.demoClipUrl && s.demoClipUrl.startsWith("http"));
+/* ─────────────────────────────────────────────────────────
+   Clips Included In Export panel
+───────────────────────────────────────────────────────── */
+function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
+  const selectedCount = scenes.filter(isSelected).length;
+  const urls = scenes.filter(isSelected).map((s) => s.demoClipUrl!);
   const urlCounts = new Map<string, number>();
-  for (const s of clipsWithUrls) {
-    const u = s.demoClipUrl!;
-    urlCounts.set(u, (urlCounts.get(u) ?? 0) + 1);
-  }
+  for (const u of urls) urlCounts.set(u, (urlCounts.get(u) ?? 0) + 1);
 
   return (
     <div className="rounded-xl border border-white/10 overflow-hidden">
-      <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06]">
+      {/* Table header */}
+      <div className="px-3 py-2 bg-white/[0.04] border-b border-white/[0.06] flex items-center justify-between">
         <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">
           Clips Included In Export
         </p>
+        <span className="text-[10px] font-bold text-white/30">
+          {selectedCount} / {scenes.length} selected
+        </span>
       </div>
 
+      {/* Column headers */}
+      <div className="grid grid-cols-[20px_1fr_60px_72px_44px_44px_40px] gap-x-2 px-3 py-1.5 bg-white/[0.02] border-b border-white/[0.04]">
+        <span className="text-[9px] font-bold text-white/20 uppercase">#</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">Description</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">Provider</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">Status</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">URL</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase">Selected</span>
+        <span className="text-[9px] font-bold text-white/20 uppercase text-right">Dur.</span>
+      </div>
+
+      {/* Rows */}
       <div className="divide-y divide-white/[0.04]">
         {scenes.map((scene, i) => {
-          const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
-          const dur = parseDurationFromTimestamp(scene.timestamp);
-          const isDuplicate = hasClip && (urlCounts.get(scene.demoClipUrl!) ?? 0) > 1;
-          /* Show the last 44 chars of the URL so the user can spot duplicates */
-          const urlSnippet = hasClip
-            ? "…" + scene.demoClipUrl!.replace(/[?#].*$/, "").slice(-44)
-            : null;
+          const selected  = isSelected(scene);
+          const hasUrl    = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+          const isDupe    = hasUrl && (urlCounts.get(scene.demoClipUrl!) ?? 0) > 1;
+          const dur       = parseDuration(scene.timestamp ?? "");
+
+          /* Reason not selected */
+          let skipReason = "";
+          if (!hasUrl) skipReason = "no clip URL";
+          else if (!selected) {
+            const isRunway =
+              scene.provider === "Runway" ||
+              scene.demoClipUrl!.includes("dnznrvs05pmza.cloudfront.net");
+            if (!isRunway) skipReason = "provider not Runway";
+            else skipReason = "status not completed";
+          }
 
           return (
-            <div key={scene.id} className={`flex items-start gap-3 px-3 py-2.5 ${isDuplicate ? "bg-red-500/5" : ""}`}>
-              {/* Scene number */}
-              <span className="text-[11px] font-black text-white/30 w-5 shrink-0 mt-0.5">
-                {i + 1}
-              </span>
+            <div
+              key={scene.id}
+              className={`grid grid-cols-[20px_1fr_60px_72px_44px_44px_40px] gap-x-2 items-start px-3 py-2.5 ${
+                isDupe ? "bg-red-500/5" : selected ? "" : "opacity-50"
+              }`}
+            >
+              {/* # */}
+              <span className="text-[11px] font-black text-white/30 pt-0.5">{i + 1}</span>
 
-              {/* Clip status dot */}
-              <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${
-                isDuplicate ? "bg-red-400" : hasClip ? "bg-green-400" : "bg-white/20"
-              }`} />
-
-              {/* Details */}
-              <div className="flex-1 min-w-0 space-y-0.5">
-                <p className="text-xs text-white/70 truncate font-medium">
-                  {scene.section || `Scene ${i + 1}`}
-                  {scene.lyricLine ? (
-                    <span className="text-white/30 font-normal"> — {scene.lyricLine}</span>
-                  ) : null}
+              {/* Description + URL snippet + open link */}
+              <div className="min-w-0">
+                <p className="text-[11px] text-white/70 font-medium truncate leading-tight">
+                  {sceneLabel(scene, i)}
                 </p>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                  <Pill
-                    label="clip"
-                    value={hasClip ? "ready" : "missing"}
-                    color={isDuplicate ? "red" : hasClip ? "green" : "red"}
-                  />
-                  {scene.provider && (
-                    <Pill label="via" value={scene.provider} color="purple" />
-                  )}
-                  <Pill
-                    label="status"
-                    value={scene.generationStatus ?? "unknown"}
-                    color={scene.generationStatus === "completed" ? "green" : "amber"}
-                  />
-                  {dur !== null && (
-                    <Pill label="~dur" value={`${dur}s`} color="neutral" />
-                  )}
-                  {isDuplicate && (
-                    <Pill label="⚠" value="DUPLICATE URL" color="red" />
-                  )}
-                </div>
-                {/* URL snippet so user can verify clips are distinct */}
-                {urlSnippet && (
-                  <p className={`text-[10px] font-mono truncate mt-0.5 ${isDuplicate ? "text-red-400/70" : "text-white/20"}`}>
-                    {urlSnippet}
-                  </p>
+                {hasUrl && (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className={`text-[9px] font-mono truncate ${isDupe ? "text-red-400/70" : "text-white/20"}`}>
+                      {"…" + scene.demoClipUrl!.replace(/[?#].*$/, "").slice(-36)}
+                    </span>
+                    <a
+                      href={scene.demoClipUrl!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 text-primary/40 hover:text-primary/80 transition-colors"
+                      title="Open clip"
+                    >
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
                 )}
-                {hasClip && (
-                  <a
-                    href={scene.demoClipUrl!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-primary/50 hover:text-primary/80 transition-colors"
-                    title="Open clip in new tab"
-                  >
-                    <Link2 className="h-2.5 w-2.5" />
-                    open clip
-                  </a>
+                {skipReason && (
+                  <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>
+                )}
+                {isDupe && (
+                  <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>
                 )}
               </div>
 
-              {/* Not-included badge */}
-              {!hasClip && (
-                <span className="text-[10px] font-bold text-white/20 uppercase tracking-wider shrink-0 mt-0.5">
-                  skipped
-                </span>
-              )}
+              {/* Provider */}
+              <span className={`text-[10px] font-bold pt-0.5 ${
+                scene.provider === "Runway" ? "text-purple-400" : "text-white/25"
+              }`}>
+                {scene.provider || "—"}
+              </span>
+
+              {/* Status */}
+              <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
+                {statusLabel(scene)}
+              </span>
+
+              {/* URL exists */}
+              <span className="flex items-center pt-1">
+                {hasUrl
+                  ? <Check className="h-3 w-3 text-green-400" />
+                  : <Minus className="h-3 w-3 text-white/20" />}
+              </span>
+
+              {/* Selected */}
+              <span className="flex items-center pt-1">
+                {selected
+                  ? <Check className="h-3 w-3 text-green-400" />
+                  : <Minus className="h-3 w-3 text-white/20" />}
+              </span>
+
+              {/* Duration */}
+              <span className="text-[10px] text-white/30 text-right pt-0.5">
+                {dur !== null ? `${dur}s` : "—"}
+              </span>
             </div>
           );
         })}
       </div>
 
       {/* Footer */}
-      {(() => {
-        const includedCount = clipsWithUrls.length;
-        const uniqueCount = new Set(clipsWithUrls.map((s) => s.demoClipUrl!)).size;
-        const dupCount = includedCount - uniqueCount;
-        return (
-          <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
-            <span className={`text-[10px] ${dupCount > 0 ? "text-red-400 font-bold" : "text-white/25"}`}>
-              {dupCount > 0
-                ? `⚠ ${dupCount} duplicate URL${dupCount > 1 ? "s" : ""} — clips will repeat`
-                : scenes.length - includedCount > 0
-                ? `${scenes.length - includedCount} scene${scenes.length - includedCount > 1 ? "s" : ""} without clips will be skipped`
-                : "All scenes have clips — ready to export"}
-            </span>
-            <span className="text-[10px] font-bold text-white/40 shrink-0">
-              {uniqueCount} unique / {includedCount} clips
-            </span>
-          </div>
-        );
-      })()}
+      <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
+        <span className="text-[10px] text-white/25">
+          {selectedCount === 0
+            ? "No clips ready — generate Runway clips above"
+            : selectedCount === scenes.length
+            ? "All scenes have clips — ready to export"
+            : `${scenes.length - selectedCount} scene${scenes.length - selectedCount > 1 ? "s" : ""} without clips will be skipped`}
+        </span>
+        <span className="text-[10px] font-bold text-white/40 shrink-0">
+          {selectedCount} clip{selectedCount !== 1 ? "s" : ""} → export
+        </span>
+      </div>
     </div>
   );
 }
 
-type PillColor = "green" | "red" | "amber" | "purple" | "neutral";
+function statusLabel(s: SceneData): string {
+  if (s.approved && s.generationStatus === "completed") return "Approved";
+  if (s.generationStatus === "completed") return "Completed";
+  if (s.generationStatus === "failed")    return "Failed";
+  if (s.generationStatus === "pending")   return "Pending";
+  if (s.demoClipUrl)                      return "Ready";
+  return "—";
+}
 
-function Pill({ label, value, color }: { label: string; value: string; color: PillColor }) {
-  const colors: Record<PillColor, string> = {
-    green:   "text-green-400",
-    red:     "text-red-400",
-    amber:   "text-amber-400",
-    purple:  "text-purple-400",
-    neutral: "text-white/40",
-  };
-  return (
-    <span className="text-[10px] text-white/25">
-      {label}:{" "}
-      <span className={`font-bold ${colors[color]}`}>{value}</span>
-    </span>
-  );
+function statusColor(s: SceneData): string {
+  if (s.approved && s.generationStatus === "completed") return "text-primary";
+  if (s.generationStatus === "completed") return "text-green-400";
+  if (s.generationStatus === "failed")    return "text-red-400";
+  if (s.generationStatus === "pending")   return "text-amber-400";
+  if (s.demoClipUrl)                      return "text-green-400";
+  return "text-white/25";
 }
 
 function StatusBadge({ status }: { status: ExportStatus }) {
