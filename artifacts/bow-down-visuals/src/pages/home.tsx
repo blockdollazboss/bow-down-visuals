@@ -280,7 +280,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         {/* Hero Logo */}
-        <div className="flex justify-center">
+        <div className="flex justify-center -my-16">
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
