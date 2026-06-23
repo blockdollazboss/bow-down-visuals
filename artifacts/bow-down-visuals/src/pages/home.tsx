@@ -328,7 +328,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-28 px-5 relative">
+    <section id="how-it-works" className="scroll-mt-20 py-28 px-5 relative">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -430,7 +430,7 @@ function BuiltForCreators() {
 
 function FeaturedTools() {
   return (
-    <section id="tools" className="py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
+    <section id="tools" className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -497,7 +497,7 @@ function FeaturedTools() {
 
 function PricingSection() {
   return (
-    <section id="pricing" className="py-28 px-5">
+    <section id="pricing" className="scroll-mt-20 py-28 px-5">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -559,7 +559,7 @@ function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent">
+    <section id="faq" className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
@@ -616,7 +616,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
   }
 
   return (
-    <section ref={ref} id="waitlist" className="py-28 px-5">
+    <section ref={ref} id="waitlist" className="scroll-mt-20 py-28 px-5">
       <div className="max-w-2xl mx-auto text-center space-y-8">
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
