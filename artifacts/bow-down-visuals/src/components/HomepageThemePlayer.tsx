@@ -231,7 +231,7 @@ export function HomepageThemePlayer() {
           {/* Info + equalizer */}
           <div className="flex-1 min-w-0 space-y-0.5">
             <p style={{ color: `${GOLD_GLOW}0.65)` }} className="text-[9px] font-bold uppercase tracking-[0.18em]">
-              BDV
+              BOW DOWN VISUALS
             </p>
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="overflow-hidden flex-1 min-w-0">
