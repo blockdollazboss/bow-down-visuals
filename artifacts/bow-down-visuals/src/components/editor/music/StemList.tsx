@@ -243,7 +243,7 @@ export function StemList({ settings, onChange, variant }: StemListProps) {
                 {variant === "mixer" && (
                   <div className="px-4 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-white/[0.04] pt-3">
                     <Field label="Volume" hint={`${stem.volume}%`}>
-                      <Slider value={[stem.volume]} min={0} max={100} step={1} disabled={stem.locked} onValueChange={([v]) => patchStem(stem.id, { volume: v ?? 100 })} />
+                      <Slider value={[stem.volume]} min={0} max={100} step={1} disabled={stem.locked} onValueChange={([v]) => patchStem(stem.id, { volume: v ?? 100 })} data-testid={`stem-volume-${stem.id}`} />
                     </Field>
                     <Field label="Pan" hint={panLabel(stem.pan)}>
                       <Slider value={[stem.pan]} min={-100} max={100} step={5} disabled={stem.locked} onValueChange={([v]) => patchStem(stem.id, { pan: v ?? 0 })} />

@@ -1,4 +1,4 @@
 - [Editor settings persistence](bow-down-editor.md) — all video-editor state (incl. musicStudio) lives in output_data.editorSettings; no DB migration, normalize on load for back-compat.
 - [Vite babel JSX generics](vite-jsx-generics.md) — Vite react-babel crashes on JSX generic call sites like `<Segmented<T>>`; use typed option arrays passed as props instead.
-- [Supabase storage RLS](supabase-storage-rls.md) — per-user buckets must scope INSERT to folder ownership, not just authenticated.
+- [Supabase storage RLS](supabase-storage-rls.md) — per-user buckets scope INSERT to folder ownership; buckets are NOT auto-created (run setup.sql manually or uploads 404); server-side e2e seeding recipe.
 - [Audio preview engine](audio-preview-engine.md) — Music Studio Web Audio preview: which param changes are live vs require source restart, plus the async-start race guard.
