@@ -284,7 +284,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
-            className="w-[520px] max-w-full h-auto"
+            className="w-[680px] max-w-full h-auto"
           />
         </div>
 
