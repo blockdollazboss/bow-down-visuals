@@ -3,17 +3,23 @@ import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
 
+/* ── gold palette matching site primary hsl(43 85% 52%) ── */
+const GOLD       = "#DAA520";
+const GOLD_LIGHT = "#FFD700";
+const GOLD_DARK  = "#9B7515";
+const GOLD_GLOW  = "rgba(218,165,32,";
+
 type Status = "probing" | "ready" | "missing" | "playing" | "error";
 
 function EqBars({ active }: { active: boolean }) {
   return (
     <>
       <style>{`
-        @keyframes eq1 { 0%,100%{height:3px} 50%{height:14px} }
-        @keyframes eq2 { 0%,100%{height:6px} 50%{height:10px} }
-        @keyframes eq3 { 0%,100%{height:10px} 50%{height:4px} }
-        @keyframes eq4 { 0%,100%{height:5px} 50%{height:13px} }
-        @keyframes eq5 { 0%,100%{height:8px} 50%{height:3px}  }
+        @keyframes eq1 { 0%,100%{height:3px}  50%{height:14px} }
+        @keyframes eq2 { 0%,100%{height:6px}  50%{height:10px} }
+        @keyframes eq3 { 0%,100%{height:10px} 50%{height:4px}  }
+        @keyframes eq4 { 0%,100%{height:5px}  50%{height:13px} }
+        @keyframes eq5 { 0%,100%{height:8px}  50%{height:3px}  }
         .eq-bar { width:3px; border-radius:2px; transition:height 0.3s; }
       `}</style>
       <div className="flex items-end gap-[3px]" aria-hidden="true" style={{ height: 14 }}>
@@ -29,7 +35,7 @@ function EqBars({ active }: { active: boolean }) {
             className="eq-bar"
             style={{
               height: active ? undefined : 3,
-              background: "linear-gradient(to top, #a855f7, #fbbf24)",
+              background: `linear-gradient(to top, ${GOLD_DARK}, ${GOLD_LIGHT})`,
               animation: active
                 ? `${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`
                 : "none",
@@ -84,17 +90,13 @@ export function HomepageThemePlayer() {
       if (!audio.error) audio.pause();
       setPlaying(false);
     } else {
-      setPlaying(true); // always show Pause immediately
+      setPlaying(true);
       if (!audio.error) {
-        // audio is loadable — actually play it
         audio.muted = false;
         setMuted(false);
         audio.volume = volume;
-        audio.play().catch(() => {
-          // browser policy block — keep visual state so user can retry
-        });
+        audio.play().catch(() => {});
       }
-      // if audio.error (file missing), just show playing UI without sound
     }
   }, [playing, volume]);
 
@@ -118,10 +120,8 @@ export function HomepageThemePlayer() {
     }
   }, [muted]);
 
-  /* ── Still probing — show nothing ── */
   if (status === "probing") return null;
 
-  /* ── File not found — show a subtle placeholder ── */
   if (status === "missing") {
     return (
       <div className="flex justify-center">
@@ -136,7 +136,6 @@ export function HomepageThemePlayer() {
     );
   }
 
-  /* ── Player ── */
   return (
     <>
       <style>{`
@@ -144,17 +143,17 @@ export function HomepageThemePlayer() {
           -webkit-appearance: none;
           width: 12px; height: 12px;
           border-radius: 50%;
-          background: #a855f7;
+          background: ${GOLD};
           cursor: pointer;
-          box-shadow: 0 0 6px rgba(168,85,247,0.7);
+          box-shadow: 0 0 6px ${GOLD_GLOW}0.7);
         }
         .theme-volume::-moz-range-thumb {
           width: 12px; height: 12px;
           border-radius: 50%;
-          background: #a855f7;
+          background: ${GOLD};
           cursor: pointer;
           border: none;
-          box-shadow: 0 0 6px rgba(168,85,247,0.7);
+          box-shadow: 0 0 6px ${GOLD_GLOW}0.7);
         }
         .theme-volume {
           -webkit-appearance: none;
@@ -165,22 +164,30 @@ export function HomepageThemePlayer() {
           cursor: pointer;
           background: linear-gradient(
             to right,
-            #a855f7 0%,
-            #a855f7 calc(var(--vol) * 100%),
+            ${GOLD} 0%,
+            ${GOLD} calc(var(--vol) * 100%),
             rgba(255,255,255,0.12) calc(var(--vol) * 100%),
             rgba(255,255,255,0.12) 100%
           );
         }
         .theme-player-glow {
-          box-shadow: 0 0 0 1px rgba(168,85,247,0.18), 0 0 32px rgba(168,85,247,0.12), 0 4px 24px rgba(0,0,0,0.5);
+          box-shadow:
+            0 0 0 1px ${GOLD_GLOW}0.22),
+            0 0 28px ${GOLD_GLOW}0.10),
+            0 4px 24px rgba(0,0,0,0.55);
         }
         .theme-play-btn {
-          background: linear-gradient(135deg, #7c3aed, #a855f7);
-          box-shadow: 0 0 18px rgba(168,85,247,0.55);
+          background: linear-gradient(135deg, ${GOLD_DARK}, ${GOLD});
+          box-shadow: 0 0 18px ${GOLD_GLOW}0.50);
           transition: transform 0.15s, box-shadow 0.15s;
         }
-        .theme-play-btn:hover { transform: scale(1.08); box-shadow: 0 0 26px rgba(168,85,247,0.7); }
+        .theme-play-btn:hover {
+          transform: scale(1.08);
+          box-shadow: 0 0 26px ${GOLD_GLOW}0.70);
+        }
         .theme-play-btn:active { transform: scale(0.96); }
+        .theme-mute-btn { color: rgba(255,255,255,0.35); transition: color 0.15s; }
+        .theme-mute-btn:hover { color: ${GOLD}; }
       `}</style>
 
       <audio
@@ -193,10 +200,11 @@ export function HomepageThemePlayer() {
 
       <div className="flex justify-center">
         <div
-          className="theme-player-glow flex items-center gap-4 px-5 py-3.5 rounded-2xl border border-purple-500/20"
+          className="theme-player-glow flex items-center gap-4 px-5 py-3.5 rounded-2xl"
           style={{
-            background: "rgba(0,0,0,0.65)",
+            background: "rgba(0,0,0,0.60)",
             backdropFilter: "blur(16px)",
+            border: `1px solid ${GOLD_GLOW}0.20)`,
             width: "min(440px, 100%)",
           }}
           role="region"
@@ -209,14 +217,14 @@ export function HomepageThemePlayer() {
             aria-label={playing ? "Pause theme song" : "Play theme song"}
           >
             {playing
-              ? <Pause className="h-4 w-4 text-white" fill="white" />
-              : <Play  className="h-4 w-4 text-white" fill="white" style={{ marginLeft: 2 }} />
+              ? <Pause className="h-4 w-4 text-black" fill="black" />
+              : <Play  className="h-4 w-4 text-black" fill="black" style={{ marginLeft: 2 }} />
             }
           </button>
 
           {/* Info + equalizer */}
           <div className="flex-1 min-w-0 space-y-0.5">
-            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-purple-400/60">
+            <p style={{ color: `${GOLD_GLOW}0.65)` }} className="text-[9px] font-bold uppercase tracking-[0.18em]">
               Home Theme
             </p>
             <div className="flex items-center gap-2">
@@ -231,7 +239,7 @@ export function HomepageThemePlayer() {
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={toggleMute}
-              className="text-white/40 hover:text-white/80 transition-colors"
+              className="theme-mute-btn"
               aria-label={muted ? "Unmute theme song" : "Mute theme song"}
             >
               {muted
