@@ -4,11 +4,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
 import Dashboard   from "@/pages/dashboard";
+import ChooseArtist from "@/pages/choose-artist";
 import MakeSong    from "@/pages/make-song";
 import MakeVideo   from "@/pages/make-video";
 import SongAndVideo from "@/pages/song-and-video";
@@ -52,6 +54,7 @@ function AppShell() {
 
         {/* Protected app pages */}
         <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
+        <Route path="/choose-artist"><ProtectedRoute><ChooseArtist /></ProtectedRoute></Route>
         <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
         <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
 
@@ -75,9 +78,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppShell />
-          </WouterRouter>
+          <ActiveArtistProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <AppShell />
+            </WouterRouter>
+          </ActiveArtistProvider>
         </AuthProvider>
         <Toaster />
       </TooltipProvider>

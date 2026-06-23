@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2 } from "lucide-react";
+import { Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const IS_DEV = import.meta.env.DEV;
@@ -90,6 +90,16 @@ export function TopBar() {
             </button>
           )}
 
+          {/* Start Creating CTA */}
+          <Link
+            href={user ? "/choose-artist" : "/login"}
+            className="hidden md:inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-black hover:bg-primary/90 transition-colors shadow-[0_0_12px_rgba(147,51,234,0.35)]"
+            data-testid="btn-start-creating"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            Start Creating
+          </Link>
+
           {user ? (
             <>
               <Link href="/my-projects" className="hidden md:flex items-center gap-1.5 text-sm font-medium text-white/45 hover:text-white transition-colors">
@@ -126,6 +136,15 @@ export function TopBar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
+          {/* Start Creating — mobile */}
+          <Link
+            href={user ? "/choose-artist" : "/login"}
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold bg-primary text-black mb-2"
+          >
+            <Sparkles className="h-4 w-4" /> Start Creating
+          </Link>
+
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}

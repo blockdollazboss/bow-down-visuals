@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
 
@@ -180,6 +181,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 
 export default function PromoClip() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { activeArtist } = useActiveArtist();
 
   /* ── Mode ── */
   const [mode, setMode] = useState<Mode>("select");
@@ -205,7 +207,7 @@ export default function PromoClip() {
     },
   });
   const watched = watch();
-  const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
+  const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(activeArtist);
   const [scratchAdvancedOpen, setScratchAdvancedOpen] = useState(false);
 
   /* ── Shared output ── */

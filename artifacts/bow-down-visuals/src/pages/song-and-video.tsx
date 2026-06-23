@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
@@ -251,6 +252,7 @@ function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = f
 
 export default function SongAndVideo() {
   const { getAccessToken, refreshProfile, user } = useAuth();
+  const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -259,7 +261,7 @@ export default function SongAndVideo() {
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
-  const [loadedVault, setLoadedVault]   = useState<ArtistVault | null>(null);
+  const [loadedVault, setLoadedVault]   = useState<ArtistVault | null>(activeArtist);
   const [songStructure, setSongStructure] = useState<SongStructure | null>(null);
   const [analyzing, setAnalyzing]         = useState(false);
   const [analyzeError, setAnalyzeError]   = useState<string | null>(null);

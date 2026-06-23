@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Mic2, Music, Video, Film, Image as ImageIcon,
   Archive, FolderOpen, Headphones, ArrowRight,
   Zap, Users, Clock, Sparkles, ChevronRight,
-  TrendingUp, Star, Lock
+  TrendingUp, Star, Lock, User, RefreshCw, AlertCircle,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 /* ─────────────────────── TYPES ─────────────────────── */
 
@@ -179,6 +180,8 @@ const COMING_SOON = [
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
+  const { activeArtist } = useActiveArtist();
+  const [, setLocation] = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [vaultCount, setVaultCount] = useState<number | null>(null);
   const [openProjectId, setOpenProjectId] = useState<string | null>(null);
@@ -236,6 +239,50 @@ export default function Dashboard() {
             <span className="text-sm font-black text-white">{credits}</span>
             <span className="text-xs text-white/40 font-medium">credits</span>
           </div>
+        </div>
+
+        {/* ── 1b. ACTIVE ARTIST STRIP ── */}
+        <div className={`flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 rounded-2xl border transition-all ${
+          activeArtist
+            ? "border-purple-500/30 bg-purple-500/[0.06]"
+            : "border-white/[0.06] bg-white/[0.02]"
+        }`}>
+          <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center shrink-0 overflow-hidden ${
+            activeArtist ? "border-purple-500/40" : "border-white/10"
+          }`}>
+            {activeArtist?.photo_url ? (
+              <img src={activeArtist.photo_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
+            ) : (
+              <User className={`h-5 w-5 ${activeArtist ? "text-purple-400" : "text-white/20"}`} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            {activeArtist ? (
+              <>
+                <p className="text-[10px] font-bold tracking-widest text-purple-400/70 uppercase">Active Artist</p>
+                <p className="text-sm font-black text-white truncate">{activeArtist.artist_name}</p>
+                {(activeArtist.genre || activeArtist.artist_type) && (
+                  <p className="text-xs text-white/35 truncate">{[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase">Active Artist</p>
+                <p className="text-sm text-white/40 flex items-center gap-1.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-white/20" />
+                  No artist selected. You can choose or create an artist later from Artist Vault.
+                </p>
+              </>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setLocation("/choose-artist")}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-purple-500/30 bg-purple-500/[0.08] text-purple-300 hover:bg-purple-500/[0.15] transition-colors shrink-0"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {activeArtist ? "Change Artist" : "Choose Artist"}
+          </button>
         </div>
 
         {/* ── 2. HERO ACTION CARDS ── */}

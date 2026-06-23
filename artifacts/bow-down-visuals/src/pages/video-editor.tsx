@@ -3,7 +3,7 @@ import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
-  CheckCircle2, Circle, Layers,
+  CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
@@ -54,6 +54,7 @@ export default function VideoEditor() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<EditorTab>("clips");
   const [clipMode, setClipMode] = useState<"auto" | "manual">("auto");
+  const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
 
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,7 +80,6 @@ export default function VideoEditor() {
         setProject(data.project);
         setScenes(data.project.output_data?.scenes ?? []);
         setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
-        // Mark hydrated AFTER state is set so the first genuine user edit autosaves.
         hydrated.current = true;
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load project");
@@ -93,7 +93,6 @@ export default function VideoEditor() {
   /* ── Debounced autosave on scenes / settings change ── */
   useEffect(() => {
     if (loading || !project) return;
-    // Don't autosave during/until hydration completes (set true after load).
     if (!hydrated.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
@@ -102,7 +101,13 @@ export default function VideoEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenes, settings, loading, project]);
 
-  /** Returns true on success, false on failure. */
+  /* ── Auto-select first scene with clip for preview ── */
+  useEffect(() => {
+    if (previewSceneId) return;
+    const first = scenes.find((s) => sceneHasClip(s));
+    if (first) setPreviewSceneId(first.id);
+  }, [scenes, previewSceneId]);
+
   async function persist(): Promise<boolean> {
     if (!project) return false;
     try {
@@ -142,6 +147,9 @@ export default function VideoEditor() {
     (project?.input_data?.["audio_url"] as string | undefined) ??
     null;
 
+  const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
+  const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
+
   return (
     <div className="min-h-screen bg-black text-white">
       <TopBar />
@@ -150,7 +158,7 @@ export default function VideoEditor() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/[0.07] rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-8 md:py-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-12">
         <Link href="/my-projects" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-6 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Back to Projects
@@ -169,8 +177,8 @@ export default function VideoEditor() {
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
+            {/* Header — full width */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                   <Clapperboard className="h-5 w-5 text-primary" />
@@ -188,7 +196,7 @@ export default function VideoEditor() {
               </div>
             </div>
 
-            {/* Status checklist */}
+            {/* Status checklist — full width */}
             <StatusChecklist
               planLoaded={scenes.length > 0}
               clipsLoaded={scenes.some((s) => sceneHasClip(s))}
@@ -197,71 +205,363 @@ export default function VideoEditor() {
               exportReady={scenes.some((s) => s.approved && sceneHasClip(s))}
             />
 
-            {/* Top nav tabs */}
-            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
-              <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
-              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
-              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
-              <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
-              <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
-              <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
-              <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
-            </div>
-
-            {tab === "clips" && (
-              <div className="space-y-6">
-                <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-                  <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
-                  <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
-                </div>
-                {clipMode === "auto" ? (
-                  <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
-                ) : (
-                  <ClipsSection scenes={scenes} setScenes={setScenes} settings={settings} setSettings={setSettings} />
-                )}
-              </div>
-            )}
-
-            {tab === "timeline" && (
-              <ClipSequencePlayer
-                scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
-                allScenes={scenes}
-                title="Timeline Preview"
-                emptyTitle="No approved clips to preview yet."
-                emptyHint="Generate Runway clips on your scenes, then approve them — approved clips play here in order."
-              />
-            )}
-
-            {tab === "music" && (
-              <MusicStudio settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
-            )}
-
-            {tab === "captions" && (
-              <CaptionsSection settings={settings} setSettings={setSettings} />
-            )}
-
-            {tab === "effects" && (
-              <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
-            )}
-
-            {tab === "branding" && (
-              <BrandingSection
+            {/* ── Mobile preview panel (shown above tabs on small screens) ── */}
+            <div className="lg:hidden mb-5">
+              <LivePreviewPanel
+                tab={tab}
+                previewScene={previewScene}
+                scenes={scenes}
+                approvedCount={approvedCount}
+                audioUrl={audioUrl}
                 settings={settings}
-                setSettings={setSettings}
                 artistName={artistName}
                 songTitle={songTitle}
+                onGoToTimeline={() => setTab("timeline")}
               />
-            )}
+            </div>
 
-            {tab === "export" && (
-              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
-            )}
+            {/* ── Two-column layout: editor left + preview right ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+
+              {/* LEFT: tabs + content */}
+              <div>
+                {/* Tab nav */}
+                <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
+                  <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
+                  <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
+                  <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
+                  <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
+                  <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
+                  <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
+                  <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
+                </div>
+
+                {tab === "clips" && (
+                  <div className="space-y-6">
+                    <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+                      <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
+                      <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
+                    </div>
+                    {clipMode === "auto" ? (
+                      <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                    ) : (
+                      <ClipsSection
+                        scenes={scenes}
+                        setScenes={setScenes}
+                        settings={settings}
+                        setSettings={setSettings}
+                        onPreview={(id) => setPreviewSceneId(id)}
+                        previewSceneId={previewSceneId}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {tab === "timeline" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setTab("timeline")}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/15 transition-colors"
+                      >
+                        <Play className="h-4 w-4" /> Preview Timeline
+                      </button>
+                    </div>
+                    <ClipSequencePlayer
+                      scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
+                      allScenes={scenes}
+                      title="Timeline Preview"
+                      emptyTitle="No approved clips to preview yet."
+                      emptyHint="Generate Runway clips on your scenes, then approve them — approved clips play here in order."
+                    />
+                  </div>
+                )}
+
+                {tab === "music" && (
+                  <MusicStudio settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                )}
+
+                {tab === "captions" && (
+                  <CaptionsSection settings={settings} setSettings={setSettings} />
+                )}
+
+                {tab === "effects" && (
+                  <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
+                )}
+
+                {tab === "branding" && (
+                  <BrandingSection
+                    settings={settings}
+                    setSettings={setSettings}
+                    artistName={artistName}
+                    songTitle={songTitle}
+                  />
+                )}
+
+                {tab === "export" && (
+                  <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
+                )}
+              </div>
+
+              {/* RIGHT: sticky live preview panel (desktop only) */}
+              <div className="hidden lg:block lg:sticky lg:top-24">
+                <LivePreviewPanel
+                  tab={tab}
+                  previewScene={previewScene}
+                  scenes={scenes}
+                  approvedCount={approvedCount}
+                  audioUrl={audioUrl}
+                  settings={settings}
+                  artistName={artistName}
+                  songTitle={songTitle}
+                  onGoToTimeline={() => setTab("timeline")}
+                />
+              </div>
+            </div>
           </>
         )}
       </div>
     </div>
   );
 }
+
+/* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
+
+function LivePreviewPanel({
+  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle, onGoToTimeline,
+}: {
+  tab: EditorTab;
+  previewScene: SceneData | null;
+  scenes: SceneData[];
+  approvedCount: number;
+  audioUrl: string | null;
+  settings: EditorSettings;
+  artistName: string;
+  songTitle: string;
+  onGoToTimeline: () => void;
+}) {
+  const clipUrl = previewScene
+    ? ((previewScene as unknown as Record<string, unknown>)["clip_url"] as string | undefined) ??
+      ((previewScene as unknown as Record<string, unknown>)["clipUrl"] as string | undefined) ??
+      null
+    : null;
+
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden" data-testid="live-preview-panel">
+      {/* Panel header */}
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+        <Monitor className="h-4 w-4 text-primary/70" />
+        <span className="text-xs font-black text-white/60 uppercase tracking-widest">Live Preview</span>
+        <span className="ml-auto text-[10px] font-bold text-primary/50 uppercase tracking-wider">{tab}</span>
+      </div>
+
+      {/* Panel body */}
+      <div className="p-4">
+
+        {/* CLIPS tab — video preview */}
+        {tab === "clips" && (
+          <div className="space-y-3">
+            {clipUrl ? (
+              <>
+                <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video">
+                  <video
+                    key={clipUrl}
+                    src={clipUrl}
+                    controls
+                    className="w-full h-full object-contain"
+                    playsInline
+                    data-testid="preview-video-player"
+                  />
+                </div>
+                <div className="px-1">
+                  <p className="text-xs font-bold text-white/70 truncate">{previewScene?.section || "Scene"}</p>
+                  <p className="text-[11px] text-white/35 truncate mt-0.5">{previewScene?.lyricLine || previewScene?.action || "—"}</p>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
+                <Eye className="h-8 w-8 text-white/15" />
+                <div>
+                  <p className="text-sm font-semibold text-white/30">
+                    {scenes.length === 0
+                      ? "No scenes loaded yet."
+                      : "Select a scene clip to preview."}
+                  </p>
+                  <p className="text-xs text-white/20 mt-1">
+                    {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
+                  </p>
+                </div>
+              </div>
+            )}
+            {scenes.length > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-white/30 px-1">
+                <span>{scenes.filter((s) => (s as unknown as Record<string, unknown>)["clip_url"] || (s as unknown as Record<string, unknown>)["clipUrl"]).length} of {scenes.length} scenes have clips</span>
+                <span>{scenes.filter((s) => s.approved).length} approved</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TIMELINE tab */}
+        {tab === "timeline" && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
+              <ListVideo className="h-8 w-8 text-primary/50 mx-auto" />
+              <div>
+                <p className="text-sm font-bold text-white/70">
+                  {approvedCount > 0 ? `${approvedCount} clip${approvedCount !== 1 ? "s" : ""} in timeline` : "No clips in timeline yet"}
+                </p>
+                <p className="text-xs text-white/35 mt-1">
+                  {approvedCount > 0
+                    ? "Approved clips play in order below."
+                    : "Approve clips on the Clips tab to build your timeline."}
+                </p>
+              </div>
+              {approvedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={onGoToTimeline}
+                  className="flex items-center gap-2 mx-auto px-4 py-2 rounded-xl text-xs font-bold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/15 transition-colors"
+                >
+                  <Play className="h-3.5 w-3.5" /> Preview Timeline
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MUSIC tab */}
+        {tab === "music" && (
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
+            <Volume2 className="h-8 w-8 text-blue-400/50 mx-auto" />
+            <p className="text-sm font-bold text-white/60 text-center">Audio Preview</p>
+            <p className="text-xs text-white/35 text-center leading-relaxed">
+              Runway clips are silent. Audio is layered during final export.
+            </p>
+            {(audioUrl || settings.musicStudio.stems.length > 0) ? (
+              <div className="rounded-lg border border-green-500/20 bg-green-500/[0.06] px-3 py-2 text-center">
+                <p className="text-xs font-bold text-green-400">✓ Audio source loaded</p>
+                <p className="text-[10px] text-green-400/60 mt-0.5">
+                  {settings.musicStudio.stems.length > 0
+                    ? `${settings.musicStudio.stems.length} stem${settings.musicStudio.stems.length !== 1 ? "s" : ""} mixed`
+                    : "Track uploaded"}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-center">
+                <p className="text-xs text-white/30">No audio loaded yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CAPTIONS tab */}
+        {tab === "captions" && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/[0.07] bg-black aspect-video flex items-end p-4 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
+              {settings.captions.mode !== "none" ? (
+                <div className="relative z-10 w-full">
+                  <div
+                    className="px-3 py-1.5 rounded-lg text-center mx-auto inline-block"
+                    style={{
+                      fontSize: `${settings.captions.fontSize ?? 18}px`,
+                      color: settings.captions.textColor || "#ffffff",
+                      background: settings.captions.background ? "rgba(0,0,0,0.6)" : "transparent",
+                    }}
+                  >
+                    {songTitle ? `♪ ${songTitle}` : "Your captions appear here"}
+                  </div>
+                </div>
+              ) : (
+                <div className="relative z-10 w-full text-center">
+                  <p className="text-xs text-white/25">Captions off — select a mode to preview</p>
+                </div>
+              )}
+            </div>
+            <p className="text-[11px] text-white/30 text-center px-1">
+              Mode: <span className="text-white/50 font-semibold capitalize">{settings.captions.mode}</span>
+              {settings.captions.position && <> · {settings.captions.position}</>}
+            </p>
+          </div>
+        )}
+
+        {/* EFFECTS tab */}
+        {tab === "effects" && (
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
+            <Wand2 className="h-8 w-8 text-purple-400/50 mx-auto" />
+            <p className="text-sm font-bold text-white/60 text-center">Effects Preview</p>
+            <p className="text-xs text-white/35 text-center leading-relaxed">
+              Effects are applied during final export. This is an edit-plan overlay.
+            </p>
+            {settings.effects.length > 0 && (
+              <div className="rounded-lg border border-purple-500/20 bg-purple-500/[0.06] px-3 py-2 text-center">
+                <p className="text-xs font-bold text-purple-300">{settings.effects.slice(0, 3).join(" · ")}{settings.effects.length > 3 ? ` +${settings.effects.length - 3} more` : ""}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BRANDING tab */}
+        {tab === "branding" && (
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
+            <Palette className="h-8 w-8 text-yellow-400/50 mx-auto" />
+            <p className="text-sm font-bold text-white/60 text-center">Branding Preview</p>
+            {artistName && (
+              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.05] px-3 py-2">
+                <p className="text-[10px] font-bold text-yellow-400/60 uppercase tracking-wider mb-1">Artist</p>
+                <p className="text-sm font-bold text-white/80">{artistName}</p>
+              </div>
+            )}
+            {settings.branding.titleOverlay?.artistNameText && (
+              <p className="text-xs text-white/35 text-center">@{settings.branding.titleOverlay.artistNameText}</p>
+            )}
+            {!artistName && !settings.branding.titleOverlay?.artistNameText && (
+              <p className="text-xs text-white/25 text-center">Add your handles in Branding to preview overlays.</p>
+            )}
+          </div>
+        )}
+
+        {/* EXPORT tab */}
+        {tab === "export" && (
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
+            <Download className="h-8 w-8 text-green-400/50 mx-auto" />
+            <p className="text-sm font-bold text-white/60 text-center">Export Summary</p>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
+                <span className="text-white/40">Approved clips</span>
+                <span className={`font-bold ${approvedCount > 0 ? "text-green-400" : "text-white/25"}`}>
+                  {approvedCount > 0 ? `${approvedCount} ready` : "None yet"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
+                <span className="text-white/40">Audio source</span>
+                <span className={`font-bold ${audioUrl || settings.musicStudio.stems.length > 0 ? "text-green-400" : "text-white/25"}`}>
+                  {audioUrl ? "Uploaded track" : settings.musicStudio.stems.length > 0 ? "Mixed stems" : "None"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center py-1.5 border-b border-white/[0.05]">
+                <span className="text-white/40">Captions</span>
+                <span className="font-bold text-white/50 capitalize">{settings.captions.mode}</span>
+              </div>
+              <div className="flex justify-between items-center py-1.5">
+                <span className="text-white/40">Format</span>
+                <span className="font-bold text-white/50">{settings.export.format} · {settings.export.resolution}</span>
+              </div>
+            </div>
+            {approvedCount === 0 && (
+              <p className="text-[11px] text-white/25 text-center pt-1">Approve clips on the Clips tab to export.</p>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────── TAB / MODE BUTTONS ─────────────────────── */
 
 function TabButton({
   active, onClick, icon, label, testId,
@@ -303,6 +603,8 @@ function ModeButton({
   );
 }
 
+/* ─────────────────────── STATUS CHECKLIST ─────────────────────── */
+
 function StatusChecklist({
   planLoaded, clipsLoaded, audioLoaded, timelineReady, exportReady,
 }: {
@@ -343,12 +645,16 @@ function StatusChecklist({
   );
 }
 
+/* ─────────────────────── SAVE INDICATOR ─────────────────────── */
+
 function SaveIndicator({ state }: { state: SaveState }) {
   if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</span>;
   if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> Saved</span>;
   if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> Save failed</span>;
   return null;
 }
+
+/* ─────────────────────── NO PROJECT ─────────────────────── */
 
 function NoProject() {
   return (

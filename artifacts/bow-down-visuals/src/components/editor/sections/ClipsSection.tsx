@@ -1,5 +1,5 @@
 import {
-  ArrowUp, ArrowDown, Copy, Trash2, Volume2, VolumeX, Check, Link2,
+  ArrowUp, ArrowDown, Copy, Trash2, Volume2, VolumeX, Check, Link2, Eye,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -16,9 +16,11 @@ interface ClipsSectionProps {
   setScenes: (s: SceneData[]) => void;
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
+  onPreview?: (sceneId: string) => void;
+  previewSceneId?: string | null;
 }
 
-export function ClipsSection({ scenes, setScenes, settings, setSettings }: ClipsSectionProps) {
+export function ClipsSection({ scenes, setScenes, settings, setSettings, onPreview, previewSceneId }: ClipsSectionProps) {
   function move(index: number, dir: -1 | 1) {
     const target = index + dir;
     if (target < 0 || target >= scenes.length) return;
@@ -54,8 +56,15 @@ export function ClipsSection({ scenes, setScenes, settings, setSettings }: Clips
           {scenes.map((scene, i) => {
             const edit = getClipEdit(settings, scene.id);
             const hasClip = sceneHasClip(scene);
+            const isPreviewing = previewSceneId === scene.id;
             return (
-              <div key={scene.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden" data-testid={`clip-row-${i}`}>
+              <div
+                key={scene.id}
+                className={`rounded-xl border overflow-hidden transition-colors ${
+                  isPreviewing ? "border-primary/40 bg-primary/[0.04]" : "border-white/[0.07] bg-white/[0.02]"
+                }`}
+                data-testid={`clip-row-${i}`}
+              >
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.05]">
                   <span className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 text-[11px] font-black text-primary">
                     {i + 1}
@@ -72,6 +81,21 @@ export function ClipsSection({ scenes, setScenes, settings, setSettings }: Clips
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 shrink-0">Clip</span>
                   ) : (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-white/30 shrink-0">No clip</span>
+                  )}
+                  {hasClip && onPreview && (
+                    <button
+                      type="button"
+                      onClick={() => onPreview(scene.id)}
+                      title="Preview Clip"
+                      data-testid={`btn-preview-${i}`}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors shrink-0 ${
+                        isPreviewing
+                          ? "border-primary/50 bg-primary/15 text-primary"
+                          : "border-white/10 bg-white/[0.03] text-white/45 hover:text-primary hover:border-primary/30"
+                      }`}
+                    >
+                      <Eye className="h-3 w-3" /> Preview
+                    </button>
                   )}
                   <div className="flex items-center gap-1 shrink-0">
                     <IconBtn title="Move up" disabled={i === 0} onClick={() => move(i, -1)} testId={`btn-up-${i}`}><ArrowUp className="h-3.5 w-3.5" /></IconBtn>
