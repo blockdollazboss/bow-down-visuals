@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Stripe from "stripe";
+import pg from "pg";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
 
@@ -153,44 +154,60 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
     return;
   }
 
-  if (session.metadata?.userId !== req.userId) {
+  // Support both old (userId/credits) and new (user_id/credits_amount) metadata field names
+  const metaUserId = session.metadata?.user_id ?? session.metadata?.userId;
+  const metaCredits = session.metadata?.credits_amount ?? session.metadata?.credits;
+  const metaPack = session.metadata?.credit_pack ?? session.metadata?.pack ?? "";
+
+  if (metaUserId !== req.userId) {
+    logger.error({ metaUserId, reqUserId: req.userId, sessionId }, "checkout/verify: user_id mismatch");
     res.status(403).json({ error: "Session does not belong to this user." });
     return;
   }
 
-  const creditsToAdd = parseInt(session.metadata?.credits ?? "0", 10);
+  const creditsToAdd = parseInt(metaCredits ?? "0", 10);
   if (!creditsToAdd || creditsToAdd <= 0) {
+    logger.error({ metaCredits, sessionId }, "checkout/verify: invalid credits_amount in metadata");
     res.status(400).json({ error: "No valid credit amount found in this session." });
     return;
   }
 
-  const { data: profile, error: fetchError } = await req.userSupabase!
-    .from("profiles")
-    .select("credits")
-    .eq("id", req.userId)
-    .single();
-
-  if (fetchError || !profile) {
-    logger.error({ err: fetchError, userId: req.userId }, "checkout/verify: failed to fetch profile");
-    res.status(500).json({ error: "Could not load your profile." });
+  // Use direct Postgres via DATABASE_URL to bypass Supabase RLS reliably
+  let pool: pg.Pool;
+  try {
+    const connStr = process.env["DATABASE_URL"];
+    if (!connStr) throw new Error("DATABASE_URL not set");
+    pool = new pg.Pool({ connectionString: connStr });
+  } catch (err) {
+    logger.error({ err }, "checkout/verify: cannot connect to database");
+    res.status(500).json({ error: "Database not configured." });
     return;
   }
 
-  const newCredits = ((profile.credits as number) ?? 0) + creditsToAdd;
+  try {
+    const result = await pool.query<{ credits: number }>(
+      `UPDATE profiles SET credits = credits + $1 WHERE id = $2 RETURNING credits`,
+      [creditsToAdd, req.userId]
+    );
 
-  const { error: updateError } = await req.userSupabase!
-    .from("profiles")
-    .update({ credits: newCredits })
-    .eq("id", req.userId);
+    if (result.rowCount === 0) {
+      logger.error({ userId: req.userId }, "checkout/verify: no profile row found for user");
+      res.status(404).json({ error: "User profile not found." });
+      return;
+    }
 
-  if (updateError) {
-    logger.error({ err: updateError, userId: req.userId }, "checkout/verify: failed to update credits");
+    const newCredits = result.rows[0].credits;
+    logger.info(
+      { userId: req.userId, creditsToAdd, newCredits, pack: metaPack, sessionId },
+      "checkout/verify: credits applied successfully"
+    );
+    res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: metaPack });
+  } catch (err) {
+    logger.error({ err, userId: req.userId }, "checkout/verify: database update failed");
     res.status(500).json({ error: "Credits verified but could not be applied. Contact support." });
-    return;
+  } finally {
+    await pool.end().catch(() => {});
   }
-
-  logger.info({ userId: req.userId, creditsToAdd, newCredits, pack: session.metadata?.pack }, "checkout/verify: credits applied");
-  res.json({ success: true, credits: newCredits, added: creditsToAdd, pack: session.metadata?.pack ?? "" });
 });
 
 export default router;

@@ -202,20 +202,46 @@ export default function Dashboard() {
       return;
     }
 
-    if (payment === "success") {
+    if (payment === "success" && sessionId) {
       window.history.replaceState({}, "", "/dashboard");
       setPaymentToast({
         type: "success",
-        message: "Payment successful! Credits are being added to your account.",
+        message: "Payment successful! Adding credits to your account…",
       });
-      // Refresh profile after a short delay to pick up webhook credit update
-      setTimeout(() => {
-        refreshProfile();
-      }, 2000);
-      // Second refresh at 5s in case webhook takes longer
-      setTimeout(() => {
-        refreshProfile();
-      }, 5000);
+
+      // Verify payment directly with Stripe and credit immediately — no webhook dependency
+      (async () => {
+        try {
+          const token = await getAccessToken();
+          const res = await fetch("/api/checkout/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await res.json() as { success?: boolean; credits?: number; added?: number; pack?: string; error?: string };
+
+          if (res.ok && data.success) {
+            setPaymentToast({
+              type: "success",
+              message: `${data.added} credits added! New total: ${data.credits} credits.`,
+            });
+            refreshProfile();
+          } else {
+            setPaymentToast({
+              type: "error",
+              message: data.error ?? "Payment recorded but credits could not be applied. Contact support.",
+            });
+          }
+        } catch {
+          setPaymentToast({
+            type: "error",
+            message: "Payment recorded but could not apply credits. Try refreshing the page.",
+          });
+        }
+      })();
     }
   }, [user]);
 
