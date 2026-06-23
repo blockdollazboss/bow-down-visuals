@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/scene-parser";
+import type { ArtistVault } from "@/components/ArtistVaultSelector";
 
 /* ─── Section color badges ──────────────────────────────────── */
 const SECTION_COLORS: Record<string, string> = {
@@ -259,9 +260,12 @@ interface SceneCardProps {
   scene: SceneData;
   index: number;
   onUpdate: (id: string, patch: Partial<SceneData>) => void;
+  artistVault?: ArtistVault | null;
+  videoStyle?: string;
+  platform?: string;
 }
 
-function SceneCard({ scene, index, onUpdate }: SceneCardProps) {
+function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }: SceneCardProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
@@ -308,6 +312,22 @@ function SceneCard({ scene, index, onUpdate }: SceneCardProps) {
             lighting: scene.lighting,
             mood: scene.mood,
           },
+          videoStyle,
+          platform,
+          artistVault: artistVault
+            ? {
+                artistType: artistVault.artist_type,
+                artistDescription: artistVault.artist_description,
+                visualStyle: artistVault.visual_style,
+                hair: artistVault.hair,
+                tattoos: artistVault.tattoos,
+                jewelry: artistVault.jewelry,
+                clothingStyle: artistVault.clothing_style,
+                brandColors: artistVault.brand_colors,
+                doNotChangeRules: artistVault.do_not_change_rules,
+                specialStyleRules: artistVault.special_style_rules,
+              }
+            : null,
         }),
       });
       if (!res.ok) throw new Error("Improve prompt API error");
@@ -486,9 +506,12 @@ function SceneCard({ scene, index, onUpdate }: SceneCardProps) {
 interface SceneStudioProps {
   scenes: SceneData[];
   onScenesChange: (scenes: SceneData[]) => void;
+  artistVault?: ArtistVault | null;
+  videoStyle?: string;
+  platform?: string;
 }
 
-export function SceneStudio({ scenes, onScenesChange }: SceneStudioProps) {
+export function SceneStudio({ scenes, onScenesChange, artistVault, videoStyle, platform }: SceneStudioProps) {
   const handleUpdate = useCallback(
     (id: string, patch: Partial<SceneData>) => {
       onScenesChange(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
@@ -523,7 +546,15 @@ export function SceneStudio({ scenes, onScenesChange }: SceneStudioProps) {
       {/* Cards */}
       <div className="space-y-4">
         {scenes.map((scene, i) => (
-          <SceneCard key={scene.id} scene={scene} index={i} onUpdate={handleUpdate} />
+          <SceneCard
+            key={scene.id}
+            scene={scene}
+            index={i}
+            onUpdate={handleUpdate}
+            artistVault={artistVault}
+            videoStyle={videoStyle}
+            platform={platform}
+          />
         ))}
       </div>
     </div>

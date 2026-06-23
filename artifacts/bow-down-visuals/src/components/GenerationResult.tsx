@@ -9,6 +9,7 @@ import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { SceneStudio } from "@/components/SceneStudio";
 import { parseScenes, type SceneData } from "@/lib/scene-parser";
+import type { ArtistVault } from "@/components/ArtistVaultSelector";
 
 interface Section {
   title: string;
@@ -78,10 +79,11 @@ interface GenerationResultProps {
   initialScenes?: SceneData[];
   scenes?: SceneData[];
   onScenesChange?: (s: SceneData[]) => void;
+  artistVault?: ArtistVault | null;
   onSaved?: (projectId: string) => void;
 }
 
-export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, onSaved }: GenerationResultProps) {
+export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, artistVault, onSaved }: GenerationResultProps) {
   const sections = parseSections(result);
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -282,7 +284,13 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       {/* Scene Cards For Video Generation — shown below the full plan */}
       {scenes.length > 0 && (
         <div className="pt-4 border-t border-white/[0.06]">
-          <SceneStudio scenes={scenes} onScenesChange={handleScenesChange} />
+          <SceneStudio
+            scenes={scenes}
+            onScenesChange={handleScenesChange}
+            artistVault={artistVault}
+            videoStyle={typeof saveMetadata.inputData?.["videoStyle"] === "string" ? (saveMetadata.inputData["videoStyle"] as string) : undefined}
+            platform={typeof saveMetadata.inputData?.["platform"] === "string" ? (saveMetadata.inputData["platform"] as string) : undefined}
+          />
         </div>
       )}
     </div>

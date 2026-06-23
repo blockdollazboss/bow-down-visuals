@@ -543,6 +543,7 @@ export default function MakeVideo() {
               }}
               scenes={scenes}
               onScenesChange={setScenes}
+              artistVault={loadedVault}
               onSaved={setSavedProjectId}
             />
 
