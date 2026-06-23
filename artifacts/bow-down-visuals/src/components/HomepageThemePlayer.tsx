@@ -231,11 +231,11 @@ export function HomepageThemePlayer() {
           {/* Info + equalizer */}
           <div className="flex-1 min-w-0 space-y-0.5">
             <p style={{ color: `${GOLD_GLOW}0.65)` }} className="text-[9px] font-bold uppercase tracking-[0.18em]">
-              Home Theme
+              BDV
             </p>
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-white/90 truncate leading-tight">
-                Bow Down Visuals Theme
+                www.bowdownvisuals.com
               </p>
               <EqBars active={playing && !muted} />
             </div>
