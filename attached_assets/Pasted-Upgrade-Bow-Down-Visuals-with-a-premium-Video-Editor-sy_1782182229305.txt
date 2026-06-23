@@ -1,0 +1,213 @@
+Upgrade Bow Down Visuals with a premium Video Editor system.
+
+Do not add Stripe yet.
+Do not add new video APIs yet.
+Do not break existing Runway clip generation, saved projects, Artist Vault, audio upload, or timeline preview.
+
+Goal:
+After users generate Runway clips, they should be able to edit them like a real music video platform.
+
+Add two editing modes:
+
+1. AI Auto Edit
+2. Manual Pro Editor
+
+AI AUTO EDIT MODE
+
+Add preset templates:
+
+1. Drill / Street Cut
+- fast cuts
+- dark contrast
+- handheld shake
+- quick zooms
+- flash transitions
+- beat-synced cuts
+- gritty captions
+
+2. Luxury Rap Visual
+- slow motion feel
+- smooth crossfades
+- gold/purple glow
+- cinematic fades
+- clean title cards
+- polished color grade
+
+3. R&B Dream Edit
+- soft glow
+- slow dissolves
+- light leaks
+- smooth camera feel
+- romantic captions
+- warm color grade
+
+4. Club / Party Edit
+- strobe cuts
+- glitch transitions
+- beat flashes
+- speed ramps
+- neon overlays
+- high energy captions
+
+5. Pain / Emotional Visual
+- slow fades
+- black-and-white moments
+- film grain
+- rain/window overlays
+- emotional lyric captions
+- soft zooms
+
+6. Kids / Cartoon Edit
+- bright colors
+- bounce transitions
+- big readable captions
+- playful stickers
+- simple fun cuts
+- clean safe style
+
+AI Auto Edit should let users choose:
+- edit preset
+- platform format: 9:16, 16:9, 1:1
+- caption style
+- intro title card on/off
+- outro card on/off
+- watermark/logo on/off
+- beat cut intensity: low, medium, high
+- transition intensity: low, medium, high
+
+When user clicks:
+Create AI Auto Edit
+
+The system should:
+- use approved/generated clips from the timeline
+- use uploaded song audio if available
+- arrange clips in timeline order
+- add intro title card if selected
+- add captions/lyrics if available
+- add transitions based on selected preset
+- add basic visual effects based on preset
+- export a preview edit if rendering is available
+- otherwise create an edit decision list showing exactly how the final video will be edited
+
+Show output section:
+AI Edit Plan
+
+Include:
+- selected template
+- clip order
+- transition between each clip
+- effect applied to each clip
+- caption timing suggestions
+- intro card text
+- outro card text
+- export format
+- estimated final duration
+
+MANUAL PRO EDITOR MODE
+
+Add a Manual Pro Editor page/section with:
+
+Timeline:
+- drag/reorder clips
+- trim start/end
+- duplicate clip
+- remove clip
+- mute clip
+- replace clip
+- approve/unapprove clip
+
+Audio:
+- uploaded song audio player
+- set audio start time
+- volume control
+- fade in
+- fade out
+
+Text/Captions:
+- add title text
+- add lyric captions
+- edit caption text
+- font size
+- position: top, center, bottom
+- caption style presets
+
+Transitions:
+- cut
+- crossfade
+- flash
+- glitch
+- whip pan
+- zoom transition
+- light leak
+- fade to black
+- slide
+- spin
+
+Effects:
+- film grain
+- glow
+- blur
+- sharpen
+- vignette
+- black and white
+- neon glow
+- VHS
+- cinematic bars
+- shake
+- slow zoom
+- speed ramp placeholder
+- color grade presets
+
+Overlays:
+- smoke
+- rain
+- sparks
+- lens flare
+- dust
+- light leaks
+- animated waveform placeholder
+- logo/watermark
+
+Export options:
+- 9:16 TikTok/Reels/Shorts
+- 16:9 YouTube
+- 1:1 square
+- 1080p
+- draft preview
+- final export
+
+Add a clear note:
+Some effects are preview/edit-plan only until final rendering is enabled.
+
+UI requirements:
+- keep it premium dark cinematic
+- do not clutter one page
+- use tabs:
+  Edit
+  Captions
+  Transitions
+  Effects
+  Export
+- make advanced controls collapsible
+- mobile should be simple
+- desktop should feel like a creator studio
+
+Important:
+Runway clips are silent previews.
+Final exported videos combine approved clips with uploaded song audio.
+
+Do not remove existing scene cards.
+Add a button after clips are generated:
+Open Video Editor
+
+Save editor settings with the project:
+- edit mode
+- selected auto edit template
+- timeline order
+- trims
+- transitions
+- effects
+- captions
+- overlays
+- audio settings
+- export settings
