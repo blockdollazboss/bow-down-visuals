@@ -8,6 +8,7 @@ import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { SceneStudio } from "@/components/SceneStudio";
+import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { parseScenes, type SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 
@@ -118,6 +119,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState(
     [saveMetadata.artistName, saveMetadata.songTitle].filter(Boolean).join(" — ") ||
     saveMetadata.songTitle ||
@@ -204,6 +206,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       }
       const saved_data = (await res.json()) as { id: string };
       setSaved(true);
+      setSavedProjectId(saved_data.id ?? null);
       if (onSaved && saved_data.id) onSaved(saved_data.id);
       toast({ title: "Project saved!", description: "Find it in My Projects." });
     } catch (err: unknown) {
@@ -276,9 +279,14 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
           </Button>
         </div>
       ) : (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3">
-          <Check className="h-5 w-5 text-green-400" />
-          <p className="text-green-400 font-medium text-sm">Saved! View it in <a href="/my-projects" className="underline underline-offset-2">My Projects</a>.</p>
+        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Check className="h-5 w-5 text-green-400 shrink-0" />
+            <p className="text-green-400 font-medium text-sm">Saved! View it in <a href="/my-projects" className="underline underline-offset-2">My Projects</a>.</p>
+          </div>
+          {savedProjectId && scenes.length > 0 && (
+            <OpenVideoEditorButton projectId={savedProjectId} size="sm" testId="btn-result-open-video-editor" />
+          )}
         </div>
       )}
 

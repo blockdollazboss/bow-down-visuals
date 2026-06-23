@@ -8,6 +8,7 @@ const IS_DEV = import.meta.env.DEV;
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "My Projects", href: "/my-projects" },
+  { label: "Video Editor", href: "/video-editor" },
   { label: "Artist Vault", href: "/artist-vault" },
   { label: "Pricing", href: "/pricing" },
   { label: "Waitlist", href: "/waitlist" },

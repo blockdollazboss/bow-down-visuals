@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { SceneStudio } from "@/components/SceneStudio";
+import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
@@ -750,6 +751,26 @@ export default function MakeVideo() {
                 />
               ) : (
                 <p className="text-sm text-white/40">No scenes yet — go back to step 3 and generate your plan.</p>
+              )}
+
+              {/* Open Video Editor — shown once Runway clips have been generated */}
+              {scenes.some((s) => s.demoClipUrl) && (
+                <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Clapperboard className="h-5 w-5 text-primary shrink-0 mt-0.5 sm:mt-0" />
+                    <div>
+                      <p className="font-semibold text-white text-sm">Your clips are ready to edit</p>
+                      <p className="text-xs text-white/45">
+                        {savedProjectId
+                          ? "Open the Video Editor to arrange clips, mix audio in Music Studio, add captions, effects, and export."
+                          : "Save your project in step 3 to open it in the full Video Editor."}
+                      </p>
+                    </div>
+                  </div>
+                  {savedProjectId && (
+                    <OpenVideoEditorButton projectId={savedProjectId} testId="btn-step4-open-video-editor" />
+                  )}
+                </div>
               )}
             </div>
           )}

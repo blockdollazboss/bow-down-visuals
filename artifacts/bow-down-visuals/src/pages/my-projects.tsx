@@ -4,7 +4,7 @@ import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  FolderOpen, Trash2, Loader2, Music, Video, Film, Clapperboard,
+  FolderOpen, Trash2, Loader2, Music, Video, Film,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,13 @@ import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
+import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
+
+/** Project types that can be opened in the Video Editor. */
+function isVideoProject(projectType: string): boolean {
+  return projectType === "Make a Music Video" || projectType === "Make Song + Video";
+}
 
 interface ExportRecord {
   final_video_url: string;
@@ -180,6 +186,13 @@ function ResultModal({
             <h2 className="text-lg font-black text-white">{project.title}</h2>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
+            {isVideoProject(project.project_type) && (
+              <OpenVideoEditorButton
+                projectId={project.id}
+                size="sm"
+                testId="btn-modal-open-video-editor"
+              />
+            )}
             <Button size="sm" variant="outline" onClick={handleCopy}
               className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2"
               data-testid="btn-modal-copy">
@@ -291,10 +304,6 @@ function ProjectCard({
   const iconColor = TYPE_COLORS[project.project_type] ?? "text-primary";
   const icon = TYPE_ICONS[project.project_type] ?? <FolderOpen className="h-4 w-4" />;
 
-  const hasClips = (project.output_data?.scenes ?? []).some(
-    (s) => (s as { demoClipUrl?: string | null }).demoClipUrl,
-  );
-
   function handleDelete() {
     if (!confirm(`Delete "${displayTitle}"? This cannot be undone.`)) return;
     setDeleting(true);
@@ -339,16 +348,13 @@ function ProjectCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {hasClips && (
-              <Link href={`/video-editor?project=${project.id}`}>
-                <Button
-                  size="sm"
-                  className="gold-glow h-8 px-3 text-xs gap-1.5 font-bold"
-                  data-testid={`btn-edit-${project.id}`}
-                >
-                  <Clapperboard className="h-3.5 w-3.5" /> Edit
-                </Button>
-              </Link>
+            {isVideoProject(project.project_type) && (
+              <OpenVideoEditorButton
+                projectId={project.id}
+                size="sm"
+                className="h-8 px-3 text-xs"
+                testId={`btn-open-video-editor-card-${project.id}`}
+              />
             )}
             <Button
               size="sm"

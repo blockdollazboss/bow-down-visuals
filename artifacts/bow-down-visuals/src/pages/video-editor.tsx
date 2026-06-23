@@ -297,7 +297,7 @@ function NoProject() {
       </div>
       <div className="space-y-2">
         <h2 className="text-xl font-bold text-white">No project selected</h2>
-        <p className="text-white/45 max-w-sm mx-auto">Open the Video Editor from a saved project — generate a plan and clips first, then save it.</p>
+        <p className="text-white/45 max-w-sm mx-auto">Choose a saved music video project or generate a music video plan first.</p>
       </div>
       <Link href="/my-projects"><Button className="gold-glow font-semibold gap-2"><ArrowLeft className="h-4 w-4" /> Go to My Projects</Button></Link>
     </div>
