@@ -27,12 +27,13 @@ export interface ArtistVault {
 interface Props {
   onLoad: (vault: ArtistVault) => void;
   loadedVaultId?: string | null;
+  loadedVault?: ArtistVault | null;
 }
 
 const selectClass =
   "h-10 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 pr-8 text-sm focus:outline-none focus:border-primary/50 appearance-none cursor-pointer";
 
-export function ArtistVaultSelector({ onLoad, loadedVaultId }: Props) {
+export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loadedVaultProp }: Props) {
   const { getAccessToken } = useAuth();
   const [vaults, setVaults] = useState<ArtistVault[]>([]);
   const [selected, setSelected] = useState("");
@@ -61,7 +62,9 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId }: Props) {
 
   if (fetching) return null;
 
-  if (vaults.length === 0) {
+  const loaded = loadedVaultProp ?? (loadedVaultId ? vaults.find((v) => v.id === loadedVaultId) : null) ?? null;
+
+  if (!loaded && vaults.length === 0) {
     return (
       <div className="mb-6 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center gap-3">
         <Archive className="h-4 w-4 text-white/25 shrink-0" />
@@ -75,8 +78,6 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId }: Props) {
       </div>
     );
   }
-
-  const loaded = loadedVaultId ? vaults.find((v) => v.id === loadedVaultId) : null;
 
   return (
     <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-primary/[0.04]">

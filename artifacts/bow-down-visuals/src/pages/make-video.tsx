@@ -628,7 +628,7 @@ export default function MakeVideo() {
                 <p className="text-sm text-white/40">Load your vault profile or describe the artist's look and brand.</p>
               </div>
 
-              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
 
               <FieldWrapper label="Artist Description">
                 <Textarea

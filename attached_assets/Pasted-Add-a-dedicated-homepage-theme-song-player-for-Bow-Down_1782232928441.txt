@@ -1,0 +1,104 @@
+Add a dedicated homepage theme song player for Bow Down Visuals.
+
+Do not add Stripe.
+Do not add new APIs.
+Do not break login, Artist Selection, Creator Studio, Runway generation, Music Studio, or saved projects.
+
+Goal:
+The Bow Down Visuals homepage should have an animated logo and a dedicated theme music player that only appears and plays on the Home page.
+
+IMPORTANT:
+The theme song player should only exist on the homepage.
+Do not show it on Dashboard, Creator Studio, Make a Song, Make a Music Video, Video Editor, Artist Vault, My Projects, Pricing, or any logged-in tool page.
+
+FEATURES:
+
+1. Homepage Animated Logo
+Add an animated Bow Down Visuals logo/brand area in the homepage hero section.
+
+Animation style:
+- premium cinematic
+- smooth glow pulse
+- subtle crown/play-button/waveform animation if logo elements exist
+- purple/gold/silver glow
+- not too flashy
+- professional music platform feel
+
+If an actual logo file exists, use it.
+If no logo file exists, create a text-based animated logo:
+BOW DOWN VISUALS
+with subtle glow and waveform animation.
+
+2. Homepage Theme Song Player
+Create a dedicated homepage music player component.
+
+Player should include:
+- Play button
+- Pause button
+- song title: Bow Down Visuals Theme
+- small animated waveform/equalizer
+- volume control
+- mute/unmute button
+- loading state
+- error state if audio file is missing
+
+3. Audio File
+Create a folder for homepage audio if needed:
+public/audio/
+
+Use this audio path:
+public/audio/bow-down-visuals-theme.mp3
+
+If the file does not exist yet, show:
+Theme song file not uploaded yet.
+
+Do not break the page if the file is missing.
+
+4. Autoplay behavior
+Try to autoplay only on the homepage.
+
+Because browsers often block autoplay with sound:
+- attempt autoplay muted first
+- show a clear Play button so users can start sound manually
+- after user clicks Play, unmute and play the theme
+- store user preference during the session so it does not restart annoyingly
+
+5. Only play on Home page
+When user leaves the homepage:
+- stop the music
+- reset or pause the audio
+- do not continue playing on other pages
+
+6. UI placement
+Place the music player in the homepage hero section near the animated logo.
+
+Design:
+- premium dark cinematic
+- black glass card
+- purple glow
+- silver/white text
+- clean controls
+- mobile responsive
+- not too large
+- should feel like a music platform, not a basic browser audio player
+
+7. Controls
+Add:
+- Play / Pause toggle
+- Mute / Unmute toggle
+- Volume slider
+- animated equalizer when playing
+- “Home Theme” label
+
+8. Accessibility
+Add proper aria labels:
+- Play theme song
+- Pause theme song
+- Mute theme song
+- Volume
+
+9. Do not use browser default audio controls unless needed.
+Create custom styled controls that match Bow Down Visuals.
+
+10. Make sure homepage performance is not broken.
+Lazy load the audio if possible.

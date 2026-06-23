@@ -783,6 +783,7 @@ export default function PromoClip() {
                     setLoadedVault(vault);
                   }}
                   loadedVaultId={loadedVault?.id}
+                  loadedVault={loadedVault}
                 />
 
                 {/* Step 1: Artist & Track */}

@@ -590,7 +590,7 @@ export default function SongAndVideo() {
           <div className="space-y-6">
             <StepShell icon={Mic2} title="Artist / Brand" subtitle="Help the AI match your look, style, and brand identity">
 
-              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
 
               <FieldWrapper label="Artist Description">
                 <Textarea {...register("artistDescription", { required: true })}
