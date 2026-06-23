@@ -12,8 +12,8 @@ interface MusicStudioProps {
 }
 
 const MODES: { id: MusicStudioSettings["mode"]; label: string; note: string; icon: typeof Sparkles }[] = [
-  { id: "auto", label: "AI Auto Mix & Master", note: "Pick a sound, get a pro mix plan", icon: Sparkles },
-  { id: "manual", label: "Manual Studio", note: "Upload stems & mix it yourself", icon: SlidersHorizontal },
+  { id: "auto", label: "AI Auto Mix", note: "Pick a sound, get a pro mix plan", icon: Sparkles },
+  { id: "manual", label: "Manual DAW", note: "Upload stems, mix & export it yourself", icon: SlidersHorizontal },
 ];
 
 export function MusicStudio({ settings, onChange, artistName, songTitle }: MusicStudioProps) {

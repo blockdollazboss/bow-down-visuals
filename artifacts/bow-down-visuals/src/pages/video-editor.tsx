@@ -3,6 +3,7 @@ import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
+  CheckCircle2, Circle,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
@@ -186,6 +187,15 @@ export default function VideoEditor() {
               </div>
             </div>
 
+            {/* Status checklist */}
+            <StatusChecklist
+              planLoaded={scenes.length > 0}
+              clipsLoaded={scenes.some((s) => sceneHasClip(s))}
+              audioLoaded={!!audioUrl || settings.musicStudio.stems.length > 0}
+              timelineReady={scenes.some((s) => s.approved && sceneHasClip(s))}
+              exportReady={scenes.some((s) => s.approved && sceneHasClip(s))}
+            />
+
             {/* Top nav tabs */}
             <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
               <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
@@ -279,6 +289,46 @@ function ModeButton({
       {icon}
       {label}
     </button>
+  );
+}
+
+function StatusChecklist({
+  planLoaded, clipsLoaded, audioLoaded, timelineReady, exportReady,
+}: {
+  planLoaded: boolean; clipsLoaded: boolean; audioLoaded: boolean; timelineReady: boolean; exportReady: boolean;
+}) {
+  const items: { label: string; done: boolean }[] = [
+    { label: "Music video plan loaded", done: planLoaded },
+    { label: "Runway clips loaded", done: clipsLoaded },
+    { label: "Audio/stems uploaded", done: audioLoaded },
+    { label: "Timeline ready", done: timelineReady },
+    { label: "Export ready", done: exportReady },
+  ];
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-5" data-testid="editor-status-checklist">
+      <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-3">Project Status</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            data-testid={`status-${item.label.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "")}`}
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 ${
+              item.done ? "border-green-500/25 bg-green-500/[0.06]" : "border-white/[0.07] bg-white/[0.02]"
+            }`}
+          >
+            {item.done ? (
+              <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+            ) : (
+              <Circle className="h-4 w-4 text-white/25 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className={`text-xs font-semibold leading-tight ${item.done ? "text-white/85" : "text-white/55"}`}>{item.label}</p>
+              <p className={`text-[10px] font-bold uppercase tracking-wider ${item.done ? "text-green-400/80" : "text-white/30"}`}>{item.done ? "Yes" : "No"}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

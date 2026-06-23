@@ -21,11 +21,11 @@ interface ManualDAWProps {
 type DawTab = "tracks" | "mixer" | "effects" | "mastering" | "export";
 
 const TABS: { id: DawTab; label: string; icon: typeof ListMusic }[] = [
-  { id: "tracks", label: "Tracks", icon: ListMusic },
+  { id: "tracks", label: "Stems", icon: ListMusic },
   { id: "mixer", label: "Mixer", icon: SlidersHorizontal },
   { id: "effects", label: "Effects", icon: Wand2 },
   { id: "mastering", label: "Mastering", icon: Disc3 },
-  { id: "export", label: "Export", icon: Download },
+  { id: "export", label: "Export Audio (Beta)", icon: Download },
 ];
 
 export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
