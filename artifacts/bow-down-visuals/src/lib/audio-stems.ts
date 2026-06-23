@@ -36,11 +36,33 @@ export async function removeStemFile(storagePath: string): Promise<void> {
   }
 }
 
+/** Best-effort decode of an audio file's duration (seconds) in the browser. */
+export function readAudioDuration(file: File): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const audio = document.createElement("audio");
+      audio.preload = "metadata";
+      const done = (value: number | undefined) => {
+        URL.revokeObjectURL(url);
+        resolve(value);
+      };
+      audio.onloadedmetadata = () =>
+        done(Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : undefined);
+      audio.onerror = () => done(undefined);
+      audio.src = url;
+    } catch {
+      resolve(undefined);
+    }
+  });
+}
+
 /** Build a new AudioStem record from an uploaded file. */
 export function makeStem(
   file: File,
   upload: StemUploadResult,
   type: string,
+  durationSec?: number,
 ): AudioStem {
   const baseName = file.name.replace(/\.[^.]+$/, "");
   return {
@@ -52,6 +74,7 @@ export function makeStem(
     fileType: file.type || "audio",
     fileSize: file.size,
     uploadedAt: new Date().toISOString(),
+    durationSec,
     muted: false,
     solo: false,
     locked: false,

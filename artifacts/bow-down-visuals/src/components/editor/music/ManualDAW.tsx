@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info } from "lucide-react";
+import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Play, Clapperboard } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import {
   AUDIO_EXPORT_FORMATS, EQ_TONES, LOUDNESS_TARGETS,
   type EditorSettings, type MasterSettings, type EqTone, type LoudnessTarget,
@@ -25,8 +27,10 @@ const TABS: { id: DawTab; label: string; icon: typeof ListMusic }[] = [
 ];
 
 export function ManualDAW({ settings, onChange }: ManualDAWProps) {
+  const { toast } = useToast();
   const [tab, setTab] = useState<DawTab>("tracks");
   const ms = settings.musicStudio;
+  const usingMixForVideo = ms.videoAudio.source === "finalMix";
 
   function patchMaster(patch: Partial<MasterSettings>) {
     onChange({ ...settings, musicStudio: { ...ms, master: { ...ms.master, ...patch } } });
@@ -36,6 +40,17 @@ export function ManualDAW({ settings, onChange }: ManualDAWProps) {
       ? ms.exportSelections.filter((f) => f !== fmt)
       : [...ms.exportSelections, fmt];
     onChange({ ...settings, musicStudio: { ...ms, exportSelections: next } });
+  }
+  function handleSave() {
+    onChange({ ...settings, musicStudio: { ...ms } });
+    toast({ title: "Mix settings saved", description: "Your tracks, mixer, effects and master are stored with this project." });
+  }
+  function handlePreview() {
+    toast({ title: "Mix preview coming soon", description: "Rendered playback of the full mix is on the way. Use each stem's player for now." });
+  }
+  function handleUseForVideo() {
+    onChange({ ...settings, musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, source: "finalMix" } } });
+    toast({ title: "Using this mix for the video", description: "The video's soundtrack is now set to your Music Studio mix." });
   }
 
   return (
@@ -110,9 +125,45 @@ export function ManualDAW({ settings, onChange }: ManualDAWProps) {
                 Audio rendering &amp; export is coming soon. Your stems, mixer, effects and master settings are saved with this project.
               </p>
             </div>
+            <Button
+              disabled
+              variant="outline"
+              className="w-full h-11 text-sm font-bold border-white/10 bg-white/[0.02] text-white/45"
+              data-testid="btn-export-audio"
+            >
+              <Download className="h-4 w-4 mr-2" /> Export Audio — Coming Soon
+            </Button>
           </div>
         </EditorCard>
       )}
+
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Button
+          onClick={handleSave}
+          className="flex-1 min-w-[140px] h-11 text-sm font-black bg-primary text-black hover:bg-primary/90"
+          data-testid="btn-save-mix"
+        >
+          <Save className="h-4 w-4 mr-2" /> Save Mix Settings
+        </Button>
+        <Button
+          onClick={handlePreview}
+          variant="outline"
+          className="flex-1 min-w-[140px] h-11 text-sm font-bold border-white/12 bg-white/[0.03] text-white/75 hover:text-white hover:bg-white/[0.06]"
+          data-testid="btn-preview-mix"
+        >
+          <Play className="h-4 w-4 mr-2" /> Preview Mix
+        </Button>
+        <Button
+          onClick={handleUseForVideo}
+          variant="outline"
+          className={`flex-1 min-w-[140px] h-11 text-sm font-bold border-white/12 bg-white/[0.03] hover:bg-white/[0.06] ${
+            usingMixForVideo ? "text-primary border-primary/40" : "text-white/75 hover:text-white"
+          }`}
+          data-testid="btn-use-mix-for-video"
+        >
+          <Clapperboard className="h-4 w-4 mr-2" /> {usingMixForVideo ? "Mix Set For Video ✓" : "Use This Mix For Video"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -37,6 +37,19 @@ const Schema = z.object({
 
 type Input = z.infer<typeof Schema>;
 
+/** Strict shape the model output must conform to before we trust it. */
+const PlanSchema = z.object({
+  preset: z.string().min(1),
+  summary: z.string().min(1),
+  stemLevels: z.array(z.object({ name: z.string(), level: z.string() })).default([]),
+  vocalChain: z.array(z.string()).min(1),
+  beatChain: z.array(z.string()).default([]),
+  masterChain: z.array(z.string()).default([]),
+  loudnessTarget: z.string().min(1),
+  exportRecommendation: z.string().min(1),
+  notes: z.string().default(""),
+});
+
 const LOUDNESS_LABEL: Record<string, string> = {
   demo: "-14 LUFS (demo / dynamic)",
   streaming: "-9 LUFS (Spotify / Apple streaming)",
@@ -200,16 +213,17 @@ Rules:
     });
 
     const jsonText = response.choices[0]?.message?.content ?? "{}";
-    const plan = JSON.parse(jsonText) as Record<string, unknown>;
+    const raw = JSON.parse(jsonText) as unknown;
 
-    const vocalChain = Array.isArray(plan["vocalChain"]) ? plan["vocalChain"] : [];
-    if (vocalChain.length === 0) {
+    const validated = PlanSchema.safeParse(raw);
+    if (!validated.success) {
+      req.log.warn({ issues: validated.error.issues }, "Mix plan output failed validation; using fallback");
       res.json(buildFallbackPlan(input));
       return;
     }
 
     res.json({
-      ...plan,
+      ...validated.data,
       fallback: false,
       generatedAt: new Date().toISOString(),
     });

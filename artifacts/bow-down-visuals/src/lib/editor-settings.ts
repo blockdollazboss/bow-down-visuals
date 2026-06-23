@@ -409,6 +409,8 @@ export interface AudioStem {
   fileType: string;
   fileSize: number;
   uploadedAt: string;
+  /** Track length in seconds, captured at upload time when the browser can decode it. */
+  durationSec?: number;
   /* mixer state */
   muted: boolean;
   solo: boolean;
