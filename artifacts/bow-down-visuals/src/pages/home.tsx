@@ -303,7 +303,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto leading-relaxed">
-          Bow Down Visuals helps music creators generate lyrics, hooks, music video plans, scene prompts, thumbnails, captions, and promo content for their next release.
+          Tell us your artist, genre, and idea. In seconds, we'll generate lyrics, a full video treatment, promo content, and more — ready to use.
         </p>
 
         {/* CTAs */}

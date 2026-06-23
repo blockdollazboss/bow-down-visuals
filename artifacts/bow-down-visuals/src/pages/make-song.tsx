@@ -49,11 +49,12 @@ const LENGTHS = ["30 seconds", "60 seconds", "2 minutes", "Full song"];
 
 /* ─────────────────────────── FORM FIELD WRAPPERS ─────────────────────────── */
 
-function FieldWrapper({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldWrapper({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
       <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">{label}</Label>
       {children}
+      {hint && <p className="text-xs text-white/30 leading-snug mt-1">{hint}</p>}
     </div>
   );
 }
@@ -243,7 +244,7 @@ export default function MakeSong() {
             </div>
 
             {/* Row 3: Song Topic */}
-            <FieldWrapper label="Song Topic">
+            <FieldWrapper label="Song Topic" hint="What is the song actually about? Be specific — the more detail you give, the better the output.">
               <Input
                 {...register("songTopic", { required: true })}
                 placeholder="e.g. coming up from nothing, losing someone, street life, first love..."
@@ -254,7 +255,7 @@ export default function MakeSong() {
 
             {/* Row 4: Clean/Explicit + Song Length */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Clean or Explicit">
+              <FieldWrapper label="Clean or Explicit" hint="Clean = no profanity. Explicit = no restrictions on language.">
                 <StyledSelect
                   name="cleanOrExplicit"
                   placeholder="Select..."
@@ -276,14 +277,14 @@ export default function MakeSong() {
 
             {/* Row 5: Voice Style + Beat Style */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Voice Style">
+              <FieldWrapper label="Voice Style" hint="How does the artist sound? e.g. deep and raspy, high melodic, aggressive, smooth.">
                 <Input
                   {...register("voiceStyle")}
                   placeholder="e.g. deep, raspy, melodic, aggressive, smooth..."
                   className={inputClass}
                 />
               </FieldWrapper>
-              <FieldWrapper label="Beat Style">
+              <FieldWrapper label="Beat Style" hint="Describe the instrumental. e.g. dark 808s, lo-fi piano, boom bap drums, live strings.">
                 <Input
                   {...register("beatStyle")}
                   placeholder="e.g. dark 808s, trap drums, live piano, boom bap..."
@@ -293,7 +294,7 @@ export default function MakeSong() {
             </div>
 
             {/* Row 6: Special Instructions */}
-            <FieldWrapper label="Special Instructions">
+            <FieldWrapper label="Special Instructions" hint="Optional — add references, cultural notes, things to avoid, or any detail the AI should know about.">
               <Textarea
                 {...register("specialInstructions")}
                 placeholder="Any extra details — references, specific themes, things to avoid, cultural notes..."

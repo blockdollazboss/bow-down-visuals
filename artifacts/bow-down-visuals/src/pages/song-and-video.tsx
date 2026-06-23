@@ -793,7 +793,7 @@ export default function SongAndVideo() {
                 <div className="h-7 w-7 rounded-lg bg-white/[0.06] flex items-center justify-center shrink-0">
                   <Sparkles className="h-3.5 w-3.5 text-white/40" />
                 </div>
-                <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Next Actions</h3>
+                <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Download & Share</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

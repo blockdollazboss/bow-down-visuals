@@ -81,7 +81,7 @@ const STEPS = [
   { n: 3, label: "Video Direction",  short: "Direction",icon: Camera },
   { n: 4, label: "Create Plan",       short: "Create",   icon: Sparkles },
   { n: 5, label: "Scene Clips",      short: "Scenes",   icon: Clapperboard },
-  { n: 6, label: "Next Actions",     short: "Actions",  icon: Download },
+  { n: 6, label: "Download & Share",  short: "Share",    icon: Download },
 ];
 
 /* ─────────────────────────── FORM HELPERS ─────────────────────────── */
@@ -417,7 +417,7 @@ export default function MakeVideo() {
     if (s === 2) return "Video Direction";
     if (s === 3) return "Review & Create Plan";
     if (s === 4) return rawResult ? "Scene Clips" : "Create plan first";
-    if (s === 5) return "Next Actions";
+    if (s === 5) return "Download & Share";
     return "Next";
   }
 
@@ -840,8 +840,8 @@ export default function MakeVideo() {
           {step === 5 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Scene Clips</h2>
-                <p className="text-sm text-white/40">Refine prompts, generate Runway clips, and approve the ones you want.</p>
+                <h2 className="text-xl font-black text-white mb-1">Your Scene Clips</h2>
+                <p className="text-sm text-white/40">Review each scene, refine the AI prompts if needed, then generate Runway clips and approve the best ones.</p>
               </div>
 
               {/* Runway note */}
@@ -872,7 +872,7 @@ export default function MakeVideo() {
                     onClick={() => goToStep(4)}
                     className="mt-4 text-sm text-primary/70 hover:text-primary transition-colors"
                   >
-                    ← Back to Generate Plan
+                    ← Back to Create Plan
                   </button>
                 </div>
               )}
@@ -883,8 +883,8 @@ export default function MakeVideo() {
           {step === 6 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-black text-white mb-1">Next Actions</h2>
-                <p className="text-sm text-white/40">Save your project, open the editor, and download your files.</p>
+                <h2 className="text-xl font-black text-white mb-1">Download & Share</h2>
+                <p className="text-sm text-white/40">Save your project, open the Video Editor to build your clip, and download your files.</p>
               </div>
 
               <div className="space-y-3">

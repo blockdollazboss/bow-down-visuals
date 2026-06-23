@@ -63,10 +63,10 @@ export default function ChooseArtist() {
             <User className="h-6 w-6 text-zinc-300" />
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Choose Your Artist
+            Who Are You Creating For?
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick an artist profile to keep your songs, videos, colors, and style consistent. You can skip this and add one later.
+            Pick an artist profile — we'll automatically match your sound, look, and brand across everything you create. You can skip this and add one later.
           </p>
         </div>
 
@@ -81,7 +81,7 @@ export default function ChooseArtist() {
             </div>
             <div>
               <p className="text-white/60 font-semibold mb-1">No artist profiles yet</p>
-              <p className="text-sm text-white/35">Create your first artist profile to save your look, style, and brand rules.</p>
+              <p className="text-sm text-white/35">Set up an artist profile to keep your music and visuals consistent. Takes about 2 minutes — or skip for now and add one later.</p>
             </div>
           </div>
         ) : (
@@ -166,7 +166,7 @@ export default function ChooseArtist() {
             data-testid="btn-use-artist"
           >
             <Sparkles className="h-5 w-5" />
-            Use Selected Artist
+            Start Creating with This Artist
             <ArrowRight className="h-5 w-5 ml-auto" />
           </Button>
 
@@ -178,7 +178,7 @@ export default function ChooseArtist() {
               data-testid="btn-create-artist"
             >
               <Plus className="h-4 w-4" />
-              Create New Artist
+              Create Artist Profile
             </Button>
           </Link>
 
@@ -189,7 +189,7 @@ export default function ChooseArtist() {
             className="w-full py-3 text-sm text-white/35 hover:text-white/60 transition-colors"
             data-testid="btn-continue-without"
           >
-            Continue Without Artist For Now →
+            Skip for now — I'll choose an artist later
           </button>
         </div>
       </div>

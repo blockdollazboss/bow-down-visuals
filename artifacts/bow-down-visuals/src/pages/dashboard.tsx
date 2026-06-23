@@ -288,7 +288,7 @@ export default function Dashboard() {
                 <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase">Active Artist</p>
                 <p className="text-sm text-white/40 flex items-center gap-1.5">
                   <AlertCircle className="h-3.5 w-3.5 text-white/20" />
-                  No artist selected. You can choose or create one from Artist Profiles.
+                  No artist selected — your content won't have a consistent style yet. Choose or create one to get started.
                 </p>
               </>
             )}
@@ -342,7 +342,7 @@ export default function Dashboard() {
             <ToolChip icon={Music}      label="Make a Song"       href="/make-song" />
             <ToolChip icon={ImageIcon}  label="Thumbnail Maker"   href="/thumbnail" />
             <ToolChip icon={Archive}    label="Artist Profiles"   href="/artist-vault" />
-            <ToolChip icon={Headphones} label="Music Mixer"        href="/video-editor" />
+            <ToolChip icon={Headphones} label="Video Editor"        href="/video-editor" />
             <ToolChip icon={FolderOpen} label="My Projects"        href="/my-projects" />
           </div>
         </section>
@@ -403,7 +403,7 @@ export default function Dashboard() {
               />
               <StatTile
                 value="∞"
-                label="Runway clips available"
+                label="AI video clips"
                 icon={Film}
                 color="bg-pink-500/15 text-pink-400"
               />
