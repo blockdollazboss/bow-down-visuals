@@ -194,7 +194,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
-            className="h-10 w-auto"
+            className="h-14 w-auto"
           />
         </Link>
 

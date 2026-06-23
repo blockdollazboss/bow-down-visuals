@@ -13,7 +13,7 @@ export function SiteFooter() {
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.png`}
                 alt="Bow Down Visuals"
-                className="h-20 w-auto"
+                className="h-28 w-auto"
               />
             </Link>
             <p className="text-white/50 text-sm font-semibold mt-2">Bow Down Visuals</p>

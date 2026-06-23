@@ -27,8 +27,7 @@ function NavBar() {
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"
-            className="h-10 w-auto"
-            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
+            className="h-14 w-auto"
           />
         </Link>
         <nav className="hidden md:flex items-center gap-1">
