@@ -45,7 +45,7 @@ export function TopBar() {
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
           <img
-            src={`${import.meta.env.BASE_URL}logo.gif`}
+            src={`${import.meta.env.BASE_URL}logo.png`}
             alt="Bow Down Visuals"
             className="h-12 w-auto"
           />
