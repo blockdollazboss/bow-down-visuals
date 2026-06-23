@@ -42,12 +42,11 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-6">
             <img
               src={`${import.meta.env.BASE_URL}logo-static.png`}
               alt="Bow Down Visuals"
-              className="h-36 w-auto"
-            style={{ filter: "drop-shadow(0 0 1.5px rgba(255,255,255,0.5))" }}
+              className="w-[320px] max-w-full h-auto"
             />
           </div>
           <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
