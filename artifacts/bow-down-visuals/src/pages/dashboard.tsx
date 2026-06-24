@@ -306,7 +306,10 @@ export default function Dashboard() {
             Welcome back,{" "}
             <span
               className="bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(90deg, #a855f7 0%, #c084fc 40%, #d97706 80%, #f59e0b 100%)" }}
+              style={{
+                backgroundImage: "linear-gradient(90deg, #f59e0b 0%, #fcd34d 40%, #e2e8f0 75%, #cbd5e1 100%)",
+                filter: "drop-shadow(0 0 8px rgba(245,158,11,0.35))",
+              }}
             >
               {name}
             </span>
