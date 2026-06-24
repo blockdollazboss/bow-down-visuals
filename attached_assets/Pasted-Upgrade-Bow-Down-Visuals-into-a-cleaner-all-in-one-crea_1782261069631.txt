@@ -1,0 +1,196 @@
+Upgrade Bow Down Visuals into a cleaner all-in-one creator workflow.
+
+Do not add new APIs.
+Do not change Stripe.
+Do not change prices.
+Do not break credits, payments, login, Supabase, OpenAI, Runway, Artist Profiles, Music Studio, Video Editor, saved projects, or photo uploads.
+
+Goal:
+Make Bow Down Visuals feel like one simple premium creator studio, not a bunch of disconnected pages.
+
+MAIN WORKFLOW
+
+Create one clear main workflow called:
+
+Create Full Release
+
+Flow:
+1. Choose Artist
+2. Create or Upload Song
+3. Generate Music Video Plan
+4. Generate Video Clips
+5. Add Music
+6. Add Captions
+7. Add Effects
+8. Preview Final Setup
+9. Export / Promo Clips
+
+Each step should have:
+- simple title
+- short explanation
+- one main button
+- clear next step button
+- live preview if anything visual/audio exists
+
+DASHBOARD
+
+Clean dashboard around one question:
+What do you want to create today?
+
+Main cards:
+1. Create Full Release
+   Song + video + captions + promo
+2. Make Music Video
+   Use your existing song or lyrics
+3. Promo Clips
+   Create TikTok/Reels/Shorts ideas
+4. Artist Profiles
+   Keep your character consistent
+5. My Projects
+   Continue saved work
+
+Remove clutter:
+- duplicate buttons
+- repeated credit cards
+- broken-looking sections
+- technical labels
+- features that do nothing
+
+ARTIST PROFILES
+
+Make Artist Profiles a core part of the workflow.
+
+Artist Profile must support:
+- upload reference image
+- save artist details
+- set active artist
+- lock character consistency
+- apply consistency to all prompts
+
+Add one big button:
+Lock Character Consistency
+
+When active artist is selected, every video/image/promo prompt should show:
+Artist Consistency Applied
+
+VIDEO EDITOR
+
+Fix the editor so it feels real.
+
+Live Preview must work for:
+- selected video clip
+- selected audio/music
+- captions overlay
+- effects preview
+- export summary
+
+Effects must visibly preview:
+- black and white
+- warm glow
+- cold blue
+- gold cinematic
+- high contrast
+- soft blur
+- film grain
+- flash preview
+- zoom pulse preview
+
+If final effect rendering is not ready, label it:
+Preview only. Final render coming soon.
+
+CAPTIONS
+
+Captions must be simple:
+- Lyrics For Captions box
+- Generate Captions From Lyrics
+- caption cards
+- click caption to preview
+- edit caption text/start/end/style
+- save captions with project
+
+MUSIC PREVIEW
+
+Music must have live preview:
+- audio player
+- play/pause
+- volume
+- selected audio name
+- message: Runway clips are silent. Audio is added during export.
+
+HELP GUIDE
+
+Add a button on every major page:
+Need Help?
+
+Open a side panel:
+Bow Down AI Tech
+
+It should give page-specific baby steps.
+
+Dashboard:
+1. Choose your artist
+2. Pick what to create
+3. Save your project
+
+Artist Profiles:
+1. Upload photo
+2. Add artist details
+3. Lock character consistency
+4. Set as active artist
+
+Video Editor:
+1. Select a clip
+2. Add music
+3. Generate captions
+4. Pick effects
+5. Preview final setup
+6. Export
+
+HOMEPAGE
+
+Make homepage message clearer.
+
+Hero headline:
+Create the Song. Create the Video. Promote the Release.
+
+Subheadline:
+Bow Down Visuals helps music creators turn lyrics, songs, and artist profiles into AI music videos, promo clips, captions, thumbnails, and release content.
+
+Primary button:
+Start Creating
+
+Secondary button:
+See How It Works
+
+Add a simple 3-step section:
+1. Build your artist
+2. Create your song/video
+3. Preview, export, and promote
+
+Add trust/clarity sections:
+- What works now
+- What is coming soon
+- How credits work
+- Test mode payment note if still in test mode
+
+DESIGN
+
+Use only current theme:
+- black
+- gold
+- silver
+- white
+- dark glass
+- metallic accents
+
+No purple.
+
+Make everything:
+- cleaner
+- easier
+- less crowded
+- more premium
+- mobile friendly
+
+Final goal:
+A first-time user should understand Bow Down Visuals in under 60 seconds and know exactly what button to click next.

@@ -25,20 +25,20 @@ const NAV_LINKS = [
 const STEPS = [
   {
     number: "01",
-    title: "Describe Your Vision",
-    body: "Enter your artist name, genre, mood, and song concept. The more detail you give, the better your output.",
+    title: "Build Your Artist",
+    body: "Upload a reference photo, set your style rules, and lock character consistency so every generation stays on brand.",
     icon: Target,
   },
   {
     number: "02",
-    title: "Generate in Seconds",
-    body: "Our AI creates professional-grade lyrics, video treatments, and promo content instantly — no waiting.",
+    title: "Create Your Song & Video",
+    body: "Generate lyrics, a full music video treatment, scene-by-scene prompts, and AI video clips — all in one workflow.",
     icon: Zap,
   },
   {
     number: "03",
-    title: "Ship Your Release",
-    body: "Copy, refine, and publish your content across all platforms. From studio to street in minutes.",
+    title: "Preview, Export & Promote",
+    body: "Add captions and music, preview your final cut, then export and generate TikTok / Reels promo content instantly.",
     icon: Globe,
   },
 ];
@@ -274,22 +274,17 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </Link>
 
         {/* Headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
-          Create Songs,{" "}
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.0]">
+          Create the Song.{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
-            Music Videos,
+            Create the Video.
           </span>{" "}
-          and Promo Clips With AI
+          Promote the Release.
         </h1>
-
-        {/* Slogan */}
-        <p className="text-base sm:text-lg font-semibold tracking-widest text-primary/80 uppercase">
-          Create the Song. Create the Video. Promote the Release.
-        </p>
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto leading-relaxed">
-          Tell us your artist, genre, and idea. In seconds, we'll generate lyrics, a full video treatment, promo content, and more — ready to use.
+          Bow Down Visuals helps music creators turn lyrics, songs, and artist profiles into AI music videos, promo clips, captions, thumbnails, and release content.
         </p>
 
         {/* CTAs */}
@@ -299,15 +294,12 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link href="/beta-access">
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/35 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 font-bold gap-2"
-            >
-              <Sparkles className="h-4 w-4" /> Join Beta
-            </Button>
-          </Link>
+          <button
+            onClick={() => document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+            className="w-full sm:w-auto text-base h-14 px-10 rounded-full border border-white/15 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white hover:border-white/25 font-bold gap-2 flex items-center justify-center transition-all"
+          >
+            See How It Works
+          </button>
         </div>
 
         {/* Social proof */}

@@ -701,7 +701,7 @@ function LivePreviewPanel({
                 settings.effects.length > 0 ? (
                   <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end pointer-events-none max-w-[85%]">
                     {settings.effects.slice(0, 3).map((fx) => (
-                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/75 border border-violet-400/30 text-[10px] font-bold text-violet-200/80">
+                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/75 border border-primary/30 text-[10px] font-bold text-primary/80">
                         {fx}
                       </span>
                     ))}
@@ -715,11 +715,11 @@ function LivePreviewPanel({
               }
             />
             {settings.effects.length > 0 ? (
-              <div className="rounded-lg border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2 text-center">
-                <p className="text-xs font-bold text-violet-300">
-                  ✓ {settings.effects.length} effect{settings.effects.length !== 1 ? "s" : ""} active — CSS preview applied
+              <div className="rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-center">
+                <p className="text-xs font-bold text-primary">
+                  ✓ {settings.effects.length} effect{settings.effects.length !== 1 ? "s" : ""} active — preview applied
                 </p>
-                <p className="text-[10px] text-violet-300/50 mt-0.5">
+                <p className="text-[10px] text-primary/50 mt-0.5">
                   Preview only. Final render quality applied at export.
                 </p>
               </div>

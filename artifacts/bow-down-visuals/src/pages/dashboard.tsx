@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
-  Mic2, Video, Film, Archive, FolderOpen, Headphones,
+  Mic2, Video, Film, Archive, FolderOpen,
   ArrowRight, Zap, AlertCircle, User, RefreshCw,
   ChevronRight, ChevronDown, Star, CheckCircle2,
 } from "lucide-react";
@@ -34,7 +34,7 @@ const TYPE_COLORS: Record<string, string> = {
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   "Make Song + Video":  <Mic2     className="h-3.5 w-3.5" />,
   "Make a Music Video": <Video    className="h-3.5 w-3.5" />,
-  "Make a Song":        <Headphones className="h-3.5 w-3.5" />,
+  "Make a Song":        <Mic2     className="h-3.5 w-3.5" />,
   "Promo Clip Maker":   <Film     className="h-3.5 w-3.5" />,
 };
 
@@ -276,7 +276,7 @@ export default function Dashboard() {
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/[0.07] rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 -right-40 w-[400px] h-[400px] bg-violet-700/[0.04] rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 -right-40 w-[400px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px]" />
       </div>
 
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14 space-y-10">
@@ -367,50 +367,43 @@ export default function Dashboard() {
         {/* ── 3. CREATOR CARDS ── */}
         <section>
           <div className="mb-6">
-            <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
-            <p className="text-sm text-white/35 mt-1">Pick a workflow below to get started.</p>
+            <h2 className="text-xl font-black text-white tracking-tight">What do you want to create today?</h2>
+            <p className="text-sm text-white/35 mt-1">Pick a workflow to get started.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <CreatorCard
               icon={Mic2}
-              title="Make Song + Video"
-              description="Create a song idea, lyrics, video scenes, and clips."
-              cta="Start Full Workflow"
+              title="Create Full Release"
+              description="Song + video + captions + promo — the complete creator workflow in one place."
+              cta="Start Full Release"
               href="/song-and-video"
               accent
             />
             <CreatorCard
               icon={Video}
               title="Make Music Video"
-              description="Turn your song or lyrics into video scenes and AI clips."
+              description="Turn your existing song or lyrics into video scenes and AI-generated clips."
               cta="Create Music Video"
               href="/make-video"
             />
             <CreatorCard
               icon={Film}
               title="Promo Clips"
-              description="Make TikTok, Reels, and Shorts ideas for your release."
+              description="Create TikTok, Reels, and Shorts ideas to promote your release."
               cta="Create Promo Clips"
               href="/promo-clip"
             />
             <CreatorCard
               icon={Archive}
               title="Artist Profiles"
-              description="Save your artist look, style, colors, and brand rules."
-              cta="Choose Artist"
+              description="Build your artist look, lock character consistency, and apply it to every generation."
+              cta="Manage Artists"
               href="/artist-vault"
-            />
-            <CreatorCard
-              icon={Headphones}
-              title="Music Mixer"
-              description="Upload vocals, beats, or stems and preview your mix."
-              cta="Open Music Mixer"
-              href="/video-editor"
             />
             <CreatorCard
               icon={FolderOpen}
               title="My Projects"
-              description="Continue editing saved songs, videos, and campaigns."
+              description="Continue editing saved songs, videos, and release campaigns."
               cta="Open Projects"
               href="/my-projects"
             />
