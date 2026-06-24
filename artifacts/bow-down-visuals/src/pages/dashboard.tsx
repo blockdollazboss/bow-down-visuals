@@ -302,13 +302,18 @@ export default function Dashboard() {
         {/* ── 1. WELCOME HEADER ── */}
         <div>
           <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">Creator Studio</p>
-          <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight mb-1">
-            Welcome back,{" "}
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-1">
+            <span style={{ color: "#000", WebkitTextStroke: "1.5px #ffffff" }}>
+              Welcome back,{" "}
+            </span>
             <span
-              className="bg-clip-text text-transparent"
               style={{
-                backgroundImage: "linear-gradient(90deg, #f59e0b 0%, #fcd34d 40%, #e2e8f0 75%, #cbd5e1 100%)",
-                filter: "drop-shadow(0 0 8px rgba(245,158,11,0.35))",
+                backgroundImage: "linear-gradient(90deg, #f59e0b 0%, #fcd34d 45%, #e5e7eb 78%, #cbd5e1 100%)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                color: "transparent",
+                WebkitTextStroke: "1px #000000",
+                paintOrder: "stroke fill",
               }}
             >
               {name}
