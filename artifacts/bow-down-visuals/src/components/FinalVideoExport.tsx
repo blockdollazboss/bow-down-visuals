@@ -492,7 +492,7 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
                 {skipReason && <p className="text-[9px] text-red-400/60 mt-0.5">{skipReason}</p>}
                 {isDupe && <p className="text-[9px] text-red-400 font-bold mt-0.5">⚠ duplicate URL</p>}
               </div>
-              <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-primary/70" : "text-white/25"}`}>
+              <span className={`text-[10px] font-bold pt-0.5 ${scene.provider === "Runway" ? "text-purple-400" : "text-white/25"}`}>
                 {scene.provider || "—"}
               </span>
               <span className={`text-[10px] font-bold pt-0.5 ${statusColor(scene)}`}>
