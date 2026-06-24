@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
-import { initSupabase, getSupabase } from "@/lib/supabase";
+import { supabase, getSupabase } from "@/lib/supabase";
 
 interface Profile {
   id: string;
@@ -28,36 +28,46 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [supabase, setSupabase] = useState<SupabaseClient | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      console.error(
+        "[AuthContext] Supabase client is null. " +
+        "Ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in Replit Secrets."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const client = supabase;
+
     async function bootstrap() {
       try {
-        const res = await fetch("/api/config");
-        const { supabaseUrl, supabaseAnonKey } = await res.json();
-        const client = initSupabase(supabaseUrl, supabaseAnonKey);
-        setSupabase(client);
-
         const { data: { session } } = await client.auth.getSession();
         setUser(session?.user ?? null);
         if (session?.user) await fetchProfile(client, session.user.id);
-
-        client.auth.onAuthStateChange(async (_event, session) => {
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            await fetchProfile(client, session.user.id);
-          } else {
-            setProfile(null);
-          }
-        });
       } catch (err) {
-        console.error("Failed to initialize Supabase", err);
+        console.error("[AuthContext] Failed to get session", err);
       } finally {
         setLoading(false);
       }
     }
+
     bootstrap();
+
+    const { data: { subscription } } = client.auth.onAuthStateChange(
+      async (_event, session) => {
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(client, session.user.id);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   async function fetchProfile(client: SupabaseClient, userId: string) {

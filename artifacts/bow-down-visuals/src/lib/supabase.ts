@@ -1,15 +1,56 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-let _client: SupabaseClient | null = null;
+const rawUrl     = import.meta.env["VITE_SUPABASE_URL"]     as string | undefined;
+const rawAnonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"] as string | undefined;
 
-export function initSupabase(url: string, anonKey: string): SupabaseClient {
-  if (!_client) {
-    _client = createClient(url, anonKey);
+const url     = rawUrl?.trim()     || undefined;
+const anonKey = rawAnonKey?.trim() || undefined;
+
+function isValidHttpsUrl(s: string | undefined): s is string {
+  if (!s) return false;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
   }
-  return _client;
 }
 
+if (!url) {
+  console.error(
+    "[Supabase] Missing Replit Secret: VITE_SUPABASE_URL\n" +
+    "The frontend needs this variable prefixed with VITE_ to be visible in the browser."
+  );
+} else if (!isValidHttpsUrl(url)) {
+  console.error(
+    `[Supabase] VITE_SUPABASE_URL is set but is not a valid HTTP/HTTPS URL: "${url}"\n` +
+    "It should look like: https://xxxxxxxxxxxx.supabase.co"
+  );
+}
+
+if (!anonKey) {
+  console.error(
+    "[Supabase] Missing Replit Secret: VITE_SUPABASE_ANON_KEY\n" +
+    "The frontend needs this variable prefixed with VITE_ to be visible in the browser."
+  );
+}
+
+export const supabase: SupabaseClient | null =
+  isValidHttpsUrl(url) && anonKey ? createClient(url, anonKey) : null;
+
+/** Returns the singleton client or throws with a clear message. */
 export function getSupabase(): SupabaseClient {
-  if (!_client) throw new Error("Supabase not initialized");
-  return _client;
+  if (!supabase) {
+    const issues: string[] = [];
+    if (!url) issues.push("VITE_SUPABASE_URL is missing");
+    else if (!isValidHttpsUrl(url)) issues.push(`VITE_SUPABASE_URL is not a valid URL ("${url}")`);
+    if (!anonKey) issues.push("VITE_SUPABASE_ANON_KEY is missing");
+    throw new Error(`Supabase is not initialized. ${issues.join("; ")}`);
+  }
+  return supabase;
+}
+
+/** @deprecated Use the exported \`supabase\` singleton or \`getSupabase()\`. */
+export function initSupabase(_url: string, _anonKey: string): SupabaseClient {
+  return getSupabase();
 }
