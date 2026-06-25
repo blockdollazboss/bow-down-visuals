@@ -1,0 +1,89 @@
+Fix Timeline Preview only.
+
+Do not work on fullscreen.
+Do not work on Picture-in-Picture.
+Do not work on export.
+Do not change Stripe, credits, payments, Runway, Artist Profiles, scene rebuilding, or dashboard design.
+
+Problem:
+Timeline Preview is not acting like a real music video preview.
+
+Current issues:
+
+* I do not hear the song/audio playing with the captions.
+* Captions change on one scene only.
+* The preview does not automatically move to the next scene.
+* I have to manually click the next scene.
+* When I switch scenes, captions can stay stuck or repeat.
+
+Fix only this:
+
+1. Add one master timeline clock.
+   When I click Preview Timeline:
+
+* start currentTime at 0
+* start the selected song/audio at 0
+* start Scene 1
+* update captions based on currentTime
+* update scenes based on currentTime
+* keep playing until the timeline ends
+
+2. Audio must play.
+   If audio is uploaded/selected:
+
+* play it when Preview Timeline starts
+* keep audio playing while scenes change
+* do not restart audio every scene
+* pause only when Pause Timeline is clicked
+* restart only when Restart Timeline is clicked
+
+3. Scenes must auto-change.
+   Use currentTime to switch scenes automatically:
+
+* Scene 1 plays first
+* then Scene 2
+* then Scene 3
+* then Scene 4
+* then Scene 5
+
+Do not require manual clicking.
+
+4. Captions must follow currentTime.
+   At every time update, show the caption where:
+   caption.startTime <= currentTime < caption.endTime
+
+Do not keep the same caption stuck across scenes.
+
+5. If a scene has no video clip:
+
+* show a black placeholder card
+* show the scene title
+* keep the audio playing
+* keep captions changing
+* move to the next scene automatically
+
+6. Add visible status in Live Preview:
+
+* Timeline Preview Active
+* Audio loaded: yes/no
+* Audio playing: yes/no
+* Current time
+* Current scene
+* Current caption
+* Total scenes
+* Total captions
+
+7. Add buttons:
+
+* Preview Timeline
+* Pause Timeline
+* Restart Timeline
+* Preview Scene
+
+Preview Scene should play only one scene.
+Preview Timeline should play all scenes with audio and captions.
+
+Do not charge credits for previewing.
+
+Final goal:
+When I click Preview Timeline, I hear the song, captions change automatically, and scenes switch automatically without me clicking each scene.
