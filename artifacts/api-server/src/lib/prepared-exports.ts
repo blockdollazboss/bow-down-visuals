@@ -1,12 +1,25 @@
 import { rmSync, existsSync } from "fs";
-import path from "path";
 
 export interface PreparedClipEntry {
   sceneNumber: number;
+  sceneTitle: string;
+  clipDbId: string | null;
+  provider: string | null;
+  approved: boolean;
+  selected: boolean;
+  /** Which urlFields key was used to find the download URL */
+  sourceFieldName: string;
   originalUrl: string;
   resolvedUrl: string;
   sourceType: string;
+  sourceUrlStartsWithHttp: boolean;
+  /** HEAD check result before download */
+  sourceUrlDownloadable: boolean;
   localPath: string;
+  /** True if the file write call completed without throwing */
+  fileWritten: boolean;
+  /** fs.existsSync(localPath) immediately after the write */
+  fileExistsAfterWrite: boolean;
   fileSize: number;
   duration: number;
   width: number;

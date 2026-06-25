@@ -688,6 +688,38 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const clipInfos: VideoInfo[] = [];
 
     const preparedEntry = prepareId ? getPreparedExport(prepareId) : null;
+
+    // ── HARD STOP: if prepareId was supplied, ALL clips must be file-verified ──
+    if (prepareId) {
+      if (!preparedEntry) {
+        res.status(400).json({
+          error: "Prepare session expired or not found. Click 'Prepare Export Files Only' again before exporting.",
+          exportStatus,
+        });
+        return;
+      }
+      if (!preparedEntry.allReady) {
+        const failed = preparedEntry.clips
+          .filter((c) => !c.readyForFFmpeg)
+          .map((c) => `Scene ${c.sceneNumber}${c.error ? `: ${c.error.slice(0, 80)}` : ""}`);
+        res.status(400).json({
+          error: `FFmpeg blocked — ${failed.length} clip${failed.length !== 1 ? "s" : ""} failed preparation: ${failed.join(" | ")}. Fix the errors and re-prepare before exporting.`,
+          exportStatus,
+        });
+        return;
+      }
+      // Double-check every prepared file still exists on disk
+      for (const pc of preparedEntry.clips) {
+        if (!existsSync(pc.localPath)) {
+          res.status(400).json({
+            error: `Scene ${pc.sceneNumber} prepared file is gone from disk (${pc.localPath}). Re-prepare before exporting.`,
+            exportStatus,
+          });
+          return;
+        }
+      }
+    }
+
     const usePrepared = !!(
       preparedEntry &&
       preparedEntry.projectId === projectId &&

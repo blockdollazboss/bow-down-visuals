@@ -24,10 +24,20 @@ interface ExportRecord {
 
 interface ClipCheckRow {
   sceneNumber: number;
+  sceneTitle: string;
+  clipDbId: string | null;
+  provider: string | null;
+  approved: boolean;
+  selected: boolean;
+  sourceFieldName: string;
   originalUrl: string;
   resolvedUrl: string;
   sourceType: string;
+  sourceUrlStartsWithHttp: boolean;
+  sourceUrlDownloadable: boolean;
   localPath: string;
+  fileWritten: boolean;
+  fileExistsAfterWrite: boolean;
   fileSize: number;
   duration: number;
   width: number;
@@ -170,10 +180,21 @@ export function FinalVideoExport({
     setCheckTableExpanded(true);
     try {
       const token = await getAccessToken();
-      const clips = selectedScenes.map((s) => ({
-        sceneNumber: scenes.indexOf(s) + 1,
-        url: s.demoClipUrl!,
-      }));
+      const clips = selectedScenes.map((s) => {
+        const sceneNum = scenes.indexOf(s) + 1;
+        const sceneTitle = [s.section, s.lyricLine].filter(Boolean).join(" — ") || `Scene ${sceneNum}`;
+        return {
+          sceneNumber: sceneNum,
+          sceneTitle,
+          clipId: s.clipId ?? null,
+          provider: s.provider ?? null,
+          approved: s.approved,
+          selected: true,
+          urlFields: {
+            "scene.demoClipUrl": s.demoClipUrl ?? "",
+          },
+        };
+      });
       const res = await fetch("/api/prepare-export-files", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
@@ -587,31 +608,45 @@ export function FinalVideoExport({
                   </div>
                 )}
 
-                {/* Prepare button */}
-                <Button
-                  onClick={handlePrepare}
-                  disabled={prepareState === "running"}
-                  variant="outline"
-                  className={`w-full gap-2 ${
-                    prepareAllReady
-                      ? "border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10"
-                      : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
-                  }`}
-                  data-testid="btn-prepare-export"
-                >
-                  {prepareState === "running" ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : prepareAllReady ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    <Shield className="h-4 w-4" />
-                  )}
-                  {prepareState === "running"
-                    ? `Checking ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}…`
-                    : prepareAllReady
-                    ? `Re-prepare Export Files (${prepareReadyCount}/${selectedScenes.length} ready)`
-                    : `Prepare Export Files — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}`}
-                </Button>
+                {/* Two action buttons — neither runs FFmpeg */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={handlePrepare}
+                    disabled={prepareState === "running"}
+                    variant="outline"
+                    className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs"
+                    data-testid="btn-debug-export-sources"
+                  >
+                    {prepareState === "running" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    )}
+                    {prepareState === "running" ? "Checking…" : "Debug Export Sources"}
+                  </Button>
+                  <Button
+                    onClick={handlePrepare}
+                    disabled={prepareState === "running"}
+                    variant="outline"
+                    className={`gap-2 text-xs ${
+                      prepareAllReady
+                        ? "border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10"
+                        : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                    }`}
+                    data-testid="btn-prepare-export"
+                  >
+                    {prepareState === "running" ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : prepareAllReady ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <Shield className="h-3.5 w-3.5" />
+                    )}
+                    {prepareAllReady
+                      ? `Re-prepare (${prepareReadyCount}/${selectedScenes.length} ready)`
+                      : "Prepare Export Files Only"}
+                  </Button>
+                </div>
 
                 {/* Check table */}
                 {clipCheckResults && clipCheckResults.length > 0 && (
@@ -653,12 +688,13 @@ export function FinalVideoExport({
                 {/* Block message when prepare not done */}
                 {prepareState === "idle" && (
                   <p className="text-center text-[11px] text-white/25 leading-relaxed">
-                    Click <span className="text-white/45">Prepare Export Files</span> to verify all clips before export. FFmpeg will not start until all clips are ready.
+                    Click <span className="text-white/45">Debug Export Sources</span> or <span className="text-white/45">Prepare Export Files Only</span> to verify all clips.{" "}
+                    FFmpeg will not start until all clips are ready.
                   </p>
                 )}
                 {prepareState === "failed" && !prepareAllReady && (
                   <p className="text-center text-[11px] text-red-400/60 leading-relaxed">
-                    Some clips failed — fix the errors above and click Prepare again before exporting.
+                    Some clips failed — fix the errors above and re-prepare before exporting.
                   </p>
                 )}
               </div>
@@ -811,6 +847,13 @@ function ExportFileCheckTable({
   function fmtDur(s: number): string {
     return s > 0 ? `${s.toFixed(1)}s` : "—";
   }
+  function yn(v: boolean | null, forceShow = true): React.ReactElement {
+    if (v === null || (!forceShow && v === false)) return <span className="text-white/25">—</span>;
+    return v
+      ? <span className="text-green-400 font-bold">yes</span>
+      : <span className="text-red-400 font-bold">no</span>;
+  }
+
   const allReady = rows.every((r) => r.readyForFFmpeg);
 
   return (
@@ -822,7 +865,7 @@ function ExportFileCheckTable({
         className="w-full flex items-center justify-between px-3 py-2 bg-white/[0.03] border-b border-white/[0.06] hover:bg-white/[0.05] transition-colors"
       >
         <div className="flex items-center gap-2">
-          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export File Check</p>
+          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Debug Export Sources</p>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${allReady ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>
             {rows.filter((r) => r.readyForFFmpeg).length}/{rows.length} ready for FFmpeg
           </span>
@@ -833,135 +876,156 @@ function ExportFileCheckTable({
       </button>
 
       {expanded && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[9px] border-collapse">
-            <thead>
-              <tr className="bg-white/[0.025] border-b border-white/[0.05]">
-                {[
-                  "Scene",
-                  "Source",
-                  "Actual URL Used For Download",
-                  "HTTP",
-                  "Content-Type",
-                  "Local File Created",
-                  "Size",
-                  "Duration",
-                  "ffprobe valid",
-                  "Ready for FFmpeg",
-                  "Download Error",
-                ].map((h) => (
-                  <th key={h} className="px-2 py-1.5 text-left font-bold text-white/25 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const ok = row.readyForFFmpeg;
-                const httpOk = row.responseStatus >= 200 && row.responseStatus < 300;
-                const ctShort = row.contentType ? row.contentType.split(";")[0]?.trim() ?? "" : "";
-                const ctBad = ctShort.startsWith("text/") || ctShort.startsWith("application/json") || ctShort.startsWith("application/xml");
-                return (
-                  <tr
-                    key={row.sceneNumber}
-                    className={`border-b border-white/[0.04] ${ok ? "" : "bg-red-500/[0.04]"}`}
-                  >
-                    {/* Scene */}
-                    <td className="px-2 py-1.5 font-black text-white/50 whitespace-nowrap">{row.sceneNumber}</td>
+        <div className="space-y-0 divide-y divide-white/[0.04]">
+          {rows.map((row) => {
+            const ok = row.readyForFFmpeg;
+            const httpOk = row.responseStatus >= 200 && row.responseStatus < 300;
+            const ctShort = row.contentType ? row.contentType.split(";")[0]?.trim() ?? "" : "";
+            const ctBad = ctShort.startsWith("text/") || ctShort.startsWith("application/json") || ctShort.startsWith("application/xml");
+            const hasUrl = !!row.originalUrl;
+            const sourceUrlValue = row.resolvedUrl || row.originalUrl || "";
 
-                    {/* Source */}
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      <span className={`px-1 py-0.5 rounded text-[8px] ${
-                        row.sourceType === "supabase-storage" ? "bg-blue-500/15 text-blue-300"
-                        : row.sourceType === "runway-cloudfront" ? "bg-purple-500/15 text-purple-300"
-                        : "bg-white/5 text-white/30"
-                      }`}>{row.sourceType}</span>
-                    </td>
+            return (
+              <div
+                key={row.sceneNumber}
+                className={`px-3 py-3 ${ok ? "" : "bg-red-500/[0.03]"}`}
+              >
+                {/* Card header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-white/60">Scene {row.sceneNumber}</span>
+                    {row.sceneTitle && (
+                      <span className="text-[10px] text-white/35 truncate max-w-[200px]">— {row.sceneTitle}</span>
+                    )}
+                  </div>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${ok ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400"}`}>
+                    {ok ? "Ready for FFmpeg ✓" : "Not ready ✗"}
+                  </span>
+                </div>
 
-                    {/* Actual URL Used For Download */}
-                    <td className="px-2 py-1.5 max-w-[200px]">
-                      {row.resolvedUrl ? (
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-white/30 truncate text-[8px]">
-                            {"…" + row.resolvedUrl.replace(/[?#].*$/, "").slice(-40)}
-                          </span>
+                {/* Fields grid */}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px]">
+                  <Field label="Scene number" value={String(row.sceneNumber)} />
+                  <Field label="Scene title" value={row.sceneTitle || "—"} />
+                  <Field label="Clip database ID" value={row.clipDbId || "—"} mono />
+                  <Field label="Provider" value={row.provider || "—"} />
+                  <Field label="Approved" node={yn(row.approved)} />
+                  <Field label="Selected" node={yn(row.selected)} />
+
+                  {/* URL fields — full row */}
+                  <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
+                    <div className="flex items-start gap-2">
+                      <span className="text-white/25 shrink-0 w-[130px]">Actual source URL field</span>
+                      <span className={`font-mono font-bold ${row.sourceFieldName ? "text-amber-300/80" : "text-red-400"}`}>
+                        {row.sourceFieldName || "none found"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="col-span-2 mb-0.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-white/25 shrink-0 w-[130px]">Actual source URL value</span>
+                      {sourceUrlValue ? (
+                        <div className="flex items-start gap-1 min-w-0">
+                          <span className="font-mono text-white/40 break-all leading-tight">{sourceUrlValue}</span>
                           <a
-                            href={row.resolvedUrl}
+                            href={sourceUrlValue}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="shrink-0 text-primary/40 hover:text-primary/80 transition-colors"
-                            title={row.resolvedUrl}
+                            className="shrink-0 mt-0.5 text-primary/40 hover:text-primary/80 transition-colors"
+                            title="Open URL"
                           >
-                            <ExternalLink className="h-2 w-2" />
+                            <ExternalLink className="h-2.5 w-2.5" />
                           </a>
                         </div>
                       ) : (
-                        <span className="text-red-400 font-bold">missing</span>
-                      )}
-                    </td>
-
-                    {/* HTTP Status */}
-                    <td className="px-2 py-1.5 whitespace-nowrap font-mono">
-                      {row.responseStatus > 0 ? (
-                        <span className={httpOk ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
-                          {row.responseStatus}
+                        <span className="text-red-400 font-bold">
+                          {hasUrl ? "URL checkmark was false. No downloadable URL found." : "missing — no URL in any field"}
                         </span>
-                      ) : (
-                        <span className="text-white/25">—</span>
                       )}
-                    </td>
+                    </div>
+                  </div>
 
-                    {/* Content-Type */}
-                    <td className="px-2 py-1.5 whitespace-nowrap max-w-[100px]">
-                      {ctShort ? (
-                        <span className={`text-[8px] ${ctBad ? "text-red-400 font-bold" : "text-white/35"}`}>
-                          {ctShort.replace("video/", "").replace("application/", "") || ctShort}
-                        </span>
-                      ) : (
-                        <span className="text-white/25">—</span>
-                      )}
-                    </td>
+                  <Field
+                    label="Source URL starts with http"
+                    node={yn(row.sourceUrlStartsWithHttp)}
+                  />
+                  <Field
+                    label="Source URL downloadable"
+                    node={yn(row.sourceUrlDownloadable)}
+                  />
 
-                    {/* Local File Created */}
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      {row.fileSize > 0
-                        ? <span className="text-green-400 font-bold">yes</span>
-                        : <span className="text-red-400 font-bold">no</span>}
-                    </td>
+                  <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
+                    <div className="flex items-start gap-2">
+                      <span className="text-white/25 shrink-0 w-[130px]">Download HTTP status</span>
+                      <span className={`font-mono font-bold ${row.responseStatus > 0 ? (httpOk ? "text-green-400" : "text-red-400") : "text-white/25"}`}>
+                        {row.responseStatus > 0 ? String(row.responseStatus) : "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="col-span-2 mb-0.5">
+                    <div className="flex items-start gap-2">
+                      <span className="text-white/25 shrink-0 w-[130px]">Download content-type</span>
+                      <span className={`font-mono ${ctShort ? (ctBad ? "text-red-400 font-bold" : "text-white/40") : "text-white/25"}`}>
+                        {ctShort || "—"}
+                      </span>
+                    </div>
+                  </div>
 
-                    {/* Size */}
-                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmt(row.fileSize)}</td>
+                  <div className="col-span-2 mt-1 mb-0.5 border-t border-white/[0.04] pt-1">
+                    <div className="flex items-start gap-2">
+                      <span className="text-white/25 shrink-0 w-[130px]">Local export path</span>
+                      <span className="font-mono text-white/30 break-all leading-tight">
+                        {row.localPath || "—"}
+                      </span>
+                    </div>
+                  </div>
+                  <Field label="File written" node={yn(row.fileWritten)} />
+                  <Field label="File exists after write" node={yn(row.fileExistsAfterWrite)} />
+                  <Field label="File size bytes" value={row.fileSize > 0 ? `${row.fileSize.toLocaleString()} bytes (${fmt(row.fileSize)})` : "0"} />
+                  <Field label="FFprobe valid" node={row.fileSize > 0 ? yn(row.ffprobeValid) : <span className="text-white/25">—</span>} />
+                  <Field label="Duration" value={fmtDur(row.duration)} />
+                  <Field label="Resolution" value={row.width > 0 ? `${row.width}×${row.height}` : "—"} />
+                  <Field label="Codec" value={row.codec || "—"} mono />
+                  <Field
+                    label="Ready for FFmpeg"
+                    node={ok
+                      ? <span className="text-green-400 font-bold">yes ✓</span>
+                      : <span className="text-red-400 font-bold">no ✗</span>}
+                  />
 
-                    {/* Duration */}
-                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmtDur(row.duration)}</td>
-
-                    {/* ffprobe valid */}
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      {row.fileSize > 0
-                        ? row.ffprobeValid
-                          ? <span className="text-green-400 font-bold">yes</span>
-                          : <span className="text-red-400 font-bold">no</span>
-                        : <span className="text-white/25">—</span>}
-                    </td>
-
-                    {/* Ready for FFmpeg */}
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      {ok
-                        ? <span className="text-green-400 font-bold">yes ✓</span>
-                        : <span className="text-red-400 font-bold">no ✗</span>}
-                    </td>
-
-                    {/* Download Error */}
-                    <td className="px-2 py-2 max-w-[200px] leading-snug">
-                      {row.error
-                        ? <span className="text-red-400/80 text-[8px] break-words">{row.error}</span>
-                        : <span className="text-white/20">—</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  {row.error && (
+                    <div className="col-span-2 mt-1 pt-1 border-t border-red-500/20">
+                      <div className="flex items-start gap-2">
+                        <span className="text-white/25 shrink-0 w-[130px]">Error</span>
+                        <span className="text-red-400/80 break-words leading-snug">{row.error}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
+      )}
+    </div>
+  );
+}
+
+function Field({
+  label, value, node, mono,
+}: {
+  label: string;
+  value?: string;
+  node?: React.ReactElement;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-white/25 shrink-0 w-[130px]">{label}</span>
+      {node ?? (
+        <span className={`${mono ? "font-mono" : ""} text-white/50 break-all leading-tight`}>
+          {value ?? "—"}
+        </span>
       )}
     </div>
   );
