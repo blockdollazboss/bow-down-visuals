@@ -417,15 +417,15 @@ function SceneClipCard({
         )}
       </div>
 
-      {/* ── Video thumbnail area ── */}
-      <div className="relative aspect-video bg-black shrink-0">
+      {/* ── Video thumbnail area — fixed heights so cards stay compact ── */}
+      <div className="relative h-[200px] sm:h-[220px] xl:h-[190px] bg-black shrink-0">
         {hasClip ? (
           <video
             src={scene.demoClipUrl ?? undefined}
             muted
             preload="metadata"
             playsInline
-            className="w-full h-full object-contain"
+            className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
