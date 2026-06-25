@@ -6,7 +6,15 @@ export const generationHistoryTable = pgTable("generation_history", {
   projectId:      uuid("project_id"),
   generationType: text("generation_type"),
   prompt:         text("prompt"),
-  result:         jsonb("result").$type<{ content: string; artistName?: string; songTitle?: string }>(),
+  result:         jsonb("result").$type<{
+    content?:      string;
+    artistName?:   string;
+    songTitle?:    string;
+    videoUrl?:     string;
+    thumbnailUrl?: string;
+    sceneId?:      string;
+    actionLabel?:  string;
+  }>(),
   creditsUsed:    integer("credits_used"),
   saveStatus:     text("save_status").notNull().default("pending"),
   refunded:       boolean("refunded").notNull().default(false),

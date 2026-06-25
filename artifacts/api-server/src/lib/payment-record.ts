@@ -190,6 +190,48 @@ export async function markGenerationHistoryRefunded(id: string): Promise<number>
   }
 }
 
+export interface RunwayClipHistoryInput {
+  userId:       string;
+  projectId?:   string | null;
+  sceneId?:     string | null;
+  prompt?:      string | null;
+  videoUrl:     string;
+  thumbnailUrl?: string | null;
+  creditsUsed:  number;
+  title?:       string | null;
+}
+
+/**
+ * Insert a generation_history row for a completed Runway video clip.
+ * Status is "saved" immediately — credits were already charged by the time
+ * the clip is being saved. Fire-and-forget safe — never throws.
+ */
+export async function recordRunwayClipHistory(input: RunwayClipHistoryInput): Promise<void> {
+  try {
+    await db
+      .insert(generationHistoryTable)
+      .values({
+        userId:         input.userId,
+        projectId:      input.projectId ?? null,
+        generationType: "runway_video_clip",
+        prompt:         input.prompt ?? null,
+        result: {
+          content:      input.videoUrl,
+          videoUrl:     input.videoUrl,
+          thumbnailUrl: input.thumbnailUrl ?? undefined,
+          sceneId:      input.sceneId ?? undefined,
+          actionLabel:  input.title ? `Runway Clip — ${input.title}` : "Runway Video Clip",
+        },
+        creditsUsed: input.creditsUsed,
+        saveStatus:  "saved",
+        refunded:    false,
+      });
+    logger.info({ userId: input.userId, projectId: input.projectId }, "recordRunwayClipHistory: saved");
+  } catch (err) {
+    logger.warn({ err }, "recordRunwayClipHistory: failed (non-fatal)");
+  }
+}
+
 /**
  * Fetch generation history for a user, newest first.
  */

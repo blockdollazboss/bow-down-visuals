@@ -1,0 +1,91 @@
+Fix Generation History only.
+
+Problem:
+Video clips are now generating and saving correctly, but Generation History is not working. It shows empty even after I generate clips.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway generation.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign anything.
+
+Only fix Generation History.
+
+Requirements:
+
+1. Every successful generation should create a generation_history record.
+
+Track these generation types:
+- lyrics generation
+- video plan generation
+- scene prompt generation
+- Runway video clip generation
+- captions generation
+- promo clips generation
+- thumbnail prompt generation
+
+2. For Runway video clip generation, save:
+- user_id
+- project_id
+- scene_id
+- generation_type: runway_video_clip
+- action label: Runway Video Clip
+- prompt sent to Runway
+- result JSON
+- video_url
+- thumbnail_url if available
+- credits_used
+- status: success
+- created_at
+
+3. If generation fails, save:
+- status: failed
+- error_message
+- credits_used: 0 if credits were not charged
+- refunded: true if credits were refunded
+
+4. Make sure the Generation History tab in My Projects reads from the correct table.
+
+5. If the table does not exist, create:
+generation_history
+
+Columns:
+- id uuid primary key default gen_random_uuid()
+- user_id uuid not null
+- project_id uuid nullable
+- scene_id text nullable
+- generation_type text not null
+- action_label text
+- prompt text
+- result jsonb
+- video_url text
+- thumbnail_url text
+- credits_used integer default 0
+- status text default 'success'
+- error_message text
+- refunded boolean default false
+- created_at timestamp with time zone default now()
+
+6. Enable RLS so users only see their own generation history.
+
+7. After generating a clip successfully, it should appear in:
+My Projects → Generation History
+
+8. The history card should show:
+- date/time
+- generation type
+- project name if available
+- credits used
+- status
+- button: Open Project
+- button: Preview Clip if video_url exists
+
+9. Sort newest first.
+
+10. Add clear empty state:
+No generation history yet. Your AI generations will appear here after you create something.
+
+Final goal:
+If I generate a Runway clip and it saves, it must also appear in Generation History.

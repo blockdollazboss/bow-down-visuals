@@ -573,6 +573,10 @@ interface GenerationHistoryRow {
   created_at:      string;
   artist_name:     string | null;
   song_title:      string | null;
+  video_url:       string | null;
+  thumbnail_url:   string | null;
+  scene_id:        string | null;
+  action_label:    string | null;
   result_preview:  string | null;
   result_content:  string | null;
 }
@@ -904,7 +908,9 @@ export default function MyProjects() {
               </div>
               <div className="space-y-2">
                 <h2 className="text-xl font-bold text-white">No generation history yet</h2>
-                <p className="text-white/45 max-w-xs">Every generation is logged here — even if the project save fails, your credits are always traceable.</p>
+                <p className="text-white/45 max-sm:max-w-xs">
+                  No generation history yet. Your AI generations will appear here after you create something.
+                </p>
               </div>
               <Link href="/dashboard">
                 <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Start Generating</Button>
@@ -913,12 +919,23 @@ export default function MyProjects() {
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-white/30 mb-4">
-                {history.length} generation{history.length !== 1 ? "s" : ""} logged. Credits are auto-refunded if project save fails.
+                {history.length} generation{history.length !== 1 ? "s" : ""} logged — newest first.
               </p>
               {history.map((row) => {
-                const label = row.artist_name && row.song_title
+                const isClip = row.generation_type === "runway_video_clip";
+                const typeLabel =
+                  row.action_label ??
+                  (row.generation_type === "runway_video_clip"    ? "Runway Video Clip"    :
+                   row.generation_type === "lyrics"               ? "Lyrics"               :
+                   row.generation_type === "video_plan"           ? "Video Plan"           :
+                   row.generation_type === "scene_prompt"         ? "Scene Prompt"         :
+                   row.generation_type === "captions"             ? "Captions"             :
+                   row.generation_type === "promo_clip"           ? "Promo Clip"           :
+                   row.generation_type === "thumbnail_prompt"     ? "Thumbnail Prompt"     :
+                   row.generation_type ?? "Generation");
+                const projectLabel = row.artist_name && row.song_title
                   ? `${row.artist_name} — ${row.song_title}`
-                  : row.artist_name ?? row.song_title ?? "Untitled";
+                  : row.artist_name ?? row.song_title ?? null;
                 const statusColor =
                   row.save_status === "saved"       ? "text-green-400 bg-green-400/10 border-green-400/20" :
                   row.save_status === "save_failed" ? "text-red-400 bg-red-400/10 border-red-400/20"       :
@@ -928,41 +945,74 @@ export default function MyProjects() {
                   row.save_status === "save_failed" ? "Save Failed" :
                   row.save_status === "charged"     ? "Generated" : row.save_status;
                 return (
-                  <div key={row.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 flex flex-col sm:flex-row sm:items-start gap-4">
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-semibold text-white/60">{row.generation_type ?? "Generation"}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
-                        {row.refunded && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Credits Refunded</span>
+                  <div key={row.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-3">
+                    {/* Clip video preview (if video_url exists) */}
+                    {isClip && row.video_url && (
+                      <div className="rounded-lg overflow-hidden bg-black border border-white/[0.06]">
+                        <video
+                          src={row.video_url}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full max-h-56 object-contain"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-white/70">{typeLabel}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
+                          {row.refunded && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Credits Refunded</span>
+                          )}
+                          {row.credits_used != null && row.credits_used > 0 && (
+                            <span className="text-[10px] text-white/30">{row.credits_used} credit{row.credits_used !== 1 ? "s" : ""}</span>
+                          )}
+                        </div>
+                        {projectLabel && (
+                          <p className="text-sm font-semibold text-white truncate">{projectLabel}</p>
                         )}
-                        {row.credits_used != null && (
-                          <span className="text-[10px] text-white/30">{row.credits_used} credit{row.credits_used !== 1 ? "s" : ""}</span>
+                        {!isClip && row.result_preview && (
+                          <p className="text-[11px] text-white/30 line-clamp-2">{row.result_preview}</p>
+                        )}
+                        <p className="text-[10px] text-white/20">{new Date(row.created_at).toLocaleString()}</p>
+                      </div>
+
+                      <div className="flex flex-row sm:flex-col gap-2 shrink-0 flex-wrap">
+                        {/* Preview Clip button */}
+                        {row.video_url && (
+                          <a
+                            href={row.video_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button size="sm" variant="outline"
+                              className="border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 text-xs gap-1.5 w-full">
+                              <Play className="h-3.5 w-3.5" /> Preview Clip
+                            </Button>
+                          </a>
+                        )}
+
+                        {/* Open Project button */}
+                        {row.project_id && (
+                          <Link href={`/video-editor?project=${row.project_id}`}>
+                            <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 w-full">
+                              <FolderOpen className="h-3.5 w-3.5" /> Open Project
+                            </Button>
+                          </Link>
+                        )}
+
+                        {/* Copy Content (text generations) */}
+                        {!isClip && row.result_content && (
+                          <Button size="sm" variant="outline"
+                            className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5"
+                            onClick={() => { void navigator.clipboard.writeText(row.result_content ?? ""); }}>
+                            <Copy className="h-3.5 w-3.5" /> Copy Content
+                          </Button>
                         )}
                       </div>
-                      {label && <p className="text-sm font-semibold text-white truncate">{label}</p>}
-                      {row.result_preview && (
-                        <p className="text-[11px] text-white/30 line-clamp-2">{row.result_preview}</p>
-                      )}
-                      <p className="text-[10px] text-white/20">{new Date(row.created_at).toLocaleString()}</p>
-                    </div>
-                    <div className="flex flex-col gap-2 shrink-0">
-                      {row.result_content && (
-                        <Button size="sm" variant="outline"
-                          className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5"
-                          onClick={() => {
-                            void navigator.clipboard.writeText(row.result_content ?? "");
-                          }}>
-                          <Copy className="h-3.5 w-3.5" /> Copy Content
-                        </Button>
-                      )}
-                      {row.project_id && (
-                        <Link href="/my-projects">
-                          <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 w-full">
-                            <FolderOpen className="h-3.5 w-3.5" /> Open Project
-                          </Button>
-                        </Link>
-                      )}
                     </div>
                   </div>
                 );

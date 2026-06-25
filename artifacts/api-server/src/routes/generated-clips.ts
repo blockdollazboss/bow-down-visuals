@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
+import { recordRunwayClipHistory } from "../lib/payment-record";
 
 const router = Router();
 
@@ -45,6 +46,19 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
       .returning({ id: generatedClipsTable.id });
 
     req.log.info({ clipId: clip?.id, userId: req.userId }, "[generated-clips] clip saved");
+
+    /* Fire-and-forget — record in generation_history so it appears in Generation History tab */
+    recordRunwayClipHistory({
+      userId:      req.userId!,
+      projectId:   d.projectId ?? null,
+      sceneId:     d.sceneId ?? null,
+      prompt:      d.finalPrompt ?? d.prompt ?? null,
+      videoUrl:    d.videoUrl,
+      thumbnailUrl: d.thumbnailUrl ?? null,
+      creditsUsed: 5,
+      title:       d.title ?? null,
+    }).catch(() => {});
+
     res.status(201).json({ id: clip?.id });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to save clip";
