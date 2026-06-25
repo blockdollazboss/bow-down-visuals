@@ -675,6 +675,7 @@ export default function VideoEditor() {
               liveVideoRef={liveVideoRef}
               previewScene={previewScene}
               tab={tab}
+              captionSettings={settings.captions}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -905,14 +906,80 @@ function MasterVideoElement({ videoRef }: { videoRef: RefObject<HTMLVideoElement
   );
 }
 
+/* ── Caption overlay style builder ── */
+import type { CaptionSettings } from "@/lib/editor-settings";
+
+function buildCaptionOverlayStyle(cs: CaptionSettings): {
+  positionClass: string;
+  wrapperStyle: React.CSSProperties;
+  textStyle: React.CSSProperties;
+  animClass: string;
+} {
+  const fsMap: Record<string, string> = {
+    Small:  "clamp(11px,2vw,15px)",
+    Medium: "clamp(14px,3vw,20px)",
+    Large:  "clamp(18px,4vw,26px)",
+    XL:     "clamp(22px,5vw,34px)",
+  };
+  const fontSize = fsMap[cs.fontSize] ?? fsMap["Medium"]!;
+
+  const positionClass =
+    cs.position === "Top"          ? "top-4 bottom-auto"
+    : cs.position === "Center"     ? "top-1/2 -translate-y-1/2 bottom-auto"
+    : cs.position === "Lower Third" ? "bottom-14"
+    : "bottom-6"; // Bottom (default)
+
+  const animClass =
+    cs.animation === "fade"      ? "bdv-caption-fade"
+    : cs.animation === "pop"     ? "bdv-caption-pop"
+    : cs.animation === "bounce"  ? "bdv-caption-bounce"
+    : cs.animation === "slide-up" ? "bdv-caption-slide-up"
+    : "";
+
+  const presets: Record<string, { wrapperStyle: React.CSSProperties; textStyle: React.CSSProperties }> = {
+    "clean-white": {
+      wrapperStyle: {},
+      textStyle: { color: "#fff", fontWeight: 800,
+        textShadow: "0 0 6px #000, 1px 1px 0 #000, -1px -1px 0 #000" },
+    },
+    "gold-hiphop": {
+      wrapperStyle: {},
+      textStyle: { color: "#FFD700", fontWeight: 900,
+        textShadow: "2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,0 4px 12px rgba(0,0,0,.8)" },
+    },
+    "karaoke": {
+      wrapperStyle: { background: "rgba(0,0,0,0.6)", borderRadius: "0.35rem",
+        padding: "0.1rem 0.8rem", borderBottom: "2px solid #FFD700" },
+      textStyle: { color: "#fff", fontWeight: 800, textShadow: "0 0 6px #000" },
+    },
+    "boxed": {
+      wrapperStyle: { background: "rgba(0,0,0,0.72)", borderRadius: "0.5rem", padding: "0.3rem 1rem" },
+      textStyle: { color: "#fff", fontWeight: 700 },
+    },
+    "viral-shorts": {
+      wrapperStyle: {},
+      textStyle: { color: "#fff", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.02em",
+        textShadow: "3px 3px 0 #000,-3px -3px 0 #000,3px -3px 0 #000,-3px 3px 0 #000" },
+    },
+    "minimal": {
+      wrapperStyle: {},
+      textStyle: { color: "#fff", fontWeight: 500, textShadow: "0 2px 8px rgba(0,0,0,.6)" },
+    },
+  };
+
+  const ps = presets[cs.stylePreset] ?? presets["clean-white"]!;
+  return { positionClass, wrapperStyle: ps.wrapperStyle, textStyle: { fontSize, ...ps.textStyle }, animClass };
+}
+
 function MasterPreviewPlayer({
-  eng, scenes, liveVideoRef, previewScene, tab, onTogglePlay, onRestart,
+  eng, scenes, liveVideoRef, previewScene, tab, captionSettings, onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
   liveVideoRef: RefObject<HTMLVideoElement | null>;
   previewScene: SceneData | null;
   tab: EditorTab;
+  captionSettings: CaptionSettings;
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1096,23 +1163,22 @@ function MasterPreviewPlayer({
           </div>
         )}
 
-        {/* Caption overlay */}
-        {activeCaption && (
-          <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center pointer-events-none">
-            <div
-              className="text-center leading-snug max-w-[90%]"
-              style={{
-                fontSize: "clamp(14px,3vw,22px)", fontWeight: 800, color: "#fff",
-                background: "rgba(0,0,0,0.72)",
-                textShadow: "0 0 8px #000,1px 1px 0 #000,-1px -1px 0 #000",
-                padding: "0.2rem 0.75rem", borderRadius: "0.4rem",
-              }}
-              data-testid="master-caption-text"
-            >
-              {activeCaption.text}
+        {/* Caption overlay — styled from captionSettings */}
+        {activeCaption && (() => {
+          const { positionClass, wrapperStyle, textStyle, animClass } = buildCaptionOverlayStyle(captionSettings);
+          return (
+            <div className={`absolute left-0 right-0 px-4 flex justify-center pointer-events-none ${positionClass}`}>
+              <div
+                key={activeCaption.id}
+                className={`text-center leading-snug max-w-[90%] ${animClass}`}
+                style={wrapperStyle}
+                data-testid="master-caption-text"
+              >
+                <span style={textStyle}>{activeCaption.text}</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Scene badge — top-left */}
         {displayScene && displaySceneIdx >= 0 && (

@@ -1,0 +1,133 @@
+Fix caption styles so they apply to the master player preview.
+
+Good news:
+Captions finally synced to the song correctly.
+
+Current problem:
+Different caption styles are not working.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not change caption timing.
+Do not break the synced captions.
+Do not add duplicate preview players.
+
+Only fix caption styles.
+
+Requirements:
+
+1. Caption style choices must update the master player immediately.
+
+When I select a caption style, the active caption in the master player should change visually right away.
+
+2. Caption styles should affect:
+
+* font size
+* font weight
+* text color
+* outline/stroke
+* shadow
+* background box
+* position
+* animation
+* alignment
+
+3. Add caption style presets:
+
+Preset 1: Clean White
+
+* bold white text
+* black outline
+* light shadow
+
+Preset 2: Gold Hip-Hop
+
+* gold/yellow text
+* black outline
+* strong shadow
+
+Preset 3: Karaoke Highlight
+
+* white base text
+* active word or phrase highlight in gold if possible
+* if word-level highlight is not ready, highlight full caption line
+
+Preset 4: Boxed Captions
+
+* white text
+* semi-transparent black box
+* rounded corners
+
+Preset 5: Viral Shorts
+
+* large bold text
+* center-bottom position
+* thick black outline
+* bounce/pop animation
+
+Preset 6: Minimal
+
+* small clean white text
+* bottom position
+* soft shadow only
+
+4. Caption position controls must work:
+
+* top
+* center
+* bottom
+* lower third
+
+5. Caption size controls must work:
+
+* small
+* medium
+* large
+* extra large
+
+6. Caption animation controls must work:
+
+* none
+* fade
+* pop
+* bounce
+* slide up
+
+7. Save selected caption style to the project.
+
+Save:
+
+* captionStylePreset
+* captionFontSize
+* captionPosition
+* captionColor
+* captionStroke
+* captionBackground
+* captionAnimation
+
+8. When switching tabs, the master player must keep the selected caption style.
+
+9. When I reload the project, the saved caption style should come back.
+
+10. Do not change caption start/end times.
+
+11. Add debug/status:
+    Caption Style Applied:
+
+* preset name
+* position
+* size
+* animation
+* saved: yes/no
+* master player connected: yes/no
+
+12. If final export has caption rendering code already, connect the same caption style settings to export too.
+    If export captions are not ready yet, show:
+    Caption style preview ready. Export styling will be connected next.
+
+Final goal:
+Caption styles should visibly change the synced captions in the master player immediately without breaking caption timing.

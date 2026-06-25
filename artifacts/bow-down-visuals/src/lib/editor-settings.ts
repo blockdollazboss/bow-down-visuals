@@ -120,7 +120,24 @@ export const CAPTION_STYLES = [
 export const CAPTION_POSITIONS = ["Top", "Center", "Bottom"] as const;
 
 export type CaptionMode = "auto" | "manual" | "hook" | "best-bar" | "none";
-export type CaptionStylePreset = "clean-white" | "drill" | "luxury" | "rnb" | "kids";
+export type CaptionStylePreset =
+  | "clean-white"
+  | "gold-hiphop"
+  | "karaoke"
+  | "boxed"
+  | "viral-shorts"
+  | "minimal";
+
+export type CaptionAnimation = "none" | "fade" | "pop" | "bounce" | "slide-up";
+
+export const CAPTION_ANIMATIONS: { id: CaptionAnimation; label: string }[] = [
+  { id: "none",     label: "None"     },
+  { id: "fade",     label: "Fade"     },
+  { id: "pop",      label: "Pop"      },
+  { id: "bounce",   label: "Bounce"   },
+  { id: "slide-up", label: "Slide Up" },
+];
+
 export type CaptionSplitStyle = "short" | "medium" | "long";
 
 export interface CaptionLine {
@@ -143,11 +160,12 @@ export const CAPTION_MODE_DEFS: { id: CaptionMode; label: string; description: s
 export const CAPTION_STYLE_PRESET_DEFS: {
   id: CaptionStylePreset; name: string; description: string; accent: string;
 }[] = [
-  { id: "clean-white", name: "Clean White", description: "Bold white · black shadow · bottom center", accent: "from-white/10 to-white/5 border-white/20" },
-  { id: "drill",       name: "Drill",       description: "Uppercase · white · red/purple outline", accent: "from-red-500/20 to-purple-500/10 border-red-500/30" },
-  { id: "luxury",      name: "Luxury",      description: "Gold text · elegant shadow · cinematic", accent: "from-yellow-500/20 to-amber-600/10 border-yellow-500/30" },
-  { id: "rnb",         name: "R&B",         description: "Soft white · smooth shadow · romantic", accent: "from-pink-500/20 to-purple-500/10 border-pink-500/20" },
-  { id: "kids",        name: "Kids",        description: "Big bright text · playful · clean", accent: "from-sky-400/20 to-emerald-400/10 border-sky-400/30" },
+  { id: "clean-white",   name: "Clean White",    description: "Bold white · black outline · light shadow",          accent: "from-white/10 to-white/5 border-white/20" },
+  { id: "gold-hiphop",   name: "Gold Hip-Hop",   description: "Gold/yellow text · black outline · strong shadow",   accent: "from-yellow-500/20 to-amber-600/10 border-yellow-500/30" },
+  { id: "karaoke",       name: "Karaoke",        description: "White text · gold underline highlight",              accent: "from-yellow-400/10 to-white/5 border-yellow-400/20" },
+  { id: "boxed",         name: "Boxed",          description: "White text · semi-transparent black box",            accent: "from-white/10 to-black/20 border-white/15" },
+  { id: "viral-shorts",  name: "Viral Shorts",   description: "Large bold uppercase · thick outline · center-bottom", accent: "from-red-500/20 to-pink-500/10 border-red-500/30" },
+  { id: "minimal",       name: "Minimal",        description: "Small clean white · soft shadow · bottom",           accent: "from-white/5 to-white/0 border-white/10" },
 ];
 
 /* ── Branding types ──────────────────────────────────── */
@@ -305,6 +323,8 @@ export interface CaptionSettings {
   mode: CaptionMode;
   /** Visual style preset. */
   stylePreset: CaptionStylePreset;
+  /** Caption entrance animation. */
+  animation: CaptionAnimation;
   position: string;
   /** Font size preset, see CAPTION_FONT_SIZES. */
   fontSize: string;
@@ -712,6 +732,7 @@ export function defaultEditorSettings(): EditorSettings {
       enabled: true,
       mode: "none",
       stylePreset: "clean-white",
+      animation: "none",
       position: "Bottom",
       fontSize: "Medium",
       textColor: "#ffffff",
