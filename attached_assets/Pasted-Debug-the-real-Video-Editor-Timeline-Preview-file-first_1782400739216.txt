@@ -1,0 +1,97 @@
+Debug the real Video Editor Timeline Preview file first.
+
+Problem:
+Timeline Preview still does not work after multiple fixes.
+
+Same issues:
+
+* audio does not play with captions
+* captions only change on one scene
+* scenes do not automatically advance
+* I still have to manually click scenes
+
+This means either:
+
+1. you are editing the wrong component/file, or
+2. the old selected-scene preview logic is still overriding the new timeline logic.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not redesign anything.
+Do not add more fake UI.
+
+Step 1:
+Find the exact component/file that renders the Video Editor page I am using.
+
+Add a visible temporary label at the top of the Video Editor:
+
+TIMELINE DEBUG BUILD V1
+
+If I do not see that label, you edited the wrong file.
+
+Step 2:
+Add a visible debug panel inside the actual Live Preview area:
+
+Timeline Debug:
+
+* previewMode
+* audio loaded
+* audio playing
+* audio currentTime
+* audio duration
+* scenes loaded
+* active scene index
+* active scene title
+* captions loaded
+* active caption text
+* last error
+
+Step 3:
+Make Preview Timeline use one simple master timer first, even before perfect audio sync.
+
+When I click Preview Timeline:
+
+* set previewMode = timeline
+* set currentTime = 0
+* start a timer that increases currentTime every second
+* use currentTime to switch scenes automatically
+* use currentTime to switch captions automatically
+
+If there are 5 scenes and song duration is 180 seconds:
+
+* Scene 1: 0–36
+* Scene 2: 36–72
+* Scene 3: 72–108
+* Scene 4: 108–144
+* Scene 5: 144–180
+
+Step 4:
+Only after the timer works, connect audio playback.
+
+Audio rules:
+
+* user must click Preview Timeline
+* then play selected audio
+* audio.currentTime should become the master clock
+* if audio fails, show the real error in last error
+
+Step 5:
+Do not use selectedScene during Preview Timeline.
+selectedScene is only for Preview Scene.
+
+Preview Scene = manual selected scene.
+Preview Timeline = automatic full timeline.
+
+Final test:
+When I click Preview Timeline, I should see:
+
+* TIMELINE DEBUG BUILD V1
+* currentTime increasing
+* active scene index changing automatically
+* captions changing automatically
+* audio playing or a visible audio error
+
+Do not charge credits for preview.

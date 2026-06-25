@@ -466,6 +466,11 @@ export default function VideoEditor() {
           </div>
         ) : (
           <>
+            {/* TIMELINE DEBUG BUILD V1 — remove once confirmed working */}
+            <div className="mb-3 px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-xs font-black text-primary uppercase tracking-widest text-center">
+              TIMELINE DEBUG BUILD V1
+            </div>
+
             {/* Header — full width */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
@@ -658,24 +663,23 @@ export default function VideoEditor() {
                 )}
 
                 {tab === "timeline" && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setTab("timeline")}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/15 transition-colors"
-                      >
-                        <Play className="h-4 w-4" /> Preview Timeline
-                      </button>
-                    </div>
-                    <ClipSequencePlayer
-                      scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
-                      allScenes={scenes}
-                      title="Timeline Preview"
-                      emptyTitle="No approved clips to preview yet."
-                      emptyHint="Generate Runway clips on your scenes, then approve them — approved clips play here in order."
+                  scenes.length > 0 ? (
+                    <TimelinePreviewPlayer
+                      scenes={scenes}
+                      captionLines={settings.captions.lines}
+                      audioUrl={audioUrl}
+                      initialSceneId={previewSceneId}
+                      captionSettings={settings.captions}
                     />
-                  </div>
+                  ) : (
+                    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
+                      <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
+                      <p className="text-sm font-bold text-white/50">No scenes yet</p>
+                      <p className="text-xs text-white/30 leading-relaxed">
+                        Generate a music video plan first, then come back to preview the full timeline.
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {tab === "music" && (
@@ -902,23 +906,11 @@ function LivePreviewPanel({
 
         {/* ── TIMELINE tab ── */}
         {tab === "timeline" && (
-          scenes.length > 0 ? (
-            <TimelinePreviewPlayer
-              scenes={scenes}
-              captionLines={settings.captions.lines}
-              audioUrl={audioUrl}
-              initialSceneId={previewScene?.id ?? null}
-              captionSettings={settings.captions}
-            />
-          ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
-              <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
-              <p className="text-sm font-bold text-white/50">No scenes yet</p>
-              <p className="text-xs text-white/30 leading-relaxed">
-                Generate a music video plan first, then come back to preview the full timeline.
-              </p>
-            </div>
-          )
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
+            <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
+            <p className="text-xs font-bold text-primary/70">Timeline Preview active in the main panel</p>
+            <p className="text-[10px] text-white/30">Audio + scenes + captions are playing in the left panel.</p>
+          </div>
         )}
 
         {/* ── MUSIC / AUDIO tab ── */}
