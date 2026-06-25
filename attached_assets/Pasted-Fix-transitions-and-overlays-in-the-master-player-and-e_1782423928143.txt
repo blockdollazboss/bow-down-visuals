@@ -1,0 +1,116 @@
+Fix transitions and overlays in the master player and export.
+
+Current problem:
+Auto AI effects work, but scene transitions and overlays do not appear.
+
+Do not change:
+
+* working AI effects
+* caption timing or styles
+* project audio
+* master-player layout
+* Auto PiP
+* Runway
+* Stripe or payments
+
+PART 1 — TRANSITIONS
+
+1. Do not switch video sources instantly between scenes.
+
+2. Add an internal transition compositor to the existing master player:
+
+* preload the next scene
+* overlap outgoing and incoming scenes
+* animate between them
+* do not create another visible player
+
+3. Support:
+
+* cut
+* crossfade
+* fade to black
+* slide left/right
+* zoom
+* blur dissolve
+* flash
+
+4. Store transitions as structured data:
+
+* fromSceneId
+* toSceneId
+* type
+* duration
+* timelineStart
+* enabled
+
+5. Transitions must work during playback and timeline scrubbing.
+
+PART 2 — OVERLAYS
+
+6. Add a timed overlay layer positioned directly above the master video.
+
+7. Support:
+
+* text
+* image/logo
+* color/flash
+* vignette
+* film grain
+* light leak
+* particles
+* lower third
+* watermark
+
+8. Each overlay must include:
+
+* sceneId
+* startTime
+* endTime
+* type
+* content/source
+* position
+* size
+* opacity
+* animation
+* z-index
+
+9. Use master timeline time to show and hide overlays accurately.
+
+10. Keep captions above visual effects unless the user changes layer order.
+
+PART 3 — TESTS
+
+11. Add:
+    Test Transition
+
+It must crossfade Scene 1 into Scene 2 for one second.
+
+12. Add:
+    Test Overlay
+
+It must display a large gold box saying “OVERLAY TEST” for three seconds.
+
+13. If either test is not visible, report it as disconnected. Do not claim success.
+
+PART 4 — EXPORT
+
+14. Connect the same transition and overlay data to FFmpeg export:
+
+* use `xfade` or the appropriate transition filter
+* use timed overlay/drawtext filters
+* preserve audio synchronization
+* preserve captions and AI effects
+
+15. Add status:
+
+* transition compositor mounted
+* active transition
+* transitions loaded
+* overlay layer mounted
+* active overlays
+* preview connected
+* export connected
+* last render error
+
+Final goal:
+Transitions must visibly animate between scenes, and overlays must visibly appear above the video in both the master-player preview and exported video.

@@ -370,6 +370,55 @@ export const CAPTION_FONT_SIZES = ["Small", "Medium", "Large", "XL"] as const;
 
 export const INTENSITIES: Intensity[] = ["low", "medium", "high"];
 
+/* ─── Overlay + Transition structured types ──────────────────── */
+
+export type OverlayType =
+  | "text" | "image" | "color" | "vignette" | "film-grain"
+  | "light-leak" | "lower-third" | "watermark" | "particles";
+
+export type OverlayPosition =
+  | "top-left" | "top-center" | "top-right"
+  | "center-left" | "center" | "center-right"
+  | "bottom-left" | "bottom-center" | "bottom-right";
+
+export type OverlayAnimation = "none" | "fade-in" | "fade-out" | "fade-in-out" | "slide-in" | "pulse";
+
+export interface OverlayItem {
+  id: string;
+  /** null = not scene-specific (global timeline). */
+  sceneId: string | null;
+  /** Seconds from start of full video timeline. */
+  startTime: number;
+  endTime: number;
+  type: OverlayType;
+  /** Text content for "text" / "lower-third" overlays. */
+  content: string;
+  /** URL for "image" / "watermark" overlays. */
+  source: string | null;
+  position: OverlayPosition;
+  /** 1–200, interpreted as % width for images, relative font size for text. */
+  size: number;
+  /** 0–100 */
+  opacity: number;
+  animation: OverlayAnimation;
+  zIndex: number;
+  /** CSS color string for "color" / "flash" type. */
+  color: string;
+  /** CSS color for text overlay text. */
+  textColor: string;
+}
+
+export interface TransitionItem {
+  fromSceneId: string;
+  toSceneId: string;
+  type: string;
+  /** Duration in seconds. */
+  duration: number;
+  /** Absolute timeline position where this transition starts (seconds). */
+  timelineStart: number;
+  enabled: boolean;
+}
+
 /** Per-clip edit data, keyed by scene id inside EditorSettings.clips. */
 export interface ClipEdit {
   /** Seconds to trim from the start of the clip (edit-plan only). */
@@ -381,6 +430,8 @@ export interface ClipEdit {
   volume: number;
   /** Transition INTO this clip. */
   transition: string;
+  /** Duration of the transition in seconds. */
+  transitionDuration: number;
   /** Visual effect applied to this clip. */
   effect: string;
   /** Optional replacement clip URL override (edit-plan only). */
@@ -772,7 +823,12 @@ export interface EditorSettings {
   clips: Record<string, ClipEdit>;
   captions: CaptionSettings;
   effects: string[];
+  /** Legacy overlay type names (chips UI). */
   overlays: string[];
+  /** Structured timed overlay items rendered above the video. */
+  overlayItems: OverlayItem[];
+  /** Structured transition data (fromSceneId → toSceneId). */
+  transitions: TransitionItem[];
   audio: AudioSettings;
   export: ExportSettings;
   musicStudio: MusicStudioSettings;
@@ -788,6 +844,7 @@ export function defaultClipEdit(): ClipEdit {
     muted: false,
     volume: 100,
     transition: "Cut",
+    transitionDuration: 1.0,
     effect: "None",
     replaceUrl: null,
   };
@@ -834,6 +891,8 @@ export function defaultEditorSettings(): EditorSettings {
     },
     effects: [],
     overlays: [],
+    overlayItems: [],
+    transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 } },
     musicStudio: defaultMusicStudioSettings(),
@@ -1093,6 +1152,8 @@ export function normalizeEditorSettings(
     captions: { ...base.captions, ...(stored.captions ?? {}) },
     effects: stored.effects ?? [],
     overlays: stored.overlays ?? [],
+    overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
+    transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },
     musicStudio: normalizeMusicStudio(stored.musicStudio),

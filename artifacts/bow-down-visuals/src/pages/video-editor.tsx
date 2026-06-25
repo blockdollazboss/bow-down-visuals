@@ -18,8 +18,11 @@ import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneDa
 import {
   normalizeEditorSettings,
   sceneHasClip,
+  getClipEdit,
   type EditorSettings,
 } from "@/lib/editor-settings";
+import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
+import { OverlayLayer } from "@/components/OverlayLayer";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
@@ -110,6 +113,49 @@ export default function VideoEditor() {
     setTestEffectActive(true);
     if (testEffectTimerRef.current) clearTimeout(testEffectTimerRef.current);
     testEffectTimerRef.current = setTimeout(() => setTestEffectActive(false), 2000);
+  }
+
+  /** Video element for the departing clip during scene transitions */
+  const outgoingVideoRef = useRef<HTMLVideoElement | null>(null);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [transitionState, setTransitionState] = useState<TransitionState | null>(null);
+  const testOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [testOverlayActive, setTestOverlayActive] = useState(false);
+
+  /** Called by TimelinePreviewPlayer when a scene switch fires during playback. */
+  function handleSceneChange(_oldIdx: number, newIdx: number) {
+    const scene = scenes[newIdx];
+    if (!scene) return;
+    const clip = getClipEdit(settings, scene.id);
+    const type = clip.transition;
+    if (!type || type === "Cut") return;
+    const duration = Math.max(0.1, Math.min(3.0, clip.transitionDuration ?? 1.0));
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    setTransitionState({ type, duration });
+    transitionTimerRef.current = setTimeout(() => setTransitionState(null), duration * 1000 + 100);
+  }
+
+  function triggerTestTransition() {
+    const clipped = scenes.filter((s) => s.demoClipUrl?.startsWith("http"));
+    if (outgoingVideoRef.current && clipped[0]?.demoClipUrl) {
+      outgoingVideoRef.current.src = clipped[0].demoClipUrl;
+      outgoingVideoRef.current.muted = true;
+      outgoingVideoRef.current.play().catch(() => {});
+    }
+    if (liveVideoRef.current && clipped[1]?.demoClipUrl) {
+      liveVideoRef.current.src = clipped[1].demoClipUrl;
+      liveVideoRef.current.muted = true;
+      liveVideoRef.current.play().catch(() => {});
+    }
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    setTransitionState({ type: "Crossfade", duration: 1.0 });
+    transitionTimerRef.current = setTimeout(() => setTransitionState(null), 1100);
+  }
+
+  function triggerTestOverlay() {
+    setTestOverlayActive(true);
+    if (testOverlayTimerRef.current) clearTimeout(testOverlayTimerRef.current);
+    testOverlayTimerRef.current = setTimeout(() => setTestOverlayActive(false), 3000);
   }
 
   const hydrated  = useRef(false);
@@ -686,6 +732,9 @@ export default function VideoEditor() {
               captionSettings={settings.captions}
               settings={settings}
               testEffectActive={testEffectActive}
+              outgoingVideoRef={outgoingVideoRef}
+              transitionState={transitionState}
+              testOverlayActive={testOverlayActive}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -718,6 +767,8 @@ export default function VideoEditor() {
                   captionSettings={settings.captions}
                   onEngineUpdate={setPreviewEngineState}
                   externalVideoRef={liveVideoRef}
+                  outgoingVideoRef={outgoingVideoRef}
+                  onSceneChange={handleSceneChange}
                 />
               ) : (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
@@ -870,6 +921,8 @@ export default function VideoEditor() {
                 setSettings={setSettings}
                 audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
                 onTestEffect={triggerTestEffect}
+                onTestTransition={triggerTestTransition}
+                onTestOverlay={triggerTestOverlay}
               />
             )}
 
@@ -1002,6 +1055,7 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
 function MasterPreviewPlayer({
   eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
   settings, testEffectActive,
+  outgoingVideoRef, transitionState, testOverlayActive,
   onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
@@ -1012,6 +1066,9 @@ function MasterPreviewPlayer({
   captionSettings: CaptionSettings;
   settings: EditorSettings;
   testEffectActive: boolean;
+  outgoingVideoRef: RefObject<HTMLVideoElement | null>;
+  transitionState: TransitionState | null;
+  testOverlayActive: boolean;
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1286,7 +1343,19 @@ function MasterPreviewPlayer({
           }}
         >
           <MasterVideoElement videoRef={liveVideoRef} />
+          {/* Outgoing video + CSS transition overlay */}
+          <TransitionCompositor
+            outgoingVideoRef={outgoingVideoRef}
+            transitionState={transitionState}
+          />
         </div>
+
+        {/* ── Structured overlay layer (timed items + test overlay) ── */}
+        <OverlayLayer
+          items={settings.overlayItems}
+          currentTime={eng?.currentTime ?? 0}
+          testOverlay={testOverlayActive ? { content: "OVERLAY TEST", color: "#C9A84C", textColor: "#000000" } : null}
+        />
 
         {/* ── Color overlay (test = red, future: tint grades) ── */}
         {overlayColor && (
@@ -1547,18 +1616,20 @@ function MasterPreviewPlayer({
         )}
       </div>
 
-      {/* ── Effects Render Debug ── */}
+      {/* ── Effects / Transition / Overlay Debug ── */}
       <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects Render Debug:</span>
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects · Transitions · Overlays Debug:</span>
         {([
-          ["effects loaded",          activeEffects.length > 0,      activeEffects.length > 0 ? `yes (${activeEffects.length})` : "no"],
-          ["total effects",           null,                           String(activeEffects.length)],
-          ["active scene effects",    null,                           activeEffects.length > 0 ? String(activeEffects.length) : "0"],
-          ["active effect now",       activeEffects.length > 0,      activeEffects[0] ?? "none"],
-          ["render layer mounted",    true,                           "yes ✓"],
-          ["test effect active",      testEffectActive,               testEffectActive ? "yes ✓" : "no"],
-          ["Auto AI effects applied", aiEffectsApplied,              aiEffectsApplied ? "yes ✓" : "no"],
-          ["last effect error",       null,                           "none"],
+          ["effects loaded",            activeEffects.length > 0,      activeEffects.length > 0 ? `yes (${activeEffects.length})` : "no"],
+          ["active effect",             activeEffects.length > 0,      activeEffects[0] ?? "none"],
+          ["effects render layer",      true,                          "mounted ✓"],
+          ["test effect active",        testEffectActive,              testEffectActive ? "yes ✓" : "no"],
+          ["Auto AI effects applied",   aiEffectsApplied,             aiEffectsApplied ? "yes ✓" : "no"],
+          ["transition compositor",     true,                          "mounted ✓"],
+          ["active transition",         !!transitionState,            transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
+          ["overlay layer",             true,                          "mounted ✓"],
+          ["overlay items configured",  settings.overlayItems.length > 0, `${settings.overlayItems.length}`],
+          ["test overlay active",       testOverlayActive,            testOverlayActive ? "yes ✓" : "no"],
         ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
           <span key={label} className="text-[10px] font-mono text-white/20">
             {label}:{" "}
@@ -1572,6 +1643,12 @@ function MasterPreviewPlayer({
         )}
         {settings.aiEdit.applied && !aiEffectsApplied && (
           <span className="text-[10px] font-mono text-amber-400/60 w-full">⚠ AI effects generated but not rendering in master player</span>
+        )}
+        {transitionState && (
+          <span className="text-[10px] font-mono text-blue-400/70 w-full">↔ Transition playing: {transitionState.type}</span>
+        )}
+        {testOverlayActive && (
+          <span className="text-[10px] font-mono text-[#C9A84C]/70 w-full">◈ Test overlay active</span>
         )}
       </div>
     </div>

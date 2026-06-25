@@ -4,6 +4,7 @@ import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   VIDEO_FORMATS,
+  getClipEdit,
   type EditorSettings,
   type VideoFormat,
   type ExportResolution,
@@ -843,6 +844,12 @@ export function ExportSection({
         exportRangeStart={isFullExport ? null : rangeValid ? resolved.startSec : null}
         exportRangeEnd={isFullExport ? null : rangeValid ? resolved.endSec : null}
         exportRangeLabel={isFullExport ? undefined : `${fmtTimecode(resolved.startSec)} → ${fmtTimecode(Math.min(resolved.endSec, projectDur))}`}
+        clipTransitions={scenes.filter((s) => !!s.demoClipUrl).map((s) => {
+          const clip = getClipEdit(settings, s.id);
+          if (!clip.transition || clip.transition === "Cut") return null;
+          return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
+        })}
+        overlayItems={settings.overlayItems}
       />
     </div>
   );

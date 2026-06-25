@@ -596,6 +596,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     branding,
     exportRangeStart,
     exportRangeEnd,
+    clipTransitions,
+    overlayItems,
   } = req.body as {
     projectId: string;
     clipUrls: string[];
@@ -618,6 +620,20 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     } | null;
     exportRangeStart?: number | null;
     exportRangeEnd?: number | null;
+    /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
+    clipTransitions?: ({ type: string; duration: number } | null)[] | null;
+    /** Structured overlay items to burn into the video. */
+    overlayItems?: {
+      type: string;
+      content?: string;
+      startSec?: number;
+      endSec?: number;
+      color?: string;
+      textColor?: string;
+      fontSize?: number;
+      opacity?: number;
+      position?: string;
+    }[] | null;
   };
 
   if (!projectId?.trim()) {
@@ -960,15 +976,73 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       filterParts.push(`[${outroInputIdx}:v]${dt}[outro_card]`);
     }
 
-    // Build segment labels for concat (only included clips)
-    const segments: string[] = [];
-    if (introInputIdx >= 0) segments.push("[intro_card]");
-    for (let i = 0; i < normalizedPaths.length; i++) segments.push(`[v${i}]`);
-    if (outroInputIdx >= 0) segments.push("[outro_card]");
+    // ── Xfade map: transition name → FFmpeg xfade transition ──
+    const XFADE_MAP: Record<string, string> = {
+      "Crossfade":    "fade",
+      "Fade to Black":"fadeblack",
+      "Slide":        "slideleft",
+      "Whip Pan":     "slideright",
+      "Zoom":         "zoomin",
+      "Blur Dissolve":"hblur",
+      "Flash":        "fadewhite",
+      "Glitch":       "pixelize",
+      "Light Leak":   "fadewhite",
+      "Spin":         "circlecrop",
+    };
 
-    // Concat all segments
+    const activeTransitions = Array.isArray(clipTransitions) ? clipTransitions : null;
+    const hasAnyXfade = activeTransitions !== null &&
+      normalizedPaths.length > 1 &&
+      selectedClipOrigIndices.some((origIdx, j) =>
+        j > 0 && activeTransitions[origIdx] != null && activeTransitions[origIdx]!.type !== "Cut",
+      );
+
+    // Build clip chain — either incremental xfade or plain concat between selected clips
+    if (hasAnyXfade) {
+      let chainLabel = "v0";
+      let accDuration = clipInfos[selectedClipOrigIndices[0]!]!.duration;
+      for (let j = 1; j < normalizedPaths.length; j++) {
+        const origIdx  = selectedClipOrigIndices[j]!;
+        const trans    = activeTransitions![origIdx] ?? null;
+        const clipDur  = clipInfos[origIdx]!.duration;
+        const isLast   = j === normalizedPaths.length - 1;
+        const outLabel = isLast ? "vclips" : `vxf${j}`;
+        if (trans && trans.type !== "Cut") {
+          const xft      = XFADE_MAP[trans.type] ?? "fade";
+          const transDur = Number(Math.min(trans.duration, accDuration * 0.8, clipDur * 0.8).toFixed(3));
+          const offset   = Number(Math.max(0, accDuration - transDur).toFixed(3));
+          filterParts.push(`[${chainLabel}][v${j}]xfade=transition=${xft}:duration=${transDur}:offset=${offset}[${outLabel}]`);
+          accDuration = offset + clipDur;
+        } else {
+          filterParts.push(`[${chainLabel}][v${j}]concat=n=2:v=1:a=0[${outLabel}]`);
+          accDuration += clipDur;
+        }
+        chainLabel = outLabel;
+      }
+      if (normalizedPaths.length === 1) {
+        filterParts.push(`[v0]copy[vclips]`);
+      }
+    }
+
+    // Assemble intro / clip-chain / outro → vconcat
     let workLabel = "vconcat";
-    filterParts.push(`${segments.join("")}concat=n=${segments.length}:v=1:a=0[${workLabel}]`);
+    if (hasAnyXfade) {
+      const outerSegs: string[] = [];
+      if (introInputIdx >= 0) outerSegs.push("[intro_card]");
+      outerSegs.push("[vclips]");
+      if (outroInputIdx >= 0) outerSegs.push("[outro_card]");
+      if (outerSegs.length === 1) {
+        filterParts.push(`[vclips]copy[vconcat]`);
+      } else {
+        filterParts.push(`${outerSegs.join("")}concat=n=${outerSegs.length}:v=1:a=0[vconcat]`);
+      }
+    } else {
+      const segments: string[] = [];
+      if (introInputIdx >= 0) segments.push("[intro_card]");
+      for (let i = 0; i < normalizedPaths.length; i++) segments.push(`[v${i}]`);
+      if (outroInputIdx >= 0) segments.push("[outro_card]");
+      filterParts.push(`${segments.join("")}concat=n=${segments.length}:v=1:a=0[vconcat]`);
+    }
 
     // Title overlay drawtext chain (artist name + song title in lower-left)
     const titleFilters = buildTitleFilters(
@@ -994,6 +1068,55 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2,format=rgba,colorchannelmixer=aa=${wmAlpha}[wm]`);
       filterParts.push(`[${workLabel}][wm]overlay=${wmPos}:format=auto[vwmed]`);
       workLabel = "vwmed";
+    }
+
+    // ── Structured overlay items: drawtext (text / lower-third) + drawbox (color) ──
+    if (Array.isArray(overlayItems) && overlayItems.length > 0) {
+      const OVERLAY_POS: Record<string, { x: string; y: string }> = {
+        "top-left":     { x: "30",              y: "50" },
+        "top-center":   { x: "(w-text_w)/2",    y: "50" },
+        "top-right":    { x: "w-text_w-30",     y: "50" },
+        "center-left":  { x: "30",              y: "(h-text_h)/2" },
+        "center":       { x: "(w-text_w)/2",    y: "(h-text_h)/2" },
+        "center-right": { x: "w-text_w-30",     y: "(h-text_h)/2" },
+        "bottom-left":  { x: "30",              y: "h-text_h-80" },
+        "bottom-center":{ x: "(w-text_w)/2",    y: "h-text_h-80" },
+        "bottom-right": { x: "w-text_w-30",     y: "h-text_h-80" },
+      };
+      let ovIdx = 0;
+      for (const ov of overlayItems) {
+        const enableClause = (typeof ov.startSec === "number" && typeof ov.endSec === "number")
+          ? `enable='between(t\\,${ov.startSec.toFixed(3)}\\,${ov.endSec.toFixed(3)})'`
+          : "";
+        const nextLabel = `vov${ovIdx}`;
+
+        if (ov.type === "text" || ov.type === "lower-third") {
+          if (!ov.content?.trim()) { ovIdx++; continue; }
+          const pos   = OVERLAY_POS[ov.position ?? "bottom-center"] ?? OVERLAY_POS["bottom-center"]!;
+          const fs    = ov.fontSize ?? (ov.type === "lower-third" ? 36 : 40);
+          const fc    = ov.textColor ?? "#FFFFFF";
+          const alpha = (ov.opacity ?? 1.0).toFixed(2);
+          const bg    = ov.type === "lower-third"
+            ? `:box=1:boxcolor=black@0.65:boxborderw=12`
+            : `:borderw=3:bordercolor=0x000000`;
+          const txt   = escapeDrawtext(ov.content);
+          filterParts.push(
+            `[${workLabel}]drawtext=fontfile='${SANS_BOLD}':text='${txt}':${enableClause}` +
+            `:x=${pos.x}:y=${pos.y}:fontsize=${fs}:fontcolor=${fc}@${alpha}${bg}[${nextLabel}]`,
+          );
+          workLabel = nextLabel;
+        } else if (ov.type === "color") {
+          const col   = (ov.color ?? "#000000").replace("#", "0x");
+          const alpha = (ov.opacity ?? 0.4).toFixed(2);
+          filterParts.push(
+            `[${workLabel}]drawbox=${enableClause}:x=0:y=0:w=iw:h=ih:color=${col}@${alpha}:t=fill[${nextLabel}]`,
+          );
+          workLabel = nextLabel;
+        }
+        // vignette, film-grain, light-leak, particles, image/watermark:
+        // too complex for drawtext — skip silently (CSS-only in preview)
+        ovIdx++;
+      }
     }
 
     // Rename workLabel → vout

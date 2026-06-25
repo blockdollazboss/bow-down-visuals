@@ -96,6 +96,10 @@ export interface TimelinePreviewPlayerProps {
    *  rendering its own preview area. Pass liveVideoRef from the master player so the
    *  single video element at the top always shows the active clip. */
   externalVideoRef?: RefObject<HTMLVideoElement | null>;
+  /** When set, TLP writes the departing clip's src here before switching the main video. */
+  outgoingVideoRef?: RefObject<HTMLVideoElement | null>;
+  /** Fired after a scene switch while playing. Receives (oldSceneIdx, newSceneIdx). */
+  onSceneChange?: (oldIdx: number, newIdx: number) => void;
 }
 
 export const TimelinePreviewPlayer = forwardRef<TimelinePlayerHandle, TimelinePreviewPlayerProps>(
@@ -107,6 +111,8 @@ function TimelinePreviewPlayer({
   captionSettings,
   onEngineUpdate,
   externalVideoRef,
+  outgoingVideoRef,
+  onSceneChange,
 }: TimelinePreviewPlayerProps, ref) {
 
   /* ── Core state ── */
@@ -215,7 +221,18 @@ function TimelinePreviewPlayer({
   useEffect(() => {
     if (!playing) return;
     if (sceneIdx === prevSceneIdxRef.current) return;
+    const prevIdx = prevSceneIdxRef.current;
     prevSceneIdxRef.current = sceneIdx;
+
+    // Copy departing clip to outgoing video BEFORE switching the main ref.
+    if (prevIdx >= 0 && outgoingVideoRef?.current && videoRef.current?.src) {
+      const og = outgoingVideoRef.current;
+      og.src = videoRef.current.src;
+      og.currentTime = videoRef.current.currentTime;
+      og.muted = true;
+      og.play().catch(() => { /* silent — outgoing video is decorative */ });
+    }
+
     const scene = scenes[sceneIdx];
     if (scene?.demoClipUrl && videoRef.current) {
       const v = videoRef.current;
@@ -225,6 +242,11 @@ function TimelinePreviewPlayer({
       v.muted = true;
       v.currentTime = 0;
       v.play().catch((e: Error) => setLastError(`Clip ${sceneIdx + 1}: ${e.message}`));
+    }
+
+    // Notify parent so it can trigger CSS transition.
+    if (prevIdx >= 0) {
+      onSceneChange?.(prevIdx, sceneIdx);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneIdx, playing]);

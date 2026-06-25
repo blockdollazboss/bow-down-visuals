@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem } from "@/lib/editor-settings";
 
 interface ExportRecord {
   final_video_url: string;
@@ -44,6 +44,10 @@ interface FinalVideoExportProps {
   exportRangeEnd?: number | null;
   /** Human-readable label like "00:00.000 → 00:10.000" for the UI. */
   exportRangeLabel?: string;
+  /** Per-clip transition overrides: index matches clipUrls, null = Cut */
+  clipTransitions?: ({ type: string; duration: number } | null)[];
+  /** Structured overlay items to burn in */
+  overlayItems?: OverlayItem[];
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
@@ -100,6 +104,8 @@ export function FinalVideoExport({
   exportRangeStart = null,
   exportRangeEnd = null,
   exportRangeLabel,
+  clipTransitions,
+  overlayItems,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -189,6 +195,8 @@ export function FinalVideoExport({
           branding: branding ?? null,
           exportRangeStart: typeof exportRangeStart === "number" ? exportRangeStart : null,
           exportRangeEnd:   typeof exportRangeEnd   === "number" ? exportRangeEnd   : null,
+          clipTransitions:  clipTransitions ?? null,
+          overlayItems:     overlayItems?.length ? overlayItems : null,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
