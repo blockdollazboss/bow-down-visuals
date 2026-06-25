@@ -911,9 +911,28 @@ function MasterPreviewPlayer({
   onRestart: () => void;
 }) {
   const containerRef  = useRef<HTMLDivElement | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [pipActive,    setPipActive   ] = useState(false);
-  const [pipError,     setPipError    ] = useState<string | null>(null);
+  const [isFullscreen,    setIsFullscreen   ] = useState(false);
+  const [pipActive,       setPipActive      ] = useState(false);
+  const [pipError,        setPipError       ] = useState<string | null>(null);
+
+  /* ── Auto PiP state ── */
+  const [autoPiP,         setAutoPiP        ] = useState(false);
+  const [enterOnScroll,   setEnterOnScroll  ] = useState(true);
+  const [keepOnTabSwitch, setKeepOnTabSwitch] = useState(true);
+
+  const pipSupported = typeof document !== "undefined" && !!document.pictureInPictureEnabled;
+
+  /* Refs so observer callbacks always see current values without re-subscribing */
+  const autoPiPRef         = useRef(false);
+  const enterOnScrollRef   = useRef(true);
+  const keepOnTabSwitchRef = useRef(true);
+  const isPlayingRef       = useRef(false);
+  const prevTabRef         = useRef<EditorTab>(tab);
+
+  useEffect(() => { autoPiPRef.current         = autoPiP;         }, [autoPiP]);
+  useEffect(() => { enterOnScrollRef.current   = enterOnScroll;   }, [enterOnScroll]);
+  useEffect(() => { keepOnTabSwitchRef.current = keepOnTabSwitch; }, [keepOnTabSwitch]);
+  useEffect(() => { isPlayingRef.current       = eng?.isPlaying ?? false; }, [eng?.isPlaying]);
 
   /* Track fullscreen state via browser event */
   useEffect(() => {
@@ -939,6 +958,46 @@ function MasterPreviewPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* Auto PiP — IntersectionObserver: enter PiP when player scrolls out of view */
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !pipSupported) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (
+        !entry?.isIntersecting &&
+        autoPiPRef.current &&
+        enterOnScrollRef.current &&
+        isPlayingRef.current &&
+        !document.pictureInPictureElement
+      ) {
+        liveVideoRef.current?.requestPictureInPicture().catch((e) => {
+          setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
+        });
+      }
+    }, { threshold: 0.15 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pipSupported]);
+
+  /* Auto PiP — tab switch: enter PiP when user navigates to a different tab */
+  useEffect(() => {
+    if (
+      prevTabRef.current !== tab &&
+      autoPiPRef.current &&
+      keepOnTabSwitchRef.current &&
+      isPlayingRef.current &&
+      pipSupported &&
+      !document.pictureInPictureElement
+    ) {
+      liveVideoRef.current?.requestPictureInPicture().catch((e) => {
+        setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
+      });
+    }
+    prevTabRef.current = tab;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   function toggleFullscreen() {
     if (!containerRef.current) return;
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -949,7 +1008,7 @@ function MasterPreviewPlayer({
     setPipError(null);
     const v = liveVideoRef.current;
     if (!v) return;
-    if (!document.pictureInPictureEnabled) {
+    if (!pipSupported) {
       setPipError("Picture-in-Picture is not supported in this browser.");
       return;
     }
@@ -962,6 +1021,29 @@ function MasterPreviewPlayer({
     } catch (e) {
       setPipError(`PiP failed: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
+
+  async function enableAutoPiP() {
+    if (!pipSupported) {
+      setPipError("Picture-in-Picture is not supported in this browser.");
+      return;
+    }
+    setAutoPiP(true);
+    autoPiPRef.current = true;
+    setPipError(null);
+    const v = liveVideoRef.current;
+    if (!v) return;
+    try {
+      if (!document.pictureInPictureElement) await v.requestPictureInPicture();
+    } catch {
+      setPipError("Auto PiP needs one click first. Press the PiP button to allow it.");
+    }
+  }
+
+  function disableAutoPiP() {
+    setAutoPiP(false);
+    autoPiPRef.current = false;
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
   }
 
   const isPlaying     = eng?.isPlaying ?? false;
@@ -1087,7 +1169,20 @@ function MasterPreviewPlayer({
         <span className="text-[11px] font-mono text-white/40 tabular-nums shrink-0 w-[80px] text-right">
           {fmtSecs(currentTime)} / {fmtSecs(duration || 0)}
         </span>
-        {/* PiP */}
+        {/* Auto PiP toggle */}
+        <button
+          type="button"
+          onClick={() => autoPiP ? disableAutoPiP() : void enableAutoPiP()}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold transition-colors shrink-0 ${
+            autoPiP
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
+          }`}
+          title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP — video floats while you work"}
+        >
+          {autoPiP ? "Auto PiP ✓" : "Auto PiP"}
+        </button>
+        {/* Manual PiP */}
         <button type="button" onClick={() => void togglePiP()}
           className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
             pipActive
@@ -1109,15 +1204,41 @@ function MasterPreviewPlayer({
         </button>
       </div>
 
-      {/* PiP error message */}
+      {/* Auto PiP sub-settings — visible while Auto PiP is on */}
+      {autoPiP && (
+        <div className="px-4 py-2 border-t border-primary/[0.12] bg-primary/[0.03] flex flex-wrap items-center gap-x-5 gap-y-1">
+          <span className="text-[10px] font-bold text-primary/60 shrink-0">Auto PiP:</span>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={enterOnScroll}
+              onChange={(e) => setEnterOnScroll(e.target.checked)}
+              className="accent-primary w-3 h-3"
+            />
+            <span className="text-[10px] text-white/50">Enter PiP when scrolling</span>
+          </label>
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={keepOnTabSwitch}
+              onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
+              className="accent-primary w-3 h-3"
+            />
+            <span className="text-[10px] text-white/50">Keep PiP when switching tabs</span>
+          </label>
+        </div>
+      )}
+
+      {/* Error message — PiP or Auto PiP */}
       {pipError && (
-        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono">
-          {pipError}
+        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono flex items-start gap-1.5">
+          <span className="shrink-0 mt-px">⚠</span>
+          <span>{pipError}</span>
         </div>
       )}
 
       {/* ── Status bar ── */}
-      <div className="px-4 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-5 gap-y-0.5">
+      <div className="px-4 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-4 gap-y-0.5">
         <span className="text-[10px] font-mono text-white/25">
           Master Player: <span className="text-green-400/70">Connected ✓</span>
         </span>
@@ -1126,14 +1247,26 @@ function MasterPreviewPlayer({
         </span>
         <span className="text-[10px] font-mono text-white/25">
           Caption: <span className={captionLoaded ? "text-blue-400/70" : "text-white/25"}>
-            {captionLoaded
-              ? `"${activeCaption!.text.slice(0, 28)}${activeCaption!.text.length > 28 ? "…" : ""}"`
-              : "none"}
+            {captionLoaded ? `"${activeCaption!.text.slice(0, 20)}…"` : "none"}
           </span>
         </span>
         <span className="text-[10px] font-mono text-white/25">
           Audio: <span className={isPlaying ? "text-green-400/70" : "text-white/25"}>{isPlaying ? "playing ✓" : "stopped"}</span>
         </span>
+        <span className="text-[10px] font-mono text-white/25">
+          Auto PiP: <span className={autoPiP ? "text-primary/70" : "text-white/25"}>{autoPiP ? "on ✓" : "off"}</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          PiP supported: <span className={pipSupported ? "text-green-400/70" : "text-red-400/60"}>{pipSupported ? "yes" : "no"}</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          PiP active: <span className={pipActive ? "text-primary/70" : "text-white/25"}>{pipActive ? "yes ✓" : "no"}</span>
+        </span>
+        {pipError && (
+          <span className="text-[10px] font-mono text-red-400/60 w-full truncate">
+            Last error: {pipError}
+          </span>
+        )}
       </div>
     </div>
   );
