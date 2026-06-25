@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { GripHorizontal, HelpCircle } from "lucide-react";
+import { GripHorizontal } from "lucide-react";
 import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 const GOLD_GLOW    = "rgba(218,165,32,";
@@ -152,58 +152,29 @@ export function DraggableThemePlayer() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {/* Drag-grip handle + help button */}
+      {/* Drag-grip handle */}
       <div
         style={{
           display:        "flex",
-          justifyContent: "space-between",
+          justifyContent: "center",
           alignItems:     "center",
           paddingBottom:  3,
-          paddingLeft:    6,
-          paddingRight:   4,
           cursor:         isDragging ? "grabbing" : "grab",
         }}
         title="Drag to move"
       >
-        <GripHorizontal
-          size={14}
-          style={{ color: `${GOLD_GLOW}0.50)`, flexShrink: 0 }}
-        />
-        {/* ? help button — icon only, no text */}
-        <button
-          title="Need Help?"
-          aria-label="Need Help?"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            window.dispatchEvent(
-              new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
-            );
-          }}
-          style={{
-            display:      "flex",
-            alignItems:   "center",
-            justifyContent: "center",
-            width:        22,
-            height:       22,
-            borderRadius: "50%",
-            background:   `${GOLD_GLOW}0.15)`,
-            border:       `1px solid ${GOLD_GLOW}0.35)`,
-            color:        `${GOLD_GLOW}0.95)`,
-            fontSize:     11,
-            fontWeight:   900,
-            cursor:       "pointer",
-            flexShrink:   0,
-            lineHeight:   1,
-          }}
-        >
-          ?
-        </button>
+        <GripHorizontal size={14} style={{ color: `${GOLD_GLOW}0.50)` }} />
       </div>
 
-      {/* Player */}
+      {/* Player — ? button lives inside the player pill */}
       <div style={{ cursor: isDragging ? "grabbing" : "grab" }}>
-        <NavThemePlayer />
+        <NavThemePlayer
+          onHelpClick={() =>
+            window.dispatchEvent(
+              new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
+            )
+          }
+        />
       </div>
     </div>
   );
