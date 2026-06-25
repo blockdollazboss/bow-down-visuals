@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
+  Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,23 @@ interface ExportRecord {
   audio_source?: string;
   aspect_ratio?: string;
   timeline_order?: string[];
+}
+
+interface ClipCheckRow {
+  sceneNumber: number;
+  originalUrl: string;
+  resolvedUrl: string;
+  sourceType: string;
+  localPath: string;
+  fileSize: number;
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+  codec: string;
+  ffprobeValid: boolean;
+  readyForFFmpeg: boolean;
+  error: string | null;
 }
 
 interface FinalVideoExportProps {
@@ -128,8 +146,57 @@ export function FinalVideoExport({
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
+  const [prepareId, setPrepareId]               = useState<string | null>(null);
+  const [clipCheckResults, setClipCheckResults] = useState<ClipCheckRow[] | null>(null);
+  const [prepareError, setPrepareError]         = useState<string | null>(null);
+  const [prepareAllReady, setPrepareAllReady]   = useState(false);
+  const [prepareReadyCount, setPrepareReadyCount] = useState(0);
+  const [checkTableExpanded, setCheckTableExpanded] = useState(true);
+
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
+
+  async function handlePrepare() {
+    if (!projectId || selectedScenes.length === 0) return;
+    setPrepareState("running");
+    setPrepareId(null);
+    setClipCheckResults(null);
+    setPrepareError(null);
+    setPrepareAllReady(false);
+    setPrepareReadyCount(0);
+    setCheckTableExpanded(true);
+    try {
+      const token = await getAccessToken();
+      const clips = selectedScenes.map((s) => ({
+        sceneNumber: scenes.indexOf(s) + 1,
+        url: s.demoClipUrl!,
+      }));
+      const res = await fetch("/api/prepare-export-files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ projectId, clips }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = (await res.json()) as {
+        prepareId: string;
+        allReady: boolean;
+        totalClips: number;
+        readyClips: number;
+        clips: ClipCheckRow[];
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? `Prepare failed (HTTP ${res.status})`);
+      setPrepareId(data.prepareId);
+      setClipCheckResults(data.clips);
+      setPrepareAllReady(data.allReady);
+      setPrepareReadyCount(data.readyClips);
+      setPrepareState(data.allReady ? "done" : "failed");
+    } catch (err) {
+      setPrepareState("failed");
+      setPrepareError(err instanceof Error ? err.message : "Prepare failed");
+    }
+  }
 
   const hasAudio = !!audioUrl && audioSource !== "none";
   const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
@@ -197,6 +264,7 @@ export function FinalVideoExport({
           exportRangeEnd:   typeof exportRangeEnd   === "number" ? exportRangeEnd   : null,
           clipTransitions:  clipTransitions ?? null,
           overlayItems:     overlayItems?.length ? overlayItems : null,
+          prepareId:        prepareId ?? undefined,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
@@ -483,37 +551,128 @@ export function FinalVideoExport({
               </div>
             )}
 
-            {/* Export button */}
-            {hasDuplicateUrls ? (
+            {/* ── Prepare Export Files ── */}
+            {!hasDuplicateUrls && selectedScenes.length > 0 && (
+              <div className="space-y-3">
+
+                {/* Prepare status summary */}
+                {prepareState !== "idle" && (
+                  <div className={`flex flex-wrap gap-x-4 gap-y-1.5 px-3 py-2.5 rounded-xl border text-[10px] font-mono ${
+                    prepareAllReady
+                      ? "border-green-500/25 bg-green-500/[0.05]"
+                      : prepareState === "failed"
+                      ? "border-red-500/20 bg-red-500/[0.04]"
+                      : "border-white/[0.07] bg-white/[0.02]"
+                  }`}>
+                    <span className="text-white/40">Export files prepared:
+                      <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : prepareState === "running" ? "text-white/50" : "text-red-400"}`}>
+                        {prepareState === "running" ? "…" : prepareAllReady ? "yes" : "no"}
+                      </span>
+                    </span>
+                    {prepareState !== "running" && clipCheckResults && (
+                      <span className="text-white/40">Clips ready:
+                        <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : "text-amber-400"}`}>
+                          {prepareReadyCount}/{clipCheckResults.length}
+                        </span>
+                      </span>
+                    )}
+                    <span className="text-white/40">FFmpeg started:
+                      <span className="ml-1 font-bold text-white/30">no</span>
+                    </span>
+                    {prepareState === "failed" && prepareError && (
+                      <span className="w-full text-red-400/80 mt-0.5">{prepareError}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Prepare button */}
+                <Button
+                  onClick={handlePrepare}
+                  disabled={prepareState === "running"}
+                  variant="outline"
+                  className={`w-full gap-2 ${
+                    prepareAllReady
+                      ? "border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10"
+                      : "border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
+                  }`}
+                  data-testid="btn-prepare-export"
+                >
+                  {prepareState === "running" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : prepareAllReady ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <Shield className="h-4 w-4" />
+                  )}
+                  {prepareState === "running"
+                    ? `Checking ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}…`
+                    : prepareAllReady
+                    ? `Re-prepare Export Files (${prepareReadyCount}/${selectedScenes.length} ready)`
+                    : `Prepare Export Files — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}`}
+                </Button>
+
+                {/* Check table */}
+                {clipCheckResults && clipCheckResults.length > 0 && (
+                  <ExportFileCheckTable
+                    rows={clipCheckResults}
+                    expanded={checkTableExpanded}
+                    onToggle={() => setCheckTableExpanded((x) => !x)}
+                  />
+                )}
+
+                {/* Export buttons — only shown when all clips are ready */}
+                {prepareAllReady && (
+                  <>
+                    {!confirmed ? (
+                      <Button
+                        onClick={() => setConfirmed(true)}
+                        variant="outline"
+                        className="w-full border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 gap-2"
+                        data-testid="btn-confirm-export"
+                      >
+                        <Film className="h-4 w-4" />
+                        {isRangeExport
+                          ? `Export Selected Range — ${exportRangeLabel ?? "custom range"}`
+                          : `Export Full Video — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}${hasAudio ? " + audio" : ", no audio"} · ${aspectRatio}`}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={handleExport}
+                        className="gold-glow w-full gap-2"
+                        data-testid="btn-start-export"
+                      >
+                        <Film className="h-4 w-4" />
+                        Confirm &amp; Start Export
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {/* Block message when prepare not done */}
+                {prepareState === "idle" && (
+                  <p className="text-center text-[11px] text-white/25 leading-relaxed">
+                    Click <span className="text-white/45">Prepare Export Files</span> to verify all clips before export. FFmpeg will not start until all clips are ready.
+                  </p>
+                )}
+                {prepareState === "failed" && !prepareAllReady && (
+                  <p className="text-center text-[11px] text-red-400/60 leading-relaxed">
+                    Some clips failed — fix the errors above and click Prepare again before exporting.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Blocked states */}
+            {hasDuplicateUrls && (
               <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
                 <XCircle className="h-4 w-4" />
                 Export Blocked — Fix Duplicate Clips First
               </Button>
-            ) : selectedScenes.length === 0 ? (
+            )}
+            {selectedScenes.length === 0 && (
               <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed">
                 <Film className="h-4 w-4" />
                 No Clips Ready to Export
-              </Button>
-            ) : !confirmed ? (
-              <Button
-                onClick={() => setConfirmed(true)}
-                variant="outline"
-                className="w-full border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 gap-2"
-                data-testid="btn-confirm-export"
-              >
-                <Film className="h-4 w-4" />
-                {isRangeExport
-                  ? `Export Selected Range — ${exportRangeLabel ?? "custom range"}`
-                  : `Export Full Video — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}${hasAudio ? " + audio" : ", no audio"} · ${aspectRatio}`}
-              </Button>
-            ) : (
-              <Button
-                onClick={handleExport}
-                className="gold-glow w-full gap-2"
-                data-testid="btn-start-export"
-              >
-                <Film className="h-4 w-4" />
-                Confirm &amp; Start Export
               </Button>
             )}
           </div>
@@ -630,6 +789,112 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
           {selectedCount} clip{selectedCount !== 1 ? "s" : ""} → export
         </span>
       </div>
+    </div>
+  );
+}
+
+/* ── Export File Check Table ─────────────────────────── */
+function ExportFileCheckTable({
+  rows, expanded, onToggle,
+}: {
+  rows: ClipCheckRow[];
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  function fmt(bytes: number): string {
+    if (bytes === 0) return "—";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  function fmtDur(s: number): string {
+    return s > 0 ? `${s.toFixed(1)}s` : "—";
+  }
+  const allReady = rows.every((r) => r.readyForFFmpeg);
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-2 bg-white/[0.03] border-b border-white/[0.06] hover:bg-white/[0.05] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export File Check</p>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${allReady ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>
+            {rows.filter((r) => r.readyForFFmpeg).length}/{rows.length} ready
+          </span>
+        </div>
+        {expanded
+          ? <ChevronUp className="h-3 w-3 text-white/30" />
+          : <ChevronDown className="h-3 w-3 text-white/30" />}
+      </button>
+
+      {expanded && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[9px] border-collapse">
+            <thead>
+              <tr className="bg-white/[0.025] border-b border-white/[0.05]">
+                {["Scene","Source","URL found","HTTP","Local file","Exists","Size","Duration","ffprobe","Ready","Error"].map((h) => (
+                  <th key={h} className="px-2 py-1.5 text-left font-bold text-white/25 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const ok = row.readyForFFmpeg;
+                return (
+                  <tr
+                    key={row.sceneNumber}
+                    className={`border-b border-white/[0.04] ${ok ? "" : "bg-red-500/[0.04]"}`}
+                  >
+                    <td className="px-2 py-1.5 font-black text-white/50 whitespace-nowrap">{row.sceneNumber}</td>
+                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">
+                      <span className={`px-1 py-0.5 rounded text-[8px] ${
+                        row.sourceType === "supabase-storage" ? "bg-blue-500/15 text-blue-300"
+                        : row.sourceType === "runway-cloudfront" ? "bg-purple-500/15 text-purple-300"
+                        : "bg-white/5 text-white/30"
+                      }`}>{row.sourceType}</span>
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {row.originalUrl
+                        ? <span className="text-green-400 font-bold">yes</span>
+                        : <span className="text-red-400 font-bold">no</span>}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      <span className={row.localPath ? "text-green-400" : "text-white/25"}>
+                        {row.localPath ? "200" : "—"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 font-mono text-white/25 max-w-[120px] truncate">
+                      {row.localPath ? "…" + row.localPath.slice(-28) : "—"}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {row.fileSize > 0
+                        ? <span className="text-green-400 font-bold">yes</span>
+                        : <span className="text-red-400 font-bold">no</span>}
+                    </td>
+                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmt(row.fileSize)}</td>
+                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmtDur(row.duration)}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {row.ffprobeValid
+                        ? <span className="text-green-400 font-bold">yes</span>
+                        : <span className="text-red-400 font-bold">no</span>}
+                    </td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {ok
+                        ? <span className="text-green-400 font-bold">yes ✓</span>
+                        : <span className="text-red-400 font-bold">no ✗</span>}
+                    </td>
+                    <td className="px-2 py-1.5 text-red-400/70 max-w-[180px] leading-tight">
+                      {row.error ?? <span className="text-white/20">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
+import { getPreparedExport, deletePreparedExport } from "../../lib/prepared-exports";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -596,6 +597,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     branding,
     exportRangeStart,
     exportRangeEnd,
+    prepareId,
     clipTransitions,
     overlayItems,
   } = req.body as {
@@ -620,6 +622,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     } | null;
     exportRangeStart?: number | null;
     exportRangeEnd?: number | null;
+    /** If set, use pre-downloaded clip files from a prior /api/prepare-export-files call. */
+    prepareId?: string | null;
     /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
     clipTransitions?: ({ type: string; duration: number } | null)[] | null;
     /** Structured overlay items to burn into the video. */
@@ -679,65 +683,106 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       exportRangeEnd,
     }, "[export] starting");
 
-    /* ── 1: Download every clip ── */
+    /* ── 1: Download every clip (or reuse prepared files) ── */
     const clipPaths: string[] = [];
     const clipInfos: VideoInfo[] = [];
 
-    for (let i = 0; i < clipUrls.length; i++) {
-      const url = clipUrls[i]!;
-      if (!url.startsWith("http")) throw new Error(`Clip ${i + 1}: invalid URL — "${url.slice(0, 60)}"`);
+    const preparedEntry = prepareId ? getPreparedExport(prepareId) : null;
+    const usePrepared = !!(
+      preparedEntry &&
+      preparedEntry.projectId === projectId &&
+      preparedEntry.allReady &&
+      preparedEntry.clips.length === clipUrls.length
+    );
 
-      const dest = path.join(tmpDir, `bdv-clip-${exportId}-${i}.mp4`);
-      tmpFiles.push(dest);
-
-      req.log.info({ i: i + 1, url: url.slice(0, 80) }, "[export] downloading clip");
-
-      try {
-        await downloadToFile(url, dest);
-      } catch (dlErr) {
-        throw new Error(`Clip ${i + 1} could not be downloaded: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
+    if (usePrepared && preparedEntry) {
+      req.log.info({ prepareId, clipCount: preparedEntry.clips.length }, "[export] using pre-downloaded clips from prepare step");
+      for (const pc of preparedEntry.clips) {
+        if (!existsSync(pc.localPath)) {
+          throw new Error(
+            `Scene ${pc.sceneNumber} prepared file is no longer available (${pc.localPath}). ` +
+            `Please click "Prepare Export Files" again before exporting.`,
+          );
+        }
+        const sz = statSync(pc.localPath).size;
+        if (sz < 2048) {
+          throw new Error(`Scene ${pc.sceneNumber} prepared file is too small (${sz} bytes). Please re-prepare.`);
+        }
+        clipPaths.push(pc.localPath);
+        clipInfos.push({
+          hasVideo: true,
+          hasAudio: false,
+          duration: pc.duration,
+          width: pc.width,
+          height: pc.height,
+          fps: pc.fps,
+          codec: pc.codec,
+          fileSize: sz,
+        });
+        req.log.info({ scene: pc.sceneNumber, fileSize: sz, duration: pc.duration.toFixed(2) }, "[export] pre-prepared clip accepted ✓");
       }
-
-      const dlSize = statSync(dest).size;
-      req.log.info({ i: i + 1, fileSize: dlSize }, "[export] clip downloaded");
-      if (dlSize < 2048) {
-        throw new Error(
-          `Scene ${i + 1} clip download appears incomplete — file is only ${dlSize} bytes. ` +
-          `URL: ${url.slice(0, 80)}`,
-        );
+      deletePreparedExport(prepareId!);
+    } else {
+      if (prepareId && !preparedEntry) {
+        req.log.warn({ prepareId }, "[export] prepareId not found in registry — falling back to live download");
       }
+      exportStatus.ffmpegStage = "downloading clips";
 
-      /* ── 1a: Full ffprobe validation ── */
-      const info = await probeVideo(dest);
-      req.log.info({
-        scene: i + 1,
-        hasVideo: info.hasVideo,
-        hasAudio: info.hasAudio,
-        codec: info.codec,
-        resolution: `${info.width}x${info.height}`,
-        fps: info.fps,
-        duration: info.duration.toFixed(2),
-        fileSize: info.fileSize,
-      }, "[export] clip validated");
+      for (let i = 0; i < clipUrls.length; i++) {
+        const url = clipUrls[i]!;
+        if (!url.startsWith("http")) throw new Error(`Clip ${i + 1}: invalid URL — "${url.slice(0, 60)}"`);
 
-      if (info.fileSize < 1024) {
-        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (file too small: ${info.fileSize} bytes)`;
-        exportStatus.invalidClips.push(`Scene ${i + 1}: file too small`);
-        throw new Error(msg);
-      }
-      if (!info.hasVideo) {
-        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (no video stream found)`;
-        exportStatus.invalidClips.push(`Scene ${i + 1}: no video stream`);
-        throw new Error(msg);
-      }
-      if (info.duration <= 0) {
-        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (zero duration)`;
-        exportStatus.invalidClips.push(`Scene ${i + 1}: zero duration`);
-        throw new Error(msg);
-      }
+        const dest = path.join(tmpDir, `bdv-clip-${exportId}-${i}.mp4`);
+        tmpFiles.push(dest);
 
-      clipPaths.push(dest);
-      clipInfos.push(info);
+        req.log.info({ i: i + 1, url: url.slice(0, 80) }, "[export] downloading clip");
+
+        try {
+          await downloadToFile(url, dest);
+        } catch (dlErr) {
+          throw new Error(`Clip ${i + 1} could not be downloaded: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
+        }
+
+        const dlSize = statSync(dest).size;
+        req.log.info({ i: i + 1, fileSize: dlSize }, "[export] clip downloaded");
+        if (dlSize < 2048) {
+          throw new Error(
+            `Scene ${i + 1} clip download appears incomplete — file is only ${dlSize} bytes. ` +
+            `URL: ${url.slice(0, 80)}`,
+          );
+        }
+
+        const info = await probeVideo(dest);
+        req.log.info({
+          scene: i + 1,
+          hasVideo: info.hasVideo,
+          hasAudio: info.hasAudio,
+          codec: info.codec,
+          resolution: `${info.width}x${info.height}`,
+          fps: info.fps,
+          duration: info.duration.toFixed(2),
+          fileSize: info.fileSize,
+        }, "[export] clip validated");
+
+        if (info.fileSize < 1024) {
+          const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (file too small: ${info.fileSize} bytes)`;
+          exportStatus.invalidClips.push(`Scene ${i + 1}: file too small`);
+          throw new Error(msg);
+        }
+        if (!info.hasVideo) {
+          const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (no video stream found)`;
+          exportStatus.invalidClips.push(`Scene ${i + 1}: no video stream`);
+          throw new Error(msg);
+        }
+        if (info.duration <= 0) {
+          const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (zero duration)`;
+          exportStatus.invalidClips.push(`Scene ${i + 1}: zero duration`);
+          throw new Error(msg);
+        }
+
+        clipPaths.push(dest);
+        clipInfos.push(info);
+      }
     }
 
     exportStatus.clipsValidated = clipInfos.length;
