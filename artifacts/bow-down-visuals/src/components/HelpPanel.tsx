@@ -153,15 +153,26 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 };
 
-/* ─── localStorage key ─── */
+/* ─── localStorage keys ─── */
 
-const LS_KEY = "bdv_help_open";
+const LS_OPEN = "bdv_help_open";
+const LS_SIDE = "bdv_help_side";
 
-function readLs(): boolean {
-  try { return localStorage.getItem(LS_KEY) === "true"; } catch { return false; }
+function readOpen(): boolean {
+  try { return localStorage.getItem(LS_OPEN) === "true"; } catch { return false; }
 }
-function writeLs(v: boolean) {
-  try { localStorage.setItem(LS_KEY, v ? "true" : "false"); } catch { /* noop */ }
+function readSide(): "left" | "right" {
+  try {
+    const v = localStorage.getItem(LS_SIDE);
+    if (v === "left" || v === "right") return v;
+  } catch { /* noop */ }
+  return "right";
+}
+function writeOpen(v: boolean) {
+  try { localStorage.setItem(LS_OPEN, v ? "true" : "false"); } catch { /* noop */ }
+}
+function writeSide(s: "left" | "right") {
+  try { localStorage.setItem(LS_SIDE, s); } catch { /* noop */ }
 }
 
 /* ─── Component ─── */
@@ -171,17 +182,26 @@ interface Props {
 }
 
 export function HelpPanel({ page }: Props) {
-  const [open, setOpen] = useState<boolean>(readLs);
+  const [open, setOpen] = useState<boolean>(readOpen);
+  const [side, setSide] = useState<"left" | "right">(readSide);
 
-  /* Persist state */
   function setOpenPersist(v: boolean) {
-    writeLs(v);
+    writeOpen(v);
     setOpen(v);
   }
 
-  /* Listen for open event dispatched from TopBar mobile menu */
+  function setSidePersist(s: "left" | "right") {
+    writeSide(s);
+    setSide(s);
+  }
+
+  /* Listen for open event — carries optional side from the player's snap position */
   useEffect(() => {
-    function handleOpenEvent() { setOpenPersist(true); }
+    function handleOpenEvent(e: Event) {
+      const detail = (e as CustomEvent<{ side?: "left" | "right" }>).detail;
+      if (detail?.side) setSidePersist(detail.side);
+      setOpenPersist(true);
+    }
     window.addEventListener("open-help-panel", handleOpenEvent);
     return () => window.removeEventListener("open-help-panel", handleOpenEvent);
   }, []);
@@ -199,7 +219,7 @@ export function HelpPanel({ page }: Props) {
             onClick={() => setOpenPersist(false)}
           />
 
-          <div className="fixed right-0 top-0 bottom-0 z-[10001] w-full max-w-[320px] bg-[#070707] border-l border-white/[0.08] shadow-2xl flex flex-col">
+          <div className={`fixed top-0 bottom-0 z-[10001] w-full max-w-[320px] bg-[#070707] shadow-2xl flex flex-col ${side === "left" ? "left-0 border-r border-white/[0.08]" : "right-0 border-l border-white/[0.08]"}`}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">

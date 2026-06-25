@@ -52,6 +52,11 @@ function getSavedSnap(): SnapPoint {
   return "BR";
 }
 
+/** Which side the help panel should open on based on snap position */
+function helpSide(pt: SnapPoint): "left" | "right" {
+  return (pt === "TL" || pt === "BL" || pt === "LC" || pt === "TC") ? "left" : "right";
+}
+
 export function DraggableThemePlayer() {
   const elRef    = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -61,8 +66,9 @@ export function DraggableThemePlayer() {
   const [pos, rawSetPos] = useState<{ x: number; y: number }>(() =>
     snapToPos(getSavedSnap(), 210, 52),
   );
-  const [isSnapping, setIsSnapping] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isSnapping, setIsSnapping]   = useState(false);
+  const [isDragging, setIsDragging]   = useState(false);
+  const [currentSnap, setCurrentSnap] = useState<SnapPoint>(getSavedSnap);
 
   function updatePos(p: { x: number; y: number }) {
     posRef.current = p;
@@ -71,6 +77,7 @@ export function DraggableThemePlayer() {
 
   function snapTo(pt: SnapPoint, w: number, h: number) {
     try { localStorage.setItem("bdv-player-snap", pt); } catch { /* ignore */ }
+    setCurrentSnap(pt);
     setIsSnapping(true);
     updatePos(snapToPos(pt, w, h));
     setTimeout(() => setIsSnapping(false), 400);
@@ -162,33 +169,35 @@ export function DraggableThemePlayer() {
           size={14}
           style={{ color: `${GOLD_GLOW}0.50)`, flexShrink: 0 }}
         />
-        {/* Need Help? button — clicking it does NOT trigger a drag */}
+        {/* ? help button — icon only, no text */}
         <button
           title="Need Help?"
           aria-label="Need Help?"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
-            window.dispatchEvent(new CustomEvent("open-help-panel"));
+            window.dispatchEvent(
+              new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
+            );
           }}
           style={{
-            display:         "flex",
-            alignItems:      "center",
-            gap:             4,
-            padding:         "2px 7px",
-            borderRadius:    20,
-            background:      `${GOLD_GLOW}0.12)`,
-            border:          `1px solid ${GOLD_GLOW}0.30)`,
-            color:           `${GOLD_GLOW}0.90)`,
-            fontSize:        10,
-            fontWeight:      700,
-            cursor:          "pointer",
-            whiteSpace:      "nowrap",
-            flexShrink:      0,
+            display:      "flex",
+            alignItems:   "center",
+            justifyContent: "center",
+            width:        22,
+            height:       22,
+            borderRadius: "50%",
+            background:   `${GOLD_GLOW}0.15)`,
+            border:       `1px solid ${GOLD_GLOW}0.35)`,
+            color:        `${GOLD_GLOW}0.95)`,
+            fontSize:     11,
+            fontWeight:   900,
+            cursor:       "pointer",
+            flexShrink:   0,
+            lineHeight:   1,
           }}
         >
-          <HelpCircle size={10} />
-          Need Help?
+          ?
         </button>
       </div>
 
