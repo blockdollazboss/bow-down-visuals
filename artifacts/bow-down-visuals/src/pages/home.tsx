@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
-import { HomepageThemePlayer } from "@/components/HomepageThemePlayer";
+import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import {
   Music, Video, Film, Image as ImageIcon, Mic2, Archive,
   ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
@@ -176,6 +176,9 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
         </Link>
 
+        {/* Theme song mini-player */}
+        <NavThemePlayer />
+
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map((l) => (
@@ -261,9 +264,6 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         <div className="flex justify-center -my-16">
           <AnimatedLogo className="w-[680px] max-w-full h-auto" />
         </div>
-
-        {/* Homepage Theme Player */}
-        <HomepageThemePlayer />
 
         {/* Beta badge */}
         <Link href="/beta-access">

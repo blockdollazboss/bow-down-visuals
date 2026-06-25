@@ -4,6 +4,7 @@ import {
   Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -52,6 +53,9 @@ export function TopBar() {
         <Link href="/" className="cursor-pointer shrink-0">
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-16 w-auto" />
         </Link>
+
+        {/* Theme song mini-player */}
+        <NavThemePlayer />
 
         {/* Desktop nav */}
         <nav className="hidden lg:flex items-center gap-0.5">

@@ -3,7 +3,6 @@ import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
 
-/* ── gold palette matching site primary hsl(43 85% 52%) ── */
 const GOLD       = "#DAA520";
 const GOLD_LIGHT = "#FFD700";
 const GOLD_DARK  = "#9B7515";
@@ -11,7 +10,9 @@ const GOLD_GLOW  = "rgba(218,165,32,";
 
 type Status = "probing" | "ready" | "missing" | "playing" | "error";
 
-function EqBars({ active }: { active: boolean }) {
+function EqBars({ active, size = "md" }: { active: boolean; size?: "sm" | "md" }) {
+  const h = size === "sm" ? 10 : 14;
+  const barH = size === "sm" ? [2, 5, 8, 4, 7] : [3, 6, 10, 5, 8];
   return (
     <>
       <style>{`
@@ -22,19 +23,19 @@ function EqBars({ active }: { active: boolean }) {
         @keyframes eq5 { 0%,100%{height:8px}  50%{height:3px}  }
         .eq-bar { width:3px; border-radius:2px; transition:height 0.3s; }
       `}</style>
-      <div className="flex items-end gap-[3px]" aria-hidden="true" style={{ height: 14 }}>
+      <div className="flex items-end gap-[3px]" aria-hidden="true" style={{ height: h }}>
         {[
-          { anim: "eq1", dur: "0.55s", delay: "0.00s" },
-          { anim: "eq2", dur: "0.70s", delay: "0.08s" },
-          { anim: "eq3", dur: "0.60s", delay: "0.16s" },
-          { anim: "eq4", dur: "0.65s", delay: "0.04s" },
-          { anim: "eq5", dur: "0.50s", delay: "0.12s" },
+          { anim: "eq1", dur: "0.55s", delay: "0.00s", base: barH[0] },
+          { anim: "eq2", dur: "0.70s", delay: "0.08s", base: barH[1] },
+          { anim: "eq3", dur: "0.60s", delay: "0.16s", base: barH[2] },
+          { anim: "eq4", dur: "0.65s", delay: "0.04s", base: barH[3] },
+          { anim: "eq5", dur: "0.50s", delay: "0.12s", base: barH[4] },
         ].map((b, i) => (
           <div
             key={i}
             className="eq-bar"
             style={{
-              height: active ? undefined : 3,
+              height: active ? undefined : b.base,
               background: `linear-gradient(to top, ${GOLD_DARK}, ${GOLD_LIGHT})`,
               animation: active
                 ? `${b.anim} ${b.dur} ease-in-out ${b.delay} infinite`
@@ -47,14 +48,13 @@ function EqBars({ active }: { active: boolean }) {
   );
 }
 
-export function HomepageThemePlayer() {
+function useThemeAudio() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [status, setStatus] = useState<Status>("probing");
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0.65);
 
-  /* ── Probe whether the audio file exists ── */
   useEffect(() => {
     let cancelled = false;
     fetch(AUDIO_SRC, { method: "HEAD" })
@@ -63,7 +63,6 @@ export function HomepageThemePlayer() {
     return () => { cancelled = true; };
   }, []);
 
-  /* ── Try autoplay unmuted, fall back to muted if browser blocks it ── */
   useEffect(() => {
     if (status !== "ready") return;
     const audio = audioRef.current;
@@ -73,15 +72,13 @@ export function HomepageThemePlayer() {
     audio.play()
       .then(() => { setPlaying(true); setMuted(false); })
       .catch(() => {
-        // Browser blocked unmuted autoplay — try muted as fallback
         audio.muted = true;
         audio.play()
           .then(() => { setPlaying(true); setMuted(true); })
-          .catch(() => { /* fully blocked — user must click play */ });
+          .catch(() => {});
       });
   }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Stop + reset on unmount (user navigated away) ── */
   useEffect(() => {
     return () => {
       const audio = audioRef.current;
@@ -125,6 +122,84 @@ export function HomepageThemePlayer() {
       }
     }
   }, [muted]);
+
+  return { audioRef, status, playing, muted, volume, togglePlay, toggleMute, handleVolume };
+}
+
+/* ──────────────────────────────────────────────
+   NavThemePlayer — compact bar for the top navbar
+   ────────────────────────────────────────────── */
+export function NavThemePlayer() {
+  const { audioRef, status, playing, muted, togglePlay, toggleMute } = useThemeAudio();
+
+  if (status === "probing" || status === "missing") return null;
+
+  return (
+    <>
+      <style>{`
+        .nav-play-btn {
+          background: linear-gradient(135deg, ${GOLD_DARK}, ${GOLD});
+          box-shadow: 0 0 10px ${GOLD_GLOW}0.45);
+          transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .nav-play-btn:hover {
+          transform: scale(1.10);
+          box-shadow: 0 0 18px ${GOLD_GLOW}0.70);
+        }
+        .nav-play-btn:active { transform: scale(0.94); }
+        .nav-mute-btn { color: rgba(255,255,255,0.32); transition: color 0.15s; }
+        .nav-mute-btn:hover { color: ${GOLD}; }
+      `}</style>
+
+      <audio ref={audioRef} src={AUDIO_SRC} loop preload="metadata" />
+
+      <div
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl shrink-0"
+        style={{
+          background: "rgba(0,0,0,0.45)",
+          border: `1px solid ${GOLD_GLOW}0.18)`,
+          backdropFilter: "blur(10px)",
+        }}
+        role="region"
+        aria-label="Theme song player"
+      >
+        {/* Play / Pause */}
+        <button
+          className="nav-play-btn h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+          onClick={togglePlay}
+          aria-label={playing ? "Pause theme" : "Play theme"}
+        >
+          {playing
+            ? <Pause className="h-3 w-3 text-black" fill="black" />
+            : <Play  className="h-3 w-3 text-black" fill="black" style={{ marginLeft: 1 }} />
+          }
+        </button>
+
+        {/* EQ bars */}
+        <EqBars active={playing && !muted} size="sm" />
+
+        {/* Mute */}
+        <button
+          onClick={toggleMute}
+          className="nav-mute-btn"
+          aria-label={muted ? "Unmute" : "Mute"}
+        >
+          {muted
+            ? <VolumeX className="h-3.5 w-3.5" />
+            : <Volume2  className="h-3.5 w-3.5" />
+          }
+        </button>
+      </div>
+    </>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   HomepageThemePlayer — kept for backwards compat
+   (no longer rendered on homepage, but still exported)
+   ────────────────────────────────────────────── */
+export function HomepageThemePlayer() {
+  const { audioRef, status, playing, muted, volume, togglePlay, toggleMute, handleVolume } = useThemeAudio();
 
   if (status === "probing") return null;
 
@@ -201,7 +276,6 @@ export function HomepageThemePlayer() {
         src={AUDIO_SRC}
         loop
         preload="metadata"
-        onError={() => setStatus("error")}
       />
 
       <div className="flex justify-center">
@@ -216,7 +290,6 @@ export function HomepageThemePlayer() {
           role="region"
           aria-label="Homepage theme song player"
         >
-          {/* Play / Pause */}
           <button
             className="theme-play-btn h-11 w-11 rounded-full flex items-center justify-center shrink-0"
             onClick={togglePlay}
@@ -228,7 +301,6 @@ export function HomepageThemePlayer() {
             }
           </button>
 
-          {/* Info + equalizer */}
           <div className="flex-1 min-w-0 space-y-0.5">
             <p style={{ color: `${GOLD_GLOW}0.65)` }} className="text-[9px] font-bold uppercase tracking-[0.18em]">
               BOW DOWN VISUALS
@@ -254,7 +326,6 @@ export function HomepageThemePlayer() {
             </div>
           </div>
 
-          {/* Mute + Volume */}
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={toggleMute}

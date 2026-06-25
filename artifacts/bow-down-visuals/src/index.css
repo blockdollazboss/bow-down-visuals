@@ -54,42 +54,63 @@
 }
 
 :root, .dark {
-  --background: 0 0% 4%;
-  --foreground: 0 0% 95%;
-  --card: 0 0% 7%;
-  --card-foreground: 0 0% 95%;
-  --card-border: 43 60% 25%;
-  --border: 43 40% 18%;
-  --primary: 43 85% 52%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 0 0% 12%;
-  --secondary-foreground: 0 0% 85%;
-  --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 55%;
-  --accent: 43 85% 52%;
-  --accent-foreground: 0 0% 100%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 43 30% 20%;
-  --ring: 43 85% 52%;
-  --sidebar: 0 0% 5%;
-  --sidebar-foreground: 0 0% 90%;
-  --sidebar-border: 43 40% 15%;
-  --sidebar-primary: 43 85% 52%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 43 50% 20%;
-  --sidebar-accent-foreground: 0 0% 90%;
-  --sidebar-ring: 43 85% 52%;
-  --popover: 0 0% 7%;
-  --popover-foreground: 0 0% 95%;
-  --popover-border: 43 40% 20%;
+  /* Gunmetal charcoal base — matches the shark's steel-scale vibe */
+  --background: 216 10% 7%;
+  --foreground: 40 15% 92%;
+
+  /* Cards: dark steel panels */
+  --card: 216 10% 10%;
+  --card-foreground: 40 15% 92%;
+  --card-border: 43 55% 22%;
+
+  /* Borders: gold-tinted steel */
+  --border: 215 12% 16%;
+  --input: 215 10% 14%;
+  --ring: 43 90% 52%;
+
+  /* Primary: vivid gold — matches the logo's gold crown & trim */
+  --primary: 43 90% 52%;
+  --primary-foreground: 0 0% 5%;
+
+  /* Secondary: gunmetal panel */
+  --secondary: 216 10% 13%;
+  --secondary-foreground: 40 10% 80%;
+
+  /* Muted: dark steel */
+  --muted: 216 8% 11%;
+  --muted-foreground: 215 8% 52%;
+
+  /* Accent: gold */
+  --accent: 43 90% 52%;
+  --accent-foreground: 0 0% 5%;
+
+  /* Destructive: blood red — matches the shark's stitching */
+  --destructive: 0 72% 48%;
+  --destructive-foreground: 0 0% 98%;
+  --destructive-border: 0 60% 35%;
+
+  /* Popovers: deep steel */
+  --popover: 216 10% 8%;
+  --popover-foreground: 40 15% 92%;
+  --popover-border: 215 12% 18%;
+
+  /* Sidebar: darker steel */
+  --sidebar: 216 12% 6%;
+  --sidebar-foreground: 40 12% 88%;
+  --sidebar-border: 43 35% 14%;
+  --sidebar-primary: 43 90% 52%;
+  --sidebar-primary-foreground: 0 0% 5%;
+  --sidebar-accent: 43 45% 18%;
+  --sidebar-accent-foreground: 40 12% 88%;
+  --sidebar-ring: 43 90% 52%;
+
   --radius: 0.75rem;
 
-  --chart-1: 43 85% 52%;
-  --chart-2: 43 85% 45%;
-  --chart-3: 43 70% 38%;
-  --chart-4: 43 60% 28%;
-  --chart-5: 43 50% 18%;
+  --chart-1: 43 90% 52%;
+  --chart-2: 43 85% 42%;
+  --chart-3: 43 70% 32%;
+  --chart-4: 0 65% 42%;
+  --chart-5: 216 10% 30%;
 }
 
 @layer base {
@@ -101,16 +122,22 @@
   }
 
   html, body {
-    background-color: hsl(0 0% 4%);
+    background-color: hsl(216 10% 7%);
   }
 }
 
-.gold-glow { box-shadow: 0 0 20px rgba(218, 165, 32, 0.35), 0 0 40px rgba(218, 165, 32, 0.12); }
-.gold-glow-sm { box-shadow: 0 0 10px rgba(218, 165, 32, 0.25); }
+.gold-glow    { box-shadow: 0 0 20px rgba(218,165,32,0.40), 0 0 45px rgba(218,165,32,0.14); }
+.gold-glow-sm { box-shadow: 0 0 10px rgba(218,165,32,0.28); }
 
-/* Brick texture — detailed staggered brick with fills, highlights, and shadows */
+/* Blood-red glow utility for destructive / accent use */
+.red-glow     { box-shadow: 0 0 18px rgba(190,30,30,0.45), 0 0 36px rgba(190,30,30,0.15); }
+
+/*
+  Concrete / steel-plate texture — matches the gunmetal shark armour.
+  Larger, more pronounced slabs with subtle cool-grey mortar lines.
+*/
 html, body, .bg-background, [class*="min-h-screen"] {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120'%3E%3Crect width='240' height='120' fill='%23222222'/%3E%3Crect x='0' y='0' width='114' height='56' fill='%23141414'/%3E%3Crect x='120' y='0' width='114' height='56' fill='%23111111'/%3E%3Crect x='0' y='62' width='54' height='56' fill='%23131313'/%3E%3Crect x='60' y='62' width='114' height='56' fill='%23151515'/%3E%3Crect x='180' y='62' width='60' height='56' fill='%23121212'/%3E%3Crect x='0' y='0' width='114' height='2' fill='%23282828'/%3E%3Crect x='120' y='0' width='114' height='2' fill='%23252525'/%3E%3Crect x='0' y='62' width='54' height='2' fill='%23272727'/%3E%3Crect x='60' y='62' width='114' height='2' fill='%23292929'/%3E%3Crect x='180' y='62' width='60' height='2' fill='%23262626'/%3E%3Crect x='0' y='54' width='114' height='2' fill='%230d0d0d'/%3E%3Crect x='120' y='54' width='114' height='2' fill='%230c0c0c'/%3E%3Crect x='0' y='116' width='54' height='2' fill='%230d0d0d'/%3E%3Crect x='60' y='116' width='114' height='2' fill='%230e0e0e'/%3E%3Crect x='180' y='116' width='60' height='2' fill='%230c0c0c'/%3E%3C/svg%3E") !important;
-  background-size: 240px 120px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'%3E%3Crect width='300' height='150' fill='%2313161b'/%3E%3Crect x='2'   y='2'   width='138' height='68' rx='1' fill='%230f1217'/%3E%3Crect x='2'   y='2'   width='138' height='68' rx='1' fill='url(%23s1)'/%3E%3Crect x='148' y='2'   width='148' height='68' rx='1' fill='%23111318'/%3E%3Crect x='148' y='2'   width='148' height='68' rx='1' fill='url(%23s2)'/%3E%3Crect x='2'   y='78'  width='88'  height='68' rx='1' fill='%23101318'/%3E%3Crect x='98'  y='78'  width='128' height='68' rx='1' fill='%230e1116'/%3E%3Crect x='98'  y='78'  width='128' height='68' rx='1' fill='url(%23s3)'/%3E%3Crect x='234' y='78'  width='64'  height='68' rx='1' fill='%230f1217'/%3E%3Crect x='0' y='72'  width='300' height='4' fill='%231c2028'/%3E%3Crect x='0' y='0'   width='300' height='3' fill='%231c2028'/%3E%3Crect x='0' y='147' width='300' height='3' fill='%231c2028'/%3E%3Crect x='0'   y='2'  width='3' height='68'  fill='%231c2028'/%3E%3Crect x='141' y='2'  width='4' height='68'  fill='%231c2028'/%3E%3Crect x='297' y='2'  width='3' height='68'  fill='%231c2028'/%3E%3Crect x='0'   y='78' width='3' height='68'  fill='%231c2028'/%3E%3Crect x='91'  y='78' width='4' height='68'  fill='%231c2028'/%3E%3Crect x='229' y='78' width='4' height='68'  fill='%231c2028'/%3E%3Crect x='297' y='78' width='3' height='68'  fill='%231c2028'/%3E%3Cdefs%3E%3ClinearGradient id='s1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.3'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.3'/%3E%3C/linearGradient%3E%3ClinearGradient id='s2' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.2'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.2'/%3E%3C/linearGradient%3E%3ClinearGradient id='s3' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.25'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.25'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E") !important;
+  background-size: 300px 150px !important;
   background-position: 0 0 !important;
 }
