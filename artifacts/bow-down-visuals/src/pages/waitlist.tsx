@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,6 +33,7 @@ function NavBar() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <NavThemePlayer />
           <Link href="/login">
             <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 hidden sm:flex gap-2 font-semibold">
               Sign In

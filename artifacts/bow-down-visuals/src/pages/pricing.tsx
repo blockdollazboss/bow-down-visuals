@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,7 @@ function NavBar() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <NavThemePlayer />
           <Link href="/beta-access">
             <Button size="sm" className="gold-glow hidden sm:flex gap-2 font-semibold">
               <Sparkles className="h-3.5 w-3.5" /> Join Beta
