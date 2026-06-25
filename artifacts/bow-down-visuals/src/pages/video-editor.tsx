@@ -315,8 +315,8 @@ export default function VideoEditor() {
                 {activeArtist && (
                   <div className="flex items-center gap-2.5 px-3 py-2 mb-4 rounded-xl border border-green-500/25 bg-green-500/[0.06]">
                     <div className="h-7 w-7 rounded-lg overflow-hidden shrink-0">
-                      {activeArtist.photo_url ? (
-                        <img src={activeArtist.photo_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
+                      {activeArtist.reference_image_url ? (
+                        <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full bg-primary/20 flex items-center justify-center">
                           <span className="text-[10px] font-black text-primary">{activeArtist.artist_name[0]?.toUpperCase()}</span>

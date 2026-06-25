@@ -230,7 +230,7 @@ export default function MakeVideo() {
     if (!watched.artistName) setValue("artistName", vault.artist_name);
     if (!watched.artistDescription) {
       const parts = [
-        vault.artist_description,
+        vault.personality,
         vault.hair ? `Hair: ${vault.hair}` : null,
         vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
         vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,

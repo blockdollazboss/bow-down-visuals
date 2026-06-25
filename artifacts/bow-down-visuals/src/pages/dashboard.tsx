@@ -329,8 +329,8 @@ export default function Dashboard() {
           <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center shrink-0 overflow-hidden ${
             activeArtist ? "border-white/25" : "border-white/10"
           }`}>
-            {activeArtist?.photo_url ? (
-              <img src={activeArtist.photo_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
+            {activeArtist?.reference_image_url ? (
+              <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
             ) : (
               <User className={`h-5 w-5 ${activeArtist ? "text-zinc-300" : "text-white/20"}`} />
             )}

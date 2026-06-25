@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
+import { db, artistVaultsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -30,10 +32,10 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
-  const { data, error } = await req.userSupabase!
-    .from("artist_vaults")
-    .insert({
-      user_id: req.userId,
+  const [row] = await db
+    .insert(artistVaultsTable)
+    .values({
+      user_id: req.userId!,
       artist_name: d.artistName,
       artist_type: d.artistType ?? null,
       genre: d.genre ?? null,
@@ -51,34 +53,23 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
       consistency_prompt: d.consistencyPrompt ?? null,
       is_active: false,
     })
-    .select("id")
-    .single();
+    .returning({ id: artistVaultsTable.id });
 
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.status(201).json({ id: data?.id });
+  res.status(201).json({ id: row?.id });
 });
 
 router.get("/artist-vaults", requireAuth, async (req, res) => {
-  const { data: vaults, error } = await req.userSupabase!
-    .from("artist_vaults")
-    .select("*")
-    .eq("user_id", req.userId)
-    .order("created_at", { ascending: false });
+  const vaults = await db
+    .select()
+    .from(artistVaultsTable)
+    .where(eq(artistVaultsTable.user_id, req.userId!))
+    .orderBy(desc(artistVaultsTable.created_at));
 
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.json({ vaults: vaults ?? [] });
+  res.json({ vaults });
 });
 
 router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
-  const { id } = req.params;
+  const id = String(req.params["id"]);
   const parsed = ArtistVaultSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid artist vault data" });
@@ -86,9 +77,9 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
-  const { error } = await req.userSupabase!
-    .from("artist_vaults")
-    .update({
+  await db
+    .update(artistVaultsTable)
+    .set({
       artist_name: d.artistName,
       artist_type: d.artistType ?? null,
       genre: d.genre ?? null,
@@ -104,54 +95,50 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       reference_image_url: d.referenceImageUrl ?? null,
       reference_image_path: d.referenceImagePath ?? null,
       consistency_prompt: d.consistencyPrompt ?? null,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date(),
     })
-    .eq("id", id)
-    .eq("user_id", req.userId);
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+    .where(
+      and(
+        eq(artistVaultsTable.id, id),
+        eq(artistVaultsTable.user_id, req.userId!),
+      ),
+    );
 
   res.json({ success: true });
 });
 
 router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
-  const { id } = req.params;
+  const id = String(req.params["id"]);
 
-  await req.userSupabase!
-    .from("artist_vaults")
-    .update({ is_active: false })
-    .eq("user_id", req.userId);
+  await db
+    .update(artistVaultsTable)
+    .set({ is_active: false })
+    .where(eq(artistVaultsTable.user_id, req.userId!));
 
-  const { error } = await req.userSupabase!
-    .from("artist_vaults")
-    .update({ is_active: true })
-    .eq("id", id)
-    .eq("user_id", req.userId);
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+  await db
+    .update(artistVaultsTable)
+    .set({ is_active: true })
+    .where(
+      and(
+        eq(artistVaultsTable.id, id),
+        eq(artistVaultsTable.user_id, req.userId!),
+      ),
+    );
 
   res.json({ success: true });
 });
 
 router.delete("/artist-vaults/:id", requireAuth, async (req, res) => {
-  const { id } = req.params;
+  const id = String(req.params["id"]);
 
-  const { error } = await req.userSupabase!
-    .from("artist_vaults")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", req.userId);
-
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+  await db
+    .delete(artistVaultsTable)
+    .where(
+      and(
+        eq(artistVaultsTable.id, id),
+        eq(artistVaultsTable.user_id, req.userId!),
+      ),
+    );
 
   res.json({ success: true });
 });

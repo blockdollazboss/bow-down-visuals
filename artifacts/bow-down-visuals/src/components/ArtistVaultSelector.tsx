@@ -6,21 +6,23 @@ import { Button } from "@/components/ui/button";
 
 export interface ArtistVault {
   id: string;
+  user_id: string;
   artist_name: string;
   artist_type: string | null;
-  artist_description: string | null;
   genre: string | null;
+  voice_style: string | null;
   visual_style: string | null;
   hair: string | null;
   tattoos: string | null;
   jewelry: string | null;
   clothing_style: string | null;
   brand_colors: string | null;
-  logo_description: string | null;
-  image_reference_notes: string | null;
+  personality: string | null;
   do_not_change_rules: string | null;
-  special_style_rules: string | null;
-  photo_url: string | null;
+  reference_image_url: string | null;
+  reference_image_path: string | null;
+  consistency_prompt: string | null;
+  is_active: boolean;
   created_at: string;
 }
 

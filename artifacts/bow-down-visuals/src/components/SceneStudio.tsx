@@ -333,7 +333,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
           artistVault: artistVault
             ? {
                 artistType: artistVault.artist_type,
-                artistDescription: artistVault.artist_description,
+                artistDescription: artistVault.personality,
                 visualStyle: artistVault.visual_style,
                 hair: artistVault.hair,
                 tattoos: artistVault.tattoos,
@@ -341,7 +341,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
                 clothingStyle: artistVault.clothing_style,
                 brandColors: artistVault.brand_colors,
                 doNotChangeRules: artistVault.do_not_change_rules,
-                specialStyleRules: artistVault.special_style_rules,
+                specialStyleRules: artistVault.do_not_change_rules,
               }
             : null,
         }),

@@ -286,9 +286,9 @@ export default function SongAndVideo() {
   /* ── Vault load ── */
   function handleVaultLoad(vault: ArtistVault) {
     if (!watched.artistName) setValue("artistName", vault.artist_name);
-    if (!watched.artistDescription && vault.artist_description) {
+    if (!watched.artistDescription && vault.personality) {
       const parts = [
-        vault.artist_description,
+        vault.personality,
         vault.hair ? `Hair: ${vault.hair}` : null,
         vault.tattoos ? `Tattoos: ${vault.tattoos}` : null,
         vault.jewelry ? `Jewelry: ${vault.jewelry}` : null,
@@ -351,17 +351,17 @@ export default function SongAndVideo() {
 
     const vaultForApi = {
       artistType:         loadedVault?.artist_type       ?? null,
-      artistDescription:  watched.artistDescription      || loadedVault?.artist_description,
+      artistDescription:  watched.artistDescription      || loadedVault?.personality,
       visualStyle:        watched.visualStyleRules       || loadedVault?.visual_style,
       brandColors:        watched.brandColors            || loadedVault?.brand_colors,
       doNotChangeRules:   watched.doNotChangeRules       || loadedVault?.do_not_change_rules,
-      specialStyleRules:  loadedVault?.special_style_rules ?? null,
+      specialStyleRules:  loadedVault?.do_not_change_rules ?? null,
       hair:               loadedVault?.hair              ?? null,
       tattoos:            loadedVault?.tattoos           ?? null,
       jewelry:            loadedVault?.jewelry           ?? null,
       clothingStyle:      loadedVault?.clothing_style    ?? null,
-      logoDescription:    loadedVault?.logo_description  ?? null,
-      imageReferenceNotes:loadedVault?.image_reference_notes ?? null,
+      logoDescription:    null,
+      imageReferenceNotes:null,
     };
 
     try {

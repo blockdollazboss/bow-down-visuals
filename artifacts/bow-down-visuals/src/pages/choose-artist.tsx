@@ -110,8 +110,8 @@ export default function ChooseArtist() {
                   <div className={`h-16 w-16 rounded-full border-2 flex items-center justify-center mb-4 overflow-hidden ${
                     isSelected ? "border-white/30" : "border-white/10 group-hover:border-white/20"
                   }`}>
-                    {vault.photo_url ? (
-                      <img src={vault.photo_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+                    {vault.reference_image_url ? (
+                      <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
                     ) : (
                       <div className={`h-full w-full flex items-center justify-center text-2xl font-black ${
                         isSelected ? "bg-white/[0.12] text-zinc-200" : "bg-white/[0.04] text-white/30"
