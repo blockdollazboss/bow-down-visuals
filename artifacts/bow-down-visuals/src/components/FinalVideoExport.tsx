@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode } from "@/lib/editor-settings";
 
 interface ExportRecord {
   final_video_url: string;
@@ -37,6 +37,7 @@ interface FinalVideoExportProps {
   existingExport?: ExportRecord | null;
   onExportComplete?: (record: ExportRecord) => void;
   captions?: CaptionSettings | null;
+  captionExportMode?: CaptionExportMode;
   branding?: BrandingSettings | null;
 }
 
@@ -89,6 +90,7 @@ export function FinalVideoExport({
   existingExport,
   onExportComplete,
   captions,
+  captionExportMode = "burn",
   branding,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
@@ -169,7 +171,8 @@ export function FinalVideoExport({
           addWatermark,
           customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
           audioSource,
-          captions: captions && captions.mode !== "none" ? captions : null,
+          captions: captionExportMode === "burn" && captions && captions.mode !== "none" ? captions : null,
+          captionExportMode,
           branding: branding ?? null,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),

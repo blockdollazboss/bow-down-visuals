@@ -341,12 +341,17 @@ export interface AudioSettings {
   fadeOut: boolean;
 }
 
+/** How captions appear in the final exported video file. */
+export type CaptionExportMode = "off" | "overlay" | "burn";
+
 export interface ExportSettings {
   format: VideoFormat;
   resolution: ExportResolution;
   quality: ExportQuality;
   watermark: boolean;
   customWatermarkUrl?: string | null;
+  /** Controls how captions are included in the final exported video. */
+  captionExportMode: CaptionExportMode;
 }
 
 export interface AutoEditOptions {
@@ -721,7 +726,7 @@ export function defaultEditorSettings(): EditorSettings {
     effects: [],
     overlays: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
-    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null },
+    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode },
     musicStudio: defaultMusicStudioSettings(),
     branding: {
       introCard: {

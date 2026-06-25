@@ -1,0 +1,77 @@
+Fix fullscreen/Picture-in-Picture captions and burned-in caption export.
+
+Problem:
+Captions show in the normal page preview, but when I put the preview in fullscreen or Picture-in-Picture, I see zero captions.
+
+This means captions are only an HTML overlay on the page, not part of the video/fullscreen/PiP output.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign the dashboard.
+
+Only fix caption preview behavior and final caption rendering.
+
+Requirements:
+
+1. Explain in the UI:
+   Preview captions are overlays. Fullscreen/Picture-in-Picture may hide overlays until captions are rendered into the final video.
+
+2. Custom fullscreen preview:
+   Add a custom fullscreen button that fullscreen-opens the whole preview container, not just the video element.
+   The fullscreen container must include:
+
+* video or placeholder
+* captions overlay
+* controls
+* scene status
+* audio status
+
+Do not use native video fullscreen if it hides overlays.
+
+3. Picture-in-Picture:
+   If browser PiP cannot show overlay captions, show:
+   Picture-in-Picture may not show preview captions. Use custom fullscreen or export with burned-in captions.
+
+4. Final export:
+   Add support for burned-in captions.
+   Burned-in captions should be permanently rendered into the final video.
+
+5. Export options:
+   Add caption export setting:
+
+* Captions Off
+* Preview Overlay Only
+* Burn Captions Into Video
+
+Default for music videos:
+Burn Captions Into Video
+
+6. Caption render should include:
+
+* caption text
+* start time
+* end time
+* position
+* size
+* style
+* color
+* outline/shadow
+
+7. Add a test button:
+   Preview Burned-In Caption Style
+
+This should show how captions will look in the final export.
+
+8. If final burned-in caption rendering is not fully connected yet, label it:
+   Burned-in caption export coming soon.
+
+9. Do not make it look like captions will appear in PiP if they will not.
+
+10. Keep normal Live Preview captions working on the page.
+
+Final goal:
+Captions should be visible in normal preview, custom fullscreen preview, and final exported videos. If PiP cannot show captions, the app should clearly explain that and push users to burned-in captions for export.

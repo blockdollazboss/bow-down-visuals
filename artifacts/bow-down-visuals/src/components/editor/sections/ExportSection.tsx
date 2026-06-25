@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon } from "lucide-react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -9,6 +9,7 @@ import {
   type ExportResolution,
   type VideoAudioSource,
   type AudioExportRecord,
+  type CaptionExportMode,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
@@ -413,6 +414,13 @@ export function ExportSection({
         </div>
       </EditorCard>
 
+      {/* ── Caption Export ── */}
+      <CaptionExportCard
+        mode={(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}
+        hasCaptions={settings.captions.enabled && settings.captions.lines.length > 0}
+        onChange={(m) => setExport({ captionExportMode: m })}
+      />
+
       {/* ── Final Video Export ── */}
       <FinalVideoExport
         scenes={scenes}
@@ -428,9 +436,130 @@ export function ExportSection({
         aspectRatio={aspectRatio}
         resolution={settings.export.resolution}
         captions={settings.captions}
+        captionExportMode={(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}
         branding={settings.branding}
       />
     </div>
+  );
+}
+
+/* ── Caption Export Card ─────────────────────────────────── */
+interface CaptionExportCardProps {
+  mode: CaptionExportMode;
+  hasCaptions: boolean;
+  onChange: (m: CaptionExportMode) => void;
+}
+
+const CAPTION_EXPORT_OPTIONS: {
+  value: CaptionExportMode;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  comingSoon?: boolean;
+}[] = [
+  {
+    value: "off",
+    label: "Captions Off",
+    description: "No captions in the exported video file",
+    icon: <VolumeX className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "overlay",
+    label: "Preview Overlay Only",
+    description: "Captions show in the editor preview but are not added to the exported file",
+    icon: <Eye className="h-3.5 w-3.5" />,
+  },
+  {
+    value: "burn",
+    label: "Burn Captions Into Video",
+    description: "Captions are permanently rendered into every frame of the final video",
+    icon: <Flame className="h-3.5 w-3.5" />,
+    comingSoon: true,
+  },
+];
+
+function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardProps) {
+  return (
+    <EditorCard
+      title="Caption Export"
+      subtitle="How captions appear in the final exported video"
+      icon={<Subtitles className="h-4 w-4" />}
+    >
+      <div className="space-y-3">
+        {!hasCaptions && (
+          <div className="flex items-start gap-2.5 p-3 rounded-xl border border-white/10 bg-white/[0.03] text-xs text-white/35">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/25" />
+            No captions generated yet. Go to the Captions tab to create them.
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-2">
+          {CAPTION_EXPORT_OPTIONS.map((opt) => {
+            const active = mode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange(opt.value)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-colors ${
+                  active
+                    ? "border-primary/50 bg-primary/10"
+                    : "border-white/10 bg-white/[0.03] hover:border-white/20"
+                }`}
+              >
+                <span className={`shrink-0 ${active ? "text-primary" : "text-white/40"}`}>
+                  {opt.icon}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className={`text-sm font-bold block ${active ? "text-primary" : "text-white/80"}`}>
+                    {opt.label}
+                    {opt.comingSoon && (
+                      <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-amber-400/80 border border-amber-400/30 px-1.5 py-0.5 rounded-full align-middle">
+                        coming soon
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[11px] text-white/35 block mt-0.5">{opt.description}</span>
+                </span>
+                {active && (
+                  <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {mode === "burn" && (
+          <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+            <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-amber-300">Burned-in caption export coming soon</p>
+              <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed">
+                This setting is saved and will take effect when the feature is fully connected.
+                Your current export will include captions as overlay data sent to the rendering pipeline.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {mode === "overlay" && (
+          <p className="text-[11px] text-white/30 leading-relaxed px-1">
+            Overlay captions appear in the Timeline Preview only. They are not burned into the
+            exported video file. Switch to <strong className="text-white/50">Burn Captions Into Video</strong>{" "}
+            to make captions permanent in the export.
+          </p>
+        )}
+
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-white/[0.07] bg-white/[0.02] text-[10px] text-white/30 leading-relaxed">
+          <Eye className="h-3 w-3 shrink-0 mt-0.5 text-white/20" />
+          <span>
+            Preview captions always show as HTML overlays in the Timeline tab. Use{" "}
+            <strong className="text-white/45">Preview Burned-In Caption Style</strong> in the Timeline tab
+            to see how burned-in captions will look on the final video.
+          </span>
+        </div>
+      </div>
+    </EditorCard>
   );
 }
 
