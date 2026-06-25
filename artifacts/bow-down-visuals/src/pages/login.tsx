@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import { useLocation } from "wouter";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { useForm } from "react-hook-form";
@@ -42,7 +41,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="fixed top-4 right-4 z-50"><NavThemePlayer /></div>
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">

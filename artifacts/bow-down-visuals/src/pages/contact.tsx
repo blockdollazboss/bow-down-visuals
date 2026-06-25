@@ -3,7 +3,6 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
 
@@ -27,7 +26,6 @@ function NavBar() {
           ))}
         </nav>
         <div className="flex items-center gap-2.5">
-          <NavThemePlayer />
           <Link href="/login" className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 transition-colors">
             Sign In
           </Link>

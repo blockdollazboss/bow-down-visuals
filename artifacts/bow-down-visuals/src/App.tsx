@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
@@ -44,6 +45,7 @@ function AppShell() {
 
   return (
     <>
+      <div className="fixed top-4 right-4 z-[9999]"><NavThemePlayer /></div>
       <Switch>
         {/* Auth routes */}
         <Route path="/login"><Login /></Route>

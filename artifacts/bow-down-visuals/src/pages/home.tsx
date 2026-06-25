@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
-import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 import {
   Music, Video, Film, Image as ImageIcon, Mic2, Archive,
   ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
@@ -192,7 +191,6 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
           {/* Theme song mini-player */}
-          <NavThemePlayer />
 
           <Button variant="ghost" size="sm" className="text-white/60 hover:text-white" onClick={onWaitlist}>
             Join Waitlist

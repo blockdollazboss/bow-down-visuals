@@ -4,7 +4,6 @@ import {
   Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -75,7 +74,6 @@ export function TopBar() {
         <div className="flex items-center gap-2">
 
           {/* Theme song mini-player */}
-          <NavThemePlayer />
 
           {/* Dev credits button */}
           {IS_DEV && user && (
