@@ -1,0 +1,117 @@
+Fix character consistency prompt quality for realistic AI video.
+
+Problem:
+The character is somewhat consistent, but tattoos and jewelry look janky, unrealistic, distorted, and messy in generated video clips.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway keys.
+Do not change saving.
+Do not change Generation History.
+Do not redesign anything.
+
+Only improve the Artist Character Consistency prompt used for video generation.
+
+Goal:
+Make the character look more realistic and less distorted in AI video.
+
+Update the Character Consistency Lock prompt rules for VIDEO.
+
+Use simpler, cleaner video-safe details.
+
+VIDEO CHARACTER RULES:
+
+1. Face and body matter most
+Prioritize:
+- same face shape
+- same skin tone
+- same hairstyle
+- same build
+- same age range
+- same overall identity
+- same clothing color/style direction
+
+2. Simplify tattoos
+For video prompts, do not force tiny tattoo details in every scene.
+
+Use:
+Minimal clean tattoos only.
+Avoid random extra tattoos.
+Only show detailed tattoos in close-up shots.
+
+Add negative rule:
+No messy tattoos, no random face tattoos, no distorted ink, no unreadable tattoo lettering.
+
+3. Simplify jewelry
+For video prompts, jewelry should be realistic and simple.
+
+Use:
+Realistic gold chains and diamond studs, clean shine, believable weight.
+
+Do not force:
+- tiny pendant letters
+- complex bracelet charms
+- detailed ring shapes
+- exact chain text
+- too many jewelry pieces
+
+Add negative rule:
+No melted jewelry, no warped chains, no fake plastic jewelry, no distorted pendants, no unreadable jewelry text, no extra random jewelry.
+
+4. Create two prompt modes
+
+Add a setting inside Artist Profile:
+
+Character Detail Level:
+- Video Safe
+- High Detail Still Image
+
+Default should be:
+Video Safe
+
+Video Safe means:
+- simpler tattoos
+- simpler jewelry
+- cleaner clothing
+- less tiny details
+- more realistic motion
+
+High Detail Still Image means:
+- detailed tattoos and jewelry allowed
+- use for thumbnails, cover art, and still images only
+
+5. Update final prompt sent to Runway
+
+Before every Runway video clip prompt, add:
+
+VIDEO-SAFE CHARACTER CONSISTENCY:
+Use the active artist as the main character.
+Keep the same face, skin tone, hairstyle, body type, age, and overall identity.
+Keep jewelry simple and realistic: clean gold chains, diamond studs, subtle shine.
+Keep tattoos minimal and clean. Do not add random tattoos.
+Do not focus on tiny tattoo or jewelry details unless the shot is a close-up.
+Avoid warped jewelry, messy tattoos, distorted hands, unreadable text, melted chains, fake plastic shine, or extra random accessories.
+
+6. Shot-specific detail rule
+
+If scene is wide shot:
+- focus on face, outfit, mood, motion
+- jewelry/tattoos should be subtle
+
+If scene is close-up:
+- allow slightly more jewelry/tattoo detail
+- still keep it clean and realistic
+
+7. Add prompt warning
+
+Show this note in Artist Profile:
+Tiny jewelry, tattoos, and text may vary in AI video. For best realism, use Video Safe mode for clips and High Detail mode for still images.
+
+8. Add a button:
+Improve Video Realism
+
+When clicked, it rewrites the artist consistency prompt into a cleaner video-safe version.
+
+Final goal:
+Generated video clips should look more realistic, with cleaner character consistency, less janky tattoos, and less distorted jewelry.

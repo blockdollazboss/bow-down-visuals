@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
-  Lock, Copy, Sparkles, User,
+  Lock, Copy, Sparkles, User, Video, Zap, Film,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,9 +77,51 @@ const VISUAL_STYLES = [
 
 /* ─────────────────────────── CHARACTER CONSISTENCY ─────────────────────────── */
 
-function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
+type DetailLevel = "video_safe" | "high_detail";
+
+function generateConsistencyPrompt(vault: ArtistVaultRecord, mode: DetailLevel = "video_safe"): string {
+  if (mode === "video_safe") {
+    const lines: string[] = [
+      `[CHARACTER CONSISTENCY: ${vault.artist_name}] — VIDEO SAFE`,
+      "Use the active artist profile as the main character reference.",
+      "Keep the same face, skin tone, hairstyle, body type, age range, build, clothing color and style direction, and overall identity in every shot.",
+      vault.reference_image_url
+        ? "Use the uploaded artist reference image as the visual consistency guide."
+        : "No reference image uploaded — match details below as closely as possible.",
+      "",
+      "VIDEO-SAFE CHARACTER RULES:",
+      "Keep jewelry simple and realistic: clean gold chains, small diamond studs, subtle natural shine.",
+      "Do not force tiny pendant letters, chain text, complex bracelet charms, detailed ring shapes, or many jewelry pieces at once.",
+      "Keep tattoos minimal and clean. Do not add random tattoos. Only hint at tattoo detail in close-up shots.",
+      "For wide shots: focus on face, outfit, mood, and motion — jewelry and tattoos should be subtle.",
+      "For close-up shots: allow slightly more jewelry and tattoo detail, but keep it clean and realistic.",
+      "⛔ AVOID: warped jewelry, melted chains, fake plastic shine, messy tattoos, random face tattoos,",
+      "   distorted ink, unreadable tattoo or jewelry text, extra random accessories, distorted hands.",
+      "",
+      `Artist: ${vault.artist_name}`,
+    ];
+    if (vault.artist_type)    lines.push(`Artist Type: ${vault.artist_type}`);
+    if (vault.genre)           lines.push(`Genre: ${vault.genre}`);
+    if (vault.visual_style)    lines.push(`Visual Style: ${vault.visual_style}`);
+    if (vault.hair)            lines.push(`Hair: ${vault.hair}`);
+    if (vault.tattoos)         lines.push(`Tattoos (video-simplified): ${vault.tattoos} — show minimally, no detail forcing`);
+    if (vault.jewelry)         lines.push(`Jewelry (video-simplified): ${vault.jewelry} — keep clean and realistic, no tiny text or complex detail`);
+    if (vault.clothing_style)  lines.push(`Clothing Style: ${vault.clothing_style}`);
+    if (vault.brand_colors)    lines.push(`Brand Colors: ${vault.brand_colors}`);
+    if (vault.personality)     lines.push(`Personality: ${vault.personality}`);
+    if (vault.reference_image_url) lines.push(`Artist Reference Image URL: ${vault.reference_image_url}`);
+    if (vault.do_not_change_rules) lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
+    lines.push(
+      "",
+      "⚠️ Tiny jewelry, tattoos, and text may vary in AI video. Video Safe mode gives the most realistic motion.",
+      "---",
+    );
+    return lines.join("\n");
+  }
+
+  // High Detail mode (for still images, thumbnails, cover art)
   const lines: string[] = [
-    `[CHARACTER CONSISTENCY: ${vault.artist_name}]`,
+    `[CHARACTER CONSISTENCY: ${vault.artist_name}] — HIGH DETAIL`,
     "Use the active artist profile as the main character reference.",
     "Keep the same face, skin tone, hairstyle, body type, tattoos, jewelry, clothing direction, colors, and overall identity.",
     "Do not add random tattoos, logos, scars, jewelry, face marks, or accessories.",
@@ -99,12 +141,11 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord): string {
   if (vault.brand_colors)       lines.push(`Brand Colors: ${vault.brand_colors}`);
   if (vault.personality)        lines.push(`Personality: ${vault.personality}`);
   if (vault.reference_image_url) lines.push(`Artist Reference Image URL: ${vault.reference_image_url}`);
-  if (vault.do_not_change_rules) {
-    lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
-  }
+  if (vault.do_not_change_rules) lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
   lines.push(
     "",
     "⚠️ AI tools may still vary results, but this consistency lock gives the best chance of keeping the same character.",
+    "For best realism: use Video Safe mode for video clips, High Detail mode for still images and thumbnails.",
     "---",
   );
   return lines.join("\n");
@@ -115,7 +156,8 @@ function ConsistencyModal({
 }: {
   vault: ArtistVaultRecord; onClose: () => void;
 }) {
-  const prompt = generateConsistencyPrompt(vault);
+  const [mode, setMode] = useState<DetailLevel>("video_safe");
+  const prompt = generateConsistencyPrompt(vault, mode);
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(false);
   const { setConsistencyPrompt } = useActiveArtist();
@@ -142,6 +184,13 @@ function ConsistencyModal({
     setTimeout(() => setApplied(false), 3000);
   }
 
+  function handleImproveRealism() {
+    setMode("video_safe");
+    setConsistencyPrompt(generateConsistencyPrompt(vault, "video_safe"));
+    setApplied(true);
+    setTimeout(() => setApplied(false), 3000);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
@@ -162,13 +211,44 @@ function ConsistencyModal({
           </button>
         </div>
 
-        {/* Explainer */}
-        <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3 mb-5">
-          <p className="text-sm font-bold text-primary/80 mb-1 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 shrink-0" /> Use this to keep your artist looking the same in every video, image, and prompt.
+        {/* Character Detail Level toggle */}
+        <div className="mb-5">
+          <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Character Detail Level</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("video_safe")}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                mode === "video_safe"
+                  ? "border-primary/50 bg-primary/15 text-primary"
+                  : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
+              }`}
+            >
+              <Video className="h-4 w-4" /> Video Safe
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("high_detail")}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${
+                mode === "high_detail"
+                  ? "border-white/30 bg-white/[0.07] text-white"
+                  : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
+              }`}
+            >
+              <Film className="h-4 w-4" /> High Detail
+            </button>
+          </div>
+          <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+            {mode === "video_safe"
+              ? "Recommended for Runway video clips. Cleaner jewelry, simpler tattoos, more realistic motion."
+              : "Best for thumbnails, cover art, and still images. Full tattoo and jewelry detail."}
           </p>
-          <p className="text-xs text-white/40 leading-relaxed">
-            Copy and paste this into any AI image or video tool. The more details you filled in, the better AI will match your artist's look.
+        </div>
+
+        {/* Warning note */}
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 mb-5">
+          <p className="text-xs text-amber-400/80 leading-relaxed">
+            ⚠️ Tiny jewelry, tattoos, and text may vary in AI video. For best realism, use <strong>Video Safe</strong> mode for clips and <strong>High Detail</strong> mode for still images.
           </p>
         </div>
 
@@ -180,12 +260,16 @@ function ConsistencyModal({
           className="w-full rounded-xl border border-white/[0.10] bg-white/[0.03] px-4 py-3 text-xs text-white/70 font-mono leading-relaxed resize-none focus:outline-none mb-4"
         />
 
-        {/* Warning */}
-        <p className="text-[11px] text-white/25 mb-5 leading-relaxed">
-          ⚠️ AI tools may still vary results, but this gives the best possible consistency. For best results, also upload a reference photo on your artist profile.
-        </p>
+        {/* Improve Video Realism button */}
+        <button
+          type="button"
+          onClick={handleImproveRealism}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 transition-all mb-3"
+        >
+          <Zap className="h-4 w-4" /> Improve Video Realism
+        </button>
 
-        {/* Buttons */}
+        {/* Copy + Apply buttons */}
         <div className="flex flex-col sm:flex-row gap-2.5">
           <button
             type="button"
@@ -193,13 +277,13 @@ function ConsistencyModal({
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border transition-all ${
               copied
                 ? "border-green-500/40 bg-green-500/[0.10] text-green-400"
-                : "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                : "border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08]"
             }`}
           >
             {copied ? (
               <><CheckCircle2 className="h-4 w-4" /> Copied!</>
             ) : (
-              <><Copy className="h-4 w-4" /> Copy Consistency Prompt</>
+              <><Copy className="h-4 w-4" /> Copy Prompt</>
             )}
           </button>
           <button
@@ -212,7 +296,7 @@ function ConsistencyModal({
             }`}
           >
             {applied ? (
-              <><CheckCircle2 className="h-4 w-4" /> Applied to Prompts!</>
+              <><CheckCircle2 className="h-4 w-4" /> Applied!</>
             ) : (
               <><Sparkles className="h-4 w-4" /> Apply To All Video Prompts</>
             )}
@@ -466,6 +550,7 @@ export default function ArtistVault() {
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
@@ -611,7 +696,7 @@ export default function ArtistVault() {
         is_active: false,
         created_at: "",
       };
-      const consistency = generateConsistencyPrompt(partialVault);
+      const consistency = generateConsistencyPrompt(partialVault, detailLevel);
       const body = {
         artistName: partialVault.artist_name,
         artistType: partialVault.artist_type,
@@ -905,6 +990,48 @@ export default function ArtistVault() {
                   style={{ minHeight: "110px" }}
                 />
               </FieldWrapper>
+            </div>
+
+            {/* Character Detail Level */}
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-4">
+              <div>
+                <p className="text-sm font-bold text-white/70 uppercase tracking-wider mb-1">Character Detail Level</p>
+                <p className="text-xs text-white/35">
+                  Controls how tattoos and jewelry are described in AI prompts. Use Video Safe for Runway clips to avoid distorted ink and melted chains.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDetailLevel("video_safe")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
+                    detailLevel === "video_safe"
+                      ? "border-primary/50 bg-primary/15 text-primary"
+                      : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
+                  }`}
+                >
+                  <Video className="h-4 w-4" />
+                  <span>Video Safe</span>
+                  {detailLevel === "video_safe" && <span className="text-[10px] opacity-70">(default)</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDetailLevel("high_detail")}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border transition-all ${
+                    detailLevel === "high_detail"
+                      ? "border-white/30 bg-white/[0.07] text-white"
+                      : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70 hover:border-white/20"
+                  }`}
+                >
+                  <Film className="h-4 w-4" />
+                  <span>High Detail Still Image</span>
+                </button>
+              </div>
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-3 py-2">
+                <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                  ⚠️ Tiny jewelry, tattoos, and text may vary in AI video. For best realism, use <strong>Video Safe</strong> for clips and <strong>High Detail</strong> for thumbnails and still images.
+                </p>
+              </div>
             </div>
 
             {/* Submit buttons */}
