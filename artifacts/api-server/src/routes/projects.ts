@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
-import { markGenerationHistorySaved, markGenerationHistoryRefunded, recordCreditUsage } from "../lib/payment-record";
+import { markGenerationHistorySaved } from "../lib/payment-record";
 
 const router = Router();
 
@@ -44,21 +44,9 @@ router.post("/projects", requireAuth, async (req, res) => {
     .single();
 
   if (error) {
-    let refunded = false;
-    if (d.genHistoryId) {
-      const refundedAmount = await markGenerationHistoryRefunded(d.genHistoryId).catch(() => 0);
-      if (refundedAmount > 0) {
-        const creditsBack = (req.userCredits ?? 0) + refundedAmount;
-        try { await req.userSupabase!.from("profiles").update({ credits: creditsBack }).eq("id", req.userId!); } catch { /* non-fatal */ }
-        recordCreditUsage({
-          userId:      req.userId!,
-          action:      "Refund — project save failed",
-          creditsUsed: -refundedAmount,
-        }).catch(() => {});
-        refunded = true;
-      }
-    }
-    res.status(500).json({ error: error.message, refunded });
+    // Credits were charged at generation time (not project-save time).
+    // The generation result is safely stored in generation_history — the user can recover it there.
+    res.status(500).json({ error: error.message, historyTip: true });
     return;
   }
 

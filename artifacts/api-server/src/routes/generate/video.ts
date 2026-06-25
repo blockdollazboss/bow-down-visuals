@@ -1,7 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordGenerationHistory } from "../../lib/payment-record";
+import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -192,11 +192,8 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
-    const creditsAfter = currentCredits - CREDIT_COST;
 
-    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
-    recordCreditUsage({ userId: req.userId!, action: "Make a Music Video", creditsUsed: CREDIT_COST }).catch(() => {});
-
+    // Step 1: Save to history FIRST (throws → outer catch returns 500, no credits charged)
     const genHistoryId = await recordGenerationHistory({
       userId:         req.userId!,
       generationType: "Make a Music Video",
@@ -205,13 +202,17 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
       artistName:     artistName || undefined,
       songTitle:      songTitle  || undefined,
       creditsUsed:    CREDIT_COST,
-    }).catch(() => null);
+    });
 
-    if (process.env["NODE_ENV"] === "development") {
-      console.log(`[generate-video-plan] success userId=${req.userId} creditsAfter=${creditsAfter} genHistoryId=${genHistoryId}`);
-    }
+    // Step 2: Deduct credits only after history is confirmed saved
+    const creditsAfter = currentCredits - CREDIT_COST;
+    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
 
-    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId: genHistoryId ?? null });
+    // Step 3: Fire-and-forget — mark charged + log usage
+    markGenerationHistoryCharged(genHistoryId).catch(() => {});
+    recordCreditUsage({ userId: req.userId!, action: "Make a Music Video", creditsUsed: CREDIT_COST }).catch(() => {});
+
+    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

@@ -109,31 +109,46 @@ export interface GenerationHistoryInput {
 }
 
 /**
- * Insert a generation_history row after credits are charged.
- * Returns the new row id, or null on failure (non-fatal).
+ * Insert a generation_history row BEFORE credits are charged.
+ * Status is "pending" until markGenerationHistoryCharged() is called.
+ * THROWS on failure so the caller can abort without charging credits.
  */
-export async function recordGenerationHistory(input: GenerationHistoryInput): Promise<string | null> {
+export async function recordGenerationHistory(input: GenerationHistoryInput): Promise<string> {
+  const rows = await db
+    .insert(generationHistoryTable)
+    .values({
+      userId:         input.userId,
+      generationType: input.generationType,
+      prompt:         input.prompt ?? null,
+      result: {
+        content:    input.content,
+        artistName: input.artistName,
+        songTitle:  input.songTitle,
+      },
+      creditsUsed: input.creditsUsed,
+      saveStatus:  "pending",
+      refunded:    false,
+    })
+    .returning({ id: generationHistoryTable.id });
+
+  const id = rows[0]?.id;
+  if (!id) throw new Error("recordGenerationHistory: insert returned no id");
+  logger.info({ id, userId: input.userId }, "recordGenerationHistory: saved before credit charge");
+  return id;
+}
+
+/**
+ * Update a generation_history row from "pending" → "charged" after credits are deducted.
+ * Fire-and-forget safe — never throws.
+ */
+export async function markGenerationHistoryCharged(id: string): Promise<void> {
   try {
-    const rows = await db
-      .insert(generationHistoryTable)
-      .values({
-        userId:         input.userId,
-        generationType: input.generationType,
-        prompt:         input.prompt ?? null,
-        result: {
-          content:    input.content,
-          artistName: input.artistName,
-          songTitle:  input.songTitle,
-        },
-        creditsUsed: input.creditsUsed,
-        saveStatus:  "charged",
-        refunded:    false,
-      })
-      .returning({ id: generationHistoryTable.id });
-    return rows[0]?.id ?? null;
+    await db
+      .update(generationHistoryTable)
+      .set({ saveStatus: "charged" })
+      .where(eq(generationHistoryTable.id, id));
   } catch (err) {
-    logger.warn({ err, userId: input.userId }, "recordGenerationHistory: failed (non-fatal)");
-    return null;
+    logger.warn({ err, id }, "markGenerationHistoryCharged: failed (non-fatal)");
   }
 }
 

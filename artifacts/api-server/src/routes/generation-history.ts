@@ -25,7 +25,8 @@ router.get("/generation-history", requireAuth, async (req, res) => {
         song_title:      typeof r.result === "object" && r.result !== null
                            ? (r.result as { songTitle?: string }).songTitle ?? null
                            : null,
-        result_preview:  content.slice(0, 300),
+        result_preview:  content.slice(0, 400),
+        result_content:  content,
       };
     });
     res.json({ history });

@@ -574,6 +574,7 @@ interface GenerationHistoryRow {
   artist_name:     string | null;
   song_title:      string | null;
   result_preview:  string | null;
+  result_content:  string | null;
 }
 
 /* ─── Page ─── */
@@ -945,13 +946,24 @@ export default function MyProjects() {
                       )}
                       <p className="text-[10px] text-white/20">{new Date(row.created_at).toLocaleString()}</p>
                     </div>
-                    {row.project_id && (
-                      <Link href="/my-projects">
-                        <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 shrink-0">
-                          <FolderOpen className="h-3.5 w-3.5" /> Open Project
+                    <div className="flex flex-col gap-2 shrink-0">
+                      {row.result_content && (
+                        <Button size="sm" variant="outline"
+                          className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(row.result_content ?? "");
+                          }}>
+                          <Copy className="h-3.5 w-3.5" /> Copy Content
                         </Button>
-                      </Link>
-                    )}
+                      )}
+                      {row.project_id && (
+                        <Link href="/my-projects">
+                          <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 w-full">
+                            <FolderOpen className="h-3.5 w-3.5" /> Open Project
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 );
               })}

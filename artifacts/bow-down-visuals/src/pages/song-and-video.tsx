@@ -274,7 +274,7 @@ export default function SongAndVideo() {
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [genHistoryId, setGenHistoryId]     = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
-  const [creditRefunded, setCreditRefunded] = useState(false);
+  const [historyTip, setHistoryTip]         = useState(false);
 
   type DraftState = "idle" | "found" | "recovering" | "recovered" | "failed";
   const [draftState, setDraftState] = useState<DraftState>("idle");
@@ -648,7 +648,7 @@ export default function SongAndVideo() {
     setSaving(true);
     setAutoSaveStatus("saving");
     setSaveError(null);
-    setCreditRefunded(false);
+    setHistoryTip(false);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", {
@@ -671,12 +671,11 @@ export default function SongAndVideo() {
           genHistoryId: histId ?? null,
         }),
       });
-      const body = await res.json() as { id?: string; error?: string; refunded?: boolean };
+      const body = await res.json() as { id?: string; error?: string; historyTip?: boolean };
       if (!res.ok) {
-        if (body.refunded) {
-          setCreditRefunded(true);
-          refreshProfile();
-          toast({ title: "Project save failed", description: "Your credits were refunded.", variant: "destructive" });
+        if (body.historyTip) {
+          setHistoryTip(true);
+          toast({ title: "Save failed", description: "Your generation is saved in Generation History.", variant: "destructive" });
         } else {
           const msg = body.error ?? `Save failed (HTTP ${res.status})`;
           setSaveError(msg);
@@ -1175,10 +1174,10 @@ export default function SongAndVideo() {
                       <Loader2 className="h-3 w-3 animate-spin" /> Saving generation…
                     </p>
                   )}
-                  {autoSaveStatus === "failed" && creditRefunded && (
-                    <p className="text-[11px] text-amber-400">Saving failed — your credits were refunded.</p>
+                  {autoSaveStatus === "failed" && historyTip && (
+                    <p className="text-[11px] text-amber-400">Save failed — your generation is in <strong>Generation History</strong>.</p>
                   )}
-                  {saveError && !creditRefunded && (
+                  {saveError && (
                     <p className="text-[11px] text-red-400">Save failed: {saveError}</p>
                   )}
                 </div>
