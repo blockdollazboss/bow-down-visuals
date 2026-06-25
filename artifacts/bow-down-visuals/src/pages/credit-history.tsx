@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { HelpPanel } from "@/components/HelpPanel";
+
 
 interface Purchase {
   id: string;
@@ -213,7 +213,6 @@ export default function CreditHistory() {
         )}
 
       </div>
-      <HelpPanel page="credit-history" />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { X, Bot, Zap, ChevronRight } from "lucide-react";
 
 /* ─── Types ─── */
@@ -59,9 +60,9 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
       { n: 1, title: "Rebuild scenes if needed",  desc: "If your scene list is empty, click Rebuild Scenes to regenerate from your video plan." },
       { n: 2, title: "Select one scene",          desc: "Click on any scene in the timeline to expand it and see its details." },
       { n: 3, title: "Generate a video clip",     desc: "Click Generate Clip in the scene card. This uses 5 credits and takes 30–90 seconds." },
-      { n: 4, title: "Preview your clip",         desc: "When the clip is ready, click Preview to watch it in the Live Preview panel on the right." },
+      { n: 4, title: "Preview your clip",         desc: "When the clip is ready, the master player at the top updates automatically." },
       { n: 5, title: "Add music and captions",    desc: "Go to the Music tab to upload your track. Go to Captions to add lyrics-based captions." },
-      { n: 6, title: "Add visual effects",        desc: "Go to Effects and click any effect chip. Live Preview updates instantly." },
+      { n: 6, title: "Add visual effects",        desc: "Go to Effects and click any effect chip. The preview updates instantly." },
       { n: 7, title: "Export your video",         desc: "Go to the Export tab. When everything looks good, click Export to build your final video." },
     ],
     tips: [
@@ -153,6 +154,20 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 };
 
+/* ─── Route → page mapping ─── */
+
+function pageFromPath(path: string): HelpPage {
+  if (path.startsWith("/artist-vault"))   return "artist-vault";
+  if (path.startsWith("/video-editor"))   return "video-editor";
+  if (path.startsWith("/my-projects"))    return "my-projects";
+  if (path.startsWith("/song-and-video")) return "song-and-video";
+  if (path.startsWith("/make-song"))      return "make-song";
+  if (path.startsWith("/make-video"))     return "make-video";
+  if (path.startsWith("/pricing"))        return "pricing";
+  if (path.startsWith("/credit-history")) return "credit-history";
+  return "dashboard";
+}
+
 /* ─── localStorage keys ─── */
 
 const LS_OPEN = "bdv_help_open";
@@ -177,13 +192,12 @@ function writeSide(s: "left" | "right") {
 
 /* ─── Component ─── */
 
-interface Props {
-  page: HelpPage;
-}
-
-export function HelpPanel({ page }: Props) {
+export function HelpPanel() {
   const [open, setOpen] = useState<boolean>(readOpen);
   const [side, setSide] = useState<"left" | "right">(readSide);
+  const [location] = useLocation();
+
+  const guide = GUIDES[pageFromPath(location)];
 
   function setOpenPersist(v: boolean) {
     writeOpen(v);
@@ -195,7 +209,6 @@ export function HelpPanel({ page }: Props) {
     setSide(s);
   }
 
-  /* Listen for open event — carries optional side from the player's snap position */
   useEffect(() => {
     function handleOpenEvent(e: Event) {
       const detail = (e as CustomEvent<{ side?: "left" | "right" }>).detail;
@@ -206,12 +219,8 @@ export function HelpPanel({ page }: Props) {
     return () => window.removeEventListener("open-help-panel", handleOpenEvent);
   }, []);
 
-  const guide = GUIDES[page];
-
   return (
     <>
-      {/* ── Backdrop + panel ──
-          z-[10000] beats DraggableThemePlayer (z-9999) and all other fixed elements */}
       {open && (
         <>
           <div

@@ -14,7 +14,7 @@ import {
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
-import { HelpPanel } from "@/components/HelpPanel";
+
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 
@@ -1195,7 +1195,6 @@ export default function ArtistVault() {
         </div>
 
       </div>
-      <HelpPanel page="artist-vault" />
     </div>
   );
 }

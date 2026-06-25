@@ -9,6 +9,7 @@ import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DraggableThemePlayer } from "@/components/DraggableThemePlayer";
+import { HelpPanel } from "@/components/HelpPanel";
 
 import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
@@ -58,6 +59,7 @@ function AppShell() {
     <>
       <ScrollToTop />
       <DraggableThemePlayer />
+      <HelpPanel />
       <Switch>
         {/* Auth routes */}
         <Route path="/login"><Login /></Route>

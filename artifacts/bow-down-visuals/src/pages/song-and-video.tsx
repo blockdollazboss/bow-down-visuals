@@ -11,7 +11,7 @@ import {
   Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
-import { HelpPanel } from "@/components/HelpPanel";
+
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -1233,7 +1233,6 @@ export default function SongAndVideo() {
 
       </div>
 
-      <HelpPanel page="song-and-video" />
 
       {/* ── Dev debug overlay ── */}
       {import.meta.env.DEV && (
