@@ -61,6 +61,15 @@ function sceneAt(t: number, offsets: number[], durs: number[]): number {
 
 /* ─── component ───────────────────────────────────────────────── */
 
+/** State broadcast to the parent after every audio tick so Live Preview can mirror it */
+export interface SharedPreviewState {
+  isPlaying: boolean;
+  currentTime: number;
+  audioDuration: number | null;
+  activeSceneIndex: number;
+  activeCaption: CaptionLine | null;
+}
+
 export interface TimelinePreviewPlayerProps {
   scenes: SceneData[];
   captionLines: CaptionLine[];
@@ -73,6 +82,8 @@ export interface TimelinePreviewPlayerProps {
     position?: string;
     fontSize?: string;
   };
+  /** Called after each audio tick so the parent can mirror state in the Live Preview panel */
+  onEngineUpdate?: (state: SharedPreviewState) => void;
 }
 
 export function TimelinePreviewPlayer({
@@ -81,6 +92,7 @@ export function TimelinePreviewPlayer({
   audioUrl,
   initialSceneId,
   captionSettings,
+  onEngineUpdate,
 }: TimelinePreviewPlayerProps) {
 
   /* ── Core state ── */
@@ -119,6 +131,24 @@ export function TimelinePreviewPlayer({
   const activeLine   = captionLines.find(
     l => l.startSec <= currentTime && currentTime < l.endSec,
   ) ?? null;
+
+  /* ── Stable ref for onEngineUpdate — avoids stale closure issues ── */
+  const onEngineUpdateRef = useRef(onEngineUpdate);
+  onEngineUpdateRef.current = onEngineUpdate;
+
+  /* ── Broadcast shared engine state after every meaningful change ──
+     Fires when playing, currentTime, audioDuration, sceneIdx, or activeLine changes.
+     LivePreviewPanel reads this to mirror scenes/captions/time without a second audio element. */
+  useEffect(() => {
+    onEngineUpdateRef.current?.({
+      isPlaying: playing,
+      currentTime,
+      audioDuration,
+      activeSceneIndex: sceneIdx,
+      activeCaption: activeLine ?? null,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, currentTime, audioDuration, sceneIdx, activeLine?.id]);
 
   /* ── Refs ── */
   const audioRef      = useRef<HTMLAudioElement | null>(null);

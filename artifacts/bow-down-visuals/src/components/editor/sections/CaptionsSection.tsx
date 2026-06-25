@@ -119,6 +119,8 @@ const SPLIT_STYLE_DEFS = [
 ] as const;
 
 export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption }: Props) {
+  /* Vocal offset — seconds before the first word is sung */
+  const [vocalOffsetInput, setVocalOffsetInput] = useState("0");
   const c = settings.captions;
   const splitStyle = c.captionSplitStyle ?? "short";
 
@@ -217,23 +219,29 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       setSyncStatus({ type: "error", message: "No captions to sync. Generate captions from lyrics first." });
       return;
     }
+
+    /* Vocal offset: how many seconds of intro before the first lyric */
+    const parsedOffset = parseFloat(vocalOffsetInput);
+    const vocalOffset = isNaN(parsedOffset) || parsedOffset < 0 ? 0 : Math.min(parsedOffset, songDuration * 0.9);
+    const availDuration = Math.max(1, songDuration - vocalOffset);
+
     const lines = c.lines;
     const totalChars = lines.reduce((sum, l) => sum + Math.max(l.text.length, 1), 0);
-    let cursor = 0;
+    let cursor = vocalOffset;
     const synced: CaptionLine[] = lines.map((line) => {
       const weight = Math.max(line.text.length, 1) / totalChars;
-      const rawDur = weight * songDuration;
+      const rawDur = weight * availDuration;
       /* Clamp: min 1 s, max 8 s per caption */
       const dur = Math.max(1, Math.min(8, rawDur));
       const startSec = parseFloat(cursor.toFixed(2));
       cursor += dur;
       return { ...line, startSec, endSec: parseFloat(cursor.toFixed(2)) };
     });
-    /* If total exceeds song — scale everything proportionally */
+    /* If total exceeds song — scale proportionally from vocalOffset */
     const rawLast = synced[synced.length - 1]!.endSec;
     if (rawLast > songDuration) {
-      const scale = songDuration / rawLast;
-      let c2 = 0;
+      const scale = (songDuration - vocalOffset) / Math.max(0.1, rawLast - vocalOffset);
+      let c2 = vocalOffset;
       synced.forEach((l, i) => {
         const dur = (l.endSec - l.startSec) * scale;
         synced[i]!.startSec = parseFloat(c2.toFixed(2));
@@ -246,10 +254,45 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
     setCaption("lines", synced);
     setLinesVisible(true);
+    const offsetNote = vocalOffset > 0 ? ` First caption starts at ${vocalOffset}s (vocal offset applied).` : "";
     setSyncStatus({
       type: "success",
-      message: `${synced.length} captions synced across ${fmtDuration(songDuration)} — timing weighted by lyric length.`,
+      message: `${synced.length} captions synced across ${fmtDuration(songDuration)}.${offsetNote} Timing weighted by lyric length.`,
     });
+  }
+
+  /** Nudge every timestamp of the selected caption by delta seconds */
+  function handleNudgeSelected(delta: number) {
+    if (!selectedCaptionId || c.lines.length === 0) return;
+    const updated = c.lines.map((l) => {
+      if (l.id !== selectedCaptionId) return l;
+      return {
+        ...l,
+        startSec: parseFloat(Math.max(0, l.startSec + delta).toFixed(2)),
+        endSec:   parseFloat(Math.max(0.1, l.endSec + delta).toFixed(2)),
+      };
+    });
+    setCaption("lines", updated);
+  }
+
+  /** Shift all captions so the first one starts at the vocal offset time */
+  function handleApplyVocalOffset() {
+    if (c.lines.length === 0) return;
+    const offset = parseFloat(vocalOffsetInput);
+    if (isNaN(offset) || offset < 0) return;
+    const firstStart = c.lines[0]?.startSec ?? 0;
+    const delta = offset - firstStart;
+    if (Math.abs(delta) < 0.01) {
+      setSyncStatus({ type: "info", message: `First caption already starts at ${offset}s.` });
+      return;
+    }
+    const shifted = c.lines.map((l) => ({
+      ...l,
+      startSec: parseFloat(Math.max(0, l.startSec + delta).toFixed(2)),
+      endSec:   parseFloat(Math.max(0.1, l.endSec + delta).toFixed(2)),
+    }));
+    setCaption("lines", shifted);
+    setSyncStatus({ type: "success", message: `Vocal offset applied — first caption now starts at ${offset}s.` });
   }
 
   function handleShift(delta: number) {
@@ -458,6 +501,36 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             ))}
           </div>
 
+          {/* First vocal offset */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">First Vocal Offset</p>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={vocalOffsetInput}
+                  onChange={(e) => setVocalOffsetInput(e.target.value)}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-primary/40 transition-colors pr-8"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-white/25 pointer-events-none">s</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleApplyVocalOffset}
+                disabled={c.lines.length === 0}
+                className="px-3 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+              >
+                Apply Offset
+              </button>
+            </div>
+            <p className="text-[10px] text-white/25 leading-relaxed">
+              Seconds of instrumental intro before lyrics start. Used by Auto Sync and Apply Offset above.
+            </p>
+          </div>
+
           {/* Primary sync button */}
           <Button
             onClick={handleAutoSync}
@@ -472,24 +545,44 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           {/* Manual timing controls */}
           {c.lines.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Manual Timing Controls</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Shift All Captions</p>
+              <div className="grid grid-cols-4 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleShift(-1)}
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                >
+                  <ChevronsLeft className="h-3.5 w-3.5" />
+                  <span className="text-[9px]">−1s</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => handleShift(-0.5)}
                   data-testid="btn-shift-earlier"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
                 >
-                  <ChevronsLeft className="h-3.5 w-3.5" /> Shift Earlier (0.5s)
+                  <ChevronsLeft className="h-3.5 w-3.5" />
+                  <span className="text-[9px]">−0.5s</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShift(0.5)}
                   data-testid="btn-shift-later"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
                 >
-                  Shift Later (0.5s) <ChevronsRight className="h-3.5 w-3.5" />
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  <span className="text-[9px]">+0.5s</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleShift(1)}
+                  className="flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                >
+                  <ChevronsRight className="h-3.5 w-3.5" />
+                  <span className="text-[9px]">+1s</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={handleStretchToSong}
@@ -497,7 +590,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                   data-testid="btn-stretch-captions"
                   className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40"
                 >
-                  <Expand className="h-3.5 w-3.5" /> Stretch To Song Length
+                  <Expand className="h-3.5 w-3.5" /> Stretch To Song
                 </button>
                 <button
                   type="button"
@@ -506,8 +599,36 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                   data-testid="btn-compress-captions"
                   className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40"
                 >
-                  <Shrink className="h-3.5 w-3.5" /> Compress To Song Length
+                  <Shrink className="h-3.5 w-3.5" /> Compress To Song
                 </button>
+              </div>
+
+              {/* Nudge selected caption */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">
+                  Nudge Selected Caption
+                  {selectedCaptionId ? "" : " — select a caption row first"}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeSelected(-0.5)}
+                    disabled={!selectedCaptionId}
+                    data-testid="btn-nudge-earlier"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-35"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" /> Earlier (0.5s)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleNudgeSelected(0.5)}
+                    disabled={!selectedCaptionId}
+                    data-testid="btn-nudge-later"
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-35"
+                  >
+                    Later (0.5s) <ChevronsRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
           )}

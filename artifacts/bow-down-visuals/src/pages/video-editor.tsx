@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
-import { TimelinePreviewPlayer } from "@/components/TimelinePreviewPlayer";
+import { TimelinePreviewPlayer, type SharedPreviewState } from "@/components/TimelinePreviewPlayer";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
@@ -89,6 +89,8 @@ export default function VideoEditor() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<EditorTab>("clips");
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
+  /** State broadcast from TimelinePreviewPlayer — drives Live Preview mirroring */
+  const [previewEngineState, setPreviewEngineState] = useState<SharedPreviewState | null>(null);
   const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<"idle" | "syncing" | "done" | "error">("idle");
@@ -754,6 +756,7 @@ export default function VideoEditor() {
                       audioUrl={previewAudioUrl}
                       initialSceneId={previewSceneId}
                       captionSettings={settings.captions}
+                      onEngineUpdate={setPreviewEngineState}
                     />
                   ) : (
                     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
@@ -827,6 +830,7 @@ export default function VideoEditor() {
                   onSetPreviewSceneId={setPreviewSceneId}
                   selectedCaptionId={selectedCaptionId}
                   onSelectCaption={setSelectedCaptionId}
+                  previewEngineState={previewEngineState}
                 />
               </div>
             </div>
@@ -874,9 +878,14 @@ function PreviewVideoPlayer({
 
 /* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
 
+function fmtSecs(s: number): string {
+  if (!isFinite(s) || s < 0) s = 0;
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+}
+
 function LivePreviewPanel({
   tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle,
-  onGoToTimeline, onSetPreviewSceneId, selectedCaptionId, onSelectCaption,
+  onGoToTimeline, onSetPreviewSceneId, selectedCaptionId, onSelectCaption, previewEngineState,
 }: {
   tab: EditorTab;
   previewScene: SceneData | null;
@@ -890,6 +899,7 @@ function LivePreviewPanel({
   onSetPreviewSceneId: (id: string) => void;
   selectedCaptionId?: string | null;
   onSelectCaption?: (id: string | null) => void;
+  previewEngineState?: SharedPreviewState | null;
 }) {
   const clipUrl = previewScene?.demoClipUrl ?? null;
   const clipCount = scenes.filter(sceneHasClip).length;
@@ -989,14 +999,84 @@ function LivePreviewPanel({
           </>
         )}
 
-        {/* ── TIMELINE tab ── */}
-        {tab === "timeline" && (
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
-            <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
-            <p className="text-xs font-bold text-primary/70">Timeline Preview active in the main panel</p>
-            <p className="text-[10px] text-white/30">Audio + scenes + captions are playing in the left panel.</p>
-          </div>
-        )}
+        {/* ── TIMELINE tab — mirrors the shared engine state ── */}
+        {tab === "timeline" && (() => {
+          const eng = previewEngineState;
+          const engScene = eng != null ? (scenes[eng.activeSceneIndex] ?? null) : null;
+
+          if (!eng) {
+            return (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
+                <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
+                <p className="text-xs font-bold text-primary/70">Timeline Preview</p>
+                <p className="text-[10px] text-white/30">Press Preview Timeline in the left panel to start.</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="space-y-2">
+              {/* Scene display */}
+              <div className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2">
+                <Film className="h-6 w-6 text-primary/30" />
+                <p className="text-xs font-bold text-white/50">
+                  Scene {eng.activeSceneIndex + 1} of {scenes.length}
+                  {engScene?.section ? ` · ${engScene.section}` : ""}
+                </p>
+                {engScene?.lyricLine && (
+                  <p className="text-[10px] text-white/25 italic text-center px-4 max-w-[90%]">
+                    &ldquo;{engScene.lyricLine}&rdquo;
+                  </p>
+                )}
+                {engScene?.demoClipUrl && (
+                  <span className="text-[9px] text-green-400/60 font-bold uppercase tracking-wide">Clip ready</span>
+                )}
+
+                {/* Caption overlay */}
+                {eng.activeCaption && (
+                  <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none">
+                    <div
+                      className="text-xs font-black text-white text-center max-w-[92%] px-3 py-1.5 rounded-lg leading-snug"
+                      style={{ background: "rgba(0,0,0,0.82)", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}
+                    >
+                      {eng.activeCaption.text}
+                    </div>
+                  </div>
+                )}
+
+                {/* Time overlay */}
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10">
+                  <span className="font-mono text-[10px] text-white/60">
+                    {fmtSecs(eng.currentTime)}
+                    {eng.audioDuration ? ` / ${fmtSecs(eng.audioDuration)}` : ""}
+                  </span>
+                </div>
+
+                {/* Live badge */}
+                {eng.isPlaying && (
+                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/90">
+                    <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+                    <span className="text-[9px] font-black text-black uppercase">Live</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Status pills */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { label: "Audio", value: eng.isPlaying ? "Playing ▶" : "Paused ‖", color: eng.isPlaying ? "text-green-400" : "text-white/40" },
+                  { label: "Scene", value: `${eng.activeSceneIndex + 1} / ${scenes.length}`, color: "text-white/70" },
+                  { label: "Caption", value: eng.activeCaption ? eng.activeCaption.text.slice(0, 14) + (eng.activeCaption.text.length > 14 ? "…" : "") : "—", color: eng.activeCaption ? "text-primary/80" : "text-white/30" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+                    <p className="text-[8px] text-white/30 uppercase tracking-wide font-semibold">{label}</p>
+                    <p className={`text-[10px] font-bold truncate ${color}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── MUSIC / AUDIO tab ── */}
         {tab === "music" && (
