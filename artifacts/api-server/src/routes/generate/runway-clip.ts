@@ -14,17 +14,21 @@ const SIDECAR = "http://127.0.0.1:1106";
 const CREDIT_COST = 5;
 
 /**
- * Tracks submitted Runway tasks so we can charge credits only on SUCCEEDED.
- * Key: Runway taskId  Value: { userId }
- *
- * Credits are NOT charged at POST submission — only when the poll returns
- * SUCCEEDED. If the task FAILS or is CANCELLED, no credits are ever charged.
+ * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
+ * Key: Runway taskId  Value: { userId, projectId }
  * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
  * In-memory only — a server restart before polling completes means credits
- * won't be charged for that clip (acceptable; user gets a free clip, not
- * a spurious charge).
+ * won't be charged for that clip (acceptable; user gets a free clip, not a spurious charge).
  */
-const pendingTasks = new Map<string, { userId: string }>();
+const pendingTasks = new Map<string, { userId: string; projectId: string | null }>();
+
+/**
+ * Tracks successfully charged tasks so generated-clips.ts can issue a refund
+ * if the subsequent DB save fails.
+ * Key: Runway taskId  Value: { userId, credits, refunded }
+ * Auto-expires after 1 hour to prevent unbounded memory growth.
+ */
+export const chargedTasks = new Map<string, { userId: string; credits: number; refunded: boolean }>();
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -63,16 +67,17 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /generate-runway-clip
-   1. Verify user has ≥ 5 credits (block if not).
+   1. Credit pre-check — always enforced (no dev bypass).
    2. Submit job to Runway.
    3. Track task in pendingTasks — credits NOT yet charged.
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt, ratio } = req.body as {
+  const { promptText, negativePrompt, ratio, projectId } = req.body as {
     promptText?: string;
     negativePrompt?: string;
     ratio?: "1280:720" | "720:1280";
+    projectId?: string | null;
   };
 
   if (!promptText?.trim()) {
@@ -86,10 +91,18 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     return;
   }
 
-  /* ── Credit pre-check (gate, no deduction yet) ── */
-  const isDev = process.env["NODE_ENV"] !== "production";
+  /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
-  if (!isDev && currentCredits < CREDIT_COST) {
+  req.log.info(
+    { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+    "[runway-clip] credit check started",
+  );
+
+  if (currentCredits < CREDIT_COST) {
+    req.log.info(
+      { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+      "[runway-clip] credit check FAILED — insufficient credits",
+    );
     res.status(402).json({
       error: "out_of_credits",
       message: "Not enough credits. Please buy more credits to continue.",
@@ -97,11 +110,18 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     return;
   }
 
+  req.log.info(
+    { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+    "[runway-clip] credit check PASSED",
+  );
+
   const base = promptText.trim().slice(0, 900);
   const neg  = negativePrompt?.trim();
   const finalPrompt = neg ? `${base} | Avoid: ${neg}`.slice(0, 1000) : base;
 
   const client = new RunwayML({ apiKey });
+
+  req.log.info({ userId: req.userId, ratio }, "[runway-clip] Runway generation started");
 
   try {
     const task = await client.textToVideo.create({
@@ -111,15 +131,13 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
       ratio: ratio === "1280:720" ? "1280:720" : "720:1280",
     });
 
-    /* Track so we can charge on SUCCEEDED */
-    pendingTasks.set(task.id, { userId: req.userId! });
-    req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted, credits pending");
+    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null });
+    req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
     res.json({ taskId: task.id });
   } catch (err: unknown) {
-    /* Runway submission failed — credits were never touched */
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
-    req.log.error({ err: msg }, "[runway-clip] submission failed");
+    req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
     res.status(500).json({ error: msg });
   }
 });
@@ -127,8 +145,8 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /generate-runway-clip/:taskId
    Poll Runway task status.
-   - SUCCEEDED → charge 5 credits + record usage → return signed URL
-   - FAILED/CANCELLED → no charge ever → return error
+   - SUCCEEDED → fresh credit read → deduct 5 credits → record usage → return signed URL
+   - FAILED/CANCELLED → no charge → return error
    - Still running → return { status: "processing", progress }
 ───────────────────────────────────────────────────────────────────────────── */
 router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
@@ -149,40 +167,64 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
     if (task.status === "SUCCEEDED") {
       const runwayUrl = (task.output as string[] | undefined)?.[0] ?? null;
       if (!runwayUrl) {
-        /* Task says SUCCEEDED but no output URL — don't charge */
         pendingTasks.delete(taskId);
+        req.log.warn({ taskId }, "[runway-clip] SUCCEEDED but no output URL — no credits charged");
         res.json({ status: "succeeded", url: null });
         return;
       }
 
-      const isDev = process.env["NODE_ENV"] !== "production";
       const pending = pendingTasks.get(taskId);
 
       /* ── Charge credits (only once, guarded by pendingTasks presence) ── */
-      if (!isDev && pending && pending.userId === req.userId) {
-        const currentCredits = req.userCredits ?? 0;
-        const creditsAfter = Math.max(0, currentCredits - CREDIT_COST);
+      if (pending && pending.userId === req.userId) {
+        /* Fresh credit read to avoid stale middleware value */
+        const { data: freshProfile } = await req.userSupabase!
+          .from("profiles")
+          .select("credits")
+          .eq("id", req.userId!)
+          .single();
+
+        const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
+        req.log.info(
+          { taskId, userId: req.userId, freshCredits, requiredCredits: CREDIT_COST },
+          "[runway-clip] current credits before deduction",
+        );
+
+        const creditsAfter = Math.max(0, freshCredits - CREDIT_COST);
         const { error: deductErr } = await req.userSupabase!
           .from("profiles")
           .update({ credits: creditsAfter })
           .eq("id", req.userId!);
+
         if (deductErr) {
-          req.log.error({ err: deductErr }, "[runway-clip] credit deduction failed after SUCCEEDED — clip delivered anyway");
+          req.log.error({ err: deductErr, taskId }, "[runway-clip] credit deduction FAILED — clip delivered without charge");
         } else {
-          req.log.info({ taskId, userId: req.userId, creditsAfter }, "[runway-clip] 5 credits charged on success");
+          req.log.info(
+            { taskId, userId: req.userId, creditsAfter, deducted: CREDIT_COST },
+            "[runway-clip] credits deducted",
+          );
+
+          /* Record credit_usage */
+          const projectId = pending.projectId ?? null;
           recordCreditUsage({
-            userId: req.userId!,
-            action: "Runway Video Clip",
+            userId:      req.userId!,
+            action:      "Runway Video Clip",
             creditsUsed: CREDIT_COST,
-            projectId: null,
-          }).catch(() => {});
+            projectId,
+          })
+            .then(() => req.log.info({ taskId, userId: req.userId }, "[runway-clip] credit_usage saved"))
+            .catch((e) => req.log.warn({ err: e }, "[runway-clip] credit_usage save failed (non-fatal)"));
+
+          /* Track for possible refund if the subsequent save fails */
+          chargedTasks.set(taskId, { userId: req.userId!, credits: CREDIT_COST, refunded: false });
+          setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
         }
+
         pendingTasks.delete(taskId);
-      } else if (!isDev && pending && pending.userId !== req.userId) {
-        /* Different user polling — skip charge for this user, let owner's next poll handle it */
-        req.log.warn({ taskId, submitter: pending.userId, poller: req.userId }, "[runway-clip] userId mismatch on poll");
-      } else if (!isDev && !pending) {
-        /* pendingTasks entry already cleared (double-poll on SUCCEEDED) — skip duplicate charge */
+
+      } else if (pending && pending.userId !== req.userId) {
+        req.log.warn({ taskId, submitter: pending.userId, poller: req.userId }, "[runway-clip] userId mismatch on poll — skipping charge");
+      } else if (!pending) {
         req.log.info({ taskId }, "[runway-clip] SUCCEEDED poll after charge already processed — skipping duplicate");
       }
 
@@ -207,7 +249,7 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
         await gcsFile.save(readFileSync(tmpFile), { contentType: "video/mp4", resumable: false });
 
         const signedUrl = await signGetUrl(bucketId, objectName);
-        req.log.info({ objectName }, "[runway-clip] clip saved, returning signed URL");
+        req.log.info({ objectName, taskId }, "[runway-clip] clip saved to GCS — returning signed URL");
 
         res.json({ status: "succeeded", url: signedUrl, objectPath: objectName });
       } catch (uploadErr: unknown) {
@@ -221,7 +263,7 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
       const errMsg = (task as { failure?: string }).failure ?? "Runway returned a failure with no message";
       req.log.info({ taskId, status: task.status }, "[runway-clip] task failed — no credits charged");
-      pendingTasks.delete(taskId); /* clean up the pending entry */
+      pendingTasks.delete(taskId);
       const status = task.status === "CANCELLED" ? "cancelled" : "failed";
       res.json({ status, error: errMsg });
 

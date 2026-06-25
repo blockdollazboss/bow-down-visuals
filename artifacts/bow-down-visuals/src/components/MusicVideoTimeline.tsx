@@ -61,10 +61,12 @@ interface RunwayClipProps {
   isLocked: boolean;
   onGeneratingStart: () => void;
   onGeneratingEnd: () => void;
+  projectId?: string | null;
 }
 
-function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onGeneratingEnd }: RunwayClipProps) {
+function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onGeneratingEnd, projectId }: RunwayClipProps) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { toast } = useToast();
 
   const [isPolling, setIsPolling]               = useState(false);
   const [taskId, setTaskId]                     = useState<string | null>(null);
@@ -85,6 +87,36 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
   }
   useEffect(() => () => stopPolling(), []);
 
+  async function autoSaveClip(clipUrl: string, jobId: string) {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/generated-clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          projectId:   projectId ?? null,
+          sceneId:     scene.id ?? null,
+          title:       scene.section || scene.timestamp || "Scene Clip",
+          prompt:      scene.aiVideoPrompt || null,
+          finalPrompt: promptUsedRef.current || null,
+          runwayJobId: jobId,
+          videoUrl:    clipUrl,
+          status:      "completed",
+        }),
+      });
+      if (res.ok) {
+        refreshProfile(); /* refresh credits so dashboard shows the deduction */
+      } else {
+        const body = await res.json().catch(() => ({})) as { creditMessage?: string };
+        const creditMsg = body.creditMessage ?? "Clip generated but saving failed.";
+        toast({ title: "Save failed", description: creditMsg, variant: "destructive" });
+        refreshProfile();
+      }
+    } catch {
+      /* best-effort */
+    }
+  }
+
   function startPolling(id: string) {
     stopPolling();
     pollRef.current = setInterval(async () => {
@@ -99,6 +131,7 @@ function RunwayClipGenerator({ scene, onUpdate, isLocked, onGeneratingStart, onG
           stopPolling();
           setIsPolling(false);
           onGeneratingEndRef.current();
+          void autoSaveClip(data.url, id); /* save clip + refresh credits */
           onUpdateRef.current({
             demoClipUrl: data.url,
             provider: "Runway",
@@ -404,9 +437,10 @@ interface TimelineRowProps {
   isThisGenerating: boolean;
   onGeneratingStart: () => void;
   onGeneratingEnd: () => void;
+  projectId?: string | null;
 }
 
-function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMoveDown, onRemove, isLocked, isThisGenerating, onGeneratingStart, onGeneratingEnd }: TimelineRowProps) {
+function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMoveDown, onRemove, isLocked, isThisGenerating, onGeneratingStart, onGeneratingEnd, projectId }: TimelineRowProps) {
   const [editing, setEditing]           = useState(false);
   const [editedPrompt, setEditedPrompt] = useState(scene.aiVideoPrompt);
   const [copied, setCopied]             = useState(false);
@@ -597,6 +631,7 @@ function TimelineRow({ scene, index, isFirst, isLast, onUpdate, onMoveUp, onMove
           isLocked={isLocked}
           onGeneratingStart={onGeneratingStart}
           onGeneratingEnd={onGeneratingEnd}
+          projectId={projectId}
         />
       </div>
     </div>
@@ -785,6 +820,7 @@ export function MusicVideoTimeline({
             isThisGenerating={activeGeneratingId === scene.id}
             onGeneratingStart={() => setActiveGeneratingId(scene.id)}
             onGeneratingEnd={() => setActiveGeneratingId(null)}
+            projectId={projectId}
           />
         ))}
       </div>

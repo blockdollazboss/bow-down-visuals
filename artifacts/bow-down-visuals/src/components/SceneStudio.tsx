@@ -113,20 +113,30 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   async function autoSaveClip(clipUrl: string, jobId: string, finalPrompt: string) {
     try {
       const token = await getAccessToken();
-      await fetch("/api/generated-clips", {
+      const res = await fetch("/api/generated-clips", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
-          projectId: projectId ?? null,
-          sceneId: scene.id ?? null,
-          title: scene.section || scene.timestamp || "Scene Clip",
-          prompt: scene.aiVideoPrompt || null,
+          projectId:   projectId ?? null,
+          sceneId:     scene.id ?? null,
+          title:       scene.section || scene.timestamp || "Scene Clip",
+          prompt:      scene.aiVideoPrompt || null,
           finalPrompt,
           runwayJobId: jobId,
-          videoUrl: clipUrl,
-          status: "completed",
+          videoUrl:    clipUrl,
+          status:      "completed",
         }),
       });
+
+      if (res.ok) {
+        /* Clip saved — refresh credits display so dashboard shows the deduction */
+        refreshProfile();
+      } else {
+        const body = await res.json().catch(() => ({})) as { creditMessage?: string };
+        const creditMsg = body.creditMessage ?? "Clip generated but saving failed.";
+        toast({ title: "Save failed", description: creditMsg, variant: "destructive" });
+        refreshProfile(); /* refresh regardless so credits are up to date */
+      }
     } catch {
       /* best-effort — clip is already in the UI */
     }
