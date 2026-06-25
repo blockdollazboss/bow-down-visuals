@@ -616,7 +616,7 @@ export default function VideoEditor() {
             <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
 
               {/* LEFT: sticky master player column */}
-              <div className="w-full lg:w-[44%] lg:sticky lg:top-[76px] lg:self-start shrink-0 space-y-3">
+              <div className="w-full lg:w-[50%] lg:sticky lg:top-[76px] lg:self-start shrink-0 space-y-3">
 
             {/* Active Artist pill */}
             {activeArtist && (() => {
