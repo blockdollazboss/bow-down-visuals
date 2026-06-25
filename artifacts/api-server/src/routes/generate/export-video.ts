@@ -721,7 +721,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         });
         req.log.info({ scene: pc.sceneNumber, fileSize: sz, duration: pc.duration.toFixed(2) }, "[export] pre-prepared clip accepted ✓");
       }
-      deletePreparedExport(prepareId!);
+      // NOTE: do NOT delete prepared files here — they are still needed for dedup check and normalization.
+      // Cleanup happens in the finally block below.
     } else {
       if (prepareId && !preparedEntry) {
         req.log.warn({ prepareId }, "[export] prepareId not found in registry — falling back to live download");
@@ -1505,6 +1506,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     });
   } finally {
     cleanup(...tmpFiles);
+    // Clean up pre-downloaded prepare files (the whole export dir) after FFmpeg is done.
+    if (prepareId) {
+      deletePreparedExport(prepareId);
+    }
   }
 });
 
