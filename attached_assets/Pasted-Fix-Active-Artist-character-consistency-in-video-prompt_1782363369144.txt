@@ -1,0 +1,52 @@
+Fix Active Artist character consistency in video prompts only.
+
+Problem:
+Artist Profile saves.
+Active Artist shows on Dashboard.
+Lock Character Consistency exists.
+But the generated video clip shows a random person instead of the saved artist.
+
+Goal:
+Make the active artist actually appear in every video scene prompt and Runway clip prompt.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change dashboard design.
+Do not change Artist Profile saving.
+Only fix artist consistency being applied to video prompts.
+
+Fix this:
+
+1. When a user selects an Active Artist, load that artist profile data before generating any video scene prompts.
+2. When Make a Music Video or Make Song + Video creates scene prompts, add the active artist consistency prompt at the very top of every scene prompt.
+3. Every scene prompt should include:
+
+* artist name
+* reference image URL/path if available
+* visual style
+* face/skin/hair description
+* clothing style
+* tattoos
+* jewelry
+* brand colors
+* do_not_change_rules
+* saved consistency_prompt
+
+4. Every scene prompt should clearly say:
+    Use the active artist as the main character.
+    Do not create a random new person.
+    Keep the same face, skin tone, hairstyle, body type, tattoos, jewelry, clothing style, and overall identity.
+    Use the uploaded artist reference image as the visual consistency guide.
+5. Add a visible label on each scene prompt:
+    Artist Consistency Applied
+6. When clicking Create Video Clip / Runway Clip, make sure the final prompt sent to Runway includes the artist consistency text.
+7. If Runway image reference is supported in the current integration, send the uploaded artist reference image as the reference image.
+    If image reference is not supported yet, clearly show:
+    Text-only character consistency applied. Image reference video support coming soon.
+8. Add a preview/debug area that shows:
+    Final Prompt Sent To Runway
+
+So I can confirm the artist details are included before spending credits.
+
+Do not let Runway generate a clip from a scene prompt that does not include the active artist when an active artist is selected.

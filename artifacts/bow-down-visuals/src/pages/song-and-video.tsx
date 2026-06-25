@@ -350,18 +350,17 @@ export default function SongAndVideo() {
     ].filter(Boolean).join("\n\n");
 
     const vaultForApi = {
-      artistType:         loadedVault?.artist_type       ?? null,
-      artistDescription:  watched.artistDescription      || loadedVault?.personality,
-      visualStyle:        watched.visualStyleRules       || loadedVault?.visual_style,
-      brandColors:        watched.brandColors            || loadedVault?.brand_colors,
-      doNotChangeRules:   watched.doNotChangeRules       || loadedVault?.do_not_change_rules,
-      specialStyleRules:  loadedVault?.do_not_change_rules ?? null,
-      hair:               loadedVault?.hair              ?? null,
-      tattoos:            loadedVault?.tattoos           ?? null,
-      jewelry:            loadedVault?.jewelry           ?? null,
-      clothingStyle:      loadedVault?.clothing_style    ?? null,
-      logoDescription:    null,
-      imageReferenceNotes:null,
+      artistType:          loadedVault?.artist_type            ?? null,
+      artistDescription:   watched.artistDescription           || loadedVault?.personality,
+      visualStyle:         watched.visualStyleRules            || loadedVault?.visual_style,
+      brandColors:         watched.brandColors                 || loadedVault?.brand_colors,
+      doNotChangeRules:    watched.doNotChangeRules            || loadedVault?.do_not_change_rules,
+      hair:                loadedVault?.hair                   ?? null,
+      tattoos:             loadedVault?.tattoos                ?? null,
+      jewelry:             loadedVault?.jewelry                ?? null,
+      clothingStyle:       loadedVault?.clothing_style         ?? null,
+      consistencyPrompt:   loadedVault?.consistency_prompt     ?? null,
+      referenceImageUrl:   loadedVault?.reference_image_url    ?? null,
     };
 
     try {

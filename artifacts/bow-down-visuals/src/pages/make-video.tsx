@@ -296,7 +296,22 @@ export default function MakeVideo() {
         lyrics: values.lyrics,
         artistDescription: values.artistDescription,
         instructions: combinedInstructions,
-        artistVault: loadedVault,
+        artistVault: loadedVault
+          ? {
+              artistType:          loadedVault.artist_type       ?? null,
+              artistDescription:   values.artistDescription      || loadedVault.personality,
+              visualStyle:         values.videoStyle             || loadedVault.visual_style,
+              brandColors:         values.brandColors            || loadedVault.brand_colors,
+              doNotChangeRules:    values.doNotChangeRules       || loadedVault.do_not_change_rules,
+              specialStyleRules:   loadedVault.do_not_change_rules ?? null,
+              hair:                loadedVault.hair              ?? null,
+              tattoos:             loadedVault.tattoos           ?? null,
+              jewelry:             loadedVault.jewelry           ?? null,
+              clothingStyle:       loadedVault.clothing_style    ?? null,
+              consistencyPrompt:   loadedVault.consistency_prompt ?? null,
+              referenceImageUrl:   loadedVault.reference_image_url ?? null,
+            }
+          : undefined,
         songStructure: songStructure ?? undefined,
       }, token);
 

@@ -3,7 +3,8 @@ import {
   Camera, Clock, MapPin, Zap, Film, Loader2,
   Sparkles, Video, CheckCircle2, AlertCircle, X,
   ChevronDown, ChevronUp, RotateCcw,
-  ArrowUp, ArrowDown, Trash2, Plus, Save,
+  ArrowUp, ArrowDown, Trash2, Plus, Save, Eye,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,13 +33,37 @@ function sectionColor(section: string): string {
   return "bg-white/10 text-white/60 border-white/20";
 }
 
+/* ─── Build artist consistency prefix for Runway prompt ────── */
+function buildConsistencyPrefix(vault: ArtistVault): string {
+  const parts: string[] = [
+    `CHARACTER CONSISTENCY — ACTIVE ARTIST: ${vault.artist_name}`,
+    `Use ${vault.artist_name} as the main character. Do NOT create a random new person.`,
+    `Keep the exact same face, skin tone, hairstyle, body type, tattoos, jewelry, clothing style, and overall identity throughout.`,
+  ];
+  if (vault.personality)         parts.push(`Description: ${vault.personality}`);
+  if (vault.visual_style)        parts.push(`Visual Style: ${vault.visual_style}`);
+  if (vault.hair)                parts.push(`Hair: ${vault.hair}`);
+  if (vault.tattoos)             parts.push(`Tattoos: ${vault.tattoos}`);
+  if (vault.jewelry)             parts.push(`Jewelry: ${vault.jewelry}`);
+  if (vault.clothing_style)      parts.push(`Clothing: ${vault.clothing_style}`);
+  if (vault.brand_colors)        parts.push(`Brand Colors: ${vault.brand_colors}`);
+  if (vault.consistency_prompt)  parts.push(`Consistency Guide: ${vault.consistency_prompt}`);
+  if (vault.do_not_change_rules) parts.push(`⛔ Do Not Change: ${vault.do_not_change_rules}`);
+  if (vault.reference_image_url) {
+    parts.push(`Reference Image: ${vault.reference_image_url} — use this as the visual identity anchor.`);
+  }
+  parts.push("---");
+  return parts.join("\n");
+}
+
 /* ─── Inline Runway clip generator ─────────────────────────── */
 interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
+  artistVault?: ArtistVault | null;
 }
 
-function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
+function InlineRunwayGenerator({ scene, onUpdate, artistVault }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
@@ -48,6 +73,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
   const [error, setError]               = useState<string | null>(null);
   const [showConfirm, setShowConfirm]   = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [showFinalPrompt, setShowFinalPrompt] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const onUpdateRef = useRef(onUpdate);
@@ -58,7 +84,21 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
   }
   useEffect(() => () => stopPolling(), []);
 
-  function startPolling(id: string) {
+  /* Build the final prompt that will actually be sent to Runway */
+  function buildFinalPrompt(): string {
+    const basePrompt = scene.aiVideoPrompt.trim() ||
+      [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
+        .filter(Boolean).join(", ") ||
+      "cinematic music video scene, dramatic lighting, luxury aesthetic";
+
+    if (artistVault) {
+      const prefix = buildConsistencyPrefix(artistVault);
+      return `${prefix}\n${basePrompt}`;
+    }
+    return basePrompt;
+  }
+
+  function startPolling(id: string, finalPrompt: string) {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
@@ -75,7 +115,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
             demoClipUrl: data.url,
             provider: "Runway",
             generationStatus: "completed",
-            promptUsed: scene.aiVideoPrompt,
+            promptUsed: finalPrompt,
             generatedAt: new Date().toISOString(),
           });
           toast({ title: "Runway clip ready!", description: "Your clip has been generated." });
@@ -97,10 +137,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
   }
 
   async function startGeneration() {
-    const promptText = scene.aiVideoPrompt.trim() ||
-      [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
-        .filter(Boolean).join(", ") ||
-      "cinematic music video scene, dramatic lighting, luxury aesthetic";
+    const finalPrompt = buildFinalPrompt();
 
     setIsGenerating(true);
     setError(null);
@@ -113,7 +150,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
-          promptText,
+          promptText: finalPrompt,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
         }),
@@ -121,7 +158,7 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
       const data = await res.json() as { taskId?: string; error?: string };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
       setTaskId(data.taskId);
-      startPolling(data.taskId);
+      startPolling(data.taskId, finalPrompt);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
       setIsGenerating(false);
@@ -152,6 +189,8 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
   }
 
   const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+  const finalPromptPreview = buildFinalPrompt();
+  const hasArtist = !!artistVault;
 
   /* Generating state */
   if (isGenerating) {
@@ -160,6 +199,11 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
         <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-primary/90">Generating Runway clip…</p>
+          {hasArtist && (
+            <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1">
+              <ShieldCheck className="h-3 w-3" /> Artist consistency applied to prompt
+            </p>
+          )}
           <p className="text-[11px] text-white/30 mt-0.5">Usually takes 30–90 seconds</p>
           {progress !== null && (
             <div className="mt-2 h-1 w-full rounded-full bg-white/10 overflow-hidden">
@@ -240,32 +284,72 @@ function InlineRunwayGenerator({ scene, onUpdate }: RunwayGeneratorProps) {
     );
   }
 
-  /* Idle — show generate button */
-  return showConfirm ? (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-white/50">Generate costs 1 credit.</span>
-      <Button size="sm" onClick={startGeneration} className="gold-glow h-7 text-xs gap-1.5">
-        <Video className="h-3.5 w-3.5" /> Yes, Generate
-      </Button>
-      <Button
-        size="sm" variant="outline"
-        onClick={() => setShowConfirm(false)}
-        className="h-7 text-xs border-white/10 bg-white/5 text-white/50"
-      >
-        Cancel
-      </Button>
+  /* Idle — show generate button + final prompt preview */
+  return (
+    <div className="space-y-3">
+      {/* Artist consistency badge */}
+      {hasArtist && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20">
+          <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
+              Artist Consistency Applied
+            </p>
+            <p className="text-[10px] text-white/40 leading-snug">
+              {artistVault!.artist_name} will be used as the main character.
+              {artistVault!.reference_image_url
+                ? " Reference image included in prompt."
+                : " Text-only character consistency applied. Image reference video support coming soon."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Final Prompt preview */}
+      <div>
+        <button
+          onClick={() => setShowFinalPrompt((s) => !s)}
+          className="flex items-center gap-1.5 text-[10px] font-bold text-white/30 hover:text-white/60 transition-colors mb-1.5"
+        >
+          <Eye className="h-3 w-3" />
+          {showFinalPrompt ? "Hide" : "Preview"} Final Prompt Sent To Runway
+          {showFinalPrompt ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        {showFinalPrompt && (
+          <pre className="text-[10px] text-white/50 leading-relaxed whitespace-pre-wrap bg-white/[0.025] border border-white/[0.06] rounded-lg px-3 py-2.5 font-mono max-h-48 overflow-y-auto">
+            {finalPromptPreview}
+          </pre>
+        )}
+      </div>
+
+      {/* Generate controls */}
+      {showConfirm ? (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-white/50">Generate costs 5 credits.</span>
+          <Button size="sm" onClick={startGeneration} className="gold-glow h-7 text-xs gap-1.5">
+            <Video className="h-3.5 w-3.5" /> Yes, Generate
+          </Button>
+          <Button
+            size="sm" variant="outline"
+            onClick={() => setShowConfirm(false)}
+            className="h-7 text-xs border-white/10 bg-white/5 text-white/50"
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          onClick={() => setShowConfirm(true)}
+          className="gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs h-8"
+          variant="outline"
+          data-testid={`btn-generate-runway`}
+        >
+          <Video className="h-3.5 w-3.5" />
+          Generate Runway Clip
+        </Button>
+      )}
     </div>
-  ) : (
-    <Button
-      size="sm"
-      onClick={() => setShowConfirm(true)}
-      className="gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs h-8"
-      variant="outline"
-      data-testid={`btn-generate-runway`}
-    >
-      <Video className="h-3.5 w-3.5" />
-      Generate Runway Clip
-    </Button>
   );
 }
 
@@ -332,16 +416,17 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
           platform,
           artistVault: artistVault
             ? {
-                artistType: artistVault.artist_type,
+                artistType:        artistVault.artist_type,
                 artistDescription: artistVault.personality,
-                visualStyle: artistVault.visual_style,
-                hair: artistVault.hair,
-                tattoos: artistVault.tattoos,
-                jewelry: artistVault.jewelry,
-                clothingStyle: artistVault.clothing_style,
-                brandColors: artistVault.brand_colors,
-                doNotChangeRules: artistVault.do_not_change_rules,
-                specialStyleRules: artistVault.do_not_change_rules,
+                visualStyle:       artistVault.visual_style,
+                hair:              artistVault.hair,
+                tattoos:           artistVault.tattoos,
+                jewelry:           artistVault.jewelry,
+                clothingStyle:     artistVault.clothing_style,
+                brandColors:       artistVault.brand_colors,
+                doNotChangeRules:  artistVault.do_not_change_rules,
+                consistencyPrompt: artistVault.consistency_prompt,
+                referenceImageUrl: artistVault.reference_image_url,
               }
             : null,
         }),
@@ -553,6 +638,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
             <InlineRunwayGenerator
               scene={{ ...scene, aiVideoPrompt: aiPrompt, negativePrompt: negPrompt }}
               onUpdate={(patch) => handleUpdate(patch)}
+              artistVault={artistVault}
             />
           </div>
 

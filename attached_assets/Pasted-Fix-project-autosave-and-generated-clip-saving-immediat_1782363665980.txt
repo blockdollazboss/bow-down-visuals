@@ -1,0 +1,129 @@
+Fix project autosave and generated clip saving immediately.
+
+Problem:
+I generated video clips, tried to click Save, Save did not work, and I lost my generated clips.
+
+This cannot happen again.
+
+Do not change Stripe.
+Do not change credits.
+Do not change prices.
+Do not change Artist Profiles.
+Do not change Runway API keys.
+Do not redesign the dashboard.
+
+Only fix project saving, autosave, and generated clip persistence.
+
+Required fixes:
+
+1. Auto-save every generated Runway clip immediately
+    As soon as a Runway clip finishes successfully, save it to Supabase automatically.
+
+Save:
+
+* user_id
+* project_id
+* scene_id if available
+* clip title
+* scene prompt
+* final prompt sent to Runway
+* Runway job id
+* Runway video URL
+* thumbnail URL if available
+* created_at
+* status: completed
+
+2. Create or confirm a table called generated_clips
+    If no table exists, create:
+
+generated_clips:
+
+* id uuid primary key default gen_random_uuid()
+* user_id uuid not null
+* project_id uuid
+* scene_id text
+* title text
+* prompt text
+* final_prompt text
+* runway_job_id text
+* video_url text
+* thumbnail_url text
+* status text default ‘completed’
+* created_at timestamp with time zone default now()
+
+Enable RLS so users can only view/save their own clips.
+
+3. Fix Save Project button
+    The Save Project button must save:
+
+* project name
+* lyrics
+* scenes
+* prompts
+* generated clips
+* selected active artist
+* captions
+* audio info
+* timeline order
+* effects settings
+
+Show clear save states:
+
+* Saving…
+* Saved
+* Save failed: [real error]
+
+4. Add autosave indicator
+    At the top of the editor show:
+    Autosave: Saved
+    or
+    Autosave: Saving…
+    or
+    Autosave failed
+5. Add backup local save
+    Also save draft project data to browser localStorage every 10 seconds so if the page refreshes, the user can recover unsaved work.
+
+If unsaved local work is found, show:
+Recover unsaved project?
+
+Buttons:
+
+* Recover
+* Discard
+
+6. Prevent leaving the page with unsaved work
+    If there are unsaved clips or edits, warn:
+    You have unsaved changes. Leave anyway?
+7. Add My Generated Clips page or section
+    Users should be able to find all generated clips, even if project saving fails.
+
+Add:
+My Projects → Generated Clips
+
+Show:
+
+* clip preview
+* date created
+* project name
+* prompt
+* open in editor button
+
+8. Refund protection
+    If clip generation succeeds but saving fails, do not charge again to recover it.
+    If possible, record the successful generation before final UI update.
+9. Error logging
+    Log:
+
+* clip generated
+* clip save started
+* clip save success
+* clip save failed
+* project save started
+* project save success
+* project save failed
+
+10. Recovery attempt
+    Search existing Supabase data/logs for any recently generated Runway clip URLs for my user and attach them to a recovery project if found.
+
+Final goal:
+Generated clips must never disappear after generation. Every clip should auto-save immediately to Supabase and appear under My Generated Clips.

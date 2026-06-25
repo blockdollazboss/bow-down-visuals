@@ -15,7 +15,8 @@ interface VaultInput {
   clothingStyle?: string | null;
   brandColors?: string | null;
   doNotChangeRules?: string | null;
-  specialStyleRules?: string | null;
+  consistencyPrompt?: string | null;
+  referenceImageUrl?: string | null;
 }
 
 /**
@@ -64,14 +65,15 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   let doNotChange = "";
   if (vault) {
     if (vault.artistType)        vaultLines.push(`Artist Type: ${vault.artistType}`);
-    if (vault.artistDescription) vaultLines.push(`Artist Description: ${vault.artistDescription}`);
+    if (vault.artistDescription) vaultLines.push(`Artist Description / Personality: ${vault.artistDescription}`);
     if (vault.visualStyle)       vaultLines.push(`Visual Style: ${vault.visualStyle}`);
     if (vault.hair)              vaultLines.push(`Hair: ${vault.hair}`);
     if (vault.tattoos)           vaultLines.push(`Tattoos: ${vault.tattoos}`);
     if (vault.jewelry)           vaultLines.push(`Jewelry: ${vault.jewelry}`);
     if (vault.clothingStyle)     vaultLines.push(`Clothing Style / Wardrobe: ${vault.clothingStyle}`);
     if (vault.brandColors)       vaultLines.push(`Brand Colors: ${vault.brandColors}`);
-    if (vault.specialStyleRules) vaultLines.push(`Special Style Rules: ${vault.specialStyleRules}`);
+    if (vault.consistencyPrompt) vaultLines.push(`Saved Consistency Prompt: ${vault.consistencyPrompt}`);
+    if (vault.referenceImageUrl) vaultLines.push(`Reference Image URL: ${vault.referenceImageUrl} (use as visual identity guide)`);
     if (vault.doNotChangeRules)  doNotChange = vault.doNotChangeRules;
   }
 

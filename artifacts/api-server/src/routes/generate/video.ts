@@ -41,28 +41,33 @@ function buildVaultContext(vault: VaultData | null | undefined): string {
   const lines: string[] = [
     "",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "ARTIST VAULT — BRAND STYLE RULES",
-    "Apply ALL of the following to every section of your output.",
-    "This artist's outputs must match their established brand identity.",
+    "ACTIVE ARTIST — CHARACTER CONSISTENCY RULES",
+    "⚠️  CRITICAL: Every AI video prompt you write MUST feature this specific artist.",
+    "Do NOT generate a random person. Use these details to describe the artist in EVERY scene prompt.",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
   ];
   if (vault["artistType"]) lines.push(`Artist Type: ${vault["artistType"]}`);
-  if (vault["artistDescription"]) lines.push(`Artist Description: ${vault["artistDescription"]}`);
+  if (vault["artistDescription"]) lines.push(`Artist Description / Personality: ${vault["artistDescription"]}`);
   if (vault["visualStyle"]) lines.push(`Visual Style: ${vault["visualStyle"]}`);
   if (vault["hair"]) lines.push(`Hair: ${vault["hair"]}`);
   if (vault["tattoos"]) lines.push(`Tattoos: ${vault["tattoos"]}`);
   if (vault["jewelry"]) lines.push(`Jewelry: ${vault["jewelry"]}`);
   if (vault["clothingStyle"]) lines.push(`Clothing Style: ${vault["clothingStyle"]}`);
   if (vault["brandColors"]) lines.push(`Brand Colors: ${vault["brandColors"]}`);
-  if (vault["logoDescription"]) lines.push(`Logo Description: ${vault["logoDescription"]}`);
-  if (vault["imageReferenceNotes"]) lines.push(`Image Reference Notes: ${vault["imageReferenceNotes"]}`);
+  if (vault["consistencyPrompt"]) lines.push(`Consistency Prompt: ${vault["consistencyPrompt"]}`);
+  if (vault["referenceImageUrl"]) lines.push(`Reference Image: ${vault["referenceImageUrl"]} — treat this as the visual identity guide for all scene prompts.`);
   if (vault["doNotChangeRules"]) {
     lines.push("", `⛔ DO NOT CHANGE RULES — NEVER VIOLATE THESE:\n${vault["doNotChangeRules"]}`);
   }
-  if (vault["specialStyleRules"]) {
-    lines.push("", `✅ SPECIAL STYLE RULES — ALWAYS APPLY THESE:\n${vault["specialStyleRules"]}`);
-  }
+  lines.push(
+    "",
+    "CHARACTER CONSISTENCY MANDATE — APPLY TO EVERY AI VIDEO PROMPT:",
+    "• Begin each AI Video Prompt with: 'Active artist [artist name] as the main character —'",
+    "• Include face, skin tone, hairstyle, body type, tattoos, jewelry, and clothing from the vault above",
+    "• Write: 'Do not create a random new person. Keep the same identity as the reference.'",
+    "• If a reference image URL is provided above, mention it as the visual consistency guide",
+  );
   return lines.join("\n");
 }
 
