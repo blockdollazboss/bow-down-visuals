@@ -2,43 +2,52 @@ import { useRef, useState, useEffect } from "react";
 import { GripHorizontal } from "lucide-react";
 import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
-const GOLD_GLOW = "rgba(218,165,32,";
-const SNAP_MARGIN = 20;
+const GOLD_GLOW    = "rgba(218,165,32,";
+const SNAP_MARGIN  = 20;
 
-type SnapCorner = "TL" | "TR" | "BL" | "BR";
+type SnapPoint = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
+const VALID_POINTS: SnapPoint[] = ["TL","TC","TR","RC","BR","BC","BL","LC"];
 
-function cornerToPos(
-  corner: SnapCorner,
-  w: number,
-  h: number,
-): { x: number; y: number } {
+/** Convert a snap-point id to an absolute {x, y} pixel position */
+function snapToPos(pt: SnapPoint, w: number, h: number): { x: number; y: number } {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const m = SNAP_MARGIN;
-  const map: Record<SnapCorner, { x: number; y: number }> = {
-    TL: { x: m,         y: m },
-    TR: { x: vw - w - m, y: m },
-    BL: { x: m,         y: vh - h - m },
-    BR: { x: vw - w - m, y: vh - h - m },
+  const m  = SNAP_MARGIN;
+  const cx = Math.round((vw - w) / 2); // center-x
+  const cy = Math.round((vh - h) / 2); // center-y
+  const map: Record<SnapPoint, { x: number; y: number }> = {
+    TL: { x: m,          y: m          },  // top-left
+    TC: { x: cx,         y: m          },  // top-center
+    TR: { x: vw - w - m, y: m          },  // top-right
+    RC: { x: vw - w - m, y: cy         },  // right-center
+    BR: { x: vw - w - m, y: vh - h - m },  // bottom-right
+    BC: { x: cx,         y: vh - h - m },  // bottom-center
+    BL: { x: m,          y: vh - h - m },  // bottom-left
+    LC: { x: m,          y: cy         },  // left-center
   };
-  return map[corner];
+  return map[pt];
 }
 
-function nearestCorner(x: number, y: number, w: number, h: number): SnapCorner {
+/** Find the snap point whose anchor is closest to the element's current center */
+function nearestSnap(x: number, y: number, w: number, h: number): SnapPoint {
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const right  = cx > window.innerWidth  / 2;
-  const bottom = cy > window.innerHeight / 2;
-  if (right  && bottom)  return "BR";
-  if (right  && !bottom) return "TR";
-  if (!right && bottom)  return "BL";
-  return "TL";
+  let best: SnapPoint = "BR";
+  let bestDist = Infinity;
+  for (const pt of VALID_POINTS) {
+    const anchor = snapToPos(pt, w, h);
+    const ax = anchor.x + w / 2;
+    const ay = anchor.y + h / 2;
+    const dist = (cx - ax) ** 2 + (cy - ay) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = pt; }
+  }
+  return best;
 }
 
-function getSavedCorner(): SnapCorner {
+function getSavedSnap(): SnapPoint {
   try {
-    const v = localStorage.getItem("bdv-player-corner");
-    if (v === "TL" || v === "TR" || v === "BL" || v === "BR") return v;
+    const v = localStorage.getItem("bdv-player-snap") as SnapPoint | null;
+    if (v && (VALID_POINTS as string[]).includes(v)) return v;
   } catch { /* ignore */ }
   return "BR";
 }
@@ -50,36 +59,42 @@ export function DraggableThemePlayer() {
   const posRef   = useRef({ x: 0, y: 0 });
 
   const [pos, rawSetPos] = useState<{ x: number; y: number }>(() =>
-    cornerToPos(getSavedCorner(), 210, 52),
+    snapToPos(getSavedSnap(), 210, 52),
   );
-  const [isSnapping,  setIsSnapping]  = useState(false);
-  const [isDragging,  setIsDragging]  = useState(false);
+  const [isSnapping, setIsSnapping] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   function updatePos(p: { x: number; y: number }) {
     posRef.current = p;
     rawSetPos(p);
   }
 
-  // After mount: measure real size → re-snap to saved corner
+  function snapTo(pt: SnapPoint, w: number, h: number) {
+    try { localStorage.setItem("bdv-player-snap", pt); } catch { /* ignore */ }
+    setIsSnapping(true);
+    updatePos(snapToPos(pt, w, h));
+    setTimeout(() => setIsSnapping(false), 400);
+  }
+
+  // After mount: measure real element size → re-snap to saved point
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
-    updatePos(cornerToPos(getSavedCorner(), el.offsetWidth, el.offsetHeight));
+    updatePos(snapToPos(getSavedSnap(), el.offsetWidth, el.offsetHeight));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep snapped to correct corner on window resize
+  // Re-snap on window resize so the player stays in place
   useEffect(() => {
     const onResize = () => {
       const el = elRef.current;
       if (!el || dragging.current) return;
-      updatePos(cornerToPos(getSavedCorner(), el.offsetWidth, el.offsetHeight));
+      updatePos(snapToPos(getSavedSnap(), el.offsetWidth, el.offsetHeight));
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    // Let button / input clicks propagate normally
     if ((e.target as HTMLElement).closest("button, input")) return;
     dragging.current = true;
     setIsDragging(true);
@@ -107,36 +122,30 @@ export function DraggableThemePlayer() {
     dragging.current = false;
     setIsDragging(false);
     const el = elRef.current!;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    const corner  = nearestCorner(posRef.current.x, posRef.current.y, w, h);
-    const snapped = cornerToPos(corner, w, h);
-    try { localStorage.setItem("bdv-player-corner", corner); } catch { /* ignore */ }
-    setIsSnapping(true);
-    updatePos(snapped);
-    setTimeout(() => setIsSnapping(false), 400);
+    const pt = nearestSnap(posRef.current.x, posRef.current.y, el.offsetWidth, el.offsetHeight);
+    snapTo(pt, el.offsetWidth, el.offsetHeight);
   }
 
   return (
     <div
       ref={elRef}
       style={{
-        position:   "fixed",
-        left:       pos.x,
-        top:        pos.y,
-        zIndex:     9999,
-        transition: isSnapping
+        position:         "fixed",
+        left:             pos.x,
+        top:              pos.y,
+        zIndex:           9999,
+        transition:       isSnapping
           ? "left 0.30s cubic-bezier(0.34,1.56,0.64,1), top 0.30s cubic-bezier(0.34,1.56,0.64,1)"
           : "none",
-        touchAction:    "none",
-        userSelect:     "none",
+        touchAction:      "none",
+        userSelect:       "none",
         WebkitUserSelect: "none",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {/* ── Drag grip ── */}
+      {/* Drag-grip handle */}
       <div
         style={{
           display:        "flex",
@@ -144,17 +153,16 @@ export function DraggableThemePlayer() {
           alignItems:     "center",
           paddingBottom:  3,
           cursor:         isDragging ? "grabbing" : "grab",
-          pointerEvents:  "auto",
         }}
         title="Drag to move"
       >
         <GripHorizontal
           size={14}
-          style={{ color: `${GOLD_GLOW}0.50)`, transition: "color 0.15s" }}
+          style={{ color: `${GOLD_GLOW}0.50)` }}
         />
       </div>
 
-      {/* ── Player shell — cursor reflects drag state ── */}
+      {/* Player */}
       <div style={{ cursor: isDragging ? "grabbing" : "grab" }}>
         <NavThemePlayer />
       </div>
