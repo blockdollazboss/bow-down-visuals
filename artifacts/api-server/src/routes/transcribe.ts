@@ -6,9 +6,12 @@ import { requireAuth } from "../middlewares/require-auth";
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
+/** Whisper's hard file-size limit */
+const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 },
+  limits: { fileSize: WHISPER_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith("audio/") || file.mimetype.startsWith("video/")) {
       cb(null, true);
@@ -67,12 +70,27 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
         return;
       }
     } catch {
-      /* If SUPABASE_URL is malformed, skip check but log */
       req.log.warn("SUPABASE_URL is malformed — skipping SSRF host check");
     }
   }
 
   try {
+    /* ── HEAD request: check Content-Length before downloading ── */
+    const headRes = await fetch(audioUrl, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(15_000),
+    });
+    const contentLength = headRes.headers.get("content-length");
+    if (contentLength && Number(contentLength) > WHISPER_MAX_BYTES) {
+      const sizeMB = (Number(contentLength) / (1024 * 1024)).toFixed(1);
+      res.status(413).json({
+        error: "FILE_TOO_LARGE",
+        message: `This song file is ${sizeMB} MB, which exceeds the 25 MB transcription limit. Please upload a smaller MP3 or paste your lyrics manually.`,
+      });
+      return;
+    }
+
+    /* ── Download ── */
     const audioRes = await fetch(audioUrl, { signal: AbortSignal.timeout(90_000) });
     if (!audioRes.ok) {
       res.status(400).json({ error: `Could not fetch audio: HTTP ${audioRes.status}` });
@@ -81,6 +99,16 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
 
     const contentType = audioRes.headers.get("content-type") ?? "audio/mpeg";
     const buffer = Buffer.from(await audioRes.arrayBuffer());
+
+    /* ── Size guard (catches files where Content-Length was missing) ── */
+    if (buffer.length > WHISPER_MAX_BYTES) {
+      const sizeMB = (buffer.length / (1024 * 1024)).toFixed(1);
+      res.status(413).json({
+        error: "FILE_TOO_LARGE",
+        message: `This song file is ${sizeMB} MB, which exceeds the 25 MB transcription limit. Please upload a smaller MP3 or paste your lyrics manually.`,
+      });
+      return;
+    }
 
     const fileName = parsedUrl.pathname.split("/").pop() ?? "audio.mp3";
     const audioFile = await toFile(buffer, decodeURIComponent(fileName), { type: contentType });
@@ -107,6 +135,14 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "URL transcription failed");
     const msg = err instanceof Error ? err.message : "Transcription failed";
+    /* Surface OpenAI's own 413 / content-length errors cleanly */
+    if (msg.toLowerCase().includes("413") || msg.toLowerCase().includes("content size") || msg.toLowerCase().includes("too large")) {
+      res.status(413).json({
+        error: "FILE_TOO_LARGE",
+        message: "This song file is too large to transcribe. Please upload a smaller MP3 or paste your lyrics manually.",
+      });
+      return;
+    }
     res.status(500).json({ error: `Could not transcribe song: ${msg}` });
   }
 });
