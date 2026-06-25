@@ -1,46 +1,88 @@
 import { Link } from "wouter";
 import { Mail } from "lucide-react";
 
+const NAVIGATE = [
+  { label: "Home",        href: "/" },
+  { label: "Pricing",     href: "/pricing" },
+  { label: "Beta Access", href: "/beta-access" },
+  { label: "Waitlist",    href: "/waitlist" },
+  { label: "Contact / Support", href: "/contact" },
+];
+
+const LEGAL = [
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Privacy Policy",   href: "/privacy" },
+  { label: "Refund Policy",    href: "/refund-policy" },
+];
+
 export function SiteFooter() {
   return (
-    <footer className="bg-black border-t border-white/[0.06] py-12 px-5">
+    <footer className="bg-black border-t border-white/[0.06] py-14 px-5">
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-10">
+
+        {/* Top row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
 
           {/* Brand */}
-          <div className="shrink-0">
+          <div>
             <Link href="/" className="cursor-pointer inline-block">
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.png`}
                 alt="Bow Down Visuals"
-                className="h-28 w-auto"
+                className="h-24 w-auto"
               />
             </Link>
-            <p className="text-white/50 text-sm font-semibold mt-2">Bow Down Visuals</p>
-            <p className="text-white/30 text-xs mt-1 max-w-xs leading-relaxed">
-              Create the Song. Create the Video. Promote the Release.
+            <p className="text-white/60 text-sm font-semibold mt-2">Bow Down Visuals</p>
+            <p className="text-white/35 text-xs mt-2 max-w-xs leading-relaxed">
+              Bow Down Visuals sells digital AI creator credits for lyrics, music video plans,
+              video prompts, captions, thumbnails, promo clips, and related digital creator tools.
             </p>
             <a
               href="mailto:support@bowdownvisuals.com"
-              className="inline-flex items-center gap-1.5 mt-3 text-xs text-white/40 hover:text-primary transition-colors"
+              className="inline-flex items-center gap-1.5 mt-4 text-xs text-white/40 hover:text-primary transition-colors"
             >
               <Mail className="h-3 w-3 shrink-0" />
               support@bowdownvisuals.com
             </a>
           </div>
 
-          {/* Links */}
+          {/* Navigate */}
           <nav className="flex flex-col gap-2.5">
-            <p className="text-white/20 text-xs font-bold uppercase tracking-widest mb-1">Navigate</p>
-            <Link href="/waitlist" className="text-sm text-white/50 hover:text-white transition-colors">Waitlist</Link>
-            <Link href="/pricing"  className="text-sm text-white/50 hover:text-white transition-colors">Pricing</Link>
-            <Link href="/contact"  className="text-sm text-white/50 hover:text-white transition-colors">Contact</Link>
+            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
+            {NAVIGATE.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm text-white/45 hover:text-white transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Legal */}
+          <nav className="flex flex-col gap-2.5">
+            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Legal</p>
+            {LEGAL.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="text-sm text-white/45 hover:text-white transition-colors"
+              >
+                {l.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
+        {/* Bottom bar */}
         <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
-          <p className="text-white/15 text-xs">Built for independent artists.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/terms"         className="text-white/20 text-xs hover:text-white/50 transition-colors">Terms</Link>
+            <Link href="/privacy"       className="text-white/20 text-xs hover:text-white/50 transition-colors">Privacy</Link>
+            <Link href="/refund-policy" className="text-white/20 text-xs hover:text-white/50 transition-colors">Refunds</Link>
+          </div>
         </div>
       </div>
     </footer>

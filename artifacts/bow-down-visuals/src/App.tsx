@@ -29,6 +29,9 @@ import Login       from "@/pages/login";
 import Signup      from "@/pages/signup";
 import NotFound      from "@/pages/not-found";
 import CreditHistory from "@/pages/credit-history";
+import Terms        from "@/pages/terms";
+import Privacy      from "@/pages/privacy";
+import RefundPolicy from "@/pages/refund-policy";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +60,9 @@ function AppShell() {
         <Route path="/waitlist"><Waitlist /></Route>
         <Route path="/beta-access"><BetaAccess /></Route>
         <Route path="/contact"><Contact /></Route>
+        <Route path="/terms"><Terms /></Route>
+        <Route path="/privacy"><Privacy /></Route>
+        <Route path="/refund-policy"><RefundPolicy /></Route>
 
         {/* Protected app pages */}
         <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
