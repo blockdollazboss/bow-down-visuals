@@ -1,0 +1,86 @@
+Fix Use Lyrics For Captions only.
+
+Problem:
+Get Lyrics From Song works and successfully generates lyrics/transcript from the uploaded song.
+
+But using those lyrics as captions does not work. The generated lyrics are not being passed into the Captions tab.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not redesign anything.
+
+Only fix:
+generated song lyrics/transcript → captions.
+
+Requirements:
+
+1. After Get Lyrics From Song succeeds, save the transcript/lyrics to the current project.
+
+Save it as:
+
+* project.lyrics
+* project.transcript
+* captions_source_text
+  or the correct field the app already uses.
+
+2. Enable the button:
+   Use Lyrics For Captions
+
+3. When Use Lyrics For Captions is clicked:
+
+* copy the generated lyrics/transcript into the Captions tab
+* fill the Lyrics For Captions text box
+* show message:
+  Lyrics sent to captions.
+
+4. In the Captions tab, show:
+   Lyrics For Captions
+
+This box should auto-fill from:
+
+* generated song transcript
+* saved project lyrics
+* pasted lyrics
+* uploaded/transcribed lyrics
+
+5. Add button:
+   Generate Captions From Lyrics
+
+When clicked:
+
+* split lyrics into short readable caption lines
+* remove section labels like [Hook], [Verse], [Chorus], [Bridge], [Outro]
+* create caption cards
+* add estimated timing if exact timestamps are not available
+
+6. If transcript has timestamps, use those timestamps for captions.
+
+7. If transcript has no timestamps:
+
+* space captions every 2 seconds
+* show:
+  Caption timing is estimated. You can adjust it manually.
+
+8. Save generated captions to the project.
+
+9. Captions should appear in:
+
+* Captions tab
+* Live Preview overlay
+* saved project after refresh
+
+10. Show clear messages:
+
+* Lyrics sent to captions
+* Captions generated
+* Captions saved
+* No lyrics found
+* Could not generate captions: [real error]
+
+11. Do not charge credits for using generated lyrics as captions right now.
+
+Final goal:
+If Get Lyrics From Song works, I should be able to click Use Lyrics For Captions and immediately generate caption cards from those lyrics.

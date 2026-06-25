@@ -125,13 +125,16 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
     c.lyricsText || lyrics || "",
   );
 
-  /* When the project finishes loading lyrics arrive asynchronously — backfill once */
+  /* When lyrics arrive from the project asynchronously — always sync them in.
+     The `|| lyrics` fallback handles the initial project-load race. */
   useEffect(() => {
-    if (lyrics && !quickLyrics) {
-      setQuickLyrics(lyrics);
+    const incoming = c.lyricsText || lyrics || "";
+    if (incoming && incoming !== quickLyrics) {
+      setQuickLyrics(incoming);
       setLyricsAutoFilled(true);
     }
-  }, [lyrics]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.lyricsText, lyrics]);
 
   function setCaption<K extends keyof typeof c>(key: K, value: (typeof c)[K]) {
     setSettings({ ...settings, captions: { ...c, [key]: value } });
@@ -224,11 +227,11 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
       >
         <div className="space-y-3">
 
-          {/* Auto-filled badge */}
+          {/* Lyrics-sent badge */}
           {lyricsAutoFilled && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/20 bg-primary/[0.06] text-xs text-primary/80">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              Lyrics loaded automatically from your project.
+              Lyrics sent to captions.
             </div>
           )}
 

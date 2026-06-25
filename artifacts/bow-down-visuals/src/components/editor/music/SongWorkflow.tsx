@@ -1,11 +1,18 @@
 import { useState } from "react";
 import {
   Mic, FileText, Clapperboard, CheckCircle2, Loader2, AlertCircle,
-  Music2, RotateCcw, PenLine, Sparkles,
+  Music2, RotateCcw, PenLine, Sparkles, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
-import type { EditorSettings } from "@/lib/editor-settings";
+import type { CaptionLine, EditorSettings } from "@/lib/editor-settings";
+
+interface WhisperSegment {
+  id: number;
+  start: number;
+  end: number;
+  text: string;
+}
 
 interface SongWorkflowProps {
   audioUrl: string;
@@ -18,6 +25,42 @@ interface SongWorkflowProps {
 }
 
 type TranscribeState = "idle" | "running" | "done" | "too-large" | "error";
+
+function newLineId() {
+  return `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function segmentsToCaptionLines(segments: WhisperSegment[]): CaptionLine[] {
+  return segments
+    .filter((s) => s.text.trim().length > 0)
+    .map((s) => ({
+      id: newLineId(),
+      startSec: parseFloat(s.start.toFixed(1)),
+      endSec: parseFloat(s.end.toFixed(1)),
+      text: s.text.trim(),
+    }));
+}
+
+function estimatedCaptionLines(lyricsText: string, songDuration?: number): CaptionLine[] {
+  const raw = lyricsText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(
+      (l) =>
+        l.length > 0 &&
+        !/^\[.*\]$/.test(l) &&
+        !/^\(.*\)$/.test(l) &&
+        !/^#+\s/.test(l),
+    );
+  if (raw.length === 0) return [];
+  const secPer = songDuration && songDuration > 0 ? songDuration / raw.length : 2;
+  return raw.map((text, i): CaptionLine => ({
+    id: newLineId(),
+    startSec: parseFloat((i * secPer).toFixed(1)),
+    endSec: parseFloat(((i + 1) * secPer).toFixed(1)),
+    text,
+  }));
+}
 
 export function SongWorkflow({
   audioUrl,
@@ -32,9 +75,14 @@ export function SongWorkflow({
   const [txError, setTxError] = useState<string | null>(null);
   const [manualLyrics, setManualLyrics] = useState("");
   const [showManual, setShowManual] = useState(false);
+  const [sentToCaptions, setSentToCaptions] = useState(false);
+  const [localTranscript, setLocalTranscript] = useState<string | null>(null);
+  const [localSegments, setLocalSegments] = useState<WhisperSegment[] | null>(null);
+  const [songDuration, setSongDuration] = useState<number | null>(null);
 
   const ms = settings.musicStudio;
   const usingUploadedAudio = ms.videoAudio.source === "uploaded";
+  const activeTranscript = localTranscript ?? transcriptText ?? null;
 
   const fileName = (() => {
     try {
@@ -47,6 +95,7 @@ export function SongWorkflow({
   async function getLyrics() {
     setTxState("running");
     setTxError(null);
+    setSentToCaptions(false);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/transcribe-url", {
@@ -57,9 +106,14 @@ export function SongWorkflow({
         },
         body: JSON.stringify({ audioUrl }),
       });
-      const data = (await res.json()) as { transcript?: string; error?: string; message?: string };
+      const data = (await res.json()) as {
+        transcript?: string;
+        segments?: WhisperSegment[];
+        duration?: number;
+        error?: string;
+        message?: string;
+      };
 
-      /* ── File too large — surface the specific state ── */
       if (res.status === 413 || data.error === "FILE_TOO_LARGE") {
         setTxError(
           data.message ??
@@ -71,7 +125,12 @@ export function SongWorkflow({
       }
 
       if (!res.ok || !data.transcript) throw new Error(data.error ?? data.message ?? "Transcription failed");
-      onTranscriptReady(data.transcript);
+
+      const text = data.transcript;
+      setLocalTranscript(text);
+      setLocalSegments(data.segments ?? null);
+      setSongDuration(data.duration ?? null);
+      onTranscriptReady(text);
       setTxState("done");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not transcribe song";
@@ -87,14 +146,43 @@ export function SongWorkflow({
     });
   }
 
+  /**
+   * Push lyrics directly into settings.captions so CaptionsSection sees them immediately.
+   * If Whisper returned segments, use exact timestamps. Otherwise estimate at 2 s/line.
+   */
+  function sendLyricsToCaptions(text: string, segments?: WhisperSegment[] | null) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const captionLines =
+      segments && segments.length > 0
+        ? segmentsToCaptionLines(segments)
+        : estimatedCaptionLines(trimmed, songDuration ?? undefined);
+
+    onSettingsChange({
+      ...settings,
+      captions: {
+        ...settings.captions,
+        lyricsText: trimmed,
+        mode: settings.captions.mode === "none" ? "auto" : settings.captions.mode,
+        lines: captionLines,
+      },
+    });
+    setSentToCaptions(true);
+    onGoToCaptions();
+  }
+
   function submitManualLyrics() {
     const trimmed = manualLyrics.trim();
     if (!trimmed) return;
+    setLocalTranscript(trimmed);
     onTranscriptReady(trimmed);
     setTxState("done");
+    sendLyricsToCaptions(trimmed, null);
   }
 
-  const lyricsReady = !!transcriptText || txState === "done";
+  const lyricsReady = !!activeTranscript || txState === "done";
+  const hasTimestamps = (localSegments?.length ?? 0) > 0;
 
   return (
     <EditorCard
@@ -114,7 +202,7 @@ export function SongWorkflow({
 
         {/* Action buttons */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {/* Get Lyrics / state-aware button */}
+          {/* Get Lyrics */}
           <Button
             onClick={getLyrics}
             disabled={txState === "running"}
@@ -172,18 +260,22 @@ export function SongWorkflow({
             </Button>
           )}
 
-          {/* Use For Captions */}
+          {/* Use For Captions — writes to settings.captions directly */}
           <Button
-            onClick={onGoToCaptions}
+            onClick={() => activeTranscript && sendLyricsToCaptions(activeTranscript, localSegments)}
             disabled={!lyricsReady}
             variant="outline"
             className={`h-11 text-sm font-bold justify-start border-white/12 bg-white/[0.03] hover:bg-white/[0.06] text-white/85 disabled:opacity-40 ${
               txState !== "done" ? "sm:col-span-2" : ""
-            }`}
+            } ${sentToCaptions ? "text-green-400 border-green-500/30" : ""}`}
             data-testid="btn-use-for-captions"
           >
             <FileText className="h-4 w-4 mr-2" />
-            {lyricsReady ? "Use Lyrics For Captions →" : "Use Lyrics For Captions"}
+            {sentToCaptions
+              ? "Lyrics Sent to Captions ✓"
+              : lyricsReady
+                ? "Use Lyrics For Captions →"
+                : "Use Lyrics For Captions"}
           </Button>
 
           {/* Use In Final Video — always enabled */}
@@ -249,18 +341,28 @@ export function SongWorkflow({
               Generate Captions From Lyrics
             </Button>
             <p className="text-[10px] text-white/30">
-              Lyrics saved to project — available in the Captions tab for timed caption generation.
+              Lyrics saved to project and sent to Captions tab.
             </p>
           </div>
         )}
 
-        {/* ── Transcript preview (auto or manual) ── */}
-        {transcriptText && (
+        {/* ── Transcript preview ── */}
+        {activeTranscript && (
           <div className="rounded-lg border border-green-500/20 bg-green-500/[0.04] p-3 space-y-1.5">
-            <p className="text-[10px] font-black text-green-400 uppercase tracking-wide">Lyrics Ready</p>
-            <p className="text-xs text-white/65 leading-relaxed line-clamp-4">{transcriptText}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black text-green-400 uppercase tracking-wide">Lyrics Ready</p>
+              {hasTimestamps ? (
+                <span className="flex items-center gap-1 text-[10px] text-green-400/70">
+                  <Clock className="h-2.5 w-2.5" />
+                  Exact timestamps ✓
+                </span>
+              ) : (
+                <span className="text-[10px] text-white/30">2 s/line estimated</span>
+              )}
+            </div>
+            <p className="text-xs text-white/65 leading-relaxed line-clamp-4">{activeTranscript}</p>
             <p className="text-[10px] text-white/35">
-              Open the Captions tab to generate timed captions from these lyrics.
+              Click <span className="text-white/55 font-semibold">Use Lyrics For Captions →</span> to fill the Captions tab and generate caption cards.
             </p>
           </div>
         )}
