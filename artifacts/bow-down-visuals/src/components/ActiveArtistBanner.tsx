@@ -42,7 +42,7 @@ export function ActiveArtistBanner({ artist, onContinue }: Props) {
         <div style={{
           height: 210,
           background: hasImage
-            ? `url(${artist.reference_image_url!}) center/cover no-repeat`
+            ? `url(${artist.reference_image_url!}) top center/cover no-repeat`
             : "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)",
           position: "relative",
           display: "flex",

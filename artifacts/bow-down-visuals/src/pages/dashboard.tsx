@@ -341,7 +341,7 @@ export default function Dashboard() {
                 fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 900, color: "#C9A84C",
               }}>
                 {activeArtist.reference_image_url ? (
-                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
                 ) : initials}
                 <div style={{
                   position: "absolute", bottom: -1, right: -1,

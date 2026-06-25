@@ -636,7 +636,7 @@ export default function VideoEditor() {
                         overflow: "hidden",
                       }}>
                         {activeArtist.reference_image_url ? (
-                          <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
                         ) : initials}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>

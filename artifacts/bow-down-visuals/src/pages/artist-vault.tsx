@@ -378,7 +378,7 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
           <div className="flex items-center gap-3 min-w-0">
             <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0">
               {vault.reference_image_url ? (
-                <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
+                <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover object-top" />
               ) : (
                 <div className="h-full w-full bg-primary flex items-center justify-center">
                   <span className="text-white font-black text-xl">
@@ -486,7 +486,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
       <div style={{
         height: 150,
         background: vault.reference_image_url
-          ? `url(${vault.reference_image_url}) center/cover no-repeat`
+          ? `url(${vault.reference_image_url}) top center/cover no-repeat`
           : isActive
             ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
             : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",

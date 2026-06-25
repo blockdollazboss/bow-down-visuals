@@ -125,7 +125,7 @@ export default function ChooseArtist() {
                   <div style={{
                     height: 140,
                     background: vault.reference_image_url
-                      ? `url(${vault.reference_image_url}) center/cover no-repeat`
+                      ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
                         ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
                         : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
