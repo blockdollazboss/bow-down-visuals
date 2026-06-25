@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
-import type { SceneData } from "@/lib/scene-parser";
+import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
   sceneHasClip,
@@ -64,6 +64,7 @@ interface LoadedProject {
   song_title: string | null;
   input_data: Record<string, unknown> | null;
   output_data: {
+    result?: string;
     scenes?: SceneData[];
     editorSettings?: Partial<EditorSettings>;
   } | null;
@@ -81,12 +82,15 @@ export default function VideoEditor() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [project, setProject] = useState<LoadedProject | null>(null);
+  const [rawResult, setRawResult] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<EditorTab>("clips");
   const [clipMode, setClipMode] = useState<"auto" | "manual">("auto");
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
+  const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
+  const [rebuildError, setRebuildError] = useState<string | null>(null);
 
   const hydrated = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,7 +114,17 @@ export default function VideoEditor() {
         const data = (await res.json()) as { project: LoadedProject };
         if (cancelled) return;
         setProject(data.project);
-        setScenes(data.project.output_data?.scenes ?? []);
+        const savedResult = data.project.output_data?.result ?? null;
+        setRawResult(savedResult);
+        const savedScenes = data.project.output_data?.scenes ?? [];
+        // Auto-parse scenes from saved result text when none were persisted
+        if (savedScenes.length === 0 && savedResult) {
+          const parsed = parseScenes(extractBreakdownContent(savedResult));
+          setScenes(parsed);
+          if (parsed.length > 0) setRebuildStatus("done");
+        } else {
+          setScenes(savedScenes);
+        }
         setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
         hydrated.current = true;
       } catch (err) {
@@ -170,6 +184,30 @@ export default function VideoEditor() {
         ? { title: "Saved", description: "Editor changes saved to your project." }
         : { title: "Save failed", description: "Could not save your changes. Please try again.", variant: "destructive" },
     );
+  }
+
+  async function rebuildScenesFromPlan() {
+    if (!rawResult) return;
+    setRebuildStatus("rebuilding");
+    setRebuildError(null);
+    try {
+      const breakdown = extractBreakdownContent(rawResult);
+      const parsed = parseScenes(breakdown);
+      if (parsed.length === 0) {
+        setRebuildStatus("error");
+        setRebuildError("Could not find a scene-by-scene breakdown in the saved plan. Make sure the project includes a generated video plan with scene prompts.");
+        return;
+      }
+      setScenes(parsed);
+      setRebuildStatus("done");
+      // Scenes will auto-persist via the debounced autosave effect
+      toast({ title: `${parsed.length} scenes rebuilt`, description: "Parsed from your saved plan. Saving automatically…" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setRebuildStatus("error");
+      setRebuildError(`Could not parse scenes: ${msg}`);
+      toast({ title: "Could not parse scenes", description: msg, variant: "destructive" });
+    }
   }
 
   const artistName = project?.artist_name ?? (project?.input_data?.["artistName"] as string | undefined) ?? "";
@@ -368,6 +406,48 @@ export default function VideoEditor() {
                         </button>
                       </div>
                     )}
+                    {/* Rebuild scenes banner — shown when saved plan exists */}
+                    {rawResult && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                        <div className="flex-1 min-w-0">
+                          {scenes.length === 0 ? (
+                            <>
+                              <p className="text-xs font-bold text-amber-400">No scenes loaded — saved plan found</p>
+                              <p className="text-[10px] text-white/40 mt-0.5">This project has a saved video plan. Click "Rebuild Scenes" to parse scene cards from it.</p>
+                            </>
+                          ) : rebuildStatus === "done" ? (
+                            <>
+                              <p className="text-xs font-bold text-green-400">{scenes.length} scenes loaded from saved plan</p>
+                              <p className="text-[10px] text-white/40 mt-0.5">Scenes parsed from your saved video plan and saved automatically.</p>
+                            </>
+                          ) : rebuildStatus === "error" ? (
+                            <>
+                              <p className="text-xs font-bold text-red-400">Could not parse scenes</p>
+                              <p className="text-[10px] text-white/40 mt-0.5">{rebuildError ?? "The saved plan may not include a scene-by-scene breakdown."}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-xs font-bold text-white/50">Saved plan available</p>
+                              <p className="text-[10px] text-white/35 mt-0.5">Re-parse scene cards from the saved video plan text.</p>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { void rebuildScenesFromPlan(); }}
+                          disabled={rebuildStatus === "rebuilding"}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
+                          data-testid="btn-rebuild-scenes"
+                        >
+                          {rebuildStatus === "rebuilding" ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Rebuilding…</>
+                          ) : (
+                            <><RefreshCw className="h-3.5 w-3.5" /> Rebuild Scenes</>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
                     <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
                       <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
                       <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
