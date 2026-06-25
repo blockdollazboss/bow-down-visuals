@@ -54,63 +54,63 @@
 }
 
 :root, .dark {
-  /* Gunmetal charcoal base — matches the shark's steel-scale vibe */
-  --background: 216 10% 7%;
-  --foreground: 40 15% 92%;
+  /* Royal black — deep obsidian throne room */
+  --background: 222 18% 5%;
+  --foreground: 45 30% 94%;
 
-  /* Cards: dark steel panels */
-  --card: 216 10% 10%;
-  --card-foreground: 40 15% 92%;
-  --card-border: 43 55% 22%;
+  /* Cards: dark velvet panels with warm undertone */
+  --card: 222 16% 8%;
+  --card-foreground: 45 25% 92%;
+  --card-border: 43 70% 28%;
 
-  /* Borders: gold-tinted steel */
-  --border: 215 12% 16%;
-  --input: 215 10% 14%;
-  --ring: 43 90% 52%;
+  /* Borders: gold-veined obsidian */
+  --border: 43 40% 14%;
+  --input: 222 14% 10%;
+  --ring: 45 95% 50%;
 
-  /* Primary: vivid gold — matches the logo's gold crown & trim */
-  --primary: 43 90% 52%;
-  --primary-foreground: 0 0% 5%;
+  /* Primary: deep royal gold */
+  --primary: 45 95% 50%;
+  --primary-foreground: 0 0% 4%;
 
-  /* Secondary: gunmetal panel */
-  --secondary: 216 10% 13%;
-  --secondary-foreground: 40 10% 80%;
+  /* Secondary: dark velvet */
+  --secondary: 222 16% 11%;
+  --secondary-foreground: 45 15% 78%;
 
-  /* Muted: dark steel */
-  --muted: 216 8% 11%;
-  --muted-foreground: 215 8% 52%;
+  /* Muted: near-black */
+  --muted: 222 14% 9%;
+  --muted-foreground: 220 10% 48%;
 
-  /* Accent: gold */
-  --accent: 43 90% 52%;
-  --accent-foreground: 0 0% 5%;
+  /* Accent: warm gold */
+  --accent: 45 95% 50%;
+  --accent-foreground: 0 0% 4%;
 
-  /* Destructive: blood red — matches the shark's stitching */
+  /* Destructive: blood red */
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --destructive-border: 0 60% 35%;
 
-  /* Popovers: deep steel */
-  --popover: 216 10% 8%;
-  --popover-foreground: 40 15% 92%;
-  --popover-border: 215 12% 18%;
+  /* Popovers */
+  --popover: 222 18% 6%;
+  --popover-foreground: 45 25% 92%;
+  --popover-border: 43 50% 20%;
 
-  /* Sidebar: darker steel */
-  --sidebar: 216 12% 6%;
-  --sidebar-foreground: 40 12% 88%;
-  --sidebar-border: 43 35% 14%;
-  --sidebar-primary: 43 90% 52%;
-  --sidebar-primary-foreground: 0 0% 5%;
-  --sidebar-accent: 43 45% 18%;
-  --sidebar-accent-foreground: 40 12% 88%;
-  --sidebar-ring: 43 90% 52%;
+  /* Sidebar */
+  --sidebar: 222 20% 4%;
+  --sidebar-foreground: 45 18% 88%;
+  --sidebar-border: 43 55% 18%;
+  --sidebar-primary: 45 95% 50%;
+  --sidebar-primary-foreground: 0 0% 4%;
+  --sidebar-accent: 43 60% 16%;
+  --sidebar-accent-foreground: 45 18% 88%;
+  --sidebar-ring: 45 95% 50%;
 
   --radius: 0.75rem;
 
-  --chart-1: 43 90% 52%;
-  --chart-2: 43 85% 42%;
-  --chart-3: 43 70% 32%;
+  --chart-1: 45 95% 50%;
+  --chart-2: 43 85% 40%;
+  --chart-3: 43 70% 30%;
   --chart-4: 0 65% 42%;
-  --chart-5: 216 10% 30%;
+  --chart-5: 222 16% 28%;
 }
 
 @layer base {
@@ -122,22 +122,145 @@
   }
 
   html, body {
-    background-color: hsl(216 10% 7%);
+    background-color: hsl(222 18% 5%);
   }
+
+  /* Royal gold scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: hsl(222 18% 5%); }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, hsl(45 95% 50%), hsl(43 80% 38%));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(45 95% 58%); }
 }
 
-.gold-glow    { box-shadow: 0 0 20px rgba(218,165,32,0.40), 0 0 45px rgba(218,165,32,0.14); }
-.gold-glow-sm { box-shadow: 0 0 10px rgba(218,165,32,0.28); }
-
-/* Blood-red glow utility for destructive / accent use */
-.red-glow     { box-shadow: 0 0 18px rgba(190,30,30,0.45), 0 0 36px rgba(190,30,30,0.15); }
-
-/*
-  Concrete / steel-plate texture — matches the gunmetal shark armour.
-  Larger, more pronounced slabs with subtle cool-grey mortar lines.
-*/
+/* ─── Gold / luxury tile texture — dark obsidian with gold-vein mortar ─── */
 html, body, .bg-background, [class*="min-h-screen"] {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='150'%3E%3Crect width='300' height='150' fill='%2313161b'/%3E%3Crect x='2'   y='2'   width='138' height='68' rx='1' fill='%230f1217'/%3E%3Crect x='2'   y='2'   width='138' height='68' rx='1' fill='url(%23s1)'/%3E%3Crect x='148' y='2'   width='148' height='68' rx='1' fill='%23111318'/%3E%3Crect x='148' y='2'   width='148' height='68' rx='1' fill='url(%23s2)'/%3E%3Crect x='2'   y='78'  width='88'  height='68' rx='1' fill='%23101318'/%3E%3Crect x='98'  y='78'  width='128' height='68' rx='1' fill='%230e1116'/%3E%3Crect x='98'  y='78'  width='128' height='68' rx='1' fill='url(%23s3)'/%3E%3Crect x='234' y='78'  width='64'  height='68' rx='1' fill='%230f1217'/%3E%3Crect x='0' y='72'  width='300' height='4' fill='%231c2028'/%3E%3Crect x='0' y='0'   width='300' height='3' fill='%231c2028'/%3E%3Crect x='0' y='147' width='300' height='3' fill='%231c2028'/%3E%3Crect x='0'   y='2'  width='3' height='68'  fill='%231c2028'/%3E%3Crect x='141' y='2'  width='4' height='68'  fill='%231c2028'/%3E%3Crect x='297' y='2'  width='3' height='68'  fill='%231c2028'/%3E%3Crect x='0'   y='78' width='3' height='68'  fill='%231c2028'/%3E%3Crect x='91'  y='78' width='4' height='68'  fill='%231c2028'/%3E%3Crect x='229' y='78' width='4' height='68'  fill='%231c2028'/%3E%3Crect x='297' y='78' width='3' height='68'  fill='%231c2028'/%3E%3Cdefs%3E%3ClinearGradient id='s1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.3'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.3'/%3E%3C/linearGradient%3E%3ClinearGradient id='s2' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.2'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.2'/%3E%3C/linearGradient%3E%3ClinearGradient id='s3' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23191c21' stop-opacity='0.25'/%3E%3Cstop offset='1' stop-color='%230b0d10' stop-opacity='0.25'/%3E%3C/linearGradient%3E%3C/defs%3E%3C/svg%3E") !important;
-  background-size: 300px 150px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='160'%3E%3Cdefs%3E%3ClinearGradient id='g1' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2314110a' stop-opacity='1'/%3E%3Cstop offset='1' stop-color='%230a0807' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='g2' x1='1' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23120f09' stop-opacity='1'/%3E%3Cstop offset='1' stop-color='%230c0a07' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='g3' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23100d08' stop-opacity='1'/%3E%3Cstop offset='1' stop-color='%230d0b08' stop-opacity='1'/%3E%3C/linearGradient%3E%3ClinearGradient id='gm' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23c9960a' stop-opacity='0'/%3E%3Cstop offset='0.5' stop-color='%23d4a017' stop-opacity='0.55'/%3E%3Cstop offset='1' stop-color='%23c9960a' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='gv' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23c9960a' stop-opacity='0'/%3E%3Cstop offset='0.5' stop-color='%23d4a017' stop-opacity='0.45'/%3E%3Cstop offset='1' stop-color='%23c9960a' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='320' height='160' fill='%230c0a07'/%3E%3Crect x='3' y='3' width='148' height='72' rx='1.5' fill='url(%23g1)'/%3E%3Crect x='159' y='3' width='158' height='72' rx='1.5' fill='url(%23g2)'/%3E%3Crect x='3' y='83' width='98' height='74' rx='1.5' fill='url(%23g3)'/%3E%3Crect x='109' y='83' width='138' height='74' rx='1.5' fill='url(%23g1)'/%3E%3Crect x='255' y='83' width='62' height='74' rx='1.5' fill='url(%23g2)'/%3E%3Crect x='0' y='0' width='320' height='3' fill='url(%23gm)'/%3E%3Crect x='0' y='77' width='320' height='3' fill='url(%23gm)'/%3E%3Crect x='0' y='157' width='320' height='3' fill='url(%23gm)'/%3E%3Crect x='0' y='0' width='3' height='77' fill='url(%23gv)'/%3E%3Crect x='151' y='0' width='3' height='77' fill='url(%23gv)'/%3E%3Crect x='317' y='0' width='3' height='77' fill='url(%23gv)'/%3E%3Crect x='0' y='80' width='3' height='80' fill='url(%23gv)'/%3E%3Crect x='103' y='80' width='3' height='80' fill='url(%23gv)'/%3E%3Crect x='249' y='80' width='3' height='80' fill='url(%23gv)'/%3E%3Crect x='317' y='80' width='3' height='80' fill='url(%23gv)'/%3E%3C/svg%3E");
+  background-size: 320px 160px !important;
   background-position: 0 0 !important;
+}
+
+/* ─── Ambient royal glow — golden light from the top center ─── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 40% at 50% -10%, hsla(45,95%,50%,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 20% at 50% 0%, hsla(45,95%,50%,0.05) 0%, transparent 60%);
+}
+
+/* ─── Gold glow utilities ─── */
+.gold-glow {
+  box-shadow:
+    0 0 18px rgba(212,160,23,0.55),
+    0 0 40px rgba(212,160,23,0.25),
+    0 0 80px rgba(212,160,23,0.10);
+}
+.gold-glow-sm {
+  box-shadow:
+    0 0 10px rgba(212,160,23,0.40),
+    0 0 22px rgba(212,160,23,0.16);
+}
+.gold-glow-lg {
+  box-shadow:
+    0 0 30px rgba(212,160,23,0.60),
+    0 0 70px rgba(212,160,23,0.28),
+    0 0 140px rgba(212,160,23,0.10);
+}
+
+/* Blood-red glow */
+.red-glow { box-shadow: 0 0 18px rgba(190,30,30,0.45), 0 0 36px rgba(190,30,30,0.15); }
+
+/* ─── Royal gold gradient text ─── */
+.gold-text {
+  background: linear-gradient(135deg, #f5c842 0%, #d4a017 35%, #f0b429 65%, #c8860a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gold-text-shine {
+  background: linear-gradient(90deg,
+    #c8860a 0%,
+    #f5c842 30%,
+    #ffe680 50%,
+    #f5c842 70%,
+    #c8860a 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gold-shine 4s linear infinite;
+}
+
+@keyframes gold-shine {
+  0%   { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Royal border — gold gradient stroke ─── */
+.royal-border {
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+.royal-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, hsl(45 95% 50% / 0.7), hsl(43 60% 30% / 0.3), hsl(45 95% 50% / 0.5));
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ─── Premium card glow on hover ─── */
+.royal-card {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.royal-card:hover {
+  box-shadow: 0 0 0 1px hsla(45,95%,50%,0.35), 0 8px 32px hsla(45,95%,50%,0.12);
+}
+
+/* ─── VIP shimmer sweep (apply to any element) ─── */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 220, 80, 0.12) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shimmer-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ─── Crown badge — gold pill ─── */
+.crown-badge {
+  background: linear-gradient(135deg, hsl(45 95% 50%), hsl(43 80% 38%));
+  color: hsl(0 0% 4%);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 14px rgba(212,160,23,0.5);
 }

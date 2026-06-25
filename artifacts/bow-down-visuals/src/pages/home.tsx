@@ -168,7 +168,7 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-black/80 backdrop-blur-xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-yellow-600/20 bg-black/85 backdrop-blur-xl" style={{boxShadow:'0 1px 0 0 rgba(212,160,23,0.12)' }}>
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
@@ -243,9 +243,10 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-5 pt-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-yellow-600/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-yellow-600/4 rounded-full blur-[80px] pointer-events-none" />
-        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] bg-yellow-700/4 rounded-full blur-[80px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full blur-[140px] pointer-events-none" style={{background:'radial-gradient(circle, rgba(212,160,23,0.13) 0%, transparent 70%)'}} />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{background:'rgba(212,160,23,0.08)'}} />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none" style={{background:'rgba(212,160,23,0.06)'}} />
+        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full blur-[90px] pointer-events-none" style={{background:'rgba(212,160,23,0.05)'}} />
       </div>
 
       {/* Grid overlay */}
@@ -265,7 +266,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Beta badge */}
         <Link href="/beta-access">
-          <div className="inline-flex items-center gap-2 bg-primary/15 border border-primary/40 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer">
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/50 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer shimmer" style={{boxShadow:'0 0 18px rgba(212,160,23,0.25)'}}>
             <Sparkles className="h-3.5 w-3.5" />
             Beta Access Open
           </div>
@@ -274,7 +275,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
           Create Songs,{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
+          <span className="gold-text-shine">
             Music Videos,
           </span>{" "}
           and Promo Clips With AI
@@ -293,7 +294,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
           <Link href="/dashboard">
-            <Button size="lg" className="w-full sm:w-auto gold-glow text-base h-14 px-10 rounded-full font-bold gap-2">
+            <Button size="lg" className="w-full sm:w-auto gold-glow gold-glow-lg shimmer text-base h-14 px-10 rounded-full font-bold gap-2">
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
