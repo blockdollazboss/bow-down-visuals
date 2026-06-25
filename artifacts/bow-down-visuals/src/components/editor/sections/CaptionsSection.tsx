@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Captions, Plus, Trash2, Wand2, RotateCcw, Eye, EyeOff,
   CheckCircle2, AlertCircle, Info, Pencil,
+  Music2, ChevronsLeft, ChevronsRight, Expand, Shrink,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, s
 
   const [linesVisible, setLinesVisible] = useState(true);
   const [generateStatus, setGenerateStatus] = useState<Status | null>(null);
+  const [syncStatus, setSyncStatus] = useState<Status | null>(null);
   const [lyricsAutoFilled, setLyricsAutoFilled] = useState(false);
 
   /* quickLyrics: the text shown in the "Generate From Lyrics" box.
@@ -201,6 +203,109 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, s
     });
     setGenerateStatus(null);
   }
+
+  /* ── Caption sync helpers ── */
+
+  function handleAutoSync() {
+    if (!songDuration || songDuration <= 0) {
+      setSyncStatus({ type: "error", message: "No song duration detected. Go to Music tab and attach your song first." });
+      return;
+    }
+    if (c.lines.length === 0) {
+      setSyncStatus({ type: "error", message: "No captions to sync. Generate captions from lyrics first." });
+      return;
+    }
+    const lines = c.lines;
+    const totalChars = lines.reduce((sum, l) => sum + Math.max(l.text.length, 1), 0);
+    let cursor = 0;
+    const synced: CaptionLine[] = lines.map((line) => {
+      const weight = Math.max(line.text.length, 1) / totalChars;
+      const rawDur = weight * songDuration;
+      /* Clamp: min 1 s, max 8 s per caption */
+      const dur = Math.max(1, Math.min(8, rawDur));
+      const startSec = parseFloat(cursor.toFixed(2));
+      cursor += dur;
+      return { ...line, startSec, endSec: parseFloat(cursor.toFixed(2)) };
+    });
+    /* If total exceeds song — scale everything proportionally */
+    const rawLast = synced[synced.length - 1]!.endSec;
+    if (rawLast > songDuration) {
+      const scale = songDuration / rawLast;
+      let c2 = 0;
+      synced.forEach((l, i) => {
+        const dur = (l.endSec - l.startSec) * scale;
+        synced[i]!.startSec = parseFloat(c2.toFixed(2));
+        c2 += dur;
+        synced[i]!.endSec = parseFloat(Math.min(c2, songDuration).toFixed(2));
+      });
+    }
+    /* Ensure last caption ends exactly at song end */
+    synced[synced.length - 1]!.endSec = parseFloat(songDuration.toFixed(2));
+
+    setCaption("lines", synced);
+    setLinesVisible(true);
+    setSyncStatus({
+      type: "success",
+      message: `${synced.length} captions synced across ${fmtDuration(songDuration)} — timing weighted by lyric length.`,
+    });
+  }
+
+  function handleShift(delta: number) {
+    if (c.lines.length === 0) return;
+    const shifted = c.lines.map((l) => ({
+      ...l,
+      startSec: parseFloat(Math.max(0, l.startSec + delta).toFixed(2)),
+      endSec: parseFloat(Math.max(0.1, l.endSec + delta).toFixed(2)),
+    }));
+    setCaption("lines", shifted);
+    setSyncStatus(null);
+  }
+
+  function handleStretchToSong() {
+    if (!songDuration || c.lines.length === 0) return;
+    const lastEnd = c.lines[c.lines.length - 1]!.endSec;
+    if (lastEnd <= 0) return;
+    const scale = songDuration / lastEnd;
+    let cursor = 0;
+    const stretched = c.lines.map((l) => {
+      const dur = (l.endSec - l.startSec) * scale;
+      const startSec = parseFloat(cursor.toFixed(2));
+      cursor += dur;
+      return { ...l, startSec, endSec: parseFloat(Math.min(cursor, songDuration).toFixed(2)) };
+    });
+    stretched[stretched.length - 1]!.endSec = parseFloat(songDuration.toFixed(2));
+    setCaption("lines", stretched);
+    setSyncStatus({ type: "success", message: `Captions stretched to fill ${fmtDuration(songDuration)}.` });
+  }
+
+  function handleCompressToSong() {
+    if (!songDuration || c.lines.length === 0) return;
+    const lastEnd = c.lines[c.lines.length - 1]!.endSec;
+    if (lastEnd <= songDuration) {
+      setSyncStatus({ type: "info", message: "Captions already fit within song duration." });
+      return;
+    }
+    const scale = songDuration / lastEnd;
+    let cursor = 0;
+    const compressed = c.lines.map((l) => {
+      const dur = (l.endSec - l.startSec) * scale;
+      const startSec = parseFloat(cursor.toFixed(2));
+      cursor += dur;
+      return { ...l, startSec, endSec: parseFloat(Math.min(cursor, songDuration).toFixed(2)) };
+    });
+    compressed[compressed.length - 1]!.endSec = parseFloat(songDuration.toFixed(2));
+    setCaption("lines", compressed);
+    setSyncStatus({ type: "success", message: `Captions compressed to fit within ${fmtDuration(songDuration)}.` });
+  }
+
+  /* ── Sync status metrics ── */
+  const lastCaptionEnd = c.lines.length > 0 ? c.lines[c.lines.length - 1]!.endSec : 0;
+  const isSynced = songDuration != null && lastCaptionEnd > 0 && lastCaptionEnd <= songDuration + 0.5;
+  const syncLabel =
+    !songDuration ? "No song attached"
+    : c.lines.length === 0 ? "No captions"
+    : isSynced ? "Synced ✓"
+    : "Needs adjustment ⚠";
 
   function addManualLine() {
     const lastEnd = c.lines[c.lines.length - 1]?.endSec ?? 0;
@@ -305,6 +410,96 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, s
 
           {/* Status message */}
           {generateStatus && <StatusBadge status={generateStatus} />}
+        </div>
+      </EditorCard>
+
+      {/* ══════════════════════════════════════════════════
+          AUTO SYNC CAPTIONS TO SONG
+      ══════════════════════════════════════════════════ */}
+      <EditorCard
+        title="Auto Sync Captions To Song"
+        subtitle="Spread captions proportionally across the song — longer lyrics get more time"
+        icon={<Music2 className="h-4 w-4" />}
+      >
+        <div className="space-y-4">
+
+          {/* Status row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              { label: "Song Duration", value: songDuration != null ? fmtDuration(songDuration) : "—" },
+              { label: "Captions", value: String(c.lines.length) },
+              { label: "Last Caption Ends", value: c.lines.length > 0 ? `${lastCaptionEnd.toFixed(1)}s` : "—" },
+              {
+                label: "Sync Status",
+                value: syncLabel,
+                color: !songDuration || c.lines.length === 0 ? "text-white/35"
+                  : isSynced ? "text-green-400"
+                  : "text-yellow-400",
+              },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 space-y-0.5">
+                <p className="text-[10px] text-white/35 font-semibold uppercase tracking-wide">{label}</p>
+                <p className={`text-sm font-black ${color ?? "text-white/75"}`}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Primary sync button */}
+          <Button
+            onClick={handleAutoSync}
+            disabled={c.lines.length === 0}
+            data-testid="btn-auto-sync-captions"
+            className="w-full gold-glow font-bold gap-2"
+          >
+            <Music2 className="h-4 w-4" />
+            Auto Sync Captions To Song
+          </Button>
+
+          {/* Manual timing controls */}
+          {c.lines.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Manual Timing Controls</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleShift(-0.5)}
+                  data-testid="btn-shift-earlier"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                >
+                  <ChevronsLeft className="h-3.5 w-3.5" /> Shift Earlier (0.5s)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleShift(0.5)}
+                  data-testid="btn-shift-later"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors"
+                >
+                  Shift Later (0.5s) <ChevronsRight className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStretchToSong}
+                  disabled={!songDuration}
+                  data-testid="btn-stretch-captions"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40"
+                >
+                  <Expand className="h-3.5 w-3.5" /> Stretch To Song Length
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCompressToSong}
+                  disabled={!songDuration}
+                  data-testid="btn-compress-captions"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 bg-white/[0.02] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40"
+                >
+                  <Shrink className="h-3.5 w-3.5" /> Compress To Song Length
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sync status message */}
+          {syncStatus && <StatusBadge status={syncStatus} />}
         </div>
       </EditorCard>
 

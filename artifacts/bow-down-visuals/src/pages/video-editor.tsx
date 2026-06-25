@@ -687,6 +687,7 @@ export default function VideoEditor() {
                       projectId={projectId}
                       onPreview={(id) => setPreviewSceneId(id)}
                       previewSceneId={previewSceneId}
+                      getAccessToken={getAccessToken}
                     />
                   </div>
                 )}

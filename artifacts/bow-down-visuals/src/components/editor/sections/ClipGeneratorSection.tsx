@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
-  Copy, Trash2, Link2, ShieldCheck, Film,
+  Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,22 @@ function sectionColor(section: string): string {
   return "bg-white/10 text-white/60 border-white/20";
 }
 
+/* Cameras cycled to ensure every scene gets a distinct shot type */
+const ENHANCE_CAMERAS = [
+  "tracking shot — camera follows artist from behind",
+  "low angle close-up — camera looks up at artist",
+  "wide establishing shot — camera shows full location",
+  "handheld street shot — shaky kinetic energy",
+  "slow push-in — camera drifts toward artist's face",
+  "rooftop drone-style angle — sweeping overhead view",
+  "side profile walking shot — artist moves through frame",
+  "overhead top-down shot — camera looks straight down",
+  "slow motion close-up — extreme detail, time slowed",
+  "dutch angle — tilted frame, dramatic tension",
+];
+
+interface EnhanceStatus { type: "success" | "error" | "warning"; message: string }
+
 interface ClipGeneratorSectionProps {
   scenes: SceneData[];
   setScenes: (s: SceneData[]) => void;
@@ -42,6 +58,7 @@ interface ClipGeneratorSectionProps {
   projectId?: string | null;
   onPreview?: (sceneId: string) => void;
   previewSceneId?: string | null;
+  getAccessToken?: () => Promise<string | null>;
 }
 
 export function ClipGeneratorSection({
@@ -53,14 +70,105 @@ export function ClipGeneratorSection({
   projectId,
   onPreview,
   previewSceneId,
+  getAccessToken,
 }: ClipGeneratorSectionProps) {
   const [createAllTrigger, setCreateAllTrigger] = useState(0);
+  const [enhancing, setEnhancing] = useState(false);
+  const [enhanceProgress, setEnhanceProgress] = useState<{ done: number; total: number } | null>(null);
+  const [enhancedIds, setEnhancedIds] = useState<Set<string>>(new Set());
+  const [enhanceStatus, setEnhanceStatus] = useState<EnhanceStatus | null>(null);
 
   const scenesWithoutClip = scenes.filter((s) => !sceneHasClip(s));
   const hasArtist = !!artistVault;
 
   function updateScene(id: string, patch: Partial<SceneData>) {
     setScenes(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  async function handleEnhanceAll() {
+    if (!getAccessToken || scenes.length === 0 || enhancing) return;
+    setEnhancing(true);
+    setEnhanceStatus(null);
+    setEnhanceProgress({ done: 0, total: scenes.length });
+
+    let token: string | null;
+    try {
+      token = await getAccessToken();
+    } catch {
+      setEnhanceStatus({ type: "error", message: "Could not authenticate. Please refresh and try again." });
+      setEnhancing(false);
+      return;
+    }
+    if (!token) {
+      setEnhanceStatus({ type: "error", message: "Not signed in. Please sign in and try again." });
+      setEnhancing(false);
+      return;
+    }
+
+    /* Keep a mutable local copy so sequential updates don't clobber each other */
+    const updatedScenes = scenes.map((s) => ({ ...s }));
+    const newEnhancedIds = new Set(enhancedIds);
+    let failed = 0;
+
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i]!;
+      const cameraHint = ENHANCE_CAMERAS[i % ENHANCE_CAMERAS.length]!;
+      try {
+        const res = await fetch("/api/improve-prompt", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            prompt: scene.aiVideoPrompt || `${scene.action} at ${scene.location}`,
+            sceneContext: {
+              section: scene.section,
+              lyricLine: scene.lyricLine,
+              action: scene.action,
+              location: scene.location,
+              cameraMovement: cameraHint,
+              lighting: scene.lighting,
+              mood: scene.mood,
+            },
+            artistVault,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { improvedPrompt: string };
+          updatedScenes[i] = { ...updatedScenes[i]!, aiVideoPrompt: data.improvedPrompt };
+          newEnhancedIds.add(scene.id);
+          /* Push accumulated updates after each scene so the UI feels live */
+          setScenes([...updatedScenes]);
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+      setEnhanceProgress({ done: i + 1, total: scenes.length });
+    }
+
+    setEnhancedIds(new Set(newEnhancedIds));
+    setEnhancing(false);
+    setEnhanceProgress(null);
+
+    if (failed === 0) {
+      setEnhanceStatus({
+        type: "success",
+        message: `All ${scenes.length} scene prompts enhanced with cinematic variety. No credits used.`,
+      });
+    } else if (failed < scenes.length) {
+      setEnhanceStatus({
+        type: "warning",
+        message: `${scenes.length - failed} of ${scenes.length} prompts enhanced. ${failed} scene${failed !== 1 ? "s" : ""} failed — try again.`,
+      });
+    } else {
+      setEnhanceStatus({
+        type: "error",
+        message: "Enhancement failed. Check your connection and try again.",
+      });
+    }
   }
 
   function move(index: number, dir: -1 | 1) {
@@ -100,6 +208,69 @@ export function ClipGeneratorSection({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Enhance Scene Prompts banner ── */}
+      <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="space-y-0.5">
+            <p className="text-sm font-black text-white/80 flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Enhance Scene Prompts
+            </p>
+            <p className="text-[11px] text-white/40 leading-relaxed">
+              Rewrites every AI video prompt to be more cinematic — each scene gets a unique camera angle, location, and action.
+              <span className="ml-1 text-green-400 font-semibold">Free — no credits used.</span>
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={handleEnhanceAll}
+            disabled={enhancing || !getAccessToken || scenes.length === 0}
+            className="gap-1.5 bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 font-bold shrink-0 h-8"
+            variant="outline"
+            data-testid="btn-enhance-all-prompts"
+          >
+            {enhancing ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Enhancing {enhanceProgress ? `${enhanceProgress.done}/${enhanceProgress.total}` : "…"}
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3.5 w-3.5" />
+                Enhance Scene Prompts
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Progress bar */}
+        {enhancing && enhanceProgress && (
+          <div className="h-1 w-full rounded-full bg-white/[0.07] overflow-hidden">
+            <div
+              className="h-full bg-primary/70 transition-all duration-300 rounded-full"
+              style={{ width: `${(enhanceProgress.done / enhanceProgress.total) * 100}%` }}
+            />
+          </div>
+        )}
+
+        {/* Status */}
+        {enhanceStatus && (
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${
+            enhanceStatus.type === "success"
+              ? "border-green-500/25 bg-green-500/[0.07] text-green-400"
+              : enhanceStatus.type === "warning"
+              ? "border-yellow-500/25 bg-yellow-500/[0.07] text-yellow-400"
+              : "border-red-500/25 bg-red-500/[0.07] text-red-400"
+          }`}>
+            {enhanceStatus.type === "success"
+              ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
+            {enhanceStatus.message}
+          </div>
+        )}
+      </div>
+
       {/* Create All button */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -146,6 +317,7 @@ export function ClipGeneratorSection({
             onPreview={onPreview}
             previewSceneId={previewSceneId}
             createAllTrigger={createAllTrigger}
+            isEnhanced={enhancedIds.has(scene.id)}
           />
         ))}
       </div>
@@ -170,6 +342,7 @@ interface SceneClipCardProps {
   onPreview?: (sceneId: string) => void;
   previewSceneId?: string | null;
   createAllTrigger: number;
+  isEnhanced?: boolean;
 }
 
 function SceneClipCard({
@@ -188,6 +361,7 @@ function SceneClipCard({
   onPreview,
   previewSceneId,
   createAllTrigger,
+  isEnhanced,
 }: SceneClipCardProps) {
   const [showPrompt, setShowPrompt] = useState(false);
 
@@ -212,7 +386,7 @@ function SceneClipCard({
           <span className="text-[11px] font-black text-primary">{index + 1}</span>
         </div>
 
-        {/* Section + consistency badge */}
+        {/* Section + consistency + enhanced badges */}
         <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
           {scene.section && (
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${sectionColor(scene.section)}`}>
@@ -222,6 +396,11 @@ function SceneClipCard({
           {hasConsistency && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-500/[0.12] border border-green-500/25 text-[9px] font-bold text-green-400 shrink-0">
               <ShieldCheck className="h-2.5 w-2.5" /> Consistency Applied
+            </span>
+          )}
+          {isEnhanced && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-primary/[0.15] border border-primary/30 text-[9px] font-bold text-primary shrink-0">
+              <Sparkles className="h-2.5 w-2.5" /> Prompt Enhanced
             </span>
           )}
         </div>

@@ -1,0 +1,173 @@
+Fix clip variety and caption sync only.
+
+Good news:
+Timeline Preview now plays audio and captions continuously.
+
+Current problems:
+
+1. The video clips are boring and all doing the same thing.
+2. Captions are changing, but they are not synced with the song audio.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign the dashboard.
+Do not break Timeline Preview audio.
+
+Only fix:
+
+* scene prompt variety
+* Runway clip prompt quality
+* caption timing sync
+
+PART 1 — FIX BORING / SAME-LOOKING VIDEO CLIPS
+
+Problem:
+All generated video clips look too similar and boring.
+
+Fix:
+Each scene prompt must be visually different while keeping the same active artist.
+
+For every scene, add unique details:
+
+* different location
+* different camera movement
+* different action
+* different lighting
+* different emotion
+* different shot type
+* different background activity
+* different visual energy
+
+Keep active artist consistency, but do not let the consistency prompt make every scene identical.
+
+Every final Runway prompt should include:
+
+1. ACTIVE ARTIST CONSISTENCY
+   Keep the same active artist identity, face, skin tone, hairstyle, body type, tattoos, jewelry, clothing direction, and overall character.
+
+2. UNIQUE SCENE DIRECTION
+   Add unique visual action for this specific scene.
+
+3. CAMERA DIRECTION
+   Use a different camera style per scene:
+
+* tracking shot
+* low angle
+* close-up
+* wide shot
+* handheld street shot
+* slow push-in
+* rooftop drone-style angle
+* side profile walking shot
+
+4. MOTION / ACTION
+   Make the artist do something different in each scene:
+
+* walking toward camera
+* performing to camera
+* sitting on rooftop ledge
+* looking over shoulder
+* moving through alley
+* standing under streetlights
+* riding through city
+* surrounded by flashing lights
+* writing lyrics
+* looking at phone
+* entering a studio
+
+5. NEGATIVE PROMPT
+   Do not create random people.
+   Do not change the artist face.
+   Do not repeat the exact same pose every scene.
+   Do not use the same background every scene.
+   Do not make all clips static or boring.
+
+Add button:
+Enhance Scene Prompts
+
+When clicked:
+
+* rewrite all scene prompts to be more cinematic and varied
+* keep active artist consistency
+* save enhanced prompts
+* do not charge credits unless using AI generation
+* if charging credits, show cost before running
+
+Add label on each enhanced scene:
+Prompt Enhanced
+
+PART 2 — FIX CAPTION SYNC
+
+Problem:
+Captions are not synced to the song audio.
+
+Fix:
+Use the audio duration and transcript/lyrics to create better caption timing.
+
+Add button:
+Auto Sync Captions To Song
+
+When clicked:
+
+1. Read selected song/audio duration
+2. Read caption lines
+3. Spread captions across the song duration
+4. End last caption at or before song duration
+5. Save updated caption start/end times
+
+If transcript timestamps exist:
+
+* use real timestamps
+
+If transcript timestamps do not exist:
+
+* estimate timing based on lyric length and song duration
+* shorter lines get shorter duration
+* longer lines get longer duration
+* keep caption timing natural
+
+Rules:
+
+* captions should not go past the song duration
+* captions should start at 0 or near the first vocal
+* captions should change naturally with the song
+* no caption should stay on screen too long
+* no caption should flash too fast
+
+Add manual timing controls:
+
+* Shift all captions earlier
+* Shift all captions later
+* Stretch captions to song length
+* Compress captions to song length
+
+Add status:
+Caption Sync:
+
+* song duration: [seconds]
+* captions: [number]
+* last caption ends at: [seconds]
+* sync status: synced / needs adjustment
+
+PART 3 — TIMELINE PREVIEW
+
+After syncing:
+
+* Timeline Preview should play audio
+* captions should change with audio time
+* scenes should change automatically
+* captions should match the song timing better
+
+Do not break the audio preview that is now working.
+
+Final goal:
+The music video preview should feel like:
+
+* same artist
+* different cinematic scenes
+* audio playing
+* captions synced to the song
+* scene visuals not boring or repetitive
