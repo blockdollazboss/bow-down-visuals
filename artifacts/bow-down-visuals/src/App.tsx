@@ -45,7 +45,7 @@ function AppShell() {
 
   return (
     <>
-      <div className="fixed top-4 right-4 z-[9999]"><NavThemePlayer /></div>
+      <div className="fixed bottom-5 right-5 z-[9999]"><NavThemePlayer /></div>
       <Switch>
         {/* Auth routes */}
         <Route path="/login"><Login /></Route>
