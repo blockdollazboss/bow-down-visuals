@@ -619,10 +619,10 @@ export function TimelinePreviewPlayer({
         </div>
 
         {/* Audio status */}
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-start gap-1.5 text-[10px]">
           {audioUrl ? (
             <span className={`flex items-center gap-1.5 ${audioPlaying ? "text-blue-400/80" : "text-white/30"}`}>
-              <Volume2 className="h-3 w-3 shrink-0" />
+              <Volume2 className="h-3 w-3 shrink-0 mt-0.5" />
               {audioPlaying
                 ? "Audio playing — continuous across all scenes"
                 : audioReady
@@ -630,9 +630,13 @@ export function TimelinePreviewPlayer({
                   : "Audio loading…"}
             </span>
           ) : (
-            <span className="text-white/20 flex items-center gap-1.5">
-              <Volume2 className="h-3 w-3 shrink-0" />
-              No audio selected — timeline plays silently with timer
+            <span className="text-amber-400/70 flex items-start gap-1.5">
+              <Volume2 className="h-3 w-3 shrink-0 mt-0.5" />
+              <span>
+                <strong className="text-amber-300/90">No song audio found.</strong>{" "}
+                Go to the <strong className="text-amber-300/90">Music</strong> tab, upload your song, then click{" "}
+                <strong className="text-amber-300/90">"Use Song In Final Video"</strong>. Captions are still playing via timer.
+              </span>
             </span>
           )}
         </div>
@@ -679,6 +683,7 @@ export function TimelinePreviewPlayer({
           {debugOpen && (
             <div className="px-3 pb-3 space-y-0.5 font-mono text-[10px] border-t border-white/[0.06]">
               <DR label="previewMode"         v={mode} />
+              <DR label="audio URL/path"      v={audioUrl ? "found ✓" : "MISSING — no song set"} hi={!!audioUrl} err={!audioUrl} />
               <DR label="audio loaded"        v={audioReady ? "yes" : audioUrl ? "loading…" : "no"} hi={audioReady} />
               <DR label="audio playing"       v={audioPlaying ? "YES" : "no"} hi={audioPlaying} />
               <DR label="audio currentTime"   v={`${currentTime.toFixed(2)}s`} hi={playing} />

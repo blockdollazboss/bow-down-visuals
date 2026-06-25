@@ -383,6 +383,35 @@ export default function VideoEditor() {
     (project?.input_data?.["audio_url"] as string | undefined) ??
     null;
 
+  /**
+   * Resolved audio URL for Timeline Preview — mirrors ExportSection's
+   * resolveAudioUrl() so the same audio source the user chose for export
+   * is also used for preview.
+   *
+   * Priority:
+   *  1. videoAudio.source → uploaded URL / mix export / stem export
+   *  2. project-level audioUrl (uploaded song)
+   *  3. first uploaded stem URL (Music Mixer fallback)
+   */
+  const previewAudioUrl: string | null = (() => {
+    const va = settings.musicStudio.videoAudio;
+    const ms = settings.musicStudio;
+    switch (va.source) {
+      case "none": return audioUrl ?? ms.stems[0]?.url ?? null;
+      case "uploaded": return audioUrl ?? ms.stems[0]?.url ?? null;
+      case "full-mix": {
+        const mp3 = ms.exports.find(r => r.kind === "full" && r.format === "mp3");
+        return mp3?.url ?? ms.exports.find(r => r.kind === "full")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
+      }
+      case "instrumental":
+        return ms.exports.find(r => r.kind === "instrumental")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
+      case "acapella":
+        return ms.exports.find(r => r.kind === "acapella")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
+      default:
+        return audioUrl ?? ms.stems[0]?.url ?? null;
+    }
+  })();
+
   /* ── Lyrics: check project input_data first, then fall back to scene lyricLines ── */
   const projectLyrics =
     (project?.input_data?.["lyrics"] as string | undefined) ??
@@ -667,7 +696,7 @@ export default function VideoEditor() {
                     <TimelinePreviewPlayer
                       scenes={scenes}
                       captionLines={settings.captions.lines}
-                      audioUrl={audioUrl}
+                      audioUrl={previewAudioUrl}
                       initialSceneId={previewSceneId}
                       captionSettings={settings.captions}
                     />
