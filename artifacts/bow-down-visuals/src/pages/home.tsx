@@ -261,8 +261,8 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         {/* Hero Logo */}
-        <div className="flex justify-center -my-16">
-          <AnimatedLogo className="w-[680px] max-w-full h-auto" />
+        <div className="flex justify-center">
+          <AnimatedLogo className="w-[480px] max-w-full h-auto" />
         </div>
 
         {/* Beta badge */}
