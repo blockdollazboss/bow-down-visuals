@@ -1,3 +1,36 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Black background full-bleed -->
+  <rect width="64" height="64" rx="10" fill="#0a0a0a"/>
+
+  <!-- ── Crown ── -->
+  <!-- 5-point crown shape: base rect + 5 points -->
+  <rect x="11" y="29" width="42" height="9" rx="2" fill="#C9A84C"/>
+  <!-- Left outer point -->
+  <polygon points="11,29 11,20 18,26" fill="#C9A84C"/>
+  <!-- Left inner valley fills via base, left-center point -->
+  <polygon points="18,26 22,29 18,29" fill="#C9A84C"/>
+  <polygon points="18,26 26,20 22,29" fill="#C9A84C"/>
+  <!-- Center top point -->
+  <polygon points="26,20 32,13 38,20" fill="#C9A84C"/>
+  <!-- Right inner fills -->
+  <polygon points="38,20 42,29 38,29" fill="#C9A84C"/>
+  <polygon points="38,20 46,26 42,29" fill="#C9A84C"/>
+  <!-- Right outer point -->
+  <polygon points="46,26 53,20 53,29" fill="#C9A84C"/>
+  <polygon points="46,26 53,29 46,29" fill="#C9A84C"/>
+
+  <!-- ── Crown gems (3 small circles on the base band) ── -->
+  <circle cx="22" cy="33" r="2.5" fill="#0a0a0a" opacity="0.7"/>
+  <circle cx="32" cy="33" r="2.5" fill="#0a0a0a" opacity="0.7"/>
+  <circle cx="42" cy="33" r="2.5" fill="#0a0a0a" opacity="0.7"/>
+
+  <!-- ── Play button triangle ── -->
+  <!-- Positioned in the lower half, centered, pointing right -->
+  <polygon points="24,41 24,57 46,49" fill="#C9A84C"/>
+
+  <!-- ── Subtle waveform accents left / right of play triangle ── -->
+  <rect x="11" y="46" width="3" height="6" rx="1" fill="#C9A84C" opacity="0.55"/>
+  <rect x="11" y="43" width="3" height="3" rx="1" fill="#C9A84C" opacity="0.35"/>
+  <rect x="50" y="46" width="3" height="6" rx="1" fill="#C9A84C" opacity="0.55"/>
+  <rect x="50" y="43" width="3" height="3" rx="1" fill="#C9A84C" opacity="0.35"/>
 </svg>
