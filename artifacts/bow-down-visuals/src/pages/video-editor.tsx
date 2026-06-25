@@ -600,6 +600,7 @@ export default function VideoEditor() {
                 onSetPreviewSceneId={setPreviewSceneId}
                 selectedCaptionId={selectedCaptionId}
                 onSelectCaption={setSelectedCaptionId}
+                previewEngineState={previewEngineState}
               />
             </div>
 
@@ -1027,6 +1028,7 @@ function LivePreviewPanel({
         {tab === "timeline" && (() => {
           const eng = previewEngineState;
           const engScene = eng != null ? (scenes[eng.activeSceneIndex] ?? null) : null;
+          const engClipUrl = engScene?.demoClipUrl ?? null;
 
           if (!eng) {
             return (
@@ -1040,27 +1042,44 @@ function LivePreviewPanel({
 
           return (
             <div className="space-y-2">
-              {/* Scene display */}
-              <div className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2">
-                <Film className="h-6 w-6 text-primary/30" />
-                <p className="text-xs font-bold text-white/50">
-                  Scene {eng.activeSceneIndex + 1} of {scenes.length}
-                  {engScene?.section ? ` · ${engScene.section}` : ""}
-                </p>
-                {engScene?.lyricLine && (
-                  <p className="text-[10px] text-white/25 italic text-center px-4 max-w-[90%]">
-                    &ldquo;{engScene.lyricLine}&rdquo;
-                  </p>
-                )}
-                {engScene?.demoClipUrl && (
-                  <span className="text-[9px] text-green-400/60 font-bold uppercase tracking-wide">Clip ready</span>
+              {/* ── Live video / placeholder ── */}
+              <div className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2"
+                data-testid="live-preview-screen">
+
+                {/* Actual clip — key on sceneIndex so <video> remounts on scene change */}
+                {engClipUrl ? (
+                  <video
+                    key={`lp-${eng.activeSceneIndex}`}
+                    src={engClipUrl}
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    className="w-full h-full object-contain"
+                    data-testid="live-preview-video"
+                  />
+                ) : (
+                  /* Black placeholder when no clip */
+                  <>
+                    <Film className="h-6 w-6 text-primary/30" />
+                    <p className="text-xs font-bold text-white/50" data-testid="live-preview-scene-label">
+                      Scene {eng.activeSceneIndex + 1} of {scenes.length}
+                      {engScene?.section ? ` · ${engScene.section}` : ""}
+                    </p>
+                    {engScene?.lyricLine && (
+                      <p className="text-[10px] text-white/25 italic text-center px-4 max-w-[90%]">
+                        &ldquo;{engScene.lyricLine}&rdquo;
+                      </p>
+                    )}
+                  </>
                 )}
 
-                {/* Caption overlay */}
+                {/* Caption overlay — shown on top of video or placeholder */}
                 {eng.activeCaption && (
                   <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none">
                     <div
                       className="text-xs font-black text-white text-center max-w-[92%] px-3 py-1.5 rounded-lg leading-snug"
+                      data-testid="live-preview-caption"
                       style={{ background: "rgba(0,0,0,0.82)", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}
                     >
                       {eng.activeCaption.text}
@@ -1068,9 +1087,19 @@ function LivePreviewPanel({
                   </div>
                 )}
 
+                {/* Scene label strip over clip */}
+                {engClipUrl && (
+                  <div className="absolute bottom-0 left-0 right-0 px-3 pb-9 pt-6 pointer-events-none"
+                    style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.6))" }}>
+                    <p className="text-[9px] text-white/50 font-bold truncate">
+                      Scene {eng.activeSceneIndex + 1}{engScene?.section ? ` · ${engScene.section}` : ""}
+                    </p>
+                  </div>
+                )}
+
                 {/* Time overlay */}
                 <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10">
-                  <span className="font-mono text-[10px] text-white/60">
+                  <span className="font-mono text-[10px] text-white/60" data-testid="live-preview-time">
                     {fmtSecs(eng.currentTime)}
                     {eng.audioDuration ? ` / ${fmtSecs(eng.audioDuration)}` : ""}
                   </span>
@@ -1098,6 +1127,22 @@ function LivePreviewPanel({
                   </div>
                 ))}
               </div>
+
+              {/* Debug panel */}
+              <details className="rounded-lg border border-white/[0.05] bg-white/[0.02] text-[9.5px] font-mono">
+                <summary className="px-3 py-1.5 cursor-pointer text-white/25 hover:text-white/50 select-none">
+                  ⬡ Live Preview Debug
+                </summary>
+                <div className="px-3 pb-2.5 pt-1 space-y-0.5 text-white/40 border-t border-white/[0.04]">
+                  <p>Live Preview Connected: <span className="text-green-400">yes</span></p>
+                  <p>Preview Mode: <span className="text-primary/70">{eng.isPlaying ? "timeline" : "paused"}</span></p>
+                  <p>Current Time: <span className="text-white/60">{eng.currentTime.toFixed(2)}s</span></p>
+                  <p>Live Preview Scene: <span className="text-white/60">{eng.activeSceneIndex + 1} / {scenes.length}{engScene?.section ? ` (${engScene.section})` : ""}</span></p>
+                  <p>Live Preview Caption: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
+                  <p>Audio Playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
+                  <p>Clip URL: <span className="text-white/40">{engClipUrl ? "yes" : "none"}</span></p>
+                </div>
+              </details>
             </div>
           );
         })()}
@@ -1147,11 +1192,20 @@ function LivePreviewPanel({
           const lines = settings.captions.lines;
           const cap = settings.captions;
 
-          /* Which caption to show: pinned selection → time-synced by effectiveTime → none */
-          const activeLine =
-            selectedCaptionId
+          /* When the timeline engine is playing, it is the source of truth for time + caption.
+             Only fall back to the local sim/video clock when the engine isn't active. */
+          const engineDriving = !!previewEngineState?.isPlaying;
+          const engineTime = previewEngineState?.currentTime ?? 0;
+
+          /* Which caption to show: engine → pinned selection → time-synced → none */
+          const activeLine = engineDriving
+            ? (previewEngineState!.activeCaption ?? null)
+            : selectedCaptionId
               ? (lines.find((l) => l.id === selectedCaptionId) ?? null)
               : lines.find((l) => l.startSec <= effectiveTime && effectiveTime < l.endSec) ?? null;
+
+          /* Time used for status display */
+          const displayTime = engineDriving ? engineTime : effectiveTime;
 
           const posClass =
             cap.position === "Top"
@@ -1181,7 +1235,7 @@ function LivePreviewPanel({
               ) : lines.length > 0 ? (
                 <div className="text-center">
                   <p className="text-[11px] text-white/30 bg-black/50 px-2 py-1 rounded">
-                    {simPlaying ? `${effectiveTime.toFixed(1)}s` : "Press Preview Captions to start"}
+                    {(engineDriving || simPlaying) ? `${displayTime.toFixed(1)}s` : "Press Preview Captions to start"}
                   </p>
                 </div>
               ) : null}
@@ -1214,8 +1268,8 @@ function LivePreviewPanel({
                       ? "No video clip selected. Showing caption preview card."
                       : "No captions yet — generate from lyrics first"}
                   </p>
-                  {simPlaying && (
-                    <p className="text-[11px] font-mono text-primary/60">{effectiveTime.toFixed(1)}s</p>
+                  {(engineDriving || simPlaying) && (
+                    <p className="text-[11px] font-mono text-primary/60">{displayTime.toFixed(1)}s</p>
                   )}
                   {lines.length > 0 && !simPlaying && (
                     <p className="text-[10px] text-white/20">Press Preview Captions to simulate playback</p>
@@ -1283,24 +1337,30 @@ function LivePreviewPanel({
                   )}
                 </div>
 
-                {/* Sim time ticker when playing */}
-                {simPlaying && (
+                {/* Time ticker when playing (engine or sim) */}
+                {(engineDriving || simPlaying) && (
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-mono text-primary/50">{effectiveTime.toFixed(1)}s / {maxCaptionEnd.toFixed(1)}s</span>
-                    <button
-                      type="button"
-                      onClick={() => setSimPlaying(false)}
-                      className="text-white/30 hover:text-white/60 font-bold transition-colors"
-                    >
-                      ■ Stop
-                    </button>
+                    <span className="font-mono text-primary/50">
+                      {engineDriving
+                        ? `⬡ Timeline ${displayTime.toFixed(1)}s${previewEngineState?.audioDuration ? ` / ${previewEngineState.audioDuration.toFixed(1)}s` : ""}`
+                        : `${displayTime.toFixed(1)}s / ${maxCaptionEnd.toFixed(1)}s`}
+                    </span>
+                    {simPlaying && !engineDriving && (
+                      <button
+                        type="button"
+                        onClick={() => setSimPlaying(false)}
+                        className="text-white/30 hover:text-white/60 font-bold transition-colors"
+                      >
+                        ■ Stop
+                      </button>
+                    )}
                   </div>
                 )}
 
                 {/* Live Preview ready message when nothing selected */}
-                {!simPlaying && !activeLine && lines.length > 0 && (
+                {!engineDriving && !simPlaying && !activeLine && lines.length > 0 && (
                   <p className="text-[10px] text-white/20">
-                    Live Preview ready — click Preview Captions or select a caption row.
+                    Live Preview ready — click Preview Captions or press Preview Timeline.
                   </p>
                 )}
               </div>

@@ -1,0 +1,90 @@
+Fix Live Preview to follow Timeline Preview exactly.
+
+Problem:
+I cannot sync or offset captions because Live Preview is not working correctly.
+
+Timeline Preview is partly working:
+
+* audio plays
+* captions change
+* scenes may change in timeline
+
+But Live Preview does not show the same scene/caption/audio state as Timeline Preview.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign anything.
+Do not work on export yet.
+Do not work on caption offset yet.
+
+Only fix Live Preview synchronization.
+
+Goal:
+Live Preview must mirror the Timeline Preview exactly.
+
+When I click Preview Timeline:
+
+1. Timeline starts playing
+2. Audio starts playing
+3. Current time starts moving
+4. Active scene changes automatically
+5. Active caption changes automatically
+6. Live Preview shows the same active scene
+7. Live Preview shows the same active caption
+8. Live Preview uses the same current time
+9. Live Preview does not require manually clicking scenes
+
+Rules:
+
+1. Use one shared preview state:
+
+* currentTime
+* isPlaying
+* activeSceneIndex
+* activeCaptionIndex
+* activeScene
+* activeCaption
+* audioPlaying
+* previewMode
+
+2. Timeline and Live Preview must read from the same state.
+
+3. During Preview Timeline:
+
+* Live Preview must ignore manually selected scene
+* Live Preview must ignore manually selected caption
+* Live Preview must use activeSceneIndex and activeCaptionIndex from the timeline clock
+
+4. If a scene has no generated clip:
+
+* Live Preview should show a black placeholder card
+* show current scene title/number
+* show current caption overlay
+* keep changing scenes automatically based on currentTime
+
+5. If a scene has a generated clip:
+
+* Live Preview should show that clip
+* still switch scenes based on timeline currentTime
+
+6. Add visible Live Preview debug text:
+
+* Live Preview Connected: yes/no
+* Preview Mode: timeline/scene
+* Current Time
+* Live Preview Scene
+* Live Preview Caption
+* Audio Playing: yes/no
+
+7. Add a test:
+   When Preview Timeline is playing, if Timeline says Scene 2, Live Preview must also show Scene 2.
+   If Timeline caption changes, Live Preview caption must change too.
+
+8. Do not charge credits for preview.
+
+Final goal:
+Live Preview should act like the real music video monitor. It must follow the Timeline Preview automatically before I try to sync or offset captions.
