@@ -104,6 +104,14 @@ export default function VideoEditor() {
   /** Duration (seconds) probed from the resolved preview audio URL */
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
 
+  const [testEffectActive, setTestEffectActive] = useState(false);
+  const testEffectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function triggerTestEffect() {
+    setTestEffectActive(true);
+    if (testEffectTimerRef.current) clearTimeout(testEffectTimerRef.current);
+    testEffectTimerRef.current = setTimeout(() => setTestEffectActive(false), 2000);
+  }
+
   const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Always-current ref so persist() never uses a stale scenes closure
@@ -676,6 +684,8 @@ export default function VideoEditor() {
               previewScene={previewScene}
               tab={tab}
               captionSettings={settings.captions}
+              settings={settings}
+              testEffectActive={testEffectActive}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -859,6 +869,7 @@ export default function VideoEditor() {
                 settings={settings}
                 setSettings={setSettings}
                 audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                onTestEffect={triggerTestEffect}
               />
             )}
 
@@ -987,7 +998,9 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
 }
 
 function MasterPreviewPlayer({
-  eng, scenes, liveVideoRef, previewScene, tab, captionSettings, onTogglePlay, onRestart,
+  eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
+  settings, testEffectActive,
+  onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
@@ -995,6 +1008,8 @@ function MasterPreviewPlayer({
   previewScene: SceneData | null;
   tab: EditorTab;
   captionSettings: CaptionSettings;
+  settings: EditorSettings;
+  testEffectActive: boolean;
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1230,6 +1245,22 @@ function MasterPreviewPlayer({
   const captionLoaded = !!activeCaption;
   const hasScenes     = scenes.length > 0;
 
+  /* ── Effects layer computation ── */
+  const activeEffects   = settings.effects;
+  const aiEffectsApplied = settings.aiEdit.applied && activeEffects.length > 0;
+
+  const effectsCssFilter = testEffectActive
+    ? "grayscale(100%)"
+    : buildEffectFilter(activeEffects);
+
+  const effectsTransform = testEffectActive ? "scale(1.25)" : undefined;
+
+  const overlayColor = testEffectActive
+    ? "rgba(220,30,30,0.55)"
+    : null;
+
+  const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
+
   return (
     <div
       ref={containerRef}
@@ -1240,10 +1271,50 @@ function MasterPreviewPlayer({
       }`}
     >
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
-      <div className={`bg-black relative ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}>
+      <div className={`bg-black relative overflow-hidden ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}>
 
-        {/* The single <video> element — always mounted so liveVideoRef is always valid */}
-        <MasterVideoElement videoRef={liveVideoRef} />
+        {/* ── Effects-wrapped video layer — filter + zoom applied here only ── */}
+        <div
+          className="absolute inset-0"
+          style={{
+            filter: effectsCssFilter || undefined,
+            transform: effectsTransform,
+            transformOrigin: "center center",
+            transition: "filter 0.3s ease, transform 0.4s ease",
+          }}
+        >
+          <MasterVideoElement videoRef={liveVideoRef} />
+        </div>
+
+        {/* ── Color overlay (test = red, future: tint grades) ── */}
+        {overlayColor && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: overlayColor, zIndex: 10 }}
+          />
+        )}
+
+        {/* ── "EFFECT TEST ACTIVE" text overlay ── */}
+        {testText && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ zIndex: 20 }}
+          >
+            <div style={{
+              background: "rgba(0,0,0,0.85)",
+              color: "#ff4444",
+              fontWeight: 900,
+              fontSize: "clamp(13px,3.5vw,24px)",
+              padding: "0.45rem 1.4rem",
+              borderRadius: "0.5rem",
+              border: "2px solid #ff4444",
+              letterSpacing: "0.1em",
+              textShadow: "0 0 20px rgba(255,68,68,0.8)",
+            }}>
+              {testText}
+            </div>
+          </div>
+        )}
 
         {/* No-clip placeholder — over the (empty) video */}
         {!clipLoaded && (
@@ -1471,6 +1542,34 @@ function MasterPreviewPlayer({
           <span className="text-[10px] font-mono text-red-400/70 w-full">
             ⚠ Playback may not have resumed — check master player controls.
           </span>
+        )}
+      </div>
+
+      {/* ── Effects Render Debug ── */}
+      <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects Render Debug:</span>
+        {([
+          ["effects loaded",          activeEffects.length > 0,      activeEffects.length > 0 ? `yes (${activeEffects.length})` : "no"],
+          ["total effects",           null,                           String(activeEffects.length)],
+          ["active scene effects",    null,                           activeEffects.length > 0 ? String(activeEffects.length) : "0"],
+          ["active effect now",       activeEffects.length > 0,      activeEffects[0] ?? "none"],
+          ["render layer mounted",    true,                           "yes ✓"],
+          ["test effect active",      testEffectActive,               testEffectActive ? "yes ✓" : "no"],
+          ["Auto AI effects applied", aiEffectsApplied,              aiEffectsApplied ? "yes ✓" : "no"],
+          ["last effect error",       null,                           "none"],
+        ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
+          <span key={label} className="text-[10px] font-mono text-white/20">
+            {label}:{" "}
+            <span className={ok === true ? "text-green-400/60" : ok === false ? "text-red-400/60" : "text-white/30"}>
+              {value}
+            </span>
+          </span>
+        ))}
+        {activeEffects.length > 0 && !testEffectActive && (
+          <span className="text-[10px] font-mono text-green-400/60 w-full">✓ AI effects rendering in master player</span>
+        )}
+        {settings.aiEdit.applied && !aiEffectsApplied && (
+          <span className="text-[10px] font-mono text-amber-400/60 w-full">⚠ AI effects generated but not rendering in master player</span>
         )}
       </div>
     </div>

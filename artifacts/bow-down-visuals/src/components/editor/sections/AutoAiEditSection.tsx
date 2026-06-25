@@ -19,6 +19,7 @@ interface Props {
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
   audioUrl?: string | null;
+  onTestEffect?: () => void;
 }
 
 /* ── Status / debug row ─────────────────────────────── */
@@ -53,7 +54,7 @@ function PlanCard({
   );
 }
 
-export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl }: Props) {
+export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onTestEffect }: Props) {
   const aiEdit = settings.aiEdit;
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -250,6 +251,23 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl }: P
           <p className="text-[10px] text-white/25 text-center">
             AI Edit is free during development. Credits may apply in production.
           </p>
+
+          {/* ── Test Master Player Effects Render ── */}
+          {onTestEffect && (
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Effects Render Test</p>
+              <p className="text-[10px] text-white/35 leading-relaxed">
+                Click to fire a 2-second test in the master player — red overlay · 1.25× zoom · grayscale · text banner. If nothing appears, the effects layer is not connected.
+              </p>
+              <button
+                type="button"
+                onClick={onTestEffect}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-xs font-black uppercase tracking-wider"
+              >
+                <Zap className="h-3.5 w-3.5" /> Test Master Player Effects Render
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

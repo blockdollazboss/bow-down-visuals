@@ -1,0 +1,115 @@
+Debug and fix Auto AI effects rendering in the master player only.
+
+Problem:
+Auto AI generated effects are not showing in the master player at all.
+
+This means the app may be creating/saving effect data, but the master player is not rendering that effect data visually.
+
+Do not change:
+- Stripe
+- credits
+- payments
+- Runway
+- Artist Profiles
+- scene rebuilding
+- caption timing
+- caption styles
+- Auto PiP
+- Bow Down AI Guide
+- master player layout
+
+Only fix Auto AI effects rendering inside the existing master player.
+
+Step 1 — Add a forced visible render test
+
+Add a button in the Effects tab:
+
+Test Master Player Effects Render
+
+When clicked, apply a temporary effect to the active scene in the master player:
+- strong red overlay for 2 seconds
+- 1.25x zoom
+- grayscale filter
+- visible text overlay that says: EFFECT TEST ACTIVE
+
+This must appear directly inside the master player.
+
+If this test does not show, the master player effects layer is not connected.
+
+Step 2 — Add a real effects rendering layer to the master player
+
+The master player must include an effects overlay/render layer that can render:
+- CSS filters
+- color overlays
+- zoom/scale
+- brightness/contrast/saturation
+- blur
+- flashes
+- text overlays
+- transition overlays
+- fade in/out
+- shake
+- beat pulse
+- vignette
+
+This layer must read from shared project edit/effect state.
+
+Step 3 — Connect Auto AI generated effects to the render layer
+
+When Auto AI creates effects, save them as structured effect objects like:
+
+{
+  sceneId,
+  effectType,
+  startTime,
+  endTime,
+  intensity,
+  cssFilter,
+  transform,
+  overlayColor,
+  transitionType,
+  textOverlay
+}
+
+Step 4 — During master player playback
+
+At every currentTime update:
+- find the active scene
+- find active effects for that scene and time
+- apply them to the master player visual layer
+- remove effects when their time ends
+
+Step 5 — Add debug under the master player
+
+Effects Render Debug:
+- effects loaded: yes/no
+- total effects: number
+- active scene effects: number
+- active effect now: name/type
+- render layer mounted: yes/no
+- test effect active: yes/no
+- Auto AI effects applied: yes/no
+- last effect error
+
+Step 6 — Do not claim effects are applied unless visible
+
+If Auto AI generated effects but the render layer is not applying them, show:
+AI effects generated but not rendering in master player.
+
+If effects are visible, show:
+AI effects rendering in master player.
+
+Step 7 — Do not create duplicate players
+
+Render effects only inside the existing master player.
+
+Final test:
+Click Test Master Player Effects Render.
+I must see:
+- red overlay
+- zoom
+- grayscale
+- EFFECT TEST ACTIVE text
+
+Then click Auto AI Edit.
+I must see the generated AI effects appear in the master player during playback.

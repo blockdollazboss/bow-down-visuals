@@ -14,13 +14,14 @@ interface EffectsSectionProps {
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
   audioUrl?: string | null;
+  onTestEffect?: () => void;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
   return list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 }
 
-export function EffectsSection({ scenes, settings, setSettings, audioUrl }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect }: EffectsSectionProps) {
   function patchClip(sceneId: string, patch: Partial<ClipEdit>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
@@ -34,6 +35,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl }: Effe
         settings={settings}
         setSettings={setSettings}
         audioUrl={audioUrl}
+        onTestEffect={onTestEffect}
       />
 
       <EditorCard title="Global Effects" subtitle="Applied across the whole video" icon={<Wand2 className="h-4 w-4" />}>
