@@ -88,67 +88,142 @@ export default function ChooseArtist() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
             {vaults.map((vault) => {
               const isSelected = selectedId === vault.id;
+              const G = (o: number) => `rgba(201,168,76,${o})`;
+              const GOLD = "#C9A84C";
+              const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
               return (
                 <button
                   key={vault.id}
                   type="button"
                   onClick={() => setSelectedId(isSelected ? null : vault.id)}
-                  className={`group relative text-left rounded-2xl border p-5 transition-all duration-200 cursor-pointer ${
-                    isSelected
-                      ? "border-white/40 bg-white/[0.05] shadow-[0_0_30px_rgba(200,200,210,0.15)]"
-                      : "border-white/[0.08] bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.03] hover:shadow-[0_0_20px_rgba(200,200,210,0.08)]"
-                  }`}
                   data-testid={`artist-card-${vault.id}`}
+                  style={{
+                    textAlign: "left",
+                    borderRadius: 20,
+                    border: isSelected ? `1.5px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.07)",
+                    background: isSelected ? "#0a0800" : "rgba(255,255,255,0.02)",
+                    boxShadow: isSelected ? `0 0 50px ${G(0.15)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    position: "relative",
+                    overflow: "hidden",
+                    transition: "all 0.2s ease",
+                    display: "block",
+                    width: "100%",
+                  }}
                 >
+                  {/* Gold left bar when selected */}
                   {isSelected && (
-                    <span className="absolute top-3 right-3">
-                      <CheckCircle2 className="h-5 w-5 text-zinc-300" />
-                    </span>
+                    <div style={{
+                      position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+                      background: `linear-gradient(to bottom, ${GOLD}, ${G(0)})`,
+                      zIndex: 2,
+                    }} />
                   )}
 
-                  {/* Avatar */}
-                  <div className={`h-16 w-16 rounded-full border-2 flex items-center justify-center mb-4 overflow-hidden ${
-                    isSelected ? "border-white/30" : "border-white/10 group-hover:border-white/20"
-                  }`}>
-                    {vault.reference_image_url ? (
-                      <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className={`h-full w-full flex items-center justify-center text-2xl font-black ${
-                        isSelected ? "bg-white/[0.12] text-zinc-200" : "bg-white/[0.04] text-white/30"
-                      }`}>
-                        {vault.artist_name.charAt(0).toUpperCase()}
+                  {/* Top image / avatar band */}
+                  <div style={{
+                    height: 110,
+                    background: vault.reference_image_url
+                      ? `url(${vault.reference_image_url}) center/cover no-repeat`
+                      : isSelected
+                        ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
+                        : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+                    position: "relative",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.75) 100%)",
+                    }} />
+                    {isSelected && (
+                      <div style={{
+                        position: "absolute", top: "10%", left: "20%",
+                        width: 140, height: 140, borderRadius: "50%",
+                        background: `radial-gradient(circle, ${G(0.1)} 0%, transparent 70%)`,
+                        pointerEvents: "none",
+                      }} />
+                    )}
+
+                    {!vault.reference_image_url && (
+                      <div style={{
+                        position: "relative",
+                        width: 48, height: 48, borderRadius: "50%",
+                        background: isSelected ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
+                        border: isSelected ? `2px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.1)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        boxShadow: isSelected ? `0 0 18px ${G(0.3)}` : "none",
+                      }}>
+                        <span style={{
+                          fontFamily: "Georgia, serif",
+                          fontSize: 15, fontWeight: 900,
+                          color: isSelected ? GOLD : "rgba(255,255,255,0.35)",
+                          letterSpacing: "0.04em",
+                        }}>{initials}</span>
                       </div>
                     )}
-                  </div>
 
-                  {/* Info */}
-                  <h3 className="font-black text-white text-lg leading-tight mb-1 truncate">
-                    {vault.artist_name}
-                  </h3>
-                  {vault.artist_type && (
-                    <p className="text-xs font-bold text-zinc-300/80 uppercase tracking-wider mb-3">{vault.artist_type}</p>
-                  )}
-
-                  <div className="space-y-1.5">
-                    {vault.genre && (
-                      <div className="flex items-center gap-2 text-xs text-white/45">
-                        <Music2 className="h-3 w-3 shrink-0 text-white/25" />
-                        <span className="truncate">{vault.genre}</span>
+                    {/* Selected badge */}
+                    {isSelected && (
+                      <div style={{
+                        position: "absolute", top: 10, right: 10,
+                        display: "flex", alignItems: "center", gap: 4,
+                        background: G(0.15), border: `1px solid ${G(0.4)}`,
+                        borderRadius: 7, padding: "3px 8px",
+                        backdropFilter: "blur(8px)",
+                      }}>
+                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
+                        <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>SELECTED</span>
                       </div>
                     )}
-                    {vault.visual_style && (
-                      <div className="flex items-center gap-2 text-xs text-white/45">
-                        <Palette className="h-3 w-3 shrink-0 text-white/25" />
-                        <span className="truncate">{vault.visual_style}</span>
-                      </div>
-                    )}
-                  </div>
 
-                  {isSelected && (
-                    <div className="mt-3 pt-3 border-t border-white/[0.12]">
-                      <p className="text-xs font-bold text-zinc-300">Selected ✓</p>
+                    {/* Name overlaid */}
+                    <div style={{ position: "absolute", bottom: 10, left: 14, right: 14 }}>
+                      <p style={{
+                        fontFamily: isSelected ? "Georgia, serif" : "inherit",
+                        fontSize: isSelected ? 15 : 14,
+                        fontWeight: 900, color: "#fff",
+                        letterSpacing: isSelected ? "0.04em" : 0,
+                        textShadow: "0 2px 8px rgba(0,0,0,0.9)",
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      }}>{vault.artist_name}</p>
+                      {vault.artist_type && (
+                        <p style={{ fontSize: 9.5, color: isSelected ? G(0.75) : "rgba(255,255,255,0.4)", marginTop: 1, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                          {vault.artist_type}
+                        </p>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ padding: "12px 14px 14px" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+                      {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
+                        <span key={String(trait)} style={{
+                          fontSize: 9.5, fontWeight: 700,
+                          color: i === 0 && isSelected ? GOLD : "rgba(255,255,255,0.4)",
+                          background: i === 0 && isSelected ? G(0.08) : "rgba(255,255,255,0.04)",
+                          border: `1px solid ${i === 0 && isSelected ? G(0.22) : "rgba(255,255,255,0.07)"}`,
+                          borderRadius: 5, padding: "2px 7px",
+                        }}>{trait}</span>
+                      ))}
+                    </div>
+
+                    <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                      {vault.genre && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
+                          <Music2 className="h-3 w-3" style={{ flexShrink: 0, opacity: 0.5 }} />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vault.genre}</span>
+                        </div>
+                      )}
+                      {vault.visual_style && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "rgba(255,255,255,0.35)" }}>
+                          <Palette className="h-3 w-3" style={{ flexShrink: 0, opacity: 0.4 }} />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vault.visual_style}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </button>
               );
             })}

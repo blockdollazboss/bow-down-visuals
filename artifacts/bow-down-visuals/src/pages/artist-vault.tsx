@@ -460,74 +460,189 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
   onSetActive: () => void;
   isActive: boolean;
 }) {
+  const G = (o: number) => `rgba(201,168,76,${o})`;
+  const GOLD = "#C9A84C";
+  const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 hover:border-white/[0.12] transition-colors">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="h-10 w-10 rounded-xl overflow-hidden shrink-0">
-          {vault.reference_image_url ? (
-            <img src={vault.reference_image_url} alt={vault.artist_name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full bg-primary flex items-center justify-center">
-              <span className="text-white font-black text-lg">
-                {(vault.artist_name || "A")[0].toUpperCase()}
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-bold text-white truncate">{vault.artist_name}</h3>
-          <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {vault.artist_type && (
-              <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">{vault.artist_type}</Badge>
-            )}
-            {vault.genre && (
-              <Badge className="bg-white/5 text-white/50 border-white/10 text-xs">{vault.genre}</Badge>
-            )}
-            {vault.visual_style && (
-              <Badge className="bg-white/5 text-white/50 border-white/10 text-xs hidden sm:inline-flex">
-                {vault.visual_style}
-              </Badge>
-            )}
+    <div style={{
+      borderRadius: 20,
+      border: isActive ? `1.5px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.07)",
+      background: isActive ? "#0a0800" : "rgba(255,255,255,0.02)",
+      boxShadow: isActive ? `0 0 50px ${G(0.12)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+      position: "relative",
+      overflow: "hidden",
+      transition: "all 0.2s ease",
+    }}>
+      {/* Gold left accent bar — active only */}
+      {isActive && (
+        <div style={{
+          position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+          background: `linear-gradient(to bottom, ${GOLD}, ${G(0)})`,
+        }} />
+      )}
+
+      {/* Top image band */}
+      <div style={{
+        height: 120,
+        background: vault.reference_image_url
+          ? `url(${vault.reference_image_url}) center/cover no-repeat`
+          : isActive
+            ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
+            : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
+        position: "relative",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.75) 100%)",
+        }} />
+
+        {/* Ambient glow for active */}
+        {isActive && (
+          <div style={{
+            position: "absolute", top: "10%", left: "20%",
+            width: 160, height: 160, borderRadius: "50%",
+            background: `radial-gradient(circle, ${G(0.1)} 0%, transparent 70%)`,
+            pointerEvents: "none",
+          }} />
+        )}
+
+        {/* Avatar */}
+        {!vault.reference_image_url && (
+          <div style={{
+            position: "relative",
+            width: 52, height: 52, borderRadius: "50%",
+            background: isActive
+              ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})`
+              : "rgba(255,255,255,0.06)",
+            border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: isActive ? `0 0 20px ${G(0.25)}` : "none",
+          }}>
+            <span style={{
+              fontFamily: "Georgia, serif",
+              fontSize: 16, fontWeight: 900,
+              color: isActive ? GOLD : "rgba(255,255,255,0.4)",
+              letterSpacing: "0.04em",
+            }}>{initials}</span>
           </div>
+        )}
+
+        {/* ACTIVE badge */}
+        {isActive && (
+          <div style={{
+            position: "absolute", top: 10, right: 10,
+            display: "flex", alignItems: "center", gap: 4,
+            background: G(0.15), border: `1px solid ${G(0.4)}`,
+            borderRadius: 7, padding: "3px 8px",
+            backdropFilter: "blur(8px)",
+          }}>
+            <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
+            <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>ACTIVE</span>
+          </div>
+        )}
+
+        {/* Name on image */}
+        <div style={{ position: "absolute", bottom: 10, left: 14, right: 14 }}>
+          <p style={{
+            fontFamily: isActive ? "Georgia, serif" : "inherit",
+            fontSize: isActive ? 16 : 14,
+            fontWeight: 900, color: "#fff",
+            letterSpacing: isActive ? "0.04em" : "0",
+            textShadow: "0 2px 8px rgba(0,0,0,0.9)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{vault.artist_name}</p>
+          {vault.artist_type && (
+            <p style={{ fontSize: 10, color: isActive ? G(0.7) : "rgba(255,255,255,0.4)", marginTop: 1, letterSpacing: "0.04em" }}>
+              {vault.artist_type}
+            </p>
+          )}
         </div>
       </div>
 
-      {vault.personality && (
-        <p className="text-xs text-white/40 line-clamp-2 mb-3">{vault.personality}</p>
-      )}
+      {/* Body */}
+      <div style={{ padding: "12px 14px 14px" }}>
+        {/* Trait pills */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
+          {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
+            <span key={String(trait)} style={{
+              fontSize: 9.5, fontWeight: 700,
+              color: i === 0 && isActive ? GOLD : "rgba(255,255,255,0.4)",
+              background: i === 0 && isActive ? G(0.08) : "rgba(255,255,255,0.04)",
+              border: `1px solid ${i === 0 && isActive ? G(0.22) : "rgba(255,255,255,0.07)"}`,
+              borderRadius: 5, padding: "2px 7px",
+            }}>{trait}</span>
+          ))}
+        </div>
 
-      <div className="space-y-2 pt-3 border-t border-white/[0.05]">
-        <button
-          onClick={onSetActive}
-          className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
-            isActive
-              ? "border border-green-500/30 bg-green-500/[0.08] text-green-400"
-              : "border border-white/10 bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white"
-          }`}
-        >
-          {isActive
-            ? <><CheckCircle2 className="h-3.5 w-3.5" /> Active Artist</>
-            : <><User className="h-3.5 w-3.5" /> Set As Active Artist</>}
-        </button>
-        <button
-          onClick={onLock}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-primary/80 bg-primary/[0.07] border border-primary/20 hover:bg-primary/15 hover:text-primary transition-colors"
-        >
-          <Lock className="h-3.5 w-3.5" /> Lock Character Consistency
-        </button>
-        <div className="flex items-center gap-2">
-          <button onClick={onOpen}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white transition-colors">
-            <Eye className="h-3.5 w-3.5" /> Open
+        {vault.personality && (
+          <p style={{
+            fontSize: 11, color: "rgba(255,255,255,0.35)",
+            lineHeight: 1.5,
+            overflow: "hidden",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            marginBottom: 12,
+          }}>{vault.personality}</p>
+        )}
+
+        <div style={{ borderTop: isActive ? `1px solid ${G(0.12)}` : "1px solid rgba(255,255,255,0.05)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {/* Active / Set Active button */}
+          <button onClick={onSetActive} style={{
+            width: "100%",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            padding: "8px 0", borderRadius: 10,
+            border: isActive ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.1)",
+            background: isActive ? G(0.1) : "rgba(255,255,255,0.03)",
+            color: isActive ? GOLD : "rgba(255,255,255,0.5)",
+            fontSize: 11.5, fontWeight: 800,
+            cursor: "pointer", letterSpacing: "0.04em",
+            boxShadow: isActive ? `0 0 12px ${G(0.1)}` : "none",
+          }}>
+            {isActive
+              ? <><CheckCircle2 className="h-3.5 w-3.5" /> Active Artist</>
+              : <><User className="h-3.5 w-3.5" /> Set As Active Artist</>}
           </button>
-          <button onClick={onEdit}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.04] hover:bg-primary/10 hover:text-primary transition-colors">
-            <Pencil className="h-3.5 w-3.5" /> Edit
+
+          {/* Lock Consistency */}
+          <button onClick={onLock} style={{
+            width: "100%",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            padding: "8px 0", borderRadius: 10,
+            border: `1px solid ${G(0.25)}`,
+            background: G(0.06),
+            color: GOLD, fontSize: 11.5, fontWeight: 800,
+            cursor: "pointer", letterSpacing: "0.04em",
+          }}>
+            <Lock className="h-3.5 w-3.5" /> Lock Character Consistency
           </button>
-          <button onClick={onDelete}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white/40 bg-white/[0.03] hover:bg-red-500/10 hover:text-red-400 transition-colors ml-auto">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+
+          {/* Row actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {[
+              { label: "Open", icon: <Eye className="h-3.5 w-3.5" />, fn: onOpen },
+              { label: "Edit", icon: <Pencil className="h-3.5 w-3.5" />, fn: onEdit },
+            ].map(({ label, icon, fn }) => (
+              <button key={label} onClick={fn} style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "6px 12px", borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.03)",
+                color: "rgba(255,255,255,0.55)",
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+              }}>{icon} {label}</button>
+            ))}
+            <button onClick={onDelete} style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "6px 10px", borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.06)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.3)",
+              cursor: "pointer", marginLeft: "auto",
+            }}><Trash2 className="h-3.5 w-3.5" /></button>
+          </div>
         </div>
       </div>
     </div>
