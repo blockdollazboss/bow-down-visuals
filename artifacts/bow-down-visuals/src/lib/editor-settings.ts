@@ -700,7 +700,7 @@ export function defaultEditorSettings(): EditorSettings {
       captionStyle: "Karaoke Highlight",
       intro: true,
       outro: true,
-      watermark: false,
+      watermark: true,
       beatCutIntensity: "high",
       transitionIntensity: "medium",
     },
@@ -753,7 +753,7 @@ export function defaultEditorSettings(): EditorSettings {
         stylePreset: "luxury-dark",
       },
       watermark: {
-        enabled: false,
+        enabled: true,
         bdvWatermark: true,
         customLogoUrl: null,
         position: "bottom-right",
