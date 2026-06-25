@@ -17,7 +17,7 @@
  */
 import {
   useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle,
-  type CSSProperties,
+  type CSSProperties, type RefObject,
 } from "react";
 import {
   Play, Pause, SkipBack, Film, Volume2, ListVideo,
@@ -92,6 +92,10 @@ export interface TimelinePreviewPlayerProps {
   };
   /** Called after each audio tick so the parent can mirror state in the Live Preview panel */
   onEngineUpdate?: (state: SharedPreviewState) => void;
+  /** When provided, TimelinePreviewPlayer drives this external video element instead of
+   *  rendering its own preview area. Pass liveVideoRef from the master player so the
+   *  single video element at the top always shows the active clip. */
+  externalVideoRef?: RefObject<HTMLVideoElement | null>;
 }
 
 export const TimelinePreviewPlayer = forwardRef<TimelinePlayerHandle, TimelinePreviewPlayerProps>(
@@ -102,6 +106,7 @@ function TimelinePreviewPlayer({
   initialSceneId,
   captionSettings,
   onEngineUpdate,
+  externalVideoRef,
 }: TimelinePreviewPlayerProps, ref) {
 
   /* ── Core state ── */
@@ -160,8 +165,11 @@ function TimelinePreviewPlayer({
   }, [playing, currentTime, audioDuration, sceneIdx, activeLine?.id]);
 
   /* ── Refs ── */
-  const audioRef      = useRef<HTMLAudioElement | null>(null);
-  const videoRef      = useRef<HTMLVideoElement | null>(null);
+  const audioRef         = useRef<HTMLAudioElement | null>(null);
+  const internalVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Use the parent-provided ref when given (so the master player's <video> is the target)
+  // otherwise fall back to an internal ref for standalone rendering.
+  const videoRef: RefObject<HTMLVideoElement | null> = externalVideoRef ?? internalVideoRef;
   const containerRef  = useRef<HTMLDivElement | null>(null);
   const playingRef    = useRef(false);      // for the no-audio fallback interval
   const currentTimeRef = useRef(0);
@@ -211,6 +219,9 @@ function TimelinePreviewPlayer({
     const scene = scenes[sceneIdx];
     if (scene?.demoClipUrl && videoRef.current) {
       const v = videoRef.current;
+      // Always set src imperatively — required when using externalVideoRef
+      // because the external <video> element doesn't get a src via React props.
+      v.src = scene.demoClipUrl;
       v.muted = true;
       v.currentTime = 0;
       v.play().catch((e: Error) => setLastError(`Clip ${sceneIdx + 1}: ${e.message}`));
@@ -300,6 +311,7 @@ function TimelinePreviewPlayer({
     const firstScene = scenes[0];
     if (firstScene?.demoClipUrl && videoRef.current) {
       const v = videoRef.current;
+      v.src = firstScene.demoClipUrl; // set src imperatively (required for externalVideoRef)
       v.muted = true;
       v.currentTime = 0;
       v.play().catch((e: Error) => setLastError(`Clip 1: ${e.message}`));
@@ -329,6 +341,7 @@ function TimelinePreviewPlayer({
     const scene = scenes[idx];
     if (scene?.demoClipUrl && videoRef.current) {
       const v = videoRef.current;
+      v.src = scene.demoClipUrl; // set src imperatively (required for externalVideoRef)
       v.muted = true;
       v.currentTime = 0;
       v.play().catch((e: Error) => setLastError(`Clip: ${e.message}`));
@@ -436,8 +449,11 @@ function TimelinePreviewPlayer({
         />
       )}
 
-      {/* ── Preview area ─────────────────────────────────────── */}
-      <div
+      {/* ── Preview area — hidden when externalVideoRef is provided ──────
+           When externalVideoRef is set the parent (MasterPreviewPlayer) owns
+           the <video> element and displays it at the top. We only render the
+           audio engine + controls, not a second preview area here.          */}
+      {!externalVideoRef && <div
         className={`relative bg-black ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}
       >
         {hasClip ? (
@@ -550,7 +566,7 @@ function TimelinePreviewPlayer({
             </p>
           </button>
         )}
-      </div>
+      </div>}
 
       {/* ── Controls ─────────────────────────────────────────── */}
       <div

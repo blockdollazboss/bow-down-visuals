@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
@@ -493,33 +493,30 @@ export default function VideoEditor() {
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
-  /* ── Drive the master preview <video> element imperatively ──────────
-     Single effect in VideoEditor so the video element is shared across
-     ALL tabs. Fires on engine scene-change, play/pause, or clip selection.  */
+  /* ── Static clip preview — drives liveVideoRef before timeline is started ──
+     Once the user starts the timeline, TimelinePreviewPlayer drives the video
+     imperatively via externalVideoRef. This effect only handles the "static"
+     case: no engine running, user clicks Preview on a scene in the Clips tab. */
   useEffect(() => {
     const v = liveVideoRef.current;
     if (!v) return;
-    const eng = previewEngineState;
+    // If engine has ever started (isPlaying or time > 0), TimelinePreviewPlayer
+    // owns the video — don't override it here.
+    if (previewEngineState?.isPlaying) return;
+    if ((previewEngineState?.currentTime ?? 0) > 0) return;
 
-    if (eng?.isPlaying) {
-      const engClip = (scenes[eng.activeSceneIndex] ?? null)?.demoClipUrl ?? null;
-      if (engClip) {
-        if (v.src !== engClip) { v.src = engClip; v.currentTime = 0; }
-        void v.play().catch(() => {});
-      } else {
-        v.pause();
-        v.removeAttribute("src");
-      }
-    } else if (eng && !eng.isPlaying) {
-      v.pause();
+    const clip = previewScene?.demoClipUrl ?? null;
+    if (clip) {
+      if (v.src !== clip) { v.src = clip; v.currentTime = 0; }
+      v.muted = true;
+      void v.play().catch(() => {});
     } else {
-      // Engine not started — show the selected preview clip (static)
-      const clip = previewScene?.demoClipUrl ?? null;
-      if (clip && v.src !== clip) { v.src = clip; v.currentTime = 0; }
-      else if (!clip) { v.pause(); v.removeAttribute("src"); }
+      v.pause();
+      v.removeAttribute("src");
     }
+  // Only re-run when the selected clip changes (engine drives itself)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewEngineState?.activeSceneIndex, previewEngineState?.isPlaying, previewScene?.demoClipUrl]);
+  }, [previewScene?.demoClipUrl]);
 
   /* ── Character consistency ── */
   const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
@@ -694,6 +691,7 @@ export default function VideoEditor() {
                   initialSceneId={previewSceneId}
                   captionSettings={settings.captions}
                   onEngineUpdate={setPreviewEngineState}
+                  externalVideoRef={liveVideoRef}
                 />
               ) : (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
