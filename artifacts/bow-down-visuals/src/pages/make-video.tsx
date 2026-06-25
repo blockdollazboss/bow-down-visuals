@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Video, ArrowLeft, Loader2, ChevronRight, ChevronLeft, BarChart2, Check,
-  Music2, Palette, Sparkles, Clapperboard, Volume2, Download,
-  Film, Camera, MapPin, ChevronDown, ChevronUp, Save,
+  Music2, Palette, Sparkles, Clapperboard, Volume2, Download, RefreshCcw,
+  Film, Camera, MapPin, ChevronDown, ChevronUp, Save, X,
   FileText, ExternalLink,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
@@ -223,6 +223,7 @@ export default function MakeVideo() {
   const [draftId, setDraftId] = useState<string | null>(null);
   const [draftInfo, setDraftInfo] = useState<{ title?: string; updated?: string } | null>(null);
   const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressDraftSaveUntil = useRef<number>(0);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
@@ -405,6 +406,8 @@ export default function MakeVideo() {
     if (!hasContent || !user) return;
     if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
     serverSaveTimer.current = setTimeout(async () => {
+      // Suppress re-save after recovery to break the "found → recover → found" loop
+      if (Date.now() < suppressDraftSaveUntil.current) return;
       try {
         const token = await getAccessToken();
         const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make a Music Video Draft";
@@ -511,10 +514,13 @@ export default function MakeVideo() {
         })).catch(() => { /* silent */ });
       }
 
+      // Suppress auto-save for 10 minutes so recovered data doesn't re-create the draft
+      suppressDraftSaveUntil.current = Date.now() + 10 * 60 * 1000;
+
       setDraftState("recovered");
-      setTimeout(() => setDraftState("idle"), 3000);
+      setTimeout(() => setDraftState("idle"), 2500);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Recovery failed — please try downloading the backup JSON.";
+      const msg = err instanceof Error ? err.message : "Draft data not found — it may have expired. Try the backup JSON.";
       setDraftError(msg);
       setDraftState("failed");
     }
@@ -717,53 +723,77 @@ export default function MakeVideo() {
           Back to Dashboard
         </Link>
 
-        {/* ── Draft recovery banner ── */}
-        {draftState === "found" && (
-          <div className="mb-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-            <div className="flex items-start gap-3">
-              <span className="text-yellow-400 text-base shrink-0 mt-0.5">⚠</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-yellow-300">Previous draft found</p>
-                {draftInfo?.title && <p className="text-xs text-white/60 mt-0.5 truncate">{draftInfo.title}</p>}
-                {draftInfo?.updated && <p className="text-xs text-white/35">Last saved {draftInfo.updated}</p>}
-              </div>
-              <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
-                <button onClick={downloadDraftBackup} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5">
-                  <Download className="h-3 w-3" /> Backup JSON
-                </button>
-                <button onClick={() => { void handleRecover(); }} className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition-colors px-3 py-1.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20">
-                  Recover
-                </button>
-                <button onClick={() => { void handleDiscardDraft(); }} className="text-xs text-white/30 hover:text-white/60 transition-colors px-3 py-1.5">
-                  Discard
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {draftState === "recovering" && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3.5 rounded-xl border border-primary/30 bg-primary/10">
-            <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
-            <p className="text-sm font-bold text-primary">Recovering draft…</p>
-          </div>
-        )}
-        {draftState === "recovered" && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3.5 rounded-xl border border-green-500/30 bg-green-500/10">
-            <Check className="h-4 w-4 text-green-400 shrink-0" />
-            <p className="text-sm font-bold text-green-300">Draft recovered successfully</p>
-          </div>
-        )}
-        {draftState === "failed" && (
-          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
-            <div className="flex items-start gap-3">
-              <span className="text-red-400 shrink-0 mt-0.5">✕</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-red-300">Recovery failed: {draftError}</p>
-                <p className="text-xs text-white/40 mt-0.5">Your draft may still be saved. Download the backup JSON to keep it safe.</p>
-              </div>
-              <button onClick={downloadDraftBackup} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 shrink-0">
-                <Download className="h-3 w-3" /> Backup JSON
-              </button>
+        {/* ── Draft Recovery Modal ── */}
+        {draftState !== "idle" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+            <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl overflow-hidden">
+              {draftState === "found" && (
+                <div className="p-6 space-y-5">
+                  <div>
+                    <p className="text-[10px] font-bold text-yellow-400/70 uppercase tracking-widest mb-2">Unsaved Draft Found</p>
+                    <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? "Previous session"}</p>
+                    {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
+                  </div>
+                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no credits will be charged.</p>
+                  <div className="space-y-2.5">
+                    <Button onClick={() => { void handleRecover(); }} className="w-full gold-glow font-bold gap-2 h-11">
+                      <RefreshCcw className="h-4 w-4" /> Recover Draft
+                    </Button>
+                    <button onClick={downloadDraftBackup}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-sm text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors font-semibold">
+                      <Download className="h-4 w-4" /> Download Backup JSON
+                    </button>
+                    <button onClick={() => { void handleDiscardDraft(); }}
+                      className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
+                      Discard Draft
+                    </button>
+                  </div>
+                </div>
+              )}
+              {draftState === "recovering" && (
+                <div className="p-8 flex flex-col items-center gap-4">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <div className="text-center">
+                    <p className="font-bold text-white">Recovering draft…</p>
+                    <p className="text-xs text-white/40 mt-1">Restoring all your content</p>
+                  </div>
+                </div>
+              )}
+              {draftState === "recovered" && (
+                <div className="p-8 flex flex-col items-center gap-4">
+                  <div className="h-14 w-14 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center">
+                    <Check className="h-7 w-7 text-green-400" />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-black text-white text-lg">Draft Recovered</p>
+                    <p className="text-xs text-white/40 mt-1">Your project has been fully restored</p>
+                  </div>
+                </div>
+              )}
+              {draftState === "failed" && (
+                <div className="p-6 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 rounded-full bg-red-500/15 border border-red-500/20 flex items-center justify-center shrink-0">
+                      <X className="h-4 w-4 text-red-400" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-white text-sm">Recovery Failed</p>
+                      <p className="text-xs text-red-300/80 mt-0.5 leading-relaxed">{draftError}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2.5">
+                    <button onClick={downloadDraftBackup}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/30 bg-primary/[0.07] text-sm text-primary hover:bg-primary/15 transition-colors font-semibold">
+                      <Download className="h-4 w-4" /> Download Backup JSON
+                    </button>
+                    <button onClick={() => { void handleDiscardDraft(); }}
+                      className="w-full py-2 text-sm text-white/25 hover:text-white/50 transition-colors">
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1381,6 +1411,15 @@ export default function MakeVideo() {
         </div>
 
       </div>
+
+      {/* ── Dev debug overlay ── */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-4 left-4 z-40 text-[10px] font-mono text-white/30 bg-black/70 rounded-lg px-3 py-2 space-y-0.5 border border-white/5 pointer-events-none">
+          <p>Step {step}: {STEPS.find(s => s.n === step)?.label ?? "?"}</p>
+          <p>Draft: {draftState}{draftId ? " (server)" : draftState !== "idle" ? " (local)" : ""}</p>
+          <p>Plan: {rawResult ? `${rawResult.length} chars` : "none"} · Scenes: {scenes.length}</p>
+        </div>
+      )}
     </div>
   );
 }
