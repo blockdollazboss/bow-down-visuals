@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Mic, FileText, Clapperboard, CheckCircle2, Loader2, AlertCircle,
   Music2, RotateCcw, PenLine, Sparkles, Clock,
@@ -80,6 +80,25 @@ export function SongWorkflow({
   const usingUploadedAudio = ms.videoAudio.source === "uploaded";
   const activeTranscript = localTranscript ?? transcriptText ?? null;
 
+  /* Probe duration from the audio URL on mount and whenever the URL changes */
+  useEffect(() => {
+    if (!audioUrl) return;
+    const audio = new Audio();
+    audio.preload = "metadata";
+    audio.crossOrigin = "anonymous";
+    let disposed = false;
+    audio.addEventListener("loadedmetadata", () => {
+      if (!disposed && isFinite(audio.duration) && audio.duration > 0) {
+        setSongDuration(audio.duration);
+      }
+    });
+    audio.src = audioUrl;
+    return () => {
+      disposed = true;
+      audio.src = "";
+    };
+  }, [audioUrl]);
+
   const fileName = (() => {
     try {
       return decodeURIComponent(new URL(audioUrl).pathname.split("/").pop() ?? "song");
@@ -138,7 +157,16 @@ export function SongWorkflow({
   function useForVideo() {
     onSettingsChange({
       ...settings,
-      musicStudio: { ...ms, videoAudio: { ...ms.videoAudio, source: "uploaded" } },
+      musicStudio: {
+        ...ms,
+        videoAudio: {
+          ...ms.videoAudio,
+          source: "uploaded",
+          /* Also persist the duration if already probed, so Captions + Timeline
+             can read it immediately without re-probing on the next render.     */
+          ...(songDuration != null ? { duration: songDuration } : {}),
+        },
+      },
     });
   }
 

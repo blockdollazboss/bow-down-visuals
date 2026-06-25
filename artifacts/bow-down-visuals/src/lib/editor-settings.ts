@@ -622,6 +622,12 @@ export interface VideoAudioSync {
   loopAudio: boolean;
   /** Trim/loop the audio to match the video length. */
   matchVideoLength: boolean;
+  /**
+   * Detected audio duration in seconds.
+   * Saved automatically when the audio URL resolves — shared by
+   * Timeline Preview, Auto Sync Captions, and export.
+   */
+  duration?: number;
 }
 
 export type AudioExportKind = "full" | "instrumental" | "acapella";

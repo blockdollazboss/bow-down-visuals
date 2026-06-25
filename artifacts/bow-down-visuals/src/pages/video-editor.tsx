@@ -427,8 +427,9 @@ export default function VideoEditor() {
   const lyricsForCaptions = projectLyrics ?? transcriptText ?? (sceneLyricsJoined || null);
 
   /* ── Probe audio duration from the preview URL whenever it changes ──
-     This is the same URL Timeline Preview uses, so if it plays there,
-     we will always get a valid duration here too.                      */
+     This is the exact URL Timeline Preview uses — if it plays, this fires.
+     On success we immediately write the duration into settings so it persists
+     across tab switches and page reloads without re-probing.              */
   useEffect(() => {
     if (!previewAudioUrl) {
       setDetectedAudioDuration(null);
@@ -436,6 +437,7 @@ export default function VideoEditor() {
     }
     const audio = new Audio();
     audio.preload = "metadata";
+    audio.crossOrigin = "anonymous";
     let disposed = false;
 
     const onLoaded = () => {
@@ -459,8 +461,24 @@ export default function VideoEditor() {
     };
   }, [previewAudioUrl]);
 
-  /* ── Song duration: project metadata takes priority, then probed from audio ── */
-  const songDuration =
+  /* ── Persist detected duration into settings so CaptionsSection + export
+     can read it immediately without re-probing on every tab switch.       */
+  useEffect(() => {
+    if (detectedAudioDuration == null) return;
+    if (settings.musicStudio.videoAudio.duration === detectedAudioDuration) return;
+    setSettings((prev) => ({
+      ...prev,
+      musicStudio: {
+        ...prev.musicStudio,
+        videoAudio: { ...prev.musicStudio.videoAudio, duration: detectedAudioDuration },
+      },
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detectedAudioDuration]);
+
+  /* ── Song duration — priority: persisted in settings → project metadata → live probe ── */
+  const songDuration: number | null =
+    settings.musicStudio.videoAudio.duration ??
     (project?.input_data?.["songDuration"] as number | undefined) ??
     (project?.input_data?.["duration"] as number | undefined) ??
     detectedAudioDuration ??
@@ -770,6 +788,7 @@ export default function VideoEditor() {
                     setSettings={setSettings}
                     lyrics={lyricsForCaptions ?? undefined}
                     songDuration={songDuration ?? undefined}
+                    audioSourceLoading={!!previewAudioUrl && songDuration == null}
                     selectedCaptionId={selectedCaptionId}
                     onSelectCaption={setSelectedCaptionId}
                   />

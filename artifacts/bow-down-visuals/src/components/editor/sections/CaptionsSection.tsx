@@ -25,6 +25,8 @@ interface Props {
   lyrics?: string;
   /** Song duration in seconds — used to spread captions evenly */
   songDuration?: number;
+  /** True when a project audio URL is resolved but duration is still loading */
+  audioSourceLoading?: boolean;
   /** Currently selected caption ID — highlights the row and shows it in Live Preview */
   selectedCaptionId?: string | null;
   /** Called when a caption row is clicked */
@@ -116,7 +118,7 @@ const SPLIT_STYLE_DEFS = [
   { id: "long",   label: "Long",   hint: "8–12 words" },
 ] as const;
 
-export function CaptionsSection({ settings, setSettings, lyrics, songDuration, selectedCaptionId, onSelectCaption }: Props) {
+export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption }: Props) {
   const c = settings.captions;
   const splitStyle = c.captionSplitStyle ?? "short";
 
@@ -426,13 +428,25 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, s
           {/* Status row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { label: "Song Duration", value: songDuration != null ? fmtDuration(songDuration) : "—" },
+              {
+                label: "Song Duration",
+                value: songDuration != null
+                  ? fmtDuration(songDuration)
+                  : audioSourceLoading
+                  ? "Detecting…"
+                  : "—",
+                color: songDuration != null ? "text-green-400"
+                  : audioSourceLoading ? "text-yellow-400"
+                  : "text-white/35",
+              },
               { label: "Captions", value: String(c.lines.length) },
               { label: "Last Caption Ends", value: c.lines.length > 0 ? `${lastCaptionEnd.toFixed(1)}s` : "—" },
               {
                 label: "Sync Status",
-                value: syncLabel,
-                color: !songDuration || c.lines.length === 0 ? "text-white/35"
+                value: !songDuration && audioSourceLoading ? "Loading audio…"
+                  : syncLabel,
+                color: !songDuration || c.lines.length === 0
+                  ? audioSourceLoading ? "text-yellow-400" : "text-white/35"
                   : isSynced ? "text-green-400"
                   : "text-yellow-400",
               },
