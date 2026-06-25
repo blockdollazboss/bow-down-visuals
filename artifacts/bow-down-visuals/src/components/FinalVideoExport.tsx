@@ -39,6 +39,11 @@ interface FinalVideoExportProps {
   captions?: CaptionSettings | null;
   captionExportMode?: CaptionExportMode;
   branding?: BrandingSettings | null;
+  /** When set, export only this time slice (seconds). null = full video. */
+  exportRangeStart?: number | null;
+  exportRangeEnd?: number | null;
+  /** Human-readable label like "00:00.000 → 00:10.000" for the UI. */
+  exportRangeLabel?: string;
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
@@ -92,6 +97,9 @@ export function FinalVideoExport({
   captions,
   captionExportMode = "burn",
   branding,
+  exportRangeStart = null,
+  exportRangeEnd = null,
+  exportRangeLabel,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
@@ -119,6 +127,9 @@ export function FinalVideoExport({
   const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
     : aspectRatio === "16:9" ? "1920×1080 · YouTube"
     : "1080×1080 · Square";
+
+  const isRangeExport = typeof exportRangeStart === "number" && typeof exportRangeEnd === "number"
+    && exportRangeEnd > exportRangeStart;
 
   async function handleExport() {
     if (!projectId) {
@@ -174,6 +185,8 @@ export function FinalVideoExport({
           captions: captionExportMode === "burn" && captions && captions.mode !== "none" ? captions : null,
           captionExportMode,
           branding: branding ?? null,
+          exportRangeStart: typeof exportRangeStart === "number" ? exportRangeStart : null,
+          exportRangeEnd:   typeof exportRangeEnd   === "number" ? exportRangeEnd   : null,
         }),
         signal: AbortSignal.timeout(10 * 60 * 1000),
       });
@@ -408,12 +421,23 @@ export function FinalVideoExport({
               </div>
             )}
 
+            {isRangeExport && (
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-primary/20 bg-primary/5">
+                <Minus className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-primary">Range export selected</p>
+                  <p className="text-[10px] text-white/40 mt-0.5">{exportRangeLabel ?? `${exportRangeStart?.toFixed(2)}s → ${exportRangeEnd?.toFixed(2)}s`}</p>
+                </div>
+              </div>
+            )}
+
             {!confirmed && !hasDuplicateUrls && selectedScenes.length > 0 && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.08]">
                 <AlertTriangle className="h-4 w-4 text-white/30 shrink-0 mt-0.5" />
                 <p className="text-xs text-white/40 leading-relaxed">
                   Clips download fresh, normalize to {aspectLabel}, and stitch in timeline order.
                   {hasAudio ? " Audio is mixed underneath." : " No audio in this export."}
+                  {isRangeExport ? " Only the selected time range will be in the output." : ""}
                   {" "}Keep the page open.
                 </p>
               </div>
@@ -438,8 +462,9 @@ export function FinalVideoExport({
                 data-testid="btn-confirm-export"
               >
                 <Film className="h-4 w-4" />
-                Export Final Video — {selectedScenes.length} clip{selectedScenes.length !== 1 ? "s" : ""}
-                {hasAudio ? " + audio" : ", no audio"} · {aspectRatio}
+                {isRangeExport
+                  ? `Export Selected Range — ${exportRangeLabel ?? "custom range"}`
+                  : `Export Full Video — ${selectedScenes.length} clip${selectedScenes.length !== 1 ? "s" : ""}${hasAudio ? " + audio" : ", no audio"} · ${aspectRatio}`}
               </Button>
             ) : (
               <Button

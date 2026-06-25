@@ -436,6 +436,14 @@ export interface AudioSettings {
 /** How captions appear in the final exported video file. */
 export type CaptionExportMode = "off" | "overlay" | "burn";
 
+export type ExportRangeMode = "full" | "first-10" | "first-15" | "first-30" | "custom";
+
+export interface ExportRangeSettings {
+  mode: ExportRangeMode;
+  customStartSec: number;
+  customEndSec: number;
+}
+
 export interface ExportSettings {
   format: VideoFormat;
   resolution: ExportResolution;
@@ -444,6 +452,7 @@ export interface ExportSettings {
   customWatermarkUrl?: string | null;
   /** Controls how captions are included in the final exported video. */
   captionExportMode: CaptionExportMode;
+  exportRange: ExportRangeSettings;
 }
 
 export interface AutoEditOptions {
@@ -826,7 +835,7 @@ export function defaultEditorSettings(): EditorSettings {
     effects: [],
     overlays: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
-    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode },
+    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 } },
     musicStudio: defaultMusicStudioSettings(),
     aiEdit: defaultAiEditSettings(),
     branding: {

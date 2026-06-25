@@ -893,6 +893,8 @@ export default function VideoEditor() {
                 masterAudioUrl={previewAudioUrl}
                 onGoToMusicStudio={() => setTab("music")}
                 onGoToEffects={() => setTab("effects")}
+                masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
+                projectDurationSec={previewEngineState?.audioDuration ?? 0}
               />
             )}
 

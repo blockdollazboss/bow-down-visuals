@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame } from "lucide-react";
+import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -10,6 +10,7 @@ import {
   type VideoAudioSource,
   type AudioExportRecord,
   type CaptionExportMode,
+  type ExportRangeMode,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,113 @@ interface ExportSectionProps {
   onGoToMusicStudio?: () => void;
   /** Jump to the Effects tab to open Auto AI Edit. */
   onGoToEffects?: () => void;
+  /** Master player current playhead time, for "Set From Playhead". */
+  masterCurrentTimeSec?: number;
+  /** Total project duration in seconds (from audio). */
+  projectDurationSec?: number;
+}
+
+/* ── Export range helpers ──────────────────────────────── */
+
+function fmtTimecode(sec: number): string {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const mm  = Math.floor(sec / 60);
+  const ss  = Math.floor(sec % 60);
+  const mmm = Math.round((sec % 1) * 1000);
+  return `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}.${String(mmm).padStart(3, "0")}`;
+}
+
+function parseSec(value: string): number {
+  const trimmed = value.trim();
+  // MM:SS.mmm or MM:SS or plain seconds
+  const colonMatch = trimmed.match(/^(\d+):(\d+)(?:\.(\d+))?$/);
+  if (colonMatch) {
+    const m = parseInt(colonMatch[1]!);
+    const s = parseInt(colonMatch[2]!);
+    const ms = colonMatch[3] ? parseInt(colonMatch[3]!.slice(0, 3).padEnd(3, "0")) : 0;
+    return m * 60 + s + ms / 1000;
+  }
+  const n = parseFloat(trimmed);
+  return isFinite(n) ? n : 0;
+}
+
+function resolveRange(
+  mode: ExportRangeMode,
+  customStart: number,
+  customEnd: number,
+  projectDur: number,
+): { startSec: number; endSec: number } {
+  switch (mode) {
+    case "full":     return { startSec: 0, endSec: projectDur };
+    case "first-10": return { startSec: 0, endSec: Math.min(10, projectDur || 10) };
+    case "first-15": return { startSec: 0, endSec: Math.min(15, projectDur || 15) };
+    case "first-30": return { startSec: 0, endSec: Math.min(30, projectDur || 30) };
+    case "custom":   return { startSec: customStart, endSec: customEnd };
+  }
+}
+
+/* ── Two-thumb range slider ────────────────────────────── */
+function RangeSlider({
+  min, max, start, end, onStartChange, onEndChange,
+}: {
+  min: number; max: number; start: number; end: number;
+  onStartChange: (v: number) => void; onEndChange: (v: number) => void;
+}) {
+  const trackRef  = useRef<HTMLDivElement>(null);
+  const dragging  = useRef<"start" | "end" | null>(null);
+  const range     = Math.max(max - min, 0.01);
+  const startPct  = Math.max(0, Math.min(100, ((start - min) / range) * 100));
+  const endPct    = Math.max(0, Math.min(100, ((end - min) / range) * 100));
+
+  function valFromX(clientX: number): number {
+    const rect = trackRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0) return min;
+    return min + Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * range;
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    const v  = valFromX(e.clientX);
+    const dS = Math.abs(v - start);
+    const dE = Math.abs(v - end);
+    dragging.current = dS <= dE ? "start" : "end";
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragging.current) return;
+    const v = valFromX(e.clientX);
+    if (dragging.current === "start") onStartChange(Math.max(min, Math.min(v, end - 0.5)));
+    else                              onEndChange(Math.max(start + 0.5, Math.min(v, max)));
+  }
+  function onPointerUp() { dragging.current = null; }
+
+  return (
+    <div
+      ref={trackRef}
+      role="presentation"
+      className="relative h-7 flex items-center select-none touch-none cursor-pointer"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerUp}
+    >
+      <div className="absolute inset-x-2 h-1.5 rounded-full bg-white/10" />
+      <div
+        className="absolute h-1.5 rounded-full bg-primary/70"
+        style={{ left: `calc(${startPct}% + 0.5rem / 2 * (1 - ${startPct}/50))`, width: `${endPct - startPct}%` }}
+      />
+      {/* start thumb */}
+      <div
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        style={{ left: `${startPct}%` }}
+      />
+      {/* end thumb */}
+      <div
+        className="absolute w-4 h-4 rounded-full bg-primary border-2 border-white/70 shadow-lg -translate-x-1/2 hover:scale-110 transition-transform"
+        style={{ left: `${endPct}%` }}
+      />
+    </div>
+  );
 }
 
 /* ── Audio source option definitions ───────────────────── */
@@ -114,6 +222,7 @@ function isSourceAvailable(
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
+  masterCurrentTimeSec = 0, projectDurationSec = 0,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -133,6 +242,9 @@ export function ExportSection({
   }
   function setExport(patch: Partial<typeof settings.export>) {
     setSettings({ ...settings, export: { ...settings.export, ...patch } });
+  }
+  function setExportRange(patch: Partial<typeof settings.export.exportRange>) {
+    setExport({ exportRange: { ...settings.export.exportRange, ...patch } });
   }
 
   async function handleWatermarkFile(file: File) {
@@ -208,6 +320,33 @@ export function ExportSection({
 
   const audioSourceLabel = selectedOption?.label ?? "";
   const aspectRatio = settings.export.format;
+
+  /* ── Export range ── */
+  const exportRange = settings.export.exportRange ?? { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 };
+  const rangeMode = exportRange.mode;
+
+  // Local input state for custom start/end (string so user can type freely)
+  const [customStartInput, setCustomStartInput] = useState(() => fmtTimecode(exportRange.customStartSec));
+  const [customEndInput,   setCustomEndInput  ] = useState(() => fmtTimecode(exportRange.customEndSec));
+
+  const projectDur = projectDurationSec > 0 ? projectDurationSec : 60;
+  const resolved   = resolveRange(rangeMode, exportRange.customStartSec, exportRange.customEndSec, projectDur);
+
+  // Validation
+  const startValid = resolved.startSec >= 0;
+  const endValid   = resolved.endSec > resolved.startSec && resolved.endSec <= projectDur + 0.5;
+  const rangeValid = startValid && endValid;
+
+  const exportDuration = Math.max(0, resolved.endSec - resolved.startSec);
+  const isFullExport   = rangeMode === "full";
+
+  const RANGE_MODE_OPTIONS: { value: ExportRangeMode; label: string }[] = [
+    { value: "full",     label: "Full Video"    },
+    { value: "first-10", label: "First 10 s"   },
+    { value: "first-15", label: "First 15 s"   },
+    { value: "first-30", label: "First 30 s"   },
+    { value: "custom",   label: "Custom Range"  },
+  ];
 
   return (
     <div className="space-y-5">
@@ -515,6 +654,175 @@ export function ExportSection({
         </div>
       </EditorCard>
 
+      {/* ── Export Range ── */}
+      <EditorCard
+        title="Export Range"
+        subtitle="Choose which part of the video to export"
+        icon={<Scissors className="h-4 w-4" />}
+      >
+        <div className="space-y-4">
+          {/* Mode selector */}
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {RANGE_MODE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setExportRange({ mode: opt.value })}
+                className={`px-3 py-2 rounded-lg border text-xs font-bold transition-colors ${
+                  rangeMode === opt.value
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom start / end inputs */}
+          {rangeMode === "custom" && (
+            <div className="space-y-3">
+              {/* Start time */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">Start time</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customStartInput}
+                    onChange={(e) => setCustomStartInput(e.target.value)}
+                    onBlur={() => {
+                      const v = Math.max(0, parseSec(customStartInput));
+                      setExportRange({ customStartSec: v });
+                      setCustomStartInput(fmtTimecode(v));
+                    }}
+                    placeholder="00:00.000"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                  />
+                  <button
+                    type="button"
+                    title="Set start from playhead"
+                    onClick={() => {
+                      const v = Math.max(0, masterCurrentTimeSec);
+                      setExportRange({ customStartSec: v });
+                      setCustomStartInput(fmtTimecode(v));
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold transition-colors shrink-0"
+                  >
+                    <Crosshair className="h-3 w-3" /> Set From Playhead
+                  </button>
+                </div>
+              </div>
+
+              {/* End time */}
+              <div className="space-y-1">
+                <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">End time</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customEndInput}
+                    onChange={(e) => setCustomEndInput(e.target.value)}
+                    onBlur={() => {
+                      const v = Math.max(0, parseSec(customEndInput));
+                      setExportRange({ customEndSec: v });
+                      setCustomEndInput(fmtTimecode(v));
+                    }}
+                    placeholder="00:10.000"
+                    className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+                  />
+                  <button
+                    type="button"
+                    title="Set end from playhead"
+                    onClick={() => {
+                      const v = Math.max(0, masterCurrentTimeSec);
+                      setExportRange({ customEndSec: v });
+                      setCustomEndInput(fmtTimecode(v));
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold transition-colors shrink-0"
+                  >
+                    <Crosshair className="h-3 w-3" /> Set From Playhead
+                  </button>
+                </div>
+              </div>
+
+              {/* Validation errors */}
+              {!startValid && (
+                <p className="text-[11px] text-red-400">Start time cannot be below zero.</p>
+              )}
+              {resolved.endSec <= resolved.startSec && startValid && (
+                <p className="text-[11px] text-red-400">End time must be after start time.</p>
+              )}
+              {resolved.endSec > projectDur + 0.5 && (
+                <p className="text-[11px] text-amber-400">End time exceeds project duration ({fmtTimecode(projectDur)}). It will be clamped.</p>
+              )}
+            </div>
+          )}
+
+          {/* Range slider (shows when not full) */}
+          {rangeMode !== "full" && projectDur > 0 && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] font-mono text-white/25">
+                <span>{fmtTimecode(0)}</span>
+                <span>{fmtTimecode(projectDur)}</span>
+              </div>
+              <RangeSlider
+                min={0}
+                max={projectDur}
+                start={resolved.startSec}
+                end={Math.min(resolved.endSec, projectDur)}
+                onStartChange={(v) => {
+                  setExportRange({ mode: "custom", customStartSec: Math.round(v * 1000) / 1000 });
+                  setCustomStartInput(fmtTimecode(v));
+                }}
+                onEndChange={(v) => {
+                  setExportRange({ mode: "custom", customEndSec: Math.round(v * 1000) / 1000 });
+                  setCustomEndInput(fmtTimecode(v));
+                }}
+              />
+            </div>
+          )}
+
+          {/* Time info */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            {[
+              ["Project duration", fmtTimecode(projectDur)],
+              ["Export duration",  fmtTimecode(exportDuration)],
+              ["Selected start",   fmtTimecode(resolved.startSec)],
+              ["Selected end",     fmtTimecode(Math.min(resolved.endSec, projectDur))],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+                <p className="text-[10px] text-white/30">{label}</p>
+                <p className="text-xs font-mono font-bold text-white/70 mt-0.5">{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Range status debug */}
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+            <div className="px-3 py-1.5 border-b border-white/[0.06] bg-white/[0.03]">
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Export Range Status</p>
+            </div>
+            <div className="divide-y divide-white/[0.04]">
+              {([
+                ["export range mode",         null,          rangeMode],
+                ["start time",               startValid,     fmtTimecode(resolved.startSec)],
+                ["end time",                 endValid,       fmtTimecode(resolved.endSec)],
+                ["selected duration",         exportDuration > 0, `${exportDuration.toFixed(2)}s`],
+                ["range sent to renderer",   !isFullExport && rangeValid, !isFullExport && rangeValid ? "yes ✓" : isFullExport ? "n/a (full)" : "no (invalid range)"],
+                ["renderer used selected range", !isFullExport && rangeValid, !isFullExport && rangeValid ? "yes ✓" : isFullExport ? "n/a (full)" : "pending"],
+                ["validation",               rangeValid,     rangeValid ? "passed ✓" : "failed ✗"],
+              ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
+                <div key={label} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                  <span className="text-[10px] text-white/40">{label}</span>
+                  <span className={`text-[10px] font-mono font-bold ${
+                    ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/50"
+                  }`}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </EditorCard>
+
       {/* ── Final Video Export ── */}
       <FinalVideoExport
         scenes={scenes}
@@ -532,6 +840,9 @@ export function ExportSection({
         captions={settings.captions}
         captionExportMode={(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}
         branding={settings.branding}
+        exportRangeStart={isFullExport ? null : rangeValid ? resolved.startSec : null}
+        exportRangeEnd={isFullExport ? null : rangeValid ? resolved.endSec : null}
+        exportRangeLabel={isFullExport ? undefined : `${fmtTimecode(resolved.startSec)} → ${fmtTimecode(Math.min(resolved.endSec, projectDur))}`}
       />
     </div>
   );

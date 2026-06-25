@@ -528,6 +528,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     audioSource = "uploaded",
     captions,
     branding,
+    exportRangeStart,
+    exportRangeEnd,
   } = req.body as {
     projectId: string;
     clipUrls: string[];
@@ -548,6 +550,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       watermark?:   WmConfig     & { enabled?: boolean };
       titleOverlay?: TitleConfig;
     } | null;
+    exportRangeStart?: number | null;
+    exportRangeEnd?: number | null;
   };
 
   if (!projectId?.trim()) {
@@ -634,6 +638,21 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const outroDuration = outroEnabled ? (branding!.outroCard!.duration ?? 3) : 0;
     const totalVideoDuration = totalClipsDuration + introDuration + outroDuration;
 
+    /* ── Resolve export range ── */
+    const useRange = (
+      typeof exportRangeStart === "number" &&
+      typeof exportRangeEnd   === "number" &&
+      exportRangeEnd > exportRangeStart &&
+      exportRangeStart >= 0
+    );
+    const effectiveStart    = useRange ? Math.max(0, exportRangeStart!)         : 0;
+    const effectiveEnd      = useRange ? Math.min(exportRangeEnd!, totalVideoDuration) : totalVideoDuration;
+    const effectiveDuration = Math.max(0.5, effectiveEnd - effectiveStart);
+
+    if (useRange) {
+      req.log.info({ exportRangeStart, exportRangeEnd, effectiveStart, effectiveEnd, effectiveDuration: effectiveDuration.toFixed(3) }, "[export] range export active");
+    }
+
     if (IS_DEV) {
       req.log.info({
         clips: clipInfos.map((c, i) => ({
@@ -712,8 +731,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       (captions.lines.length > 0 || captions.showArtistName || captions.showSongTitle);
 
     if (captionsActive) {
-      // Caption times are relative to clips; if an intro card precedes them, shift by its duration
-      const captionTimeOffset = introDuration;
+      // Caption times are relative to clips; if an intro card precedes them, shift by its duration.
+      // When a range export is active, also shift back by effectiveStart so captions align with
+      // the trimmed output (a caption at full-video t=X appears at trimmed t=(X - effectiveStart)).
+      const captionTimeOffset = introDuration - effectiveStart;
       const assContent = buildAssContent(captions!, TARGET_W, TARGET_H, totalClipsDuration, captionTimeOffset);
       if (assContent.trim()) {
         captionsAssPath = path.join(tmpDir, `bdv-captions-${exportId}.ass`);
@@ -907,12 +928,17 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         ffmpegArgs.push("-af", audioFilterParts.join(","));
       }
       ffmpegArgs.push("-c:a", "aac", "-b:a", "192k");
-      /* Cap output at video duration — avoids long silent tail when audio loops
-         or is longer than video. Also ensures video isn't cut short by -shortest. */
-      ffmpegArgs.push("-t", totalVideoDuration.toFixed(3));
     } else {
       ffmpegArgs.push("-an");
     }
+
+    /* Cap output duration. When a range export is active, seek to effectiveStart
+       and then record for effectiveDuration; otherwise cap at totalVideoDuration
+       (avoids a long silent tail when audio loops or is longer than video). */
+    if (useRange && effectiveStart > 0) {
+      ffmpegArgs.push("-ss", effectiveStart.toFixed(3));
+    }
+    ffmpegArgs.push("-t", effectiveDuration.toFixed(3));
 
     ffmpegArgs.push("-movflags", "+faststart", "-y", outputPath);
 
