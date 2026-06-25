@@ -176,9 +176,6 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
         </Link>
 
-        {/* Theme song mini-player */}
-        <NavThemePlayer />
-
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
           {NAV_LINKS.map((l) => (
@@ -194,6 +191,9 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
+          {/* Theme song mini-player */}
+          <NavThemePlayer />
+
           <Button variant="ghost" size="sm" className="text-white/60 hover:text-white" onClick={onWaitlist}>
             Join Waitlist
           </Button>

@@ -54,9 +54,6 @@ export function TopBar() {
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-16 w-auto" />
         </Link>
 
-        {/* Theme song mini-player */}
-        <NavThemePlayer />
-
         {/* Desktop nav */}
         <nav className="hidden lg:flex items-center gap-0.5">
           {NAV_LINKS.map((link) => (
@@ -76,6 +73,9 @@ export function TopBar() {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+
+          {/* Theme song mini-player */}
+          <NavThemePlayer />
 
           {/* Dev credits button */}
           {IS_DEV && user && (

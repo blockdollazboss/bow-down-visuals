@@ -42,10 +42,18 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       .then((r) => {
         if (r.ok) {
           setStatus("ready");
-          /* Try autoplay muted first (browsers allow this) */
+          /* 1) Try unmuted autoplay — works if user has interacted before */
+          audio.muted  = false;
+          audio.volume = 0.65;
           audio.play()
-            .then(() => { setPlaying(true); setMuted(true); })
-            .catch(() => { /* fully blocked — user must click play */ });
+            .then(() => { setPlaying(true); setMuted(false); })
+            .catch(() => {
+              /* 2) Browser blocked unmuted — fall back to muted autoplay */
+              audio.muted = true;
+              audio.play()
+                .then(() => { setPlaying(true); setMuted(true); })
+                .catch(() => { /* fully blocked — user must click play */ });
+            });
         } else {
           setStatus("missing");
         }
