@@ -348,6 +348,44 @@ export function FinalVideoExport({
               </div>
             </div>
 
+            {/* Caption export debug */}
+            {(() => {
+              const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal"];
+              const captionsFound = !!(captions && captions.lines && captions.lines.length > 0);
+              const captionCount = captions?.lines?.length ?? 0;
+              const styleFound = KNOWN_PRESETS.includes(captions?.stylePreset ?? "");
+              const burnSelected = captionExportMode === "burn";
+              const captionsSent = burnSelected && captionsFound && captions?.mode !== "none";
+              const firstLine = captions?.lines?.[0];
+              const lastLine = captions?.lines?.[captionCount - 1];
+              const rows: [string, boolean | null, string][] = [
+                ["Captions found", captionsFound, captionsFound ? "yes" : "no"],
+                ["Caption count", null, String(captionCount)],
+                ["Caption style found", styleFound, styleFound ? `yes (${captions?.stylePreset ?? "—"})` : `no (${captions?.stylePreset ?? "—"})`],
+                ["Burn captions selected", burnSelected, burnSelected ? "yes" : "no"],
+                ["Captions sent to render pipeline", captionsSent, captionsSent ? "yes" : "no"],
+                ["First caption start/end", null, firstLine ? `${firstLine.startSec.toFixed(2)}s – ${firstLine.endSec.toFixed(2)}s` : "—"],
+                ["Last caption start/end", null, lastLine ? `${lastLine.startSec.toFixed(2)}s – ${lastLine.endSec.toFixed(2)}s` : "—"],
+              ];
+              return (
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+                  <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.03]">
+                    <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Export Caption Debug</p>
+                  </div>
+                  <div className="divide-y divide-white/[0.04]">
+                    {rows.map(([label, ok, val]) => (
+                      <div key={label} className="flex items-center justify-between px-3 py-1.5 gap-2">
+                        <span className="text-[10px] text-white/40">{label}</span>
+                        <span className={`text-[10px] font-mono font-bold ${
+                          ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/50"
+                        }`}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Warnings */}
             {selectedScenes.length === 1 && (
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">

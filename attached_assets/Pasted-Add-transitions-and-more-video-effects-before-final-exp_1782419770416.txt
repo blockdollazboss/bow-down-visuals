@@ -1,0 +1,152 @@
+Add transitions and more video effects before final export.
+
+Problem:
+Before I export, I need real transitions and more video effects connected to the master player and final export.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not break captions.
+Do not break audio.
+Do not break the master player.
+Do not add duplicate players.
+
+Only add:
+
+* clip transitions
+* more video effects
+* preview in master player
+* export support for transitions/effects
+
+PART 1 — TRANSITIONS
+
+Add a Transitions section in the Effects tab.
+
+Transitions should apply between scene clips.
+
+Add transition options:
+
+* Cut
+* Fade
+* Crossfade
+* Dip to Black
+* Flash
+* Zoom In
+* Zoom Out
+* Swipe Left
+* Swipe Right
+* Glitch
+* Shake Cut
+* Speed Ramp Cut
+* Light Leak
+* Lens Flash
+
+Each transition should have:
+
+* transition type
+* duration
+* apply to selected cut
+* apply to all cuts
+
+Default:
+Cut
+
+Add controls:
+
+* Transition Duration: 0.2s / 0.5s / 1.0s
+* Apply To All Scene Changes
+* Preview Transition
+
+PART 2 — VIDEO EFFECTS
+
+Add more video effects in the Effects tab:
+
+Global effects:
+
+* Film Grain
+* Glow
+* Sharpen
+* Vignette
+* Black & White
+* Neon Glow
+* VHS
+* Cinematic Bars
+* Camera Shake
+* Slow Zoom
+* Speed Ramp
+* Motion Blur
+* Chromatic Aberration
+* Light Leak
+* Lens Flare
+* Smoke Overlay
+* Rain Overlay
+* Sparks Overlay
+* Audio Waveform Overlay
+
+Color grades:
+
+* Warm Grade
+* Cool Grade
+* Teal & Orange
+* Moody Desaturated
+* Vibrant Pop
+* Night Street
+* Gold Luxury
+* Drill Video Dark
+* Clean Music Video
+
+PART 3 — MASTER PLAYER PREVIEW
+
+All selected transitions and effects must show in the master player.
+
+When I select an effect:
+
+* master player updates immediately
+* no separate preview player is created
+
+When I select a transition:
+
+* master player can preview the cut between scenes
+
+PART 4 — SAVE SETTINGS
+
+Save effects and transitions to the project:
+
+* selected global effects
+* selected scene effects
+* selected transitions
+* transition duration
+* color grade
+* overlay settings
+
+When I reload the project, these settings should still be there.
+
+PART 5 — EXPORT SUPPORT
+
+Final export must include:
+
+* all clips
+* song audio
+* synced burned-in captions
+* caption style
+* selected transitions
+* selected video effects
+* selected color grade
+* 9:16 vertical format
+
+Add Export Effects Debug:
+
+* transitions found: yes/no
+* effects found: yes/no
+* color grade found: yes/no
+* effects sent to render pipeline: yes/no
+* transitions sent to render pipeline: yes/no
+
+If effects are only previewed but not exported, show:
+Effects preview only — export connection missing.
+
+Final goal:
+Before final export, I should be able to add transitions, video effects, color grades, preview everything in the master player, save it, and export the finished video with all effects included.

@@ -544,7 +544,6 @@ const CAPTION_EXPORT_OPTIONS: {
     label: "Burn Captions Into Video",
     description: "Captions are permanently rendered into every frame of the final video",
     icon: <Flame className="h-3.5 w-3.5" />,
-    comingSoon: true,
   },
 ];
 
@@ -600,13 +599,13 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
         </div>
 
         {mode === "burn" && (
-          <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-            <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2.5 p-3 rounded-xl border border-green-500/20 bg-green-500/5">
+            <AlertCircle className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-amber-300">Burned-in caption export coming soon</p>
-              <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed">
-                This setting is saved and will take effect when the feature is fully connected.
-                Your current export will include captions as overlay data sent to the rendering pipeline.
+              <p className="text-xs font-semibold text-green-300">Burned-in captions connected ✓</p>
+              <p className="text-xs text-green-200/60 mt-0.5 leading-relaxed">
+                Your synced caption lines, style, position, and size are sent to the FFmpeg render pipeline
+                and permanently burned into each video frame. See Export Caption Debug below for details.
               </p>
             </div>
           </div>

@@ -77,8 +77,10 @@ function resolveAssStyle(
   targetW: number,
   targetH: number,
 ): AssStyle {
-  const ALIGN: Record<string, number> = { Top: 8, Center: 5, Bottom: 2 };
+  const ALIGN: Record<string, number> = { Top: 8, Center: 5, Bottom: 2, "Lower Third": 2 };
   const alignment = ALIGN[position] ?? 2;
+  // "Lower Third" uses a larger bottom margin so it sits ~⅔ down the frame
+  const isLowerThird = position === "Lower Third";
 
   const SIZE: Record<string, number> = { Small: 48, Medium: 60, Large: 80, XL: 96 };
   const baseSize = SIZE[fontSize] ?? 60;
@@ -86,9 +88,12 @@ function resolveAssStyle(
   const scaleFactor = Math.min(targetW, targetH) / 1080;
   const fontsize = Math.max(24, Math.round(baseSize * scaleFactor));
 
-  const marginV = Math.round(Math.min(targetW, targetH) * 0.04);
+  const marginV = isLowerThird
+    ? Math.round(Math.min(targetW, targetH) * 0.14)
+    : Math.round(Math.min(targetW, targetH) * 0.04);
 
   const PRESETS: Record<string, Partial<AssStyle>> = {
+    /* ── Original presets ── */
     "clean-white": {
       fontname: "Arial",
       primaryColor: "&H00FFFFFF",
@@ -134,6 +139,52 @@ function resolveAssStyle(
       outline: 4,
       shadow: 0,
     },
+    /* ── New style presets (match frontend CAPTION_STYLE_PRESET_DEFS) ── */
+    "gold-hiphop": {
+      fontname: "Arial",
+      primaryColor: "&H0000D7FF", // gold #FFD700 → ASS BGR 00D7FF
+      outlineColor: "&H00000000",
+      backColor: "&H90000000",
+      bold: -1,
+      outline: 4,
+      shadow: 2,
+    },
+    karaoke: {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H0000D7FF", // gold outline
+      backColor: "&HAA000000",
+      bold: -1,
+      outline: 2,
+      shadow: 0,
+    },
+    boxed: {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H00000000",
+      backColor: "&HCC000000",
+      bold: 0,
+      outline: 0,
+      shadow: 0,
+    },
+    "viral-shorts": {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H00000000",
+      backColor: "&H80000000",
+      bold: -1,
+      outline: 5,
+      shadow: 0,
+    },
+    minimal: {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H00000000",
+      backColor: "&H80000000",
+      bold: 0,
+      outline: 0,
+      shadow: 1,
+    },
   };
 
   const base = PRESETS[preset] ?? PRESETS["clean-white"]!;
@@ -142,6 +193,9 @@ function resolveAssStyle(
     textColor && textColor !== "#ffffff" && textColor !== "#FFFFFF"
       ? hexToAssColor(textColor)
       : (base.primaryColor ?? "&H00FFFFFF");
+
+  // "boxed" and "karaoke" always use box border style; respect backgroundOn for others
+  const forceBorderStyle3 = preset === "boxed" || preset === "karaoke";
 
   return {
     fontname: base.fontname ?? "Arial",
@@ -152,7 +206,7 @@ function resolveAssStyle(
     bold: base.bold ?? -1,
     outline: outlineOn ? (base.outline ?? 3) : 0,
     shadow: base.shadow ?? 2,
-    borderStyle: backgroundOn ? 3 : 1,
+    borderStyle: (backgroundOn || forceBorderStyle3) ? 3 : 1,
     alignment,
     marginV,
   };
