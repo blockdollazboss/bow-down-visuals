@@ -116,6 +116,8 @@ export function FinalVideoExport({
     existingExport?.final_video_url ?? null,
   );
   const [errorMsg, setErrorMsg]         = useState<string | null>(null);
+  const [errorStderr, setErrorStderr]   = useState<string[] | null>(null);
+  const [errorExitCode, setErrorExitCode] = useState<number | null>(null);
   const [confirmed, setConfirmed]       = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -192,8 +194,23 @@ export function FinalVideoExport({
       });
 
       if (!res.ok) {
-        const body = (await res.json()) as { error?: string };
-        throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
+        const body = (await res.json()) as {
+          error?: string;
+          exportStatus?: Record<string, unknown>;
+          ffmpegStderr?: string;
+          stderrTail?: string[];
+          ffmpegExitCode?: number;
+        };
+        const err = Object.assign(
+          new Error(body.error ?? `Export failed (HTTP ${res.status})`),
+          {
+            exportStatus:   body.exportStatus,
+            ffmpegStderr:   body.ffmpegStderr,
+            stderrTail:     body.stderrTail,
+            ffmpegExitCode: body.ffmpegExitCode,
+          },
+        );
+        throw err;
       }
 
       const data = (await res.json()) as {
@@ -203,6 +220,7 @@ export function FinalVideoExport({
         audioSource?: string;
         duration?: number;
         testMode?: boolean;
+        exportStatus?: Record<string, unknown>;
         debug?: { identicalClipsDetected?: boolean };
       };
 
@@ -243,8 +261,10 @@ export function FinalVideoExport({
       }
       setStatus("failed");
       setErrorMsg(msg);
+      setErrorStderr((err as { stderrTail?: string[] }).stderrTail ?? null);
+      setErrorExitCode((err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null);
       setProgressStep("");
-      toast({ title: "Export failed", description: msg, variant: "destructive" });
+      toast({ title: "Export failed", description: msg.slice(0, 120), variant: "destructive" });
     }
   }
 
@@ -310,10 +330,22 @@ export function FinalVideoExport({
         {status === "failed" && (
           <div className="flex items-start gap-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <XCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-red-300">Export Failed</p>
+            <div className="min-w-0 w-full">
+              <p className="text-sm font-semibold text-red-300">
+                Export Failed{errorExitCode !== null ? ` (exit ${errorExitCode})` : ""}
+              </p>
               {errorMsg && (
                 <p className="text-xs text-red-400/80 mt-1 leading-relaxed break-words">{errorMsg}</p>
+              )}
+              {errorStderr && errorStderr.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[10px] text-red-400/60 cursor-pointer hover:text-red-400/80 select-none">
+                    FFmpeg error details ({errorStderr.length} lines)
+                  </summary>
+                  <pre className="mt-1 text-[9px] text-red-300/70 bg-black/40 rounded p-2 overflow-x-auto overflow-y-auto max-h-40 whitespace-pre-wrap break-all leading-relaxed">
+                    {errorStderr.join("\n")}
+                  </pre>
+                </details>
               )}
             </div>
           </div>

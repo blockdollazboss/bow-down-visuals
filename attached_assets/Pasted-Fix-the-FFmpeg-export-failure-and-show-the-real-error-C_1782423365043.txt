@@ -1,0 +1,94 @@
+Fix the FFmpeg export failure and show the real error.
+
+Current problem:
+Final Video Export fails while combining 5 clips. The interface only displays “Command failed” and the long FFmpeg command. It does not show FFmpeg’s actual stderr explaining the failure.
+
+Do not change:
+
+* Auto AI edits/effects
+* synced captions or styles
+* master player
+* Auto PiP
+* Runway generation
+* Stripe or payments
+
+Required fix:
+
+1. Capture and display the useful FFmpeg stderr:
+
+* actual error message
+* failed processing stage
+* failed clip filename
+* last 20 stderr lines
+* FFmpeg exit code
+
+Do not display only the command.
+
+2. Before export, use ffprobe to validate every selected clip:
+
+* file exists
+* file size is greater than zero
+* valid video stream exists
+* codec
+* width/height
+* frame rate
+* duration
+* audio stream present: yes/no
+
+3. If one clip is invalid, stop before rendering and show:
+   “Scene [number] has an invalid video file and must be regenerated.”
+
+4. Normalize every valid clip before joining:
+
+* 1080×1920
+* 30 FPS constant frame rate
+* H.264 video
+* yuv420p pixel format
+* consistent time base
+* square pixels
+* AAC audio when needed
+
+Use scale and pad/crop safely without stretching.
+
+5. Concatenate the normalized clips—not incompatible original files.
+
+6. Use safe FFmpeg argument arrays through spawn/execFile. Do not build one fragile shell command string.
+
+7. Apply the selected export range correctly:
+
+* process only scenes that overlap the selected range
+* trim the finished timeline to the exact start/end time
+* do not process all five clips unnecessarily for a 10–15 second test
+
+8. Preserve:
+
+* uploaded song
+* synced captions and caption styles
+* Auto AI effects
+* transitions
+* scene edits
+* branding
+
+9. Verify the finished file with ffprobe before reporting success:
+
+* file exists
+* playable video stream
+* correct duration
+* audio stream included
+* nonzero file size
+
+10. Failed development/test exports must not consume export credits.
+
+Add status:
+
+* Input clips validated
+* Invalid clips
+* Clips normalized
+* Selected range received
+* FFmpeg stage
+* FFmpeg exit code
+* Actual stderr
+* Output verified
+
+Final goal:
+A 15-second selected-range export must successfully combine compatible normalized clips and include the same audio, captions, edits, and effects shown in the master player.

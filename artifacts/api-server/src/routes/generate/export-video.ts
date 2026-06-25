@@ -303,6 +303,31 @@ ${dialogueLines}
 }
 const IS_DEV = process.env["NODE_ENV"] !== "production";
 
+/* ── Export status tracking ─────────────────────────── */
+interface ExportStatusInfo {
+  clipsValidated:   number | null;
+  invalidClips:     string[];
+  clipsNormalized:  number | null;
+  rangeReceived:    string | null;
+  ffmpegStage:      string;
+  ffmpegExitCode:   number | null;
+  stderrTail:       string[];
+  outputVerified:   boolean;
+}
+
+function makeStatus(): ExportStatusInfo {
+  return {
+    clipsValidated:  null,
+    invalidClips:    [],
+    clipsNormalized: null,
+    rangeReceived:   null,
+    ffmpegStage:     "pending",
+    ffmpegExitCode:  null,
+    stderrTail:      [],
+    outputVerified:  false,
+  };
+}
+
 /* ── Branding / card helpers ─────────────────────────── */
 
 const SANS_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
@@ -430,7 +455,7 @@ const ASPECT_DIMS: Record<string, [number, number]> = {
   "16:9": [1920, 1080],
   "1:1":  [1080, 1080],
 };
-const TARGET_FPS = 24;
+const TARGET_FPS = 30;
 const FFMPEG_TIMEOUT_MS = 8 * 60 * 1000;
 const FADE_DURATION_S = 1.5;
 
@@ -445,14 +470,17 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
 
 interface VideoInfo {
   hasVideo: boolean;
+  hasAudio: boolean;
   duration: number;
   width: number;
   height: number;
   fps: number;
   codec: string;
+  fileSize: number;
 }
 
 async function probeVideo(filePath: string): Promise<VideoInfo> {
+  const fileSize = existsSync(filePath) ? statSync(filePath).size : 0;
   try {
     const { stdout } = await execFileAsync(
       "ffprobe",
@@ -471,8 +499,9 @@ async function probeVideo(filePath: string): Promise<VideoInfo> {
       format?: { duration?: string };
     };
     const vs = info.streams?.find((s) => s.codec_type === "video");
+    const as_ = info.streams?.find((s) => s.codec_type === "audio");
     const duration = parseFloat(info.format?.duration ?? vs?.duration ?? "0");
-    if (!vs) return { hasVideo: false, duration: 0, width: 0, height: 0, fps: 0, codec: "" };
+    if (!vs) return { hasVideo: false, hasAudio: !!as_, duration: 0, width: 0, height: 0, fps: 0, codec: "", fileSize };
     let fps = 0;
     if (vs.r_frame_rate) {
       const [num, den] = vs.r_frame_rate.split("/").map(Number);
@@ -480,14 +509,51 @@ async function probeVideo(filePath: string): Promise<VideoInfo> {
     }
     return {
       hasVideo: true,
+      hasAudio: !!as_,
       duration: isNaN(duration) ? 0 : duration,
       width: vs.width ?? 0,
       height: vs.height ?? 0,
       fps,
       codec: vs.codec_name ?? "",
+      fileSize,
     };
   } catch {
-    return { hasVideo: false, duration: 0, width: 0, height: 0, fps: 0, codec: "" };
+    return { hasVideo: false, hasAudio: false, duration: 0, width: 0, height: 0, fps: 0, codec: "", fileSize };
+  }
+}
+
+/** Normalize one clip to target resolution/fps/codec so all clips are concat-compatible. */
+async function normalizeClip(
+  inputPath: string,
+  outputPath: string,
+  targetW: number,
+  targetH: number,
+  targetFps: number,
+): Promise<string> {
+  const args = [
+    "-i", inputPath,
+    "-vf", [
+      `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease`,
+      `pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`,
+      "setsar=1",
+      `fps=fps=${targetFps}`,
+    ].join(","),
+    "-c:v", "libx264",
+    "-preset", "ultrafast",
+    "-crf", "20",
+    "-pix_fmt", "yuv420p",
+    "-video_track_timescale", "90000",
+    "-an",
+    "-movflags", "+faststart",
+    "-y", outputPath,
+  ];
+  try {
+    const { stderr } = await execFileAsync("ffmpeg", args, { timeout: 120_000 });
+    return stderr;
+  } catch (e: unknown) {
+    const stderr = (e as { stderr?: string }).stderr ?? "";
+    const msg    = e instanceof Error ? e.message : String(e);
+    throw new Error(`Clip normalization failed: ${msg.slice(0, 200)}\nStderr: ${stderr.slice(-400)}`);
   }
 }
 
@@ -579,6 +645,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   const exportId = randomUUID();
   const tmpDir = os.tmpdir();
   const tmpFiles: string[] = [];
+  const exportStatus = makeStatus();
 
   try {
     req.log.info({
@@ -592,9 +659,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       loopAudio,
       addWatermark,
       testMode: !!testMode,
+      exportRangeStart,
+      exportRangeEnd,
     }, "[export] starting");
 
-    /* ── 1: Download & verify every clip ── */
+    /* ── 1: Download every clip ── */
     const clipPaths: string[] = [];
     const clipInfos: VideoInfo[] = [];
 
@@ -613,22 +682,43 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         throw new Error(`Clip ${i + 1} could not be downloaded: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
       }
 
-      const fileSize = statSync(dest).size;
-      req.log.info({ i: i + 1, fileSize, path: dest }, "[export] clip downloaded");
+      req.log.info({ i: i + 1, fileSize: statSync(dest).size }, "[export] clip downloaded");
 
-      if (fileSize < 1024) {
-        throw new Error(`Clip ${i + 1} download too small (${fileSize} bytes) — URL may be expired or invalid`);
-      }
-
+      /* ── 1a: Full ffprobe validation ── */
       const info = await probeVideo(dest);
-      req.log.info({ i: i + 1, info }, "[export] clip probed");
+      req.log.info({
+        scene: i + 1,
+        hasVideo: info.hasVideo,
+        hasAudio: info.hasAudio,
+        codec: info.codec,
+        resolution: `${info.width}x${info.height}`,
+        fps: info.fps,
+        duration: info.duration.toFixed(2),
+        fileSize: info.fileSize,
+      }, "[export] clip validated");
 
-      if (!info.hasVideo) throw new Error(`Clip ${i + 1} has no video stream`);
-      if (info.duration <= 0) throw new Error(`Clip ${i + 1} has zero duration`);
+      if (info.fileSize < 1024) {
+        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (file too small: ${info.fileSize} bytes)`;
+        exportStatus.invalidClips.push(`Scene ${i + 1}: file too small`);
+        throw new Error(msg);
+      }
+      if (!info.hasVideo) {
+        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (no video stream found)`;
+        exportStatus.invalidClips.push(`Scene ${i + 1}: no video stream`);
+        throw new Error(msg);
+      }
+      if (info.duration <= 0) {
+        const msg = `Scene ${i + 1} has an invalid video file and must be regenerated. (zero duration)`;
+        exportStatus.invalidClips.push(`Scene ${i + 1}: zero duration`);
+        throw new Error(msg);
+      }
 
       clipPaths.push(dest);
       clipInfos.push(info);
     }
+
+    exportStatus.clipsValidated = clipInfos.length;
+    req.log.info({ clipsValidated: clipInfos.length }, "[export] all clips validated");
 
     /* ── Compute total video duration (clips + optional intro/outro cards) ── */
     const totalClipsDuration = clipInfos.reduce((sum, c) => sum + c.duration, 0);
@@ -638,6 +728,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const outroDuration = outroEnabled ? (branding!.outroCard!.duration ?? 3) : 0;
     const totalVideoDuration = totalClipsDuration + introDuration + outroDuration;
 
+    /* ── Compute clip timeline positions ── */
+    const clipTimelineStarts: number[] = [];
+    let clipCursor = introDuration;
+    for (const info of clipInfos) {
+      clipTimelineStarts.push(clipCursor);
+      clipCursor += info.duration;
+    }
+
     /* ── Resolve export range ── */
     const useRange = (
       typeof exportRangeStart === "number" &&
@@ -645,29 +743,65 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       exportRangeEnd > exportRangeStart &&
       exportRangeStart >= 0
     );
-    const effectiveStart    = useRange ? Math.max(0, exportRangeStart!)         : 0;
-    const effectiveEnd      = useRange ? Math.min(exportRangeEnd!, totalVideoDuration) : totalVideoDuration;
+    const effectiveStart    = useRange ? Math.max(0, exportRangeStart!)                  : 0;
+    const effectiveEnd      = useRange ? Math.min(exportRangeEnd!, totalVideoDuration)    : totalVideoDuration;
     const effectiveDuration = Math.max(0.5, effectiveEnd - effectiveStart);
 
+    exportStatus.rangeReceived = useRange
+      ? `${effectiveStart.toFixed(3)}s → ${effectiveEnd.toFixed(3)}s (${effectiveDuration.toFixed(3)}s)`
+      : "full";
+
     if (useRange) {
-      req.log.info({ exportRangeStart, exportRangeEnd, effectiveStart, effectiveEnd, effectiveDuration: effectiveDuration.toFixed(3) }, "[export] range export active");
+      req.log.info({ effectiveStart, effectiveEnd, effectiveDuration: effectiveDuration.toFixed(3) }, "[export] range export active");
     }
+
+    /* ── Determine which clips overlap the export range ── */
+    // Clips not in range are skipped (not downloaded for normalize) saving time on test exports.
+    const includeIntro = introEnabled && effectiveStart < introDuration;
+    const includeOutro = outroEnabled && effectiveEnd > (introDuration + totalClipsDuration);
+    const selectedClipOrigIndices: number[] = [];
+    for (let i = 0; i < clipInfos.length; i++) {
+      const cStart = clipTimelineStarts[i]!;
+      const cEnd   = cStart + clipInfos[i]!.duration;
+      if (!useRange || (cEnd > effectiveStart && cStart < effectiveEnd)) {
+        selectedClipOrigIndices.push(i);
+      }
+    }
+    req.log.info({
+      totalClips: clipInfos.length,
+      selectedClips: selectedClipOrigIndices.length,
+      includeIntro,
+      includeOutro,
+    }, "[export] clip range selection");
+
+    /* ── Compute output-relative range seek (after filtering) ── */
+    // The concat of [includeIntro?][selectedClips] has a different "t=0" than the full timeline.
+    let outputTimelineOffset = 0; // where in the full timeline our concat output begins
+    if (includeIntro) {
+      outputTimelineOffset = 0;
+    } else if (selectedClipOrigIndices.length > 0) {
+      outputTimelineOffset = clipTimelineStarts[selectedClipOrigIndices[0]!]!;
+    }
+    const rangeRelativeStart = useRange ? Math.max(0, effectiveStart - outputTimelineOffset) : 0;
 
     if (IS_DEV) {
       req.log.info({
         clips: clipInfos.map((c, i) => ({
-          index: i + 1,
-          url: clipUrls[i]!.slice(0, 80),
+          scene: i + 1,
+          inRange: selectedClipOrigIndices.includes(i),
           resolution: `${c.width}x${c.height}`,
           fps: c.fps,
           duration: `${c.duration.toFixed(2)}s`,
           codec: c.codec,
+          hasAudio: c.hasAudio,
+          fileSize: c.fileSize,
         })),
         totalDuration: `${totalVideoDuration.toFixed(2)}s`,
         targetResolution: `${TARGET_W}x${TARGET_H}@${TARGET_FPS}fps`,
-        selectedAudioSource: audioSource,
-        audioUrl: audioUrl ? audioUrl.slice(0, 80) : null,
-      }, "[export][debug] clips included");
+        audioSource,
+        rangeRelativeStart: rangeRelativeStart.toFixed(3),
+        outputTimelineOffset: outputTimelineOffset.toFixed(3),
+      }, "[export][debug] clip details");
     }
 
     /* ── 1b: Dedup check ── */
@@ -685,6 +819,29 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     } else {
       req.log.info({ fingerprints: clipFingerprints }, "[export] all clips are distinct");
     }
+
+    /* ── 1c: Normalize selected clips to target format ── */
+    // Pre-normalizing ensures all clips are concat-compatible: same resolution, fps, codec, pix_fmt.
+    // Only clips overlapping the export range are normalized (saves time on short test exports).
+    const normalizedPaths: string[] = []; // aligned 1:1 with selectedClipOrigIndices
+    for (let j = 0; j < selectedClipOrigIndices.length; j++) {
+      const origIdx  = selectedClipOrigIndices[j]!;
+      const srcPath  = clipPaths[origIdx]!;
+      const normPath = path.join(tmpDir, `bdv-norm-${exportId}-${origIdx}.mp4`);
+      tmpFiles.push(normPath);
+
+      exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
+      req.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
+
+      await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS);
+
+      if (!existsSync(normPath) || statSync(normPath).size < 1024) {
+        throw new Error(`Scene ${origIdx + 1} failed to normalize — output file missing or empty`);
+      }
+      normalizedPaths.push(normPath);
+    }
+    exportStatus.clipsNormalized = normalizedPaths.length;
+    req.log.info({ clipsNormalized: normalizedPaths.length }, "[export] all clips normalized");
 
     /* ── 2: Download audio ── */
     let audioPath: string | null = null;
@@ -731,10 +888,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       (captions.lines.length > 0 || captions.showArtistName || captions.showSongTitle);
 
     if (captionsActive) {
-      // Caption times are relative to clips; if an intro card precedes them, shift by its duration.
-      // When a range export is active, also shift back by effectiveStart so captions align with
-      // the trimmed output (a caption at full-video t=X appears at trimmed t=(X - effectiveStart)).
-      const captionTimeOffset = introDuration - effectiveStart;
+      // Caption times are relative to clips (after any intro card).
+      // For range exports we shift back by rangeRelativeStart so captions align with the trimmed output.
+      // rangeRelativeStart already accounts for skipped intro/clips, so this covers all cases.
+      const captionTimeOffset = (includeIntro ? introDuration : 0) - rangeRelativeStart;
       const assContent = buildAssContent(captions!, TARGET_W, TARGET_H, totalClipsDuration, captionTimeOffset);
       if (assContent.trim()) {
         captionsAssPath = path.join(tmpDir, `bdv-captions-${exportId}.ass`);
@@ -773,30 +930,25 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const activeWmPath = useBrandingWm ? brandingWmPath : (addWatermark ? watermarkPath : null);
 
     /* ── 3: Plan FFmpeg input indices ── */
+    // Clips fed to FFmpeg are the pre-normalized subset (only those overlapping the range).
     let nextIdx = 0;
-    const introInputIdx = introEnabled ? nextIdx++ : -1;
-    const clipBaseIdx = nextIdx;
-    nextIdx += clipPaths.length;
-    const outroInputIdx = outroEnabled ? nextIdx++ : -1;
+    const introInputIdx = includeIntro ? nextIdx++ : -1;
+    const clipBaseIdx   = nextIdx;
+    nextIdx += normalizedPaths.length;           // only selected/normalized clips
+    const outroInputIdx = includeOutro ? nextIdx++ : -1;
     const audioInputIdx = audioPath ? nextIdx++ : -1;
-    const wmInputIdx = activeWmPath ? nextIdx++ : -1;
+    const wmInputIdx    = activeWmPath ? nextIdx++ : -1;
 
     /* ── 3b: Build video filter_complex ── */
-    const scaleFilter = [
-      `scale=${TARGET_W}:${TARGET_H}:force_original_aspect_ratio=decrease`,
-      `pad=${TARGET_W}:${TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
-      `setsar=1`,
-      `fps=fps=${TARGET_FPS}`,
-    ].join(",");
-
+    // Clips are already normalized to target resolution/fps/codec — no scale filter needed.
     const filterParts: string[] = [];
 
-    // Scale each clip to target resolution
-    for (let i = 0; i < clipPaths.length; i++) {
-      filterParts.push(`[${clipBaseIdx + i}:v]${scaleFilter}[v${i}]`);
+    // Reset timestamps for each normalized clip
+    for (let i = 0; i < normalizedPaths.length; i++) {
+      filterParts.push(`[${clipBaseIdx + i}:v]setpts=PTS-STARTPTS[v${i}]`);
     }
 
-    // Intro card with optional drawtext
+    // Intro card with optional drawtext (lavfi color source, already at target res)
     if (introInputIdx >= 0) {
       const dt = buildCardDrawtext(branding!.introCard as IntroConfig, TARGET_W, TARGET_H);
       filterParts.push(`[${introInputIdx}:v]${dt}[intro_card]`);
@@ -808,10 +960,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       filterParts.push(`[${outroInputIdx}:v]${dt}[outro_card]`);
     }
 
-    // Build segment labels for concat
+    // Build segment labels for concat (only included clips)
     const segments: string[] = [];
     if (introInputIdx >= 0) segments.push("[intro_card]");
-    for (let i = 0; i < clipPaths.length; i++) segments.push(`[v${i}]`);
+    for (let i = 0; i < normalizedPaths.length; i++) segments.push(`[v${i}]`);
     if (outroInputIdx >= 0) segments.push("[outro_card]");
 
     // Concat all segments
@@ -821,7 +973,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     // Title overlay drawtext chain (artist name + song title in lower-left)
     const titleFilters = buildTitleFilters(
       branding?.titleOverlay as TitleConfig | undefined ?? null,
-      TARGET_W, TARGET_H, totalVideoDuration,
+      TARGET_W, TARGET_H, effectiveDuration,
     );
     for (let i = 0; i < titleFilters.length; i++) {
       const nextLabel = `vtitle${i}`;
@@ -844,7 +996,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       workLabel = "vwmed";
     }
 
-    // Rename workLabel → vout (identity copy pass if not already named vout)
+    // Rename workLabel → vout
     if (workLabel !== "vout") {
       filterParts.push(`[${workLabel}]copy[vout]`);
     }
@@ -868,43 +1020,44 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     if (audioPath) {
       if (loopAudio) {
         audioFilterParts.push(`aloop=loop=-1:size=2147483647`);
-        audioFilterParts.push(`atrim=duration=${totalVideoDuration.toFixed(3)}`);
+        audioFilterParts.push(`atrim=duration=${effectiveDuration.toFixed(3)}`);
         audioFilterParts.push(`asetpts=PTS-STARTPTS`);
       }
       if (fadeAudioIn) {
         audioFilterParts.push(`afade=t=in:st=0:d=${FADE_DURATION_S}`);
       }
-      if (fadeAudioOut && totalVideoDuration > FADE_DURATION_S * 2) {
-        const fadeOutStart = Math.max(0, totalVideoDuration - FADE_DURATION_S);
+      if (fadeAudioOut && effectiveDuration > FADE_DURATION_S * 2) {
+        const fadeOutStart = Math.max(0, effectiveDuration - FADE_DURATION_S);
         audioFilterParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${FADE_DURATION_S}`);
       }
     }
 
-    /* ── 5: Build FFmpeg args (new input ordering: intro? → clips → outro? → audio? → wm?) ── */
+    /* ── 5: Build FFmpeg args ── */
+    // Input ordering: intro? → normalizedClips → outro? → audio? → watermark?
     const outputPath = path.join(tmpDir, `bdv-export-${exportId}.mp4`);
     tmpFiles.push(outputPath);
 
     const ffmpegArgs: string[] = [];
 
-    // [introInputIdx] lavfi color source for intro card
+    // Intro lavfi color source (already at target size + fps)
     if (introInputIdx >= 0) {
       const bgColor = CARD_BG_HEX[branding!.introCard!.stylePreset] ?? "0x0a0a0a";
       ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${introDuration}:r=${TARGET_FPS}`);
     }
-    // [clipBaseIdx..] clip video inputs
-    for (const cp of clipPaths) {
-      ffmpegArgs.push("-i", cp);
+    // Normalized clip inputs
+    for (const np of normalizedPaths) {
+      ffmpegArgs.push("-i", np);
     }
-    // [outroInputIdx] lavfi color source for outro card
+    // Outro lavfi color source
     if (outroInputIdx >= 0) {
       const bgColor = CARD_BG_HEX[branding!.outroCard!.stylePreset] ?? "0x0a0a0a";
       ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${outroDuration}:r=${TARGET_FPS}`);
     }
-    // [audioInputIdx] audio
+    // Audio
     if (audioPath) {
       ffmpegArgs.push("-i", audioPath);
     }
-    // [wmInputIdx] watermark still image (looped)
+    // Watermark still image (looped)
     if (wmInputIdx >= 0 && activeWmPath) {
       ffmpegArgs.push("-loop", "1", "-i", activeWmPath);
     }
@@ -932,11 +1085,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       ffmpegArgs.push("-an");
     }
 
-    /* Cap output duration. When a range export is active, seek to effectiveStart
-       and then record for effectiveDuration; otherwise cap at totalVideoDuration
-       (avoids a long silent tail when audio loops or is longer than video). */
-    if (useRange && effectiveStart > 0) {
-      ffmpegArgs.push("-ss", effectiveStart.toFixed(3));
+    // Seek to range-relative start within the concat output, cap at effective duration.
+    if (rangeRelativeStart > 0) {
+      ffmpegArgs.push("-ss", rangeRelativeStart.toFixed(3));
     }
     ffmpegArgs.push("-t", effectiveDuration.toFixed(3));
 
@@ -946,30 +1097,56 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       req.log.info({
         filterComplex,
         audioFilter: audioFilterParts.join(",") || "(none)",
-        ffmpegCommand: `ffmpeg ${ffmpegArgs.join(" ")}`,
-        totalDuration: `${totalVideoDuration.toFixed(2)}s`,
+        ffmpegCommand: `ffmpeg ${ffmpegArgs.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`,
+        selectedClips: selectedClipOrigIndices.map(i => `scene-${i+1}`),
+        rangeRelativeStart: rangeRelativeStart.toFixed(3),
+        effectiveDuration: effectiveDuration.toFixed(3),
       }, "[export][debug] FFmpeg command");
     }
 
     /* ── 6: Run FFmpeg ── */
+    exportStatus.ffmpegStage = "combining";
+    let ffmpegStderr = "";
     try {
-      const { stderr } = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: FFMPEG_TIMEOUT_MS });
-      if (IS_DEV && stderr) req.log.info({ stderr: stderr.slice(-500) }, "[export] FFmpeg stderr (last 500)");
+      const result = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: FFMPEG_TIMEOUT_MS });
+      ffmpegStderr = result.stderr ?? "";
+      exportStatus.ffmpegExitCode = 0;
+      if (IS_DEV && ffmpegStderr) {
+        req.log.info({ stderrTail: ffmpegStderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
+      }
     } catch (ffErr: unknown) {
-      const stderr = (ffErr as { stderr?: string }).stderr ?? "";
-      if (IS_DEV) req.log.error({ stderr }, "[export] FFmpeg error output");
-      const msg = ffErr instanceof Error ? ffErr.message : String(ffErr);
-      throw new Error(`FFmpeg failed: ${msg.slice(0, 300)}`);
+      ffmpegStderr = (ffErr as { stderr?: string }).stderr ?? "";
+      const exitCode = (ffErr as { code?: number }).code ?? -1;
+      exportStatus.ffmpegExitCode = exitCode;
+      const stderrLines = ffmpegStderr.split("\n").filter(Boolean);
+      const stderrTail  = stderrLines.slice(-20);
+      exportStatus.stderrTail = stderrTail;
+
+      req.log.error({
+        exitCode,
+        stderrTail: stderrTail.join("\n"),
+        command: `ffmpeg ${ffmpegArgs.slice(0, 6).join(" ")} ...`,
+      }, "[export] FFmpeg failed");
+
+      // Find the most specific error line in stderr
+      const errorLine = stderrLines
+        .filter(l => l.includes("Error") || l.includes("error") || l.includes("Invalid") || l.includes("No such") || l.includes("failed"))
+        .pop() ?? stderrTail.at(-1) ?? "";
+
+      const baseMsg = ffErr instanceof Error ? ffErr.message : String(ffErr);
+      throw Object.assign(new Error(`FFmpeg failed (exit ${exitCode}): ${errorLine || baseMsg.slice(0, 200)}`), {
+        ffmpegExitCode: exitCode,
+        ffmpegStderr,
+        stderrTail,
+      });
     }
 
     /* ── 7: Verify output ── */
     if (!existsSync(outputPath)) throw new Error("FFmpeg produced no output file");
 
     const outSize = statSync(outputPath).size;
-    req.log.info({ outSize, outputPath }, "[export] output file written");
-
     if (IS_DEV) {
-      req.log.info({ finalVideoBytes: outSize, finalVideoMB: (outSize / 1024 / 1024).toFixed(2) }, "[export][debug] final video file size");
+      req.log.info({ finalVideoBytes: outSize, finalVideoMB: (outSize / 1024 / 1024).toFixed(2) }, "[export][debug] output size");
     }
 
     if (outSize < 1024) {
@@ -977,10 +1154,19 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
 
     const outInfo = await probeVideo(outputPath);
-    req.log.info({ outInfo }, "[export] output probed");
+    req.log.info({
+      hasVideo: outInfo.hasVideo,
+      hasAudio: outInfo.hasAudio,
+      codec: outInfo.codec,
+      resolution: `${outInfo.width}x${outInfo.height}`,
+      duration: outInfo.duration.toFixed(2),
+      fileSize: outInfo.fileSize,
+    }, "[export] output verified");
 
-    if (!outInfo.hasVideo) throw new Error("Output file has no video stream");
-    if (outInfo.duration <= 0) throw new Error("Output file has zero duration");
+    exportStatus.outputVerified = outInfo.hasVideo && outInfo.duration > 0;
+
+    if (!outInfo.hasVideo) throw new Error("Output file has no video stream — FFmpeg may have produced a corrupt file");
+    if (outInfo.duration <= 0) throw new Error("Output file has zero duration — FFmpeg may have produced a corrupt file");
 
     /* ── 8: Upload to GCS ── */
     const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
@@ -1066,25 +1252,29 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       req.log.info({ userId: req.userId, creditsAfter }, "[export] credits deducted");
     }
 
+    exportStatus.ffmpegStage = "completed";
+
     res.json({
       url: signedUrl,
       objectPath,
       exportId,
-      clipCount: clipPaths.length,
+      clipCount: selectedClipOrigIndices.length,
       audioIncluded: !!audioPath,
       audioSource,
       aspectRatio,
       duration: outInfo.duration,
       testMode: !!testMode,
+      exportStatus,
       debug: {
         identicalClipsDetected,
         fingerprints: clipFingerprints,
         ...(IS_DEV ? {
           clips: clipInfos,
-          output: outInfo,
-          outputBytes: outSize,
+          selectedClips: selectedClipOrigIndices.map(i => `scene-${i+1}`),
+          output: { ...outInfo, fileSize: outSize },
           targetResolution: `${TARGET_W}x${TARGET_H}@${TARGET_FPS}fps`,
-          totalVideoDuration,
+          effectiveDuration,
+          rangeRelativeStart,
           audioFilters: audioFilterParts.join(",") || null,
           watermark: addWatermark,
         } : {}),
@@ -1092,9 +1282,25 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Export failed";
-    req.log.error({ err: msg }, "[export] failed");
-    res.status(500).json({ error: msg });
+    const msg         = err instanceof Error ? err.message : "Export failed";
+    const exitCode    = (err as { ffmpegExitCode?: number }).ffmpegExitCode ?? null;
+    const stderrTail  = (err as { stderrTail?: string[] }).stderrTail ?? [];
+    const fullStderr  = (err as { ffmpegStderr?: string }).ffmpegStderr ?? "";
+
+    exportStatus.ffmpegStage    = "failed";
+    if (exitCode !== null) exportStatus.ffmpegExitCode = exitCode;
+    if (stderrTail.length)  exportStatus.stderrTail    = stderrTail;
+
+    req.log.error({ err: msg, exitCode, stderrLines: stderrTail.length }, "[export] failed");
+    res.status(500).json({
+      error: msg,
+      exportStatus,
+      ...(IS_DEV && fullStderr ? {
+        ffmpegStderr:  fullStderr.slice(-3000),
+        stderrTail,
+        ffmpegExitCode: exitCode,
+      } : {}),
+    });
   } finally {
     cleanup(...tmpFiles);
   }
