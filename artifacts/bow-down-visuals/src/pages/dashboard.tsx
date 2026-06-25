@@ -305,16 +305,7 @@ export default function Dashboard() {
           <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">Creator Studio</p>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-1">
             <span className="text-white/90">Welcome back, </span>
-            <span
-              style={{
-                backgroundImage: "linear-gradient(90deg, #d97706 0%, #f59e0b 30%, #fcd34d 60%, #f59e0b 100%)",
-                WebkitBackgroundClip: "text",
-                backgroundClip: "text",
-                color: "transparent",
-              }}
-            >
-              {name}
-            </span>
+            <span className="gold-text-shine">{name}</span>
           </h1>
           <p className="text-white/35 text-base font-medium">
             Create the Song. Create the Video. Promote the Release.
