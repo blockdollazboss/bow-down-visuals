@@ -100,9 +100,8 @@ export default function ChooseArtist() {
                   style={{
                     textAlign: "left",
                     borderRadius: 20,
-                    border: isSelected ? `1.5px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.07)",
-                    background: isSelected ? "#0a0800" : "rgba(255,255,255,0.02)",
-                    boxShadow: isSelected ? `0 0 50px ${G(0.15)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+                    border: isSelected ? `2px solid ${G(0.6)}` : "1px solid rgba(255,255,255,0.07)",
+                    boxShadow: isSelected ? `0 0 40px ${G(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
                     padding: 0,
                     cursor: "pointer",
                     position: "relative",
@@ -110,119 +109,74 @@ export default function ChooseArtist() {
                     transition: "all 0.2s ease",
                     display: "block",
                     width: "100%",
-                  }}
-                >
-                  {/* Gold left bar when selected */}
-                  {isSelected && (
-                    <div style={{
-                      position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
-                      background: `linear-gradient(to bottom, ${GOLD}, ${G(0)})`,
-                      zIndex: 2,
-                    }} />
-                  )}
-
-                  {/* Top image / avatar band */}
-                  <div style={{
-                    height: 140,
+                    height: 240,
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
                         ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
                         : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
-                    position: "relative",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
+                  }}
+                >
+                  {/* Initials avatar (no photo) */}
+                  {!vault.reference_image_url && (
                     <div style={{
                       position: "absolute", inset: 0,
-                      background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 100%)",
-                    }} />
-                    {isSelected && (
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
                       <div style={{
-                        position: "absolute", top: "10%", left: "20%",
-                        width: 140, height: 140, borderRadius: "50%",
-                        background: `radial-gradient(circle, ${G(0.1)} 0%, transparent 70%)`,
-                        pointerEvents: "none",
-                      }} />
-                    )}
-
-                    {!vault.reference_image_url && (
-                      <div style={{
-                        position: "relative",
-                        width: 64, height: 64, borderRadius: "50%",
+                        width: 72, height: 72, borderRadius: "50%",
                         background: isSelected ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
                         border: isSelected ? `2px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.1)",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: isSelected ? `0 0 24px ${G(0.35)}` : "none",
+                        boxShadow: isSelected ? `0 0 28px ${G(0.35)}` : "none",
                       }}>
-                        <span style={{
-                          fontFamily: "Georgia, serif",
-                          fontSize: 20, fontWeight: 900,
-                          color: isSelected ? GOLD : "rgba(255,255,255,0.35)",
-                          letterSpacing: "0.04em",
-                        }}>{initials}</span>
+                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? GOLD : "rgba(255,255,255,0.35)" }}>{initials}</span>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {/* Selected badge */}
-                    {isSelected && (
-                      <div style={{
-                        position: "absolute", top: 10, right: 10,
-                        display: "flex", alignItems: "center", gap: 4,
-                        background: G(0.15), border: `1px solid ${G(0.4)}`,
-                        borderRadius: 7, padding: "3px 8px",
-                        backdropFilter: "blur(8px)",
-                      }}>
-                        <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
-                        <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>SELECTED</span>
-                      </div>
-                    )}
+                  {/* SELECTED badge */}
+                  {isSelected && (
+                    <div style={{
+                      position: "absolute", top: 10, right: 10, zIndex: 3,
+                      display: "flex", alignItems: "center", gap: 4,
+                      background: "rgba(0,0,0,0.55)", border: `1px solid ${G(0.5)}`,
+                      borderRadius: 7, padding: "3px 8px",
+                      backdropFilter: "blur(8px)",
+                    }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
+                      <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>SELECTED</span>
+                    </div>
+                  )}
 
+                  {/* Bottom name strip — only covers bottom 20% */}
+                  <div style={{
+                    position: "absolute", left: 0, right: 0, bottom: 0,
+                    background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.82) 100%)",
+                    padding: "32px 14px 12px",
+                  }}>
+                    <p style={{
+                      fontFamily: "Georgia, serif",
+                      fontSize: 15, fontWeight: 900, color: "#fff",
+                      letterSpacing: "0.03em",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      textShadow: "0 1px 6px rgba(0,0,0,0.8)",
+                    }}>{vault.artist_name}</p>
+                    {vault.artist_type && (
+                      <p style={{ fontSize: 9.5, color: isSelected ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                        {vault.artist_type}
+                      </p>
+                    )}
                   </div>
 
-                  {/* Body */}
-                  <div style={{ padding: "10px 14px 14px" }}>
-                    {/* Name */}
-                    <div style={{ marginBottom: 8 }}>
-                      <p style={{
-                        fontFamily: isSelected ? "Georgia, serif" : "inherit",
-                        fontSize: isSelected ? 15 : 14,
-                        fontWeight: 900, color: "#fff",
-                        letterSpacing: isSelected ? "0.04em" : 0,
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>{vault.artist_name}</p>
-                      {vault.artist_type && (
-                        <p style={{ fontSize: 9.5, color: isSelected ? G(0.75) : "rgba(255,255,255,0.4)", marginTop: 2, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                          {vault.artist_type}
-                        </p>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
-                      {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
-                        <span key={String(trait)} style={{
-                          fontSize: 9.5, fontWeight: 700,
-                          color: i === 0 && isSelected ? GOLD : "rgba(255,255,255,0.4)",
-                          background: i === 0 && isSelected ? G(0.08) : "rgba(255,255,255,0.04)",
-                          border: `1px solid ${i === 0 && isSelected ? G(0.22) : "rgba(255,255,255,0.07)"}`,
-                          borderRadius: 5, padding: "2px 7px",
-                        }}>{trait}</span>
-                      ))}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
-                      {vault.genre && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
-                          <Music2 className="h-3 w-3" style={{ flexShrink: 0, opacity: 0.5 }} />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vault.genre}</span>
-                        </div>
-                      )}
-                      {vault.visual_style && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: "rgba(255,255,255,0.35)" }}>
-                          <Palette className="h-3 w-3" style={{ flexShrink: 0, opacity: 0.4 }} />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vault.visual_style}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Gold border glow on selected */}
+                  {isSelected && (
+                    <div style={{
+                      position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+                      background: `linear-gradient(to bottom, ${GOLD}, ${G(0.3)})`,
+                      zIndex: 2,
+                    }} />
+                  )}
                 </button>
               );
             })}

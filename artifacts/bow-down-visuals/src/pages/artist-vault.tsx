@@ -467,74 +467,46 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
   return (
     <div style={{
       borderRadius: 20,
-      border: isActive ? `1.5px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.07)",
-      background: isActive ? "#0a0800" : "rgba(255,255,255,0.02)",
-      boxShadow: isActive ? `0 0 50px ${G(0.12)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
-      position: "relative",
+      border: isActive ? `2px solid ${G(0.55)}` : "1px solid rgba(255,255,255,0.07)",
+      boxShadow: isActive ? `0 0 50px ${G(0.15)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
       overflow: "hidden",
       transition: "all 0.2s ease",
+      background: isActive ? "#0d0900" : "#0a0a0a",
     }}>
-      {/* Gold left accent bar — active only */}
-      {isActive && (
-        <div style={{
-          position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
-          background: `linear-gradient(to bottom, ${GOLD}, ${G(0)})`,
-        }} />
-      )}
-
-      {/* Top image band */}
+      {/* Full-photo top section */}
       <div style={{
-        height: 150,
+        height: 220,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) top center/cover no-repeat`
           : isActive
             ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
             : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
-        display: "flex", alignItems: "center", justifyContent: "center",
       }}>
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 100%)",
-        }} />
-
-        {/* Ambient glow for active */}
-        {isActive && (
-          <div style={{
-            position: "absolute", top: "10%", left: "20%",
-            width: 160, height: 160, borderRadius: "50%",
-            background: `radial-gradient(circle, ${G(0.1)} 0%, transparent 70%)`,
-            pointerEvents: "none",
-          }} />
-        )}
-
-        {/* Avatar */}
+        {/* Initials avatar (no photo) */}
         {!vault.reference_image_url && (
           <div style={{
-            position: "relative",
-            width: 68, height: 68, borderRadius: "50%",
-            background: isActive
-              ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})`
-              : "rgba(255,255,255,0.06)",
-            border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
+            position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: isActive ? `0 0 28px ${G(0.3)}` : "none",
           }}>
-            <span style={{
-              fontFamily: "Georgia, serif",
-              fontSize: 22, fontWeight: 900,
-              color: isActive ? GOLD : "rgba(255,255,255,0.4)",
-              letterSpacing: "0.04em",
-            }}>{initials}</span>
+            <div style={{
+              width: 72, height: 72, borderRadius: "50%",
+              background: isActive ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
+              border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: isActive ? `0 0 28px ${G(0.3)}` : "none",
+            }}>
+              <span style={{ fontFamily: "Georgia, serif", fontSize: 24, fontWeight: 900, color: isActive ? GOLD : "rgba(255,255,255,0.4)" }}>{initials}</span>
+            </div>
           </div>
         )}
 
         {/* ACTIVE badge */}
         {isActive && (
           <div style={{
-            position: "absolute", top: 10, right: 10,
+            position: "absolute", top: 10, right: 10, zIndex: 2,
             display: "flex", alignItems: "center", gap: 4,
-            background: G(0.15), border: `1px solid ${G(0.4)}`,
+            background: "rgba(0,0,0,0.55)", border: `1px solid ${G(0.5)}`,
             borderRadius: 7, padding: "3px 8px",
             backdropFilter: "blur(8px)",
           }}>
@@ -543,51 +515,39 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
           </div>
         )}
 
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: "10px 14px 14px" }}>
-        {/* Name */}
-        <div style={{ marginBottom: 8 }}>
+        {/* Name strip at very bottom of photo */}
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 100%)",
+          padding: "36px 14px 12px",
+        }}>
           <p style={{
-            fontFamily: isActive ? "Georgia, serif" : "inherit",
+            fontFamily: "Georgia, serif",
             fontSize: isActive ? 16 : 14,
             fontWeight: 900, color: "#fff",
             letterSpacing: isActive ? "0.04em" : "0",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            textShadow: "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
           {vault.artist_type && (
-            <p style={{ fontSize: 10, color: isActive ? G(0.7) : "rgba(255,255,255,0.4)", marginTop: 2, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            <p style={{ fontSize: 9.5, color: isActive ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               {vault.artist_type}
             </p>
           )}
         </div>
-        {/* Trait pills */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-          {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
-            <span key={String(trait)} style={{
-              fontSize: 9.5, fontWeight: 700,
-              color: i === 0 && isActive ? GOLD : "rgba(255,255,255,0.4)",
-              background: i === 0 && isActive ? G(0.08) : "rgba(255,255,255,0.04)",
-              border: `1px solid ${i === 0 && isActive ? G(0.22) : "rgba(255,255,255,0.07)"}`,
-              borderRadius: 5, padding: "2px 7px",
-            }}>{trait}</span>
-          ))}
-        </div>
 
-        {vault.personality && (
-          <p style={{
-            fontSize: 11, color: "rgba(255,255,255,0.35)",
-            lineHeight: 1.5,
-            overflow: "hidden",
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            marginBottom: 12,
-          }}>{vault.personality}</p>
+        {/* Gold left accent bar */}
+        {isActive && (
+          <div style={{
+            position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
+            background: `linear-gradient(to bottom, ${GOLD}, ${G(0.3)})`,
+          }} />
         )}
+      </div>
 
-        <div style={{ borderTop: isActive ? `1px solid ${G(0.12)}` : "1px solid rgba(255,255,255,0.05)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Action buttons */}
+      <div style={{ padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {/* Active / Set Active button */}
           <button onClick={onSetActive} style={{
             width: "100%",
