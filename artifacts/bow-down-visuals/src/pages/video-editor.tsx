@@ -854,7 +854,12 @@ export default function VideoEditor() {
             )}
 
             {tab === "effects" && (
-              <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
+              <EffectsSection
+                scenes={scenes}
+                settings={settings}
+                setSettings={setSettings}
+                audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+              />
             )}
 
             {tab === "branding" && (
@@ -876,6 +881,7 @@ export default function VideoEditor() {
                 rawProjectAudioUrl={audioUrl}
                 masterAudioUrl={previewAudioUrl}
                 onGoToMusicStudio={() => setTab("music")}
+                onGoToEffects={() => setTab("effects")}
               />
             )}
 

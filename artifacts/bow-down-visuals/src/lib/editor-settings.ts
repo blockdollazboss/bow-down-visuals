@@ -168,6 +168,76 @@ export const CAPTION_STYLE_PRESET_DEFS: {
   { id: "minimal",       name: "Minimal",        description: "Small clean white · soft shadow · bottom",           accent: "from-white/5 to-white/0 border-white/10" },
 ];
 
+/* ── AI Edit types ───────────────────────────────────── */
+
+export type AiEditStylePreset =
+  | "viral-tiktok"
+  | "luxury-hiphop"
+  | "dark-drill"
+  | "clean-music-video"
+  | "high-energy-promo"
+  | "cinematic-story"
+  | "street-performance"
+  | "gold-luxury-brand";
+
+export const AI_EDIT_STYLE_DEFS: {
+  id: AiEditStylePreset; name: string; description: string; accent: string;
+}[] = [
+  { id: "viral-tiktok",       name: "Viral TikTok / Reels",  description: "Fast cuts · trending effects · bold captions",     accent: "from-red-500/20 to-pink-500/10 border-red-500/30" },
+  { id: "luxury-hiphop",      name: "Luxury Hip-Hop",        description: "Smooth glides · warm gold grade · premium feel",   accent: "from-yellow-500/20 to-amber-600/10 border-yellow-500/30" },
+  { id: "dark-drill",         name: "Dark Drill Video",       description: "Hard cuts · cold grade · raw street energy",       accent: "from-slate-500/20 to-blue-900/20 border-slate-400/20" },
+  { id: "clean-music-video",  name: "Clean Music Video",      description: "Balanced pacing · neutral grade · professional",   accent: "from-white/10 to-white/5 border-white/20" },
+  { id: "high-energy-promo",  name: "High Energy Promo",      description: "Zoom punches · flash transitions · max hype",      accent: "from-fuchsia-500/20 to-red-500/10 border-fuchsia-500/30" },
+  { id: "cinematic-story",    name: "Cinematic Story",        description: "Long holds · cinematic bars · deep emotion",       accent: "from-zinc-500/20 to-slate-700/10 border-zinc-400/20" },
+  { id: "street-performance", name: "Street Performance",     description: "Handheld energy · gritty grade · raw documentary", accent: "from-orange-500/20 to-amber-800/10 border-orange-500/20" },
+  { id: "gold-luxury-brand",  name: "Gold Luxury Brand",      description: "Gold accents · slow-mo · premium brand identity",  accent: "from-yellow-400/20 to-amber-500/10 border-yellow-400/30" },
+];
+
+export interface AiSceneNote {
+  sceneIndex: number;
+  note: string;
+  transition: string;
+  effect: string;
+}
+
+export interface AiEditPlan {
+  style: AiEditStylePreset;
+  transitionPlan: Array<{ sceneIndex: number; transition: string; note: string }>;
+  effectsPlan: string[];
+  colorGrade: string;
+  captionStylePreset: CaptionStylePreset;
+  beatCutNotes: string;
+  introPlan: string;
+  outroPlan: string;
+  sceneEditNotes: AiSceneNote[];
+  exportSettings: {
+    captionStylePreset: CaptionStylePreset;
+    effects: string[];
+    colorGrade: string;
+  };
+  generatedAt: string;
+}
+
+export interface AiEditSettings {
+  enabled: boolean;
+  style: AiEditStylePreset;
+  plan: AiEditPlan | null;
+  applied: boolean;
+  preApplyEffects: string[] | null;
+  preApplyCaptionStylePreset: CaptionStylePreset | null;
+}
+
+export function defaultAiEditSettings(): AiEditSettings {
+  return {
+    enabled: false,
+    style: "luxury-hiphop",
+    plan: null,
+    applied: false,
+    preApplyEffects: null,
+    preApplyCaptionStylePreset: null,
+  };
+}
+
 /* ── Branding types ──────────────────────────────────── */
 
 export type IntroCardPreset =
@@ -698,6 +768,7 @@ export interface EditorSettings {
   export: ExportSettings;
   musicStudio: MusicStudioSettings;
   branding: BrandingSettings;
+  aiEdit: AiEditSettings;
   updatedAt: string;
 }
 
@@ -757,6 +828,7 @@ export function defaultEditorSettings(): EditorSettings {
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
     export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode },
     musicStudio: defaultMusicStudioSettings(),
+    aiEdit: defaultAiEditSettings(),
     branding: {
       introCard: {
         enabled: false,
@@ -1015,6 +1087,9 @@ export function normalizeEditorSettings(
     audio: { ...base.audio, ...(stored.audio ?? {}) },
     export: { ...base.export, ...(stored.export ?? {}) },
     musicStudio: normalizeMusicStudio(stored.musicStudio),
+    aiEdit: stored.aiEdit
+      ? { ...defaultAiEditSettings(), ...stored.aiEdit }
+      : defaultAiEditSettings(),
     branding: stored.branding
       ? {
           introCard:    { ...base.branding.introCard,    ...(stored.branding.introCard    ?? {}) },

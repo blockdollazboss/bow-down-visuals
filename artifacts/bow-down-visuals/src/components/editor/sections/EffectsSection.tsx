@@ -7,18 +7,20 @@ import {
 } from "@/lib/editor-settings";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
+import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
 
 interface EffectsSectionProps {
   scenes: SceneData[];
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
+  audioUrl?: string | null;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
   return list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 }
 
-export function EffectsSection({ scenes, settings, setSettings }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl }: EffectsSectionProps) {
   function patchClip(sceneId: string, patch: Partial<ClipEdit>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
@@ -26,6 +28,14 @@ export function EffectsSection({ scenes, settings, setSettings }: EffectsSection
 
   return (
     <div className="space-y-5">
+      {/* ── Auto AI Edit — top of Effects tab ── */}
+      <AutoAiEditSection
+        scenes={scenes}
+        settings={settings}
+        setSettings={setSettings}
+        audioUrl={audioUrl}
+      />
+
       <EditorCard title="Global Effects" subtitle="Applied across the whole video" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
           {EFFECTS.map((fx) => (

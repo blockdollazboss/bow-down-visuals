@@ -26,6 +26,8 @@ interface ExportSectionProps {
   /** The exact URL currently playing in the master player. */
   masterAudioUrl?: string | null;
   onGoToMusicStudio?: () => void;
+  /** Jump to the Effects tab to open Auto AI Edit. */
+  onGoToEffects?: () => void;
 }
 
 /* ── Audio source option definitions ───────────────────── */
@@ -111,7 +113,7 @@ function isSourceAvailable(
 
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
-  scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio,
+  scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -209,6 +211,28 @@ export function ExportSection({
 
   return (
     <div className="space-y-5">
+
+      {/* ── AI Edit shortcut ── */}
+      {onGoToEffects && (
+        <button
+          onClick={onGoToEffects}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-colors text-left group"
+        >
+          <span className="h-7 w-7 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+            <Download className="h-3.5 w-3.5 text-primary rotate-180" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-white group-hover:text-primary transition-colors">
+              Auto AI Edit Whole Video {settings.aiEdit?.applied ? "✓ Applied" : "→ Effects Tab"}
+            </p>
+            <p className="text-[10px] text-white/35 mt-0.5">
+              {settings.aiEdit?.applied
+                ? `AI edit is active — style: ${settings.aiEdit.style}`
+                : "Let AI plan transitions, effects, color grade & caption style before export"}
+            </p>
+          </div>
+        </button>
+      )}
 
       {/* ── Audio Source ── */}
       <EditorCard
