@@ -1,34 +1,35 @@
-import { useRef, useState, useEffect } from "react";
-import { GripHorizontal } from "lucide-react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { GripHorizontal, Music2 } from "lucide-react";
 import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 const GOLD_GLOW    = "rgba(218,165,32,";
+const GOLD         = "#DAA520";
+const GOLD_DARK    = "#9B7515";
 const SNAP_MARGIN  = 20;
+const HIDE_DELAY   = 3500; // ms of inactivity before collapsing
 
 type SnapPoint = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
 const VALID_POINTS: SnapPoint[] = ["TL","TC","TR","RC","BR","BC","BL","LC"];
 
-/** Convert a snap-point id to an absolute {x, y} pixel position */
 function snapToPos(pt: SnapPoint, w: number, h: number): { x: number; y: number } {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const m  = SNAP_MARGIN;
-  const cx = Math.round((vw - w) / 2); // center-x
-  const cy = Math.round((vh - h) / 2); // center-y
+  const cx = Math.round((vw - w) / 2);
+  const cy = Math.round((vh - h) / 2);
   const map: Record<SnapPoint, { x: number; y: number }> = {
-    TL: { x: m,          y: m          },  // top-left
-    TC: { x: cx,         y: m          },  // top-center
-    TR: { x: vw - w - m, y: m          },  // top-right
-    RC: { x: vw - w - m, y: cy         },  // right-center
-    BR: { x: vw - w - m, y: vh - h - m },  // bottom-right
-    BC: { x: cx,         y: vh - h - m },  // bottom-center
-    BL: { x: m,          y: vh - h - m },  // bottom-left
-    LC: { x: m,          y: cy         },  // left-center
+    TL: { x: m,          y: m          },
+    TC: { x: cx,         y: m          },
+    TR: { x: vw - w - m, y: m          },
+    RC: { x: vw - w - m, y: cy         },
+    BR: { x: vw - w - m, y: vh - h - m },
+    BC: { x: cx,         y: vh - h - m },
+    BL: { x: m,          y: vh - h - m },
+    LC: { x: m,          y: cy         },
   };
   return map[pt];
 }
 
-/** Find the snap point whose anchor is closest to the element's current center */
 function nearestSnap(x: number, y: number, w: number, h: number): SnapPoint {
   const cx = x + w / 2;
   const cy = y + h / 2;
@@ -52,7 +53,6 @@ function getSavedSnap(): SnapPoint {
   return "BR";
 }
 
-/** Which side the help panel should open on based on snap position */
 function helpSide(pt: SnapPoint): "left" | "right" {
   return (pt === "TL" || pt === "BL" || pt === "LC" || pt === "TC") ? "left" : "right";
 }
@@ -62,13 +62,15 @@ export function DraggableThemePlayer() {
   const dragging = useRef(false);
   const startPtr = useRef({ px: 0, py: 0, ex: 0, ey: 0 });
   const posRef   = useRef({ x: 0, y: 0 });
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [pos, rawSetPos] = useState<{ x: number; y: number }>(() =>
     snapToPos(getSavedSnap(), 210, 52),
   );
-  const [isSnapping, setIsSnapping]   = useState(false);
-  const [isDragging, setIsDragging]   = useState(false);
-  const [currentSnap, setCurrentSnap] = useState<SnapPoint>(getSavedSnap);
+  const [isSnapping, setIsSnapping]     = useState(false);
+  const [isDragging, setIsDragging]     = useState(false);
+  const [currentSnap, setCurrentSnap]   = useState<SnapPoint>(getSavedSnap);
+  const [isCollapsed, setIsCollapsed]   = useState(false);
 
   function updatePos(p: { x: number; y: number }) {
     posRef.current = p;
@@ -83,14 +85,25 @@ export function DraggableThemePlayer() {
     setTimeout(() => setIsSnapping(false), 400);
   }
 
-  // After mount: measure real element size → re-snap to saved point
+  const startHideTimer = useCallback(() => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setIsCollapsed(true), HIDE_DELAY);
+  }, []);
+
+  const cancelHideTimer = useCallback(() => {
+    if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
+  }, []);
+
+  // After mount: snap to saved position, then start the hide timer
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
     updatePos(snapToPos(getSavedSnap(), el.offsetWidth, el.offsetHeight));
+    startHideTimer();
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-snap on window resize so the player stays in place
+  // Re-snap on window resize
   useEffect(() => {
     const onResize = () => {
       const el = elRef.current;
@@ -105,6 +118,7 @@ export function DraggableThemePlayer() {
     if ((e.target as HTMLElement).closest("button, input")) return;
     dragging.current = true;
     setIsDragging(true);
+    cancelHideTimer();
     const el = elRef.current!;
     const rect = el.getBoundingClientRect();
     startPtr.current = { px: e.clientX, py: e.clientY, ex: rect.left, ey: rect.top };
@@ -131,6 +145,16 @@ export function DraggableThemePlayer() {
     const el = elRef.current!;
     const pt = nearestSnap(posRef.current.x, posRef.current.y, el.offsetWidth, el.offsetHeight);
     snapTo(pt, el.offsetWidth, el.offsetHeight);
+    startHideTimer();
+  }
+
+  function onMouseEnter() {
+    cancelHideTimer();
+    setIsCollapsed(false);
+  }
+
+  function onMouseLeave() {
+    if (!dragging.current) startHideTimer();
   }
 
   return (
@@ -151,30 +175,73 @@ export function DraggableThemePlayer() {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      {/* Drag-grip handle */}
+      {/* Collapsed tab — just a small gold pill with a music icon */}
       <div
         style={{
-          display:        "flex",
-          justifyContent: "center",
-          alignItems:     "center",
-          paddingBottom:  3,
-          cursor:         isDragging ? "grabbing" : "grab",
+          overflow:   "hidden",
+          maxWidth:   isCollapsed ? 36 : 0,
+          maxHeight:  isCollapsed ? 36 : 0,
+          opacity:    isCollapsed ? 1 : 0,
+          transition: "max-width 0.25s ease, max-height 0.25s ease, opacity 0.20s ease",
+          pointerEvents: isCollapsed ? "auto" : "none",
         }}
-        title="Drag to move"
+        title="Theme player (hover to expand)"
       >
-        <GripHorizontal size={14} style={{ color: `${GOLD_GLOW}0.50)` }} />
+        <div
+          style={{
+            width:          36,
+            height:         36,
+            borderRadius:   "50%",
+            display:        "flex",
+            alignItems:     "center",
+            justifyContent: "center",
+            background:     `linear-gradient(135deg, ${GOLD_DARK}, ${GOLD})`,
+            boxShadow:      `0 0 10px ${GOLD_GLOW}0.45)`,
+            cursor:         "pointer",
+          }}
+        >
+          <Music2 size={16} style={{ color: "#000" }} />
+        </div>
       </div>
 
-      {/* Player — ? button lives inside the player pill */}
-      <div style={{ cursor: isDragging ? "grabbing" : "grab" }}>
-        <NavThemePlayer
-          onHelpClick={() =>
-            window.dispatchEvent(
-              new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
-            )
-          }
-        />
+      {/* Expanded player */}
+      <div
+        style={{
+          overflow:   "hidden",
+          maxWidth:   isCollapsed ? 0 : 400,
+          maxHeight:  isCollapsed ? 0 : 120,
+          opacity:    isCollapsed ? 0 : 1,
+          transition: "max-width 0.25s ease, max-height 0.25s ease, opacity 0.20s ease",
+          pointerEvents: isCollapsed ? "none" : "auto",
+        }}
+      >
+        {/* Drag-grip handle */}
+        <div
+          style={{
+            display:        "flex",
+            justifyContent: "center",
+            alignItems:     "center",
+            paddingBottom:  3,
+            cursor:         isDragging ? "grabbing" : "grab",
+          }}
+          title="Drag to move"
+        >
+          <GripHorizontal size={14} style={{ color: `${GOLD_GLOW}0.50)` }} />
+        </div>
+
+        {/* Player pill */}
+        <div style={{ cursor: isDragging ? "grabbing" : "grab" }}>
+          <NavThemePlayer
+            onHelpClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
+              )
+            }
+          />
+        </div>
       </div>
     </div>
   );
