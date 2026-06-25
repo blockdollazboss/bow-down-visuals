@@ -608,7 +608,13 @@ export default function VideoEditor() {
               exportReady={scenes.some((s) => s.approved && sceneHasClip(s))}
             />
 
-            {/* Active Artist pill — full width */}
+            {/* ── Two-column layout: sticky player left · scrollable tabs right ── */}
+            <div className="flex flex-col lg:flex-row gap-6 lg:items-start">
+
+              {/* LEFT: sticky master player column */}
+              <div className="w-full lg:w-[44%] lg:sticky lg:top-[76px] lg:self-start shrink-0 space-y-3">
+
+            {/* Active Artist pill */}
             {activeArtist && (() => {
               const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
               return (
@@ -669,8 +675,13 @@ export default function VideoEditor() {
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
 
+              </div>{/* /left-panel */}
+
+              {/* RIGHT: scrollable tabs column */}
+              <div className="flex-1 min-w-0">
+
             {/* Tab nav */}
-            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
+            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-6">
               <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
               <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
               <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Mixer" testId="tab-music" />
@@ -851,6 +862,9 @@ export default function VideoEditor() {
             {tab === "export" && (
               <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
             )}
+
+              </div>{/* /right-panel */}
+            </div>{/* /two-col */}
           </>
         )}
       </div>
