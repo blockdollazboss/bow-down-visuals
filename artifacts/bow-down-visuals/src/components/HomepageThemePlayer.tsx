@@ -1,14 +1,10 @@
-import { useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
-
-const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
+import { useThemePlayer } from "@/contexts/ThemePlayerContext";
 
 const GOLD       = "#DAA520";
 const GOLD_LIGHT = "#FFD700";
 const GOLD_DARK  = "#9B7515";
 const GOLD_GLOW  = "rgba(218,165,32,";
-
-type Status = "probing" | "ready" | "missing" | "playing" | "error";
 
 function EqBars({ active, size = "md" }: { active: boolean; size?: "sm" | "md" }) {
   const h = size === "sm" ? 10 : 14;
@@ -48,89 +44,12 @@ function EqBars({ active, size = "md" }: { active: boolean; size?: "sm" | "md" }
   );
 }
 
-function useThemeAudio() {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [status, setStatus] = useState<Status>("probing");
-  const [playing, setPlaying] = useState(false);
-  const [muted, setMuted] = useState(true);
-  const [volume, setVolume] = useState(0.65);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(AUDIO_SRC, { method: "HEAD" })
-      .then((r) => { if (!cancelled) setStatus(r.ok ? "ready" : "missing"); })
-      .catch(() => { if (!cancelled) setStatus("missing"); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (status !== "ready") return;
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.volume = volume;
-    audio.muted = false;
-    audio.play()
-      .then(() => { setPlaying(true); setMuted(false); })
-      .catch(() => {
-        audio.muted = true;
-        audio.play()
-          .then(() => { setPlaying(true); setMuted(true); })
-          .catch(() => {});
-      });
-  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    return () => {
-      const audio = audioRef.current;
-      if (audio) { audio.pause(); audio.currentTime = 0; }
-    };
-  }, []);
-
-  const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (playing) {
-      if (!audio.error) audio.pause();
-      setPlaying(false);
-    } else {
-      setPlaying(true);
-      if (!audio.error) {
-        audio.muted = false;
-        setMuted(false);
-        audio.volume = volume;
-        audio.play().catch(() => {});
-      }
-    }
-  }, [playing, volume]);
-
-  const toggleMute = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const next = !muted;
-    audio.muted = next;
-    setMuted(next);
-  }, [muted]);
-
-  const handleVolume = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value);
-    setVolume(v);
-    if (audioRef.current) {
-      audioRef.current.volume = v;
-      if (v > 0 && muted) {
-        audioRef.current.muted = false;
-        setMuted(false);
-      }
-    }
-  }, [muted]);
-
-  return { audioRef, status, playing, muted, volume, togglePlay, toggleMute, handleVolume };
-}
-
 /* ──────────────────────────────────────────────
-   NavThemePlayer — compact bar for the top navbar
+   NavThemePlayer — compact bar for any top navbar
+   Reads from ThemePlayerContext — audio never restarts on navigation
    ────────────────────────────────────────────── */
 export function NavThemePlayer() {
-  const { audioRef, status, playing, muted, togglePlay, toggleMute } = useThemeAudio();
+  const { status, playing, muted, togglePlay, toggleMute } = useThemePlayer();
 
   if (status === "probing" || status === "missing") return null;
 
@@ -151,8 +70,6 @@ export function NavThemePlayer() {
         .nav-mute-btn:hover { color: ${GOLD}; }
       `}</style>
 
-      <audio ref={audioRef} src={AUDIO_SRC} loop preload="metadata" />
-
       <div
         className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl shrink-0"
         style={{
@@ -163,7 +80,6 @@ export function NavThemePlayer() {
         role="region"
         aria-label="Theme song player"
       >
-        {/* Play / Pause */}
         <button
           className="nav-play-btn h-7 w-7 rounded-full flex items-center justify-center shrink-0"
           onClick={togglePlay}
@@ -175,10 +91,8 @@ export function NavThemePlayer() {
           }
         </button>
 
-        {/* EQ bars */}
         <EqBars active={playing && !muted} size="sm" />
 
-        {/* Mute */}
         <button
           onClick={toggleMute}
           className="nav-mute-btn"
@@ -195,11 +109,11 @@ export function NavThemePlayer() {
 }
 
 /* ──────────────────────────────────────────────
-   HomepageThemePlayer — kept for backwards compat
-   (no longer rendered on homepage, but still exported)
+   HomepageThemePlayer — legacy full-size variant
+   (not currently rendered anywhere, kept for reference)
    ────────────────────────────────────────────── */
 export function HomepageThemePlayer() {
-  const { audioRef, status, playing, muted, volume, togglePlay, toggleMute, handleVolume } = useThemeAudio();
+  const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
 
   if (status === "probing") return null;
 
@@ -221,62 +135,34 @@ export function HomepageThemePlayer() {
     <>
       <style>{`
         .theme-volume::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          width: 12px; height: 12px;
-          border-radius: 50%;
-          background: ${GOLD};
-          cursor: pointer;
-          box-shadow: 0 0 6px ${GOLD_GLOW}0.7);
+          -webkit-appearance: none; width:12px; height:12px; border-radius:50%;
+          background:${GOLD}; cursor:pointer; box-shadow:0 0 6px ${GOLD_GLOW}0.7);
         }
         .theme-volume::-moz-range-thumb {
-          width: 12px; height: 12px;
-          border-radius: 50%;
-          background: ${GOLD};
-          cursor: pointer;
-          border: none;
-          box-shadow: 0 0 6px ${GOLD_GLOW}0.7);
+          width:12px; height:12px; border-radius:50%;
+          background:${GOLD}; cursor:pointer; border:none;
+          box-shadow:0 0 6px ${GOLD_GLOW}0.7);
         }
         .theme-volume {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 3px;
-          border-radius: 2px;
-          outline: none;
-          cursor: pointer;
-          background: linear-gradient(
-            to right,
-            ${GOLD} 0%,
-            ${GOLD} calc(var(--vol) * 100%),
-            rgba(255,255,255,0.12) calc(var(--vol) * 100%),
-            rgba(255,255,255,0.12) 100%
-          );
+          -webkit-appearance:none; appearance:none; height:3px;
+          border-radius:2px; outline:none; cursor:pointer;
+          background:linear-gradient(to right,${GOLD} 0%,${GOLD} calc(var(--vol)*100%),
+            rgba(255,255,255,0.12) calc(var(--vol)*100%),rgba(255,255,255,0.12) 100%);
         }
         .theme-player-glow {
-          box-shadow:
-            0 0 0 1px ${GOLD_GLOW}0.22),
-            0 0 28px ${GOLD_GLOW}0.10),
+          box-shadow:0 0 0 1px ${GOLD_GLOW}0.22),0 0 28px ${GOLD_GLOW}0.10),
             0 4px 24px rgba(0,0,0,0.55);
         }
         .theme-play-btn {
-          background: linear-gradient(135deg, ${GOLD_DARK}, ${GOLD});
-          box-shadow: 0 0 18px ${GOLD_GLOW}0.50);
-          transition: transform 0.15s, box-shadow 0.15s;
+          background:linear-gradient(135deg,${GOLD_DARK},${GOLD});
+          box-shadow:0 0 18px ${GOLD_GLOW}0.50);
+          transition:transform 0.15s, box-shadow 0.15s;
         }
-        .theme-play-btn:hover {
-          transform: scale(1.08);
-          box-shadow: 0 0 26px ${GOLD_GLOW}0.70);
-        }
-        .theme-play-btn:active { transform: scale(0.96); }
-        .theme-mute-btn { color: rgba(255,255,255,0.35); transition: color 0.15s; }
-        .theme-mute-btn:hover { color: ${GOLD}; }
+        .theme-play-btn:hover { transform:scale(1.08); box-shadow:0 0 26px ${GOLD_GLOW}0.70); }
+        .theme-play-btn:active { transform:scale(0.96); }
+        .theme-mute-btn { color:rgba(255,255,255,0.35); transition:color 0.15s; }
+        .theme-mute-btn:hover { color:${GOLD}; }
       `}</style>
-
-      <audio
-        ref={audioRef}
-        src={AUDIO_SRC}
-        loop
-        preload="metadata"
-      />
 
       <div className="flex justify-center">
         <div
@@ -285,15 +171,15 @@ export function HomepageThemePlayer() {
             background: "rgba(0,0,0,0.60)",
             backdropFilter: "blur(16px)",
             border: `1px solid ${GOLD_GLOW}0.20)`,
-            width: "min(440px, 100%)",
+            width: "min(440px,100%)",
           }}
           role="region"
-          aria-label="Homepage theme song player"
+          aria-label="Theme song player"
         >
           <button
             className="theme-play-btn h-11 w-11 rounded-full flex items-center justify-center shrink-0"
             onClick={togglePlay}
-            aria-label={playing ? "Pause theme song" : "Play theme song"}
+            aria-label={playing ? "Pause" : "Play"}
           >
             {playing
               ? <Pause className="h-4 w-4 text-black" fill="black" />
@@ -308,15 +194,8 @@ export function HomepageThemePlayer() {
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="overflow-hidden flex-1 min-w-0">
                 <style>{`
-                  @keyframes marquee {
-                    0%   { transform: translateX(100%); }
-                    100% { transform: translateX(-100%); }
-                  }
-                  .marquee-text {
-                    display: inline-block;
-                    white-space: nowrap;
-                    animation: marquee 8s linear infinite;
-                  }
+                  @keyframes marquee { 0%{transform:translateX(100%)} 100%{transform:translateX(-100%)} }
+                  .marquee-text { display:inline-block; white-space:nowrap; animation:marquee 8s linear infinite; }
                 `}</style>
                 <p className="marquee-text text-sm font-semibold text-white/90 leading-tight">
                   www.bowdownvisuals.com
@@ -327,23 +206,12 @@ export function HomepageThemePlayer() {
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            <button
-              onClick={toggleMute}
-              className="theme-mute-btn"
-              aria-label={muted ? "Unmute theme song" : "Mute theme song"}
-            >
-              {muted
-                ? <VolumeX className="h-4 w-4" />
-                : <Volume2  className="h-4 w-4" />
-              }
+            <button onClick={toggleMute} className="theme-mute-btn" aria-label={muted ? "Unmute" : "Mute"}>
+              {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
             <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={volume}
-              onChange={handleVolume}
+              type="range" min={0} max={1} step={0.01} value={volume}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
               className="theme-volume w-20"
               style={{ "--vol": volume } as React.CSSProperties}
               aria-label="Volume"

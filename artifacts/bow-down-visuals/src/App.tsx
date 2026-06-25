@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
+import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import { SiteFooter } from "@/components/layout/footer";
@@ -81,13 +82,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <ActiveArtistProvider>
-            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-              <AppShell />
-            </WouterRouter>
-          </ActiveArtistProvider>
-        </AuthProvider>
+        <ThemePlayerProvider>
+          <AuthProvider>
+            <ActiveArtistProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <AppShell />
+              </WouterRouter>
+            </ActiveArtistProvider>
+          </AuthProvider>
+        </ThemePlayerProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
