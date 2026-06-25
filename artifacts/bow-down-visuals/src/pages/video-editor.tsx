@@ -95,6 +95,8 @@ export default function VideoEditor() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [transcriptText, setTranscriptText] = useState<string | null>(null);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
+  /** Duration (seconds) probed from the resolved preview audio URL */
+  const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
 
   const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -424,10 +426,44 @@ export default function VideoEditor() {
       : "";
   const lyricsForCaptions = projectLyrics ?? transcriptText ?? (sceneLyricsJoined || null);
 
-  /* ── Song duration from project metadata ── */
+  /* ── Probe audio duration from the preview URL whenever it changes ──
+     This is the same URL Timeline Preview uses, so if it plays there,
+     we will always get a valid duration here too.                      */
+  useEffect(() => {
+    if (!previewAudioUrl) {
+      setDetectedAudioDuration(null);
+      return;
+    }
+    const audio = new Audio();
+    audio.preload = "metadata";
+    let disposed = false;
+
+    const onLoaded = () => {
+      if (!disposed && isFinite(audio.duration) && audio.duration > 0) {
+        setDetectedAudioDuration(audio.duration);
+      }
+    };
+    const onError = () => {
+      /* leave detectedAudioDuration as-is — don't clear a previously good value */
+    };
+
+    audio.addEventListener("loadedmetadata", onLoaded);
+    audio.addEventListener("error", onError);
+    audio.src = previewAudioUrl;
+
+    return () => {
+      disposed = true;
+      audio.removeEventListener("loadedmetadata", onLoaded);
+      audio.removeEventListener("error", onError);
+      audio.src = "";
+    };
+  }, [previewAudioUrl]);
+
+  /* ── Song duration: project metadata takes priority, then probed from audio ── */
   const songDuration =
     (project?.input_data?.["songDuration"] as number | undefined) ??
     (project?.input_data?.["duration"] as number | undefined) ??
+    detectedAudioDuration ??
     null;
 
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
