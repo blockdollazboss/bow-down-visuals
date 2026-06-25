@@ -488,10 +488,10 @@ export default function SongAndVideo() {
     if (!hasContent) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now(),
+        rawResult, scenes, formValues: watched, audioUrl, step, timestamp: Date.now(),
       }));
     } catch { /* ignore */ }
-  }, [rawResult, scenes, watched, audioUrl]);
+  }, [rawResult, scenes, watched, audioUrl, step]);
 
   /* Auto-save to server (debounced 30 s) */
   useEffect(() => {
@@ -505,13 +505,13 @@ export default function SongAndVideo() {
         await fetch("/api/drafts", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-          body: JSON.stringify({ workflowType: WORKFLOW, title, draftData: { rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now() } }),
+          body: JSON.stringify({ workflowType: WORKFLOW, title, draftData: { rawResult, scenes, formValues: watched, audioUrl, step, timestamp: Date.now() } }),
         });
       } catch { /* silent */ }
     }, 30_000);
     return () => { if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawResult, scenes, watched, audioUrl, user]);
+  }, [rawResult, scenes, watched, audioUrl, step, user]);
 
   /* Warn before leaving with unsaved work */
   useEffect(() => {
@@ -529,7 +529,7 @@ export default function SongAndVideo() {
   function downloadDraftBackup() {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      const payload = raw ? JSON.parse(raw) : { rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now() };
+      const payload = raw ? JSON.parse(raw) : { rawResult, scenes, formValues: watched, audioUrl, step, timestamp: Date.now() };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -543,7 +543,7 @@ export default function SongAndVideo() {
     setDraftState("recovering");
     setDraftError(null);
     try {
-      type DraftPayload = { rawResult?: string; scenes?: SceneData[]; formValues?: Partial<FormValues>; audioUrl?: string | null };
+      type DraftPayload = { rawResult?: string; scenes?: SceneData[]; formValues?: Partial<FormValues>; audioUrl?: string | null; step?: number };
       let payload: DraftPayload | null = null;
 
       // Try localStorage first
@@ -586,6 +586,14 @@ export default function SongAndVideo() {
           const v = fv[k];
           if (typeof v === "string") setValue(k, v);
         });
+      }
+      // Restore the workflow step directly — bypass canReach guards since data is already loaded
+      if (typeof payload.step === "number" && payload.step >= 1) {
+        setStep(payload.step);
+      } else if (payload.scenes?.length) {
+        setStep(4); // had scenes → open at Scene Clips / Video step
+      } else if (payload.rawResult) {
+        setStep(3); // had plan → open at results
       }
 
       // Clear draft after successful recovery
