@@ -66,6 +66,7 @@ interface LoadedProject {
     result?: string;
     scenes?: SceneData[];
     editorSettings?: Partial<EditorSettings>;
+    transcriptText?: string;
   } | null;
 }
 
@@ -91,6 +92,7 @@ export default function VideoEditor() {
   const [rebuildError, setRebuildError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [transcriptText, setTranscriptText] = useState<string | null>(null);
 
   const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,6 +130,7 @@ export default function VideoEditor() {
           setScenes(savedScenes);
         }
         setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
+        setTranscriptText(data.project.output_data?.transcriptText ?? null);
         hydrated.current = true;
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load project");
@@ -347,6 +350,30 @@ export default function VideoEditor() {
     }
   }
 
+  /** Save transcript to project output_data and update local state. */
+  async function handleTranscriptReady(text: string) {
+    setTranscriptText(text);
+    if (!project) return;
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({
+          outputData: {
+            transcriptText: text,
+            transcriptAt: new Date().toISOString(),
+          },
+        }),
+      });
+    } catch {
+      /* non-fatal — transcript is already in local state */
+    }
+  }
+
   const artistName = project?.artist_name ?? (project?.input_data?.["artistName"] as string | undefined) ?? "";
   const songTitle = project?.song_title ?? (project?.input_data?.["songTitle"] as string | undefined) ?? "";
   const audioUrl =
@@ -364,7 +391,7 @@ export default function VideoEditor() {
     scenes.length > 0
       ? scenes.map((s) => s.lyricLine).filter(Boolean).join("\n")
       : "";
-  const lyricsForCaptions = projectLyrics ?? (sceneLyricsJoined || null);
+  const lyricsForCaptions = projectLyrics ?? transcriptText ?? (sceneLyricsJoined || null);
 
   /* ── Song duration from project metadata ── */
   const songDuration =
@@ -648,7 +675,19 @@ export default function VideoEditor() {
                 )}
 
                 {tab === "music" && (
-                  <MusicStudio settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
+                  <MusicStudio
+                    settings={settings}
+                    onChange={setSettings}
+                    artistName={artistName}
+                    songTitle={songTitle}
+                    audioUrl={audioUrl}
+                    projectId={projectId}
+                    getAccessToken={getAccessToken}
+                    onTranscriptReady={handleTranscriptReady}
+                    transcriptText={transcriptText}
+                    activeArtist={activeArtist}
+                    onGoToCaptions={() => setTab("captions")}
+                  />
                 )}
 
                 {tab === "captions" && (

@@ -637,7 +637,7 @@ export interface AudioExportRecord {
 }
 
 export interface MusicStudioSettings {
-  mode: "auto" | "manual";
+  mode: "auto" | "manual" | "lipsync";
   stems: AudioStem[];
   aiMix: AiMixOptions;
   aiMixPlan: AiMixPlan | null;
@@ -930,6 +930,11 @@ function normalizeVideoAudioSource(raw: unknown): VideoAudioSource {
   return "uploaded";
 }
 
+function normalizeMusicMode(raw: unknown): MusicStudioSettings["mode"] {
+  if (raw === "auto" || raw === "manual" || raw === "lipsync") return raw;
+  return "auto";
+}
+
 export function normalizeMusicStudio(
   stored: Partial<MusicStudioSettings> | null | undefined,
 ): MusicStudioSettings {
@@ -939,6 +944,7 @@ export function normalizeMusicStudio(
   return {
     ...base,
     ...stored,
+    mode: normalizeMusicMode(stored.mode),
     stems: Array.isArray(stored.stems) ? stored.stems.map(normalizeStem) : [],
     aiMix: { ...base.aiMix, ...(stored.aiMix ?? {}) },
     aiMixPlan: stored.aiMixPlan ?? null,
