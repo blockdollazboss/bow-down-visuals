@@ -187,26 +187,70 @@ export default function VideoEditor() {
   }
 
   async function rebuildScenesFromPlan() {
-    if (!rawResult) return;
+    console.log("[Rebuild] Rebuild Scenes button clicked");
+    console.log("[Rebuild] Project id:", project?.id ?? "none");
+    console.log("[Rebuild] Saved project content:", rawResult ? `found (${rawResult.length} chars)` : "MISSING");
+
+    // Show rebuilding state FIRST so the UI responds immediately
     setRebuildStatus("rebuilding");
     setRebuildError(null);
+
+    if (!rawResult) {
+      console.log("[Rebuild] No saved plan found — cannot rebuild");
+      setRebuildStatus("error");
+      setRebuildError("No saved plan found for this project.");
+      return;
+    }
+
     try {
-      // 1. Try extracting just the breakdown section
+      // Try the breakdown section first; fall back to the full result
       let breakdown = extractBreakdownContent(rawResult);
-      // 2. If the header wasn't found, try the full result — parseScenes handles it
-      if (!breakdown) breakdown = rawResult;
+      if (breakdown) {
+        console.log("[Rebuild] Scene breakdown found:", `${breakdown.length} chars`);
+      } else {
+        console.log("[Rebuild] Scene breakdown not found in header — using full plan text as fallback");
+        breakdown = rawResult;
+      }
+
       const parsed = parseScenes(breakdown);
+      console.log("[Rebuild] Number of scenes parsed:", parsed.length);
+
       if (parsed.length === 0) {
+        console.log("[Rebuild] No scenes could be parsed");
         setRebuildStatus("error");
-        setRebuildError("Could not find scene prompts in the saved plan. The project may not include a scene-by-scene breakdown with Timestamp or AI Video Prompt fields.");
+        setRebuildError("Could not find scene breakdown in saved project. The saved plan must contain Timestamp or AI Video Prompt fields for each scene.");
         return;
       }
+
       setScenes(parsed);
       setRebuildStatus("done");
-      // Auto-persisted via the debounced autosave effect
-      toast({ title: `${parsed.length} scenes rebuilt`, description: "Scenes loaded from your saved plan and saving automatically." });
+
+      // Persist immediately with the freshly parsed scenes
+      // (avoids the autosave stale-closure problem)
+      if (project) {
+        try {
+          const token = await getAccessToken();
+          const patchRes = await fetch(`/api/projects/${project.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+            body: JSON.stringify({ scenes: parsed }),
+          });
+          if (patchRes.ok) {
+            console.log("[Rebuild] Scenes saved to Supabase: success");
+            setSaveState("saved");
+          } else {
+            console.log("[Rebuild] Scenes saved to Supabase: error", patchRes.status);
+          }
+        } catch (saveErr) {
+          console.log("[Rebuild] Scenes save error:", saveErr);
+          // Non-fatal — autosave will retry
+        }
+      }
+
+      toast({ title: `${parsed.length} scenes rebuilt successfully`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
+      console.log("[Rebuild] Unexpected error:", msg);
       setRebuildStatus("error");
       setRebuildError(`Could not parse scenes: ${msg}`);
       toast({ title: "Could not parse scenes", description: msg, variant: "destructive" });
@@ -325,6 +369,7 @@ export default function VideoEditor() {
             {/* Status checklist — full width */}
             <StatusChecklist
               planLoaded={scenes.length > 0}
+              sceneCount={scenes.length}
               clipsLoaded={scenes.some((s) => sceneHasClip(s))}
               audioLoaded={!!audioUrl || settings.musicStudio.stems.length > 0}
               timelineReady={scenes.some((s) => s.approved && sceneHasClip(s))}
@@ -952,12 +997,12 @@ function ModeButton({
 /* ─────────────────────── STATUS CHECKLIST ─────────────────────── */
 
 function StatusChecklist({
-  planLoaded, clipsLoaded, audioLoaded, timelineReady, exportReady,
+  planLoaded, sceneCount, clipsLoaded, audioLoaded, timelineReady, exportReady,
 }: {
-  planLoaded: boolean; clipsLoaded: boolean; audioLoaded: boolean; timelineReady: boolean; exportReady: boolean;
+  planLoaded: boolean; sceneCount: number; clipsLoaded: boolean; audioLoaded: boolean; timelineReady: boolean; exportReady: boolean;
 }) {
-  const items: { label: string; done: boolean }[] = [
-    { label: "Music video plan loaded", done: planLoaded },
+  const items: { label: string; sub?: string; done: boolean }[] = [
+    { label: "Music video plan loaded", sub: planLoaded ? `${sceneCount} scene${sceneCount !== 1 ? "s" : ""} loaded` : undefined, done: planLoaded },
     { label: "Runway clips loaded", done: clipsLoaded },
     { label: "Audio/stems uploaded", done: audioLoaded },
     { label: "Timeline ready", done: timelineReady },
@@ -982,7 +1027,11 @@ function StatusChecklist({
             )}
             <div className="min-w-0">
               <p className={`text-xs font-semibold leading-tight ${item.done ? "text-white/85" : "text-white/55"}`}>{item.label}</p>
-              <p className={`text-[10px] font-bold uppercase tracking-wider ${item.done ? "text-green-400/80" : "text-white/30"}`}>{item.done ? "Yes" : "No"}</p>
+              {item.sub ? (
+                <p className="text-[10px] font-bold text-green-400/80 truncate">{item.sub}</p>
+              ) : (
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${item.done ? "text-green-400/80" : "text-white/30"}`}>{item.done ? "Yes" : "No"}</p>
+              )}
             </div>
           </div>
         ))}
