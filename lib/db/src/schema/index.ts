@@ -21,3 +21,4 @@ export * from "./stripe-payments";
 export * from "./credit-usage";
 export * from "./artist-vaults";
 export * from "./generated-clips";
+export * from "./project-drafts";

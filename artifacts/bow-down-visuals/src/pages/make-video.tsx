@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -216,7 +216,13 @@ export default function MakeVideo() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingScenes, setSavingScenes] = useState(false);
-  const [showRecovery, setShowRecovery] = useState(false);
+
+  type DraftState = "idle" | "found" | "recovering" | "recovered" | "failed";
+  const [draftState, setDraftState] = useState<DraftState>("idle");
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftInfo, setDraftInfo] = useState<{ title?: string; updated?: string } | null>(null);
+  const serverSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
@@ -331,66 +337,193 @@ export default function MakeVideo() {
     }
   }
 
-  /* ── localStorage draft ── */
+  /* ── Draft persistence ── */
   const DRAFT_KEY = "bdv_draft_makevideo";
+  const WORKFLOW   = "make-video";
 
+  /* Check for existing draft on mount */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { timestamp?: number };
-        const age = Date.now() - (parsed.timestamp ?? 0);
-        if (age < 24 * 60 * 60 * 1000 && !rawResult) setShowRecovery(true);
-      }
-    } catch { /* ignore */ }
+    let cancelled = false;
+    async function check() {
+      // 1. localStorage (fast, same-browser)
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { timestamp?: number; formValues?: Record<string, string>; rawResult?: string };
+          const age = Date.now() - (parsed.timestamp ?? 0);
+          const hasContent = !!(parsed.rawResult || Object.values(parsed.formValues ?? {}).some(Boolean));
+          if (age < 7 * 24 * 60 * 60 * 1000 && hasContent && !rawResult) {
+            const fv = parsed.formValues ?? {};
+            const titleParts = [fv["artistName"], fv["songTitle"]].filter(Boolean).join(" — ");
+            if (!cancelled) {
+              setDraftInfo({ title: titleParts || "Unsaved draft", updated: new Date(parsed.timestamp ?? 0).toLocaleString() });
+              setDraftState("found");
+            }
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+
+      // 2. Server (cross-session, cross-device)
+      if (!user) return;
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/drafts?workflow=${WORKFLOW}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json() as { drafts: Array<{ id: string; title: string | null; updated_at: string }> };
+        if (data.drafts.length > 0 && !rawResult) {
+          const d = data.drafts[0];
+          if (!cancelled) {
+            setDraftId(d.id);
+            setDraftInfo({ title: d.title ?? "Unsaved draft", updated: new Date(d.updated_at).toLocaleString() });
+            setDraftState("found");
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    check();
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
+  /* Auto-save to localStorage (always, even before generation) */
   useEffect(() => {
-    if (!rawResult) return;
+    const hasContent = !!(watched.artistName || watched.lyrics || rawResult);
+    if (!hasContent) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        rawResult, scenes, formValues: watched, timestamp: Date.now(),
+        rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now(),
       }));
     } catch { /* ignore */ }
-  }, [rawResult, scenes, watched]);
+  }, [rawResult, scenes, watched, audioUrl]);
 
+  /* Auto-save to server (debounced 30 s) */
   useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (rawResult && !saved) {
+    const hasContent = !!(watched.artistName || watched.lyrics || rawResult);
+    if (!hasContent || !user) return;
+    if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current);
+    serverSaveTimer.current = setTimeout(async () => {
+      try {
+        const token = await getAccessToken();
+        const title = [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make a Music Video Draft";
+        await fetch("/api/drafts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+          body: JSON.stringify({ workflowType: WORKFLOW, title, draftData: { rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now() } }),
+        });
+      } catch { /* silent */ }
+    }, 30_000);
+    return () => { if (serverSaveTimer.current) clearTimeout(serverSaveTimer.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawResult, scenes, watched, audioUrl, user]);
+
+  /* Warn before leaving with unsaved work */
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if ((rawResult || watched.artistName) && !saved) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [rawResult, saved]);
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [rawResult, watched.artistName, saved]);
 
-  const handleRecover = useCallback(() => {
+  /* Download draft as JSON backup */
+  function downloadDraftBackup() {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        rawResult?: string; scenes?: SceneData[];
-        formValues?: Partial<VideoFormValues>;
-      };
-      if (parsed.rawResult) setRawResult(parsed.rawResult);
-      if (parsed.scenes) setScenes(parsed.scenes);
-      if (parsed.formValues) {
-        const fv = parsed.formValues;
-        Object.entries(fv).forEach(([k, v]) => {
-          if (typeof v === "string") setValue(k as keyof VideoFormValues, v);
+      const payload = raw ? JSON.parse(raw) : { rawResult, scenes, formValues: watched, audioUrl, timestamp: Date.now() };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `bdv-draft-${Date.now()}.json`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  }
+
+  /* Recover draft — restore all fields */
+  const handleRecover = useCallback(async () => {
+    setDraftState("recovering");
+    setDraftError(null);
+    try {
+      type DraftPayload = { rawResult?: string; scenes?: SceneData[]; formValues?: Partial<VideoFormValues>; audioUrl?: string | null };
+      let payload: DraftPayload | null = null;
+
+      // Try localStorage first
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (raw) payload = JSON.parse(raw) as DraftPayload;
+      } catch { /* ignore */ }
+
+      // Fall back to server
+      if (!payload && draftId) {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/drafts/${draftId}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (res.ok) {
+          const body = await res.json() as { draft: { draft_data: DraftPayload } };
+          payload = body.draft.draft_data;
+        }
+      }
+      if (!payload && !draftId) {
+        // Last resort: check server by workflow
+        const token = await getAccessToken();
+        const res = await fetch(`/api/drafts?workflow=${WORKFLOW}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (res.ok) {
+          const body = await res.json() as { drafts: Array<{ id: string; draft_data: DraftPayload }> };
+          if (body.drafts.length > 0) { payload = body.drafts[0].draft_data; setDraftId(body.drafts[0].id); }
+        }
+      }
+
+      if (!payload) throw new Error("Draft data not found — it may have expired.");
+
+      // Restore all fields
+      if (payload.rawResult) setRawResult(payload.rawResult);
+      if (payload.scenes?.length) setScenes(payload.scenes);
+      if (payload.audioUrl) setAudioUrl(payload.audioUrl);
+      if (payload.formValues) {
+        const fv = payload.formValues;
+        (Object.keys(fv) as Array<keyof VideoFormValues>).forEach((k) => {
+          const v = fv[k];
+          if (typeof v === "string") setValue(k, v);
         });
       }
-    } catch { /* ignore */ }
-    localStorage.removeItem(DRAFT_KEY);
-    setShowRecovery(false);
-  }, [setValue]);
 
-  const handleDiscardDraft = useCallback(() => {
+      // Clear draft after successful recovery
+      localStorage.removeItem(DRAFT_KEY);
+      if (draftId) {
+        getAccessToken().then((token) => fetch(`/api/drafts/${draftId}`, {
+          method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` },
+        })).catch(() => { /* silent */ });
+      }
+
+      setDraftState("recovered");
+      setTimeout(() => setDraftState("idle"), 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Recovery failed — please try downloading the backup JSON.";
+      setDraftError(msg);
+      setDraftState("failed");
+    }
+  }, [draftId, getAccessToken, setValue]);
+
+  const handleDiscardDraft = useCallback(async () => {
     localStorage.removeItem(DRAFT_KEY);
-    setShowRecovery(false);
-  }, []);
+    if (draftId) {
+      try {
+        const token = await getAccessToken();
+        await fetch(`/api/drafts/${draftId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
+      } catch { /* silent */ }
+    }
+    setDraftState("idle");
+    setDraftId(null);
+    setDraftInfo(null);
+  }, [draftId, getAccessToken]);
 
   /* ── Save project ── */
   async function handleSave() {
@@ -576,17 +709,53 @@ export default function MakeVideo() {
           Back to Dashboard
         </Link>
 
-        {/* Draft recovery banner */}
-        {showRecovery && (
-          <div className="mb-6 flex items-start gap-3 px-4 py-3.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
-            <span className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5 text-base">⚠</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-yellow-300">Unsaved draft found</p>
-              <p className="text-xs text-white/50 mt-0.5">You have unsaved work from a previous session. Recover it or discard.</p>
+        {/* ── Draft recovery banner ── */}
+        {draftState === "found" && (
+          <div className="mb-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-yellow-400 text-base shrink-0 mt-0.5">⚠</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-yellow-300">Previous draft found</p>
+                {draftInfo?.title && <p className="text-xs text-white/60 mt-0.5 truncate">{draftInfo.title}</p>}
+                {draftInfo?.updated && <p className="text-xs text-white/35">Last saved {draftInfo.updated}</p>}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end shrink-0">
+                <button onClick={downloadDraftBackup} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 transition-colors px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5">
+                  <Download className="h-3 w-3" /> Backup JSON
+                </button>
+                <button onClick={() => { void handleRecover(); }} className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition-colors px-3 py-1.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20">
+                  Recover
+                </button>
+                <button onClick={() => { void handleDiscardDraft(); }} className="text-xs text-white/30 hover:text-white/60 transition-colors px-3 py-1.5">
+                  Discard
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={handleRecover} className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition-colors px-3 py-1.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20">Recover</button>
-              <button onClick={handleDiscardDraft} className="text-xs text-white/30 hover:text-white/60 transition-colors px-3 py-1.5">Discard</button>
+          </div>
+        )}
+        {draftState === "recovering" && (
+          <div className="mb-6 flex items-center gap-3 px-4 py-3.5 rounded-xl border border-primary/30 bg-primary/10">
+            <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+            <p className="text-sm font-bold text-primary">Recovering draft…</p>
+          </div>
+        )}
+        {draftState === "recovered" && (
+          <div className="mb-6 flex items-center gap-3 px-4 py-3.5 rounded-xl border border-green-500/30 bg-green-500/10">
+            <Check className="h-4 w-4 text-green-400 shrink-0" />
+            <p className="text-sm font-bold text-green-300">Draft recovered successfully</p>
+          </div>
+        )}
+        {draftState === "failed" && (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-red-400 shrink-0 mt-0.5">✕</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-red-300">Recovery failed: {draftError}</p>
+                <p className="text-xs text-white/40 mt-0.5">Your draft may still be saved. Download the backup JSON to keep it safe.</p>
+              </div>
+              <button onClick={downloadDraftBackup} className="flex items-center gap-1 text-xs text-white/40 hover:text-white/70 px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/5 shrink-0">
+                <Download className="h-3 w-3" /> Backup JSON
+              </button>
             </div>
           </div>
         )}

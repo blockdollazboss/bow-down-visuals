@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  FolderOpen, Trash2, Loader2, Music, Video, Film,
+  FolderOpen, Trash2, Loader2, Music, Video, Film, Download,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
+  FileEdit, Play, ExternalLink, Clock, RefreshCcw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
@@ -396,49 +397,277 @@ function ProjectCard({
   );
 }
 
+/* ─── Draft types ─── */
+interface DraftRow {
+  id: string;
+  workflow_type: string;
+  title: string | null;
+  updated_at: string;
+  draft_data: {
+    formValues?: Record<string, string>;
+    rawResult?: string;
+    scenes?: SceneData[];
+  };
+}
+
+interface ClipRow {
+  id: string;
+  title: string | null;
+  prompt: string | null;
+  final_prompt: string | null;
+  video_url: string | null;
+  runway_job_id: string | null;
+  project_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+const WORKFLOW_LABELS: Record<string, string> = {
+  "make-video":    "Make a Music Video",
+  "song-and-video": "Make Song + Video",
+};
+const WORKFLOW_PATHS: Record<string, string> = {
+  "make-video":    "/make-video",
+  "song-and-video": "/song-and-video",
+};
+
+/* ─── Draft card ─── */
+function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string) => void }) {
+  const [, navigate] = useLocation();
+  const [deleting, setDeleting] = useState(false);
+  const date = new Date(draft.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = new Date(draft.updated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const label = WORKFLOW_LABELS[draft.workflow_type] ?? draft.workflow_type;
+  const path  = WORKFLOW_PATHS[draft.workflow_type] ?? "/dashboard";
+  const title = draft.title ?? draft.draft_data?.formValues?.["artistName"] ?? "Unsaved Draft";
+
+  function handleRecover() {
+    navigate(path);
+  }
+
+  function handleDelete() {
+    if (!confirm(`Delete this draft? This cannot be undone.`)) return;
+    setDeleting(true);
+    onDelete(draft.id);
+  }
+
+  function handleDownload() {
+    try {
+      const blob = new Blob([JSON.stringify(draft.draft_data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `bdv-draft-${draft.id.slice(0,8)}.json`; a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <div className={`rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.03] p-5 transition-all ${deleting ? "opacity-40 pointer-events-none" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <FileEdit className="h-3.5 w-3.5 text-yellow-400/70 shrink-0" />
+            <span className="text-[11px] font-semibold text-yellow-400/60">{label}</span>
+            <span className="text-white/15 text-xs">·</span>
+            <Clock className="h-3 w-3 text-white/25 shrink-0" />
+            <span className="text-xs text-white/30">{date} {time}</span>
+          </div>
+          <h3 className="text-base font-bold text-white truncate">{title}</h3>
+          {draft.draft_data?.rawResult && (
+            <p className="text-xs text-green-400/60 mt-1 flex items-center gap-1">
+              <Check className="h-3 w-3" /> Generated content included
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+          <button onClick={handleDownload} title="Download Backup JSON"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors">
+            <Download className="h-4 w-4" />
+          </button>
+          <Button size="sm" onClick={handleRecover}
+            className="h-8 px-3 text-xs gap-1.5 bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/25">
+            <RefreshCcw className="h-3.5 w-3.5" /> Recover
+          </Button>
+          <button onClick={handleDelete}
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-red-400 hover:bg-red-500/5 transition-colors">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Clip card ─── */
+function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) => void }) {
+  const [deleting, setDeleting] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const date = new Date(clip.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  function handleDelete() {
+    if (!confirm("Delete this clip? This cannot be undone.")) return;
+    setDeleting(true);
+    onDelete(clip.id);
+  }
+
+  return (
+    <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden transition-all ${deleting ? "opacity-40 pointer-events-none" : ""}`}>
+      {clip.video_url && (
+        <div className="aspect-video bg-black">
+          <video
+            src={clip.video_url}
+            className="w-full h-full object-cover"
+            controls
+            preload="metadata"
+          />
+        </div>
+      )}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-white/40 mb-1">{date}</p>
+            {clip.title && <p className="text-sm font-bold text-white truncate">{clip.title}</p>}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {clip.video_url && (
+              <a href={clip.video_url} target="_blank" rel="noopener noreferrer"
+                className="h-7 w-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white/70 hover:bg-white/5 transition-colors"
+                title="Open video URL">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
+            {clip.project_id && (
+              <Link href={`/video-editor?project=${clip.project_id}`}>
+                <button className="h-7 px-2 rounded-lg flex items-center gap-1 text-[11px] text-white/40 hover:text-primary hover:bg-primary/5 transition-colors font-semibold">
+                  <Play className="h-3 w-3" /> Editor
+                </button>
+              </Link>
+            )}
+            <button onClick={handleDelete}
+              className="h-7 w-7 rounded-lg flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/5 transition-colors">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        {clip.prompt && (
+          <button onClick={() => setShowPrompt(!showPrompt)}
+            className="text-[11px] text-white/30 hover:text-white/50 transition-colors text-left w-full">
+            {showPrompt ? "Hide prompt ▲" : "Show prompt ▼"}
+          </button>
+        )}
+        {showPrompt && clip.prompt && (
+          <p className="text-xs text-white/45 mt-2 leading-relaxed line-clamp-4">{clip.prompt}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page ─── */
 export default function MyProjects() {
   const { user, getAccessToken } = useAuth();
+  const [tab, setTab] = useState<"projects" | "drafts" | "clips">("projects");
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [projLoading, setProjLoading] = useState(true);
+  const [projError, setProjError] = useState<string | null>(null);
+
+  const [drafts, setDrafts] = useState<DraftRow[]>([]);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [draftsError, setDraftsError] = useState<string | null>(null);
+
+  const [clips, setClips] = useState<ClipRow[]>([]);
+  const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsError, setClipsError] = useState<string | null>(null);
+
   const [openProject, setOpenProject] = useState<Project | null>(null);
 
   useEffect(() => {
-    if (user) loadProjects();
+    if (user) {
+      void loadProjects();
+      void loadDrafts();
+      void loadClips();
+    }
   }, [user]);
 
   async function loadProjects() {
-    setLoading(true);
-    setError(null);
+    setProjLoading(true);
+    setProjError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/projects", {
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
+      const res = await fetch("/api/projects", { headers: { Authorization: `Bearer ${token ?? ""}` } });
       if (!res.ok) throw new Error("Failed to load projects");
       const data = (await res.json()) as { projects: Project[] };
       setProjects(data.projects);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load projects");
+      setProjError(err instanceof Error ? err.message : "Failed to load projects");
     } finally {
-      setLoading(false);
+      setProjLoading(false);
     }
   }
 
-  async function handleDelete(id: string) {
+  async function loadDrafts() {
+    setDraftsLoading(true);
+    setDraftsError(null);
     try {
       const token = await getAccessToken();
-      await fetch(`/api/projects/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token ?? ""}` },
-      });
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-      if (openProject?.id === id) setOpenProject(null);
-    } catch {
-      alert("Failed to delete project. Please try again.");
+      const res = await fetch("/api/drafts", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) throw new Error("Failed to load drafts");
+      const data = (await res.json()) as { drafts: DraftRow[] };
+      setDrafts(data.drafts);
+    } catch (err) {
+      setDraftsError(err instanceof Error ? err.message : "Failed to load drafts");
+    } finally {
+      setDraftsLoading(false);
     }
   }
+
+  async function loadClips() {
+    setClipsLoading(true);
+    setClipsError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/generated-clips", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) throw new Error("Failed to load clips");
+      const data = (await res.json()) as { clips: ClipRow[] };
+      setClips(data.clips);
+    } catch (err) {
+      setClipsError(err instanceof Error ? err.message : "Failed to load clips");
+    } finally {
+      setClipsLoading(false);
+    }
+  }
+
+  async function handleDeleteProject(id: string) {
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/projects/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (openProject?.id === id) setOpenProject(null);
+    } catch { alert("Failed to delete project. Please try again."); }
+  }
+
+  async function handleDeleteDraft(id: string) {
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/drafts/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
+      setDrafts((prev) => prev.filter((d) => d.id !== id));
+    } catch { alert("Failed to delete draft. Please try again."); }
+  }
+
+  async function handleDeleteClip(id: string) {
+    try {
+      const token = await getAccessToken();
+      await fetch(`/api/generated-clips/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } });
+      setClips((prev) => prev.filter((c) => c.id !== id));
+    } catch { alert("Failed to delete clip. Please try again."); }
+  }
+
+  const TABS = [
+    { id: "projects" as const, label: "Projects",        count: projects.length },
+    { id: "drafts"   as const, label: "Drafts",          count: drafts.length },
+    { id: "clips"    as const, label: "Generated Clips", count: clips.length },
+  ];
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -453,32 +682,14 @@ export default function MyProjects() {
           project={openProject}
           onClose={() => setOpenProject(null)}
           onScenesSaved={(savedScenes) => {
-            const updatedProject: Project = {
-              ...openProject,
-              output_data: { ...openProject.output_data, scenes: savedScenes },
-            };
-            setOpenProject(updatedProject);
-            setProjects((prev) =>
-              prev.map((p) => (p.id === openProject.id ? updatedProject : p)),
-            );
+            const up = { ...openProject, output_data: { ...openProject.output_data, scenes: savedScenes } };
+            setOpenProject(up);
+            setProjects((prev) => prev.map((p) => (p.id === openProject.id ? up : p)));
           }}
           onExportComplete={(record) => {
-            const updatedProject: Project = {
-              ...openProject,
-              output_data: {
-                ...openProject.output_data,
-                final_video_url: record.final_video_url,
-                export_status: record.export_status,
-                export_created_at: record.export_created_at,
-                clips_used: record.clips_used,
-                audio_used: record.audio_used,
-                timeline_order: record.timeline_order,
-              },
-            };
-            setOpenProject(updatedProject);
-            setProjects((prev) =>
-              prev.map((p) => (p.id === openProject.id ? updatedProject : p)),
-            );
+            const up = { ...openProject, output_data: { ...openProject.output_data, ...record } };
+            setOpenProject(up);
+            setProjects((prev) => prev.map((p) => (p.id === openProject.id ? up : p)));
           }}
         />
       )}
@@ -490,69 +701,152 @@ export default function MyProjects() {
           Back to Dashboard
         </Link>
 
-        <div className="mb-10">
+        <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
               <FolderOpen className="h-5 w-5 text-white" />
             </div>
-            {!loading && (
-              <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">
-                {projects.length} project{projects.length !== 1 ? "s" : ""}
-              </Badge>
-            )}
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            My Projects
-          </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
-            Every song, video plan, promo pack, and thumbnail you've saved — all in one place.
+          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-2">My Projects</h1>
+          <p className="text-white/50 text-base max-w-2xl">
+            Saved projects, unsaved drafts, and all your generated Runway clips — all in one place.
           </p>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
-          </div>
-        ) : error ? (
-          <div className="py-16 text-center space-y-3">
-            <p className="text-red-400 font-semibold">{error}</p>
-            <Button
-              onClick={loadProjects}
-              variant="outline"
-              size="sm"
-              className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-8 border-b border-white/[0.06] pb-0">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`relative px-4 py-2.5 text-sm font-semibold transition-colors ${
+                tab === t.id
+                  ? "text-white after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+                  : "text-white/40 hover:text-white/70"
+              }`}
             >
-              Try again
-            </Button>
-          </div>
-        ) : projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
-            <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
-              <FolderOpen className="h-8 w-8 text-white/20" />
+              {t.label}
+              {t.count > 0 && (
+                <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  tab === t.id ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30"
+                }`}>{t.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── PROJECTS TAB ── */}
+        {tab === "projects" && (
+          projLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-white">No projects yet</h2>
-              <p className="text-white/45 max-w-xs">
-                Start by making a song or music video. Hit Save Project after generating and it will appear here.
+          ) : projError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-red-400 font-semibold">{projError}</p>
+              <Button onClick={() => void loadProjects()} variant="outline" size="sm"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
+                <FolderOpen className="h-8 w-8 text-white/20" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white">No saved projects yet</h2>
+                <p className="text-white/45 max-w-xs">Generate content and click Save Project — it will appear here.</p>
+              </div>
+              <Link href="/dashboard">
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Go to Dashboard</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projects.map((project) => (
+                <ProjectCard key={project.id} project={project} onDelete={handleDeleteProject} onOpen={setOpenProject} />
+              ))}
+            </div>
+          )
+        )}
+
+        {/* ── DRAFTS TAB ── */}
+        {tab === "drafts" && (
+          draftsLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            </div>
+          ) : draftsError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-red-400 font-semibold">{draftsError}</p>
+              <Button onClick={() => void loadDrafts()} variant="outline" size="sm"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+            </div>
+          ) : drafts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
+                <FileEdit className="h-8 w-8 text-white/20" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white">No drafts saved</h2>
+                <p className="text-white/45 max-w-xs">
+                  Drafts are saved automatically as you work. Start a project and your progress will appear here.
+                </p>
+              </div>
+              <Link href="/dashboard">
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Start a Project</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-white/30 mb-4">
+                Drafts are auto-saved as you work. Click Recover to return to that project and pick up where you left off.
               </p>
+              {drafts.map((draft) => (
+                <DraftCard key={draft.id} draft={draft} onDelete={handleDeleteDraft} />
+              ))}
             </div>
-            <Link href="/dashboard">
-              <Button className="gold-glow font-semibold gap-2">
-                <Music className="h-4 w-4" /> Go to Dashboard
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onDelete={handleDelete}
-                onOpen={setOpenProject}
-              />
-            ))}
-          </div>
+          )
+        )}
+
+        {/* ── GENERATED CLIPS TAB ── */}
+        {tab === "clips" && (
+          clipsLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            </div>
+          ) : clipsError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-red-400 font-semibold">{clipsError}</p>
+              <Button onClick={() => void loadClips()} variant="outline" size="sm"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+            </div>
+          ) : clips.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
+                <Video className="h-8 w-8 text-white/20" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white">No generated clips yet</h2>
+                <p className="text-white/45 max-w-xs">
+                  Generate Runway clips in your music video project — they'll be saved here automatically.
+                </p>
+              </div>
+              <Link href="/make-video">
+                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> Make a Music Video</Button>
+              </Link>
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs text-white/30 mb-5">
+                {clips.length} clip{clips.length !== 1 ? "s" : ""} saved — auto-saved the moment each Runway job completes.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clips.map((clip) => (
+                  <ClipCard key={clip.id} clip={clip} onDelete={handleDeleteClip} />
+                ))}
+              </div>
+            </div>
+          )
         )}
 
       </div>

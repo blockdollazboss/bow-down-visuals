@@ -23,6 +23,7 @@ import devRouter from "./dev";
 import stripePaymentsRouter from "./stripe-payments";
 import creditsRouter from "./credits";
 import generatedClipsRouter from "./generated-clips";
+import draftsRouter from "./drafts";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(devRouter);
 router.use(stripePaymentsRouter);
 router.use(creditsRouter);
 router.use(generatedClipsRouter);
+router.use(draftsRouter);
 
 export default router;
