@@ -843,6 +843,8 @@ export default function VideoEditor() {
                 audioSourceLoading={!!previewAudioUrl && songDuration == null}
                 selectedCaptionId={selectedCaptionId}
                 onSelectCaption={setSelectedCaptionId}
+                audioUrl={previewAudioUrl}
+                getAccessToken={getAccessToken}
               />
             )}
 

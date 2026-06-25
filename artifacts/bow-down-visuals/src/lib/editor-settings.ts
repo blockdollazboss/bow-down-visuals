@@ -128,6 +128,8 @@ export interface CaptionLine {
   startSec: number;
   endSec: number;
   text: string;
+  /** Set by AI Sync — confidence of the vocal match. */
+  confidence?: "high" | "medium" | "low" | "needs-review";
 }
 
 export const CAPTION_MODE_DEFS: { id: CaptionMode; label: string; description: string }[] = [

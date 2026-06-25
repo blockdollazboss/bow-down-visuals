@@ -3,6 +3,7 @@ import {
   Captions, Plus, Trash2, Wand2, RotateCcw, Eye, EyeOff,
   CheckCircle2, AlertCircle, Info, Pencil,
   Music2, ChevronsLeft, ChevronsRight, Expand, Shrink,
+  Sparkles, Loader2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,10 @@ interface Props {
   selectedCaptionId?: string | null;
   /** Called when a caption row is clicked */
   onSelectCaption?: (id: string | null) => void;
+  /** Resolved audio URL for AI transcription sync */
+  audioUrl?: string | null;
+  /** Auth token getter — required for the transcribe-url API call */
+  getAccessToken?: () => Promise<string | null>;
 }
 
 type StatusType = "success" | "error" | "info";
@@ -70,6 +75,113 @@ function generateHookLines(hookText: string, songDuration?: number): CaptionLine
     text,
   }));
 }
+
+/* ── AI Sync: fuzzy caption-to-transcript matching ─────────────────────── */
+
+type WhisperSegment = { id: number; start: number; end: number; text: string };
+
+interface AiSyncDetails {
+  audioFound: boolean;
+  hasTranscript: boolean;
+  matched: number;
+  needsReview: number;
+  avgConfidencePct: number;
+}
+
+function normalizeForMatch(s: string): string[] {
+  return s.toLowerCase().replace(/[^\w\s]/g, " ").split(/\s+/).filter(Boolean);
+}
+
+function tokenOverlap(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const setB = new Set(b);
+  const hits = a.filter((t) => setB.has(t)).length;
+  return hits / Math.max(a.length, b.length);
+}
+
+function matchCaptionsToTranscript(
+  lines: CaptionLine[],
+  segments: WhisperSegment[],
+): { syncedLines: CaptionLine[]; matchedCount: number; needsReviewCount: number } {
+  let segCursor = 0;
+
+  const results: Array<{ line: CaptionLine; matched: boolean }> = lines.map((line) => {
+    const capTokens = normalizeForMatch(line.text);
+    let bestScore = 0;
+    let bestStart = 0;
+    let bestEnd = 0;
+    let bestSegEnd = segCursor;
+
+    /* Search from just before the cursor to allow slight backtrack */
+    const searchFrom = Math.max(0, segCursor - 1);
+    for (let i = searchFrom; i < segments.length; i++) {
+      let spanText = "";
+      for (let j = i; j < Math.min(i + 7, segments.length); j++) {
+        spanText += segments[j]!.text;
+        const score = tokenOverlap(capTokens, normalizeForMatch(spanText));
+        if (score > bestScore) {
+          bestScore = score;
+          bestStart = segments[i]!.start;
+          bestEnd = segments[j]!.end;
+          bestSegEnd = j + 1;
+        }
+      }
+    }
+
+    const confidence: CaptionLine["confidence"] =
+      bestScore >= 0.6 ? "high"
+      : bestScore >= 0.4 ? "medium"
+      : bestScore >= 0.2 ? "low"
+      : "needs-review";
+
+    const matched = bestScore >= 0.2;
+    if (matched) {
+      segCursor = bestSegEnd;
+      return {
+        line: {
+          ...line,
+          startSec: parseFloat(bestStart.toFixed(2)),
+          endSec: parseFloat(bestEnd.toFixed(2)),
+          confidence,
+        },
+        matched: true,
+      };
+    }
+    return { line: { ...line, confidence }, matched: false };
+  });
+
+  /* Second pass: interpolate timings for unmatched lines */
+  let i = 0;
+  while (i < results.length) {
+    if (!results[i]!.matched) {
+      /* Find the gap boundaries */
+      const prevEnd = results.slice(0, i).reverse().find((r) => r.matched)?.line.endSec ?? 0;
+      let j = i;
+      while (j < results.length && !results[j]!.matched) j++;
+      const nextStart = results[j]?.line.startSec ?? (segments[segments.length - 1]?.end ?? prevEnd + 2);
+      const gapCount = j - i;
+      const slotDur = Math.max(0.5, (nextStart - prevEnd) / Math.max(gapCount, 1));
+      let cursor = prevEnd;
+      for (let k = i; k < j; k++) {
+        const start = parseFloat(cursor.toFixed(2));
+        cursor += slotDur;
+        const end = parseFloat(Math.min(cursor, nextStart).toFixed(2));
+        results[k]!.line = { ...results[k]!.line, startSec: start, endSec: end };
+      }
+      i = j;
+    } else {
+      i++;
+    }
+  }
+
+  return {
+    syncedLines: results.map((r) => r.line),
+    matchedCount: results.filter((r) => r.matched).length,
+    needsReviewCount: results.filter((r) => !r.matched).length,
+  };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 function generateBestBarLines(bestBarText: string): CaptionLine[] {
   if (!bestBarText.trim()) return [];
@@ -118,7 +230,7 @@ const SPLIT_STYLE_DEFS = [
   { id: "long",   label: "Long",   hint: "8–12 words" },
 ] as const;
 
-export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption }: Props) {
+export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption, audioUrl, getAccessToken }: Props) {
   /* Vocal offset — seconds before the first word is sung */
   const [vocalOffsetInput, setVocalOffsetInput] = useState("0");
   const c = settings.captions;
@@ -128,6 +240,13 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
   const [generateStatus, setGenerateStatus] = useState<Status | null>(null);
   const [syncStatus, setSyncStatus] = useState<Status | null>(null);
   const [lyricsAutoFilled, setLyricsAutoFilled] = useState(false);
+
+  /* ── AI Sync state ── */
+  const [aiSyncing,      setAiSyncing     ] = useState(false);
+  const [aiSyncPhase,    setAiSyncPhase   ] = useState<string | null>(null);
+  const [aiSyncStatus,   setAiSyncStatus  ] = useState<Status | null>(null);
+  const [aiSyncDetails,  setAiSyncDetails ] = useState<AiSyncDetails | null>(null);
+  const [showAiConfirm,  setShowAiConfirm ] = useState(false);
 
   /* quickLyrics: the text shown in the "Generate From Lyrics" box.
      Priority: existing lyricsText saved in settings → incoming lyrics prop → empty. */
@@ -206,6 +325,71 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       captions: { ...c, lines: [], lyricsText: "", hookText: "", bestBarText: "" },
     });
     setGenerateStatus(null);
+  }
+
+  /* ── AI Sync: transcribe audio → fuzzy-match captions to vocal timestamps ── */
+
+  async function runAiSync() {
+    setShowAiConfirm(false);
+    setAiSyncing(true);
+    setAiSyncPhase("Transcribing song with timestamps…");
+    setAiSyncStatus(null);
+    setAiSyncDetails(null);
+
+    try {
+      const token = await getAccessToken?.().catch(() => undefined);
+      const res = await fetch("/api/transcribe-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ audioUrl }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
+        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+      }
+
+      const data = await res.json() as {
+        transcript: string;
+        segments?: WhisperSegment[];
+      };
+
+      const segments = data.segments;
+      if (!segments || segments.length === 0) {
+        throw new Error("No timestamped segments returned. The song may have no vocals, or try again.");
+      }
+
+      setAiSyncPhase("Matching captions to vocals…");
+      const { syncedLines, matchedCount, needsReviewCount } = matchCaptionsToTranscript(c.lines, segments);
+
+      setCaption("lines", syncedLines);
+      setLinesVisible(true);
+      setAiSyncDetails({
+        audioFound: true,
+        hasTranscript: true,
+        matched: matchedCount,
+        needsReview: needsReviewCount,
+        avgConfidencePct: Math.round((matchedCount / c.lines.length) * 100),
+      });
+
+      const hasIssues = needsReviewCount > 0;
+      setAiSyncStatus({
+        type: hasIssues ? "info" : "success",
+        message: hasIssues
+          ? `Captions synced to vocals — ${needsReviewCount} line${needsReviewCount !== 1 ? "s" : ""} need review.`
+          : `Captions synced to vocals — all ${matchedCount} lines matched.`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setAiSyncStatus({ type: "error", message: `AI sync failed: ${msg}` });
+      setAiSyncDetails((prev) => prev ?? { audioFound: !!audioUrl, hasTranscript: false, matched: 0, needsReview: c.lines.length, avgConfidencePct: 0 });
+    } finally {
+      setAiSyncing(false);
+      setAiSyncPhase(null);
+    }
   }
 
   /* ── Caption sync helpers ── */
@@ -455,6 +639,150 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
           {/* Status message */}
           {generateStatus && <StatusBadge status={generateStatus} />}
+        </div>
+      </EditorCard>
+
+      {/* ══════════════════════════════════════════════════
+          AI SYNC CAPTIONS TO VOCALS
+      ══════════════════════════════════════════════════ */}
+      <EditorCard
+        title="AI Sync Captions To Vocals"
+        subtitle="AI transcribes the song and matches each caption to the actual vocals — no guessing"
+        icon={<Sparkles className="h-4 w-4" />}
+      >
+        <div className="space-y-4">
+
+          {/* Pre-flight status */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 space-y-0.5">
+              <p className="text-[10px] text-white/35 font-semibold uppercase tracking-wide">Audio Source</p>
+              <p className={`text-sm font-black ${audioUrl ? "text-green-400" : "text-red-400/70"}`}>
+                {audioUrl ? "Found ✓" : "No audio"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 space-y-0.5">
+              <p className="text-[10px] text-white/35 font-semibold uppercase tracking-wide">Captions</p>
+              <p className={`text-sm font-black ${c.lines.length > 0 ? "text-white/75" : "text-white/35"}`}>
+                {c.lines.length > 0 ? `${c.lines.length} lines` : "None"}
+              </p>
+            </div>
+          </div>
+
+          {/* Guidance when prerequisites not met */}
+          {!audioUrl && (
+            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+              No audio attached. Go to the Music tab and upload or select your song first.
+            </p>
+          )}
+          {c.lines.length === 0 && (
+            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+              No captions yet. Generate captions from your lyrics above first.
+            </p>
+          )}
+
+          {/* Confirm panel — shown instead of immediate run */}
+          {showAiConfirm && !aiSyncing && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 space-y-3">
+              <p className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                AI Caption Sync uses credits
+              </p>
+              <p className="text-xs text-white/55 leading-relaxed">
+                This calls Whisper AI to transcribe your song and timestamp every word. It may use credits from your account. Continue?
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => void runAiSync()} className="gold-glow font-bold gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Yes, Sync To Vocals
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowAiConfirm(false)} className="text-white/50">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Progress indicator */}
+          {aiSyncing && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.05]">
+              <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
+              <span className="text-sm text-primary/80 font-semibold">{aiSyncPhase ?? "AI syncing captions…"}</span>
+            </div>
+          )}
+
+          {/* Main button */}
+          {!showAiConfirm && (
+            <Button
+              onClick={() => setShowAiConfirm(true)}
+              disabled={aiSyncing || !audioUrl || c.lines.length === 0}
+              data-testid="btn-ai-sync-captions"
+              className="w-full gold-glow font-bold gap-2"
+            >
+              {aiSyncing
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Syncing…</>
+                : <><Sparkles className="h-4 w-4" /> AI Sync Captions To Vocals</>
+              }
+            </Button>
+          )}
+
+          {/* AI Sync Status panel */}
+          {aiSyncDetails && (
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-2">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">AI Sync Status</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-white/40">Audio found</span>
+                  <span className={`text-[11px] font-bold ${aiSyncDetails.audioFound ? "text-green-400" : "text-red-400"}`}>
+                    {aiSyncDetails.audioFound ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-white/40">Transcript</span>
+                  <span className={`text-[11px] font-bold ${aiSyncDetails.hasTranscript ? "text-green-400" : "text-red-400"}`}>
+                    {aiSyncDetails.hasTranscript ? "Ready" : "Failed"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-white/40">Matched</span>
+                  <span className="text-[11px] font-bold text-green-400">{aiSyncDetails.matched}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-white/40">Needs review</span>
+                  <span className={`text-[11px] font-bold ${aiSyncDetails.needsReview > 0 ? "text-amber-400" : "text-white/35"}`}>
+                    {aiSyncDetails.needsReview}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] text-white/40">Avg confidence</span>
+                  <span className={`text-[11px] font-bold ${aiSyncDetails.avgConfidencePct >= 70 ? "text-green-400" : aiSyncDetails.avgConfidencePct >= 40 ? "text-amber-400" : "text-red-400"}`}>
+                    {aiSyncDetails.avgConfidencePct}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status message */}
+          {aiSyncStatus && <StatusBadge status={aiSyncStatus} />}
+
+          {/* Confidence legend */}
+          <div className="flex flex-wrap gap-3 pt-1">
+            <p className="text-[10px] text-white/25 w-full">Confidence shown in caption list:</p>
+            {[
+              { label: "High",         color: "bg-green-500" },
+              { label: "Medium",       color: "bg-yellow-500" },
+              { label: "Low",          color: "bg-orange-500" },
+              { label: "Needs Review", color: "bg-red-500" },
+            ].map(({ label, color }) => (
+              <span key={label} className="flex items-center gap-1.5 text-[10px] text-white/40">
+                <span className={`inline-block w-2 h-2 rounded-full ${color} opacity-70`} />
+                {label}
+              </span>
+            ))}
+          </div>
+
         </div>
       </EditorCard>
 
@@ -920,12 +1248,18 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
               {c.lines.map((line, i) => {
                 const isSelected = selectedCaptionId === line.id;
+                const confBorder =
+                  line.confidence === "high"         ? "border-l-green-500/60"
+                  : line.confidence === "medium"     ? "border-l-yellow-500/60"
+                  : line.confidence === "low"        ? "border-l-orange-500/60"
+                  : line.confidence === "needs-review" ? "border-l-red-500/60"
+                  : "border-l-transparent";
                 return (
                   <div
                     key={line.id}
                     data-testid={`caption-row-${i}`}
                     onClick={() => onSelectCaption?.(isSelected ? null : line.id)}
-                    className={`grid grid-cols-[70px_70px_1fr_auto] gap-2 items-center group rounded-lg px-1 py-0.5 cursor-pointer transition-colors ${
+                    className={`grid grid-cols-[70px_70px_1fr_auto] gap-2 items-center group rounded-lg px-1 py-0.5 cursor-pointer transition-colors border-l-2 ${confBorder} ${
                       isSelected
                         ? "bg-primary/[0.08] outline outline-1 outline-primary/40"
                         : "hover:bg-white/[0.03]"

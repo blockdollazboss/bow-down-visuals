@@ -1,0 +1,144 @@
+Restore Bow Down AI Guide as a floating helper on every page.
+
+Problem:
+My Bow Down AI Guide is still missing.
+
+I do not want it hidden only inside the Music Mixer tab.
+I want a floating Bow Down AI Guide / music helper that stays on every page.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not break the master preview player.
+Do not add duplicate video preview players.
+
+Only restore the floating Bow Down AI Guide / theme song music helper.
+
+Required behavior:
+
+1. Add a floating Bow Down AI Guide widget that appears on every page.
+
+It should appear on:
+
+* Dashboard
+* Make Song + Video
+* Make Music Video
+* Artist Profiles
+* Video Editor
+* Clips
+* Timeline
+* Music Mixer
+* Captions
+* Effects
+* Branding
+* Export
+* Pricing
+* My Projects
+
+2. The floating guide should be small by default.
+
+Default state:
+
+* small floating button/card
+* says Bow Down AI Guide
+* has a music/help icon
+* does not block the page
+
+3. It should expand when clicked.
+
+Expanded state should show:
+
+* quick help steps for the current page
+* theme song player
+* play/pause theme song
+* mute/unmute
+* volume
+* “How do I use this page?” help
+* “Next step” guidance
+
+4. It should collapse/hide when clicked.
+
+Add buttons:
+
+* Open Guide
+* Hide Guide
+* Minimize
+* Mute Theme Song
+
+5. It should snap into place.
+
+The guide should be draggable or snap to screen corners:
+
+* bottom right
+* bottom left
+* top right
+* top left
+
+If dragging is too much, make it fixed in the bottom-right corner for now.
+
+6. It should stay visible while scrolling.
+
+Use fixed positioning:
+position: fixed;
+z-index high enough;
+bottom: 20px;
+right: 20px;
+
+7. It should not replace the master video player.
+
+Important:
+The Bow Down AI Guide is NOT the master preview player.
+The master video player stays on the left inside Video Editor.
+The floating AI Guide is only a helper/theme song/music assistant.
+
+8. The theme song player should work inside the floating guide.
+
+It should:
+
+* play/pause the Bow Down Visuals theme song
+* remember mute/unmute
+* not interfere with project audio
+* not interfere with Timeline Preview audio
+* not change caption sync
+* not start over every time I change tabs
+
+9. Add page-aware help.
+
+Examples:
+On Music Mixer page, guide says:
+Step 1: Upload your song
+Step 2: Set song as video audio
+Step 3: Get lyrics from song
+Step 4: Use lyrics for captions
+
+On Captions page, guide says:
+Step 1: Generate captions
+Step 2: AI Sync captions to vocals
+Step 3: Review low-confidence lines
+Step 4: Preview with master player
+
+On Clips page, guide says:
+Step 1: Review scene clips
+Step 2: Preview clips in master player
+Step 3: Approve or regenerate clips
+
+10. Save guide preferences:
+
+* minimized/open
+* muted/unmuted
+* selected position
+* theme song volume
+
+Use localStorage if needed.
+
+11. Add visible status:
+    Bow Down AI Guide: active
+    Floating guide loaded: yes
+    Theme song loaded: yes/no
+    Muted: yes/no
+
+Final goal:
+The Bow Down AI Guide should be a floating helper/theme song music widget that stays on every page, snaps into place, can hide/minimize, and does not break the master video player.
