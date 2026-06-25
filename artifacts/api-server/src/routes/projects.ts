@@ -172,6 +172,145 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   PATCH /api/projects/:projectId/scene-clip
+   Attach an already-generated clip to a specific scene without charging credits.
+   Matches scene by: sceneId (preferred) → sceneNumber → sceneTitle/section.
+   Updates: demoClipUrl, generationStatus = "completed", provider = "Runway".
+───────────────────────────────────────────────────────────────────────────── */
+router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) => {
+  const { projectId } = req.params as { projectId: string };
+  const body = req.body as {
+    clipUrl: string;
+    sceneId?: string | null;
+    sceneNumber?: number | null;
+    sceneTitle?: string | null;
+  };
+
+  if (!body.clipUrl) {
+    res.status(400).json({ error: "clipUrl is required" });
+    return;
+  }
+
+  /* ── Fetch project ── */
+  const { data: existing, error: fetchErr } = await req.userSupabase!
+    .from("projects")
+    .select("id, user_id, project_type, title, artist_name, song_title, genre, mood, style, platform, input_data, output_data, credits_used, created_at")
+    .eq("id", projectId)
+    .eq("user_id", req.userId)
+    .single();
+
+  if (fetchErr || !existing) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  const outputData = (existing.output_data as Record<string, unknown>) ?? {};
+  const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
+
+  if (scenes.length === 0) {
+    res.status(422).json({ error: "This project has no scenes. Open the Video Editor and rebuild scenes first." });
+    return;
+  }
+
+  /* ── Find matching scene ── */
+  let matchIdx = -1;
+
+  if (body.sceneId) {
+    matchIdx = scenes.findIndex((s) => s["id"] === body.sceneId);
+  }
+  if (matchIdx === -1 && body.sceneNumber != null) {
+    matchIdx = scenes.findIndex(
+      (s) => s["sceneNumber"] === body.sceneNumber || s["id"] === String(body.sceneNumber),
+    );
+  }
+  if (matchIdx === -1 && body.sceneTitle) {
+    const lower = body.sceneTitle.toLowerCase();
+    matchIdx = scenes.findIndex(
+      (s) =>
+        String(s["section"] ?? "").toLowerCase().includes(lower) ||
+        String(s["timestamp"] ?? "").toLowerCase().includes(lower),
+    );
+  }
+
+  if (matchIdx === -1) {
+    res.status(422).json({
+      error: "No matching scene found. Try selecting by scene number or title.",
+    });
+    return;
+  }
+
+  /* ── Patch the scene in the array ── */
+  const updatedScenes = scenes.map((scene, i) => {
+    if (i !== matchIdx) return scene;
+    return {
+      ...scene,
+      demoClipUrl:      body.clipUrl,
+      generationStatus: "completed",
+      provider:         "Runway",
+      generatedAt:      new Date().toISOString(),
+    };
+  });
+
+  const updatedOutputData: Record<string, unknown> = {
+    ...outputData,
+    scenes: updatedScenes,
+  };
+
+  const matchedScene = scenes[matchIdx] as Record<string, unknown>;
+  req.log.info(
+    { projectId, userId: req.userId, sceneId: matchedScene["id"], section: matchedScene["section"] },
+    "[projects] attaching clip to scene (no credits charged)",
+  );
+
+  /* ── Persist (delete + reinsert) ── */
+  const { error: delErr } = await req.userSupabase!
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("user_id", req.userId);
+
+  if (delErr) {
+    res.status(500).json({ error: delErr.message });
+    return;
+  }
+
+  const { error: insErr } = await req.userSupabase!
+    .from("projects")
+    .insert({
+      id:           existing.id,
+      user_id:      existing.user_id,
+      project_type: existing.project_type,
+      title:        existing.title,
+      artist_name:  existing.artist_name,
+      song_title:   existing.song_title,
+      genre:        existing.genre,
+      mood:         existing.mood,
+      style:        (existing as Record<string, unknown>)["style"] ?? null,
+      platform:     (existing as Record<string, unknown>)["platform"] ?? null,
+      input_data:   existing.input_data,
+      output_data:  updatedOutputData,
+      credits_used: existing.credits_used,
+      created_at:   existing.created_at,
+    });
+
+  if (insErr) {
+    /* Restore original on failure — ignore restore errors */
+    try { await req.userSupabase!.from("projects").insert(existing); } catch { /* non-fatal */ }
+    res.status(500).json({ error: insErr.message });
+    return;
+  }
+
+  res.json({
+    success: true,
+    scene: {
+      index:     matchIdx + 1,
+      section:   matchedScene["section"] ?? null,
+      timestamp: matchedScene["timestamp"] ?? null,
+    },
+  });
+});
+
 router.delete("/projects/:id", requireAuth, async (req, res) => {
   const { id } = req.params;
 

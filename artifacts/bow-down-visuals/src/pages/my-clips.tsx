@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Video, ArrowLeft, Loader2, Trash2, Copy, Check,
-  Calendar, Film, AlertCircle, X,
+  Calendar, Film, AlertCircle, X, Layers, ChevronRight,
+  CheckCircle2, Link2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,26 @@ interface GeneratedClip {
   thumbnail_url: string | null;
   status: string;
   created_at: string;
+}
+
+interface ProjectOption {
+  id: string;
+  title: string;
+  artist_name: string | null;
+  song_title: string | null;
+  output_data: {
+    scenes?: SceneItem[];
+  } | null;
+}
+
+interface SceneItem {
+  id: string;
+  sceneNumber?: number;
+  section?: string;
+  timestamp?: string;
+  lyricLine?: string;
+  demoClipUrl?: string | null;
+  generationStatus?: string | null;
 }
 
 function formatDate(iso: string) {
@@ -46,7 +67,302 @@ function CopyBtn({ text }: { text: string }) {
   );
 }
 
-function ClipCard({ clip, onDelete }: { clip: GeneratedClip; onDelete: (id: string) => void }) {
+/* ─── Attach Modal ─────────────────────────────────────────────────────────── */
+interface AttachModalProps {
+  clip: GeneratedClip;
+  onClose: () => void;
+  onSuccess: (clipId: string) => void;
+  getAccessToken: () => Promise<string | null>;
+}
+
+function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalProps) {
+  const { toast } = useToast();
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<ProjectOption | null>(null);
+  const [selectedScene, setSelectedScene] = useState<SceneItem | null>(null);
+  const [attaching, setAttaching] = useState(false);
+  const [attachedInfo, setAttachedInfo] = useState<{ section: string | null; index: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/projects", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok) throw new Error("Failed to load projects");
+        const data = await res.json() as { projects: ProjectOption[] };
+        const withScenes = (data.projects ?? []).filter(
+          (p) => (p.output_data?.scenes ?? []).length > 0,
+        );
+        setProjects(withScenes);
+
+        /* Pre-select project if clip has project_id */
+        if (clip.project_id) {
+          const match = withScenes.find((p) => p.id === clip.project_id);
+          if (match) {
+            setSelectedProject(match);
+            /* Pre-select scene if clip has scene_id */
+            if (clip.scene_id) {
+              const sceneMatch = (match.output_data?.scenes ?? []).find(
+                (s) => s.id === clip.scene_id,
+              );
+              if (sceneMatch) setSelectedScene(sceneMatch);
+            }
+          }
+        }
+      } catch {
+        toast({ title: "Could not load projects", variant: "destructive" });
+      } finally {
+        setLoadingProjects(false);
+      }
+    })();
+  }, [clip.project_id, clip.scene_id, getAccessToken, toast]);
+
+  async function handleAttach() {
+    if (!selectedProject || !selectedScene) return;
+    setAttaching(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/projects/${selectedProject.id}/scene-clip`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          clipUrl:     clip.video_url,
+          sceneId:     selectedScene.id,
+          sceneNumber: selectedScene.sceneNumber ?? null,
+          sceneTitle:  selectedScene.section ?? null,
+        }),
+      });
+      const json = await res.json() as {
+        success?: boolean;
+        error?: string;
+        scene?: { index: number; section: string | null };
+      };
+      if (!res.ok || !json.success) {
+        toast({
+          title: "Could not attach clip",
+          description: json.error ?? `Server error ${res.status}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      setAttachedInfo({ section: json.scene?.section ?? null, index: json.scene?.index ?? 0 });
+      onSuccess(clip.id);
+      toast({
+        title: "Clip attached — Clip Ready!",
+        description: `Attached to Scene ${json.scene?.index ?? ""}${json.scene?.section ? ` (${json.scene.section})` : ""}. Open the Video Editor to see it.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Attach failed",
+        description: err instanceof Error ? err.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setAttaching(false);
+    }
+  }
+
+  const scenes = selectedProject?.output_data?.scenes ?? [];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/[0.10] bg-zinc-950 shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+              <Link2 className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Attach to Project Scene</p>
+              <p className="text-[11px] text-white/35">No credits charged</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.03] text-white/30 hover:text-white transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Clip preview */}
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-black border border-white/[0.06] overflow-hidden shrink-0">
+              <video src={clip.video_url} className="w-full h-full object-cover" muted />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white truncate">{clip.title || "Runway Clip"}</p>
+              <p className="text-[10px] text-white/35">{formatDate(clip.created_at)}</p>
+            </div>
+          </div>
+
+          {loadingProjects ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="text-center py-6">
+              <Layers className="h-8 w-8 text-white/20 mx-auto mb-2" />
+              <p className="text-sm text-white/50 font-medium">No projects with scenes found</p>
+              <p className="text-[11px] text-white/30 mt-1">Open the Video Editor and rebuild scenes first.</p>
+            </div>
+          ) : attachedInfo ? (
+            /* Success state */
+            <div className="flex flex-col items-center gap-3 py-6">
+              <div className="h-12 w-12 rounded-full bg-green-400/15 border border-green-400/25 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-bold text-white">Clip Ready</p>
+                <p className="text-[11px] text-white/45 mt-0.5">
+                  Attached to Scene {attachedInfo.index}{attachedInfo.section ? ` — ${attachedInfo.section}` : ""}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Project selector */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Project</p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelectedProject(p); setSelectedScene(null); }}
+                      className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
+                        selectedProject?.id === p.id
+                          ? "border-primary/40 bg-primary/10 text-white"
+                          : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate">{p.title}</p>
+                        {(p.artist_name || p.song_title) && (
+                          <p className="text-[10px] text-white/35 truncate">
+                            {[p.artist_name, p.song_title].filter(Boolean).join(" — ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        <span className="text-[10px] text-white/30">{(p.output_data?.scenes ?? []).length} scenes</span>
+                        {selectedProject?.id === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scene selector */}
+              {selectedProject && scenes.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Scene</p>
+                  <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                    {scenes.map((scene) => {
+                      const hasClip = !!scene.demoClipUrl && scene.generationStatus === "completed";
+                      return (
+                        <button
+                          key={scene.id}
+                          onClick={() => setSelectedScene(scene)}
+                          className={`w-full text-left rounded-xl border px-3 py-2.5 flex items-center justify-between transition-colors ${
+                            selectedScene?.id === scene.id
+                              ? "border-primary/40 bg-primary/10 text-white"
+                              : "border-white/[0.07] bg-white/[0.02] text-white/60 hover:text-white hover:border-white/15"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold">
+                              Scene {scene.sceneNumber ?? "?"}{scene.section ? ` — ${scene.section}` : ""}
+                            </p>
+                            {scene.timestamp && (
+                              <p className="text-[10px] text-white/35">{scene.timestamp}</p>
+                            )}
+                            {scene.lyricLine && (
+                              <p className="text-[10px] text-white/25 truncate mt-0.5 italic">"{scene.lyricLine}"</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            {hasClip && (
+                              <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-1.5 py-0.5">
+                                Has clip
+                              </span>
+                            )}
+                            {selectedScene?.id === scene.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!attachedInfo && !loadingProjects && projects.length > 0 && (
+          <div className="px-5 pb-4 flex items-center justify-between gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAttach}
+              disabled={!selectedProject || !selectedScene || attaching}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-primary text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+            >
+              {attaching ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Attaching…</>
+              ) : (
+                <><Link2 className="h-4 w-4" /> Attach Clip</>
+              )}
+            </button>
+          </div>
+        )}
+        {attachedInfo && (
+          <div className="px-5 pb-4 flex gap-2">
+            <Link href={`/video-editor?project=${selectedProject?.id ?? ""}`} className="flex-1">
+              <button className="w-full py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
+                <ChevronRight className="h-4 w-4" /> Open Video Editor
+              </button>
+            </Link>
+            <button
+              onClick={onClose}
+              className="py-2.5 px-4 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Clip Card ────────────────────────────────────────────────────────────── */
+function ClipCard({
+  clip,
+  onDelete,
+  onAttach,
+}: {
+  clip: GeneratedClip;
+  onDelete: (id: string) => void;
+  onAttach: (clip: GeneratedClip) => void;
+}) {
   const [showPrompt, setShowPrompt] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -98,6 +414,15 @@ function ClipCard({ clip, onDelete }: { clip: GeneratedClip; onDelete: (id: stri
           </div>
         )}
 
+        {/* Attach button */}
+        <button
+          onClick={() => onAttach(clip)}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-primary border border-primary/25 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          Attach to Project Scene
+        </button>
+
         {/* Actions */}
         <div className="flex items-center justify-between pt-1 border-t border-white/[0.05]">
           <CopyBtn text={clip.video_url} />
@@ -129,6 +454,7 @@ function ClipCard({ clip, onDelete }: { clip: GeneratedClip; onDelete: (id: stri
   );
 }
 
+/* ─── Page ─────────────────────────────────────────────────────────────────── */
 export default function MyClips() {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
@@ -136,6 +462,9 @@ export default function MyClips() {
   const [clips, setClips] = useState<GeneratedClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attachingClip, setAttachingClip] = useState<GeneratedClip | null>(null);
+
+  const stableGetAccessToken = useCallback(getAccessToken, [getAccessToken]);
 
   useEffect(() => {
     (async () => {
@@ -177,6 +506,16 @@ export default function MyClips() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-yellow-600/6 rounded-full blur-[100px]" />
       </div>
 
+      {/* Attach Modal */}
+      {attachingClip && (
+        <AttachModal
+          clip={attachingClip}
+          onClose={() => setAttachingClip(null)}
+          getAccessToken={stableGetAccessToken}
+          onSuccess={() => { /* toast already shown inside */ }}
+        />
+      )}
+
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
         {/* Header */}
@@ -203,6 +542,17 @@ export default function MyClips() {
             </Button>
           </Link>
         </div>
+
+        {/* Explainer */}
+        {!loading && clips.length > 0 && (
+          <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
+            <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-[12px] text-white/50 leading-relaxed">
+              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in your Video Editor — no credits charged.
+              Open the Video Editor afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
+            </p>
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (
@@ -241,7 +591,12 @@ export default function MyClips() {
         {!loading && clips.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {clips.map((clip) => (
-              <ClipCard key={clip.id} clip={clip} onDelete={handleDelete} />
+              <ClipCard
+                key={clip.id}
+                clip={clip}
+                onDelete={handleDelete}
+                onAttach={setAttachingClip}
+              />
             ))}
           </div>
         )}
