@@ -1,14 +1,19 @@
 /**
  * TimelinePreviewPlayer
  *
- * Architecture: ONE master clock drives everything.
- *   masterTime → currentSceneIdx (time-based lookup)
- *   masterTime → activeLine      (time-based lookup)
+ * ONE master clock (requestAnimationFrame) drives everything.
+ *   masterTime → activeSceneIdx  (time-based lookup, no manual advance)
+ *   masterTime → activeLine      (time-based caption lookup)
  *   Audio plays continuously — never restarted on scene change.
- *   Video clips play from 0 each time their scene becomes active.
+ *
+ * Key design choices:
+ *  - rAF instead of setInterval: wall-clock accurate, never throttled
+ *  - setVideoEl is stable (useCallback) — video ref never cycles on re-render
+ *  - All live values read from refs inside the rAF callback (no stale closures)
+ *  - React state updated max ~10×/sec (every 100ms) for caption / scene display
  */
 import {
-  useState, useEffect, useRef, type CSSProperties,
+  useState, useEffect, useRef, useCallback, type CSSProperties,
 } from "react";
 import {
   Play, Pause, SkipBack, Film, Volume2, ListVideo,
@@ -17,9 +22,9 @@ import {
 import type { SceneData } from "@/lib/scene-parser";
 import type { CaptionLine } from "@/lib/editor-settings";
 
-/* ─── helpers ──────────────────────────────────────────────────── */
+/* ─── helpers ─────────────────────────────────────────────────── */
 
-function parseDur(ts: string): number {
+function parseDur(ts: string | null | undefined): number {
   if (!ts) return 5;
   const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
   if (m) { const s = +m[1]*60 + +m[2], e = +m[3]*60 + +m[4]; return e > s ? e - s : 5; }
@@ -27,19 +32,23 @@ function parseDur(ts: string): number {
 }
 
 function fmt(s: number): string {
+  if (!isFinite(s) || s < 0) return "0:00";
   return `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
 }
 
-/** Which scene index contains `t`? */
+/** Return which scene index is active at time `t`. */
 function sceneAt(t: number, offsets: number[], durs: number[]): number {
   for (let i = offsets.length - 1; i >= 0; i--) {
-    if (t >= offsets[i] && t < offsets[i] + durs[i]) return i;
+    if (t >= offsets[i]) return i;   // first scene whose start <= t
   }
-  // t past end → clamp to last
-  return Math.max(0, offsets.length - 1);
+  return 0;
 }
 
-/* ─── types ────────────────────────────────────────────────────── */
+function buildOffsets(durs: number[]): number[] {
+  return durs.map((_, i) => i === 0 ? 0 : durs.slice(0, i).reduce((a, b) => a + b, 0));
+}
+
+/* ─── types ───────────────────────────────────────────────────── */
 
 export interface TimelinePreviewPlayerProps {
   scenes: SceneData[];
@@ -54,101 +63,112 @@ export interface TimelinePreviewPlayerProps {
   };
 }
 
-/* ─── component ─────────────────────────────────────────────────── */
+/* ─── component ───────────────────────────────────────────────── */
 
 export function TimelinePreviewPlayer({
   scenes, captionLines, audioUrl, initialSceneId, captionSettings,
 }: TimelinePreviewPlayerProps) {
 
-  /* ── Compute scene timing (pure, no side-effects) ── */
-  const durs    = scenes.map(s => parseDur(s.timestamp));
-  const offsets = durs.reduce<number[]>((acc, _, i) => {
-    acc.push(i === 0 ? 0 : (acc[i-1] ?? 0) + (durs[i-1] ?? 5));
-    return acc;
-  }, []);
-  const totalDur = (offsets[scenes.length-1] ?? 0) + (durs[scenes.length-1] ?? 0);
+  /* ── scene timing (recomputed each render, refs kept in sync) ── */
+  const durs     = scenes.map(s => parseDur(s.timestamp));
+  const offsets  = buildOffsets(durs);
+  const totalDur = durs.reduce((a, b) => a + b, 0);
+  const initialIdx = Math.max(0, scenes.findIndex(s => s.id === initialSceneId));
 
-  /* ── React state (display only) ── */
-  const [masterTime,  setMasterTime ] = useState(0);
-  const [sceneIdx,    setSceneIdx   ] = useState(0);
-  const [playing,     setPlaying    ] = useState(false);
-  const [audioReady,  setAudioReady ] = useState(false);
-  const [audioPlaying,setAudioPlaying] = useState(false);
-  const [lastError,   setLastError  ] = useState<string | null>(null);
-  const [debugOpen,   setDebugOpen  ] = useState(true);
-  /** Bumped on every startTimeline / restartTimeline so useEffect fires even
-   *  when sceneIdx doesn't change (already at 0). */
-  const [playTrigger, setPlayTrigger] = useState(0);
+  /* ── React state — display only ── */
+  const [masterTime,    setMasterTime   ] = useState(0);
+  const [sceneIdx,      setSceneIdx     ] = useState(0);
+  const [mode,          setMode         ] = useState<"timeline"|"scene">("timeline");
+  const [playing,       setPlaying      ] = useState(false);
+  const [audioReady,    setAudioReady   ] = useState(false);
+  const [audioPlaying,  setAudioPlaying ] = useState(false);
+  const [lastError,     setLastError    ] = useState<string|null>(null);
+  const [debugOpen,     setDebugOpen    ] = useState(true);
+  const [tickCount,     setTickCount    ] = useState(0);
+  /** Bumped to force useEffect([sceneIdx, playTrigger]) even when sceneIdx stays 0 */
+  const [playTrigger,   setPlayTrigger  ] = useState(0);
 
-  /* ── Refs (live values, no stale closures) ── */
-  const masterTimeRef  = useRef(0);
-  const sceneIdxRef    = useRef(0);
-  const playingRef     = useRef(false);
-  const offsRef        = useRef(offsets);
-  const dursRef        = useRef(durs);
-  const totalDurRef    = useRef(totalDur);
-  const scenesRef      = useRef(scenes);
-  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
-  const videoRef       = useRef<HTMLVideoElement | null>(null);
-  const audioRef       = useRef<HTMLAudioElement | null>(null);
+  /* ── Refs — live values for rAF callback (no stale closures) ── */
+  const masterTimeRef = useRef(0);
+  const sceneIdxRef   = useRef(0);
+  const playingRef    = useRef(false);
+  const modeRef       = useRef<"timeline"|"scene">("timeline");
+  const offsRef       = useRef(offsets);
+  const dursRef       = useRef(durs);
+  const totalDurRef   = useRef(totalDur);
+  const scenesRef     = useRef(scenes);
+  const rafRef        = useRef<number|null>(null);
+  const videoRef      = useRef<HTMLVideoElement|null>(null);
+  const audioRef      = useRef<HTMLAudioElement|null>(null);
+  /* Wall-clock start for accurate elapsed time */
+  const wallStartRef  = useRef(0);
+  const masterStartRef= useRef(0);
+  /* Last time we pushed a React state update (throttle to 100ms) */
+  const lastUpdateRef = useRef(0);
+  /* Stop time for scene-only mode */
+  const stopAtRef     = useRef(Infinity);
 
-  /* Keep refs in sync every render */
-  offsRef.current     = offsets;
-  dursRef.current     = durs;
-  totalDurRef.current = totalDur;
-  scenesRef.current   = scenes;
-  sceneIdxRef.current = sceneIdx;
-  playingRef.current  = playing;
+  /* Sync refs every render (runs synchronously, before effects) */
+  offsRef.current    = offsets;
+  dursRef.current    = durs;
+  totalDurRef.current= totalDur;
+  scenesRef.current  = scenes;
+  sceneIdxRef.current= sceneIdx;
+  playingRef.current = playing;
+  modeRef.current    = mode;
 
   /* ── Derived display ── */
   const currentScene = scenes[sceneIdx];
   const hasClip      = !!currentScene?.demoClipUrl;
   const activeLine   = captionLines.find(
-    l => l.startSec <= masterTime && masterTime < l.endSec,
+    l => l.startSec <= masterTime && masterTime < l.endSec
   ) ?? null;
 
-  /* ── Muted video callback ref ── */
-  const setVideoEl = (el: HTMLVideoElement | null) => {
+  /* ── Stable video callback ref (MUST be stable — inline fn breaks video) ── */
+  const setVideoEl = useCallback((el: HTMLVideoElement|null) => {
     videoRef.current = el;
-    if (el) el.muted = true;
-  };
+    if (el) { el.muted = true; }
+  }, []); // empty deps → created once, never cycles on re-render
 
-  /* ── Timer helpers ── */
-  function stopTimer() {
-    if (timerRef.current !== null) { clearInterval(timerRef.current); timerRef.current = null; }
-  }
+  /* ── rAF tick ── */
+  function tick(timestamp: number) {
+    if (!playingRef.current) return;
 
-  function startMasterClock() {
-    stopTimer();
-    timerRef.current = setInterval(() => {
-      if (!playingRef.current) return;
+    /* Accurate wall-clock elapsed time (avoids floating-point drift) */
+    const elapsed = (timestamp - wallStartRef.current) / 1000;
+    const next    = masterStartRef.current + elapsed;
+    masterTimeRef.current = next;
 
-      const next = parseFloat((masterTimeRef.current + 0.1).toFixed(2));
-      masterTimeRef.current = next;
-
-      /* Update caption display on every tick */
+    /* Throttle React state updates to ≤10fps */
+    const shouldUpdate = timestamp - lastUpdateRef.current >= 100;
+    if (shouldUpdate) {
+      lastUpdateRef.current = timestamp;
       setMasterTime(next);
+      setTickCount(t => t + 1);
 
-      /* End of timeline? */
-      if (next >= totalDurRef.current) {
-        stopTimer();
-        playingRef.current = false;
-        setPlaying(false);
-        audioRef.current?.pause();
-        setAudioPlaying(false);
-        return;
+      /* Scene change? (timeline mode only) */
+      if (modeRef.current === "timeline") {
+        const newIdx = sceneAt(next, offsRef.current, dursRef.current);
+        if (newIdx !== sceneIdxRef.current) {
+          sceneIdxRef.current = newIdx;
+          setSceneIdx(newIdx);
+        }
       }
+    }
 
-      /* Scene change? */
-      const newIdx = sceneAt(next, offsRef.current, dursRef.current);
-      if (newIdx !== sceneIdxRef.current) {
-        sceneIdxRef.current = newIdx;
-        setSceneIdx(newIdx);      // triggers useEffect([sceneIdx, playTrigger])
-      }
-    }, 100);
+    /* Stop at end (or scene end in scene-preview mode) */
+    if (next >= stopAtRef.current) {
+      playingRef.current = false;
+      setPlaying(false);
+      setMasterTime(stopAtRef.current);
+      if (audioRef.current) { audioRef.current.pause(); setAudioPlaying(false); }
+      return; // don't schedule next frame
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
   }
 
-  /* ── Effect: play clip when scene changes ── */
+  /* ── Effect: play clip when sceneIdx changes (or playTrigger bumps) ── */
   useEffect(() => {
     if (!playingRef.current) return;
     const scene = scenesRef.current[sceneIdx];
@@ -156,34 +176,53 @@ export function TimelinePreviewPlayer({
       const v = videoRef.current;
       v.muted = true;
       v.currentTime = 0;
-      v.play().catch((e: Error) => setLastError(`Clip scene ${sceneIdx+1}: ${e.message}`));
+      v.play().catch((e: Error) =>
+        setLastError(`Clip scene ${sceneIdx+1}: ${e.message}`)
+      );
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneIdx, playTrigger]);
 
-  /* ── Cleanup on unmount ── */
-  useEffect(() => () => stopTimer(), []);
+  /* ── Cleanup ── */
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
-  /* ── Audio element ready ── */
+  /* ── Audio element readiness ── */
   useEffect(() => {
     setAudioReady(!!audioUrl);
   }, [audioUrl]);
 
-  /* ─── Control functions ──────────────────────────────────────── */
+  /* ─── Control helpers ──────────────────────────────────────── */
+
+  function stopRaf() {
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+  }
+
+  function launchClock(fromTime: number, stopAt: number, startSceneIdx: number) {
+    stopRaf();
+    masterTimeRef.current  = fromTime;
+    masterStartRef.current = fromTime;
+    wallStartRef.current   = performance.now();
+    lastUpdateRef.current  = 0;
+    stopAtRef.current      = stopAt;
+    sceneIdxRef.current    = startSceneIdx;
+    playingRef.current     = true;
+    setPlaying(true);
+    rafRef.current = requestAnimationFrame(tick);
+  }
 
   function startTimeline() {
-    stopTimer();
-    masterTimeRef.current = 0;
-    sceneIdxRef.current   = 0;
-    playingRef.current    = true;
-
+    setLastError(null);
+    setMode("timeline");
+    modeRef.current = "timeline";
     setMasterTime(0);
     setSceneIdx(0);
-    setPlaying(true);
-    setLastError(null);
     setPlayTrigger(t => t + 1); // force useEffect even if sceneIdx stays 0
 
-    /* Audio — start from 0, play continuously */
+    /* Audio from beginning */
     if (audioRef.current && audioUrl) {
       audioRef.current.currentTime = 0;
       audioRef.current.play()
@@ -191,11 +230,33 @@ export function TimelinePreviewPlayer({
         .catch((e: Error) => setLastError(`Audio preview failed: ${e.message}`));
     }
 
-    startMasterClock();
+    launchClock(0, totalDurRef.current, 0);
+  }
+
+  function startScenePreview() {
+    const idx   = initialIdx;
+    const start = offsRef.current[idx] ?? 0;
+    const end   = start + (dursRef.current[idx] ?? 5);
+
+    setLastError(null);
+    setMode("scene");
+    modeRef.current = "scene";
+    setMasterTime(start);
+    setSceneIdx(idx);
+    setPlayTrigger(t => t + 1);
+
+    if (audioRef.current && audioUrl) {
+      audioRef.current.currentTime = start;
+      audioRef.current.play()
+        .then(() => setAudioPlaying(true))
+        .catch((e: Error) => setLastError(`Audio preview failed: ${e.message}`));
+    }
+
+    launchClock(start, end, idx);
   }
 
   function pauseTimeline() {
-    stopTimer();
+    stopRaf();
     playingRef.current = false;
     setPlaying(false);
     if (videoRef.current) videoRef.current.pause();
@@ -203,9 +264,7 @@ export function TimelinePreviewPlayer({
   }
 
   function resumeTimeline() {
-    if (masterTimeRef.current >= totalDurRef.current) return; // already at end
-    playingRef.current = true;
-    setPlaying(true);
+    if (masterTimeRef.current >= stopAtRef.current) return;
     setLastError(null);
 
     if (hasClip && videoRef.current) {
@@ -213,56 +272,60 @@ export function TimelinePreviewPlayer({
       videoRef.current.play().catch((e: Error) => setLastError(`Clip: ${e.message}`));
     }
     if (audioRef.current && audioUrl) {
+      audioRef.current.currentTime = masterTimeRef.current;
       audioRef.current.play()
         .then(() => setAudioPlaying(true))
         .catch((e: Error) => setLastError(`Audio: ${e.message}`));
     }
 
-    startMasterClock();
+    /* Resume from current masterTime */
+    launchClock(masterTimeRef.current, stopAtRef.current, sceneIdxRef.current);
   }
 
   function restartTimeline() {
-    startTimeline(); // same as start from 0
+    startTimeline();
   }
 
   function jumpToScene(i: number) {
     const wasPlaying = playingRef.current;
-    stopTimer();
+    stopRaf();
+    playingRef.current = false;
 
-    const newTime = offsets[i] ?? 0;
+    const newTime = offsRef.current[i] ?? 0;
     masterTimeRef.current = newTime;
     sceneIdxRef.current   = i;
 
     setMasterTime(newTime);
     setSceneIdx(i);
-    setLastError(null);
     setPlayTrigger(t => t + 1);
+    setLastError(null);
 
     if (audioRef.current && audioUrl) {
       audioRef.current.currentTime = newTime;
     }
 
     if (wasPlaying) {
-      playingRef.current = true;
-      setPlaying(true);
       if (audioRef.current && audioUrl) {
-        audioRef.current.play().then(() => setAudioPlaying(true)).catch(() => {});
+        audioRef.current.play()
+          .then(() => setAudioPlaying(true))
+          .catch(() => {});
       }
-      startMasterClock();
+      launchClock(newTime, stopAtRef.current, i);
     }
   }
 
-  /* ─── Caption style ──────────────────────────────────────────── */
+  /* ─── Caption style ─────────────────────────────────────────── */
   const capStyle: CSSProperties = {
     fontSize: "clamp(14px,3vw,20px)", fontWeight: 800,
-    color: captionSettings?.textColor || "#ffffff",
+    color: captionSettings?.textColor || "#fff",
     background: captionSettings?.background ? "rgba(0,0,0,0.72)" : "transparent",
     textShadow: captionSettings?.outline
       ? "0 0 8px #000,1px 1px 0 #000,-1px -1px 0 #000"
       : "0 2px 8px rgba(0,0,0,0.9)",
-    letterSpacing: "0.01em", padding: "0.2rem 0.75rem", borderRadius: "0.4rem",
+    padding: "0.2rem 0.75rem", borderRadius: "0.4rem", letterSpacing: "0.01em",
   };
-  const posClass = captionSettings?.position === "Top"   ? "top-3"
+  const posClass =
+    captionSettings?.position === "Top"    ? "top-3"
     : captionSettings?.position === "Center" ? "top-1/2 -translate-y-1/2"
     : "bottom-6";
 
@@ -270,22 +333,23 @@ export function TimelinePreviewPlayer({
   return (
     <div className="rounded-xl border border-primary/20 bg-[#080808] overflow-hidden">
 
-      {/* Hidden audio element — plays continuously across scenes */}
+      {/* Hidden audio — plays continuously across scene changes */}
       {audioUrl && (
         <audio
           ref={audioRef}
           src={audioUrl}
           preload="auto"
           onCanPlayThrough={() => setAudioReady(true)}
-          onEnded={() => setAudioPlaying(false)}
+          onEnded={() => { setAudioPlaying(false); }}
         />
       )}
 
-      {/* ── Preview area ── */}
+      {/* ── Preview area ─────────────────────────────────────── */}
       <div className="relative aspect-video bg-black">
+
         {hasClip ? (
           <video
-            ref={setVideoEl}
+            ref={setVideoEl}           /* stable callback — won't cycle on re-render */
             key={currentScene?.demoClipUrl}
             src={currentScene?.demoClipUrl ?? undefined}
             playsInline
@@ -302,18 +366,17 @@ export function TimelinePreviewPlayer({
             <div className="h-16 w-16 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center">
               <Film className="h-7 w-7 text-white/20" />
             </div>
-            <div className="text-center px-6">
-              <p className="text-sm font-bold text-white/40">
-                {currentScene?.section || `Scene ${sceneIdx + 1}`}
+            <p className="text-sm font-bold text-white/40 text-center px-4">
+              {currentScene?.section || `Scene ${sceneIdx+1}`}
+            </p>
+            {currentScene?.lyricLine && (
+              <p className="text-xs text-white/20 italic text-center px-6 max-w-xs">
+                &ldquo;{currentScene.lyricLine}&rdquo;
               </p>
-              {currentScene?.lyricLine && (
-                <p className="text-xs text-white/20 mt-1 italic">&ldquo;{currentScene.lyricLine}&rdquo;</p>
-              )}
-              <p className="text-[10px] text-white/15 mt-2">No clip — timer-driven</p>
-            </div>
+            )}
             {playing && (
-              <p className="font-mono text-[11px] text-primary/50">
-                {fmt(masterTime - (offsets[sceneIdx] ?? 0))} / {fmt(durs[sceneIdx] ?? 5)}
+              <p className="font-mono text-[11px] text-primary/60">
+                {fmt(masterTime - (offsets[sceneIdx]??0))} / {fmt(durs[sceneIdx]??5)}
               </p>
             )}
           </div>
@@ -338,15 +401,17 @@ export function TimelinePreviewPlayer({
           </span>
         </div>
 
-        {/* Playing badge */}
+        {/* Playing / mode badge */}
         {playing && (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
             <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
-            <span className="text-[10px] font-black text-black uppercase tracking-wide">Timeline Preview Active</span>
+            <span className="text-[10px] font-black text-black uppercase tracking-wide">
+              {mode === "timeline" ? "Timeline Active" : "Scene Preview Active"}
+            </span>
           </div>
         )}
 
-        {/* Overlay play button (resume) */}
+        {/* Overlay play button — shown when paused */}
         {!playing && (
           <button type="button" onClick={resumeTimeline}
             className="absolute inset-0 flex items-center justify-center" aria-label="Play">
@@ -357,25 +422,41 @@ export function TimelinePreviewPlayer({
         )}
       </div>
 
-      {/* ── Controls ── */}
+      {/* ── Controls ─────────────────────────────────────────── */}
       <div className="px-4 py-3 border-t border-white/[0.05] space-y-3">
 
-        {/* Primary buttons */}
+        {/* Mode buttons */}
         <div className="flex gap-2">
           <button type="button" data-testid="preview-timeline-btn" onClick={startTimeline}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
-              playing ? "border-primary/50 bg-primary/15 text-primary" : "border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70"
+              mode === "timeline" && playing
+                ? "border-primary/50 bg-primary/15 text-primary"
+                : "border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70"
             }`}>
             <ListVideo className="h-3.5 w-3.5" /> Preview Timeline
+          </button>
+          <button type="button" data-testid="preview-scene-btn" onClick={startScenePreview}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
+              mode === "scene" && playing
+                ? "border-primary/50 bg-primary/15 text-primary"
+                : "border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70"
+            }`}>
+            <Film className="h-3.5 w-3.5" /> Preview Scene
+          </button>
+        </div>
+
+        {/* Playback controls */}
+        <div className="flex gap-2">
+          <button type="button" data-testid="preview-restart-btn" onClick={restartTimeline}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70 transition-colors">
+            <SkipBack className="h-3.5 w-3.5" /> Restart Timeline
           </button>
           <button type="button" data-testid="preview-pause-btn"
             onClick={playing ? pauseTimeline : resumeTimeline}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70 transition-colors">
-            {playing ? <><Pause className="h-3.5 w-3.5" /> Pause Timeline</> : <><Play className="h-3.5 w-3.5" /> Resume Timeline</>}
-          </button>
-          <button type="button" data-testid="preview-restart-btn" onClick={restartTimeline}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border border-white/10 bg-white/[0.03] text-white/45 hover:text-white/70 transition-colors">
-            <SkipBack className="h-3.5 w-3.5" /> Restart
+            {playing
+              ? <><Pause className="h-3.5 w-3.5" /> Pause Timeline</>
+              : <><Play  className="h-3.5 w-3.5" /> Resume Timeline</>}
           </button>
         </div>
 
@@ -383,22 +464,26 @@ export function TimelinePreviewPlayer({
         <div className="flex items-center gap-2">
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-primary/70 rounded-full transition-none"
-              style={{ width: `${totalDur > 0 ? Math.min(100, masterTime / totalDur * 100) : 0}%` }} />
+              style={{ width: `${totalDur > 0 ? Math.min(100, masterTime/totalDur*100) : 0}%` }} />
           </div>
-          <span className="text-[10px] font-mono text-white/30 shrink-0 w-20 text-right">
+          <span className="text-[10px] font-mono text-white/30 shrink-0 w-[84px] text-right">
             {fmt(masterTime)} / {fmt(totalDur)}
           </span>
         </div>
 
-        {/* Audio status */}
+        {/* Audio status line */}
         <div className="text-[10px] flex items-center gap-1.5">
           {audioUrl ? (
-            <div className={`flex items-center gap-1.5 ${audioPlaying ? "text-blue-400/70" : "text-white/30"}`}>
+            <span className={`flex items-center gap-1.5 ${audioPlaying ? "text-blue-400/70" : "text-white/30"}`}>
               <Volume2 className="h-3 w-3 shrink-0" />
-              {audioPlaying ? "Audio playing continuously" : "Audio loaded — plays when Preview Timeline starts"}
-            </div>
+              {audioPlaying
+                ? "Audio playing continuously — does not restart between scenes"
+                : `Audio loaded${audioReady ? "" : " (loading…)"} — plays when Preview Timeline starts`}
+            </span>
           ) : (
-            <span className="text-white/20">No song audio selected. Timeline preview will play silently.</span>
+            <span className="text-white/20">
+              No song audio selected. Timeline preview will play silently.
+            </span>
           )}
         </div>
 
@@ -425,7 +510,7 @@ export function TimelinePreviewPlayer({
           ))}
         </div>
 
-        {/* ── Debug / Status panel ── */}
+        {/* ── Debug / Status panel ─────────────────────────────── */}
         <div className="border border-white/[0.07] rounded-lg overflow-hidden">
           <button type="button" onClick={() => setDebugOpen(o => !o)}
             className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black text-white/30 uppercase tracking-widest hover:text-white/50 transition-colors">
@@ -434,20 +519,25 @@ export function TimelinePreviewPlayer({
           </button>
           {debugOpen && (
             <div className="px-3 pb-3 space-y-0.5 font-mono text-[10px] border-t border-white/[0.06]">
+              <DR label="timer ticks"      v={String(tickCount)} hi={playing} />
+              <DR label="playing"          v={playing ? "YES" : "no"} hi={playing} />
+              <DR label="mode"             v={mode} />
+              <DR label="current time"     v={`${masterTime.toFixed(2)}s`} hi={playing} />
+              <DR label="total duration"   v={`${totalDur.toFixed(1)}s (${scenes.length} scenes)`} />
+              <DR label="current scene"    v={`${sceneIdx+1} of ${scenes.length} · "${currentScene?.section||"—"}" · ${fmt(offsets[sceneIdx]??0)}–${fmt((offsets[sceneIdx]??0)+(durs[sceneIdx]??5))}`} />
+              <DR label="has clip"         v={hasClip ? "yes (video)" : "no (timer)"} />
               <DR label="scenes loaded"    v={String(scenes.length)} />
               <DR label="captions loaded"  v={String(captionLines.length)} />
               <DR label="audio loaded"     v={audioReady ? "yes" : audioUrl ? "loading…" : "no"} />
               <DR label="audio playing"    v={audioPlaying ? "YES" : "no"} hi={audioPlaying} />
-              <DR label="playing"          v={playing ? "YES" : "no"} hi={playing} />
-              <DR label="current time"     v={`${masterTime.toFixed(2)}s`} hi={playing} />
-              <DR label="total duration"   v={`${totalDur.toFixed(1)}s`} />
-              <DR label="current scene"    v={`${sceneIdx+1} of ${scenes.length} · ${currentScene?.section||"—"} (${fmt(offsets[sceneIdx]??0)}–${fmt((offsets[sceneIdx]??0)+(durs[sceneIdx]??5))})`} />
-              <DR label="has clip"         v={hasClip ? "yes (video)" : "no (timer)"} />
               <DR label="current caption"  v={
                 activeLine
-                  ? `"${activeLine.text}" (${activeLine.startSec.toFixed(1)}–${activeLine.endSec.toFixed(1)}s)`
-                  : captionLines.length > 0 ? `none at ${masterTime.toFixed(1)}s` : "no captions"
+                  ? `"${activeLine.text.slice(0,40)}" (${activeLine.startSec.toFixed(1)}–${activeLine.endSec.toFixed(1)}s)`
+                  : captionLines.length > 0
+                    ? `none at ${masterTime.toFixed(1)}s (${captionLines.length} captions loaded)`
+                    : "no captions loaded"
               } hi={!!activeLine} />
+              <DR label="scene offsets"    v={offsets.map(o => `${o.toFixed(0)}s`).join(", ")} />
               <DR label="last error"       v={lastError ?? "none"} err={!!lastError} />
             </div>
           )}
@@ -458,7 +548,7 @@ export function TimelinePreviewPlayer({
   );
 }
 
-/* ─── Debug row ────────────────────────────────────────────────── */
+/* ─── Debug row ───────────────────────────────────────────────── */
 function DR({ label, v, hi, err }: { label: string; v: string; hi?: boolean; err?: boolean }) {
   return (
     <div className="flex gap-2 pt-0.5">
