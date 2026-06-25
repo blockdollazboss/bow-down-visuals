@@ -1,4 +1,4 @@
-import { Wand2, Film, ArrowLeftRight, FlaskConical } from "lucide-react";
+import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS,
@@ -23,15 +23,67 @@ function toggleListItem(list: string[], item: string): string[] {
   return list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 }
 
+/* ── Intensity slider ─────────────────────────────────────────────────────── */
+function IntensityRow({
+  label,
+  value,
+  onChange,
+  onRemove,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 w-full min-w-0 py-0.5">
+      <span className="text-[11px] font-semibold text-white/60 w-28 shrink-0 truncate">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 h-1 min-w-0 cursor-pointer"
+        style={{ accentColor: "#C9A84C" }}
+      />
+      <span className="text-[10px] font-mono text-white/40 w-8 text-right shrink-0">{value}%</span>
+      <button
+        onClick={onRemove}
+        className="shrink-0 text-white/25 hover:text-white/60 transition-colors text-xs leading-none px-0.5"
+        title={`Remove ${label}`}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay }: EffectsSectionProps) {
   function patchClip(sceneId: string, patch: Partial<ClipEdit>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
   }
 
+  function setIntensity(name: string, v: number) {
+    setSettings({ ...settings, overlayIntensity: { ...settings.overlayIntensity, [name]: v } });
+  }
+
+  function removeOverlay(name: string) {
+    const overlays = settings.overlays.filter((x) => x !== name);
+    const { [name]: _, ...rest } = settings.overlayIntensity;
+    setSettings({ ...settings, overlays, overlayIntensity: rest });
+  }
+
+  function resetAllEffects() {
+    setSettings({ ...settings, effects: [], overlays: [], overlayIntensity: {} });
+  }
+
+  const hasAnyEffect = settings.effects.length > 0 || settings.overlays.length > 0;
+
   return (
     <div className="space-y-5">
-      {/* ── Auto AI Edit — top of Effects tab ── */}
+      {/* ── Auto AI Edit ── */}
       <AutoAiEditSection
         scenes={scenes}
         settings={settings}
@@ -40,30 +92,96 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         onTestEffect={onTestEffect}
       />
 
+      {/* ── Global Effects ── */}
       <EditorCard title="Global Effects" subtitle="Applied across the whole video" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
           {EFFECTS.map((fx) => (
-            <Chip key={fx} active={settings.effects.includes(fx)} onClick={() => setSettings({ ...settings, effects: toggleListItem(settings.effects, fx) })}>{fx}</Chip>
+            <Chip
+              key={fx}
+              active={settings.effects.includes(fx)}
+              onClick={() => setSettings({ ...settings, effects: toggleListItem(settings.effects, fx) })}
+            >
+              {fx}
+            </Chip>
           ))}
         </div>
       </EditorCard>
 
-      <EditorCard title="Color Grade" subtitle="Pick a cinematic color look" icon={<Wand2 className="h-4 w-4" />}>
+      {/* ── Color Grade ── */}
+      <EditorCard title="Color Grade" subtitle="Pick a cinematic look — one at a time" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
-          {COLOR_GRADES.map((grade) => (
-            <Chip key={grade} active={settings.effects.includes(grade)} onClick={() => setSettings({ ...settings, effects: toggleListItem(settings.effects, grade) })}>{grade}</Chip>
-          ))}
+          {COLOR_GRADES.map((grade) => {
+            const active = settings.effects.includes(grade);
+            return (
+              <Chip
+                key={grade}
+                active={active}
+                onClick={() => {
+                  /* Radio behaviour: selecting a grade removes all other grades */
+                  const withoutGrades = settings.effects.filter(
+                    (e) => !(COLOR_GRADES as readonly string[]).includes(e),
+                  );
+                  setSettings({
+                    ...settings,
+                    effects: active ? withoutGrades : [...withoutGrades, grade],
+                  });
+                }}
+              >
+                {grade}
+              </Chip>
+            );
+          })}
         </div>
       </EditorCard>
 
-      <EditorCard title="Overlays" subtitle="Branding and on-screen elements" icon={<Film className="h-4 w-4" />}>
-        <div className="flex flex-wrap gap-2">
-          {OVERLAYS.map((ov) => (
-            <Chip key={ov} active={settings.overlays.includes(ov)} onClick={() => setSettings({ ...settings, overlays: toggleListItem(settings.overlays, ov) })}>{ov}</Chip>
-          ))}
+      {/* ── Overlays ── */}
+      <EditorCard
+        title="Overlays"
+        subtitle="Animated visual effects — visible immediately in the player"
+        icon={<Film className="h-4 w-4" />}
+      >
+        {/* Chip row */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {OVERLAYS.map((ov) => {
+            const active = settings.overlays.includes(ov);
+            return (
+              <Chip
+                key={ov}
+                active={active}
+                onClick={() => setSettings({ ...settings, overlays: toggleListItem(settings.overlays, ov) })}
+              >
+                {ov}
+              </Chip>
+            );
+          })}
         </div>
+
+        {/* Per-overlay intensity sliders */}
+        {settings.overlays.length > 0 && (
+          <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-3">
+            <p className="text-[10px] text-white/30 mb-2 uppercase tracking-wide font-semibold">
+              Effect Intensity
+            </p>
+            {settings.overlays.map((ov) => (
+              <IntensityRow
+                key={ov}
+                label={ov}
+                value={settings.overlayIntensity[ov] ?? 100}
+                onChange={(v) => setIntensity(ov, v)}
+                onRemove={() => removeOverlay(ov)}
+              />
+            ))}
+          </div>
+        )}
+
+        {settings.overlays.length === 0 && (
+          <p className="text-[11px] text-white/25 mt-1">
+            Click a chip above to add a live overlay effect to the master player.
+          </p>
+        )}
       </EditorCard>
 
+      {/* ── Transitions ── */}
       <EditorCard title="Transitions" subtitle="Set the transition into each clip" icon={<ArrowLeftRight className="h-4 w-4" />}>
         {scenes.length === 0 ? <EmptyScenes /> : (
           <div className="space-y-2.5">
@@ -88,7 +206,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         )}
       </EditorCard>
 
-      {/* ── Live Preview Tests ── */}
+      {/* ── Preview Tests ── */}
       {(onTestTransition || onTestOverlay) && (
         <EditorCard title="Preview Tests" subtitle="Fire a transition or overlay in the master player" icon={<FlaskConical className="h-4 w-4" />}>
           <div className="flex flex-wrap gap-2">
@@ -107,16 +225,29 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#C9A84C]/30 bg-[#C9A84C]/10 hover:bg-[#C9A84C]/20 text-[#C9A84C] transition-colors"
                 data-testid="btn-test-overlay"
               >
-                Test Overlay
+                Test Overlay Render
               </button>
             )}
           </div>
           <p className="text-[10px] text-white/30 mt-2">
-            Tests play in the live preview on the right. "Test Transition" crossfades scenes 1→2 for 1 s; "Test Overlay" shows a gold label for 3 s.
+            "Test Overlay Render" fires Rain + Sparks + Lens Flare + OVERLAY TEST ACTIVE for 3 s. If nothing shows in the player, overlays are not connected.
           </p>
         </EditorCard>
       )}
 
+      {/* ── Reset button ── */}
+      {hasAnyEffect && (
+        <button
+          onClick={resetAllEffects}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border border-red-500/20 bg-red-500/[0.06] hover:bg-red-500/[0.14] text-red-400/70 hover:text-red-400 transition-colors w-full"
+          data-testid="btn-reset-effects"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset All Effects
+        </button>
+      )}
+
+      {/* ── Per-Clip Effects ── */}
       <Collapsible title="Per-Clip Effects">
         {scenes.length === 0 ? <EmptyScenes /> : (
           <div className="space-y-2.5">
@@ -135,6 +266,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           </div>
         )}
       </Collapsible>
+
       <PlanNote />
     </div>
   );

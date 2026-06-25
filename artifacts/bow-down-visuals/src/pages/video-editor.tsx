@@ -47,11 +47,15 @@ const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Camera Shake":      "contrast(108%) saturate(105%)",
   "Slow Zoom":         "saturate(115%) brightness(103%)",
   "Speed Ramp":        "contrast(120%) brightness(98%)",
-  "Warm Grade":        "sepia(40%) saturate(135%) brightness(108%)",
-  "Cool Grade":        "hue-rotate(195deg) saturate(115%) brightness(94%)",
-  "Teal & Orange":     "hue-rotate(20deg) saturate(165%) contrast(110%)",
-  "Moody Desaturated": "saturate(40%) contrast(120%) brightness(88%)",
-  "Vibrant Pop":       "saturate(210%) brightness(108%) contrast(106%)",
+  "Warm Grade":          "sepia(40%) saturate(135%) brightness(108%)",
+  "Cool Grade":          "hue-rotate(195deg) saturate(115%) brightness(94%)",
+  "Teal & Orange":       "hue-rotate(20deg) saturate(165%) contrast(110%)",
+  "Moody Desaturated":   "saturate(40%) contrast(120%) brightness(88%)",
+  "Vibrant Pop":         "saturate(210%) brightness(108%) contrast(106%)",
+  "Street Night":        "hue-rotate(230deg) saturate(145%) brightness(80%) contrast(128%)",
+  "Luxury Gold":         "sepia(65%) saturate(175%) brightness(112%) contrast(108%)",
+  "Dark Drill":          "brightness(72%) contrast(148%) saturate(55%)",
+  "Cinematic Contrast":  "contrast(155%) saturate(88%) brightness(90%)",
 };
 
 function buildEffectFilter(effects: string[]): string {
@@ -737,6 +741,7 @@ export default function VideoEditor() {
               transitionState={transitionState}
               testOverlayActive={testOverlayActive}
               activeOverlayChips={settings.overlays}
+              overlayIntensity={settings.overlayIntensity}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -1057,7 +1062,7 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
 function MasterPreviewPlayer({
   eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
   settings, testEffectActive,
-  outgoingVideoRef, transitionState, testOverlayActive, activeOverlayChips,
+  outgoingVideoRef, transitionState, testOverlayActive, activeOverlayChips, overlayIntensity,
   onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
@@ -1072,6 +1077,7 @@ function MasterPreviewPlayer({
   transitionState: TransitionState | null;
   testOverlayActive: boolean;
   activeOverlayChips: string[];
+  overlayIntensity: Record<string, number>;
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1356,6 +1362,7 @@ function MasterPreviewPlayer({
         {/* ── Animated overlay chip effects (Rain, Smoke, Sparks, etc.) ── */}
         <ActiveOverlayEffects
           activeOverlays={activeOverlayChips}
+          intensity={overlayIntensity}
           testActive={testOverlayActive}
         />
 
@@ -1625,42 +1632,39 @@ function MasterPreviewPlayer({
         )}
       </div>
 
-      {/* ── Overlay Render Debug ── */}
+      {/* ── Effects Quality Debug ── */}
       <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Overlay Render Debug:</span>
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects Quality Debug:</span>
         {([
-          ["overlay layer mounted",      true,                                  "yes ✓"],
-          ["selected overlays",          activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? activeOverlayChips.join(", ") : "none"],
-          ["active overlays now",        activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? `${activeOverlayChips.length} visible ✓` : "none"],
-          ["visible in master player",   activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? "yes ✓" : "no"],
-          ["saved to project",           activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? "yes ✓" : "no"],
-          ["test overlay active",        testOverlayActive,                    testOverlayActive ? "yes ✓" : "no"],
-          ["transition compositor",      true,                                  "mounted ✓"],
-          ["active transition",          !!transitionState,                    transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
-          ["structured overlay items",   settings.overlayItems.length > 0,    `${settings.overlayItems.length}`],
-          ["test effect active",         testEffectActive,                     testEffectActive ? "yes ✓" : "no"],
-          ["AI effects applied",         aiEffectsApplied,                    aiEffectsApplied ? "yes ✓" : "no"],
+          ["effects layer mounted",      true,                                   "yes ✓"],
+          ["selected effects",           activeEffects.length > 0,              activeEffects.length > 0 ? activeEffects.join(", ") : "none"],
+          ["active overlays",            activeOverlayChips.length > 0,         activeOverlayChips.length > 0 ? activeOverlayChips.join(", ") : "none"],
+          ["intensity values",           activeOverlayChips.length > 0,         activeOverlayChips.map((k) => `${k.split(" ")[0]}:${overlayIntensity[k] ?? 100}%`).join(" ") || "—"],
+          ["blend modes",                activeOverlayChips.some((k) => ["Light Leaks","Smoke"].includes(k)), activeOverlayChips.some((k) => ["Light Leaks","Smoke"].includes(k)) ? "screen ✓" : "normal"],
+          ["animation running",          activeOverlayChips.length > 0,         activeOverlayChips.length > 0 ? "yes ✓" : "no"],
+          ["master player connected",    true,                                   "yes ✓"],
+          ["export connected",           false,                                  "preview only — export rendering needs connection"],
+          ["test overlay active",        testOverlayActive,                     testOverlayActive ? "yes ✓" : "no"],
+          ["active transition",          !!transitionState,                     transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
+          ["AI effects applied",         aiEffectsApplied,                     aiEffectsApplied ? "yes ✓" : "no"],
         ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
           <span key={label} className="text-[10px] font-mono text-white/20">
             {label}:{" "}
-            <span className={ok === true ? "text-green-400/60" : ok === false ? "text-red-400/60" : "text-white/30"}>
+            <span className={ok === true ? "text-green-400/60" : ok === false ? "text-amber-400/50" : "text-white/30"}>
               {value}
             </span>
           </span>
         ))}
         {activeOverlayChips.length > 0 && (
           <span className="text-[10px] font-mono text-green-400/60 w-full">
-            ✓ Animated overlays rendering: {activeOverlayChips.join(" · ")}
+            ✓ Animated overlays rendering: {activeOverlayChips.map((k) => `${k} (${overlayIntensity[k] ?? 100}%)`).join(" · ")}
           </span>
         )}
-        {activeEffects.length > 0 && !testEffectActive && (
-          <span className="text-[10px] font-mono text-green-400/60 w-full">✓ AI effects rendering in master player</span>
-        )}
-        {settings.aiEdit.applied && !aiEffectsApplied && (
-          <span className="text-[10px] font-mono text-amber-400/60 w-full">⚠ AI effects generated but not rendering in master player</span>
+        {activeEffects.length > 0 && (
+          <span className="text-[10px] font-mono text-green-400/60 w-full">✓ CSS grade/effects active: {activeEffects.join(" · ")}</span>
         )}
         {transitionState && (
-          <span className="text-[10px] font-mono text-blue-400/70 w-full">↔ Transition playing: {transitionState.type}</span>
+          <span className="text-[10px] font-mono text-blue-400/70 w-full">↔ Transition: {transitionState.type}</span>
         )}
         {testOverlayActive && (
           <span className="text-[10px] font-mono text-[#C9A84C]/70 w-full">◈ Test overlay active — Rain + Sparks + Lens Flare showing</span>

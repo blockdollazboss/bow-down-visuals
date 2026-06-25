@@ -353,6 +353,10 @@ export const COLOR_GRADES = [
   "Teal & Orange",
   "Moody Desaturated",
   "Vibrant Pop",
+  "Street Night",
+  "Luxury Gold",
+  "Dark Drill",
+  "Cinematic Contrast",
 ] as const;
 
 export const OVERLAYS = [
@@ -825,6 +829,8 @@ export interface EditorSettings {
   effects: string[];
   /** Legacy overlay type names (chips UI). */
   overlays: string[];
+  /** Per-overlay intensity 0–100 (missing key = 100). */
+  overlayIntensity: Record<string, number>;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
   /** Structured transition data (fromSceneId → toSceneId). */
@@ -891,6 +897,7 @@ export function defaultEditorSettings(): EditorSettings {
     },
     effects: [],
     overlays: [],
+    overlayIntensity: {},
     overlayItems: [],
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
@@ -1152,6 +1159,7 @@ export function normalizeEditorSettings(
     captions: { ...base.captions, ...(stored.captions ?? {}) },
     effects: stored.effects ?? [],
     overlays: stored.overlays ?? [],
+    overlayIntensity: (stored.overlayIntensity && typeof stored.overlayIntensity === "object" && !Array.isArray(stored.overlayIntensity)) ? stored.overlayIntensity as Record<string, number> : {},
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },
