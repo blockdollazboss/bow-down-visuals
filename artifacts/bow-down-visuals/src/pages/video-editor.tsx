@@ -936,21 +936,30 @@ function LivePreviewPanel({
   /* Stable ref for the Live Preview timeline video — imperatively controlled */
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  /* When the timeline engine's active scene changes, imperatively load and play that clip.
-     We do this imperatively (not via React key remount) so the video element is stable
-     and scene transitions are reliable regardless of IIFE/conditional rendering patterns. */
+  /* Imperatively control the shared live preview video.
+     Fires on scene change OR play/pause toggle so both cases are handled.
+     This is the ONLY place that drives the live preview video — no tab
+     has its own independent video player for timeline-mode playback. */
   useEffect(() => {
     const eng = previewEngineState;
     const v = liveVideoRef.current;
-    if (!eng || !v) return;
+    if (!v || !eng) return;
+
+    /* Pause first — handles the "pause doesn't work" bug */
+    if (!eng.isPlaying) {
+      v.pause();
+      return;
+    }
+
+    /* Playing: load the active scene's clip (if any) and start playing */
     const engScene = scenes[eng.activeSceneIndex] ?? null;
-    const clipUrl = engScene?.demoClipUrl ?? null;
-    if (clipUrl) {
-      if (v.src !== clipUrl) {
-        v.src = clipUrl;
+    const clip = engScene?.demoClipUrl ?? null;
+    if (clip) {
+      if (v.src !== clip) {
+        v.src = clip;
+        v.currentTime = 0;
       }
-      v.currentTime = 0;
-      void v.play().catch(() => { /* autoplay blocked — muted video, should not fail */ });
+      void v.play().catch(() => { /* muted autoplay — should succeed */ });
     } else {
       v.pause();
       v.removeAttribute("src");
@@ -1049,31 +1058,44 @@ function LivePreviewPanel({
           </>
         )}
 
-        {/* ── TIMELINE tab — mirrors the shared engine state ── */}
-        {tab === "timeline" && (() => {
+        {/*
+          ── SHARED TIMELINE MONITOR ──────────────────────────────────────
+          Always visible across ALL tabs when the timeline engine has been
+          started (previewEngineState is non-null) OR when on the timeline
+          tab (so the "press play" prompt is shown there).
+          The <video ref={liveVideoRef}> lives here — one element, always
+          in the DOM, imperatively controlled by the useEffect above.
+          ────────────────────────────────────────────────────────────────
+        */}
+        {(previewEngineState != null || tab === "timeline") && (() => {
           const eng = previewEngineState;
           const engScene = eng != null ? (scenes[eng.activeSceneIndex] ?? null) : null;
           const engClipUrl = engScene?.demoClipUrl ?? null;
 
-          /* Not yet started — show prompt */
+          /* Not yet connected — show start prompt on timeline tab */
           if (!eng) {
             return (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
                 <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
-                <p className="text-xs font-bold text-primary/70">Timeline Preview</p>
-                <p className="text-[10px] text-white/30">Press ▶ Preview Timeline in the left panel to start.</p>
-                {/* Debug: not connected */}
+                <p className="text-xs font-bold text-primary/70">Shared Preview Player</p>
+                <p className="text-[10px] text-white/30">Press ▶ Preview Timeline in the left panel to connect all tabs.</p>
                 <details className="mt-2 text-left rounded border border-white/[0.05] bg-white/[0.02] text-[9px] font-mono">
-                  <summary className="px-2 py-1 cursor-pointer text-white/20 select-none">⬡ Live Preview Debug</summary>
+                  <summary className="px-2 py-1 cursor-pointer text-white/20 select-none">⬡ Shared Player Debug</summary>
                   <div className="px-2 pb-2 pt-1 space-y-0.5 text-white/35 border-t border-white/[0.04]">
-                    <p>connected to timeline: <span className="text-red-400">no</span></p>
-                    <p>preview mode: <span className="text-white/40">—</span></p>
-                    <p>using selected scene: <span className="text-white/40">no</span></p>
+                    <p>shared player connected: <span className="text-red-400">no</span></p>
+                    <p>tab name: <span className="text-white/50">{tab}</span></p>
+                    <p>previewMode: <span className="text-white/40">—</span></p>
+                    <p>isPlaying: <span className="text-white/40">no</span></p>
+                    <p>isPaused: <span className="text-white/40">—</span></p>
+                    <p>using shared audioRef: <span className="text-white/40">yes</span></p>
+                    <p>duplicate player detected: <span className="text-green-400">no</span></p>
                   </div>
                 </details>
               </div>
             );
           }
+
+          const isPaused = !eng.isPlaying;
 
           return (
             <div className="space-y-2">
@@ -1083,10 +1105,9 @@ function LivePreviewPanel({
                 data-testid="live-preview-screen"
               >
                 {/*
-                  Single stable <video> element, controlled imperatively by the
-                  liveVideoRef useEffect above. Never remounted via key change —
-                  that caused the "stops after one scene" bug where React lost
-                  track of the element between renders.
+                  Single stable <video> — imperatively controlled by liveVideoRef
+                  useEffect. CSS show/hide replaces React key remounting.
+                  Pause is handled by the effect (v.pause() when isPlaying=false).
                 */}
                 <video
                   ref={liveVideoRef}
@@ -1098,7 +1119,7 @@ function LivePreviewPanel({
                   data-scene-idx={eng.activeSceneIndex}
                 />
 
-                {/* Black placeholder shown when active scene has no clip */}
+                {/* Placeholder when no clip for active scene */}
                 {!engClipUrl && (
                   <>
                     <Film className="h-6 w-6 text-primary/30" />
@@ -1111,11 +1132,11 @@ function LivePreviewPanel({
                         &ldquo;{engScene.lyricLine}&rdquo;
                       </p>
                     )}
-                    <p className="text-[9px] text-white/20 mt-1">No clip — audio continues from Timeline</p>
+                    <p className="text-[9px] text-white/20 mt-1">No clip — audio continues in Timeline</p>
                   </>
                 )}
 
-                {/* Caption overlay — always on top */}
+                {/* Caption overlay */}
                 {eng.activeCaption && (
                   <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none z-10">
                     <div
@@ -1128,7 +1149,7 @@ function LivePreviewPanel({
                   </div>
                 )}
 
-                {/* Scene label gradient strip — shown when clip is playing */}
+                {/* Scene label strip */}
                 {engClipUrl && (
                   <div
                     className="absolute bottom-0 left-0 right-0 px-3 pb-9 pt-6 pointer-events-none z-10"
@@ -1148,22 +1169,26 @@ function LivePreviewPanel({
                   </span>
                 </div>
 
-                {/* LIVE badge — top-right, only while playing */}
-                {eng.isPlaying && (
+                {/* LIVE badge when playing, PAUSED badge when paused */}
+                {eng.isPlaying ? (
                   <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/90 z-10">
                     <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
                     <span className="text-[9px] font-black text-black uppercase">Live</span>
                   </div>
+                ) : (
+                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 border border-white/20 z-10">
+                    <span className="text-[9px] font-bold text-white/50 uppercase">⏸ Paused</span>
+                  </div>
                 )}
               </div>
 
-              {/* Status pills */}
+              {/* Status pills — same across all tabs */}
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   {
                     label: "Audio",
-                    value: eng.isPlaying ? "Playing ▶" : "Paused ‖",
-                    color: eng.isPlaying ? "text-green-400" : "text-white/40",
+                    value: isPaused ? "Paused ⏸" : "Playing ▶",
+                    color: isPaused ? "text-white/40" : "text-green-400",
                   },
                   {
                     label: "Scene",
@@ -1185,21 +1210,24 @@ function LivePreviewPanel({
                 ))}
               </div>
 
-              {/* Debug panel — all required fields */}
+              {/* Shared player debug — shown on every tab */}
               <details className="rounded-lg border border-white/[0.05] bg-white/[0.02] text-[9.5px] font-mono">
                 <summary className="px-3 py-1.5 cursor-pointer text-white/25 hover:text-white/50 select-none">
-                  ⬡ Live Preview Debug
+                  ⬡ Shared Player Debug
                 </summary>
                 <div className="px-3 pb-2.5 pt-1 space-y-0.5 text-white/40 border-t border-white/[0.04]">
-                  <p>connected to timeline: <span className="text-green-400">yes</span></p>
-                  <p>preview mode: <span className="text-primary/70">timeline</span></p>
-                  <p>timeline currentTime: <span className="text-white/60">{eng.currentTime.toFixed(2)}s</span></p>
-                  <p>timeline audio playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
-                  <p>live scene index: <span className="text-white/60">{eng.activeSceneIndex + 1} / {scenes.length}</span></p>
-                  <p>live scene title: <span className="text-white/60">{engScene?.section ?? engScene?.lyricLine?.slice(0, 32) ?? "—"}</span></p>
-                  <p>live caption: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
+                  <p>shared player connected: <span className="text-green-400">yes</span></p>
+                  <p>tab name: <span className="text-white/60">{tab}</span></p>
+                  <p>previewMode: <span className="text-primary/70">timeline</span></p>
+                  <p>isPlaying: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
+                  <p>isPaused: <span className={isPaused ? "text-yellow-400" : "text-white/40"}>{isPaused ? "yes" : "no"}</span></p>
+                  <p>currentTime: <span className="text-white/60">{eng.currentTime.toFixed(2)}s{eng.audioDuration ? ` / ${eng.audioDuration.toFixed(2)}s` : ""}</span></p>
+                  <p>audio playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
+                  <p>activeSceneIndex: <span className="text-white/60">{eng.activeSceneIndex} ({engScene?.section ?? "—"})</span></p>
+                  <p>activeCaptionIndex: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
+                  <p>using shared audioRef: <span className="text-green-400">yes</span></p>
+                  <p>duplicate player detected: <span className="text-green-400">no</span></p>
                   <p>using selected scene: <span className="text-yellow-400">no</span></p>
-                  <p>clip loaded: <span className="text-white/50">{engClipUrl ? "yes" : "none"}</span></p>
                 </div>
               </details>
             </div>
@@ -1340,17 +1368,24 @@ function LivePreviewPanel({
 
           return (
             <>
-              {/* Video or black card */}
-              <PreviewVideoPlayer
-                clipUrl={clipUrl}
-                videoRef={videoRef}
-                onTimeUpdate={setVideoTime}
-                overlay={<>{previewBadge}{captionOverlay}</>}
-                noClipNode={noClipCard}
-              />
+              {/*
+                When the shared timeline engine is driving, the monitor above
+                (always-visible) already shows the scene video + caption overlay.
+                Skip the old standalone PreviewVideoPlayer to avoid a duplicate
+                player. Only show it in standalone/sim mode (engine not active).
+              */}
+              {!engineDriving && (
+                <PreviewVideoPlayer
+                  clipUrl={clipUrl}
+                  videoRef={videoRef}
+                  onTimeUpdate={setVideoTime}
+                  overlay={<>{previewBadge}{captionOverlay}</>}
+                  noClipNode={noClipCard}
+                />
+              )}
 
-              {/* Preview Captions button */}
-              {lines.length > 0 && (
+              {/* Preview Captions button — only in standalone mode */}
+              {lines.length > 0 && !engineDriving && (
                 <button
                   type="button"
                   data-testid="preview-captions-btn"
