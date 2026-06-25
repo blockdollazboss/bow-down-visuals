@@ -16,6 +16,10 @@ export interface PreparedClipEntry {
   ffprobeValid: boolean;
   readyForFFmpeg: boolean;
   error: string | null;
+  /** HTTP response status from the actual download request */
+  responseStatus: number;
+  /** Content-Type header returned by the download URL */
+  contentType: string;
 }
 
 export interface PreparedExportEntry {

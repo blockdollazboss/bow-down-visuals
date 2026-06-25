@@ -35,11 +35,41 @@ async function headCheck(url: string): Promise<{ status: number; ok: boolean }> 
   }
 }
 
-async function downloadToFile(url: string, dest: string): Promise<void> {
+interface DownloadResult {
+  status: number;
+  contentType: string;
+  bytesWritten: number;
+}
+
+async function downloadToFile(url: string, dest: string): Promise<DownloadResult> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
-  if (!res.ok) throw new Error(`Download failed (HTTP ${res.status}): ${url.slice(0, 100)}`);
+  const contentType = res.headers.get("content-type") ?? "";
+  const status = res.status;
+
+  if (!res.ok) {
+    throw new Error(
+      `Download failed (HTTP ${status}): ${url.slice(0, 100)}` +
+      (contentType ? ` — Content-Type: ${contentType.split(";")[0]}` : ""),
+    );
+  }
+
+  // Reject if the server returned HTML/JSON instead of video data
+  // (happens when a presigned URL is expired and returns an error page)
+  const ctLower = contentType.toLowerCase();
+  const isVideo = ctLower.includes("video/") || ctLower.includes("application/octet-stream") || ctLower.includes("binary/octet-stream");
+  const isBadContent = ctLower.startsWith("text/") || ctLower.startsWith("application/json") || ctLower.startsWith("application/xml");
+  if (!isVideo && isBadContent) {
+    throw new Error(
+      `URL returned non-video content (${contentType.split(";")[0] || "unknown"}). ` +
+      `The clip URL may be expired or invalid. Re-generate this clip.`,
+    );
+  }
+
   const ws = createWriteStream(dest);
   await pipeline(res.body as Parameters<typeof pipeline>[0], ws);
+
+  const bytesWritten = existsSync(dest) ? statSync(dest).size : 0;
+  return { status, contentType, bytesWritten };
 }
 
 interface ProbeResult {
@@ -145,6 +175,8 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
       ffprobeValid: false,
       readyForFFmpeg: false,
       error: null,
+      responseStatus: 0,
+      contentType: "",
     };
 
     try {
@@ -169,23 +201,46 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
       }
 
       const localPath = path.join(exportDir, `clip-scene-${clip.sceneNumber}.mp4`);
-      req.log.info({ scene: clip.sceneNumber, url: entry.resolvedUrl.slice(0, 80) }, "[prepare] downloading clip");
 
+      req.log.info({
+        msg: "EXPORT SOURCE DEBUG",
+        scene: clip.sceneNumber,
+        originalUrlField: "scene.demoClipUrl",
+        originalUrlValue: clip.url.slice(0, 120),
+        resolvedUrl: entry.resolvedUrl.slice(0, 120),
+        sourceType: entry.sourceType,
+        localPath,
+      }, "[prepare] source debug");
+
+      let dlResult: DownloadResult;
       try {
-        await downloadToFile(entry.resolvedUrl, localPath);
+        dlResult = await downloadToFile(entry.resolvedUrl, localPath);
+        entry.responseStatus = dlResult.status;
+        entry.contentType = dlResult.contentType;
       } catch (dlErr) {
         throw new Error(
           `Scene ${clip.sceneNumber} clip download failed: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`,
         );
       }
 
-      if (!existsSync(localPath)) {
+      const fileExists = existsSync(localPath);
+      if (!fileExists) {
         throw new Error(`Scene ${clip.sceneNumber} local export file was not created.`);
       }
 
       const fileSize = statSync(localPath).size;
       entry.localPath = localPath;
       entry.fileSize = fileSize;
+
+      req.log.info({
+        scene: clip.sceneNumber,
+        responseStatus: dlResult.status,
+        contentType: dlResult.contentType || "(none)",
+        bytesWritten: dlResult.bytesWritten,
+        localPath,
+        fileExists,
+        fileSize,
+      }, "[prepare] download complete");
 
       if (fileSize < 2048) {
         throw new Error(
@@ -200,6 +255,14 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
       entry.height = probe.height;
       entry.fps = probe.fps;
       entry.codec = probe.codec;
+
+      req.log.info({
+        scene: clip.sceneNumber,
+        ffprobeValid: probe.valid,
+        duration: probe.valid ? probe.duration.toFixed(2) : "n/a",
+        resolution: probe.valid ? `${probe.width}x${probe.height}` : "n/a",
+        readyForFFmpeg: probe.valid,
+      }, "[prepare] ffprobe result");
 
       if (!probe.valid) {
         throw new Error(`Scene ${clip.sceneNumber} ffprobe invalid: ${probe.error}`);

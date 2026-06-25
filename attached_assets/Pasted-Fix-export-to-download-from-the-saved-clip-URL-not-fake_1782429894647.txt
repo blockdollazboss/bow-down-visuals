@@ -1,0 +1,112 @@
+Fix export to download from the saved clip URL, not fake temp paths.
+
+Problem:
+The Clips Included In Export table shows:
+- Provider: Runway
+- Status: Approved
+- URL: checkmark
+- Selected: checkmark
+- Duration: 3s
+
+But export still fails:
+FFmpeg failed exit 254
+Error opening input files: No such file or directory
+
+This means the app knows a clip URL exists, but the export code is not downloading that URL into a real local file before FFmpeg runs.
+
+Do not change:
+- master player
+- captions
+- effects
+- overlays
+- Auto PiP
+- Runway generation
+- Stripe, credits, or payments
+
+Only fix export source URL to local file download.
+
+Required fix:
+
+1. In the export code, stop using stale local temp paths as input sources.
+
+Do not use:
+- old /tmp paths from previous previews
+- generated placeholder paths
+- clip-scene-1.mp4 paths unless the file was actually written there
+
+2. For every selected clip, read the real saved clip URL field from the clip record.
+
+Check all possible fields:
+- clip.url
+- clip.video_url
+- clip.output_url
+- clip.asset_url
+- clip.runway_url
+- clip.storage_url
+- scene.clip_url
+- scene.video_url
+- scene.runway_output_url
+
+3. In the Export Clips table, add a column:
+Actual URL Used For Download
+
+Show the real URL or “missing”.
+
+4. Add a column:
+Local File Created
+
+Show yes/no.
+
+5. Add a column:
+Download Error
+
+Show the real error if it fails.
+
+6. Download each actual URL into a fresh local export folder.
+
+Example:
+actualUrl = saved Runway/Supabase URL
+localPath = /tmp/export-[id]/clip-scene-1.mp4
+
+The code must:
+- fetch actualUrl
+- check response.ok
+- stream or buffer the file
+- write it to localPath
+- await the write fully finishing
+- then fs.stat(localPath)
+- then ffprobe(localPath)
+
+7. If actual URL is missing:
+show:
+Scene [number] URL checkmark is wrong. No actual downloadable URL was found.
+
+8. If download returns HTML, JSON, or an expired link instead of video:
+show:
+Scene [number] URL is not a downloadable video file.
+
+9. Do not start FFmpeg unless all clips show:
+Actual URL Used For Download: yes
+Local File Created: yes
+FFprobe valid: yes
+
+10. Add backend console logs:
+EXPORT SOURCE DEBUG
+Scene 1 actual URL field used:
+Scene 1 actual URL value:
+Scene 1 local path:
+Scene 1 response status:
+Scene 1 content-type:
+Scene 1 bytes written:
+Scene 1 file exists:
+Scene 1 ffprobe valid:
+
+11. Add button:
+Prepare Export Files Only
+
+This must run the download/ffprobe check without FFmpeg.
+
+12. Disable Export Selected Range and Full Export until Prepare Export Files Only passes.
+
+Final goal:
+The export code must use the real Runway/Supabase clip URL, download it into a real local file, verify it, then send that real file to FFmpeg.

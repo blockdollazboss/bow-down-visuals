@@ -37,6 +37,8 @@ interface ClipCheckRow {
   ffprobeValid: boolean;
   readyForFFmpeg: boolean;
   error: string | null;
+  responseStatus: number;
+  contentType: string;
 }
 
 interface FinalVideoExportProps {
@@ -813,6 +815,7 @@ function ExportFileCheckTable({
 
   return (
     <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+      {/* Header */}
       <button
         type="button"
         onClick={onToggle}
@@ -821,7 +824,7 @@ function ExportFileCheckTable({
         <div className="flex items-center gap-2">
           <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export File Check</p>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${allReady ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"}`}>
-            {rows.filter((r) => r.readyForFFmpeg).length}/{rows.length} ready
+            {rows.filter((r) => r.readyForFFmpeg).length}/{rows.length} ready for FFmpeg
           </span>
         </div>
         {expanded
@@ -834,7 +837,19 @@ function ExportFileCheckTable({
           <table className="w-full text-[9px] border-collapse">
             <thead>
               <tr className="bg-white/[0.025] border-b border-white/[0.05]">
-                {["Scene","Source","URL found","HTTP","Local file","Exists","Size","Duration","ffprobe","Ready","Error"].map((h) => (
+                {[
+                  "Scene",
+                  "Source",
+                  "Actual URL Used For Download",
+                  "HTTP",
+                  "Content-Type",
+                  "Local File Created",
+                  "Size",
+                  "Duration",
+                  "ffprobe valid",
+                  "Ready for FFmpeg",
+                  "Download Error",
+                ].map((h) => (
                   <th key={h} className="px-2 py-1.5 text-left font-bold text-white/25 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -842,51 +857,104 @@ function ExportFileCheckTable({
             <tbody>
               {rows.map((row) => {
                 const ok = row.readyForFFmpeg;
+                const httpOk = row.responseStatus >= 200 && row.responseStatus < 300;
+                const ctShort = row.contentType ? row.contentType.split(";")[0]?.trim() ?? "" : "";
+                const ctBad = ctShort.startsWith("text/") || ctShort.startsWith("application/json") || ctShort.startsWith("application/xml");
                 return (
                   <tr
                     key={row.sceneNumber}
                     className={`border-b border-white/[0.04] ${ok ? "" : "bg-red-500/[0.04]"}`}
                   >
+                    {/* Scene */}
                     <td className="px-2 py-1.5 font-black text-white/50 whitespace-nowrap">{row.sceneNumber}</td>
-                    <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">
+
+                    {/* Source */}
+                    <td className="px-2 py-1.5 whitespace-nowrap">
                       <span className={`px-1 py-0.5 rounded text-[8px] ${
                         row.sourceType === "supabase-storage" ? "bg-blue-500/15 text-blue-300"
                         : row.sourceType === "runway-cloudfront" ? "bg-purple-500/15 text-purple-300"
                         : "bg-white/5 text-white/30"
                       }`}>{row.sourceType}</span>
                     </td>
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      {row.originalUrl
-                        ? <span className="text-green-400 font-bold">yes</span>
-                        : <span className="text-red-400 font-bold">no</span>}
+
+                    {/* Actual URL Used For Download */}
+                    <td className="px-2 py-1.5 max-w-[200px]">
+                      {row.resolvedUrl ? (
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-white/30 truncate text-[8px]">
+                            {"…" + row.resolvedUrl.replace(/[?#].*$/, "").slice(-40)}
+                          </span>
+                          <a
+                            href={row.resolvedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 text-primary/40 hover:text-primary/80 transition-colors"
+                            title={row.resolvedUrl}
+                          >
+                            <ExternalLink className="h-2 w-2" />
+                          </a>
+                        </div>
+                      ) : (
+                        <span className="text-red-400 font-bold">missing</span>
+                      )}
                     </td>
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      <span className={row.localPath ? "text-green-400" : "text-white/25"}>
-                        {row.localPath ? "200" : "—"}
-                      </span>
+
+                    {/* HTTP Status */}
+                    <td className="px-2 py-1.5 whitespace-nowrap font-mono">
+                      {row.responseStatus > 0 ? (
+                        <span className={httpOk ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
+                          {row.responseStatus}
+                        </span>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
                     </td>
-                    <td className="px-2 py-1.5 font-mono text-white/25 max-w-[120px] truncate">
-                      {row.localPath ? "…" + row.localPath.slice(-28) : "—"}
+
+                    {/* Content-Type */}
+                    <td className="px-2 py-1.5 whitespace-nowrap max-w-[100px]">
+                      {ctShort ? (
+                        <span className={`text-[8px] ${ctBad ? "text-red-400 font-bold" : "text-white/35"}`}>
+                          {ctShort.replace("video/", "").replace("application/", "") || ctShort}
+                        </span>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
                     </td>
+
+                    {/* Local File Created */}
                     <td className="px-2 py-1.5 whitespace-nowrap">
                       {row.fileSize > 0
                         ? <span className="text-green-400 font-bold">yes</span>
                         : <span className="text-red-400 font-bold">no</span>}
                     </td>
+
+                    {/* Size */}
                     <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmt(row.fileSize)}</td>
+
+                    {/* Duration */}
                     <td className="px-2 py-1.5 text-white/40 whitespace-nowrap">{fmtDur(row.duration)}</td>
+
+                    {/* ffprobe valid */}
                     <td className="px-2 py-1.5 whitespace-nowrap">
-                      {row.ffprobeValid
-                        ? <span className="text-green-400 font-bold">yes</span>
-                        : <span className="text-red-400 font-bold">no</span>}
+                      {row.fileSize > 0
+                        ? row.ffprobeValid
+                          ? <span className="text-green-400 font-bold">yes</span>
+                          : <span className="text-red-400 font-bold">no</span>
+                        : <span className="text-white/25">—</span>}
                     </td>
+
+                    {/* Ready for FFmpeg */}
                     <td className="px-2 py-1.5 whitespace-nowrap">
                       {ok
                         ? <span className="text-green-400 font-bold">yes ✓</span>
                         : <span className="text-red-400 font-bold">no ✗</span>}
                     </td>
-                    <td className="px-2 py-1.5 text-red-400/70 max-w-[180px] leading-tight">
-                      {row.error ?? <span className="text-white/20">—</span>}
+
+                    {/* Download Error */}
+                    <td className="px-2 py-2 max-w-[200px] leading-snug">
+                      {row.error
+                        ? <span className="text-red-400/80 text-[8px] break-words">{row.error}</span>
+                        : <span className="text-white/20">—</span>}
                     </td>
                   </tr>
                 );
