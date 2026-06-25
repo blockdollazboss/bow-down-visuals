@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
 import type { SceneData } from "@/lib/scene-parser";
@@ -19,7 +19,12 @@ interface ExportSectionProps {
   settings: EditorSettings;
   setSettings: (s: EditorSettings) => void;
   projectId: string;
+  /** Effective audio URL (project input_data OR first stem fallback). */
   audioUrl: string | null;
+  /** Raw project.input_data.audioUrl — for debug only. */
+  rawProjectAudioUrl?: string | null;
+  /** The exact URL currently playing in the master player. */
+  masterAudioUrl?: string | null;
   onGoToMusicStudio?: () => void;
 }
 
@@ -106,7 +111,7 @@ function isSourceAvailable(
 
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
-  scenes, settings, setSettings, projectId, audioUrl, onGoToMusicStudio,
+  scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -115,6 +120,11 @@ export function ExportSection({
   const [wmUploading, setWmUploading] = useState(false);
   const [wmError, setWmError] = useState<string | null>(null);
   const wmInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Audio reachability probe ── */
+  const [audioReachable,  setAudioReachable ] = useState<boolean | null>(null);
+  const [audioReachError, setAudioReachError] = useState<string | null>(null);
+  const [audioChecking,   setAudioChecking  ] = useState(false);
 
   function setVideoAudio(patch: Partial<typeof va>) {
     setSettings({ ...settings, musicStudio: { ...ms, videoAudio: { ...va, ...patch } } });
@@ -162,6 +172,34 @@ export function ExportSection({
     () => resolveAudioUrl(va.source, audioUrl, ms.exports),
     [va.source, audioUrl, ms.exports],
   );
+
+  /* Probe resolved URL whenever it changes */
+  useEffect(() => {
+    if (!resolvedAudioUrl) {
+      setAudioReachable(false);
+      setAudioReachError(audioUrl === null ? "no project.video_audio_url found" : "audio URL could not be resolved for selected source");
+      return;
+    }
+    let cancelled = false;
+    setAudioChecking(true);
+    setAudioReachable(null);
+    setAudioReachError(null);
+    fetch(resolvedAudioUrl, { method: "HEAD" })
+      .then((r) => {
+        if (!cancelled) {
+          setAudioReachable(r.ok);
+          if (!r.ok) setAudioReachError(`HTTP ${r.status} — audio file may have moved or expired`);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setAudioReachable(false);
+          setAudioReachError(e instanceof Error ? e.message : "fetch failed");
+        }
+      })
+      .finally(() => { if (!cancelled) setAudioChecking(false); });
+    return () => { cancelled = true; };
+  }, [resolvedAudioUrl, audioUrl]);
 
   const selectedOption = AUDIO_SOURCE_OPTIONS.find((o) => o.value === va.source)!;
   const isAvailable = isSourceAvailable(va.source, audioUrl, ms.exports);
@@ -226,17 +264,15 @@ export function ExportSection({
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-amber-300">Audio source not available</p>
                 <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed">
-                  {va.source === "uploaded"
-                    ? "No song was uploaded to this project."
+                  {va.source === "uploaded" && !rawProjectAudioUrl && !audioUrl
+                    ? "No audio saved to this project yet — no project.video_audio_url found."
+                    : va.source === "uploaded"
+                    ? "Audio URL found but could not be resolved. Check Export Audio Debug below."
                     : `No ${selectedOption?.label.toLowerCase() ?? "export"} found. Go to Music Studio to export audio first.`}
                   {va.source !== "uploaded" && onGoToMusicStudio && (
                     <>
                       {" "}
-                      <button
-                        type="button"
-                        onClick={onGoToMusicStudio}
-                        className="underline text-amber-300 hover:text-amber-200 transition-colors"
-                      >
+                      <button type="button" onClick={onGoToMusicStudio} className="underline text-amber-300 hover:text-amber-200 transition-colors">
                         Open Music Studio →
                       </button>
                     </>
@@ -420,6 +456,40 @@ export function ExportSection({
         hasCaptions={settings.captions.enabled && settings.captions.lines.length > 0}
         onChange={(m) => setExport({ captionExportMode: m })}
       />
+
+      {/* ── Export Audio Debug ── */}
+      <EditorCard title="Export Audio Debug" subtitle="Live diagnostic — shows the same audio the master player uses">
+        <div className="space-y-1">
+          {([
+            ["project audio URL found",      !!rawProjectAudioUrl,               rawProjectAudioUrl ? "yes ✓" : "no — no project.video_audio_url saved"],
+            ["master player audio URL found", !!masterAudioUrl,                  masterAudioUrl ? "yes ✓" : "no"],
+            ["export audio URL found",        !!resolvedAudioUrl,                resolvedAudioUrl ? "yes ✓" : "no"],
+            ["audio selected",               !!resolvedAudioUrl && va.source !== "none", resolvedAudioUrl && va.source !== "none" ? "yes ✓" : "no"],
+            ["audio source",                 true,                               va.source],
+            ["audio name / stem count",      true,                               rawProjectAudioUrl ? "uploaded song" : ms.stems.length > 0 ? `${ms.stems.length} stem(s) — using first` : "none"],
+            ["audio duration",               true,                               "—"],
+            ["audio file reachable",         audioReachable === true,            audioChecking ? "checking…" : audioReachable === true ? "yes ✓" : audioReachable === false ? "no ✗" : "—"],
+            ["last audio error",             false,                              audioReachError ?? "none"],
+            ["using master/project audio",   !!resolvedAudioUrl,                 resolvedAudioUrl ? "yes ✓" : "no"],
+          ] as [string, boolean, string][]).map(([label, ok, value]) => (
+            <div key={label} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="text-white/30 font-mono">{label}:</span>
+              <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400/70" : "text-white/45"}`}>
+                {value}
+              </span>
+            </div>
+          ))}
+          {!resolvedAudioUrl && (
+            <p className="text-[11px] text-amber-400/70 pt-1 border-t border-white/[0.06] leading-relaxed">
+              {!rawProjectAudioUrl && ms.stems.length === 0
+                ? "No audio saved to project. Upload your song in the Music tab, then return here."
+                : !rawProjectAudioUrl && ms.stems.length > 0
+                ? "Audio found in stems — select 'Uploaded Original Song' above to use it."
+                : "Audio URL found but source type does not resolve. Try selecting 'Uploaded Original Song'."}
+            </p>
+          )}
+        </div>
+      </EditorCard>
 
       {/* ── Final Video Export ── */}
       <FinalVideoExport

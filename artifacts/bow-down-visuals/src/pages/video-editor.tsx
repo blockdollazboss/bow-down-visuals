@@ -867,7 +867,16 @@ export default function VideoEditor() {
             )}
 
             {tab === "export" && (
-              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
+              <ExportSection
+                scenes={scenes}
+                settings={settings}
+                setSettings={setSettings}
+                projectId={project!.id}
+                audioUrl={audioUrl ?? settings.musicStudio.stems[0]?.url ?? null}
+                rawProjectAudioUrl={audioUrl}
+                masterAudioUrl={previewAudioUrl}
+                onGoToMusicStudio={() => setTab("music")}
+              />
             )}
 
               </div>{/* /right-panel */}
