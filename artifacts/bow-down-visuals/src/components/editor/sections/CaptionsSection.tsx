@@ -181,6 +181,61 @@ function matchCaptionsToTranscript(
   };
 }
 
+/* ─── Build captions directly from Whisper segments ───────────────────── */
+
+const WORDS_PER_CAPTION = 5; // target chunk size (3–8 range)
+
+function buildCaptionsFromSegments(
+  segments: WhisperSegment[],
+  songDuration?: number | null,
+): CaptionLine[] {
+  const lines: CaptionLine[] = [];
+
+  for (const seg of segments) {
+    const segDur = seg.end - seg.start;
+    if (segDur <= 0) continue;
+
+    const words = seg.text.trim().split(/\s+/).filter(Boolean);
+    if (words.length === 0) continue;
+
+    /* Group into chunks of WORDS_PER_CAPTION */
+    const chunks: string[][] = [];
+    for (let i = 0; i < words.length; i += WORDS_PER_CAPTION) {
+      chunks.push(words.slice(i, i + WORDS_PER_CAPTION));
+    }
+
+    chunks.forEach((chunk, ci) => {
+      const startFrac = (ci * WORDS_PER_CAPTION) / words.length;
+      const endFrac   = Math.min((ci * WORDS_PER_CAPTION + chunk.length) / words.length, 1);
+      const startSec  = parseFloat((seg.start + startFrac * segDur).toFixed(2));
+      let   endSec    = parseFloat((seg.start + endFrac   * segDur).toFixed(2));
+
+      /* Cap at song duration */
+      if (songDuration != null && endSec > songDuration) {
+        endSec = parseFloat(songDuration.toFixed(2));
+      }
+      /* Skip degenerate rows */
+      if (startSec < 0 || endSec <= startSec) return;
+
+      lines.push({ id: newLineId(), startSec, endSec, text: chunk.join(" "), confidence: "high" });
+    });
+  }
+
+  /* Sort by start time */
+  lines.sort((a, b) => a.startSec - b.startSec);
+  return lines;
+}
+
+interface RebuildDetails {
+  audioFound: boolean;
+  hasTranscript: boolean;
+  newCaptions: number;
+  invalidRows: number;
+  lastEndsAt: number;
+  songDuration: number | null;
+  saved: boolean;
+}
+
 /* ─── Caption timing validation & repair ────────────────────────────────── */
 
 function isInvalidLine(l: CaptionLine): boolean {
@@ -329,6 +384,13 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
   /* ── Repair / Reset state ── */
   const [repairStatus, setRepairStatus] = useState<Status | null>(null);
+
+  /* ── Rebuild From Vocals state ── */
+  const [rebuilding,      setRebuilding     ] = useState(false);
+  const [rebuildPhase,    setRebuildPhase   ] = useState<string | null>(null);
+  const [rebuildStatus,   setRebuildStatus  ] = useState<Status | null>(null);
+  const [rebuildDetails,  setRebuildDetails ] = useState<RebuildDetails | null>(null);
+  const [captionBackup,   setCaptionBackup  ] = useState<CaptionLine[] | null>(null);
 
   /* quickLyrics: the text shown in the "Generate From Lyrics" box.
      Priority: existing lyricsText saved in settings → incoming lyrics prop → empty. */
@@ -664,6 +726,93 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
     });
   }
 
+  /* ── Rebuild captions directly from vocal transcript ── */
+  async function handleRebuildFromVocals() {
+    if (!audioUrl) {
+      setRebuildStatus({ type: "error", message: "No audio attached. Go to the Music tab and attach your song first." });
+      return;
+    }
+    setRebuilding(true);
+    setRebuildPhase("Transcribing song with timestamps…");
+    setRebuildStatus(null);
+    setRebuildDetails(null);
+
+    try {
+      const token = await getAccessToken?.().catch(() => undefined);
+      const res = await fetch("/api/transcribe-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ audioUrl }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
+        throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
+      }
+
+      const data = await res.json() as { transcript: string; segments?: WhisperSegment[] };
+      const segments = data.segments;
+
+      if (!segments || segments.length === 0) {
+        setRebuildDetails({ audioFound: true, hasTranscript: false, newCaptions: 0, invalidRows: 0, lastEndsAt: 0, songDuration: songDuration ?? null, saved: false });
+        throw new Error("No timestamped segments returned. The song may have no vocals, or try again.");
+      }
+
+      setRebuildPhase("Building captions from transcript…");
+      const newLines = buildCaptionsFromSegments(segments, songDuration);
+      const invalid = newLines.filter(isInvalidLine).length;
+      const lastEndsAt = newLines.length > 0 ? (newLines[newLines.length - 1]?.endSec ?? 0) : 0;
+
+      const details: RebuildDetails = {
+        audioFound: true,
+        hasTranscript: true,
+        newCaptions: newLines.length,
+        invalidRows: invalid,
+        lastEndsAt,
+        songDuration: songDuration ?? null,
+        saved: false,
+      };
+      setRebuildDetails(details);
+
+      if (newLines.length === 0) {
+        setRebuildStatus({ type: "error", message: "Transcript returned no usable captions. The song may have no vocals." });
+        return;
+      }
+      if (invalid > 0) {
+        setRebuildStatus({ type: "error", message: `Validation failed — ${invalid} invalid row${invalid !== 1 ? "s" : ""} found. Existing captions were not changed.` });
+        return;
+      }
+
+      /* Backup existing captions before overwriting */
+      if (c.lines.length > 0) setCaptionBackup(c.lines);
+
+      setCaption("lines", newLines);
+      setLinesVisible(true);
+      setRebuildDetails({ ...details, saved: true });
+      setRebuildStatus({
+        type: "success",
+        message: `${newLines.length} captions built from vocal transcript and saved.${c.lines.length > 0 ? " Previous captions backed up — use Restore below if needed." : ""}`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setRebuildStatus({ type: "error", message: `Rebuild failed: ${msg}` });
+    } finally {
+      setRebuilding(false);
+      setRebuildPhase(null);
+    }
+  }
+
+  function handleRestoreBackup() {
+    if (!captionBackup) return;
+    setCaption("lines", captionBackup);
+    setCaptionBackup(null);
+    setRebuildStatus({ type: "success", message: `Previous ${captionBackup.length} captions restored.` });
+    setRebuildDetails(null);
+  }
+
   /* ── Sync status metrics ── */
   const lastCaptionEnd = c.lines.length > 0 ? c.lines[c.lines.length - 1]!.endSec : 0;
   const isSynced = songDuration != null && lastCaptionEnd > 0 && lastCaptionEnd <= songDuration + 0.5;
@@ -783,12 +932,113 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       </EditorCard>
 
       {/* ══════════════════════════════════════════════════
-          AI SYNC CAPTIONS TO VOCALS
+          REBUILD SYNCED CAPTIONS FROM VOCALS  ← RECOMMENDED
       ══════════════════════════════════════════════════ */}
       <EditorCard
-        title="AI Sync Captions To Vocals"
-        subtitle="AI transcribes the song and matches each caption to the actual vocals — no guessing"
+        title="Rebuild Synced Captions From Vocals"
+        subtitle="Transcribes the song and builds brand-new captions directly from the vocals — always accurate"
         icon={<Sparkles className="h-4 w-4" />}
+      >
+        <div className="space-y-4">
+
+          {/* Pre-flight status */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 space-y-0.5">
+              <p className="text-[10px] text-white/35 font-semibold uppercase tracking-wide">Audio Source</p>
+              <p className={`text-sm font-black ${audioUrl ? "text-green-400" : "text-red-400/70"}`}>
+                {audioUrl ? "Found ✓" : "No audio"}
+              </p>
+            </div>
+            <div className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 space-y-0.5">
+              <p className="text-[10px] text-white/35 font-semibold uppercase tracking-wide">Song Duration</p>
+              <p className={`text-sm font-black ${songDuration ? "text-white/75" : "text-white/35"}`}>
+                {songDuration ? fmtDuration(songDuration) : "Unknown"}
+              </p>
+            </div>
+          </div>
+
+          {!audioUrl && (
+            <p className="text-[11px] text-amber-400/80 flex items-start gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" />
+              No audio attached. Go to the Music tab and upload or select your song first.
+            </p>
+          )}
+
+          {/* Rebuilding progress */}
+          {rebuilding && (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.06]">
+              <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+              <span className="text-sm font-semibold text-white/70">{rebuildPhase ?? "Working…"}</span>
+            </div>
+          )}
+
+          {/* Main button */}
+          <Button
+            onClick={handleRebuildFromVocals}
+            disabled={rebuilding || !audioUrl}
+            data-testid="btn-rebuild-captions-from-vocals"
+            className="w-full gold-glow font-bold gap-2"
+          >
+            {rebuilding
+              ? <><Loader2 className="h-4 w-4 animate-spin" />Rebuilding…</>
+              : <><Sparkles className="h-4 w-4" />Rebuild Synced Captions From Vocals</>
+            }
+          </Button>
+
+          {/* Status badge */}
+          {rebuildStatus && <StatusBadge status={rebuildStatus} />}
+
+          {/* Rebuild details */}
+          {rebuildDetails && (
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-1.5">
+              <p className="text-[10px] font-black text-white/35 uppercase tracking-widest mb-2">Rebuild Sync Status</p>
+              {[
+                ["Audio found",            rebuildDetails.audioFound   ? "yes ✓" : "no",  rebuildDetails.audioFound   ? "text-green-400" : "text-red-400"],
+                ["Timestamped transcript",  rebuildDetails.hasTranscript ? "yes ✓" : "no", rebuildDetails.hasTranscript ? "text-green-400" : "text-red-400"],
+                ["New captions created",   String(rebuildDetails.newCaptions),              "text-white/70"],
+                ["Invalid rows",           String(rebuildDetails.invalidRows),              rebuildDetails.invalidRows > 0 ? "text-red-400" : "text-green-400"],
+                ["Last caption ends at",   rebuildDetails.lastEndsAt > 0 ? `${rebuildDetails.lastEndsAt.toFixed(1)}s` : "—", "text-white/70"],
+                ["Song duration",          rebuildDetails.songDuration != null ? `${rebuildDetails.songDuration.toFixed(1)}s` : "—", "text-white/70"],
+                ["Saved",                  rebuildDetails.saved ? "yes ✓" : "no",          rebuildDetails.saved ? "text-green-400" : "text-white/35"],
+              ].map(([label, value, cls]) => (
+                <div key={label} className="flex items-center justify-between text-[11px]">
+                  <span className="text-white/35">{label}:</span>
+                  <span className={`font-bold ${cls}`}>{value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Restore backup */}
+          {captionBackup && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRestoreBackup}
+              className="w-full gap-2 border-white/15"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Restore Previous Captions ({captionBackup.length} lines)
+            </Button>
+          )}
+
+          {/* Existing captions backed up notice */}
+          {captionBackup && rebuildDetails?.saved && (
+            <p className="text-[11px] text-green-400/70 flex items-center gap-1.5">
+              <CheckCircle2 className="h-3 w-3 shrink-0" />
+              Existing captions backed up — click Restore above to undo.
+            </p>
+          )}
+        </div>
+      </EditorCard>
+
+      {/* ══════════════════════════════════════════════════
+          AI SYNC CAPTIONS TO VOCALS  (Advanced)
+      ══════════════════════════════════════════════════ */}
+      <EditorCard
+        title="AI Sync Captions To Vocals (Advanced)"
+        subtitle="Matches your existing caption text to vocal timestamps — use Rebuild above if sync fails"
+        icon={<Wand2 className="h-4 w-4" />}
       >
         <div className="space-y-4">
 
