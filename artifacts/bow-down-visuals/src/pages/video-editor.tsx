@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
+import { TimelinePreviewPlayer } from "@/components/TimelinePreviewPlayer";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
@@ -901,31 +902,23 @@ function LivePreviewPanel({
 
         {/* ── TIMELINE tab ── */}
         {tab === "timeline" && (
-          <>
-            {approvedCount > 0 ? (
-              <>
-                <div className="flex items-center gap-2 px-0.5 mb-1">
-                  <Play className="h-3.5 w-3.5 text-primary/70" />
-                  <span className="text-xs font-bold text-white/60">{approvedCount} clip{approvedCount !== 1 ? "s" : ""} in timeline</span>
-                </div>
-                <ClipSequencePlayer
-                  scenes={scenes.filter((s) => s.approved && sceneHasClip(s))}
-                  allScenes={scenes}
-                  title=""
-                  emptyTitle=""
-                  emptyHint=""
-                />
-              </>
-            ) : (
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
-                <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
-                <p className="text-sm font-bold text-white/50">No clips in timeline yet</p>
-                <p className="text-xs text-white/30 leading-relaxed">
-                  Timeline preview is in beta. Approve clips on the Clips tab to build your timeline.
-                </p>
-              </div>
-            )}
-          </>
+          scenes.length > 0 ? (
+            <TimelinePreviewPlayer
+              scenes={scenes}
+              captionLines={settings.captions.lines}
+              audioUrl={audioUrl}
+              initialSceneId={previewScene?.id ?? null}
+              captionSettings={settings.captions}
+            />
+          ) : (
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 text-center space-y-3">
+              <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
+              <p className="text-sm font-bold text-white/50">No scenes yet</p>
+              <p className="text-xs text-white/30 leading-relaxed">
+                Generate a music video plan first, then come back to preview the full timeline.
+              </p>
+            </div>
+          )
         )}
 
         {/* ── MUSIC / AUDIO tab ── */}

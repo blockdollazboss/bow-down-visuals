@@ -1,0 +1,94 @@
+Fix Timeline Live Preview autoplay only.
+
+Problem:
+Live Preview only plays one scene and then stops. It should automatically play the next scene with the next captions, like a real music video timeline preview.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign anything.
+
+Only fix:
+Timeline Live Preview autoplay and captions across scenes.
+
+Requirements:
+
+1. Add two clear preview modes:
+
+* Preview Scene
+* Preview Timeline
+
+2. Preview Scene:
+
+* plays only the selected scene
+* stops when that scene ends
+* shows captions that belong to that scene
+
+3. Preview Timeline:
+
+* plays Scene 1, then Scene 2, then Scene 3, then Scene 4, then Scene 5 automatically
+* does not stop after the first scene
+* moves to the next scene automatically
+* highlights the current scene while playing
+* shows the matching caption based on the full timeline time
+
+4. If a scene has a real generated video clip:
+
+* play the real clip
+
+5. If a scene has no generated clip yet:
+
+* show a black preview card or placeholder scene card
+* show the scene title
+* show the scene prompt or thumbnail placeholder
+* keep playing to the next scene after that scene duration
+* do not stop just because no clip exists
+
+6. Captions:
+
+* captions should follow the full song/timeline time
+* when timeline time reaches caption start/end, show that caption
+* when moving to the next scene, show the next captions automatically
+* captions should not get stuck on one line
+
+7. Audio:
+
+* if audio/song is selected, keep audio playing continuously while scenes change
+* do not restart audio every scene
+* show message:
+  Timeline preview uses continuous song audio while scenes change.
+
+8. Scene duration:
+
+* if real clip exists, use the clip duration
+* if no clip exists, use estimated duration from the scene timestamp
+* if no timestamp exists, use 5 seconds per scene
+
+9. Add visible buttons:
+
+* Preview Scene
+* Preview Timeline
+* Pause Timeline
+* Restart Timeline
+
+10. Add preview status:
+
+* Timeline Preview Active
+* Playing Scene [number] of [total]
+* Current time: [time]
+* Current caption: [caption text]
+
+11. Do not charge credits for previewing.
+
+12. Save timeline preview settings with the project:
+
+* scene order
+* scene duration
+* selected audio
+* captions
+
+Final goal:
+When I click Preview Timeline, the preview should play all scenes in order with the next captions automatically, not stop after one scene.
