@@ -83,6 +83,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
   const [selectedScene, setSelectedScene] = useState<SceneItem | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [attachedInfo, setAttachedInfo] = useState<{ section: string | null; index: number } | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -93,22 +94,25 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         });
         if (!res.ok) throw new Error("Failed to load projects");
         const data = await res.json() as { projects: ProjectOption[] };
-        const withScenes = (data.projects ?? []).filter(
-          (p) => (p.output_data?.scenes ?? []).length > 0,
-        );
-        setProjects(withScenes);
+        /* Show ALL projects — the server now handles scenes-missing gracefully */
+        const allProjects = data.projects ?? [];
+        setProjects(allProjects);
 
         /* Pre-select project if clip has project_id */
         if (clip.project_id) {
-          const match = withScenes.find((p) => p.id === clip.project_id);
+          const match = allProjects.find((p) => p.id === clip.project_id);
           if (match) {
             setSelectedProject(match);
-            /* Pre-select scene if clip has scene_id */
+            /* Pre-select scene if clip has scene_id — fall back to first scene */
+            const scenes = match.output_data?.scenes ?? [];
             if (clip.scene_id) {
-              const sceneMatch = (match.output_data?.scenes ?? []).find(
-                (s) => s.id === clip.scene_id,
-              );
-              if (sceneMatch) setSelectedScene(sceneMatch);
+              const sceneMatch = scenes.find((s) => s.id === clip.scene_id);
+              if (sceneMatch) {
+                setSelectedScene(sceneMatch);
+              } else if (scenes.length > 0) {
+                /* scene_id stale (scenes were rebuilt) — pick by index guess */
+                setSelectedScene(scenes[scenes.length - 1] ?? null);
+              }
             }
           }
         }
@@ -123,6 +127,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
   async function handleAttach() {
     if (!selectedProject || !selectedScene) return;
     setAttaching(true);
+    setAttachError(null);
     try {
       const token = await getAccessToken();
       const res = await fetch(`/api/projects/${selectedProject.id}/scene-clip`, {
@@ -130,6 +135,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
           clipUrl:     clip.video_url,
+          clipId:      clip.id,
           sceneId:     selectedScene.id,
           sceneNumber: selectedScene.sceneNumber ?? null,
           sceneTitle:  selectedScene.section ?? null,
@@ -141,11 +147,9 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         scene?: { index: number; section: string | null };
       };
       if (!res.ok || !json.success) {
-        toast({
-          title: "Could not attach clip",
-          description: json.error ?? `Server error ${res.status}`,
-          variant: "destructive",
-        });
+        const errMsg = json.error ?? `Server error ${res.status}`;
+        setAttachError(errMsg);
+        toast({ title: "Could not attach clip", description: errMsg, variant: "destructive" });
         return;
       }
       setAttachedInfo({ section: json.scene?.section ?? null, index: json.scene?.index ?? 0 });
@@ -155,11 +159,9 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
         description: `Attached to Scene ${json.scene?.index ?? ""}${json.scene?.section ? ` (${json.scene.section})` : ""}. Open the Video Editor to see it.`,
       });
     } catch (err) {
-      toast({
-        title: "Attach failed",
-        description: err instanceof Error ? err.message : "Unknown error",
-        variant: "destructive",
-      });
+      const errMsg = err instanceof Error ? err.message : "Unknown error";
+      setAttachError(errMsg);
+      toast({ title: "Attach failed", description: errMsg, variant: "destructive" });
     } finally {
       setAttaching(false);
     }
@@ -266,6 +268,21 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               </div>
 
               {/* Scene selector */}
+              {selectedProject && scenes.length === 0 && (
+                <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] px-3 py-3 text-center">
+                  <p className="text-xs font-bold text-amber-400">No scenes saved yet</p>
+                  <p className="text-[10px] text-white/35 mt-0.5">
+                    Open the Video Editor, load your scenes, then come back and attach.
+                  </p>
+                  <Link
+                    href={`/video-editor?project=${selectedProject.id}`}
+                    className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold text-primary hover:underline"
+                    onClick={onClose}
+                  >
+                    <ChevronRight className="h-3 w-3" /> Open Video Editor
+                  </Link>
+                </div>
+              )}
               {selectedProject && scenes.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-bold text-white/40 uppercase tracking-wider">Scene</p>
@@ -305,6 +322,14 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* Inline error — shown below scene picker */}
+              {attachError && (
+                <div className="rounded-xl border border-red-400/20 bg-red-400/[0.05] px-3 py-2.5">
+                  <p className="text-[11px] font-bold text-red-400">Could not attach clip</p>
+                  <p className="text-[10px] text-white/40 mt-0.5 break-words">{attachError}</p>
                 </div>
               )}
             </>

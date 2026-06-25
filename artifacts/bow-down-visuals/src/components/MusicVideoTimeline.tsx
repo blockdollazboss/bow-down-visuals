@@ -734,6 +734,7 @@ export function MusicVideoTimeline({
       timestamp: "", section: "", lyricLine: "", location: "",
       action: "", cameraMovement: "", lighting: "", mood: "",
       aiVideoPrompt: "", negativePrompt: "", approved: false, demoClipUrl: null,
+      thumbnailUrl: null, clipId: null, runwayJobId: null,
       provider: null, generationStatus: null, promptUsed: null, generatedAt: null,
     };
     onScenesChange([...scenes, newScene]);

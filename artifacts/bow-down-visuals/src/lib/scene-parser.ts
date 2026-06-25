@@ -13,6 +13,10 @@ export interface SceneData {
   negativePrompt: string;
   approved: boolean;
   demoClipUrl: string | null;
+  thumbnailUrl: string | null;
+  /** generated_clips table row id — used for attachment tracking */
+  clipId: string | null;
+  runwayJobId: string | null;
   /** Runway-specific generation metadata */
   provider: string | null;
   generationStatus: "pending" | "completed" | "failed" | null;
@@ -162,6 +166,9 @@ function parseMarkdownTable(text: string): SceneData[] {
       negativePrompt:   pick("negativePrompt"),
       approved:         false,
       demoClipUrl:      null,
+      thumbnailUrl:     null,
+      clipId:           null,
+      runwayJobId:      null,
       provider:         null,
       generationStatus: null,
       promptUsed:       null,
@@ -215,6 +222,9 @@ function parseByTimestampRows(text: string): SceneData[] {
       negativePrompt:   cells[9] ?? "",
       approved:         false,
       demoClipUrl:      null,
+      thumbnailUrl:     null,
+      clipId:           null,
+      runwayJobId:      null,
       provider:         null,
       generationStatus: null,
       promptUsed:       null,
@@ -260,6 +270,9 @@ function buildScenesFromBlocks(blocks: string[]): SceneData[] {
         negativePrompt,
         approved:         false,
         demoClipUrl:      null,
+        thumbnailUrl:     null,
+        clipId:           null,
+        runwayJobId:      null,
         provider:         null,
         generationStatus: null,
         promptUsed:       null,

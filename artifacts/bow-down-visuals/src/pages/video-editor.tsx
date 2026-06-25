@@ -4,7 +4,7 @@ import {
   ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
-  RefreshCw,
+  RefreshCw, Zap,
 } from "lucide-react";
 import { HelpPanel } from "@/components/HelpPanel";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -89,6 +89,8 @@ export default function VideoEditor() {
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<"idle" | "syncing" | "done" | "error">("idle");
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -291,6 +293,57 @@ export default function VideoEditor() {
       setRebuildStatus("error");
       setRebuildError(`Could not parse scenes: ${msg}`);
       toast({ title: "Could not parse scenes", description: msg, variant: "destructive" });
+    }
+  }
+
+  /* ── Sync Missing Clips ── */
+  async function syncMissingClips() {
+    if (!project) return;
+    setSyncState("syncing");
+    setSyncMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/projects/${project.id}/sync-clips`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+      });
+      const json = await res.json() as {
+        synced?: number;
+        skipped?: number;
+        message?: string;
+        error?: string;
+        scenes?: SceneData[];
+      };
+      if (!res.ok) {
+        const errMsg = json.error ?? `Server error ${res.status}`;
+        setSyncState("error");
+        setSyncMsg(errMsg);
+        toast({ title: "Sync failed", description: errMsg, variant: "destructive" });
+        return;
+      }
+      const synced = json.synced ?? 0;
+      if (synced === 0) {
+        setSyncState("done");
+        setSyncMsg(json.message ?? "No new clips to attach.");
+        toast({ title: "Nothing to sync", description: json.message ?? "All scenes already have clips or no matching clips were found." });
+        return;
+      }
+      /* Update local scenes state from the server response */
+      if (json.scenes && json.scenes.length > 0) {
+        scenesRef.current = json.scenes;
+        setScenes(json.scenes);
+      }
+      setSyncState("done");
+      setSyncMsg(`Synced ${synced} clip${synced !== 1 ? "s" : ""}.`);
+      toast({
+        title: `${synced} clip${synced !== 1 ? "s" : ""} synced!`,
+        description: "Scenes updated with your generated clips. Clip Ready will now appear.",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setSyncState("error");
+      setSyncMsg(msg);
+      toast({ title: "Sync failed", description: msg, variant: "destructive" });
     }
   }
 
@@ -528,6 +581,33 @@ export default function VideoEditor() {
                             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Rebuilding…</>
                           ) : (
                             <><RefreshCw className="h-3.5 w-3.5" /> Rebuild Scenes</>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Sync Missing Clips button */}
+                    {projectId && (
+                      <div className="flex items-center justify-between gap-3 px-1">
+                        <div className="min-w-0">
+                          {syncState === "done" && syncMsg && (
+                            <p className="text-[10px] text-green-400 font-medium">{syncMsg}</p>
+                          )}
+                          {syncState === "error" && syncMsg && (
+                            <p className="text-[10px] text-red-400 font-medium">{syncMsg}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setSyncState("idle"); void syncMissingClips(); }}
+                          disabled={syncState === "syncing"}
+                          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
+                          title="Scan your generated clips and attach any matching ones to scenes that are missing a clip — no credits charged"
+                        >
+                          {syncState === "syncing" ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing…</>
+                          ) : (
+                            <><Zap className="h-3.5 w-3.5" /> Sync Missing Clips</>
                           )}
                         </button>
                       </div>

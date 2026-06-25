@@ -2,6 +2,8 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import { markGenerationHistorySaved, markGenerationHistoryRefunded, recordCreditUsage } from "../lib/payment-record";
+import { db, generatedClipsTable } from "@workspace/db";
+import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
@@ -175,20 +177,47 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    PATCH /api/projects/:projectId/scene-clip
    Attach an already-generated clip to a specific scene without charging credits.
-   Matches scene by: sceneId (preferred) → sceneNumber → sceneTitle/section.
-   Updates: demoClipUrl, generationStatus = "completed", provider = "Runway".
+   Matches scene by: sceneId (preferred) → sceneNumber (numeric) → section title.
+   If clipId is provided, looks up the generated_clips record for thumbnail/jobId.
+   Updates: demoClipUrl, thumbnailUrl, clipId, runwayJobId, generationStatus, provider.
 ───────────────────────────────────────────────────────────────────────────── */
 router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) => {
   const { projectId } = req.params as { projectId: string };
   const body = req.body as {
-    clipUrl: string;
+    clipUrl?: string;
+    clipId?: string | null;
     sceneId?: string | null;
     sceneNumber?: number | null;
     sceneTitle?: string | null;
   };
 
-  if (!body.clipUrl) {
-    res.status(400).json({ error: "clipUrl is required" });
+  /* ── Optionally look up the generated_clips record for extra metadata ── */
+  let resolvedClipUrl = body.clipUrl ?? null;
+  let thumbnailUrl: string | null = null;
+  let runwayJobId: string | null = null;
+
+  if (body.clipId) {
+    try {
+      const [clipRow] = await db
+        .select()
+        .from(generatedClipsTable)
+        .where(
+          and(
+            eq(generatedClipsTable.id, body.clipId),
+            eq(generatedClipsTable.user_id, req.userId!),
+          ),
+        )
+        .limit(1);
+      if (clipRow) {
+        resolvedClipUrl  = resolvedClipUrl ?? clipRow.video_url ?? null;
+        thumbnailUrl     = clipRow.thumbnail_url ?? null;
+        runwayJobId      = clipRow.runway_job_id ?? null;
+      }
+    } catch { /* non-fatal — proceed with whatever clipUrl was passed */ }
+  }
+
+  if (!resolvedClipUrl) {
+    res.status(400).json({ error: "clipUrl is required (or provide a valid clipId)" });
     return;
   }
 
@@ -209,21 +238,23 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
   const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
 
   if (scenes.length === 0) {
-    res.status(422).json({ error: "This project has no scenes. Open the Video Editor and rebuild scenes first." });
+    res.status(422).json({ error: "This project has no scenes. Open the Video Editor and load or rebuild scenes first, then try again." });
     return;
   }
 
   /* ── Find matching scene ── */
   let matchIdx = -1;
 
+  /* 1. Exact scene UUID match */
   if (body.sceneId) {
     matchIdx = scenes.findIndex((s) => s["id"] === body.sceneId);
   }
+  /* 2. Scene number — coerce both sides to Number to survive JSON string/number mismatch */
   if (matchIdx === -1 && body.sceneNumber != null) {
-    matchIdx = scenes.findIndex(
-      (s) => s["sceneNumber"] === body.sceneNumber || s["id"] === String(body.sceneNumber),
-    );
+    const wantNum = Number(body.sceneNumber);
+    matchIdx = scenes.findIndex((s) => Number(s["sceneNumber"]) === wantNum);
   }
+  /* 3. Section / title substring (case-insensitive) */
   if (matchIdx === -1 && body.sceneTitle) {
     const lower = body.sceneTitle.toLowerCase();
     matchIdx = scenes.findIndex(
@@ -232,10 +263,16 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
         String(s["timestamp"] ?? "").toLowerCase().includes(lower),
     );
   }
+  /* 4. "Outro" keyword fallback — last scene if section contains outro */
+  if (matchIdx === -1) {
+    const lastOutroIdx = [...scenes].map((s, i) => ({ s, i })).reverse()
+      .find(({ s }) => /outro|closing|final/i.test(String(s["section"] ?? "")));
+    if (lastOutroIdx) matchIdx = lastOutroIdx.i;
+  }
 
   if (matchIdx === -1) {
     res.status(422).json({
-      error: "No matching scene found. Try selecting by scene number or title.",
+      error: `No matching scene found. Tried sceneId=${body.sceneId ?? "—"}, sceneNumber=${body.sceneNumber ?? "—"}, sceneTitle=${body.sceneTitle ?? "—"}. Select the scene manually and try again.`,
     });
     return;
   }
@@ -245,7 +282,10 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
     if (i !== matchIdx) return scene;
     return {
       ...scene,
-      demoClipUrl:      body.clipUrl,
+      demoClipUrl:      resolvedClipUrl,
+      thumbnailUrl:     thumbnailUrl ?? scene["thumbnailUrl"] ?? null,
+      clipId:           body.clipId ?? scene["clipId"] ?? null,
+      runwayJobId:      runwayJobId ?? scene["runwayJobId"] ?? null,
       generationStatus: "completed",
       provider:         "Runway",
       generatedAt:      new Date().toISOString(),
@@ -309,6 +349,153 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
       timestamp: matchedScene["timestamp"] ?? null,
     },
   });
+});
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   POST /api/projects/:projectId/sync-clips
+   Scan generated_clips for this project, match each completed clip to a scene
+   that has no demoClipUrl, and batch-attach all matches.  No credits charged.
+   Returns: { synced: N, skipped: N, scenes: updatedScenesArray }
+───────────────────────────────────────────────────────────────────────────── */
+router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => {
+  const { projectId } = req.params as { projectId: string };
+
+  /* ── Fetch project ── */
+  const { data: existing, error: fetchErr } = await req.userSupabase!
+    .from("projects")
+    .select("id, user_id, project_type, title, artist_name, song_title, genre, mood, style, platform, input_data, output_data, credits_used, created_at")
+    .eq("id", projectId)
+    .eq("user_id", req.userId)
+    .single();
+
+  if (fetchErr || !existing) {
+    res.status(404).json({ error: "Project not found" });
+    return;
+  }
+
+  const outputData = (existing.output_data as Record<string, unknown>) ?? {};
+  const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
+
+  if (scenes.length === 0) {
+    res.status(422).json({ error: "No scenes found in this project. Open the Video Editor and load scenes first." });
+    return;
+  }
+
+  /* ── Fetch completed clips for this project from generated_clips ── */
+  const clips = await db
+    .select()
+    .from(generatedClipsTable)
+    .where(
+      and(
+        eq(generatedClipsTable.user_id, req.userId!),
+        eq(generatedClipsTable.project_id, projectId),
+      ),
+    )
+    .orderBy(desc(generatedClipsTable.created_at));
+
+  const completedClips = clips.filter((c) => c.video_url && c.status !== "failed");
+
+  if (completedClips.length === 0) {
+    res.json({ synced: 0, skipped: scenes.length, message: "No completed clips found for this project." });
+    return;
+  }
+
+  /* ── Match each clip to an unattached scene ── */
+  /* Track which clips have been used to avoid double-attachment */
+  const usedClipIds = new Set<string>();
+
+  let synced = 0;
+  const updatedScenes = scenes.map((scene) => {
+    /* Skip scenes that already have a clip */
+    if (scene["demoClipUrl"]) return scene;
+
+    const sceneId     = scene["id"]           as string | undefined;
+    const sceneNum    = Number(scene["sceneNumber"] ?? 0);
+    const section     = String(scene["section"] ?? "").toLowerCase().trim();
+
+    /* Find the best unused clip for this scene */
+    const matchedClip = completedClips.find((clip) => {
+      if (usedClipIds.has(clip.id)) return false;
+      /* 1. Exact scene_id recorded when clip was generated */
+      if (clip.scene_id && sceneId && clip.scene_id === sceneId) return true;
+      /* 2. Scene number in clip title ("Scene 5") */
+      const titleMatch = clip.title?.match(/scene\s*(\d+)/i);
+      if (titleMatch && Number(titleMatch[1]) === sceneNum) return true;
+      /* 3. Section keyword in clip title or prompt ("Outro", "Verse 1", …) */
+      if (section.length > 2) {
+        if (clip.title?.toLowerCase().includes(section)) return true;
+        if (clip.prompt?.toLowerCase().includes(section)) return true;
+      }
+      return false;
+    });
+
+    if (!matchedClip) return scene;
+
+    usedClipIds.add(matchedClip.id);
+    synced++;
+    return {
+      ...scene,
+      demoClipUrl:      matchedClip.video_url,
+      thumbnailUrl:     matchedClip.thumbnail_url ?? null,
+      clipId:           matchedClip.id,
+      runwayJobId:      matchedClip.runway_job_id ?? null,
+      generationStatus: "completed",
+      provider:         "Runway",
+      generatedAt:      matchedClip.created_at
+        ? new Date(matchedClip.created_at).toISOString()
+        : new Date().toISOString(),
+    };
+  });
+
+  if (synced === 0) {
+    res.json({ synced: 0, skipped: scenes.length, message: "No matching clips found for unattached scenes." });
+    return;
+  }
+
+  /* ── Persist updated project (delete + reinsert) ── */
+  const updatedOutputData: Record<string, unknown> = { ...outputData, scenes: updatedScenes };
+
+  const { error: delErr } = await req.userSupabase!
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("user_id", req.userId);
+
+  if (delErr) {
+    res.status(500).json({ error: delErr.message });
+    return;
+  }
+
+  const { error: insErr } = await req.userSupabase!
+    .from("projects")
+    .insert({
+      id:           existing.id,
+      user_id:      existing.user_id,
+      project_type: existing.project_type,
+      title:        existing.title,
+      artist_name:  existing.artist_name,
+      song_title:   existing.song_title,
+      genre:        existing.genre,
+      mood:         existing.mood,
+      style:        (existing as Record<string, unknown>)["style"] ?? null,
+      platform:     (existing as Record<string, unknown>)["platform"] ?? null,
+      input_data:   existing.input_data,
+      output_data:  updatedOutputData,
+      credits_used: existing.credits_used,
+      created_at:   existing.created_at,
+    });
+
+  if (insErr) {
+    res.status(500).json({ error: insErr.message });
+    return;
+  }
+
+  req.log.info(
+    { projectId, userId: req.userId, synced, total: scenes.length },
+    "[projects] sync-clips completed",
+  );
+
+  res.json({ synced, skipped: scenes.length - synced, scenes: updatedScenes });
 });
 
 router.delete("/projects/:id", requireAuth, async (req, res) => {
