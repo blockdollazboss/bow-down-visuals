@@ -1,0 +1,102 @@
+Fix broken caption timing validation and repair corrupted caption rows.
+
+Problem:
+Caption timing is broken after AI/auto sync.
+
+I can see caption rows where:
+
+* start time is after end time
+* many captions have the same end time
+* captions jump from 89 seconds to 190 seconds
+* captions are out of order
+* captions cannot sync correctly
+
+Example bad row:
+Start: 200.24
+End: 199.84
+
+That is invalid because end time is before start time.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not change master player layout.
+Do not change floating Bow Down AI Guide.
+Do not add duplicate players.
+
+Only fix caption timing.
+
+Required fix:
+
+1. Add caption timing validation.
+
+Every caption must follow:
+
+* startTime >= 0
+* endTime > startTime
+* captions must be sorted by startTime
+* no caption should end after song duration
+* no caption should have the same bad end time repeated
+* no caption should overlap badly unless intentional
+
+2. Add a repair button in Captions tab:
+
+Repair Caption Timing
+
+When clicked:
+
+* sort captions by start time
+* fix any row where endTime <= startTime
+* spread broken captions safely across the song duration
+* make last caption end at or before song duration
+* save repaired captions
+
+3. Add a reset button:
+
+Reset Captions From Lyrics
+
+When clicked:
+
+* keep the lyric text
+* delete broken caption timing only
+* regenerate clean caption rows from lyrics
+* spread them across the detected song duration
+* save captions
+
+4. AI Sync must not save bad timings.
+
+Before saving AI synced captions:
+
+* validate all start/end times
+* if invalid, do not overwrite the existing good captions
+* show:
+  AI sync failed validation. Existing captions were not overwritten.
+
+5. If AI sync returns bad or missing timestamps:
+
+* fall back to safe estimated timing
+* mark captions as Needs Review
+* do not create end times before start times
+
+6. Add visible caption health status:
+
+Caption Timing Health:
+
+* valid rows
+* invalid rows
+* song duration
+* last caption ends at
+* timing status: healthy / needs repair
+
+7. Highlight invalid caption rows red.
+
+8. Add a one-click safe fix:
+   Repair All Invalid Caption Times
+
+9. Do not charge credits for repair/reset.
+
+Final goal:
+Caption rows must never have end time before start time. If AI sync fails, it should not corrupt the captions. The user should be able to repair or reset caption timing safely.
