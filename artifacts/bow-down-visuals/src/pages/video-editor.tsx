@@ -933,6 +933,31 @@ function LivePreviewPanel({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoTime, setVideoTime] = useState(0);
 
+  /* Stable ref for the Live Preview timeline video — imperatively controlled */
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  /* When the timeline engine's active scene changes, imperatively load and play that clip.
+     We do this imperatively (not via React key remount) so the video element is stable
+     and scene transitions are reliable regardless of IIFE/conditional rendering patterns. */
+  useEffect(() => {
+    const eng = previewEngineState;
+    const v = liveVideoRef.current;
+    if (!eng || !v) return;
+    const engScene = scenes[eng.activeSceneIndex] ?? null;
+    const clipUrl = engScene?.demoClipUrl ?? null;
+    if (clipUrl) {
+      if (v.src !== clipUrl) {
+        v.src = clipUrl;
+      }
+      v.currentTime = 0;
+      void v.play().catch(() => { /* autoplay blocked — muted video, should not fail */ });
+    } else {
+      v.pause();
+      v.removeAttribute("src");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewEngineState?.activeSceneIndex, previewEngineState?.isPlaying]);
+
   /* Simulation playback — drives caption timing when no video clip exists */
   const [simTime, setSimTime] = useState(0);
   const [simPlaying, setSimPlaying] = useState(false);
@@ -1030,36 +1055,51 @@ function LivePreviewPanel({
           const engScene = eng != null ? (scenes[eng.activeSceneIndex] ?? null) : null;
           const engClipUrl = engScene?.demoClipUrl ?? null;
 
+          /* Not yet started — show prompt */
           if (!eng) {
             return (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
                 <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
                 <p className="text-xs font-bold text-primary/70">Timeline Preview</p>
-                <p className="text-[10px] text-white/30">Press Preview Timeline in the left panel to start.</p>
+                <p className="text-[10px] text-white/30">Press ▶ Preview Timeline in the left panel to start.</p>
+                {/* Debug: not connected */}
+                <details className="mt-2 text-left rounded border border-white/[0.05] bg-white/[0.02] text-[9px] font-mono">
+                  <summary className="px-2 py-1 cursor-pointer text-white/20 select-none">⬡ Live Preview Debug</summary>
+                  <div className="px-2 pb-2 pt-1 space-y-0.5 text-white/35 border-t border-white/[0.04]">
+                    <p>connected to timeline: <span className="text-red-400">no</span></p>
+                    <p>preview mode: <span className="text-white/40">—</span></p>
+                    <p>using selected scene: <span className="text-white/40">no</span></p>
+                  </div>
+                </details>
               </div>
             );
           }
 
           return (
             <div className="space-y-2">
-              {/* ── Live video / placeholder ── */}
-              <div className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2"
-                data-testid="live-preview-screen">
+              {/* ── Monitor screen ── */}
+              <div
+                className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2"
+                data-testid="live-preview-screen"
+              >
+                {/*
+                  Single stable <video> element, controlled imperatively by the
+                  liveVideoRef useEffect above. Never remounted via key change —
+                  that caused the "stops after one scene" bug where React lost
+                  track of the element between renders.
+                */}
+                <video
+                  ref={liveVideoRef}
+                  muted
+                  playsInline
+                  loop
+                  className={`w-full h-full object-contain absolute inset-0 ${engClipUrl ? "block" : "hidden"}`}
+                  data-testid="live-preview-video"
+                  data-scene-idx={eng.activeSceneIndex}
+                />
 
-                {/* Actual clip — key on sceneIndex so <video> remounts on scene change */}
-                {engClipUrl ? (
-                  <video
-                    key={`lp-${eng.activeSceneIndex}`}
-                    src={engClipUrl}
-                    autoPlay
-                    muted
-                    playsInline
-                    loop
-                    className="w-full h-full object-contain"
-                    data-testid="live-preview-video"
-                  />
-                ) : (
-                  /* Black placeholder when no clip */
+                {/* Black placeholder shown when active scene has no clip */}
+                {!engClipUrl && (
                   <>
                     <Film className="h-6 w-6 text-primary/30" />
                     <p className="text-xs font-bold text-white/50" data-testid="live-preview-scene-label">
@@ -1071,12 +1111,13 @@ function LivePreviewPanel({
                         &ldquo;{engScene.lyricLine}&rdquo;
                       </p>
                     )}
+                    <p className="text-[9px] text-white/20 mt-1">No clip — audio continues from Timeline</p>
                   </>
                 )}
 
-                {/* Caption overlay — shown on top of video or placeholder */}
+                {/* Caption overlay — always on top */}
                 {eng.activeCaption && (
-                  <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none">
+                  <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none z-10">
                     <div
                       className="text-xs font-black text-white text-center max-w-[92%] px-3 py-1.5 rounded-lg leading-snug"
                       data-testid="live-preview-caption"
@@ -1087,27 +1128,29 @@ function LivePreviewPanel({
                   </div>
                 )}
 
-                {/* Scene label strip over clip */}
+                {/* Scene label gradient strip — shown when clip is playing */}
                 {engClipUrl && (
-                  <div className="absolute bottom-0 left-0 right-0 px-3 pb-9 pt-6 pointer-events-none"
-                    style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.6))" }}>
-                    <p className="text-[9px] text-white/50 font-bold truncate">
+                  <div
+                    className="absolute bottom-0 left-0 right-0 px-3 pb-9 pt-6 pointer-events-none z-10"
+                    style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.65))" }}
+                  >
+                    <p className="text-[9px] text-white/55 font-bold truncate">
                       Scene {eng.activeSceneIndex + 1}{engScene?.section ? ` · ${engScene.section}` : ""}
                     </p>
                   </div>
                 )}
 
-                {/* Time overlay */}
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10">
+                {/* Timecode — top-left */}
+                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10 z-10">
                   <span className="font-mono text-[10px] text-white/60" data-testid="live-preview-time">
                     {fmtSecs(eng.currentTime)}
                     {eng.audioDuration ? ` / ${fmtSecs(eng.audioDuration)}` : ""}
                   </span>
                 </div>
 
-                {/* Live badge */}
+                {/* LIVE badge — top-right, only while playing */}
                 {eng.isPlaying && (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/90">
+                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/90 z-10">
                     <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
                     <span className="text-[9px] font-black text-black uppercase">Live</span>
                   </div>
@@ -1117,9 +1160,23 @@ function LivePreviewPanel({
               {/* Status pills */}
               <div className="grid grid-cols-3 gap-1.5">
                 {[
-                  { label: "Audio", value: eng.isPlaying ? "Playing ▶" : "Paused ‖", color: eng.isPlaying ? "text-green-400" : "text-white/40" },
-                  { label: "Scene", value: `${eng.activeSceneIndex + 1} / ${scenes.length}`, color: "text-white/70" },
-                  { label: "Caption", value: eng.activeCaption ? eng.activeCaption.text.slice(0, 14) + (eng.activeCaption.text.length > 14 ? "…" : "") : "—", color: eng.activeCaption ? "text-primary/80" : "text-white/30" },
+                  {
+                    label: "Audio",
+                    value: eng.isPlaying ? "Playing ▶" : "Paused ‖",
+                    color: eng.isPlaying ? "text-green-400" : "text-white/40",
+                  },
+                  {
+                    label: "Scene",
+                    value: `${eng.activeSceneIndex + 1} / ${scenes.length}`,
+                    color: "text-white/70",
+                  },
+                  {
+                    label: "Caption",
+                    value: eng.activeCaption
+                      ? eng.activeCaption.text.slice(0, 14) + (eng.activeCaption.text.length > 14 ? "…" : "")
+                      : "—",
+                    color: eng.activeCaption ? "text-primary/80" : "text-white/30",
+                  },
                 ].map(({ label, value, color }) => (
                   <div key={label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
                     <p className="text-[8px] text-white/30 uppercase tracking-wide font-semibold">{label}</p>
@@ -1128,19 +1185,21 @@ function LivePreviewPanel({
                 ))}
               </div>
 
-              {/* Debug panel */}
+              {/* Debug panel — all required fields */}
               <details className="rounded-lg border border-white/[0.05] bg-white/[0.02] text-[9.5px] font-mono">
                 <summary className="px-3 py-1.5 cursor-pointer text-white/25 hover:text-white/50 select-none">
                   ⬡ Live Preview Debug
                 </summary>
                 <div className="px-3 pb-2.5 pt-1 space-y-0.5 text-white/40 border-t border-white/[0.04]">
-                  <p>Live Preview Connected: <span className="text-green-400">yes</span></p>
-                  <p>Preview Mode: <span className="text-primary/70">{eng.isPlaying ? "timeline" : "paused"}</span></p>
-                  <p>Current Time: <span className="text-white/60">{eng.currentTime.toFixed(2)}s</span></p>
-                  <p>Live Preview Scene: <span className="text-white/60">{eng.activeSceneIndex + 1} / {scenes.length}{engScene?.section ? ` (${engScene.section})` : ""}</span></p>
-                  <p>Live Preview Caption: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
-                  <p>Audio Playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
-                  <p>Clip URL: <span className="text-white/40">{engClipUrl ? "yes" : "none"}</span></p>
+                  <p>connected to timeline: <span className="text-green-400">yes</span></p>
+                  <p>preview mode: <span className="text-primary/70">timeline</span></p>
+                  <p>timeline currentTime: <span className="text-white/60">{eng.currentTime.toFixed(2)}s</span></p>
+                  <p>timeline audio playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
+                  <p>live scene index: <span className="text-white/60">{eng.activeSceneIndex + 1} / {scenes.length}</span></p>
+                  <p>live scene title: <span className="text-white/60">{engScene?.section ?? engScene?.lyricLine?.slice(0, 32) ?? "—"}</span></p>
+                  <p>live caption: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
+                  <p>using selected scene: <span className="text-yellow-400">no</span></p>
+                  <p>clip loaded: <span className="text-white/50">{engClipUrl ? "yes" : "none"}</span></p>
                 </div>
               </details>
             </div>
