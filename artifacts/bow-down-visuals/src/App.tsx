@@ -8,8 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { DraggableThemePlayer } from "@/components/DraggableThemePlayer";
-import { HelpPanel } from "@/components/HelpPanel";
+import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 
 import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
@@ -58,8 +57,7 @@ function AppShell() {
   return (
     <>
       <ScrollToTop />
-      <DraggableThemePlayer />
-      <HelpPanel />
+      <BowDownAIGuide />
       <Switch>
         {/* Auth routes */}
         <Route path="/login"><Login /></Route>

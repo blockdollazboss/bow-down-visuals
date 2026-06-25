@@ -87,7 +87,11 @@ export default function VideoEditor() {
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [tab, setTab] = useState<EditorTab>("clips");
+  const [tab, setRawTab] = useState<EditorTab>("clips");
+  function setTab(t: EditorTab) {
+    setRawTab(t);
+    window.dispatchEvent(new CustomEvent("bdv-editor-tab", { detail: t }));
+  }
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   /** State broadcast from TimelinePreviewPlayer — drives Live Preview mirroring */
   const [previewEngineState, setPreviewEngineState] = useState<SharedPreviewState | null>(null);
