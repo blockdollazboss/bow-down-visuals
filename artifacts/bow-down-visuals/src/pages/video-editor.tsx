@@ -984,49 +984,135 @@ function MasterPreviewPlayer({
   onRestart: () => void;
 }) {
   const containerRef  = useRef<HTMLDivElement | null>(null);
-  const [isFullscreen,    setIsFullscreen   ] = useState(false);
-  const [pipActive,       setPipActive      ] = useState(false);
-  const [pipError,        setPipError       ] = useState<string | null>(null);
+  const [isFullscreen,       setIsFullscreen      ] = useState(false);
+  const [pipActive,          setPipActive         ] = useState(false);
+  const [pipError,           setPipError          ] = useState<string | null>(null);
 
   /* ── Auto PiP state ── */
-  const [autoPiP,         setAutoPiP        ] = useState(false);
-  const [enterOnScroll,   setEnterOnScroll  ] = useState(true);
-  const [keepOnTabSwitch, setKeepOnTabSwitch] = useState(true);
+  const [autoPiP,            setAutoPiP           ] = useState(false);
+  const [enterOnScroll,      setEnterOnScroll     ] = useState(true);
+  const [keepOnTabSwitch,    setKeepOnTabSwitch   ] = useState(true);
+  /* Return-to-browser tracking */
+  const [wasPlayingBeforePiP,setWasPlayingBeforePiP] = useState(false);
+  const [lastKnownTime,      setLastKnownTime     ] = useState(0);
+  const [lastKnownScene,     setLastKnownScene    ] = useState(-1);
+  const [lastKnownCaption,   setLastKnownCaption  ] = useState<string | null>(null);
+  const [returnedFromPiP,    setReturnedFromPiP   ] = useState(false);
+  const [playbackRestored,   setPlaybackRestored  ] = useState(false);
+  const [docHidden,          setDocHidden         ] = useState(false);
+  const [browserFocused,     setBrowserFocused    ] = useState(true);
 
   const pipSupported = typeof document !== "undefined" && !!document.pictureInPictureEnabled;
 
-  /* Refs so observer callbacks always see current values without re-subscribing */
-  const autoPiPRef         = useRef(false);
-  const enterOnScrollRef   = useRef(true);
-  const keepOnTabSwitchRef = useRef(true);
-  const isPlayingRef       = useRef(false);
-  const prevTabRef         = useRef<EditorTab>(tab);
+  /* Refs — callbacks always see latest values without re-subscribing */
+  const autoPiPRef          = useRef(false);
+  const enterOnScrollRef    = useRef(true);
+  const keepOnTabSwitchRef  = useRef(true);
+  const isPlayingRef        = useRef(false);
+  const prevTabRef          = useRef<EditorTab>(tab);
+  const wasPlayingRef       = useRef(false);
+  const engRef              = useRef<SharedPreviewState | null>(null);
 
-  useEffect(() => { autoPiPRef.current         = autoPiP;         }, [autoPiP]);
-  useEffect(() => { enterOnScrollRef.current   = enterOnScroll;   }, [enterOnScroll]);
-  useEffect(() => { keepOnTabSwitchRef.current = keepOnTabSwitch; }, [keepOnTabSwitch]);
+  useEffect(() => { autoPiPRef.current         = autoPiP;               }, [autoPiP]);
+  useEffect(() => { enterOnScrollRef.current   = enterOnScroll;         }, [enterOnScroll]);
+  useEffect(() => { keepOnTabSwitchRef.current = keepOnTabSwitch;       }, [keepOnTabSwitch]);
   useEffect(() => { isPlayingRef.current       = eng?.isPlaying ?? false; }, [eng?.isPlaying]);
+  useEffect(() => { engRef.current             = eng;                   }, [eng]);
 
-  /* Track fullscreen state via browser event */
+  /* Fullscreen */
   useEffect(() => {
-    const onFSChange = () => setIsFullscreen(
-      document.fullscreenElement === containerRef.current,
-    );
+    const onFSChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
     document.addEventListener("fullscreenchange", onFSChange);
     return () => document.removeEventListener("fullscreenchange", onFSChange);
   }, []);
 
-  /* Track PiP state */
+  /* ── PiP events + visibilitychange + focus/blur ── */
   useEffect(() => {
     const v = liveVideoRef.current;
     if (!v) return;
-    const onEnter = () => setPipActive(true);
-    const onLeave = () => setPipActive(false);
+
+    /* Save state when entering PiP */
+    const onEnter = () => {
+      const playing = !v.paused;
+      wasPlayingRef.current = playing;
+      setWasPlayingBeforePiP(playing);
+      setLastKnownTime(v.currentTime);
+      setLastKnownScene(engRef.current?.activeSceneIndex ?? -1);
+      setLastKnownCaption(engRef.current?.activeCaption?.text ?? null);
+      setPipActive(true);
+      setReturnedFromPiP(false);
+      setPlaybackRestored(false);
+    };
+
+    /* Reconnect to master player when PiP closes */
+    const onLeave = () => {
+      setPipActive(false);
+      setReturnedFromPiP(true);
+      /* If we were playing before, ensure video keeps playing */
+      if (wasPlayingRef.current) {
+        if (v.paused) {
+          v.play()
+            .then(() => setPlaybackRestored(true))
+            .catch((e) => {
+              setPipError(`Could not resume after PiP: ${e instanceof Error ? e.message : String(e)}`);
+              setPlaybackRestored(false);
+            });
+        } else {
+          setPlaybackRestored(true);
+        }
+      }
+    };
+
+    /* visibilitychange — enter PiP when browser is hidden */
+    const onVisibility = () => {
+      const hidden = document.hidden;
+      setDocHidden(hidden);
+      if (hidden && autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+        v.requestPictureInPicture().catch((e) => {
+          const msg = e instanceof Error ? e.message : String(e);
+          setPipError(`Browser blocked automatic PiP. Click Enable Auto PiP again. (${msg})`);
+        });
+      }
+      /* When returning visible: leavepictureinpicture fires naturally; playback is restored there */
+    };
+
+    /* pagehide / pageshow */
+    const onPageHide = () => {
+      setDocHidden(true);
+      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+        v.requestPictureInPicture().catch(() => {});
+      }
+    };
+    const onPageShow = () => {
+      setDocHidden(false);
+      /* playback restore handled by leavepictureinpicture */
+    };
+
+    /* focus / blur */
+    const onFocus = () => setBrowserFocused(true);
+    const onBlur  = () => {
+      setBrowserFocused(false);
+      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+        v.requestPictureInPicture().catch(() => {});
+      }
+    };
+
     v.addEventListener("enterpictureinpicture", onEnter);
     v.addEventListener("leavepictureinpicture", onLeave);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide",  onPageHide);
+    window.addEventListener("pageshow",  onPageShow);
+    window.addEventListener("focus",     onFocus);
+    window.addEventListener("blur",      onBlur);
+
     return () => {
       v.removeEventListener("enterpictureinpicture", onEnter);
       v.removeEventListener("leavepictureinpicture", onLeave);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide",  onPageHide);
+      window.removeEventListener("pageshow",  onPageShow);
+      window.removeEventListener("focus",     onFocus);
+      window.removeEventListener("blur",      onBlur);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1053,7 +1139,7 @@ function MasterPreviewPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pipSupported]);
 
-  /* Auto PiP — tab switch: enter PiP when user navigates to a different tab */
+  /* Auto PiP — editor-tab switch */
   useEffect(() => {
     if (
       prevTabRef.current !== tab &&
@@ -1081,29 +1167,22 @@ function MasterPreviewPlayer({
     setPipError(null);
     const v = liveVideoRef.current;
     if (!v) return;
-    if (!pipSupported) {
-      setPipError("Picture-in-Picture is not supported in this browser.");
-      return;
-    }
+    if (!pipSupported) { setPipError("Picture-in-Picture is not supported in this browser."); return; }
     try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else {
-        await v.requestPictureInPicture();
-      }
+      if (document.pictureInPictureElement) await document.exitPictureInPicture();
+      else await v.requestPictureInPicture();
     } catch (e) {
       setPipError(`PiP failed: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
   async function enableAutoPiP() {
-    if (!pipSupported) {
-      setPipError("Picture-in-Picture is not supported in this browser.");
-      return;
-    }
+    if (!pipSupported) { setPipError("Picture-in-Picture is not supported in this browser."); return; }
     setAutoPiP(true);
     autoPiPRef.current = true;
     setPipError(null);
+    setReturnedFromPiP(false);
+    setPlaybackRestored(false);
     const v = liveVideoRef.current;
     if (!v) return;
     try {
@@ -1117,6 +1196,8 @@ function MasterPreviewPlayer({
     setAutoPiP(false);
     autoPiPRef.current = false;
     if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
+    setReturnedFromPiP(false);
+    setPlaybackRestored(false);
   }
 
   const isPlaying     = eng?.isPlaying ?? false;
@@ -1341,27 +1422,39 @@ function MasterPreviewPlayer({
         )}
       </div>
 
-      {/* ── Auto PiP Source debug ── */}
+      {/* ── Auto PiP Debug ── */}
       <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Auto PiP Source:</span>
-        <span className="text-[10px] font-mono text-white/20">
-          using master player: <span className="text-green-400/60">yes ✓</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/20">
-          duplicate PiP source detected: <span className="text-green-400/60">no ✓</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/20">
-          PiP video source = master source: <span className="text-green-400/60">yes ✓</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/20">
-          PiP scene = master scene: <span className={eng ? "text-green-400/60" : "text-white/20"}>{eng ? `yes ✓ (Scene ${(eng.activeSceneIndex ?? 0) + 1})` : "no engine"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/20">
-          PiP caption = master caption: <span className={eng?.activeCaption ? "text-green-400/60" : "text-white/20"}>{eng?.activeCaption ? `yes ✓ ("${eng.activeCaption.text.slice(0,18)}…")` : "none"}</span>
-        </span>
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Auto PiP Debug:</span>
+        {[
+          ["autoPiPEnabled",       autoPiP          ? "yes ✓" : "no",   autoPiP],
+          ["pipActive",            pipActive         ? "yes ✓" : "no",   pipActive],
+          ["document hidden",      docHidden         ? "yes"   : "no",   docHidden],
+          ["browser focused",      browserFocused    ? "yes"   : "no",   browserFocused],
+          ["master currentTime",   `${currentTime.toFixed(2)}s`,         true],
+          ["lastKnownTime",        lastKnownTime > 0 ? `${lastKnownTime.toFixed(2)}s` : "—", lastKnownTime > 0],
+          ["wasPlayingBeforePiP",  wasPlayingBeforePiP ? "yes" : "no",   wasPlayingBeforePiP],
+          ["returned from PiP",    returnedFromPiP   ? "yes ✓" : "no",  returnedFromPiP],
+          ["playback restored",    playbackRestored  ? "yes ✓" : "no",  playbackRestored],
+          ["lastKnownScene",       lastKnownScene >= 0 ? `Scene ${lastKnownScene + 1}` : "—", lastKnownScene >= 0],
+          ["lastKnownCaption",     lastKnownCaption  ? `"${lastKnownCaption.slice(0,20)}…"` : "—", !!lastKnownCaption],
+          ["using master player",  "yes ✓",          true],
+        ].map(([label, value, ok]) => (
+          <span key={String(label)} className="text-[10px] font-mono text-white/20">
+            {label}:{" "}
+            <span className={ok ? "text-green-400/60" : "text-white/30"}>{String(value)}</span>
+          </span>
+        ))}
+        {pipError && (
+          <span className="text-[10px] font-mono text-amber-400/60 w-full">⚠ {pipError}</span>
+        )}
         {pipActive && (
           <span className="text-[10px] font-mono text-amber-400/50 w-full">
-            ⚠ PiP may not show HTML overlays. Captions will appear in final export.
+            ⚠ PiP may not show HTML overlays — captions appear in final export.
+          </span>
+        )}
+        {returnedFromPiP && !playbackRestored && wasPlayingBeforePiP && (
+          <span className="text-[10px] font-mono text-red-400/70 w-full">
+            ⚠ Playback may not have resumed — check master player controls.
           </span>
         )}
       </div>
