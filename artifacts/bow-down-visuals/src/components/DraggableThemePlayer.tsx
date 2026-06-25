@@ -45,10 +45,6 @@ function getSavedSnap(): SnapPoint {
   return "BR";
 }
 
-function helpSide(pt: SnapPoint): "left" | "right" {
-  return (pt === "TL" || pt === "BL" || pt === "LC" || pt === "TC") ? "left" : "right";
-}
-
 /**
  * CSS transform that slides the player off its nearest screen edge,
  * leaving PEEK_PX pixels visible as a hover target.
@@ -256,13 +252,7 @@ export function DraggableThemePlayer() {
           transition: "opacity 0.15s ease",
         }}
       >
-        <NavThemePlayer
-          onHelpClick={() =>
-            window.dispatchEvent(
-              new CustomEvent("open-help-panel", { detail: { side: helpSide(currentSnap) } }),
-            )
-          }
-        />
+        <NavThemePlayer />
       </div>
     </div>
   );

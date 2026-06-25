@@ -48,11 +48,7 @@ function EqBars({ active, size = "md" }: { active: boolean; size?: "sm" | "md" }
    NavThemePlayer — compact bar for any top navbar
    Reads from ThemePlayerContext — audio never restarts on navigation
    ────────────────────────────────────────────── */
-interface NavThemePlayerProps {
-  onHelpClick?: () => void;
-}
-
-export function NavThemePlayer({ onHelpClick }: NavThemePlayerProps = {}) {
+export function NavThemePlayer() {
   const { status, playing, muted, togglePlay, toggleMute } = useThemePlayer();
 
   if (status === "probing" || status === "missing") return null;
@@ -72,28 +68,6 @@ export function NavThemePlayer({ onHelpClick }: NavThemePlayerProps = {}) {
         .nav-play-btn:active { transform: scale(0.94); }
         .nav-mute-btn { color: rgba(255,255,255,0.32); transition: color 0.15s; }
         .nav-mute-btn:hover { color: ${GOLD}; }
-        .nav-help-btn {
-          color: ${GOLD_GLOW}0.55);
-          border: 1px solid ${GOLD_GLOW}0.22);
-          background: ${GOLD_GLOW}0.08);
-          transition: color 0.15s, background 0.15s, border-color 0.15s;
-          font-weight: 900;
-          font-size: 11px;
-          line-height: 1;
-          cursor: pointer;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .nav-help-btn:hover {
-          color: ${GOLD};
-          background: ${GOLD_GLOW}0.18);
-          border-color: ${GOLD_GLOW}0.45);
-        }
       `}</style>
 
       <div
@@ -130,16 +104,6 @@ export function NavThemePlayer({ onHelpClick }: NavThemePlayerProps = {}) {
           }
         </button>
 
-        {onHelpClick && (
-          <button
-            className="nav-help-btn"
-            onClick={onHelpClick}
-            aria-label="Need Help?"
-            title="Need Help?"
-          >
-            ?
-          </button>
-        )}
       </div>
     </>
   );
