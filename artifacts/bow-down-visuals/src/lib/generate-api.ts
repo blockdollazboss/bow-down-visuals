@@ -19,6 +19,7 @@ export interface GenerateResult {
   rawResult: string;
   sections: Record<string, string>;
   creditsRemaining?: number;
+  genHistoryId?: string | null;
 }
 
 export async function callGenerateApi(
@@ -41,10 +42,11 @@ export async function callGenerateApi(
     throw new Error(errObj.error ?? errObj.message ?? "Generation failed");
   }
 
-  const data = (await res.json()) as { result: string; creditsRemaining?: number };
+  const data = (await res.json()) as { result: string; creditsRemaining?: number; genHistoryId?: string | null };
   return {
-    rawResult: data.result,
-    sections: parseMarkdownSections(data.result),
+    rawResult:        data.result,
+    sections:         parseMarkdownSections(data.result),
     creditsRemaining: data.creditsRemaining,
+    genHistoryId:     data.genHistoryId ?? null,
   };
 }

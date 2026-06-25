@@ -1,7 +1,7 @@
 import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage } from "../../lib/payment-record";
+import { recordCreditUsage, recordGenerationHistory } from "../../lib/payment-record";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -173,11 +173,21 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
     recordCreditUsage({ userId: req.userId!, action: "Make a Song", creditsUsed: CREDIT_COST }).catch(() => {});
 
+    const genHistoryId = await recordGenerationHistory({
+      userId:         req.userId!,
+      generationType: "Make a Song",
+      prompt:         `${artistName || "Unknown"} — ${songTitle || "Untitled"} (${genre || "?"}, ${mood || "?"})`,
+      content,
+      artistName:     artistName || undefined,
+      songTitle:      songTitle  || undefined,
+      creditsUsed:    CREDIT_COST,
+    }).catch(() => null);
+
     if (process.env["NODE_ENV"] === "development") {
-      console.log(`[generate-song] success userId=${req.userId} creditsAfter=${creditsAfter}`);
+      console.log(`[generate-song] success userId=${req.userId} creditsAfter=${creditsAfter} genHistoryId=${genHistoryId}`);
     }
 
-    res.json({ result: content, creditsRemaining: creditsAfter });
+    res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId: genHistoryId ?? null });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

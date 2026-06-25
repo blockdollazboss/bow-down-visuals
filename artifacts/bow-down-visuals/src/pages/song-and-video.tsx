@@ -272,6 +272,9 @@ export default function SongAndVideo() {
   const [saved, setSaved]         = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [genHistoryId, setGenHistoryId]     = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [creditRefunded, setCreditRefunded] = useState(false);
 
   type DraftState = "idle" | "found" | "recovering" | "recovered" | "failed";
   const [draftState, setDraftState] = useState<DraftState>("idle");
@@ -396,7 +399,7 @@ export default function SongAndVideo() {
 
     try {
       const token = await getAccessToken();
-      const { rawResult: res, creditsRemaining } = await callGenerateApi(
+      const { rawResult: res, creditsRemaining, genHistoryId: gid } = await callGenerateApi(
         "/api/generate-song-video",
         {
           artistName:        watched.artistName,
@@ -419,8 +422,11 @@ export default function SongAndVideo() {
         token,
       );
       setRawResult(res);
-      setScenes(parseScenes(extractBreakdownContent(res)));
+      const parsedScenes = parseScenes(extractBreakdownContent(res));
+      setScenes(parsedScenes);
+      setGenHistoryId(gid ?? null);
       if (creditsRemaining !== undefined) refreshProfile();
+      void performSave({ result: res, sceneData: parsedScenes, ghid: gid ?? null });
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
     } catch (err) {
@@ -633,45 +639,72 @@ export default function SongAndVideo() {
   }, [draftId, getAccessToken]);
 
   /* ── Save ── */
-  async function handleSave() {
+  async function performSave(opts?: { result?: string; sceneData?: SceneData[]; ghid?: string | null }) {
     if (!user) { toast({ title: "Sign in required", variant: "destructive" }); return; }
+    const resultToSave = opts?.result    ?? rawResult ?? "";
+    const scenesToSave = opts?.sceneData ?? scenes;
+    const histId       = (opts !== undefined && "ghid" in opts) ? opts.ghid : genHistoryId;
+
     setSaving(true);
+    setAutoSaveStatus("saving");
     setSaveError(null);
+    setCreditRefunded(false);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
-          projectType: "Make Song + Video",
-          title: [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make Song + Video",
-          artistName: watched.artistName || null,
-          songTitle:  watched.songTitle  || null,
-          genre:      watched.genre      || null,
-          mood:       watched.mood       || null,
-          inputData:  watched as unknown as Record<string, unknown>,
+          projectType:  "Make Song + Video",
+          title:        [watched.artistName, watched.songTitle].filter(Boolean).join(" — ") || "Make Song + Video",
+          artistName:   watched.artistName || null,
+          songTitle:    watched.songTitle  || null,
+          genre:        watched.genre      || null,
+          mood:         watched.mood       || null,
+          inputData:    watched as unknown as Record<string, unknown>,
           outputData: {
-            result: rawResult,
+            result: resultToSave,
             ...(songStructure ? { songStructure } : {}),
-            ...(scenes.length > 0 ? { scenes } : {}),
+            ...(scenesToSave.length > 0 ? { scenes: scenesToSave } : {}),
           },
-          creditsUsed: 2,
+          creditsUsed:  2,
+          genHistoryId: histId ?? null,
         }),
       });
-      const body = await res.json() as { id?: string; error?: string };
-      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      const body = await res.json() as { id?: string; error?: string; refunded?: boolean };
+      if (!res.ok) {
+        if (body.refunded) {
+          setCreditRefunded(true);
+          refreshProfile();
+          toast({ title: "Project save failed", description: "Your credits were refunded.", variant: "destructive" });
+        } else {
+          const msg = body.error ?? `Save failed (HTTP ${res.status})`;
+          setSaveError(msg);
+          toast({ title: "Save failed", description: msg, variant: "destructive" });
+        }
+        setAutoSaveStatus("failed");
+        return;
+      }
       setSaved(true);
       setSavedProjectId(body.id ?? null);
+      setAutoSaveStatus("saved");
       localStorage.removeItem(DRAFT_KEY);
+      if (draftId) {
+        fetch(`/api/drafts/${draftId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token ?? ""}` } }).catch(() => {});
+        setDraftId(null);
+      }
       toast({ title: "Project saved!", description: "Find it in My Projects." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Save failed — please try again";
       setSaveError(msg);
+      setAutoSaveStatus("failed");
       toast({ title: "Save failed", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
   }
+
+  async function handleSave() { await performSave(); }
 
   /* ── Downloads ── */
   const exportMeta = {
@@ -1137,7 +1170,15 @@ export default function SongAndVideo() {
                       : <Save className="h-4 w-4 shrink-0" />}
                     {saved ? "Project Saved" : saving ? "Saving…" : "Save Project"}
                   </button>
-                  {saveError && (
+                  {autoSaveStatus === "saving" && !saved && (
+                    <p className="text-[11px] text-white/40 flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Saving generation…
+                    </p>
+                  )}
+                  {autoSaveStatus === "failed" && creditRefunded && (
+                    <p className="text-[11px] text-amber-400">Saving failed — your credits were refunded.</p>
+                  )}
+                  {saveError && !creditRefunded && (
                     <p className="text-[11px] text-red-400">Save failed: {saveError}</p>
                   )}
                 </div>

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film, Download,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
-  FileEdit, Play, ExternalLink, Clock, RefreshCcw,
+  FileEdit, Play, ExternalLink, Clock, RefreshCcw, History,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
@@ -563,10 +563,27 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
   );
 }
 
+interface GenerationHistoryRow {
+  id:              string;
+  generation_type: string | null;
+  credits_used:    number | null;
+  save_status:     string;
+  refunded:        boolean;
+  project_id:      string | null;
+  created_at:      string;
+  artist_name:     string | null;
+  song_title:      string | null;
+  result_preview:  string | null;
+}
+
 /* ─── Page ─── */
 export default function MyProjects() {
   const { user, getAccessToken } = useAuth();
-  const [tab, setTab] = useState<"projects" | "drafts" | "clips">("projects");
+  const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history">("projects");
+
+  const [history, setHistory]             = useState<GenerationHistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError]   = useState<string | null>(null);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projLoading, setProjLoading] = useState(true);
@@ -587,6 +604,7 @@ export default function MyProjects() {
       void loadProjects();
       void loadDrafts();
       void loadClips();
+      void loadHistory();
     }
   }, [user]);
 
@@ -663,10 +681,27 @@ export default function MyProjects() {
     } catch { alert("Failed to delete clip. Please try again."); }
   }
 
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/generation-history", { headers: { Authorization: `Bearer ${token ?? ""}` } });
+      if (!res.ok) throw new Error("Failed to load generation history");
+      const data = (await res.json()) as { history: GenerationHistoryRow[] };
+      setHistory(data.history);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Failed to load generation history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
   const TABS = [
-    { id: "projects" as const, label: "Projects",        count: projects.length },
-    { id: "drafts"   as const, label: "Drafts",          count: drafts.length },
-    { id: "clips"    as const, label: "Generated Clips", count: clips.length },
+    { id: "projects" as const, label: "Projects",          count: projects.length },
+    { id: "drafts"   as const, label: "Drafts",            count: drafts.length },
+    { id: "clips"    as const, label: "Generated Clips",   count: clips.length },
+    { id: "history"  as const, label: "Generation History", count: history.length },
   ];
 
   return (
@@ -845,6 +880,81 @@ export default function MyProjects() {
                   <ClipCard key={clip.id} clip={clip} onDelete={handleDeleteClip} />
                 ))}
               </div>
+            </div>
+          )
+        )}
+
+        {/* ── GENERATION HISTORY TAB ── */}
+        {tab === "history" && (
+          historyLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            </div>
+          ) : historyError ? (
+            <div className="py-16 text-center space-y-3">
+              <p className="text-red-400 font-semibold">{historyError}</p>
+              <Button onClick={() => void loadHistory()} variant="outline" size="sm"
+                className="border-white/10 bg-white/5 text-white hover:bg-white/10">Try again</Button>
+            </div>
+          ) : history.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-24 space-y-5">
+              <div className="h-16 w-16 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-center">
+                <History className="h-8 w-8 text-white/20" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-white">No generation history yet</h2>
+                <p className="text-white/45 max-w-xs">Every generation is logged here — even if the project save fails, your credits are always traceable.</p>
+              </div>
+              <Link href="/dashboard">
+                <Button className="gold-glow font-semibold gap-2"><Music className="h-4 w-4" /> Start Generating</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-white/30 mb-4">
+                {history.length} generation{history.length !== 1 ? "s" : ""} logged. Credits are auto-refunded if project save fails.
+              </p>
+              {history.map((row) => {
+                const label = row.artist_name && row.song_title
+                  ? `${row.artist_name} — ${row.song_title}`
+                  : row.artist_name ?? row.song_title ?? "Untitled";
+                const statusColor =
+                  row.save_status === "saved"       ? "text-green-400 bg-green-400/10 border-green-400/20" :
+                  row.save_status === "save_failed" ? "text-red-400 bg-red-400/10 border-red-400/20"       :
+                  "text-white/40 bg-white/5 border-white/10";
+                const statusLabel =
+                  row.save_status === "saved"       ? "Saved" :
+                  row.save_status === "save_failed" ? "Save Failed" :
+                  row.save_status === "charged"     ? "Generated" : row.save_status;
+                return (
+                  <div key={row.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-white/60">{row.generation_type ?? "Generation"}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
+                        {row.refunded && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Credits Refunded</span>
+                        )}
+                        {row.credits_used != null && (
+                          <span className="text-[10px] text-white/30">{row.credits_used} credit{row.credits_used !== 1 ? "s" : ""}</span>
+                        )}
+                      </div>
+                      {label && <p className="text-sm font-semibold text-white truncate">{label}</p>}
+                      {row.result_preview && (
+                        <p className="text-[11px] text-white/30 line-clamp-2">{row.result_preview}</p>
+                      )}
+                      <p className="text-[10px] text-white/20">{new Date(row.created_at).toLocaleString()}</p>
+                    </div>
+                    {row.project_id && (
+                      <Link href="/my-projects">
+                        <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs gap-1.5 shrink-0">
+                          <FolderOpen className="h-3.5 w-3.5" /> Open Project
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )
         )}

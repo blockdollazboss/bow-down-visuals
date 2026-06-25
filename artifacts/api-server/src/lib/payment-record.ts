@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { stripePaymentsTable, creditUsageTable } from "@workspace/db";
+import { stripePaymentsTable, creditUsageTable, generationHistoryTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "./logger";
 
@@ -94,4 +94,94 @@ export async function getCreditUsage(userId: string) {
     .from(creditUsageTable)
     .where(eq(creditUsageTable.userId, userId))
     .orderBy(desc(creditUsageTable.createdAt));
+}
+
+/* ── Generation History ── */
+
+export interface GenerationHistoryInput {
+  userId: string;
+  generationType: string;
+  prompt?: string;
+  content: string;
+  artistName?: string;
+  songTitle?: string;
+  creditsUsed: number;
+}
+
+/**
+ * Insert a generation_history row after credits are charged.
+ * Returns the new row id, or null on failure (non-fatal).
+ */
+export async function recordGenerationHistory(input: GenerationHistoryInput): Promise<string | null> {
+  try {
+    const rows = await db
+      .insert(generationHistoryTable)
+      .values({
+        userId:         input.userId,
+        generationType: input.generationType,
+        prompt:         input.prompt ?? null,
+        result: {
+          content:    input.content,
+          artistName: input.artistName,
+          songTitle:  input.songTitle,
+        },
+        creditsUsed: input.creditsUsed,
+        saveStatus:  "charged",
+        refunded:    false,
+      })
+      .returning({ id: generationHistoryTable.id });
+    return rows[0]?.id ?? null;
+  } catch (err) {
+    logger.warn({ err, userId: input.userId }, "recordGenerationHistory: failed (non-fatal)");
+    return null;
+  }
+}
+
+/**
+ * Mark a generation_history row as saved to a project.
+ */
+export async function markGenerationHistorySaved(id: string, projectId: string): Promise<void> {
+  try {
+    await db
+      .update(generationHistoryTable)
+      .set({ saveStatus: "saved", projectId })
+      .where(eq(generationHistoryTable.id, id));
+  } catch (err) {
+    logger.warn({ err, id, projectId }, "markGenerationHistorySaved: failed (non-fatal)");
+  }
+}
+
+/**
+ * Mark a generation_history row as save-failed + refunded.
+ * Returns the credits_used amount that was refunded, or 0 if already refunded / not found.
+ */
+export async function markGenerationHistoryRefunded(id: string): Promise<number> {
+  try {
+    const rows = await db
+      .select({ creditsUsed: generationHistoryTable.creditsUsed, refunded: generationHistoryTable.refunded })
+      .from(generationHistoryTable)
+      .where(eq(generationHistoryTable.id, id))
+      .limit(1);
+    const row = rows[0];
+    if (!row || row.refunded || !row.creditsUsed) return 0;
+    await db
+      .update(generationHistoryTable)
+      .set({ saveStatus: "save_failed", refunded: true })
+      .where(eq(generationHistoryTable.id, id));
+    return row.creditsUsed;
+  } catch (err) {
+    logger.warn({ err, id }, "markGenerationHistoryRefunded: failed (non-fatal)");
+    return 0;
+  }
+}
+
+/**
+ * Fetch generation history for a user, newest first.
+ */
+export async function getGenerationHistory(userId: string) {
+  return db
+    .select()
+    .from(generationHistoryTable)
+    .where(eq(generationHistoryTable.userId, userId))
+    .orderBy(desc(generationHistoryTable.createdAt));
 }
