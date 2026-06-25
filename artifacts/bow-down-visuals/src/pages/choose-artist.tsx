@@ -134,7 +134,7 @@ export default function ChooseArtist() {
                   }}>
                     <div style={{
                       position: "absolute", inset: 0,
-                      background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.75) 100%)",
+                      background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 100%)",
                     }} />
                     {isSelected && (
                       <div style={{
@@ -177,26 +177,25 @@ export default function ChooseArtist() {
                       </div>
                     )}
 
-                    {/* Name overlaid */}
-                    <div style={{ position: "absolute", bottom: 10, left: 14, right: 14 }}>
+                  </div>
+
+                  {/* Body */}
+                  <div style={{ padding: "10px 14px 14px" }}>
+                    {/* Name */}
+                    <div style={{ marginBottom: 8 }}>
                       <p style={{
                         fontFamily: isSelected ? "Georgia, serif" : "inherit",
                         fontSize: isSelected ? 15 : 14,
                         fontWeight: 900, color: "#fff",
                         letterSpacing: isSelected ? "0.04em" : 0,
-                        textShadow: "0 2px 8px rgba(0,0,0,0.9)",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                       }}>{vault.artist_name}</p>
                       {vault.artist_type && (
-                        <p style={{ fontSize: 9.5, color: isSelected ? G(0.75) : "rgba(255,255,255,0.4)", marginTop: 1, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                        <p style={{ fontSize: 9.5, color: isSelected ? G(0.75) : "rgba(255,255,255,0.4)", marginTop: 2, letterSpacing: "0.05em", textTransform: "uppercase" }}>
                           {vault.artist_type}
                         </p>
                       )}
                     </div>
-                  </div>
-
-                  {/* Body */}
-                  <div style={{ padding: "12px 14px 14px" }}>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
                       {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
                         <span key={String(trait)} style={{

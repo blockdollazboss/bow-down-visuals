@@ -495,7 +495,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
       }}>
         <div style={{
           position: "absolute", inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.75) 100%)",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 100%)",
         }} />
 
         {/* Ambient glow for active */}
@@ -543,26 +543,25 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
           </div>
         )}
 
-        {/* Name on image */}
-        <div style={{ position: "absolute", bottom: 10, left: 14, right: 14 }}>
+      </div>
+
+      {/* Body */}
+      <div style={{ padding: "10px 14px 14px" }}>
+        {/* Name */}
+        <div style={{ marginBottom: 8 }}>
           <p style={{
             fontFamily: isActive ? "Georgia, serif" : "inherit",
             fontSize: isActive ? 16 : 14,
             fontWeight: 900, color: "#fff",
             letterSpacing: isActive ? "0.04em" : "0",
-            textShadow: "0 2px 8px rgba(0,0,0,0.9)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>{vault.artist_name}</p>
           {vault.artist_type && (
-            <p style={{ fontSize: 10, color: isActive ? G(0.7) : "rgba(255,255,255,0.4)", marginTop: 1, letterSpacing: "0.04em" }}>
+            <p style={{ fontSize: 10, color: isActive ? G(0.7) : "rgba(255,255,255,0.4)", marginTop: 2, letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {vault.artist_type}
             </p>
           )}
         </div>
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: "12px 14px 14px" }}>
         {/* Trait pills */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
           {[vault.genre, vault.visual_style].filter(Boolean).map((trait, i) => (
