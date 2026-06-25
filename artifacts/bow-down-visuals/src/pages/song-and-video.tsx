@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -269,7 +269,9 @@ export default function SongAndVideo() {
   const [audioUrl, setAudioUrl]   = useState<string | null>(null);
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
 
   const { register, watch, setValue, formState: { errors }, trigger } = useForm<FormValues>({
     defaultValues: {
@@ -401,10 +403,46 @@ export default function SongAndVideo() {
     }
   }
 
+  /* ── localStorage draft ── */
+  const DRAFT_KEY = "bdv_draft_songvideo";
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { timestamp?: number };
+        const age = Date.now() - (parsed.timestamp ?? 0);
+        if (age < 24 * 60 * 60 * 1000 && !rawResult) setShowRecovery(true);
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!rawResult) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        rawResult, scenes, formValues: watched, timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
+  }, [rawResult, scenes, watched]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (rawResult && !saved) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [rawResult, saved]);
+
   /* ── Save ── */
   async function handleSave() {
     if (!user) { toast({ title: "Sign in required", variant: "destructive" }); return; }
     setSaving(true);
+    setSaveError(null);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", {
@@ -426,13 +464,16 @@ export default function SongAndVideo() {
           creditsUsed: 2,
         }),
       });
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Save failed");
-      const data = (await res.json()) as { id: string };
+      const body = await res.json() as { id?: string; error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
       setSaved(true);
-      setSavedProjectId(data.id ?? null);
+      setSavedProjectId(body.id ?? null);
+      localStorage.removeItem(DRAFT_KEY);
       toast({ title: "Project saved!", description: "Find it in My Projects." });
     } catch (err) {
-      toast({ title: "Save failed", description: err instanceof Error ? err.message : "Could not save.", variant: "destructive" });
+      const msg = err instanceof Error ? err.message : "Save failed — please try again";
+      setSaveError(msg);
+      toast({ title: "Save failed", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -476,6 +517,37 @@ export default function SongAndVideo() {
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/35 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
         </Link>
+
+        {/* Draft recovery banner */}
+        {showRecovery && (
+          <div className="mb-6 flex items-start gap-3 px-4 py-3.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
+            <span className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5 text-base">⚠</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-yellow-300">Unsaved draft found</p>
+              <p className="text-xs text-white/50 mt-0.5">You have unsaved work from a previous session.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  try {
+                    const raw = localStorage.getItem(DRAFT_KEY);
+                    if (!raw) return;
+                    const parsed = JSON.parse(raw) as { rawResult?: string; scenes?: SceneData[] };
+                    if (parsed.rawResult) setRawResult(parsed.rawResult);
+                    if (parsed.scenes) setScenes(parsed.scenes);
+                  } catch { /* ignore */ }
+                  localStorage.removeItem(DRAFT_KEY);
+                  setShowRecovery(false);
+                }}
+                className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition-colors px-3 py-1.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20"
+              >Recover</button>
+              <button
+                onClick={() => { localStorage.removeItem(DRAFT_KEY); setShowRecovery(false); }}
+                className="text-xs text-white/30 hover:text-white/60 transition-colors px-3 py-1.5"
+              >Discard</button>
+            </div>
+          </div>
+        )}
 
         {/* Page header */}
         <div className="mb-8">
@@ -798,17 +870,22 @@ export default function SongAndVideo() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                 {/* Save */}
-                <button onClick={handleSave} disabled={saving || saved}
-                  className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all font-semibold text-sm ${
-                    saved
-                      ? "border-green-500/30 bg-green-500/10 text-green-400 cursor-default"
-                      : "border-primary/30 bg-primary/[0.07] text-primary hover:bg-primary/15"
-                  }`}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-                    : saved ? <Check className="h-4 w-4 shrink-0" />
-                    : <Save className="h-4 w-4 shrink-0" />}
-                  {saved ? "Project Saved" : saving ? "Saving…" : "Save Project"}
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  <button onClick={handleSave} disabled={saving || saved}
+                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all font-semibold text-sm ${
+                      saved
+                        ? "border-green-500/30 bg-green-500/10 text-green-400 cursor-default"
+                        : "border-primary/30 bg-primary/[0.07] text-primary hover:bg-primary/15"
+                    }`}>
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                      : saved ? <Check className="h-4 w-4 shrink-0" />
+                      : <Save className="h-4 w-4 shrink-0" />}
+                    {saved ? "Project Saved" : saving ? "Saving…" : "Save Project"}
+                  </button>
+                  {saveError && (
+                    <p className="text-[11px] text-red-400">Save failed: {saveError}</p>
+                  )}
+                </div>
 
                 {/* Open Video Editor */}
                 {savedProjectId ? (

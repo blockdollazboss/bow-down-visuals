@@ -22,6 +22,7 @@ import uploadWatermarkRouter from "./upload-watermark";
 import devRouter from "./dev";
 import stripePaymentsRouter from "./stripe-payments";
 import creditsRouter from "./credits";
+import generatedClipsRouter from "./generated-clips";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(uploadWatermarkRouter);
 router.use(devRouter);
 router.use(stripePaymentsRouter);
 router.use(creditsRouter);
+router.use(generatedClipsRouter);
 
 export default router;

@@ -61,9 +61,10 @@ interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
   artistVault?: ArtistVault | null;
+  projectId?: string | null;
 }
 
-function InlineRunwayGenerator({ scene, onUpdate, artistVault }: RunwayGeneratorProps) {
+function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
@@ -98,6 +99,28 @@ function InlineRunwayGenerator({ scene, onUpdate, artistVault }: RunwayGenerator
     return basePrompt;
   }
 
+  async function autoSaveClip(clipUrl: string, jobId: string, finalPrompt: string) {
+    try {
+      const token = await getAccessToken();
+      await fetch("/api/generated-clips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          projectId: projectId ?? null,
+          sceneId: scene.id ?? null,
+          title: scene.section || scene.timestamp || "Scene Clip",
+          prompt: scene.aiVideoPrompt || null,
+          finalPrompt,
+          runwayJobId: jobId,
+          videoUrl: clipUrl,
+          status: "completed",
+        }),
+      });
+    } catch {
+      /* best-effort — clip is already in the UI */
+    }
+  }
+
   function startPolling(id: string, finalPrompt: string) {
     stopPolling();
     pollRef.current = setInterval(async () => {
@@ -111,6 +134,8 @@ function InlineRunwayGenerator({ scene, onUpdate, artistVault }: RunwayGenerator
           stopPolling();
           setIsGenerating(false);
           setTaskId(null);
+          /* Auto-save clip to DB immediately — before any UI update */
+          void autoSaveClip(data.url, id, finalPrompt);
           onUpdateRef.current({
             demoClipUrl: data.url,
             provider: "Runway",
@@ -118,7 +143,7 @@ function InlineRunwayGenerator({ scene, onUpdate, artistVault }: RunwayGenerator
             promptUsed: finalPrompt,
             generatedAt: new Date().toISOString(),
           });
-          toast({ title: "Runway clip ready!", description: "Your clip has been generated." });
+          toast({ title: "Runway clip ready!", description: "Your clip has been generated and saved." });
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setIsGenerating(false);
@@ -361,9 +386,10 @@ interface SceneCardProps {
   artistVault?: ArtistVault | null;
   videoStyle?: string;
   platform?: string;
+  projectId?: string | null;
 }
 
-function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }: SceneCardProps) {
+function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, projectId }: SceneCardProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
@@ -639,6 +665,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform }
               scene={{ ...scene, aiVideoPrompt: aiPrompt, negativePrompt: negPrompt }}
               onUpdate={(patch) => handleUpdate(patch)}
               artistVault={artistVault}
+              projectId={projectId}
             />
           </div>
 
@@ -667,11 +694,13 @@ interface SceneStudioProps {
   onSave?: () => void;
   /** Saving spinner state for the Save button. */
   saving?: boolean;
+  /** Project ID for auto-saving generated clips. */
+  projectId?: string | null;
 }
 
 export function SceneStudio({
   scenes, onScenesChange, artistVault, videoStyle, platform,
-  manageable = false, onSave, saving = false,
+  manageable = false, onSave, saving = false, projectId,
 }: SceneStudioProps) {
   const handleUpdate = useCallback(
     (id: string, patch: Partial<SceneData>) => {
@@ -789,6 +818,7 @@ export function SceneStudio({
               artistVault={artistVault}
               videoStyle={videoStyle}
               platform={platform}
+              projectId={projectId}
             />
           </div>
         ))}

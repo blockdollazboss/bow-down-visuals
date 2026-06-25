@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -213,7 +213,9 @@ export default function MakeVideo() {
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [savingScenes, setSavingScenes] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<VideoFormValues>({
     defaultValues: {
@@ -328,10 +330,72 @@ export default function MakeVideo() {
     }
   }
 
+  /* ── localStorage draft ── */
+  const DRAFT_KEY = "bdv_draft_makevideo";
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { timestamp?: number };
+        const age = Date.now() - (parsed.timestamp ?? 0);
+        if (age < 24 * 60 * 60 * 1000 && !rawResult) setShowRecovery(true);
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!rawResult) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        rawResult, scenes, formValues: watched, timestamp: Date.now(),
+      }));
+    } catch { /* ignore */ }
+  }, [rawResult, scenes, watched]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (rawResult && !saved) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [rawResult, saved]);
+
+  const handleRecover = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        rawResult?: string; scenes?: SceneData[];
+        formValues?: Partial<VideoFormValues>;
+      };
+      if (parsed.rawResult) setRawResult(parsed.rawResult);
+      if (parsed.scenes) setScenes(parsed.scenes);
+      if (parsed.formValues) {
+        const fv = parsed.formValues;
+        Object.entries(fv).forEach(([k, v]) => {
+          if (typeof v === "string") setValue(k as keyof VideoFormValues, v);
+        });
+      }
+    } catch { /* ignore */ }
+    localStorage.removeItem(DRAFT_KEY);
+    setShowRecovery(false);
+  }, [setValue]);
+
+  const handleDiscardDraft = useCallback(() => {
+    localStorage.removeItem(DRAFT_KEY);
+    setShowRecovery(false);
+  }, []);
+
   /* ── Save project ── */
   async function handleSave() {
     if (!user || !rawResult) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", {
@@ -353,13 +417,16 @@ export default function MakeVideo() {
           creditsUsed: 1,
         }),
       });
-      if (!res.ok) throw new Error("Save failed");
-      const data = (await res.json()) as { id: string };
-      setSavedProjectId(data.id);
+      const body = await res.json() as { id?: string; error?: string };
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+      setSavedProjectId(body.id ?? null);
       setSaved(true);
+      localStorage.removeItem(DRAFT_KEY);
       toast({ title: "Project saved!", description: "Find it in My Projects." });
-    } catch {
-      toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Save failed — please try again";
+      setSaveError(msg);
+      toast({ title: "Save failed", description: msg, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -487,6 +554,21 @@ export default function MakeVideo() {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Back to Dashboard
         </Link>
+
+        {/* Draft recovery banner */}
+        {showRecovery && (
+          <div className="mb-6 flex items-start gap-3 px-4 py-3.5 rounded-xl border border-yellow-500/30 bg-yellow-500/10">
+            <span className="h-5 w-5 text-yellow-400 shrink-0 mt-0.5 text-base">⚠</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-yellow-300">Unsaved draft found</p>
+              <p className="text-xs text-white/50 mt-0.5">You have unsaved work from a previous session. Recover it or discard.</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={handleRecover} className="text-xs font-bold text-yellow-300 hover:text-yellow-200 transition-colors px-3 py-1.5 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20">Recover</button>
+              <button onClick={handleDiscardDraft} className="text-xs text-white/30 hover:text-white/60 transition-colors px-3 py-1.5">Discard</button>
+            </div>
+          </div>
+        )}
 
         {/* Page header */}
         <div className="mb-8">
@@ -877,6 +959,7 @@ export default function MakeVideo() {
                   manageable
                   onSave={saveScenes}
                   saving={savingScenes}
+                  projectId={savedProjectId}
                 />
               ) : (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-6 py-10 text-center">
@@ -920,14 +1003,19 @@ export default function MakeVideo() {
                       <Check className="h-4 w-4" /> Project Saved
                     </div>
                   ) : (
-                    <Button
-                      onClick={handleSave}
-                      disabled={saving || !rawResult}
-                      className="gold-glow font-bold gap-2 shrink-0"
-                      data-testid="btn-save-project"
-                    >
-                      {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</> : <><Save className="h-4 w-4" /> Save Project</>}
-                    </Button>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <Button
+                        onClick={handleSave}
+                        disabled={saving || !rawResult}
+                        className="gold-glow font-bold gap-2"
+                        data-testid="btn-save-project"
+                      >
+                        {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save Project</>}
+                      </Button>
+                      {saveError && (
+                        <p className="text-[11px] text-red-400 text-right max-w-[200px]">Save failed: {saveError}</p>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -959,6 +1047,24 @@ export default function MakeVideo() {
                       <ExternalLink className="h-4 w-4" /> Open Editor
                     </Button>
                   )}
+                </div>
+
+                {/* My Generated Clips */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <span className="h-9 w-9 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+                      <Video className="h-4 w-4 text-primary" />
+                    </span>
+                    <div>
+                      <p className="font-bold text-white text-sm">My Generated Clips</p>
+                      <p className="text-xs text-white/40 mt-0.5">All your Runway clips are auto-saved here — even if project saving fails.</p>
+                    </div>
+                  </div>
+                  <Link href="/my-clips">
+                    <Button className="gold-glow font-bold gap-2 shrink-0">
+                      <Video className="h-4 w-4" /> View My Clips
+                    </Button>
+                  </Link>
                 </div>
 
                 {/* Generate Promo Clips */}
