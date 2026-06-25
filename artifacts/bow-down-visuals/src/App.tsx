@@ -1,5 +1,6 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
@@ -35,6 +36,12 @@ import RefundPolicy from "@/pages/refund-policy";
 
 const queryClient = new QueryClient();
 
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [location]);
+  return null;
+}
+
 function AppShell() {
   const { loading } = useAuth();
 
@@ -48,6 +55,7 @@ function AppShell() {
 
   return (
     <>
+      <ScrollToTop />
       <div className="fixed bottom-5 right-5 z-[9999]"><NavThemePlayer /></div>
       <Switch>
         {/* Auth routes */}
