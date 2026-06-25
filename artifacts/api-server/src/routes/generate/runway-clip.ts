@@ -115,9 +115,37 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     "[runway-clip] credit check PASSED",
   );
 
-  const base = promptText.trim().slice(0, 900);
-  const neg  = negativePrompt?.trim();
-  const finalPrompt = neg ? `${base} | Avoid: ${neg}`.slice(0, 1000) : base;
+  /* ── Motion enhancement ────────────────────────────────────────────────────
+     Always inject motion direction so Runway generates real moving video
+     instead of a still-image-style clip.
+  ───────────────────────────────────────────────────────────────────────── */
+  const MOTION_DIRECTIVE =
+    "Real moving video: artist moves naturally with subtle body motion, " +
+    "head turns, and live performance energy. " +
+    "Slow tracking shot or cinematic handheld camera movement throughout. " +
+    "Background has natural movement — light flicker, depth shifts, " +
+    "street or environmental atmosphere in motion.";
+
+  const OUTRO_DIRECTIVE =
+    "Emotional closing shot: slow walk away, camera pulls back gradually, " +
+    "gentle wind and shifting light, cinematic fade-out energy.";
+
+  const AVOID_TERMS =
+    "frozen pose, static portrait, still image, slideshow, photo animation, " +
+    "no camera movement, no body movement";
+
+  /* Detect outro / closing scene from the prompt text */
+  const isOutro = /\b(outro|closing|final scene|ending|walk away|farewell|fade out)\b/i.test(
+    promptText,
+  );
+
+  const base = promptText.trim().slice(0, 480);
+  const motionBlock = `${MOTION_DIRECTIVE}${isOutro ? ` ${OUTRO_DIRECTIVE}` : ""}`;
+  const content = `${base} ${motionBlock}`.trim();
+
+  const neg = negativePrompt?.trim();
+  const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
+  const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, 1400);
 
   const client = new RunwayML({ apiKey });
 
