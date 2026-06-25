@@ -1,0 +1,101 @@
+Fix Timeline Preview audio and scene autoplay only.
+
+Problem:
+Captions are now changing, but only inside one scene.
+The song/audio does not play while captions are previewing.
+The preview still does not automatically move to the next scene with the rest of the captions.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not change dashboard design.
+Do not export video.
+Only fix Timeline Preview playback.
+
+Required behavior:
+
+1. Timeline Preview must use one master timeline clock.
+   When I click Preview Timeline:
+
+* currentTime starts at 0
+* audio starts playing from 0
+* captions update based on currentTime
+* scenes update based on currentTime
+* timeline keeps going until the end
+
+2. Audio must play continuously.
+   If a song/audio file is loaded:
+
+* play the audio when Preview Timeline starts
+* do not restart audio when scenes change
+* do not stop audio after Scene 1
+* pause audio only when Pause Timeline is clicked
+* restart audio only when Restart Timeline is clicked
+
+3. Scene autoplay must work.
+   Preview Timeline should automatically move:
+   Scene 1 → Scene 2 → Scene 3 → Scene 4 → Scene 5
+
+Do not require the user to manually click each scene.
+
+4. Scene selection should be based on timeline time.
+   At every currentTime update, find which scene should be active based on scene start/end time.
+
+Example:
+Scene 1: 0–10 seconds
+Scene 2: 10–20 seconds
+Scene 3: 20–30 seconds
+
+When currentTime reaches 10 seconds, switch to Scene 2 automatically.
+
+5. Captions must use the same master timeline time.
+   At every currentTime update, find the caption where:
+   caption.startTime <= currentTime < caption.endTime
+
+Show that caption only.
+Do not keep the same caption stuck on every scene.
+
+6. If a scene has no video clip:
+
+* show a black placeholder card
+* show scene title/section
+* keep the timer running
+* keep the audio playing
+* keep captions changing
+* move to next scene automatically
+
+7. If a scene has a generated video clip:
+
+* show the clip for that scene
+* when timeline time reaches the next scene, switch to next scene
+* do not rely only on the video element ending
+
+8. Add visible status inside Live Preview:
+
+* Timeline Preview Active
+* Audio loaded: yes/no
+* Audio playing: yes/no
+* Current time: [seconds]
+* Current scene: [number] of [total]
+* Current caption: [caption text]
+* Total duration: [seconds]
+
+9. Add buttons:
+
+* Preview Timeline
+* Pause Timeline
+* Restart Timeline
+
+10. If audio cannot play, show the real reason:
+    Audio preview failed: [error]
+
+11. If no audio is loaded, show:
+    No song audio selected. Timeline preview will play silently.
+
+12. Do not charge credits for previewing.
+
+Final goal:
+When I click Preview Timeline, the song plays continuously, captions change with the song time, and scenes automatically move from Scene 1 to Scene 2 to Scene 3 without manual clicking.
