@@ -15,6 +15,7 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
+import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
@@ -327,13 +328,34 @@ export default function SongAndVideo() {
     }
   }
 
+  /* ── Continue with active artist (skip Artist/Brand form) ── */
+  function handleContinueWithActiveArtist() {
+    const vault = activeArtist ?? loadedVault;
+    if (!vault) return;
+    setValue("artistName", vault.artist_name);
+    const desc = [
+      vault.personality,
+      vault.hair           ? `Hair: ${vault.hair}`               : null,
+      vault.tattoos        ? `Tattoos: ${vault.tattoos}`         : null,
+      vault.jewelry        ? `Jewelry: ${vault.jewelry}`         : null,
+      vault.clothing_style ? `Clothing: ${vault.clothing_style}` : null,
+    ].filter(Boolean).join(". ");
+    setValue("artistDescription", desc || vault.artist_name);
+    if (vault.brand_colors)        setValue("brandColors", vault.brand_colors);
+    if (vault.visual_style)        setValue("visualStyleRules", vault.visual_style);
+    if (vault.do_not_change_rules) setValue("doNotChangeRules", vault.do_not_change_rules);
+    setLoadedVault(vault);
+    setStep(3);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
+  }
+
   /* ── Step advance with validation ── */
   async function goNext() {
     if (step === 1) {
       const ok = await trigger(["artistName", "songTopic"]);
       if (!ok) return;
     }
-    if (step === 2) {
+    if (step === 2 && !loadedVault) {
       const ok = await trigger(["artistDescription"]);
       if (!ok) return;
     }
@@ -659,40 +681,57 @@ export default function SongAndVideo() {
         {/* ──────────── STEP 2: ARTIST / BRAND ──────────── */}
         {step === 2 && (
           <div className="space-y-6">
-            <StepShell icon={Mic2} title="Artist / Brand" subtitle="Help the AI match your look, style, and brand identity">
+            <StepShell
+              icon={Mic2}
+              title="Artist / Brand"
+              subtitle={activeArtist ? "Your active artist is ready to go." : "Help the AI match your look, style, and brand identity"}
+            >
+              {/* ── Active artist shortcut ── */}
+              {activeArtist ? (
+                <ActiveArtistBanner
+                  artist={activeArtist}
+                  onContinue={handleContinueWithActiveArtist}
+                />
+              ) : (
+                <>
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
 
-              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
+                  <FieldWrapper label="Artist Description">
+                    <Textarea {...register("artistDescription", { required: !loadedVault })}
+                      placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe style, tattoos, jewelry, vibe, and any references…"
+                      className={textCls + (errors.artistDescription ? " border-red-500/50" : "")}
+                      style={{ minHeight: "120px" }} />
+                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
+                  </FieldWrapper>
 
-              <FieldWrapper label="Artist Description">
-                <Textarea {...register("artistDescription", { required: true })}
-                  placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe style, tattoos, jewelry, vibe, and any references…"
-                  className={textCls + (errors.artistDescription ? " border-red-500/50" : "")}
-                  style={{ minHeight: "120px" }} />
-                {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
-              </FieldWrapper>
+                  <FieldWrapper label="Visual Style Rules" hint="optional">
+                    <Textarea {...register("visualStyleRules")}
+                      placeholder="Describe the visual aesthetic, cinematography style, color palette rules, or references…"
+                      className={textCls} style={{ minHeight: "90px" }} />
+                  </FieldWrapper>
 
-              <FieldWrapper label="Visual Style Rules" hint="optional">
-                <Textarea {...register("visualStyleRules")}
-                  placeholder="Describe the visual aesthetic, cinematography style, color palette rules, or references (e.g. 'dark cinematic like Kendrick — no bright colors')…"
-                  className={textCls} style={{ minHeight: "90px" }} />
-              </FieldWrapper>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <FieldWrapper label="Brand Colors" hint="optional">
+                      <Input {...register("brandColors")} placeholder="e.g. black, gold, deep purple" className={inputCls} />
+                    </FieldWrapper>
+                    <div />
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FieldWrapper label="Brand Colors" hint="optional">
-                  <Input {...register("brandColors")} placeholder="e.g. black, gold, deep purple" className={inputCls} />
-                </FieldWrapper>
-                <div />
-              </div>
-
-              <FieldWrapper label="Do Not Change Rules" hint="optional">
-                <Textarea {...register("doNotChangeRules")}
-                  placeholder="List anything the AI should NEVER change — artist name spelling, signature phrases, visual elements, etc…"
-                  className={textCls} style={{ minHeight: "80px" }} />
-              </FieldWrapper>
-
+                  <FieldWrapper label="Do Not Change Rules" hint="optional">
+                    <Textarea {...register("doNotChangeRules")}
+                      placeholder="List anything the AI should NEVER change — artist name spelling, signature phrases, visual elements, etc…"
+                      className={textCls} style={{ minHeight: "80px" }} />
+                  </FieldWrapper>
+                </>
+              )}
             </StepShell>
 
-            <NavRow onBack={() => setStep(1)} onNext={goNext} nextLabel="Video Direction" nextIcon={<ArrowRight className="h-4 w-4" />} />
+            {!activeArtist && (
+              <NavRow onBack={() => setStep(1)} onNext={goNext} nextLabel="Video Direction" nextIcon={<ArrowRight className="h-4 w-4" />} />
+            )}
+            {activeArtist && (
+              <NavRow onBack={() => setStep(1)} onNext={handleContinueWithActiveArtist} nextLabel="Video Direction" nextIcon={<ArrowRight className="h-4 w-4" />} />
+            )}
           </div>
         )}
 

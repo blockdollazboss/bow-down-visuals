@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SceneStudio } from "@/components/SceneStudio";
+import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -468,10 +469,30 @@ export default function MakeVideo() {
     }
   }
 
-  /* ── Wizard navigation ── */
+  /* ── Continue with active artist (skip Artist/Brand form) ── */
+  function handleContinueWithActiveArtist() {
+    const vault = activeArtist ?? loadedVault;
+    if (!vault) return;
+    setValue("artistName", vault.artist_name);
+    const desc = [
+      vault.personality,
+      vault.hair           ? `Hair: ${vault.hair}`                 : null,
+      vault.tattoos        ? `Tattoos: ${vault.tattoos}`           : null,
+      vault.jewelry        ? `Jewelry: ${vault.jewelry}`           : null,
+      vault.clothing_style ? `Clothing: ${vault.clothing_style}`   : null,
+    ].filter(Boolean).join(". ");
+    setValue("artistDescription", desc || vault.artist_name);
+    if (vault.brand_colors)       setValue("brandColors", vault.brand_colors);
+    if (vault.visual_style)       setValue("visualStyleRules", vault.visual_style);
+    if (vault.do_not_change_rules) setValue("doNotChangeRules", vault.do_not_change_rules);
+    setLoadedVault(vault);
+    setStep(3);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
+  }
+
   function canAdvance(from: number): boolean {
     if (from === 1) return !!watched.artistName?.trim();
-    if (from === 2) return !!watched.artistDescription?.trim();
+    if (from === 2) return !!watched.artistDescription?.trim() || !!loadedVault;
     if (from === 4) return !!rawResult;
     return true;
   }
@@ -722,46 +743,58 @@ export default function MakeVideo() {
             <div className="space-y-7">
               <div>
                 <h2 className="text-xl font-black text-white mb-1">Artist / Brand</h2>
-                <p className="text-sm text-white/40">Load your vault profile or describe the artist's look and brand.</p>
+                <p className="text-sm text-white/40">
+                  {activeArtist ? "Your active artist is ready to go." : "Load your vault profile or describe the artist's look and brand."}
+                </p>
               </div>
 
-              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
-
-              <FieldWrapper label="Artist Description">
-                <Textarea
-                  {...register("artistDescription", { required: true })}
-                  placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe, style references, typical vibe, and anything important for the video..."
-                  className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
-                  style={{ minHeight: "120px" }}
+              {/* ── Active artist shortcut ── */}
+              {activeArtist ? (
+                <ActiveArtistBanner
+                  artist={activeArtist}
+                  onContinue={handleContinueWithActiveArtist}
                 />
-                {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
-              </FieldWrapper>
+              ) : (
+                <>
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
 
-              <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
-                <Input
-                  {...register("brandColors")}
-                  placeholder="e.g. All black, silver accents, deep purple"
-                  className={inputClass}
-                />
-              </FieldWrapper>
+                  <FieldWrapper label="Artist Description">
+                    <Textarea
+                      {...register("artistDescription", { required: !loadedVault })}
+                      placeholder="Describe the artist's look, personality, and visual brand. Include wardrobe, style references, typical vibe, and anything important for the video..."
+                      className={textareaClass + (errors.artistDescription ? " border-red-500/50" : "")}
+                      style={{ minHeight: "120px" }}
+                    />
+                    {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
+                  </FieldWrapper>
 
-              <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
-                <Textarea
-                  {...register("visualStyleRules")}
-                  placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
-                  className={textareaClass}
-                  style={{ minHeight: "90px" }}
-                />
-              </FieldWrapper>
+                  <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
+                    <Input
+                      {...register("brandColors")}
+                      placeholder="e.g. All black, silver accents, deep purple"
+                      className={inputClass}
+                    />
+                  </FieldWrapper>
 
-              <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
-                <Textarea
-                  {...register("doNotChangeRules")}
-                  placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
-                  className={textareaClass}
-                  style={{ minHeight: "90px" }}
-                />
-              </FieldWrapper>
+                  <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
+                    <Textarea
+                      {...register("visualStyleRules")}
+                      placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
+                      className={textareaClass}
+                      style={{ minHeight: "90px" }}
+                    />
+                  </FieldWrapper>
+
+                  <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
+                    <Textarea
+                      {...register("doNotChangeRules")}
+                      placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
+                      className={textareaClass}
+                      style={{ minHeight: "90px" }}
+                    />
+                  </FieldWrapper>
+                </>
+              )}
             </div>
           )}
 
