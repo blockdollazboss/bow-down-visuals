@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HelpCircle, X, Bot, Zap, ChevronRight } from "lucide-react";
+import { X, Bot, Zap, ChevronRight } from "lucide-react";
 
 /* ─── Types ─── */
 
@@ -190,21 +190,6 @@ export function HelpPanel({ page }: Props) {
 
   return (
     <>
-      {/* ── Floating trigger button ──
-          bottom-24 so it stays above the Runway music player (bottom-6) and mobile browser bar.
-          z-[100] keeps it above page content but below the panel itself.
-          On mobile, render as icon-only to save space; on sm+ show the label. */}
-      <button
-        onClick={() => setOpenPersist(true)}
-        title="Need Help?"
-        data-testid="help-panel-trigger"
-        aria-label="Need Help?"
-        className="fixed bottom-24 right-5 z-[100] flex items-center gap-2 px-3.5 py-2.5 sm:px-4 sm:py-2.5 rounded-full bg-primary text-black font-bold text-sm shadow-[0_0_20px_rgba(218,165,32,0.45)] hover:shadow-[0_0_32px_rgba(218,165,32,0.65)] hover:scale-105 active:scale-95 transition-all"
-      >
-        <HelpCircle className="h-4 w-4 shrink-0" />
-        <span className="hidden sm:inline whitespace-nowrap">Need Help?</span>
-      </button>
-
       {/* ── Backdrop + panel ──
           z-[10000] beats DraggableThemePlayer (z-9999) and all other fixed elements */}
       {open && (

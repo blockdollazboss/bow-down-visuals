@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { GripHorizontal } from "lucide-react";
+import { GripHorizontal, HelpCircle } from "lucide-react";
 import { NavThemePlayer } from "@/components/HomepageThemePlayer";
 
 const GOLD_GLOW    = "rgba(218,165,32,";
@@ -145,21 +145,51 @@ export function DraggableThemePlayer() {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
     >
-      {/* Drag-grip handle */}
+      {/* Drag-grip handle + help button */}
       <div
         style={{
           display:        "flex",
-          justifyContent: "center",
+          justifyContent: "space-between",
           alignItems:     "center",
           paddingBottom:  3,
+          paddingLeft:    6,
+          paddingRight:   4,
           cursor:         isDragging ? "grabbing" : "grab",
         }}
         title="Drag to move"
       >
         <GripHorizontal
           size={14}
-          style={{ color: `${GOLD_GLOW}0.50)` }}
+          style={{ color: `${GOLD_GLOW}0.50)`, flexShrink: 0 }}
         />
+        {/* Need Help? button — clicking it does NOT trigger a drag */}
+        <button
+          title="Need Help?"
+          aria-label="Need Help?"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent("open-help-panel"));
+          }}
+          style={{
+            display:         "flex",
+            alignItems:      "center",
+            gap:             4,
+            padding:         "2px 7px",
+            borderRadius:    20,
+            background:      `${GOLD_GLOW}0.12)`,
+            border:          `1px solid ${GOLD_GLOW}0.30)`,
+            color:           `${GOLD_GLOW}0.90)`,
+            fontSize:        10,
+            fontWeight:      700,
+            cursor:          "pointer",
+            whiteSpace:      "nowrap",
+            flexShrink:      0,
+          }}
+        >
+          <HelpCircle size={10} />
+          Need Help?
+        </button>
       </div>
 
       {/* Player */}
