@@ -57,14 +57,16 @@ function buildConsistencyPrefix(vault: ArtistVault): string {
 }
 
 /* ─── Inline Runway clip generator ─────────────────────────── */
-interface RunwayGeneratorProps {
+export interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
   artistVault?: ArtistVault | null;
   projectId?: string | null;
+  /** Increment to auto-trigger generation (skips confirm) for "Create All" */
+  createAllTrigger?: number;
 }
 
-function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId }: RunwayGeneratorProps) {
+export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
@@ -84,6 +86,15 @@ function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId }: Runw
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
   useEffect(() => () => stopPolling(), []);
+
+  /* Auto-trigger from "Create All Video Clips" — skip confirm step */
+  const hasClipForTrigger = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+  useEffect(() => {
+    if (!createAllTrigger) return;
+    if (hasClipForTrigger || isGenerating || outOfCredits) return;
+    void startGeneration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createAllTrigger]);
 
   /* Build the final prompt that will actually be sent to Runway */
   function buildFinalPrompt(): string {

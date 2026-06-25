@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearch } from "wouter";
 import {
-  ArrowLeft, Loader2, Clapperboard, Sparkles, SlidersHorizontal,
+  ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
   RefreshCw,
@@ -19,8 +19,7 @@ import {
   sceneHasClip,
   type EditorSettings,
 } from "@/lib/editor-settings";
-import { AutoEditPanel } from "@/components/editor/AutoEditPanel";
-import { ClipsSection } from "@/components/editor/sections/ClipsSection";
+import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
@@ -87,7 +86,6 @@ export default function VideoEditor() {
   const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setTab] = useState<EditorTab>("clips");
-  const [clipMode, setClipMode] = useState<"auto" | "manual">("auto");
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
   const [rebuildError, setRebuildError] = useState<string | null>(null);
@@ -535,50 +533,16 @@ export default function VideoEditor() {
                       </div>
                     )}
 
-                    <div className="inline-flex p-1 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-                      <ModeButton active={clipMode === "auto"} onClick={() => setClipMode("auto")} icon={<Sparkles className="h-4 w-4" />} label="AI Auto Edit" testId="clip-mode-auto" />
-                      <ModeButton active={clipMode === "manual"} onClick={() => setClipMode("manual")} icon={<SlidersHorizontal className="h-4 w-4" />} label="Manual Clips" testId="clip-mode-manual" />
-                    </div>
-                    {clipMode === "auto" ? (
-                      <>
-                        <AutoEditPanel scenes={scenes} settings={settings} onChange={setSettings} artistName={artistName} songTitle={songTitle} />
-                        {/* Clip picker strip — lets users select a clip for Live Preview in auto mode */}
-                        {scenes.some(sceneHasClip) && (
-                          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
-                            <p className="text-[11px] font-black text-white/35 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                              <Eye className="h-3.5 w-3.5" /> Preview a clip
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {scenes.filter(sceneHasClip).map((scene, i) => (
-                                <button
-                                  key={scene.id}
-                                  type="button"
-                                  onClick={() => setPreviewSceneId(scene.id)}
-                                  data-testid={`btn-preview-auto-${i}`}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
-                                    previewSceneId === scene.id
-                                      ? "border-primary/50 bg-primary/15 text-primary"
-                                      : "border-white/10 bg-white/[0.03] text-white/50 hover:border-primary/30 hover:text-primary"
-                                  }`}
-                                >
-                                  <Play className="h-3 w-3" />
-                                  {scene.section || `Scene ${i + 1}`}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <ClipsSection
-                        scenes={scenes}
-                        setScenes={setScenes}
-                        settings={settings}
-                        setSettings={setSettings}
-                        onPreview={(id) => setPreviewSceneId(id)}
-                        previewSceneId={previewSceneId}
-                      />
-                    )}
+                    <ClipGeneratorSection
+                      scenes={scenes}
+                      setScenes={setScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      artistVault={activeArtist}
+                      projectId={projectId}
+                      onPreview={(id) => setPreviewSceneId(id)}
+                      previewSceneId={previewSceneId}
+                    />
                   </div>
                 )}
 
@@ -1004,26 +968,6 @@ function TabButton({
       onClick={onClick}
       data-testid={testId}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-        active ? "bg-primary text-black" : "text-white/50 hover:text-white/80"
-      }`}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function ModeButton({
-  active, onClick, icon, label, testId,
-}: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; testId?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-testid={testId}
-      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${
         active ? "bg-primary text-black" : "text-white/50 hover:text-white/80"
       }`}
     >
