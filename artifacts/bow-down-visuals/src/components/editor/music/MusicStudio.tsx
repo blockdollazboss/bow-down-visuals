@@ -54,9 +54,30 @@ export function MusicStudio({
   const ms = settings.musicStudio;
   const preview = useMixPreview(ms.stems, ms.master);
 
+  /*
+   * Use the project-level audioUrl if available; otherwise fall back to the
+   * first uploaded stem's URL so "Get Lyrics From Song" appears even when
+   * the user uploaded their song via the Manual DAW → Stems tab.
+   */
+  const effectiveAudioUrl: string | null =
+    audioUrl ?? ms.stems[0]?.url ?? null;
+
   function setMode(mode: MusicStudioSettings["mode"]) {
     onChange({ ...settings, musicStudio: { ...ms, mode } });
   }
+
+  const songWorkflow =
+    effectiveAudioUrl && getAccessToken && onTranscriptReady ? (
+      <SongWorkflow
+        audioUrl={effectiveAudioUrl}
+        getAccessToken={getAccessToken}
+        transcriptText={transcriptText ?? null}
+        onTranscriptReady={onTranscriptReady}
+        onGoToCaptions={onGoToCaptions ?? (() => undefined)}
+        settings={settings}
+        onSettingsChange={onChange}
+      />
+    ) : null;
 
   return (
     <div className="space-y-5">
@@ -95,18 +116,11 @@ export function MusicStudio({
         })}
       </div>
 
-      {/* Song Workflow — shown in auto/manual modes when a song is uploaded */}
-      {audioUrl && ms.mode !== "lipsync" && getAccessToken && onTranscriptReady && (
-        <SongWorkflow
-          audioUrl={audioUrl}
-          getAccessToken={getAccessToken}
-          transcriptText={transcriptText ?? null}
-          onTranscriptReady={onTranscriptReady}
-          onGoToCaptions={onGoToCaptions ?? (() => undefined)}
-          settings={settings}
-          onSettingsChange={onChange}
-        />
-      )}
+      {/*
+       * Song Workflow — always shown at the top of every mode whenever
+       * any audio is available (project audioUrl OR any uploaded stem).
+       */}
+      {songWorkflow}
 
       {/* Mode content */}
       {ms.mode === "auto" && (
@@ -123,25 +137,11 @@ export function MusicStudio({
       )}
 
       {ms.mode === "lipsync" && (
-        <>
-          {/* Song Workflow banner in lip sync mode too */}
-          {audioUrl && getAccessToken && onTranscriptReady && (
-            <SongWorkflow
-              audioUrl={audioUrl}
-              getAccessToken={getAccessToken}
-              transcriptText={transcriptText ?? null}
-              onTranscriptReady={onTranscriptReady}
-              onGoToCaptions={onGoToCaptions ?? (() => undefined)}
-              settings={settings}
-              onSettingsChange={onChange}
-            />
-          )}
-          <LipSyncStudio
-            audioUrl={audioUrl ?? null}
-            transcriptText={transcriptText ?? null}
-            activeArtist={activeArtist ?? null}
-          />
-        </>
+        <LipSyncStudio
+          audioUrl={effectiveAudioUrl}
+          transcriptText={transcriptText ?? null}
+          activeArtist={activeArtist ?? null}
+        />
       )}
     </div>
   );
