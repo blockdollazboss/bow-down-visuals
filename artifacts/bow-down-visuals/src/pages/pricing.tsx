@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
+import { HelpPanel } from "@/components/HelpPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -461,6 +462,7 @@ export default function Pricing() {
         </section>
 
       </div>
+      <HelpPanel page="pricing" />
     </div>
   );
 }

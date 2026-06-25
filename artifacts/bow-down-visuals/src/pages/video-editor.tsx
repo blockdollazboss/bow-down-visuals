@@ -359,7 +359,7 @@ export default function VideoEditor() {
   return (
     <div className="min-h-screen bg-black text-white">
       <TopBar />
-      <HelpPanel page="editor" tips={helpTips} />
+      <HelpPanel page="video-editor" />
 
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/[0.07] rounded-full blur-[120px]" />

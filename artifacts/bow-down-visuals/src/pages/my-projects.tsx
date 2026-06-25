@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { HelpPanel } from "@/components/HelpPanel";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film, Download,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
@@ -1022,6 +1023,7 @@ export default function MyProjects() {
         )}
 
       </div>
+      <HelpPanel page="my-projects" />
     </div>
   );
 }

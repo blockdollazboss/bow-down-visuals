@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown,
+  Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown, HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -219,6 +219,16 @@ export function TopBar() {
                     <span className="ml-auto text-xs font-black text-primary">{profile.credits} credits</span>
                   )}
                 </Link>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent("open-help-panel"));
+                  }}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-primary/70 hover:text-primary hover:bg-primary/[0.05] transition-colors w-full"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  Need Help?
+                </button>
                 <button
                   onClick={() => { setMenuOpen(false); handleSignOut(); }}
                   className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-red-400/60 w-full hover:text-red-400 hover:bg-red-500/[0.05] transition-colors"

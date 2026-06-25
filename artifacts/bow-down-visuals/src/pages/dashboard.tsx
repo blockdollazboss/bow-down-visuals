@@ -9,6 +9,7 @@ import {
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { HelpPanel } from "@/components/HelpPanel";
 
 /* ─────────────────────── TYPES ─────────────────────── */
 
@@ -493,6 +494,7 @@ export default function Dashboard() {
         </section>
 
       </div>
+      <HelpPanel page="dashboard" />
     </div>
   );
 }
