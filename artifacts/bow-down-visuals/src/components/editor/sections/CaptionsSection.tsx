@@ -181,6 +181,85 @@ function matchCaptionsToTranscript(
   };
 }
 
+/* ─── Caption timing validation & repair ────────────────────────────────── */
+
+function isInvalidLine(l: CaptionLine): boolean {
+  return (
+    isNaN(l.startSec) || isNaN(l.endSec) ||
+    l.startSec < 0 ||
+    l.endSec <= l.startSec
+  );
+}
+
+interface TimingHealth {
+  total: number;
+  valid: number;
+  invalid: number;
+  lastEnd: number;
+  status: "healthy" | "needs-repair" | "empty";
+}
+
+function calcHealth(lines: CaptionLine[]): TimingHealth {
+  if (lines.length === 0) return { total: 0, valid: 0, invalid: 0, lastEnd: 0, status: "empty" };
+  const invalid = lines.filter(isInvalidLine).length;
+  const lastEnd = lines.reduce((m, l) => Math.max(m, isNaN(l.endSec) ? 0 : l.endSec), 0);
+  return {
+    total: lines.length,
+    valid: lines.length - invalid,
+    invalid,
+    lastEnd,
+    status: invalid === 0 ? "healthy" : "needs-repair",
+  };
+}
+
+/**
+ * Repair caption timings:
+ * 1. Sort by startSec
+ * 2. Fix any row where endSec <= startSec (give it at least 1 s or proportional slot)
+ * 3. Push overlapping starts forward
+ * 4. Cap everything at songDuration
+ */
+function repairCaptionTimings(lines: CaptionLine[], songDuration?: number): CaptionLine[] {
+  if (lines.length === 0) return [];
+  const sorted = [...lines].sort((a, b) => (a.startSec ?? 0) - (b.startSec ?? 0));
+  const dur = songDuration && songDuration > 0 ? songDuration : null;
+  const fallbackSlot = dur ? dur / Math.max(sorted.length, 1) : 2;
+
+  let cursor = 0;
+  const repaired = sorted.map((line) => {
+    let startSec = isNaN(line.startSec) || line.startSec < 0 ? cursor : Math.max(line.startSec, cursor);
+    let endSec   = isNaN(line.endSec) ? startSec + fallbackSlot : line.endSec;
+
+    // Fix inverted / zero-duration
+    if (endSec <= startSec) {
+      endSec = parseFloat((startSec + Math.max(fallbackSlot, 1)).toFixed(2));
+    }
+
+    // Cap at song duration
+    if (dur && endSec > dur) endSec = dur;
+    if (dur && startSec >= dur) startSec = Math.max(0, dur - 0.5);
+
+    cursor = endSec;
+    return { ...line, startSec: parseFloat(startSec.toFixed(2)), endSec: parseFloat(endSec.toFixed(2)), confidence: undefined as CaptionLine["confidence"] };
+  });
+
+  // Final pass: ensure last line ends at song duration if we have one
+  if (dur && repaired.length > 0) {
+    repaired[repaired.length - 1]!.endSec = dur;
+  }
+
+  return repaired;
+}
+
+/**
+ * Validate synced lines from AI.
+ * Returns: fraction of invalid rows (0 = all good, 1 = all bad).
+ */
+function badFraction(lines: CaptionLine[]): number {
+  if (lines.length === 0) return 0;
+  return lines.filter(isInvalidLine).length / lines.length;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 function generateBestBarLines(bestBarText: string): CaptionLine[] {
@@ -247,6 +326,9 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
   const [aiSyncStatus,   setAiSyncStatus  ] = useState<Status | null>(null);
   const [aiSyncDetails,  setAiSyncDetails ] = useState<AiSyncDetails | null>(null);
   const [showAiConfirm,  setShowAiConfirm ] = useState(false);
+
+  /* ── Repair / Reset state ── */
+  const [repairStatus, setRepairStatus] = useState<Status | null>(null);
 
   /* quickLyrics: the text shown in the "Generate From Lyrics" box.
      Priority: existing lyricsText saved in settings → incoming lyrics prop → empty. */
@@ -365,7 +447,28 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       setAiSyncPhase("Matching captions to vocals…");
       const { syncedLines, matchedCount, needsReviewCount } = matchCaptionsToTranscript(c.lines, segments);
 
-      setCaption("lines", syncedLines);
+      /* ── Validate before saving — never overwrite with bad timings ── */
+      const bad = badFraction(syncedLines);
+      if (bad > 0.5) {
+        /* More than half the rows are invalid — reject the sync result */
+        setAiSyncDetails({
+          audioFound: true,
+          hasTranscript: true,
+          matched: matchedCount,
+          needsReview: needsReviewCount,
+          avgConfidencePct: Math.round((matchedCount / c.lines.length) * 100),
+        });
+        setAiSyncStatus({
+          type: "error",
+          message: `AI sync failed validation — ${Math.round(bad * 100)}% of rows had invalid timings. Existing captions were not overwritten.`,
+        });
+        return;
+      }
+
+      /* Partially bad: auto-repair before saving */
+      const finalLines = bad > 0 ? repairCaptionTimings(syncedLines, songDuration) : syncedLines;
+
+      setCaption("lines", finalLines);
       setLinesVisible(true);
       setAiSyncDetails({
         audioFound: true,
@@ -375,12 +478,16 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         avgConfidencePct: Math.round((matchedCount / c.lines.length) * 100),
       });
 
+      const autoRepaired = bad > 0;
       const hasIssues = needsReviewCount > 0;
       setAiSyncStatus({
         type: hasIssues ? "info" : "success",
-        message: hasIssues
-          ? `Captions synced to vocals — ${needsReviewCount} line${needsReviewCount !== 1 ? "s" : ""} need review.`
-          : `Captions synced to vocals — all ${matchedCount} lines matched.`,
+        message: [
+          hasIssues
+            ? `Captions synced to vocals — ${needsReviewCount} line${needsReviewCount !== 1 ? "s" : ""} need review.`
+            : `Captions synced to vocals — all ${matchedCount} lines matched.`,
+          autoRepaired ? "Timing was auto-repaired before saving." : "",
+        ].filter(Boolean).join(" "),
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Unknown error";
@@ -527,9 +634,42 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
     setSyncStatus({ type: "success", message: `Captions compressed to fit within ${fmtDuration(songDuration)}.` });
   }
 
+  /* ── Repair & Reset ── */
+
+  function handleRepairTiming() {
+    if (c.lines.length === 0) {
+      setRepairStatus({ type: "error", message: "No captions to repair." });
+      return;
+    }
+    const before = calcHealth(c.lines);
+    const repaired = repairCaptionTimings(c.lines, songDuration);
+    setCaption("lines", repaired);
+    setRepairStatus({
+      type: "success",
+      message: `Repaired ${before.invalid} invalid row${before.invalid !== 1 ? "s" : ""}. Captions sorted and timing fixed.`,
+    });
+  }
+
+  function handleResetFromLyrics() {
+    const text = quickLyrics.trim() || c.lyricsText.trim();
+    if (!text) {
+      setRepairStatus({ type: "error", message: "No lyrics found. Paste lyrics into the Generate From Lyrics box first." });
+      return;
+    }
+    const lines = buildCaptionLines(text, splitStyle, songDuration);
+    setSettings({ ...settings, captions: { ...c, mode: "auto", lyricsText: text, lines } });
+    setRepairStatus({
+      type: "success",
+      message: `Reset to ${lines.length} clean caption${lines.length !== 1 ? "s" : ""} with safe timing${songDuration ? ` across ${fmtDuration(songDuration)}` : ""}.`,
+    });
+  }
+
   /* ── Sync status metrics ── */
   const lastCaptionEnd = c.lines.length > 0 ? c.lines[c.lines.length - 1]!.endSec : 0;
   const isSynced = songDuration != null && lastCaptionEnd > 0 && lastCaptionEnd <= songDuration + 0.5;
+
+  /* ── Timing health ── */
+  const health = calcHealth(c.lines);
   const syncLabel =
     !songDuration ? "No song attached"
     : c.lines.length === 0 ? "No captions"
@@ -1222,13 +1362,85 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
               </Button>
             </>
           )}
+
+          {/* ── Repair / Reset row ── */}
+          {c.lines.length > 0 && (
+            <div className="w-full flex flex-wrap gap-2 pt-1 border-t border-white/[0.06]">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRepairTiming}
+                data-testid="btn-repair-caption-timing"
+                className={`gap-1.5 border-white/15 ${health.invalid > 0 ? "border-amber-500/40 text-amber-400 hover:bg-amber-500/10" : ""}`}
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                Repair Caption Timing
+                {health.invalid > 0 && (
+                  <span className="ml-1 text-[10px] font-black bg-amber-500/20 text-amber-400 rounded px-1">{health.invalid}</span>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResetFromLyrics}
+                data-testid="btn-reset-captions-from-lyrics"
+                className="gap-1.5 border-white/15"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset Timing From Lyrics
+              </Button>
+            </div>
+          )}
+          {repairStatus && (
+            <div className="w-full">
+              <StatusBadge status={repairStatus} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Caption Timing Health ── */}
+      {c.lines.length > 0 && (
+        <div
+          className={`rounded-xl border px-4 py-3 space-y-2 ${
+            health.status === "healthy"
+              ? "border-green-500/20 bg-green-500/[0.04]"
+              : "border-amber-500/25 bg-amber-500/[0.05]"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/35">Caption Timing Health</p>
+            <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
+              health.status === "healthy"
+                ? "bg-green-500/15 text-green-400"
+                : "bg-amber-500/15 text-amber-400"
+            }`}>
+              {health.status === "healthy" ? "Healthy ✓" : `Needs Repair — ${health.invalid} invalid`}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 text-[11px]">
+            <span className="text-white/30">Valid rows: <span className="text-green-400 font-bold">{health.valid}</span></span>
+            <span className="text-white/30">Invalid rows: <span className={health.invalid > 0 ? "text-red-400 font-bold" : "text-white/30"}>{health.invalid}</span></span>
+            <span className="text-white/30">Song: <span className="text-white/60 font-bold">{songDuration ? fmtDuration(songDuration) : "—"}</span></span>
+            <span className="text-white/30">Last ends: <span className="text-white/60 font-bold">{health.lastEnd > 0 ? `${health.lastEnd.toFixed(1)}s` : "—"}</span></span>
+          </div>
+          {health.invalid > 0 && (
+            <Button
+              size="sm"
+              onClick={handleRepairTiming}
+              className="w-full gold-glow font-bold gap-2 mt-1"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              Repair All Invalid Caption Times
+            </Button>
+          )}
         </div>
       )}
 
       {/* ── Caption Lines table ── */}
       {(hasCaptions || c.lines.length > 0) && c.lines.length > 0 && linesVisible && (
         <EditorCard
-          title={`Caption Lines — ${c.lines.length}`}
+          title={`Caption Lines — ${c.lines.length}${health.invalid > 0 ? ` (${health.invalid} invalid)` : ""}`}
           subtitle="Edit timing and text for each line. Changes save automatically."
         >
           <div className="space-y-2">
@@ -1248,19 +1460,24 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
               {c.lines.map((line, i) => {
                 const isSelected = selectedCaptionId === line.id;
+                const invalid = isInvalidLine(line);
                 const confBorder =
-                  line.confidence === "high"         ? "border-l-green-500/60"
-                  : line.confidence === "medium"     ? "border-l-yellow-500/60"
-                  : line.confidence === "low"        ? "border-l-orange-500/60"
-                  : line.confidence === "needs-review" ? "border-l-red-500/60"
+                  invalid                                ? "border-l-red-500"
+                  : line.confidence === "high"           ? "border-l-green-500/60"
+                  : line.confidence === "medium"         ? "border-l-yellow-500/60"
+                  : line.confidence === "low"            ? "border-l-orange-500/60"
+                  : line.confidence === "needs-review"   ? "border-l-red-500/60"
                   : "border-l-transparent";
                 return (
                   <div
                     key={line.id}
                     data-testid={`caption-row-${i}`}
                     onClick={() => onSelectCaption?.(isSelected ? null : line.id)}
+                    title={invalid ? `⚠ Invalid timing: start ${line.startSec}s ≥ end ${line.endSec}s` : undefined}
                     className={`grid grid-cols-[70px_70px_1fr_auto] gap-2 items-center group rounded-lg px-1 py-0.5 cursor-pointer transition-colors border-l-2 ${confBorder} ${
-                      isSelected
+                      invalid
+                        ? "bg-red-500/[0.07]"
+                        : isSelected
                         ? "bg-primary/[0.08] outline outline-1 outline-primary/40"
                         : "hover:bg-white/[0.03]"
                     }`}
