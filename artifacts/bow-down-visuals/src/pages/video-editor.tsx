@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
-import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
+import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
   sceneHasClip,
@@ -212,7 +212,8 @@ export default function VideoEditor() {
         breakdown = rawResult;
       }
 
-      const parsed = parseScenes(breakdown);
+      const { scenes: parsed, mode: parseMode } = parseScenesWithMode(breakdown);
+      console.log("[Rebuild] Parser mode used:", parseMode);
       console.log("[Rebuild] Number of scenes parsed:", parsed.length);
 
       if (parsed.length === 0) {
