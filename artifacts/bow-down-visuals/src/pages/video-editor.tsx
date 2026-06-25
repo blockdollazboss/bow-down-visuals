@@ -868,10 +868,16 @@ function fmtSecs(s: number): string {
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 }
 
+/** Always in the DOM — callback ref sets muted so clips play silently
+ *  (audio comes from TimelinePreviewPlayer's <audio> element). */
 function MasterVideoElement({ videoRef }: { videoRef: RefObject<HTMLVideoElement | null> }) {
+  const setEl = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el) el.muted = true;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <video
-      ref={videoRef}
+      ref={setEl}
       playsInline
       className="w-full h-full object-contain"
       data-testid="master-preview-video"
@@ -891,86 +897,148 @@ function MasterPreviewPlayer({
   onRestart: () => void;
 }) {
   const isTimelineTab = tab === "timeline";
-  const isPlaying = eng?.isPlaying ?? false;
-  const currentTime = eng?.currentTime ?? 0;
-  const duration = eng?.audioDuration ?? 0;
-  const currentSceneIdx = eng?.activeSceneIndex ?? -1;
-  const currentScene = currentSceneIdx >= 0 ? scenes[currentSceneIdx] : null;
+  const isPlaying     = eng?.isPlaying ?? false;
+  const currentTime   = eng?.currentTime ?? 0;
+  const duration      = eng?.audioDuration ?? 0;
+  const sceneIdx      = eng?.activeSceneIndex ?? -1;
+  const currentScene  = sceneIdx >= 0 ? scenes[sceneIdx] : null;
+  const activeCaption = eng?.activeCaption ?? null;
 
-  const clipUrl = isTimelineTab
-    ? (currentScene?.demoClipUrl ?? null)
-    : (previewScene?.demoClipUrl ?? null);
+  // Clip loaded when: timeline running and scene has a clip, OR static clip preview selected
+  const clipLoaded = isTimelineTab
+    ? !!currentScene?.demoClipUrl
+    : !!previewScene?.demoClipUrl;
+
+  const captionLoaded = !!activeCaption;
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-black/50 overflow-hidden mb-6">
-      {/* Video area */}
+
+      {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
       <div className="aspect-video bg-black relative">
-        {clipUrl ? (
-          <MasterVideoElement videoRef={liveVideoRef} />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20">
+
+        {/* The single <video> element — always mounted so liveVideoRef is always valid */}
+        <MasterVideoElement videoRef={liveVideoRef} />
+
+        {/* No-clip placeholder — absolutely positioned over the (empty) video */}
+        {!clipLoaded && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/20 pointer-events-none">
             <Film className="h-12 w-12" />
-            <p className="text-sm font-medium">
-              {scenes.length === 0 ? "Generate scenes to preview" : "Select a scene with a clip"}
+            <p className="text-sm font-medium text-center px-6">
+              {scenes.length === 0
+                ? "Generate scenes to preview"
+                : isTimelineTab
+                  ? "Press Play — clip plays here when active scene has one"
+                  : "Click Preview on any scene to watch it here"}
             </p>
           </div>
         )}
 
-        {/* Timeline overlay */}
-        {isTimelineTab && eng && (
-          <div className="absolute top-3 left-3 right-3 flex items-start justify-between pointer-events-none">
-            {currentScene && (
-              <div className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-bold text-white/90 max-w-[60%] truncate">
-                Scene {currentSceneIdx + 1} · {currentScene.section || currentScene.lyricLine || "Untitled"}
-              </div>
-            )}
-            <div className="ml-auto px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-mono text-white/80">
-              {fmtSecs(currentTime)} / {fmtSecs(duration)}
+        {/* Caption overlay — driven by engine's activeCaption */}
+        {activeCaption && (
+          <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center pointer-events-none">
+            <div
+              className="text-center leading-snug max-w-[90%]"
+              style={{
+                fontSize: "clamp(14px,3vw,22px)", fontWeight: 800, color: "#fff",
+                background: "rgba(0,0,0,0.72)",
+                textShadow: "0 0 8px #000,1px 1px 0 #000,-1px -1px 0 #000",
+                padding: "0.2rem 0.75rem", borderRadius: "0.4rem",
+              }}
+              data-testid="master-caption-text"
+            >
+              {activeCaption.text}
             </div>
           </div>
         )}
 
-        {/* Clips-tab overlay */}
+        {/* Scene badge — top-left */}
+        {isTimelineTab && eng && currentScene && (
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-sm pointer-events-none">
+            <Film className="h-3 w-3 text-primary/60" />
+            <span className="text-[10px] font-bold text-white/70">
+              Scene {sceneIdx + 1}/{scenes.length}
+              {currentScene.section ? ` · ${currentScene.section}` : ""}
+            </span>
+          </div>
+        )}
+
+        {/* Clips-tab scene label */}
         {!isTimelineTab && previewScene && (
-          <div className="absolute top-3 left-3 pointer-events-none">
-            <div className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-bold text-white/90 max-w-xs truncate">
+          <div className="absolute top-2 left-2 pointer-events-none">
+            <div className="px-2 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-sm text-[10px] font-bold text-white/70 max-w-xs truncate">
               {previewScene.section || previewScene.lyricLine || "Preview"}
             </div>
           </div>
         )}
-      </div>
 
-      {/* Transport controls — timeline tab only */}
-      {isTimelineTab && (
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-white/[0.06]">
-          <button
-            type="button"
-            onClick={onRestart}
-            className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white"
-            title="Restart"
-          >
-            <SkipBack className="h-4 w-4" />
-          </button>
+        {/* Playing indicator — top-right */}
+        {isPlaying && (
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
+            <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+            <span className="text-[10px] font-black text-black uppercase tracking-wide">Live</span>
+          </div>
+        )}
+
+        {/* Big play button overlay — timeline tab, not playing, has scenes */}
+        {isTimelineTab && !isPlaying && scenes.length > 0 && (
           <button
             type="button"
             onClick={onTogglePlay}
-            disabled={scenes.length === 0}
-            className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-40"
-            title={isPlaying ? "Pause" : "Play"}
+            className="absolute inset-0 flex items-center justify-center"
+            aria-label="Start timeline preview"
           >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center hover:bg-primary/30 transition-colors backdrop-blur-sm">
+              <Play className="h-6 w-6 text-primary ml-0.5" />
+            </div>
           </button>
-          <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary/70 rounded-full transition-all"
-              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
-            />
-          </div>
-          <span className="text-xs font-mono text-white/40 tabular-nums">
+        )}
+      </div>
+
+      {/* ── Transport bar ── */}
+      <div className="flex items-center gap-3 px-4 py-3 border-t border-white/[0.06]">
+        {isTimelineTab && (
+          <>
+            <button type="button" onClick={onRestart}
+              className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white"
+              title="Restart">
+              <SkipBack className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={onTogglePlay} disabled={scenes.length === 0}
+              className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-40"
+              title={isPlaying ? "Pause" : "Play"}>
+              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </button>
+          </>
+        )}
+        <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
+          <div className="h-full bg-primary/70 rounded-full transition-all"
+            style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
+        </div>
+        {isTimelineTab && (
+          <span className="text-xs font-mono text-white/40 tabular-nums shrink-0">
             {fmtSecs(currentTime)} / {fmtSecs(duration)}
           </span>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* ── Status bar ── */}
+      <div className="px-4 py-2 border-t border-white/[0.04] flex flex-wrap gap-x-5 gap-y-0.5">
+        <span className="text-[10px] font-mono text-white/25">
+          Master Player: <span className="text-green-400/70">Connected ✓</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          Duplicate Preview: <span className="text-green-400/70">Removed ✓</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          Active Clip: <span className={clipLoaded ? "text-green-400/70" : "text-white/30"}>{clipLoaded ? "loaded ✓" : "none"}</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          Active Caption: <span className={captionLoaded ? "text-blue-400/70" : "text-white/30"}>
+            {captionLoaded ? `"${activeCaption!.text.slice(0, 24)}${activeCaption!.text.length > 24 ? "…" : ""}"` : "none"}
+          </span>
+        </span>
+      </div>
     </div>
   );
 }
