@@ -698,7 +698,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         throw new Error(`Clip ${i + 1} could not be downloaded: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
       }
 
-      req.log.info({ i: i + 1, fileSize: statSync(dest).size }, "[export] clip downloaded");
+      const dlSize = statSync(dest).size;
+      req.log.info({ i: i + 1, fileSize: dlSize }, "[export] clip downloaded");
+      if (dlSize < 2048) {
+        throw new Error(
+          `Scene ${i + 1} clip download appears incomplete — file is only ${dlSize} bytes. ` +
+          `URL: ${url.slice(0, 80)}`,
+        );
+      }
 
       /* ── 1a: Full ffprobe validation ── */
       const info = await probeVideo(dest);
@@ -858,6 +865,33 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
     exportStatus.clipsNormalized = normalizedPaths.length;
     req.log.info({ clipsNormalized: normalizedPaths.length }, "[export] all clips normalized");
+
+    /* ── 1d: Pre-FFmpeg preflight — verify every normalized file exists ── */
+    for (let j = 0; j < normalizedPaths.length; j++) {
+      const np      = normalizedPaths[j]!;
+      const origIdx = selectedClipOrigIndices[j]!;
+      if (!existsSync(np)) {
+        throw new Error(
+          `Scene ${origIdx + 1} local export file missing (${path.basename(np)}). ` +
+          `The normalization step may have failed silently.`,
+        );
+      }
+      const npSize = statSync(np).size;
+      if (npSize < 1024) {
+        throw new Error(
+          `Scene ${origIdx + 1} normalized file is too small (${npSize} bytes) — ` +
+          `the source clip may be corrupt. Try re-generating this clip.`,
+        );
+      }
+      req.log.info(
+        { scene: origIdx + 1, file: path.basename(np), bytes: npSize },
+        "[export] pre-flight: clip verified ✓",
+      );
+    }
+    req.log.info(
+      { count: normalizedPaths.length },
+      "[export] pre-flight passed — all normalized clips present and valid",
+    );
 
     /* ── 2: Download audio ── */
     let audioPath: string | null = null;

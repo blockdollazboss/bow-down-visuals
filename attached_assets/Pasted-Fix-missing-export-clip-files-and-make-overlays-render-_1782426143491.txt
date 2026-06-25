@@ -1,0 +1,117 @@
+Fix missing export clip files and make overlays render in the master player.
+
+Current problems:
+
+1. Export fails with:
+   FFmpeg failed (exit 254): Error opening input files: No such file or directory
+
+This means the export is trying to use local /tmp clip files that do not exist anymore or were not downloaded correctly.
+
+2. Effects overlays like rain, smoke, sparks, light leaks, dust, and lens flare are not visible in the master player.
+
+Do not change:
+
+* Stripe
+* credits
+* payments
+* Runway generation
+* Artist Profiles
+* caption timing
+* caption sync
+* caption styles
+* Auto PiP
+* Bow Down AI Guide
+* master player layout
+
+Only fix:
+
+* export clip file loading
+* overlay/effect rendering in master player
+* overlay/effect rendering in export
+
+PART 1 — FIX EXPORT MISSING INPUT FILES
+
+Before running FFmpeg:
+
+1. Do not assume /tmp clip files already exist.
+2. Read each selected clip’s saved URL/path from the project.
+3. Download or copy each clip into a fresh export temp folder.
+4. Verify every local file exists before sending it to FFmpeg.
+5. If a clip URL is missing, show:
+   Scene [number] has no clip URL. Regenerate or sync missing clips.
+6. If download fails, show:
+   Scene [number] clip download failed: [real error]
+7. If local file does not exist, stop before FFmpeg and show:
+   Scene [number] local export file missing.
+
+Add export debug:
+
+* scene number
+* saved clip URL
+* downloaded local path
+* file exists: yes/no
+* file size
+* duration
+* ffprobe valid: yes/no
+
+Do not start FFmpeg until all selected clips are valid local files.
+
+PART 2 — FIX OVERLAYS IN MASTER PLAYER
+
+Effects like rain, smoke, sparks, dust, light leaks, lens flare, animated waveform, and logo/watermark must visibly appear in the master player.
+
+Add a real overlay render layer on top of the master player video.
+
+Overlay layer must support:
+
+* Rain
+* Smoke
+* Sparks
+* Dust
+* Light Leaks
+* Lens Flare
+* Animated Waveform
+* Logo / Watermark
+
+When I click an overlay effect:
+
+* it should appear immediately in the master player
+* it should save to the project
+* it should stay when switching tabs
+* it should stay after reload
+
+Add debug:
+Overlay Render Debug:
+
+* overlay layer mounted: yes/no
+* selected overlays: list
+* active overlays now: list
+* visible in master player: yes/no
+* saved to project: yes/no
+
+PART 3 — TEST OVERLAY BUTTON
+
+Add button in Effects tab:
+Test Overlay Render
+
+When clicked, show obvious temporary overlays in the master player:
+
+* rain
+* sparks
+* lens flare
+* text: OVERLAY TEST ACTIVE
+
+If this test does not show in the master player, do not claim overlays are working.
+
+PART 4 — EXPORT OVERLAYS
+
+Export must include the same overlays seen in the master player.
+
+If overlay export rendering is not ready yet, show:
+Overlays visible in preview but not connected to export yet.
+
+If connected, show:
+Overlays included in export: yes
+
+Final goal:
+Export should not fail from missing /tmp files, and overlays like rain/smoke/sparks must visibly render in the master player and be included in export.

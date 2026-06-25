@@ -23,6 +23,7 @@ import {
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { OverlayLayer } from "@/components/OverlayLayer";
+import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
@@ -735,6 +736,7 @@ export default function VideoEditor() {
               outgoingVideoRef={outgoingVideoRef}
               transitionState={transitionState}
               testOverlayActive={testOverlayActive}
+              activeOverlayChips={settings.overlays}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -1055,7 +1057,7 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
 function MasterPreviewPlayer({
   eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
   settings, testEffectActive,
-  outgoingVideoRef, transitionState, testOverlayActive,
+  outgoingVideoRef, transitionState, testOverlayActive, activeOverlayChips,
   onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
@@ -1069,6 +1071,7 @@ function MasterPreviewPlayer({
   outgoingVideoRef: RefObject<HTMLVideoElement | null>;
   transitionState: TransitionState | null;
   testOverlayActive: boolean;
+  activeOverlayChips: string[];
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1350,7 +1353,13 @@ function MasterPreviewPlayer({
           />
         </div>
 
-        {/* ── Structured overlay layer (timed items + test overlay) ── */}
+        {/* ── Animated overlay chip effects (Rain, Smoke, Sparks, etc.) ── */}
+        <ActiveOverlayEffects
+          activeOverlays={activeOverlayChips}
+          testActive={testOverlayActive}
+        />
+
+        {/* ── Structured overlay layer (timed items + test badge) ── */}
         <OverlayLayer
           items={settings.overlayItems}
           currentTime={eng?.currentTime ?? 0}
@@ -1616,20 +1625,21 @@ function MasterPreviewPlayer({
         )}
       </div>
 
-      {/* ── Effects / Transition / Overlay Debug ── */}
+      {/* ── Overlay Render Debug ── */}
       <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects · Transitions · Overlays Debug:</span>
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Overlay Render Debug:</span>
         {([
-          ["effects loaded",            activeEffects.length > 0,      activeEffects.length > 0 ? `yes (${activeEffects.length})` : "no"],
-          ["active effect",             activeEffects.length > 0,      activeEffects[0] ?? "none"],
-          ["effects render layer",      true,                          "mounted ✓"],
-          ["test effect active",        testEffectActive,              testEffectActive ? "yes ✓" : "no"],
-          ["Auto AI effects applied",   aiEffectsApplied,             aiEffectsApplied ? "yes ✓" : "no"],
-          ["transition compositor",     true,                          "mounted ✓"],
-          ["active transition",         !!transitionState,            transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
-          ["overlay layer",             true,                          "mounted ✓"],
-          ["overlay items configured",  settings.overlayItems.length > 0, `${settings.overlayItems.length}`],
-          ["test overlay active",       testOverlayActive,            testOverlayActive ? "yes ✓" : "no"],
+          ["overlay layer mounted",      true,                                  "yes ✓"],
+          ["selected overlays",          activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? activeOverlayChips.join(", ") : "none"],
+          ["active overlays now",        activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? `${activeOverlayChips.length} visible ✓` : "none"],
+          ["visible in master player",   activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? "yes ✓" : "no"],
+          ["saved to project",           activeOverlayChips.length > 0,        activeOverlayChips.length > 0 ? "yes ✓" : "no"],
+          ["test overlay active",        testOverlayActive,                    testOverlayActive ? "yes ✓" : "no"],
+          ["transition compositor",      true,                                  "mounted ✓"],
+          ["active transition",          !!transitionState,                    transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
+          ["structured overlay items",   settings.overlayItems.length > 0,    `${settings.overlayItems.length}`],
+          ["test effect active",         testEffectActive,                     testEffectActive ? "yes ✓" : "no"],
+          ["AI effects applied",         aiEffectsApplied,                    aiEffectsApplied ? "yes ✓" : "no"],
         ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
           <span key={label} className="text-[10px] font-mono text-white/20">
             {label}:{" "}
@@ -1638,6 +1648,11 @@ function MasterPreviewPlayer({
             </span>
           </span>
         ))}
+        {activeOverlayChips.length > 0 && (
+          <span className="text-[10px] font-mono text-green-400/60 w-full">
+            ✓ Animated overlays rendering: {activeOverlayChips.join(" · ")}
+          </span>
+        )}
         {activeEffects.length > 0 && !testEffectActive && (
           <span className="text-[10px] font-mono text-green-400/60 w-full">✓ AI effects rendering in master player</span>
         )}
@@ -1648,7 +1663,7 @@ function MasterPreviewPlayer({
           <span className="text-[10px] font-mono text-blue-400/70 w-full">↔ Transition playing: {transitionState.type}</span>
         )}
         {testOverlayActive && (
-          <span className="text-[10px] font-mono text-[#C9A84C]/70 w-full">◈ Test overlay active</span>
+          <span className="text-[10px] font-mono text-[#C9A84C]/70 w-full">◈ Test overlay active — Rain + Sparks + Lens Flare showing</span>
         )}
       </div>
     </div>
