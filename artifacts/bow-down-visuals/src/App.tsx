@@ -8,7 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { NavThemePlayer } from "@/components/HomepageThemePlayer";
+import { DraggableThemePlayer } from "@/components/DraggableThemePlayer";
 
 import { SiteFooter } from "@/components/layout/footer";
 import Home        from "@/pages/home";
@@ -57,7 +57,7 @@ function AppShell() {
   return (
     <>
       <ScrollToTop />
-      <div className="fixed bottom-5 right-5 z-[9999]"><NavThemePlayer /></div>
+      <DraggableThemePlayer />
       <Switch>
         {/* Auth routes */}
         <Route path="/login"><Login /></Route>
