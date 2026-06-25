@@ -92,8 +92,10 @@ export default function VideoEditor() {
   const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
   const [rebuildError, setRebuildError] = useState<string | null>(null);
 
-  const hydrated = useRef(false);
+  const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Always-current ref so persist() never uses a stale scenes closure
+  const scenesRef = useRef<SceneData[]>([]);
 
   /* ── Load project ── */
   useEffect(() => {
@@ -136,6 +138,9 @@ export default function VideoEditor() {
     return () => { cancelled = true; };
   }, [user, projectId, getAccessToken]);
 
+  /* ── Keep scenesRef in sync so persist() is never stale ── */
+  useEffect(() => { scenesRef.current = scenes; }, [scenes]);
+
   /* ── Debounced autosave on scenes / settings change ── */
   useEffect(() => {
     if (loading || !project) return;
@@ -162,7 +167,8 @@ export default function VideoEditor() {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
-          scenes,
+          // Use the ref — never stale even when called from an old closure / timer
+          scenes: scenesRef.current,
           outputData: { editorSettings: { ...settings, updatedAt: new Date().toISOString() } },
         }),
       });
@@ -223,12 +229,15 @@ export default function VideoEditor() {
         return;
       }
 
+      // Update the ref BEFORE setScenes so the autosave timer
+      // that will fire ~1.2 s later gets the fresh array, not stale []
+      scenesRef.current = parsed;
       setScenes(parsed);
       setRebuildStatus("done");
 
-      // Persist immediately with the freshly parsed scenes
-      // (avoids the autosave stale-closure problem)
+      // ── Hard save immediately (do not rely only on the debounced autosave) ──
       if (project) {
+        console.log("[Rebuild] Save started — sending", parsed.length, "scenes to Supabase");
         try {
           const token = await getAccessToken();
           const patchRes = await fetch(`/api/projects/${project.id}`, {
@@ -237,18 +246,47 @@ export default function VideoEditor() {
             body: JSON.stringify({ scenes: parsed }),
           });
           if (patchRes.ok) {
-            console.log("[Rebuild] Scenes saved to Supabase: success");
+            console.log("[Rebuild] Save success");
             setSaveState("saved");
+
+            // Verify: re-fetch the project and confirm the scenes are there
+            try {
+              const verifyToken = await getAccessToken();
+              const verifyRes = await fetch(`/api/projects/${project.id}`, {
+                headers: { Authorization: `Bearer ${verifyToken ?? ""}` },
+              });
+              if (verifyRes.ok) {
+                const { project: fresh } = (await verifyRes.json()) as { project: LoadedProject };
+                const savedCount = fresh.output_data?.scenes?.length ?? 0;
+                console.log("[Rebuild] Reload scenes count:", savedCount);
+                if (savedCount === 0) {
+                  console.log("[Rebuild] WARNING — verify returned 0 scenes even though save reported ok");
+                }
+              }
+            } catch (verErr) {
+              console.log("[Rebuild] Could not verify save:", verErr);
+            }
           } else {
-            console.log("[Rebuild] Scenes saved to Supabase: error", patchRes.status);
+            const errText = await patchRes.text().catch(() => String(patchRes.status));
+            console.log("[Rebuild] Save failed:", patchRes.status, errText);
+            toast({
+              title: "Scenes rebuilt but save failed",
+              description: `Scenes are visible now but may not survive a refresh. Error: ${patchRes.status} — ${errText.slice(0, 120)}`,
+              variant: "destructive",
+            });
           }
         } catch (saveErr) {
-          console.log("[Rebuild] Scenes save error:", saveErr);
-          // Non-fatal — autosave will retry
+          const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
+          console.log("[Rebuild] Save error:", msg);
+          toast({
+            title: "Scenes rebuilt but save failed",
+            description: `Scenes are visible now but may not survive a refresh. ${msg}`,
+            variant: "destructive",
+          });
         }
       }
 
-      toast({ title: `${parsed.length} scenes rebuilt successfully`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
+      toast({ title: `${parsed.length} scenes rebuilt and saved`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       console.log("[Rebuild] Unexpected error:", msg);
