@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import type { CaptionLine, EditorSettings } from "@/lib/editor-settings";
+import { smartSplitLyrics } from "@/lib/lyric-splitter";
 
 interface WhisperSegment {
   id: number;
@@ -41,20 +42,15 @@ function segmentsToCaptionLines(segments: WhisperSegment[]): CaptionLine[] {
     }));
 }
 
-function estimatedCaptionLines(lyricsText: string, songDuration?: number): CaptionLine[] {
-  const raw = lyricsText
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(
-      (l) =>
-        l.length > 0 &&
-        !/^\[.*\]$/.test(l) &&
-        !/^\(.*\)$/.test(l) &&
-        !/^#+\s/.test(l),
-    );
-  if (raw.length === 0) return [];
-  const secPer = songDuration && songDuration > 0 ? songDuration / raw.length : 2;
-  return raw.map((text, i): CaptionLine => ({
+function estimatedCaptionLines(
+  lyricsText: string,
+  splitStyle: "short" | "medium" | "long",
+  songDuration?: number,
+): CaptionLine[] {
+  const phrases = smartSplitLyrics(lyricsText, splitStyle);
+  if (phrases.length === 0) return [];
+  const secPer = songDuration && songDuration > 0 ? songDuration / phrases.length : 2;
+  return phrases.map((text, i): CaptionLine => ({
     id: newLineId(),
     startSec: parseFloat((i * secPer).toFixed(1)),
     endSec: parseFloat(((i + 1) * secPer).toFixed(1)),
@@ -154,10 +150,11 @@ export function SongWorkflow({
     const trimmed = text.trim();
     if (!trimmed) return;
 
+    const splitStyle = settings.captions.captionSplitStyle ?? "short";
     const captionLines =
       segments && segments.length > 0
         ? segmentsToCaptionLines(segments)
-        : estimatedCaptionLines(trimmed, songDuration ?? undefined);
+        : estimatedCaptionLines(trimmed, splitStyle, songDuration ?? undefined);
 
     onSettingsChange({
       ...settings,

@@ -14,6 +14,7 @@ import {
   type CaptionStylePreset,
   type EditorSettings,
 } from "@/lib/editor-settings";
+import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 
 interface Props {
@@ -32,30 +33,21 @@ function newLineId() {
   return `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-/** Strip section headers like [Verse 1], [Hook], (Bridge) and return clean lines */
-function parseLyricLines(text: string): string[] {
-  return text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(
-      (l) =>
-        l.length > 0 &&
-        !/^\[.*\]$/.test(l) &&
-        !/^\(.*\)$/.test(l) &&
-        !/^#+\s/.test(l),
-    );
-}
-
-function generateAutoLines(lyricsText: string, songDuration?: number): CaptionLine[] {
-  const raw = parseLyricLines(lyricsText);
-  if (raw.length === 0) return [];
+/** Build CaptionLine[] from text using smart splitting + even timing. */
+function buildCaptionLines(
+  text: string,
+  splitStyle: "short" | "medium" | "long",
+  songDuration?: number,
+): CaptionLine[] {
+  const phrases = smartSplitLyrics(text, splitStyle);
+  if (phrases.length === 0) return [];
   const secPer =
-    songDuration && songDuration > 0 ? songDuration / raw.length : 2;
-  return raw.map((text, i): CaptionLine => ({
+    songDuration && songDuration > 0 ? songDuration / phrases.length : 2;
+  return phrases.map((phrase, i): CaptionLine => ({
     id: newLineId(),
     startSec: parseFloat((i * secPer).toFixed(1)),
     endSec: parseFloat(((i + 1) * secPer).toFixed(1)),
-    text,
+    text: phrase,
   }));
 }
 
@@ -113,8 +105,16 @@ function StatusBadge({ status }: { status: Status }) {
   );
 }
 
+const SPLIT_STYLE_DEFS = [
+  { id: "short",  label: "Short",  hint: "3–6 words" },
+  { id: "medium", label: "Medium", hint: "5–8 words" },
+  { id: "long",   label: "Long",   hint: "8–12 words" },
+] as const;
+
 export function CaptionsSection({ settings, setSettings, lyrics, songDuration }: Props) {
   const c = settings.captions;
+  const splitStyle = c.captionSplitStyle ?? "short";
+
   const [linesVisible, setLinesVisible] = useState(true);
   const [generateStatus, setGenerateStatus] = useState<Status | null>(null);
   const [lyricsAutoFilled, setLyricsAutoFilled] = useState(false);
@@ -125,8 +125,8 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
     c.lyricsText || lyrics || "",
   );
 
-  /* When lyrics arrive from the project asynchronously — always sync them in.
-     The `|| lyrics` fallback handles the initial project-load race. */
+  /* When lyrics arrive from the project asynchronously (or are sent from the
+     Song Workflow card) — always sync them in. */
   useEffect(() => {
     const incoming = c.lyricsText || lyrics || "";
     if (incoming && incoming !== quickLyrics) {
@@ -158,11 +158,11 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
       });
       return;
     }
-    const lines = generateAutoLines(text, songDuration);
+    const lines = buildCaptionLines(text, splitStyle, songDuration);
     if (lines.length === 0) {
       setGenerateStatus({
         type: "error",
-        message: "No lyric lines found after stripping section headers. Add some lyric text.",
+        message: "Could not generate captions: no lyric text found after cleaning.",
       });
       return;
     }
@@ -171,16 +171,19 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
       captions: { ...c, mode: "auto", lyricsText: text, lines },
     });
     setLinesVisible(true);
+    const timingNote = songDuration
+      ? `Spread evenly across ${fmtDuration(songDuration)}.`
+      : "Caption timing is estimated. Adjust manually to sync with your song.";
     setGenerateStatus({
       type: "success",
-      message: `✓ ${lines.length} caption${lines.length !== 1 ? "s" : ""} generated successfully.`,
+      message: `Captions generated — ${lines.length} caption${lines.length !== 1 ? "s" : ""} saved. ${timingNote}`,
     });
   }
 
-  /* ── Generate for the existing per-mode buttons ── */
+  /* ── Re-generate for the existing per-mode buttons ── */
   function handleGenerate() {
     let lines: CaptionLine[] = [];
-    if (c.mode === "auto") lines = generateAutoLines(c.lyricsText, songDuration);
+    if (c.mode === "auto") lines = buildCaptionLines(c.lyricsText, splitStyle, songDuration);
     else if (c.mode === "hook") lines = generateHookLines(c.hookText, songDuration);
     else if (c.mode === "best-bar") lines = generateBestBarLines(c.bestBarText);
     setCaption("lines", lines);
@@ -222,7 +225,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
       ══════════════════════════════════════════════════ */}
       <EditorCard
         title="Generate Captions From Lyrics"
-        subtitle="Auto-fill from your project or paste lyrics — one line becomes one caption"
+        subtitle="Auto-fill from your project or paste lyrics — one phrase becomes one caption"
         icon={<Wand2 className="h-4 w-4" />}
       >
         <div className="space-y-3">
@@ -240,40 +243,61 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
             value={quickLyrics}
             onChange={(e) => { setQuickLyrics(e.target.value); setGenerateStatus(null); }}
             placeholder={
-              "Paste your lyrics here…\n\nEach line becomes one caption.\n[Verse 1], [Hook], [Chorus] labels are stripped automatically."
+              "Paste your lyrics here — one paragraph is fine.\n\nEach phrase becomes one caption. [Verse], [Hook], [Chorus] labels are stripped automatically."
             }
             rows={9}
             data-testid="caption-lyrics-input"
             className="w-full resize-y rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-primary/40 transition-colors leading-relaxed"
           />
 
+          {/* Caption split style */}
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Caption split style</p>
+            <div className="flex gap-2">
+              {SPLIT_STYLE_DEFS.map((s) => {
+                const active = splitStyle === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setCaption("captionSplitStyle", s.id)}
+                    data-testid={`caption-split-${s.id}`}
+                    className={`flex-1 rounded-lg border px-3 py-2 transition-all text-left ${
+                      active
+                        ? "border-primary/50 bg-primary/[0.07] text-white"
+                        : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:border-white/20"
+                    }`}
+                  >
+                    <p className="text-xs font-bold">{s.label}</p>
+                    <p className="text-[10px] text-white/35 mt-0.5">{s.hint}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Timing info */}
           {songDuration ? (
             <p className="text-[11px] text-white/40 flex items-center gap-1.5">
               <Info className="h-3 w-3 shrink-0" />
-              Song duration: {fmtDuration(songDuration)} — captions will be spread evenly across the song.
+              Song duration: {fmtDuration(songDuration)} — captions spread evenly across the song.
             </p>
           ) : (
             <p className="text-[11px] text-white/35 flex items-center gap-1.5">
               <Info className="h-3 w-3 shrink-0" />
-              Caption timing is estimated (2 sec each). You can adjust it manually after generating.
+              Caption timing is estimated (2 sec each). Adjust manually to sync with your song.
             </p>
           )}
 
           {/* Generate button */}
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              onClick={handleGenerateFromLyrics}
-              data-testid="btn-generate-captions-from-lyrics"
-              className="gold-glow font-bold gap-2"
-            >
-              <Wand2 className="h-4 w-4" />
-              Generate Captions From Lyrics
-            </Button>
-            {quickLyrics && !lyrics && (
-              <p className="text-[11px] text-white/30">or upload a song to auto-fill</p>
-            )}
-          </div>
+          <Button
+            onClick={handleGenerateFromLyrics}
+            data-testid="btn-generate-captions-from-lyrics"
+            className="w-full gold-glow font-bold gap-2"
+          >
+            <Wand2 className="h-4 w-4" />
+            Generate Captions From Lyrics
+          </Button>
 
           {/* Status message */}
           {generateStatus && <StatusBadge status={generateStatus} />}
@@ -446,13 +470,13 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
             <textarea
               value={c.lyricsText}
               onChange={(e) => setCaption("lyricsText", e.target.value)}
-              placeholder={"Paste your lyrics here…\n\nEach line becomes one caption.\n[Section headers] are stripped automatically."}
+              placeholder={"Paste your lyrics here…\n\nEach phrase becomes one caption.\n[Section headers] are stripped automatically."}
               rows={10}
               data-testid="caption-full-lyrics-input"
               className="w-full resize-y rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm text-white/80 placeholder:text-white/20 focus:outline-none focus:border-primary/40 transition-colors leading-relaxed"
             />
             <p className="text-[11px] text-white/30">
-              Each non-empty line → one caption. Section labels like [Verse 1] are stripped. Timing is spread evenly; adjust manually after generating.
+              Each phrase → one caption. Section labels like [Verse 1] are stripped. Timing is spread evenly; adjust manually after generating.
             </p>
           </div>
         </EditorCard>
@@ -581,62 +605,26 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
                     type="text"
                     value={line.text}
                     onChange={(e) => updateLine(line.id, { text: e.target.value })}
-                    placeholder="Caption text…"
                     data-testid={`caption-line-${i}-text`}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-primary/40 transition-colors"
+                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={() => deleteLine(line.id)}
                     data-testid={`caption-line-${i}-delete`}
-                    title="Delete caption"
-                    className="h-7 w-7 rounded-lg border border-red-500/20 bg-red-500/5 text-red-400/40 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                    className="text-white/20 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100"
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               ))}
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <p className="text-[10px] text-white/25">
-                Start/End in seconds. End=999 means show for the full video duration.
-              </p>
-              {c.mode === "manual" && (
-                <button
-                  type="button"
-                  onClick={addManualLine}
-                  className="flex items-center gap-1.5 text-[11px] font-bold text-primary/70 hover:text-primary transition-colors"
-                  data-testid="btn-add-caption-inline"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Caption
-                </button>
-              )}
-            </div>
-
-            <div className="pt-2 border-t border-white/[0.05]">
-              <p className="text-[11px] text-white/35 flex items-center gap-1.5">
-                <Pencil className="h-3 w-3 shrink-0" />
-                Captions saved with your project automatically.
-                {c.lines.length > 0 && !songDuration && (
-                  <span className="text-white/25"> · Caption timing is estimated. Adjust times manually to sync with your song.</span>
-                )}
-              </p>
             </div>
           </div>
         </EditorCard>
       )}
 
-      {/* ── Captions off notice ── */}
-      {c.mode === "none" && c.lines.length === 0 && (
-        <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-          <Captions className="h-4 w-4 text-white/20 shrink-0 mt-0.5" />
-          <p className="text-xs text-white/35 leading-relaxed">
-            No captions will be burned into the exported video. Click <strong className="text-white/50">Generate Captions From Lyrics</strong> above to get started, or select a caption mode to add text overlays manually.
-          </p>
-        </div>
-      )}
-
+      {/* ── Pencil icon unused import placeholder (keep icon for future use) ── */}
+      <span className="hidden"><Pencil /></span>
     </div>
   );
 }

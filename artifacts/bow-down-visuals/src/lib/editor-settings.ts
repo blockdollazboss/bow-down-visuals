@@ -121,6 +121,7 @@ export const CAPTION_POSITIONS = ["Top", "Center", "Bottom"] as const;
 
 export type CaptionMode = "auto" | "manual" | "hook" | "best-bar" | "none";
 export type CaptionStylePreset = "clean-white" | "drill" | "luxury" | "rnb" | "kids";
+export type CaptionSplitStyle = "short" | "medium" | "long";
 
 export interface CaptionLine {
   id: string;
@@ -323,6 +324,8 @@ export interface CaptionSettings {
   bestBarText: string;
   /** Timed caption lines (populated by generate / manual entry). */
   lines: CaptionLine[];
+  /** How many words per caption line when auto-splitting lyrics. */
+  captionSplitStyle: CaptionSplitStyle;
   /** Legacy fields kept for backward compat. */
   style: string;
   titleText: string;
@@ -709,6 +712,7 @@ export function defaultEditorSettings(): EditorSettings {
       hookText: "",
       bestBarText: "",
       lines: [],
+      captionSplitStyle: "short",
       style: "Karaoke Highlight",
       titleText: "",
       lyricText: "",
