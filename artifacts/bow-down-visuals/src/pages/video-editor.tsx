@@ -4,7 +4,7 @@ import {
   ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Play, Pause,
-  RefreshCw, Zap, SkipBack,
+  RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2, Volume2,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -896,7 +896,60 @@ function MasterPreviewPlayer({
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
-  const isTimelineTab = tab === "timeline";
+  const containerRef  = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pipActive,    setPipActive   ] = useState(false);
+  const [pipError,     setPipError    ] = useState<string | null>(null);
+
+  /* Track fullscreen state via browser event */
+  useEffect(() => {
+    const onFSChange = () => setIsFullscreen(
+      document.fullscreenElement === containerRef.current,
+    );
+    document.addEventListener("fullscreenchange", onFSChange);
+    return () => document.removeEventListener("fullscreenchange", onFSChange);
+  }, []);
+
+  /* Track PiP state */
+  useEffect(() => {
+    const v = liveVideoRef.current;
+    if (!v) return;
+    const onEnter = () => setPipActive(true);
+    const onLeave = () => setPipActive(false);
+    v.addEventListener("enterpictureinpicture", onEnter);
+    v.addEventListener("leavepictureinpicture", onLeave);
+    return () => {
+      v.removeEventListener("enterpictureinpicture", onEnter);
+      v.removeEventListener("leavepictureinpicture", onLeave);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleFullscreen() {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void containerRef.current.requestFullscreen();
+  }
+
+  async function togglePiP() {
+    setPipError(null);
+    const v = liveVideoRef.current;
+    if (!v) return;
+    if (!document.pictureInPictureEnabled) {
+      setPipError("Picture-in-Picture is not supported in this browser.");
+      return;
+    }
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        await v.requestPictureInPicture();
+      }
+    } catch (e) {
+      setPipError(`PiP failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   const isPlaying     = eng?.isPlaying ?? false;
   const currentTime   = eng?.currentTime ?? 0;
   const duration      = eng?.audioDuration ?? 0;
@@ -904,37 +957,44 @@ function MasterPreviewPlayer({
   const currentScene  = sceneIdx >= 0 ? scenes[sceneIdx] : null;
   const activeCaption = eng?.activeCaption ?? null;
 
-  // Clip loaded when: timeline running and scene has a clip, OR static clip preview selected
-  const clipLoaded = isTimelineTab
-    ? !!currentScene?.demoClipUrl
-    : !!previewScene?.demoClipUrl;
+  /* When engine is running use engine scene; otherwise use the static preview scene */
+  const displayScene    = eng ? currentScene : previewScene;
+  const displaySceneIdx = eng ? sceneIdx : (previewScene ? scenes.indexOf(previewScene) : -1);
 
+  const clipLoaded    = !!displayScene?.demoClipUrl;
   const captionLoaded = !!activeCaption;
+  const hasScenes     = scenes.length > 0;
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-black/50 overflow-hidden mb-6">
-
+    <div
+      ref={containerRef}
+      className={`overflow-hidden mb-6 ${
+        isFullscreen
+          ? "bg-black flex flex-col"
+          : "rounded-2xl border border-white/[0.08] bg-black/50"
+      }`}
+    >
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
-      <div className="aspect-video bg-black relative">
+      <div className={`bg-black relative ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}>
 
         {/* The single <video> element — always mounted so liveVideoRef is always valid */}
         <MasterVideoElement videoRef={liveVideoRef} />
 
-        {/* No-clip placeholder — absolutely positioned over the (empty) video */}
+        {/* No-clip placeholder — over the (empty) video */}
         {!clipLoaded && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/20 pointer-events-none">
             <Film className="h-12 w-12" />
             <p className="text-sm font-medium text-center px-6">
               {scenes.length === 0
                 ? "Generate scenes to preview"
-                : isTimelineTab
-                  ? "Press Play — clip plays here when active scene has one"
-                  : "Click Preview on any scene to watch it here"}
+                : eng
+                  ? "Active scene has no clip — audio still playing"
+                  : "Click Preview on a clip card, or press Play to start"}
             </p>
           </div>
         )}
 
-        {/* Caption overlay — driven by engine's activeCaption */}
+        {/* Caption overlay */}
         {activeCaption && (
           <div className="absolute bottom-6 left-0 right-0 px-4 flex justify-center pointer-events-none">
             <div
@@ -953,40 +1013,35 @@ function MasterPreviewPlayer({
         )}
 
         {/* Scene badge — top-left */}
-        {isTimelineTab && eng && currentScene && (
+        {displayScene && displaySceneIdx >= 0 && (
           <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-sm pointer-events-none">
             <Film className="h-3 w-3 text-primary/60" />
-            <span className="text-[10px] font-bold text-white/70">
-              Scene {sceneIdx + 1}/{scenes.length}
-              {currentScene.section ? ` · ${currentScene.section}` : ""}
+            <span className="text-[10px] font-bold text-white/70 max-w-[200px] truncate">
+              Scene {displaySceneIdx + 1}/{scenes.length}
+              {displayScene.section ? ` · ${displayScene.section}` : ""}
             </span>
           </div>
         )}
 
-        {/* Clips-tab scene label */}
-        {!isTimelineTab && previewScene && (
-          <div className="absolute top-2 left-2 pointer-events-none">
-            <div className="px-2 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-sm text-[10px] font-bold text-white/70 max-w-xs truncate">
-              {previewScene.section || previewScene.lyricLine || "Preview"}
-            </div>
-          </div>
-        )}
-
-        {/* Playing indicator — top-right */}
-        {isPlaying && (
+        {/* Playing indicator / audio status — top-right */}
+        {isPlaying ? (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
-            <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+            <Volume2 className="h-3 w-3 text-black animate-pulse" />
             <span className="text-[10px] font-black text-black uppercase tracking-wide">Live</span>
           </div>
-        )}
+        ) : eng && !isPlaying ? (
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/10 border border-white/10 backdrop-blur-sm pointer-events-none">
+            <span className="text-[10px] font-bold text-white/50">Paused</span>
+          </div>
+        ) : null}
 
-        {/* Big play button overlay — timeline tab, not playing, has scenes */}
-        {isTimelineTab && !isPlaying && scenes.length > 0 && (
+        {/* Big play button overlay — not playing, has scenes */}
+        {!isPlaying && hasScenes && (
           <button
             type="button"
             onClick={onTogglePlay}
             className="absolute inset-0 flex items-center justify-center"
-            aria-label="Start timeline preview"
+            aria-label="Start preview"
           >
             <div className="h-14 w-14 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center hover:bg-primary/30 transition-colors backdrop-blur-sm">
               <Play className="h-6 w-6 text-primary ml-0.5" />
@@ -995,48 +1050,75 @@ function MasterPreviewPlayer({
         )}
       </div>
 
-      {/* ── Transport bar ── */}
-      <div className="flex items-center gap-3 px-4 py-3 border-t border-white/[0.06]">
-        {isTimelineTab && (
-          <>
-            <button type="button" onClick={onRestart}
-              className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white"
-              title="Restart">
-              <SkipBack className="h-4 w-4" />
-            </button>
-            <button type="button" onClick={onTogglePlay} disabled={scenes.length === 0}
-              className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-40"
-              title={isPlaying ? "Pause" : "Play"}>
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </button>
-          </>
-        )}
+      {/* ── Transport bar — visible on EVERY tab ── */}
+      <div className={`flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] ${isFullscreen ? "shrink-0" : ""}`}>
+        {/* Restart */}
+        <button type="button" onClick={onRestart} disabled={!hasScenes}
+          className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white disabled:opacity-30"
+          title="Restart">
+          <SkipBack className="h-4 w-4" />
+        </button>
+        {/* Play / Pause */}
+        <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
+          className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30"
+          title={isPlaying ? "Pause" : "Play"}>
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+        </button>
+        {/* Progress bar */}
         <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
-          <div className="h-full bg-primary/70 rounded-full transition-all"
+          <div className="h-full bg-primary/70 rounded-full transition-none"
             style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
         </div>
-        {isTimelineTab && (
-          <span className="text-xs font-mono text-white/40 tabular-nums shrink-0">
-            {fmtSecs(currentTime)} / {fmtSecs(duration)}
-          </span>
-        )}
+        {/* Time */}
+        <span className="text-[11px] font-mono text-white/40 tabular-nums shrink-0 w-[80px] text-right">
+          {fmtSecs(currentTime)} / {fmtSecs(duration || 0)}
+        </span>
+        {/* PiP */}
+        <button type="button" onClick={() => void togglePiP()}
+          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+            pipActive
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
+          }`}
+          title={pipActive ? "Exit Picture-in-Picture" : "Picture-in-Picture"}>
+          <PictureInPicture2 className="h-4 w-4" />
+        </button>
+        {/* Fullscreen */}
+        <button type="button" onClick={toggleFullscreen}
+          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+            isFullscreen
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
+          }`}
+          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
+          {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+        </button>
       </div>
 
+      {/* PiP error message */}
+      {pipError && (
+        <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono">
+          {pipError}
+        </div>
+      )}
+
       {/* ── Status bar ── */}
-      <div className="px-4 py-2 border-t border-white/[0.04] flex flex-wrap gap-x-5 gap-y-0.5">
+      <div className="px-4 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-5 gap-y-0.5">
         <span className="text-[10px] font-mono text-white/25">
           Master Player: <span className="text-green-400/70">Connected ✓</span>
         </span>
         <span className="text-[10px] font-mono text-white/25">
-          Duplicate Preview: <span className="text-green-400/70">Removed ✓</span>
+          Active Clip: <span className={clipLoaded ? "text-green-400/70" : "text-white/25"}>{clipLoaded ? "loaded ✓" : "none"}</span>
         </span>
         <span className="text-[10px] font-mono text-white/25">
-          Active Clip: <span className={clipLoaded ? "text-green-400/70" : "text-white/30"}>{clipLoaded ? "loaded ✓" : "none"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          Active Caption: <span className={captionLoaded ? "text-blue-400/70" : "text-white/30"}>
-            {captionLoaded ? `"${activeCaption!.text.slice(0, 24)}${activeCaption!.text.length > 24 ? "…" : ""}"` : "none"}
+          Caption: <span className={captionLoaded ? "text-blue-400/70" : "text-white/25"}>
+            {captionLoaded
+              ? `"${activeCaption!.text.slice(0, 28)}${activeCaption!.text.length > 28 ? "…" : ""}"`
+              : "none"}
           </span>
+        </span>
+        <span className="text-[10px] font-mono text-white/25">
+          Audio: <span className={isPlaying ? "text-green-400/70" : "text-white/25"}>{isPlaying ? "playing ✓" : "stopped"}</span>
         </span>
       </div>
     </div>
