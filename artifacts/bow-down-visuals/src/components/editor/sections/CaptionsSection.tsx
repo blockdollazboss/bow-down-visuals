@@ -24,6 +24,10 @@ interface Props {
   lyrics?: string;
   /** Song duration in seconds — used to spread captions evenly */
   songDuration?: number;
+  /** Currently selected caption ID — highlights the row and shows it in Live Preview */
+  selectedCaptionId?: string | null;
+  /** Called when a caption row is clicked */
+  onSelectCaption?: (id: string | null) => void;
 }
 
 type StatusType = "success" | "error" | "info";
@@ -111,7 +115,7 @@ const SPLIT_STYLE_DEFS = [
   { id: "long",   label: "Long",   hint: "8–12 words" },
 ] as const;
 
-export function CaptionsSection({ settings, setSettings, lyrics, songDuration }: Props) {
+export function CaptionsSection({ settings, setSettings, lyrics, songDuration, selectedCaptionId, onSelectCaption }: Props) {
   const c = settings.captions;
   const splitStyle = c.captionSplitStyle ?? "short";
 
@@ -578,46 +582,66 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration }:
               <span className="text-[10px] font-black text-white/30 uppercase tracking-wider">Del</span>
             </div>
 
+            {/* Selection hint */}
+            <p className="text-[10px] text-white/30 px-1 -mt-1">
+              Click a row to preview it in Live Preview →
+            </p>
+
             <div className="space-y-1.5 max-h-[480px] overflow-y-auto pr-1">
-              {c.lines.map((line, i) => (
-                <div key={line.id} data-testid={`caption-row-${i}`} className="grid grid-cols-[70px_70px_1fr_auto] gap-2 items-center group">
-                  <input
-                    type="number"
-                    value={line.startSec}
-                    min={0}
-                    step={0.1}
-                    onChange={(e) => updateLine(line.id, { startSec: parseFloat(e.target.value) || 0 })}
-                    data-testid={`caption-line-${i}-start`}
-                    title={secToLabel(line.startSec)}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
-                  />
-                  <input
-                    type="number"
-                    value={line.endSec}
-                    min={0}
-                    step={0.1}
-                    onChange={(e) => updateLine(line.id, { endSec: parseFloat(e.target.value) || 0 })}
-                    data-testid={`caption-line-${i}-end`}
-                    title={line.endSec >= 999 ? "Full video" : secToLabel(line.endSec)}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
-                  />
-                  <input
-                    type="text"
-                    value={line.text}
-                    onChange={(e) => updateLine(line.id, { text: e.target.value })}
-                    data-testid={`caption-line-${i}-text`}
-                    className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => deleteLine(line.id)}
-                    data-testid={`caption-line-${i}-delete`}
-                    className="text-white/20 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100"
+              {c.lines.map((line, i) => {
+                const isSelected = selectedCaptionId === line.id;
+                return (
+                  <div
+                    key={line.id}
+                    data-testid={`caption-row-${i}`}
+                    onClick={() => onSelectCaption?.(isSelected ? null : line.id)}
+                    className={`grid grid-cols-[70px_70px_1fr_auto] gap-2 items-center group rounded-lg px-1 py-0.5 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-primary/[0.08] outline outline-1 outline-primary/40"
+                        : "hover:bg-white/[0.03]"
+                    }`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+                    <input
+                      type="number"
+                      value={line.startSec}
+                      min={0}
+                      step={0.1}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { updateLine(line.id, { startSec: parseFloat(e.target.value) || 0 }); onSelectCaption?.(line.id); }}
+                      data-testid={`caption-line-${i}-start`}
+                      title={secToLabel(line.startSec)}
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
+                    />
+                    <input
+                      type="number"
+                      value={line.endSec}
+                      min={0}
+                      step={0.1}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { updateLine(line.id, { endSec: parseFloat(e.target.value) || 0 }); onSelectCaption?.(line.id); }}
+                      data-testid={`caption-line-${i}-end`}
+                      title={line.endSec >= 999 ? "Full video" : secToLabel(line.endSec)}
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors [appearance:textfield]"
+                    />
+                    <input
+                      type="text"
+                      value={line.text}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { updateLine(line.id, { text: e.target.value }); onSelectCaption?.(line.id); }}
+                      data-testid={`caption-line-${i}-text`}
+                      className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-white/70 focus:outline-none focus:border-primary/40 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteLine(line.id); if (isSelected) onSelectCaption?.(null); }}
+                      data-testid={`caption-line-${i}-delete`}
+                      className="text-white/20 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </EditorCard>

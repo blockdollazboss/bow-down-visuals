@@ -93,6 +93,7 @@ export default function VideoEditor() {
   const [syncState, setSyncState] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [transcriptText, setTranscriptText] = useState<string | null>(null);
+  const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
 
   const hydrated  = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -506,6 +507,8 @@ export default function VideoEditor() {
                 songTitle={songTitle}
                 onGoToTimeline={() => setTab("timeline")}
                 onSetPreviewSceneId={setPreviewSceneId}
+                selectedCaptionId={selectedCaptionId}
+                onSelectCaption={setSelectedCaptionId}
               />
             </div>
 
@@ -696,6 +699,8 @@ export default function VideoEditor() {
                     setSettings={setSettings}
                     lyrics={lyricsForCaptions ?? undefined}
                     songDuration={songDuration ?? undefined}
+                    selectedCaptionId={selectedCaptionId}
+                    onSelectCaption={setSelectedCaptionId}
                   />
                 )}
 
@@ -730,6 +735,8 @@ export default function VideoEditor() {
                   songTitle={songTitle}
                   onGoToTimeline={() => setTab("timeline")}
                   onSetPreviewSceneId={setPreviewSceneId}
+                  selectedCaptionId={selectedCaptionId}
+                  onSelectCaption={setSelectedCaptionId}
                 />
               </div>
             </div>
@@ -743,7 +750,8 @@ export default function VideoEditor() {
 /* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
 
 function LivePreviewPanel({
-  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle, onGoToTimeline, onSetPreviewSceneId,
+  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle,
+  onGoToTimeline, onSetPreviewSceneId, selectedCaptionId, onSelectCaption,
 }: {
   tab: EditorTab;
   previewScene: SceneData | null;
@@ -755,11 +763,15 @@ function LivePreviewPanel({
   songTitle: string;
   onGoToTimeline: () => void;
   onSetPreviewSceneId: (id: string) => void;
+  selectedCaptionId?: string | null;
+  onSelectCaption?: (id: string | null) => void;
 }) {
-  /* demoClipUrl is the canonical field on SceneData */
   const clipUrl = previewScene?.demoClipUrl ?? null;
-
   const clipCount = scenes.filter(sceneHasClip).length;
+
+  /* Track video playback time for time-synced caption display */
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
 
   /* Shared video player used by clips / captions / effects / music tabs */
   function VideoPlayer({ overlay, filterStyle }: { overlay?: ReactNode; filterStyle?: string }) {
@@ -785,6 +797,8 @@ function LivePreviewPanel({
           src={clipUrl}
           controls
           playsInline
+          ref={(el) => { videoRef.current = el; }}
+          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
           className="w-full h-full object-contain"
           style={filterStyle ? { filter: filterStyle } : undefined}
           data-testid="preview-video-player"
@@ -885,62 +899,132 @@ function LivePreviewPanel({
         )}
 
         {/* ── CAPTIONS tab ── */}
-        {tab === "captions" && (
-          <>
-            {clipUrl ? (
-              <VideoPlayer
-                overlay={
-                  settings.captions.mode !== "none" ? (
-                    <div
-                      className={`absolute left-0 right-0 px-3 pb-3 flex justify-center pointer-events-none ${
-                        settings.captions.position === "top" ? "top-3" : "bottom-3"
-                      }`}
-                    >
+        {tab === "captions" && (() => {
+          const lines = settings.captions.lines;
+          const cap = settings.captions;
+
+          /* Which caption to show: pinned selection → time-synced → none */
+          const activeLine =
+            selectedCaptionId
+              ? (lines.find((l) => l.id === selectedCaptionId) ?? null)
+              : lines.find((l) => l.startSec <= currentTime && currentTime < l.endSec) ?? null;
+
+          const posClass =
+            cap.position === "Top"
+              ? "top-3 items-start"
+              : cap.position === "Center"
+                ? "inset-y-0 items-center"
+                : "bottom-3 items-end";
+
+          const captionOverlay = (
+            <div className={`absolute left-0 right-0 px-4 flex flex-col justify-center pointer-events-none ${posClass}`}>
+              {activeLine ? (
+                <div
+                  data-testid="caption-preview-text"
+                  className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug"
+                  style={{
+                    fontSize: "clamp(15px, 3.5vw, 22px)",
+                    fontWeight: 800,
+                    color: cap.textColor || "#ffffff",
+                    background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
+                    textShadow: cap.outline
+                      ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000"
+                      : "0 2px 8px rgba(0,0,0,0.9)",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {activeLine.text}
+                </div>
+              ) : (
+                lines.length > 0 ? (
+                  <div className="text-center">
+                    <p className="text-[11px] text-white/30 bg-black/50 px-2 py-1 rounded">
+                      {selectedCaptionId ? "Caption not found" : "Click a caption line to preview it"}
+                    </p>
+                  </div>
+                ) : null
+              )}
+            </div>
+          );
+
+          /* "Caption Preview Active" badge */
+          const previewBadge = activeLine ? (
+            <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
+              <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
+              <span className="text-[10px] font-black text-black uppercase tracking-wide">Caption Preview Active</span>
+            </div>
+          ) : null;
+
+          return (
+            <>
+              {clipUrl ? (
+                <VideoPlayer overlay={<>{previewBadge}{captionOverlay}</>} />
+              ) : (
+                /* No clip — black preview card with caption text */
+                <div className="rounded-xl border border-white/[0.07] bg-black aspect-video relative overflow-hidden flex items-center justify-center">
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+                  {previewBadge}
+                  {activeLine ? (
+                    <div className={`absolute left-0 right-0 px-4 flex flex-col pointer-events-none ${posClass}`}>
                       <div
-                        className="px-3 py-1 rounded-md text-center max-w-[90%]"
+                        data-testid="caption-preview-text-card"
+                        className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug"
                         style={{
-                          fontSize: "14px",
-                          color: settings.captions.textColor || "#ffffff",
-                          background: settings.captions.background ? "rgba(0,0,0,0.7)" : "transparent",
-                          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+                          fontSize: "clamp(15px, 3.5vw, 22px)",
+                          fontWeight: 800,
+                          color: cap.textColor || "#ffffff",
+                          background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
+                          textShadow: cap.outline
+                            ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000"
+                            : "0 2px 8px rgba(0,0,0,0.9)",
+                          letterSpacing: "0.01em",
                         }}
                       >
-                        {songTitle ? `♪ ${songTitle}` : "Your captions appear here"}
+                        {activeLine.text}
                       </div>
                     </div>
-                  ) : null
-                }
-              />
-            ) : (
-              /* No clip yet — show the caption mock with a dark background */
-              <div className="rounded-xl border border-white/[0.07] bg-black aspect-video flex items-end p-4 overflow-hidden relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60" />
-                {settings.captions.mode !== "none" ? (
-                  <div className="relative z-10 w-full flex justify-center">
-                    <div
-                      className="px-3 py-1.5 rounded-lg text-center"
-                      style={{
-                        fontSize: "14px",
-                        color: settings.captions.textColor || "#ffffff",
-                        background: settings.captions.background ? "rgba(0,0,0,0.6)" : "transparent",
-                      }}
-                    >
-                      {songTitle ? `♪ ${songTitle}` : "Select a clip before previewing captions."}
+                  ) : (
+                    <div className="relative z-10 text-center px-4 space-y-1">
+                      <p className="text-xs text-white/30">
+                        {lines.length > 0
+                          ? "No video clip selected. Showing caption preview card."
+                          : "No captions yet — generate from lyrics first"}
+                      </p>
+                      {lines.length > 0 && (
+                        <p className="text-[10px] text-white/20">Click a caption line to preview it here</p>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="relative z-10 w-full text-center">
-                    <p className="text-xs text-white/25">Captions off — select a mode to preview</p>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
+
+              {/* Status row */}
+              <div className="flex items-center justify-between text-[10px] text-white/30 px-0.5">
+                <span>
+                  {selectedCaptionId
+                    ? <span className="text-primary/80 font-bold">Caption selected</span>
+                    : lines.length > 0
+                      ? "No caption selected"
+                      : <span className="text-white/20">No captions generated yet</span>
+                  }
+                </span>
+                <span className="capitalize">{cap.mode} · {cap.position}</span>
               </div>
-            )}
-            <p className="text-[11px] text-white/30 text-center">
-              Mode: <span className="text-white/50 font-semibold capitalize">{settings.captions.mode}</span>
-              {settings.captions.position && <> · {settings.captions.position}</>}
-            </p>
-          </>
-        )}
+
+              {/* Caption count + timing info */}
+              {lines.length > 0 && (
+                <div className="flex items-center justify-between text-[10px] text-white/25 px-0.5">
+                  <span>{lines.length} caption{lines.length !== 1 ? "s" : ""}</span>
+                  {activeLine && (
+                    <span className="font-mono">
+                      {activeLine.startSec.toFixed(1)}s – {activeLine.endSec.toFixed(1)}s
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* ── EFFECTS tab ── */}
         {tab === "effects" && (
