@@ -609,30 +609,54 @@ export default function VideoEditor() {
               {/* LEFT: tabs + content */}
               <div>
                 {/* Active Artist pill */}
-                {activeArtist && (
-                  <div className="flex items-center gap-2.5 px-3 py-2 mb-4 rounded-xl border border-green-500/25 bg-green-500/[0.06]">
-                    <div className="h-7 w-7 rounded-lg overflow-hidden shrink-0">
-                      {activeArtist.reference_image_url ? (
-                        <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-primary/20 flex items-center justify-center">
-                          <span className="text-[10px] font-black text-primary">{activeArtist.artist_name[0]?.toUpperCase()}</span>
+                {activeArtist && (() => {
+                  const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
+                  return (
+                    <div style={{
+                      borderRadius: 12,
+                      border: "1px solid rgba(201,168,76,0.3)",
+                      background: "linear-gradient(90deg, rgba(201,168,76,0.07) 0%, rgba(0,0,0,0) 70%)",
+                      padding: "7px 12px",
+                      display: "flex", alignItems: "center", gap: 9,
+                      position: "relative", overflow: "hidden",
+                      marginBottom: 16,
+                    }}>
+                      <div style={{
+                        position: "absolute", left: 0, top: 0, bottom: 0, width: 2,
+                        background: "#C9A84C", borderRadius: "2px 0 0 2px",
+                      }} />
+                      <div style={{
+                        width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                        background: "rgba(201,168,76,0.18)",
+                        border: "1.5px solid rgba(201,168,76,0.4)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, fontWeight: 900, color: "#C9A84C",
+                        fontFamily: "Georgia, serif",
+                        boxShadow: "0 0 10px rgba(201,168,76,0.2)",
+                        overflow: "hidden",
+                      }}>
+                        {activeArtist.reference_image_url ? (
+                          <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : initials}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: "#C9A84C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {activeArtist.artist_name}
+                        </p>
+                        {(activeArtist.artist_type || activeArtist.genre) && (
+                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                            {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      {consistencyPrompt && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
+                          🔒 Locked
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-green-400 truncate">Active Artist: {activeArtist.artist_name}</p>
-                      {(activeArtist.artist_type || activeArtist.genre) && (
-                        <p className="text-[10px] text-white/35 truncate">{[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}</p>
-                      )}
-                    </div>
-                    {consistencyPrompt && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400/70 shrink-0">
-                        <CheckCircle2 className="h-3 w-3" /> Consistency Lock Active
-                      </span>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Tab nav */}
                 <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">

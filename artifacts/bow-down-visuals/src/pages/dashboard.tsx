@@ -313,48 +313,108 @@ export default function Dashboard() {
         </div>
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}
-        <div className={`flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 rounded-2xl border transition-all ${
-          activeArtist
-            ? "border-white/20 bg-white/[0.04]"
-            : "border-white/[0.06] bg-white/[0.02]"
-        }`}>
-          <div className={`h-10 w-10 rounded-full border-2 flex items-center justify-center shrink-0 overflow-hidden ${
-            activeArtist ? "border-white/25" : "border-white/10"
-          }`}>
-            {activeArtist?.reference_image_url ? (
-              <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover" />
-            ) : (
-              <User className={`h-5 w-5 ${activeArtist ? "text-zinc-300" : "text-white/20"}`} />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            {activeArtist ? (
-              <>
-                <p className="text-[10px] font-bold tracking-widest text-zinc-300/60 uppercase">Active Artist</p>
-                <p className="text-sm font-black text-white truncate">{activeArtist.artist_name}</p>
-                {(activeArtist.genre || activeArtist.artist_type) && (
-                  <p className="text-xs text-white/35 truncate">{[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}</p>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="text-[10px] font-bold tracking-widest text-white/30 uppercase">Active Artist</p>
-                <p className="text-sm text-white/40 flex items-center gap-1.5">
-                  <AlertCircle className="h-3.5 w-3.5 text-white/20" />
-                  No artist selected. Choose one to get consistent style across your content.
+        {activeArtist ? (() => {
+          const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
+          const hasConsistency = !!(activeArtist.consistency_prompt || activeArtist.reference_image_url);
+          return (
+            <div style={{
+              borderRadius: 18,
+              border: "1px solid rgba(201,168,76,0.28)",
+              background: "linear-gradient(90deg, rgba(201,168,76,0.06) 0%, rgba(0,0,0,0) 60%)",
+              padding: "12px 16px",
+              display: "flex", alignItems: "center", gap: 14,
+              position: "relative", overflow: "hidden",
+              boxShadow: "0 0 24px rgba(201,168,76,0.06), inset 0 1px 0 rgba(201,168,76,0.1)",
+            }}>
+              <div style={{
+                position: "absolute", left: 0, top: 0, bottom: 0, width: 2.5,
+                background: "linear-gradient(to bottom, #C9A84C, rgba(201,168,76,0))",
+                borderRadius: "2px 0 0 2px",
+              }} />
+              <div style={{
+                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                background: "linear-gradient(135deg, rgba(201,168,76,0.2) 0%, rgba(201,168,76,0.06) 100%)",
+                border: "1.5px solid rgba(201,168,76,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 0 14px rgba(201,168,76,0.2)",
+                position: "relative", overflow: "hidden",
+                fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 900, color: "#C9A84C",
+              }}>
+                {activeArtist.reference_image_url ? (
+                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : initials}
+                <div style={{
+                  position: "absolute", bottom: -1, right: -1,
+                  width: 9, height: 9, borderRadius: "50%",
+                  background: "#C9A84C", border: "1.5px solid #080808",
+                  boxShadow: "0 0 6px #C9A84C",
+                }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <p style={{ fontSize: 13, fontWeight: 900, color: "#fff", letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {activeArtist.artist_name}
+                  </p>
+                  <span style={{
+                    fontSize: 7.5, fontWeight: 900, color: "#C9A84C",
+                    background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)",
+                    borderRadius: 4, padding: "1px 5px", letterSpacing: "0.12em", flexShrink: 0,
+                  }}>ACTIVE</span>
+                </div>
+                <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
+                  {hasConsistency ? " · 🔒 Locked" : ""}
                 </p>
-              </>
-            )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setLocation("/choose-artist")}
+                style={{
+                  height: 30, borderRadius: 9,
+                  border: "1px solid rgba(201,168,76,0.3)",
+                  background: "rgba(201,168,76,0.08)",
+                  color: "#C9A84C", fontSize: 10.5, fontWeight: 800,
+                  cursor: "pointer", padding: "0 12px", flexShrink: 0,
+                  letterSpacing: "0.04em", whiteSpace: "nowrap",
+                }}
+              >Change →</button>
+            </div>
+          );
+        })() : (
+          <div style={{
+            borderRadius: 18,
+            border: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.02)",
+            padding: "12px 16px",
+            display: "flex", alignItems: "center", gap: 14,
+          }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <User className="h-5 w-5 text-white/20" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.16em", textTransform: "uppercase" }}>Active Artist</p>
+              <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.35)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+                <AlertCircle className="h-3.5 w-3.5 text-white/20 shrink-0" />
+                No artist selected — choose one for consistent AI style
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLocation("/choose-artist")}
+              style={{
+                height: 30, borderRadius: 9,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700,
+                cursor: "pointer", padding: "0 12px", flexShrink: 0,
+              }}
+            >Choose Artist</button>
           </div>
-          <button
-            type="button"
-            onClick={() => setLocation("/choose-artist")}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/20 bg-white/[0.05] text-zinc-200 hover:bg-white/[0.10] transition-colors shrink-0"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {activeArtist ? "Change Artist" : "Choose Artist"}
-          </button>
-        </div>
+        )}
 
         {/* ── 3. CREATOR CARDS ── */}
         <section>
