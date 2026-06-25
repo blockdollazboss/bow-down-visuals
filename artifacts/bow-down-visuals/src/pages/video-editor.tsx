@@ -1274,6 +1274,31 @@ function MasterPreviewPlayer({
           </span>
         )}
       </div>
+
+      {/* ── Auto PiP Source debug ── */}
+      <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
+        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Auto PiP Source:</span>
+        <span className="text-[10px] font-mono text-white/20">
+          using master player: <span className="text-green-400/60">yes ✓</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/20">
+          duplicate PiP source detected: <span className="text-green-400/60">no ✓</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/20">
+          PiP video source = master source: <span className="text-green-400/60">yes ✓</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/20">
+          PiP scene = master scene: <span className={eng ? "text-green-400/60" : "text-white/20"}>{eng ? `yes ✓ (Scene ${(eng.activeSceneIndex ?? 0) + 1})` : "no engine"}</span>
+        </span>
+        <span className="text-[10px] font-mono text-white/20">
+          PiP caption = master caption: <span className={eng?.activeCaption ? "text-green-400/60" : "text-white/20"}>{eng?.activeCaption ? `yes ✓ ("${eng.activeCaption.text.slice(0,18)}…")` : "none"}</span>
+        </span>
+        {pipActive && (
+          <span className="text-[10px] font-mono text-amber-400/50 w-full">
+            ⚠ PiP may not show HTML overlays. Captions will appear in final export.
+          </span>
+        )}
+      </div>
     </div>
   );
 }
