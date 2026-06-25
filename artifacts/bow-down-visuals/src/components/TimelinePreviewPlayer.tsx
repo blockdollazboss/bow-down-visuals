@@ -16,7 +16,7 @@
  * audioDuration is known, scenes are distributed evenly across the song.
  */
 import {
-  useState, useEffect, useRef, useCallback,
+  useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle,
   type CSSProperties,
 } from "react";
 import {
@@ -70,6 +70,14 @@ export interface SharedPreviewState {
   activeCaption: CaptionLine | null;
 }
 
+/** Imperative handle exposed via ref so the master player can control audio */
+export interface TimelinePlayerHandle {
+  /** Toggle play/pause — resumes from current position or starts from 0 */
+  togglePlay: () => void;
+  /** Restart playback from the beginning */
+  restart: () => void;
+}
+
 export interface TimelinePreviewPlayerProps {
   scenes: SceneData[];
   captionLines: CaptionLine[];
@@ -86,14 +94,15 @@ export interface TimelinePreviewPlayerProps {
   onEngineUpdate?: (state: SharedPreviewState) => void;
 }
 
-export function TimelinePreviewPlayer({
+export const TimelinePreviewPlayer = forwardRef<TimelinePlayerHandle, TimelinePreviewPlayerProps>(
+function TimelinePreviewPlayer({
   scenes,
   captionLines,
   audioUrl,
   initialSceneId,
   captionSettings,
   onEngineUpdate,
-}: TimelinePreviewPlayerProps) {
+}: TimelinePreviewPlayerProps, ref) {
 
   /* ── Core state ── */
   const [currentTime,   setCurrentTime  ] = useState(0);
@@ -357,6 +366,20 @@ export function TimelinePreviewPlayer({
     if (document.fullscreenElement) void document.exitFullscreen();
     else void containerRef.current.requestFullscreen();
   }
+
+  /* ─── Imperative handle for master player ─────────────────── */
+  useImperativeHandle(ref, () => ({
+    togglePlay() {
+      if (playing) {
+        pauseTimeline();
+      } else if (currentTimeRef.current > 0) {
+        resumeTimeline();
+      } else {
+        startTimeline();
+      }
+    },
+    restart: startTimeline,
+  }));
 
   /* ─── Caption style ─────────────────────────────────────────── */
 
@@ -742,7 +765,7 @@ export function TimelinePreviewPlayer({
       </div>
     </div>
   );
-}
+});
 
 /* ─── Debug row ─────────────────────────────────────────────────── */
 function DR({

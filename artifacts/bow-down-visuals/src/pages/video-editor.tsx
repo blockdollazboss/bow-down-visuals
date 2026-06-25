@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type RefObject, type ReactNode } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
-  CheckCircle2, Circle, Layers, Monitor, Eye, Volume2, Palette, Play,
-  RefreshCw, Zap,
+  CheckCircle2, Circle, Layers, Play, Pause,
+  RefreshCw, Zap, SkipBack,
 } from "lucide-react";
 import { HelpPanel } from "@/components/HelpPanel";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
-import { TimelinePreviewPlayer, type SharedPreviewState } from "@/components/TimelinePreviewPlayer";
+import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
 import { parseScenesWithMode, parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import {
   normalizeEditorSettings,
@@ -104,6 +104,10 @@ export default function VideoEditor() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Always-current ref so persist() never uses a stale scenes closure
   const scenesRef = useRef<SceneData[]>([]);
+  /** Imperative handle into TimelinePreviewPlayer — lets master player control audio */
+  const timelinePlayerRef = useRef<TimelinePlayerHandle>(null);
+  /** Single shared video element driven imperatively by the effect below */
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
 
   /* ── Load project ── */
   useEffect(() => {
@@ -489,6 +493,34 @@ export default function VideoEditor() {
   const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
+  /* ── Drive the master preview <video> element imperatively ──────────
+     Single effect in VideoEditor so the video element is shared across
+     ALL tabs. Fires on engine scene-change, play/pause, or clip selection.  */
+  useEffect(() => {
+    const v = liveVideoRef.current;
+    if (!v) return;
+    const eng = previewEngineState;
+
+    if (eng?.isPlaying) {
+      const engClip = (scenes[eng.activeSceneIndex] ?? null)?.demoClipUrl ?? null;
+      if (engClip) {
+        if (v.src !== engClip) { v.src = engClip; v.currentTime = 0; }
+        void v.play().catch(() => {});
+      } else {
+        v.pause();
+        v.removeAttribute("src");
+      }
+    } else if (eng && !eng.isPlaying) {
+      v.pause();
+    } else {
+      // Engine not started — show the selected preview clip (static)
+      const clip = previewScene?.demoClipUrl ?? null;
+      if (clip && v.src !== clip) { v.src = clip; v.currentTime = 0; }
+      else if (!clip) { v.pause(); v.removeAttribute("src"); }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewEngineState?.activeSceneIndex, previewEngineState?.isPlaying, previewScene?.demoClipUrl]);
+
   /* ── Character consistency ── */
   const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
   function applyConsistencyToAllScenes() {
@@ -551,11 +583,6 @@ export default function VideoEditor() {
           </div>
         ) : (
           <>
-            {/* TIMELINE DEBUG BUILD V1 — remove once confirmed working */}
-            <div className="mb-3 px-3 py-1.5 rounded-lg bg-primary/20 border border-primary/40 text-xs font-black text-primary uppercase tracking-widest text-center">
-              TIMELINE DEBUG BUILD V1
-            </div>
-
             {/* Header — full width */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
@@ -585,92 +612,102 @@ export default function VideoEditor() {
               exportReady={scenes.some((s) => s.approved && sceneHasClip(s))}
             />
 
-            {/* ── Mobile preview panel (shown above tabs on small screens) ── */}
-            <div className="lg:hidden mb-5">
-              <LivePreviewPanel
-                tab={tab}
-                previewScene={previewScene}
-                scenes={scenes}
-                approvedCount={approvedCount}
-                audioUrl={audioUrl}
-                settings={settings}
-                artistName={artistName}
-                songTitle={songTitle}
-                onGoToTimeline={() => setTab("timeline")}
-                onSetPreviewSceneId={setPreviewSceneId}
-                selectedCaptionId={selectedCaptionId}
-                onSelectCaption={setSelectedCaptionId}
-                previewEngineState={previewEngineState}
-              />
+            {/* Active Artist pill — full width */}
+            {activeArtist && (() => {
+              const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
+              return (
+                <div style={{
+                  borderRadius: 12,
+                  border: "1px solid rgba(201,168,76,0.3)",
+                  background: "linear-gradient(90deg, rgba(201,168,76,0.07) 0%, rgba(0,0,0,0) 70%)",
+                  padding: "7px 12px",
+                  display: "flex", alignItems: "center", gap: 9,
+                  position: "relative", overflow: "hidden",
+                  marginBottom: 16,
+                }}>
+                  <div style={{
+                    position: "absolute", left: 0, top: 0, bottom: 0, width: 2,
+                    background: "#C9A84C", borderRadius: "2px 0 0 2px",
+                  }} />
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                    background: "rgba(201,168,76,0.18)",
+                    border: "1.5px solid rgba(201,168,76,0.4)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 13, fontWeight: 900, color: "#C9A84C",
+                    fontFamily: "Georgia, serif",
+                    boxShadow: "0 0 14px rgba(201,168,76,0.25)",
+                    overflow: "hidden",
+                  }}>
+                    {activeArtist.reference_image_url ? (
+                      <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
+                    ) : initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: "#C9A84C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {activeArtist.artist_name}
+                    </p>
+                    {(activeArtist.artist_type || activeArtist.genre) && (
+                      <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
+                        {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  {consistencyPrompt && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
+                      🔒 Locked
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
+            <MasterPreviewPlayer
+              eng={previewEngineState}
+              scenes={scenes}
+              liveVideoRef={liveVideoRef}
+              previewScene={previewScene}
+              tab={tab}
+              onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+              onRestart={() => timelinePlayerRef.current?.restart()}
+            />
+
+            {/* Tab nav */}
+            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
+              <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
+              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
+              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Mixer" testId="tab-music" />
+              <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
+              <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
+              <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
+              <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
             </div>
 
-            {/* ── Two-column layout: editor left + preview right ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
-
-              {/* LEFT: tabs + content */}
-              <div>
-                {/* Active Artist pill */}
-                {activeArtist && (() => {
-                  const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
-                  return (
-                    <div style={{
-                      borderRadius: 12,
-                      border: "1px solid rgba(201,168,76,0.3)",
-                      background: "linear-gradient(90deg, rgba(201,168,76,0.07) 0%, rgba(0,0,0,0) 70%)",
-                      padding: "7px 12px",
-                      display: "flex", alignItems: "center", gap: 9,
-                      position: "relative", overflow: "hidden",
-                      marginBottom: 16,
-                    }}>
-                      <div style={{
-                        position: "absolute", left: 0, top: 0, bottom: 0, width: 2,
-                        background: "#C9A84C", borderRadius: "2px 0 0 2px",
-                      }} />
-                      <div style={{
-                        width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-                        background: "rgba(201,168,76,0.18)",
-                        border: "1.5px solid rgba(201,168,76,0.4)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 13, fontWeight: 900, color: "#C9A84C",
-                        fontFamily: "Georgia, serif",
-                        boxShadow: "0 0 14px rgba(201,168,76,0.25)",
-                        overflow: "hidden",
-                      }}>
-                        {activeArtist.reference_image_url ? (
-                          <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
-                        ) : initials}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 11, fontWeight: 800, color: "#C9A84C", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {activeArtist.artist_name}
-                        </p>
-                        {(activeArtist.artist_type || activeArtist.genre) && (
-                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>
-                            {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
-                          </p>
-                        )}
-                      </div>
-                      {consistencyPrompt && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, fontWeight: 800, color: "rgba(201,168,76,0.7)", flexShrink: 0 }}>
-                          🔒 Locked
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Tab nav */}
-                <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-7">
-                  <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
-                  <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
-                  <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Mixer" testId="tab-music" />
-                  <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
-                  <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
-                  <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
-                  <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
+            {/* ── Timeline tab — always in DOM so audio keeps playing across tab switches ── */}
+            <div className={tab === "timeline" ? "" : "hidden"}>
+              {scenes.length > 0 ? (
+                <TimelinePreviewPlayer
+                  ref={timelinePlayerRef}
+                  scenes={scenes}
+                  captionLines={settings.captions.lines}
+                  audioUrl={previewAudioUrl}
+                  initialSceneId={previewSceneId}
+                  captionSettings={settings.captions}
+                  onEngineUpdate={setPreviewEngineState}
+                />
+              ) : (
+                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
+                  <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
+                  <p className="text-sm font-bold text-white/50">No scenes yet</p>
+                  <p className="text-xs text-white/30 leading-relaxed">
+                    Generate a music video plan first, then come back to preview the full timeline.
+                  </p>
                 </div>
+              )}
+            </div>
 
-                {tab === "clips" && (
+            {tab === "clips" && (
                   <div className="space-y-6">
                     {/* Apply consistency banner */}
                     {consistencyPrompt && scenes.length > 0 && (
@@ -773,92 +810,50 @@ export default function VideoEditor() {
                   </div>
                 )}
 
-                {tab === "timeline" && (
-                  scenes.length > 0 ? (
-                    <TimelinePreviewPlayer
-                      scenes={scenes}
-                      captionLines={settings.captions.lines}
-                      audioUrl={previewAudioUrl}
-                      initialSceneId={previewSceneId}
-                      captionSettings={settings.captions}
-                      onEngineUpdate={setPreviewEngineState}
-                    />
-                  ) : (
-                    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
-                      <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
-                      <p className="text-sm font-bold text-white/50">No scenes yet</p>
-                      <p className="text-xs text-white/30 leading-relaxed">
-                        Generate a music video plan first, then come back to preview the full timeline.
-                      </p>
-                    </div>
-                  )
-                )}
+            {tab === "music" && (
+              <MusicStudio
+                settings={settings}
+                onChange={setSettings}
+                artistName={artistName}
+                songTitle={songTitle}
+                audioUrl={audioUrl}
+                projectId={projectId}
+                getAccessToken={getAccessToken}
+                onTranscriptReady={handleTranscriptReady}
+                transcriptText={transcriptText}
+                activeArtist={activeArtist}
+                onGoToCaptions={() => setTab("captions")}
+              />
+            )}
 
-                {tab === "music" && (
-                  <MusicStudio
-                    settings={settings}
-                    onChange={setSettings}
-                    artistName={artistName}
-                    songTitle={songTitle}
-                    audioUrl={audioUrl}
-                    projectId={projectId}
-                    getAccessToken={getAccessToken}
-                    onTranscriptReady={handleTranscriptReady}
-                    transcriptText={transcriptText}
-                    activeArtist={activeArtist}
-                    onGoToCaptions={() => setTab("captions")}
-                  />
-                )}
+            {tab === "captions" && (
+              <CaptionsSection
+                settings={settings}
+                setSettings={setSettings}
+                lyrics={lyricsForCaptions ?? undefined}
+                songDuration={songDuration ?? undefined}
+                audioSourceLoading={!!previewAudioUrl && songDuration == null}
+                selectedCaptionId={selectedCaptionId}
+                onSelectCaption={setSelectedCaptionId}
+              />
+            )}
 
-                {tab === "captions" && (
-                  <CaptionsSection
-                    settings={settings}
-                    setSettings={setSettings}
-                    lyrics={lyricsForCaptions ?? undefined}
-                    songDuration={songDuration ?? undefined}
-                    audioSourceLoading={!!previewAudioUrl && songDuration == null}
-                    selectedCaptionId={selectedCaptionId}
-                    onSelectCaption={setSelectedCaptionId}
-                  />
-                )}
+            {tab === "effects" && (
+              <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
+            )}
 
-                {tab === "effects" && (
-                  <EffectsSection scenes={scenes} settings={settings} setSettings={setSettings} />
-                )}
+            {tab === "branding" && (
+              <BrandingSection
+                settings={settings}
+                setSettings={setSettings}
+                artistName={artistName}
+                songTitle={songTitle}
+              />
+            )}
 
-                {tab === "branding" && (
-                  <BrandingSection
-                    settings={settings}
-                    setSettings={setSettings}
-                    artistName={artistName}
-                    songTitle={songTitle}
-                  />
-                )}
-
-                {tab === "export" && (
-                  <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
-                )}
-              </div>
-
-              {/* RIGHT: sticky live preview panel (desktop only) */}
-              <div className="hidden lg:block lg:sticky lg:top-24">
-                <LivePreviewPanel
-                  tab={tab}
-                  previewScene={previewScene}
-                  scenes={scenes}
-                  approvedCount={approvedCount}
-                  audioUrl={audioUrl}
-                  settings={settings}
-                  artistName={artistName}
-                  songTitle={songTitle}
-                  onGoToTimeline={() => setTab("timeline")}
-                  onSetPreviewSceneId={setPreviewSceneId}
-                  selectedCaptionId={selectedCaptionId}
-                  onSelectCaption={setSelectedCaptionId}
-                  previewEngineState={previewEngineState}
-                />
-              </div>
-            </div>
+            {tab === "export" && (
+              <ExportSection scenes={scenes} settings={settings} setSettings={setSettings} projectId={project!.id} audioUrl={audioUrl} onGoToMusicStudio={() => setTab("music")} />
+            )}
           </>
         )}
       </div>
@@ -866,748 +861,128 @@ export default function VideoEditor() {
   );
 }
 
-/* ─────────────────────── STABLE VIDEO PLAYER ─────────────────────── */
-/* Must be defined at MODULE level so React never remounts the <video>
-   element due to a stale closure producing a new component identity. */
-
-function PreviewVideoPlayer({
-  clipUrl, videoRef, onTimeUpdate, filterStyle, overlay, noClipNode,
-}: {
-  clipUrl: string | null;
-  videoRef: RefObject<HTMLVideoElement | null>;
-  onTimeUpdate: (t: number) => void;
-  filterStyle?: string;
-  overlay?: ReactNode;
-  noClipNode?: ReactNode;
-}) {
-  if (!clipUrl) {
-    return <>{noClipNode}</>;
-  }
-  return (
-    <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video relative">
-      <video
-        key={clipUrl}
-        src={clipUrl}
-        controls
-        playsInline
-        ref={videoRef}
-        onTimeUpdate={(e) => onTimeUpdate(e.currentTarget.currentTime)}
-        className="w-full h-full object-contain"
-        data-testid="preview-video-player"
-        style={filterStyle ? { filter: filterStyle } : undefined}
-      />
-      {overlay}
-    </div>
-  );
-}
-
-/* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
+/* ─────────────────────── MASTER PREVIEW PLAYER ─────────────────────── */
+/* MasterVideoElement lives at module level so React never remounts the
+   <video> element when the user switches tabs. The ref is wired up by
+   the liveVideoRef useEffect in VideoEditor. */
 
 function fmtSecs(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 }
 
-function LivePreviewPanel({
-  tab, previewScene, scenes, approvedCount, audioUrl, settings, artistName, songTitle,
-  onGoToTimeline, onSetPreviewSceneId, selectedCaptionId, onSelectCaption, previewEngineState,
+function MasterVideoElement({ videoRef }: { videoRef: RefObject<HTMLVideoElement | null> }) {
+  return (
+    <video
+      ref={videoRef}
+      playsInline
+      className="w-full h-full object-contain"
+      data-testid="master-preview-video"
+    />
+  );
+}
+
+function MasterPreviewPlayer({
+  eng, scenes, liveVideoRef, previewScene, tab, onTogglePlay, onRestart,
 }: {
-  tab: EditorTab;
-  previewScene: SceneData | null;
+  eng: SharedPreviewState | null;
   scenes: SceneData[];
-  approvedCount: number;
-  audioUrl: string | null;
-  settings: EditorSettings;
-  artistName: string;
-  songTitle: string;
-  onGoToTimeline: () => void;
-  onSetPreviewSceneId: (id: string) => void;
-  selectedCaptionId?: string | null;
-  onSelectCaption?: (id: string | null) => void;
-  previewEngineState?: SharedPreviewState | null;
+  liveVideoRef: RefObject<HTMLVideoElement | null>;
+  previewScene: SceneData | null;
+  tab: EditorTab;
+  onTogglePlay: () => void;
+  onRestart: () => void;
 }) {
-  const clipUrl = previewScene?.demoClipUrl ?? null;
-  const clipCount = scenes.filter(sceneHasClip).length;
+  const isTimelineTab = tab === "timeline";
+  const isPlaying = eng?.isPlaying ?? false;
+  const currentTime = eng?.currentTime ?? 0;
+  const duration = eng?.audioDuration ?? 0;
+  const currentSceneIdx = eng?.activeSceneIndex ?? -1;
+  const currentScene = currentSceneIdx >= 0 ? scenes[currentSceneIdx] : null;
 
-  /* Stable ref — passed to PreviewVideoPlayer so the <video> element survives re-renders */
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoTime, setVideoTime] = useState(0);
-
-  /* Stable ref for the Live Preview timeline video — imperatively controlled */
-  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
-
-  /* Imperatively control the shared live preview video.
-     Fires on scene change OR play/pause toggle so both cases are handled.
-     This is the ONLY place that drives the live preview video — no tab
-     has its own independent video player for timeline-mode playback. */
-  useEffect(() => {
-    const eng = previewEngineState;
-    const v = liveVideoRef.current;
-    if (!v || !eng) return;
-
-    /* Pause first — handles the "pause doesn't work" bug */
-    if (!eng.isPlaying) {
-      v.pause();
-      return;
-    }
-
-    /* Playing: load the active scene's clip (if any) and start playing */
-    const engScene = scenes[eng.activeSceneIndex] ?? null;
-    const clip = engScene?.demoClipUrl ?? null;
-    if (clip) {
-      if (v.src !== clip) {
-        v.src = clip;
-        v.currentTime = 0;
-      }
-      void v.play().catch(() => { /* muted autoplay — should succeed */ });
-    } else {
-      v.pause();
-      v.removeAttribute("src");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewEngineState?.activeSceneIndex, previewEngineState?.isPlaying]);
-
-  /* Simulation playback — drives caption timing when no video clip exists */
-  const [simTime, setSimTime] = useState(0);
-  const [simPlaying, setSimPlaying] = useState(false);
-  const simRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const captionLines = settings.captions.lines;
-  const maxCaptionEnd = captionLines.reduce((m, l) => Math.max(m, l.endSec), 0);
-
-  useEffect(() => {
-    if (simPlaying) {
-      simRef.current = setInterval(() => {
-        setSimTime((t) => {
-          const next = parseFloat((t + 0.1).toFixed(1));
-          if (maxCaptionEnd > 0 && next >= maxCaptionEnd) {
-            setSimPlaying(false);
-            return maxCaptionEnd;
-          }
-          return next;
-        });
-      }, 100);
-    } else {
-      if (simRef.current) { clearInterval(simRef.current); simRef.current = null; }
-    }
-    return () => { if (simRef.current) { clearInterval(simRef.current); simRef.current = null; } };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simPlaying, maxCaptionEnd]);
-
-  /* Effective time: sim timer beats video time when no clip */
-  const effectiveTime = clipUrl ? videoTime : simTime;
-
-  function startCaptionPreview() {
-    if (clipUrl && videoRef.current) {
-      videoRef.current.currentTime = 0;
-      void videoRef.current.play();
-    } else {
-      setSimTime(0);
-      setSimPlaying(true);
-    }
-    onSelectCaption?.(null); // release pinned selection so time-sync drives display
-  }
+  const clipUrl = isTimelineTab
+    ? (currentScene?.demoClipUrl ?? null)
+    : (previewScene?.demoClipUrl ?? null);
 
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden" data-testid="live-preview-panel">
-      {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
-        <Monitor className="h-4 w-4 text-primary/70" />
-        <span className="text-xs font-black text-white/60 uppercase tracking-widest">Live Preview</span>
-        <span className="ml-auto text-[10px] font-bold text-primary/50 uppercase tracking-wider">{tab}</span>
-      </div>
-
-      <div className="p-4 space-y-3">
-
-        {/* ── CLIPS tab ── */}
-        {tab === "clips" && (
-          <>
-            <PreviewVideoPlayer
-              clipUrl={clipUrl}
-              videoRef={videoRef}
-              onTimeUpdate={setVideoTime}
-              noClipNode={
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
-                  <Eye className="h-7 w-7 text-white/15" />
-                  <div>
-                    <p className="text-sm font-semibold text-white/30">
-                      {scenes.length === 0 ? "No scenes loaded yet." : "No video clip selected"}
-                    </p>
-                    <p className="text-[11px] text-white/20 mt-1">
-                      {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
-                    </p>
-                  </div>
-                </div>
-              }
-            />
-            {clipUrl && previewScene && (
-              <div className="px-0.5">
-                <p className="text-xs font-bold text-white/70 truncate">{previewScene.section || "Scene"}</p>
-                <p className="text-[11px] text-white/35 truncate mt-0.5">{previewScene.lyricLine || previewScene.action || "—"}</p>
-              </div>
-            )}
-            {!clipUrl && previewScene?.demoClipUrl === undefined && previewScene && (
-              <p className="text-[11px] text-red-400/70 px-0.5">Clip video URL missing. Regenerate this clip.</p>
-            )}
-            {scenes.length > 0 && (
-              <div className="flex items-center justify-between text-[11px] text-white/25 px-0.5">
-                <span>{clipCount} of {scenes.length} scenes have clips</span>
-                <span>{scenes.filter((s) => s.approved).length} approved</span>
-              </div>
-            )}
-          </>
-        )}
-
-        {/*
-          ── SHARED TIMELINE MONITOR ──────────────────────────────────────
-          Always visible across ALL tabs when the timeline engine has been
-          started (previewEngineState is non-null) OR when on the timeline
-          tab (so the "press play" prompt is shown there).
-          The <video ref={liveVideoRef}> lives here — one element, always
-          in the DOM, imperatively controlled by the useEffect above.
-          ────────────────────────────────────────────────────────────────
-        */}
-        {(previewEngineState != null || tab === "timeline") && (() => {
-          const eng = previewEngineState;
-          const engScene = eng != null ? (scenes[eng.activeSceneIndex] ?? null) : null;
-          const engClipUrl = engScene?.demoClipUrl ?? null;
-
-          /* Not yet connected — show start prompt on timeline tab */
-          if (!eng) {
-            return (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-1">
-                <ListVideo className="h-5 w-5 text-primary/50 mx-auto" />
-                <p className="text-xs font-bold text-primary/70">Shared Preview Player</p>
-                <p className="text-[10px] text-white/30">Press ▶ Preview Timeline in the left panel to connect all tabs.</p>
-                <details className="mt-2 text-left rounded border border-white/[0.05] bg-white/[0.02] text-[9px] font-mono">
-                  <summary className="px-2 py-1 cursor-pointer text-white/20 select-none">⬡ Shared Player Debug</summary>
-                  <div className="px-2 pb-2 pt-1 space-y-0.5 text-white/35 border-t border-white/[0.04]">
-                    <p>shared player connected: <span className="text-red-400">no</span></p>
-                    <p>tab name: <span className="text-white/50">{tab}</span></p>
-                    <p>previewMode: <span className="text-white/40">—</span></p>
-                    <p>isPlaying: <span className="text-white/40">no</span></p>
-                    <p>isPaused: <span className="text-white/40">—</span></p>
-                    <p>using shared audioRef: <span className="text-white/40">yes</span></p>
-                    <p>duplicate player detected: <span className="text-green-400">no</span></p>
-                  </div>
-                </details>
-              </div>
-            );
-          }
-
-          const isPaused = !eng.isPlaying;
-
-          return (
-            <div className="space-y-2">
-              {/* ── Monitor screen ── */}
-              <div
-                className="rounded-xl bg-black border border-white/[0.07] aspect-video relative overflow-hidden flex flex-col items-center justify-center gap-2"
-                data-testid="live-preview-screen"
-              >
-                {/*
-                  Single stable <video> — imperatively controlled by liveVideoRef
-                  useEffect. CSS show/hide replaces React key remounting.
-                  Pause is handled by the effect (v.pause() when isPlaying=false).
-                */}
-                <video
-                  ref={liveVideoRef}
-                  muted
-                  playsInline
-                  loop
-                  className={`w-full h-full object-contain absolute inset-0 ${engClipUrl ? "block" : "hidden"}`}
-                  data-testid="live-preview-video"
-                  data-scene-idx={eng.activeSceneIndex}
-                />
-
-                {/* Placeholder when no clip for active scene */}
-                {!engClipUrl && (
-                  <>
-                    <Film className="h-6 w-6 text-primary/30" />
-                    <p className="text-xs font-bold text-white/50" data-testid="live-preview-scene-label">
-                      Scene {eng.activeSceneIndex + 1} of {scenes.length}
-                      {engScene?.section ? ` · ${engScene.section}` : ""}
-                    </p>
-                    {engScene?.lyricLine && (
-                      <p className="text-[10px] text-white/25 italic text-center px-4 max-w-[90%]">
-                        &ldquo;{engScene.lyricLine}&rdquo;
-                      </p>
-                    )}
-                    <p className="text-[9px] text-white/20 mt-1">No clip — audio continues in Timeline</p>
-                  </>
-                )}
-
-                {/* Caption overlay */}
-                {eng.activeCaption && (
-                  <div className="absolute bottom-3 left-0 right-0 px-3 flex justify-center pointer-events-none z-10">
-                    <div
-                      className="text-xs font-black text-white text-center max-w-[92%] px-3 py-1.5 rounded-lg leading-snug"
-                      data-testid="live-preview-caption"
-                      style={{ background: "rgba(0,0,0,0.82)", textShadow: "0 2px 8px rgba(0,0,0,0.9)" }}
-                    >
-                      {eng.activeCaption.text}
-                    </div>
-                  </div>
-                )}
-
-                {/* Scene label strip */}
-                {engClipUrl && (
-                  <div
-                    className="absolute bottom-0 left-0 right-0 px-3 pb-9 pt-6 pointer-events-none z-10"
-                    style={{ background: "linear-gradient(to bottom, transparent, rgba(0,0,0,0.65))" }}
-                  >
-                    <p className="text-[9px] text-white/55 font-bold truncate">
-                      Scene {eng.activeSceneIndex + 1}{engScene?.section ? ` · ${engScene.section}` : ""}
-                    </p>
-                  </div>
-                )}
-
-                {/* Timecode — top-left */}
-                <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 border border-white/10 z-10">
-                  <span className="font-mono text-[10px] text-white/60" data-testid="live-preview-time">
-                    {fmtSecs(eng.currentTime)}
-                    {eng.audioDuration ? ` / ${fmtSecs(eng.audioDuration)}` : ""}
-                  </span>
-                </div>
-
-                {/* LIVE badge when playing, PAUSED badge when paused */}
-                {eng.isPlaying ? (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-primary/90 z-10">
-                    <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
-                    <span className="text-[9px] font-black text-black uppercase">Live</span>
-                  </div>
-                ) : (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 border border-white/20 z-10">
-                    <span className="text-[9px] font-bold text-white/50 uppercase">⏸ Paused</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Status pills — same across all tabs */}
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  {
-                    label: "Audio",
-                    value: isPaused ? "Paused ⏸" : "Playing ▶",
-                    color: isPaused ? "text-white/40" : "text-green-400",
-                  },
-                  {
-                    label: "Scene",
-                    value: `${eng.activeSceneIndex + 1} / ${scenes.length}`,
-                    color: "text-white/70",
-                  },
-                  {
-                    label: "Caption",
-                    value: eng.activeCaption
-                      ? eng.activeCaption.text.slice(0, 14) + (eng.activeCaption.text.length > 14 ? "…" : "")
-                      : "—",
-                    color: eng.activeCaption ? "text-primary/80" : "text-white/30",
-                  },
-                ].map(({ label, value, color }) => (
-                  <div key={label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-                    <p className="text-[8px] text-white/30 uppercase tracking-wide font-semibold">{label}</p>
-                    <p className={`text-[10px] font-bold truncate ${color}`}>{value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Shared player debug — shown on every tab */}
-              <details className="rounded-lg border border-white/[0.05] bg-white/[0.02] text-[9.5px] font-mono">
-                <summary className="px-3 py-1.5 cursor-pointer text-white/25 hover:text-white/50 select-none">
-                  ⬡ Shared Player Debug
-                </summary>
-                <div className="px-3 pb-2.5 pt-1 space-y-0.5 text-white/40 border-t border-white/[0.04]">
-                  <p>shared player connected: <span className="text-green-400">yes</span></p>
-                  <p>tab name: <span className="text-white/60">{tab}</span></p>
-                  <p>previewMode: <span className="text-primary/70">timeline</span></p>
-                  <p>isPlaying: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
-                  <p>isPaused: <span className={isPaused ? "text-yellow-400" : "text-white/40"}>{isPaused ? "yes" : "no"}</span></p>
-                  <p>currentTime: <span className="text-white/60">{eng.currentTime.toFixed(2)}s{eng.audioDuration ? ` / ${eng.audioDuration.toFixed(2)}s` : ""}</span></p>
-                  <p>audio playing: <span className={eng.isPlaying ? "text-green-400" : "text-white/40"}>{eng.isPlaying ? "yes" : "no"}</span></p>
-                  <p>activeSceneIndex: <span className="text-white/60">{eng.activeSceneIndex} ({engScene?.section ?? "—"})</span></p>
-                  <p>activeCaptionIndex: <span className="text-white/60">{eng.activeCaption?.text ?? "—"}</span></p>
-                  <p>using shared audioRef: <span className="text-green-400">yes</span></p>
-                  <p>duplicate player detected: <span className="text-green-400">no</span></p>
-                  <p>using selected scene: <span className="text-yellow-400">no</span></p>
-                </div>
-              </details>
-            </div>
-          );
-        })()}
-
-        {/* ── MUSIC / AUDIO tab ── */}
-        {tab === "music" && (
-          <>
-            <PreviewVideoPlayer
-              clipUrl={clipUrl}
-              videoRef={videoRef}
-              onTimeUpdate={setVideoTime}
-              overlay={
-                <div className="absolute top-2 left-2 right-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/75 border border-white/10 text-[10px] text-white/70">
-                  <Volume2 className="h-3 w-3 text-blue-400 shrink-0" />
-                  Runway clips are silent. Your song audio is added during final export.
-                </div>
-              }
-              noClipNode={
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.04] aspect-video flex flex-col items-center justify-center gap-3 p-4 text-center">
-                  <Volume2 className="h-7 w-7 text-blue-400/50" />
-                  <div>
-                    <p className="text-sm font-semibold text-white/40">No video clip selected</p>
-                    <p className="text-[11px] text-blue-300/40 mt-1">Runway clips are silent. Your song audio is added during export.</p>
-                  </div>
-                </div>
-              }
-            />
-            {(audioUrl || settings.musicStudio.stems.length > 0) ? (
-              <div className="rounded-lg border border-green-500/20 bg-green-500/[0.06] px-3 py-2 text-center">
-                <p className="text-xs font-bold text-green-400">✓ Audio source loaded</p>
-                <p className="text-[10px] text-green-400/60 mt-0.5">
-                  {settings.musicStudio.stems.length > 0
-                    ? `${settings.musicStudio.stems.length} stem${settings.musicStudio.stems.length !== 1 ? "s" : ""} mixed`
-                    : "Track uploaded"}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-center">
-                <p className="text-xs text-white/30">No audio loaded yet</p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── CAPTIONS tab ── */}
-        {tab === "captions" && (() => {
-          const lines = settings.captions.lines;
-          const cap = settings.captions;
-
-          /* When the timeline engine is playing, it is the source of truth for time + caption.
-             Only fall back to the local sim/video clock when the engine isn't active. */
-          const engineDriving = !!previewEngineState?.isPlaying;
-          const engineTime = previewEngineState?.currentTime ?? 0;
-
-          /* Which caption to show: engine → pinned selection → time-synced → none */
-          const activeLine = engineDriving
-            ? (previewEngineState!.activeCaption ?? null)
-            : selectedCaptionId
-              ? (lines.find((l) => l.id === selectedCaptionId) ?? null)
-              : lines.find((l) => l.startSec <= effectiveTime && effectiveTime < l.endSec) ?? null;
-
-          /* Time used for status display */
-          const displayTime = engineDriving ? engineTime : effectiveTime;
-
-          const posClass =
-            cap.position === "Top"
-              ? "top-3 items-start"
-              : cap.position === "Center"
-                ? "inset-y-0 items-center"
-                : "bottom-3 items-end";
-
-          const captionStyle: CSSProperties = {
-            fontSize: "clamp(15px, 3.5vw, 22px)",
-            fontWeight: 800,
-            color: cap.textColor || "#ffffff",
-            background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
-            textShadow: cap.outline
-              ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000"
-              : "0 2px 8px rgba(0,0,0,0.9)",
-            letterSpacing: "0.01em",
-          };
-
-          /* Caption overlay for video player */
-          const captionOverlay = (
-            <div className={`absolute left-0 right-0 px-4 flex flex-col justify-center pointer-events-none ${posClass}`}>
-              {activeLine ? (
-                <div data-testid="caption-preview-text" className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug" style={captionStyle}>
-                  {activeLine.text}
-                </div>
-              ) : lines.length > 0 ? (
-                <div className="text-center">
-                  <p className="text-[11px] text-white/30 bg-black/50 px-2 py-1 rounded">
-                    {(engineDriving || simPlaying) ? `${displayTime.toFixed(1)}s` : "Press Preview Captions to start"}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          );
-
-          /* "Caption Preview Active" badge — shows when simulation or video is running */
-          const isRunning = simPlaying || (clipUrl != null && activeLine != null);
-          const previewBadge = isRunning ? (
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none z-10">
-              <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
-              <span className="text-[10px] font-black text-black uppercase tracking-wide">Caption Preview Active</span>
-            </div>
-          ) : null;
-
-          /* No-clip black preview card */
-          const noClipCard = (
-            <div className="rounded-xl border border-white/[0.07] bg-black aspect-video relative overflow-hidden flex items-center justify-center">
-              {previewBadge}
-              {activeLine ? (
-                <div className={`absolute left-0 right-0 px-4 flex flex-col pointer-events-none ${posClass}`}>
-                  <div data-testid="caption-preview-text-card" className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug" style={captionStyle}>
-                    {activeLine.text}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center px-4 space-y-1.5">
-                  <p className="text-xs text-white/30 font-medium">
-                    {lines.length > 0
-                      ? "No video clip selected. Showing caption preview card."
-                      : "No captions yet — generate from lyrics first"}
-                  </p>
-                  {(engineDriving || simPlaying) && (
-                    <p className="text-[11px] font-mono text-primary/60">{displayTime.toFixed(1)}s</p>
-                  )}
-                  {lines.length > 0 && !simPlaying && (
-                    <p className="text-[10px] text-white/20">Press Preview Captions to simulate playback</p>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-
-          return (
-            <>
-              {/*
-                When the shared timeline engine is driving, the monitor above
-                (always-visible) already shows the scene video + caption overlay.
-                Skip the old standalone PreviewVideoPlayer to avoid a duplicate
-                player. Only show it in standalone/sim mode (engine not active).
-              */}
-              {!engineDriving && (
-                <PreviewVideoPlayer
-                  clipUrl={clipUrl}
-                  videoRef={videoRef}
-                  onTimeUpdate={setVideoTime}
-                  overlay={<>{previewBadge}{captionOverlay}</>}
-                  noClipNode={noClipCard}
-                />
-              )}
-
-              {/* Preview Captions button — only in standalone mode */}
-              {lines.length > 0 && !engineDriving && (
-                <button
-                  type="button"
-                  data-testid="preview-captions-btn"
-                  onClick={startCaptionPreview}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-sm font-bold hover:bg-primary/20 transition-colors"
-                >
-                  <Play className="h-4 w-4" />
-                  {simPlaying ? "Previewing…" : "Preview Captions"}
-                </button>
-              )}
-
-              {/* Status messages */}
-              <div className="space-y-1 px-0.5">
-                {/* Main status */}
-                <div className="flex items-center justify-between text-[10px]">
-                  <span>
-                    {simPlaying ? (
-                      <span className="text-primary font-bold">◉ Caption Preview Active</span>
-                    ) : clipUrl ? (
-                      <span className="text-green-400/80 font-bold">✓ Video clip loaded</span>
-                    ) : (
-                      <span className="text-white/35">No video clip selected</span>
-                    )}
-                  </span>
-                  <span className="text-white/25 capitalize">{cap.mode} · {cap.position}</span>
-                </div>
-
-                {/* Selected caption indicator */}
-                <div className="flex items-center justify-between text-[10px]">
-                  <span>
-                    {activeLine ? (
-                      <span className="text-primary/80 font-bold">Caption: {activeLine.text.slice(0, 28)}{activeLine.text.length > 28 ? "…" : ""}</span>
-                    ) : selectedCaptionId ? (
-                      <span className="text-white/25">Caption not found</span>
-                    ) : lines.length > 0 ? (
-                      <span className="text-white/25">No caption selected</span>
-                    ) : (
-                      <span className="text-white/20">No captions generated yet</span>
-                    )}
-                  </span>
-                  {activeLine && (
-                    <span className="font-mono text-white/30">{activeLine.startSec.toFixed(1)}s–{activeLine.endSec.toFixed(1)}s</span>
-                  )}
-                </div>
-
-                {/* Time ticker when playing (engine or sim) */}
-                {(engineDriving || simPlaying) && (
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-mono text-primary/50">
-                      {engineDriving
-                        ? `⬡ Timeline ${displayTime.toFixed(1)}s${previewEngineState?.audioDuration ? ` / ${previewEngineState.audioDuration.toFixed(1)}s` : ""}`
-                        : `${displayTime.toFixed(1)}s / ${maxCaptionEnd.toFixed(1)}s`}
-                    </span>
-                    {simPlaying && !engineDriving && (
-                      <button
-                        type="button"
-                        onClick={() => setSimPlaying(false)}
-                        className="text-white/30 hover:text-white/60 font-bold transition-colors"
-                      >
-                        ■ Stop
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Live Preview ready message when nothing selected */}
-                {!engineDriving && !simPlaying && !activeLine && lines.length > 0 && (
-                  <p className="text-[10px] text-white/20">
-                    Live Preview ready — click Preview Captions or press Preview Timeline.
-                  </p>
-                )}
-              </div>
-
-              {/* Caption count */}
-              {lines.length > 0 && (
-                <div className="text-[10px] text-white/20 px-0.5">
-                  {lines.length} caption{lines.length !== 1 ? "s" : ""} · {maxCaptionEnd.toFixed(1)}s total
-                </div>
-              )}
-            </>
-          );
-        })()}
-
-        {/* ── EFFECTS tab ── */}
-        {tab === "effects" && (
-          <>
-            <PreviewVideoPlayer
-              clipUrl={clipUrl}
-              videoRef={videoRef}
-              onTimeUpdate={setVideoTime}
-              filterStyle={buildEffectFilter(settings.effects)}
-              overlay={
-                settings.effects.length > 0 ? (
-                  <div className="absolute top-2 right-2 flex flex-wrap gap-1 justify-end pointer-events-none max-w-[85%]">
-                    {settings.effects.slice(0, 3).map((fx) => (
-                      <span key={fx} className="px-2 py-0.5 rounded-full bg-black/75 border border-violet-400/30 text-[10px] font-bold text-violet-200/80">
-                        {fx}
-                      </span>
-                    ))}
-                    {settings.effects.length > 3 && (
-                      <span className="px-2 py-0.5 rounded-full bg-black/75 border border-white/15 text-[10px] font-bold text-white/40">
-                        +{settings.effects.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                ) : null
-              }
-              noClipNode={
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex items-center justify-center p-4">
-                  <p className="text-sm text-white/30">No clip loaded — effects are applied at export.</p>
-                </div>
-              }
-            />
-            {settings.effects.length > 0 ? (
-              <div className="rounded-lg border border-violet-500/20 bg-violet-500/[0.06] px-3 py-2 text-center">
-                <p className="text-xs font-bold text-violet-300">
-                  ✓ {settings.effects.length} effect{settings.effects.length !== 1 ? "s" : ""} active — CSS preview applied
-                </p>
-                <p className="text-[10px] text-violet-300/50 mt-0.5">
-                  Preview only. Final render quality applied at export.
-                </p>
-              </div>
-            ) : (
-              <p className="text-[11px] text-white/30 text-center">
-                Select effects above to see an instant CSS preview on your clip.
-              </p>
-            )}
-          </>
-        )}
-
-        {/* ── BRANDING tab ── */}
-        {tab === "branding" && (
-          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-3">
-            <Palette className="h-8 w-8 text-yellow-400/50 mx-auto" />
-            <p className="text-sm font-bold text-white/60 text-center">Branding Preview</p>
-            {artistName && (
-              <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/[0.05] px-3 py-2">
-                <p className="text-[10px] font-bold text-yellow-400/60 uppercase tracking-wider mb-1">Artist</p>
-                <p className="text-sm font-bold text-white/80">{artistName}</p>
-              </div>
-            )}
-            {settings.branding.titleOverlay?.artistNameText && (
-              <p className="text-xs text-white/35 text-center">@{settings.branding.titleOverlay.artistNameText}</p>
-            )}
-            {!artistName && !settings.branding.titleOverlay?.artistNameText && (
-              <p className="text-xs text-white/25 text-center">Add your handles in Branding to preview overlays.</p>
-            )}
-          </div>
-        )}
-
-        {/* ── EXPORT tab ── */}
-        {tab === "export" && (
-          <>
-            {clipUrl && (
-              <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video">
-                <video key={clipUrl} src={clipUrl} controls playsInline className="w-full h-full object-contain" />
-              </div>
-            )}
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-2">
-              <p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-2">Export Summary</p>
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
-                  <span className="text-white/40">Approved clips</span>
-                  <span className={`font-bold ${approvedCount > 0 ? "text-green-400" : "text-white/25"}`}>
-                    {approvedCount > 0 ? `${approvedCount} ready` : "None yet"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
-                  <span className="text-white/40">Audio</span>
-                  <span className={`font-bold ${audioUrl || settings.musicStudio.stems.length > 0 ? "text-green-400" : "text-white/25"}`}>
-                    {audioUrl ? "Uploaded track" : settings.musicStudio.stems.length > 0 ? "Mixed stems" : "None"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
-                  <span className="text-white/40">Captions</span>
-                  <span className="font-bold text-white/50 capitalize">{settings.captions.mode}</span>
-                </div>
-                <div className="flex justify-between items-center py-1 border-b border-white/[0.05]">
-                  <span className="text-white/40">Effects</span>
-                  <span className="font-bold text-white/50">{settings.effects.length > 0 ? `${settings.effects.length} active` : "None"}</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-white/40">Format</span>
-                  <span className="font-bold text-white/50">{settings.export.format} · {settings.export.resolution}</span>
-                </div>
-              </div>
-              {approvedCount === 0 && (
-                <p className="text-[11px] text-white/25 text-center pt-1">Approve clips on the Clips tab to export.</p>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ── Quick clip switcher (all tabs except timeline) ── */}
-        {tab !== "timeline" && clipCount > 1 && (
-          <div className="pt-1 border-t border-white/[0.05]">
-            <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <RefreshCw className="h-3 w-3" /> Switch clip
+    <div className="rounded-2xl border border-white/[0.08] bg-black/50 overflow-hidden mb-6">
+      {/* Video area */}
+      <div className="aspect-video bg-black relative">
+        {clipUrl ? (
+          <MasterVideoElement videoRef={liveVideoRef} />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-white/20">
+            <Film className="h-12 w-12" />
+            <p className="text-sm font-medium">
+              {scenes.length === 0 ? "Generate scenes to preview" : "Select a scene with a clip"}
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {scenes.filter(sceneHasClip).map((s, i) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onSetPreviewSceneId(s.id)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors ${
-                    previewScene?.id === s.id
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-white/10 bg-white/[0.02] text-white/30 hover:text-white/60"
-                  }`}
-                >
-                  {s.section || `#${i + 1}`}
-                </button>
-              ))}
+          </div>
+        )}
+
+        {/* Timeline overlay */}
+        {isTimelineTab && eng && (
+          <div className="absolute top-3 left-3 right-3 flex items-start justify-between pointer-events-none">
+            {currentScene && (
+              <div className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-bold text-white/90 max-w-[60%] truncate">
+                Scene {currentSceneIdx + 1} · {currentScene.section || currentScene.lyricLine || "Untitled"}
+              </div>
+            )}
+            <div className="ml-auto px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-mono text-white/80">
+              {fmtSecs(currentTime)} / {fmtSecs(duration)}
             </div>
           </div>
         )}
 
+        {/* Clips-tab overlay */}
+        {!isTimelineTab && previewScene && (
+          <div className="absolute top-3 left-3 pointer-events-none">
+            <div className="px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-sm text-[11px] font-bold text-white/90 max-w-xs truncate">
+              {previewScene.section || previewScene.lyricLine || "Preview"}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Transport controls — timeline tab only */}
+      {isTimelineTab && (
+        <div className="flex items-center gap-3 px-4 py-3 border-t border-white/[0.06]">
+          <button
+            type="button"
+            onClick={onRestart}
+            className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white"
+            title="Restart"
+          >
+            <SkipBack className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            disabled={scenes.length === 0}
+            className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-40"
+            title={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary/70 rounded-full transition-all"
+              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : "0%" }}
+            />
+          </div>
+          <span className="text-xs font-mono text-white/40 tabular-nums">
+            {fmtSecs(currentTime)} / {fmtSecs(duration)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
+
+/* ─────────────────────── [DELETED: LivePreviewPanel] ─────────────────────── */
+/* LivePreviewPanel has been removed. The single MasterPreviewPlayer above the
+   tab nav is now the sole preview surface. TimelinePreviewPlayer is always kept
+   in the DOM (hidden when not on the timeline tab) so audio persists. */
+
 
 /* ─────────────────────── TAB / MODE BUTTONS ─────────────────────── */
 
