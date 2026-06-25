@@ -1,0 +1,143 @@
+Fix the actual Timeline Preview logic. Do not add more UI only.
+
+Problem:
+I already asked to fix Timeline Preview, but the same issues remain:
+
+* Song audio does not play with captions.
+* Captions change only on one scene.
+* Scenes do not automatically move to the next scene.
+* I still have to manually click each scene.
+* Captions repeat or stay stuck when I switch scenes.
+
+This means the old selected-scene preview logic is still controlling the preview.
+
+Do not change Stripe.
+Do not change credits.
+Do not change payments.
+Do not change Runway.
+Do not change Artist Profiles.
+Do not change scene rebuilding.
+Do not redesign.
+Do not add another fake button.
+
+Only fix the actual Timeline Preview state logic.
+
+Required fix:
+
+1. Use the audio element as the master clock.
+
+When Preview Timeline is clicked:
+
+* load selected song/audio
+* set audio.currentTime = 0
+* call audio.play()
+* set previewMode = "timeline"
+* set isTimelinePlaying = true
+
+2. On audio time update:
+   Use audio.currentTime as the source of truth.
+
+Every time audio.currentTime changes:
+
+* find active scene based on current time
+* find active caption based on current time
+* update Live Preview scene
+* update Live Preview caption
+
+3. Scene selection must be automatic.
+
+Do not rely on manual selectedScene for Timeline Preview.
+
+Use scene start/end times:
+Scene 1: 0 to scene1End
+Scene 2: scene1End to scene2End
+Scene 3: scene2End to scene3End
+
+If scenes do not have times, divide the song duration evenly across all scenes.
+
+Example:
+song duration = 180 seconds
+5 scenes
+each scene = 36 seconds
+
+Scene 1: 0–36
+Scene 2: 36–72
+Scene 3: 72–108
+Scene 4: 108–144
+Scene 5: 144–180
+
+4. Captions must use audio.currentTime.
+
+At every audio time update, find caption where:
+caption.startTime <= audio.currentTime < caption.endTime
+
+Show that caption only.
+Do not show the manually selected caption during Timeline Preview.
+
+5. Audio must be audible.
+
+If audio.play() fails, show the real browser error:
+Audio playback failed: [error]
+
+Add a clear button:
+Tap to Start Timeline Preview
+
+Because some browsers block autoplay until user interaction.
+
+6. Placeholder scenes must continue.
+
+If a scene has no generated video clip:
+
+* show black placeholder
+* show scene title
+* show scene number
+* keep audio playing
+* keep captions changing
+* auto-switch scenes based on audio.currentTime
+
+7. Real generated clips are optional.
+
+Do not require Runway clips for Timeline Preview.
+Timeline Preview must work with:
+
+* audio
+* scenes
+* captions
+  even when clips say “No clip.”
+
+8. Remove conflict from Preview Scene.
+
+Preview Scene can still use selectedScene.
+Preview Timeline must ignore selectedScene and use audio.currentTime.
+
+9. Add debug panel that updates live:
+
+Timeline Debug:
+
+* previewMode
+* audio loaded: yes/no
+* audio playing: yes/no
+* audio currentTime
+* audio duration
+* scenes loaded
+* active scene index
+* active scene title
+* captions loaded
+* active caption text
+* last error
+
+10. Test case:
+    If song duration is 180 seconds and there are 5 scenes:
+
+* at 0 seconds show Scene 1
+* at 40 seconds show Scene 2
+* at 80 seconds show Scene 3
+* at 120 seconds show Scene 4
+* at 160 seconds show Scene 5
+
+Captions must change based on their start/end times.
+
+Do not charge credits for preview.
+
+Final goal:
+Preview Timeline must use the song/audio currentTime as the master clock. The song plays, scenes switch automatically, and captions change automatically. No manual clicking should be needed.
