@@ -767,7 +767,6 @@ export function BowDownAIGuide() {
               >
                 <Bot className="h-3.5 w-3.5 text-yellow-400" />
               </div>
-              <span className="text-[11px] font-black text-white whitespace-nowrap">Bow Down AI Guide</span>
               {playing && (
                 <div className="flex items-end gap-[1.5px]" style={{ height: 8 }}>
                   {[0,1,2,3].map((i) => (
