@@ -728,6 +728,7 @@ export function SceneStudio({
   const addScene = useCallback(() => {
     const newScene: SceneData = {
       id: `scene-${Date.now()}`,
+      sceneNumber: scenes.length + 1,
       timestamp: "", section: "", lyricLine: "", location: "",
       action: "", cameraMovement: "", lighting: "", mood: "",
       aiVideoPrompt: "", negativePrompt: "", approved: false, demoClipUrl: null,

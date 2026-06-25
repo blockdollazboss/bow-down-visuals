@@ -1,5 +1,6 @@
 export interface SceneData {
   id: string;
+  sceneNumber: number;
   timestamp: string;
   section: string;
   lyricLine: string;
@@ -44,15 +45,40 @@ function extractField(lines: string[], ...prefixes: string[]): string {
   return "";
 }
 
-/** Split breakdown text into per-scene blocks.
- *  Handles formats:
- *    **Scene 1** / **Scene 1:** / ### Scene 1 / Scene 1:
- *    followed by bullet lines with "- Label: value"
+/**
+ * Pull the raw text of the Scene-by-Scene Breakdown section from a full result string.
+ * Tries multiple header patterns so it works regardless of how the AI formatted its output.
+ * If no section header is found, returns the full result so parseScenes can still try.
  */
-/** Pull the raw text of the Scene-by-Scene Breakdown section from a full result string */
 export function extractBreakdownContent(result: string): string {
-  const m = result.match(/##\s*SCENE[- ]BY[- ]SCENE BREAKDOWN\s*\n([\s\S]+?)(?=\n##|$)/i);
-  return m ? m[1].trim() : "";
+  if (!result) return "";
+
+  // All patterns that should end the section: next ## heading or end of string
+  const sectionEnd = /(?=\n#{1,4}\s+[A-Z][^\n]{3,})|$/;
+
+  const patterns = [
+    // Exact prompt format: ## SCENE-BY-SCENE BREAKDOWN
+    /#{1,4}\s*SCENE[- ]BY[- ]SCENE\s+BREAKDOWN[^\n]*\n([\s\S]+?)(?=\n#{1,4}\s+[A-Z][^\n]{3,}|$)/i,
+    // ## SCENE BREAKDOWN or ### Scenes Breakdown
+    /#{1,4}\s*SCENES?\s*BREAKDOWN[^\n]*\n([\s\S]+?)(?=\n#{1,4}\s+[A-Z][^\n]{3,}|$)/i,
+    // ## VIDEO SCENES or ## VIDEO BREAKDOWN
+    /#{1,4}\s*VIDEO\s+(?:SCENES?|BREAKDOWN|PLAN)[^\n]*\n([\s\S]+?)(?=\n#{1,4}\s+[A-Z][^\n]{3,}|$)/i,
+    // ## SCENE PLAN or ## SCENES
+    /#{1,4}\s*SCENE\s+PLAN[^\n]*\n([\s\S]+?)(?=\n#{1,4}\s+[A-Z][^\n]{3,}|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const m = result.match(pattern);
+    if (m?.[1]?.trim()) return m[1].trim();
+  }
+
+  // No recognized section header — check if the text itself contains scene markers.
+  // Return the full result so parseScenes can try its own splitting strategies.
+  const hasSceneMarker = /(?:^|\n)\s*(?:\*\*|#+)?\s*[Ss]cene\s+\d+/m.test(result);
+  const hasTimestamp   = /(?:^|\n)\s*[-*•]?\s*Timestamp\s*:/im.test(result);
+  if (hasSceneMarker || hasTimestamp) return result;
+
+  return "";
 }
 
 export function parseScenes(breakdownContent: string): SceneData[] {
@@ -68,7 +94,6 @@ export function parseScenes(breakdownContent: string): SceneData[] {
   }
 
   // Fallback: split on lines that start a new timestamp entry
-  // This handles cases like: "\n- Timestamp:" or "\n  - Timestamp:"
   const timestampSplitRegex = /\n(?=\s*[-*•]?\s*Timestamp\s*:)/i;
   const timestampParts = breakdownContent.split(timestampSplitRegex).filter((b) => b.trim().length > 0);
 
@@ -77,7 +102,6 @@ export function parseScenes(breakdownContent: string): SceneData[] {
   }
 
   // Last resort: try to split on double-newlines between scenes
-  // and see if any block has both a timestamp and a prompt
   const paragraphParts = breakdownContent.split(/\n\s*\n/).filter((b) => b.trim().length > 0);
   if (paragraphParts.length > 1) {
     const candidate = buildScenesFromBlocks(paragraphParts);
@@ -93,21 +117,22 @@ function buildScenesFromBlocks(blocks: string[]): SceneData[] {
   for (const block of blocks) {
     const lines = block.split("\n");
 
-    const timestamp = extractField(lines, "Timestamp");
-    const section = extractField(lines, "Section");
-    const lyricLine = extractField(lines, "Lyric/Line", "Lyric", "Line");
-    const location = extractField(lines, "Location");
-    const action = extractField(lines, "Action");
+    const timestamp      = extractField(lines, "Timestamp");
+    const section        = extractField(lines, "Section");
+    const lyricLine      = extractField(lines, "Lyric/Line", "Lyric", "Line");
+    const location       = extractField(lines, "Location");
+    const action         = extractField(lines, "Action");
     const cameraMovement = extractField(lines, "Camera Movement", "Camera");
-    const lighting = extractField(lines, "Lighting");
-    const mood = extractField(lines, "Mood");
-    const aiVideoPrompt = extractField(lines, "AI Video Prompt", "AI Prompt", "Video Prompt", "Prompt");
+    const lighting       = extractField(lines, "Lighting");
+    const mood           = extractField(lines, "Mood");
+    const aiVideoPrompt  = extractField(lines, "AI Video Prompt", "AI Prompt", "Video Prompt", "Prompt");
     const negativePrompt = extractField(lines, "Negative Prompt", "Negative");
 
     // Only create a card if there's meaningful data
     if (timestamp || aiVideoPrompt || (section && location)) {
       scenes.push({
-        id: `scene-${scenes.length}`,
+        id:              `scene-${scenes.length}`,
+        sceneNumber:     scenes.length + 1,
         timestamp,
         section,
         lyricLine,
@@ -118,12 +143,12 @@ function buildScenesFromBlocks(blocks: string[]): SceneData[] {
         mood,
         aiVideoPrompt,
         negativePrompt,
-        approved: false,
-        demoClipUrl: null,
-        provider: null,
+        approved:        false,
+        demoClipUrl:     null,
+        provider:        null,
         generationStatus: null,
-        promptUsed: null,
-        generatedAt: null,
+        promptUsed:      null,
+        generatedAt:     null,
       });
     }
   }

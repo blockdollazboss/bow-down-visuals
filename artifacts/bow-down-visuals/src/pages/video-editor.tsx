@@ -191,17 +191,20 @@ export default function VideoEditor() {
     setRebuildStatus("rebuilding");
     setRebuildError(null);
     try {
-      const breakdown = extractBreakdownContent(rawResult);
+      // 1. Try extracting just the breakdown section
+      let breakdown = extractBreakdownContent(rawResult);
+      // 2. If the header wasn't found, try the full result — parseScenes handles it
+      if (!breakdown) breakdown = rawResult;
       const parsed = parseScenes(breakdown);
       if (parsed.length === 0) {
         setRebuildStatus("error");
-        setRebuildError("Could not find a scene-by-scene breakdown in the saved plan. Make sure the project includes a generated video plan with scene prompts.");
+        setRebuildError("Could not find scene prompts in the saved plan. The project may not include a scene-by-scene breakdown with Timestamp or AI Video Prompt fields.");
         return;
       }
       setScenes(parsed);
       setRebuildStatus("done");
-      // Scenes will auto-persist via the debounced autosave effect
-      toast({ title: `${parsed.length} scenes rebuilt`, description: "Parsed from your saved plan. Saving automatically…" });
+      // Auto-persisted via the debounced autosave effect
+      toast({ title: `${parsed.length} scenes rebuilt`, description: "Scenes loaded from your saved plan and saving automatically." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setRebuildStatus("error");
