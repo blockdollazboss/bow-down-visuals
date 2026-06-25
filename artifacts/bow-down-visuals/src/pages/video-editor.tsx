@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type RefObject, type ReactNode } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
@@ -747,6 +747,41 @@ export default function VideoEditor() {
   );
 }
 
+/* ─────────────────────── STABLE VIDEO PLAYER ─────────────────────── */
+/* Must be defined at MODULE level so React never remounts the <video>
+   element due to a stale closure producing a new component identity. */
+
+function PreviewVideoPlayer({
+  clipUrl, videoRef, onTimeUpdate, filterStyle, overlay, noClipNode,
+}: {
+  clipUrl: string | null;
+  videoRef: RefObject<HTMLVideoElement | null>;
+  onTimeUpdate: (t: number) => void;
+  filterStyle?: string;
+  overlay?: ReactNode;
+  noClipNode?: ReactNode;
+}) {
+  if (!clipUrl) {
+    return <>{noClipNode}</>;
+  }
+  return (
+    <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video relative">
+      <video
+        key={clipUrl}
+        src={clipUrl}
+        controls
+        playsInline
+        ref={videoRef}
+        onTimeUpdate={(e) => onTimeUpdate(e.currentTarget.currentTime)}
+        className="w-full h-full object-contain"
+        data-testid="preview-video-player"
+        style={filterStyle ? { filter: filterStyle } : undefined}
+      />
+      {overlay}
+    </div>
+  );
+}
+
 /* ─────────────────────── LIVE PREVIEW PANEL ─────────────────────── */
 
 function LivePreviewPanel({
@@ -769,43 +804,49 @@ function LivePreviewPanel({
   const clipUrl = previewScene?.demoClipUrl ?? null;
   const clipCount = scenes.filter(sceneHasClip).length;
 
-  /* Track video playback time for time-synced caption display */
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [currentTime, setCurrentTime] = useState(0);
+  /* Stable ref — passed to PreviewVideoPlayer so the <video> element survives re-renders */
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoTime, setVideoTime] = useState(0);
 
-  /* Shared video player used by clips / captions / effects / music tabs */
-  function VideoPlayer({ overlay, filterStyle }: { overlay?: ReactNode; filterStyle?: string }) {
-    if (!clipUrl) {
-      return (
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
-          <Eye className="h-7 w-7 text-white/15" />
-          <div>
-            <p className="text-sm font-semibold text-white/30">
-              {scenes.length === 0 ? "No scenes loaded yet." : "Select a video clip to preview."}
-            </p>
-            <p className="text-[11px] text-white/20 mt-1">
-              {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
-            </p>
-          </div>
-        </div>
-      );
+  /* Simulation playback — drives caption timing when no video clip exists */
+  const [simTime, setSimTime] = useState(0);
+  const [simPlaying, setSimPlaying] = useState(false);
+  const simRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const captionLines = settings.captions.lines;
+  const maxCaptionEnd = captionLines.reduce((m, l) => Math.max(m, l.endSec), 0);
+
+  useEffect(() => {
+    if (simPlaying) {
+      simRef.current = setInterval(() => {
+        setSimTime((t) => {
+          const next = parseFloat((t + 0.1).toFixed(1));
+          if (maxCaptionEnd > 0 && next >= maxCaptionEnd) {
+            setSimPlaying(false);
+            return maxCaptionEnd;
+          }
+          return next;
+        });
+      }, 100);
+    } else {
+      if (simRef.current) { clearInterval(simRef.current); simRef.current = null; }
     }
-    return (
-      <div className="rounded-xl overflow-hidden bg-black border border-white/[0.07] aspect-video relative">
-        <video
-          key={clipUrl}
-          src={clipUrl}
-          controls
-          playsInline
-          ref={(el) => { videoRef.current = el; }}
-          onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
-          className="w-full h-full object-contain"
-          style={filterStyle ? { filter: filterStyle } : undefined}
-          data-testid="preview-video-player"
-        />
-        {overlay}
-      </div>
-    );
+    return () => { if (simRef.current) { clearInterval(simRef.current); simRef.current = null; } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simPlaying, maxCaptionEnd]);
+
+  /* Effective time: sim timer beats video time when no clip */
+  const effectiveTime = clipUrl ? videoTime : simTime;
+
+  function startCaptionPreview() {
+    if (clipUrl && videoRef.current) {
+      videoRef.current.currentTime = 0;
+      void videoRef.current.play();
+    } else {
+      setSimTime(0);
+      setSimPlaying(true);
+    }
+    onSelectCaption?.(null); // release pinned selection so time-sync drives display
   }
 
   return (
@@ -822,7 +863,24 @@ function LivePreviewPanel({
         {/* ── CLIPS tab ── */}
         {tab === "clips" && (
           <>
-            <VideoPlayer />
+            <PreviewVideoPlayer
+              clipUrl={clipUrl}
+              videoRef={videoRef}
+              onTimeUpdate={setVideoTime}
+              noClipNode={
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex flex-col items-center justify-center text-center gap-3 p-4">
+                  <Eye className="h-7 w-7 text-white/15" />
+                  <div>
+                    <p className="text-sm font-semibold text-white/30">
+                      {scenes.length === 0 ? "No scenes loaded yet." : "No video clip selected"}
+                    </p>
+                    <p className="text-[11px] text-white/20 mt-1">
+                      {scenes.length > 0 ? "Click Preview on a scene with a clip." : "Generate a music video plan first."}
+                    </p>
+                  </div>
+                </div>
+              }
+            />
             {clipUrl && previewScene && (
               <div className="px-0.5">
                 <p className="text-xs font-bold text-white/70 truncate">{previewScene.section || "Scene"}</p>
@@ -873,11 +931,23 @@ function LivePreviewPanel({
         {/* ── MUSIC / AUDIO tab ── */}
         {tab === "music" && (
           <>
-            <VideoPlayer
+            <PreviewVideoPlayer
+              clipUrl={clipUrl}
+              videoRef={videoRef}
+              onTimeUpdate={setVideoTime}
               overlay={
                 <div className="absolute top-2 left-2 right-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/75 border border-white/10 text-[10px] text-white/70">
                   <Volume2 className="h-3 w-3 text-blue-400 shrink-0" />
                   Runway clips are silent. Your song audio is added during final export.
+                </div>
+              }
+              noClipNode={
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.04] aspect-video flex flex-col items-center justify-center gap-3 p-4 text-center">
+                  <Volume2 className="h-7 w-7 text-blue-400/50" />
+                  <div>
+                    <p className="text-sm font-semibold text-white/40">No video clip selected</p>
+                    <p className="text-[11px] text-blue-300/40 mt-1">Runway clips are silent. Your song audio is added during export.</p>
+                  </div>
                 </div>
               }
             />
@@ -903,11 +973,11 @@ function LivePreviewPanel({
           const lines = settings.captions.lines;
           const cap = settings.captions;
 
-          /* Which caption to show: pinned selection → time-synced → none */
+          /* Which caption to show: pinned selection → time-synced by effectiveTime → none */
           const activeLine =
             selectedCaptionId
               ? (lines.find((l) => l.id === selectedCaptionId) ?? null)
-              : lines.find((l) => l.startSec <= currentTime && currentTime < l.endSec) ?? null;
+              : lines.find((l) => l.startSec <= effectiveTime && effectiveTime < l.endSec) ?? null;
 
           const posClass =
             cap.position === "Top"
@@ -916,110 +986,155 @@ function LivePreviewPanel({
                 ? "inset-y-0 items-center"
                 : "bottom-3 items-end";
 
+          const captionStyle: CSSProperties = {
+            fontSize: "clamp(15px, 3.5vw, 22px)",
+            fontWeight: 800,
+            color: cap.textColor || "#ffffff",
+            background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
+            textShadow: cap.outline
+              ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000"
+              : "0 2px 8px rgba(0,0,0,0.9)",
+            letterSpacing: "0.01em",
+          };
+
+          /* Caption overlay for video player */
           const captionOverlay = (
             <div className={`absolute left-0 right-0 px-4 flex flex-col justify-center pointer-events-none ${posClass}`}>
               {activeLine ? (
-                <div
-                  data-testid="caption-preview-text"
-                  className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug"
-                  style={{
-                    fontSize: "clamp(15px, 3.5vw, 22px)",
-                    fontWeight: 800,
-                    color: cap.textColor || "#ffffff",
-                    background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
-                    textShadow: cap.outline
-                      ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000"
-                      : "0 2px 8px rgba(0,0,0,0.9)",
-                    letterSpacing: "0.01em",
-                  }}
-                >
+                <div data-testid="caption-preview-text" className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug" style={captionStyle}>
                   {activeLine.text}
                 </div>
-              ) : (
-                lines.length > 0 ? (
-                  <div className="text-center">
-                    <p className="text-[11px] text-white/30 bg-black/50 px-2 py-1 rounded">
-                      {selectedCaptionId ? "Caption not found" : "Click a caption line to preview it"}
-                    </p>
-                  </div>
-                ) : null
-              )}
+              ) : lines.length > 0 ? (
+                <div className="text-center">
+                  <p className="text-[11px] text-white/30 bg-black/50 px-2 py-1 rounded">
+                    {simPlaying ? `${effectiveTime.toFixed(1)}s` : "Press Preview Captions to start"}
+                  </p>
+                </div>
+              ) : null}
             </div>
           );
 
-          /* "Caption Preview Active" badge */
-          const previewBadge = activeLine ? (
-            <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
+          /* "Caption Preview Active" badge — shows when simulation or video is running */
+          const isRunning = simPlaying || (clipUrl != null && activeLine != null);
+          const previewBadge = isRunning ? (
+            <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none z-10">
               <div className="h-1.5 w-1.5 rounded-full bg-black animate-pulse" />
               <span className="text-[10px] font-black text-black uppercase tracking-wide">Caption Preview Active</span>
             </div>
           ) : null;
 
-          return (
-            <>
-              {clipUrl ? (
-                <VideoPlayer overlay={<>{previewBadge}{captionOverlay}</>} />
+          /* No-clip black preview card */
+          const noClipCard = (
+            <div className="rounded-xl border border-white/[0.07] bg-black aspect-video relative overflow-hidden flex items-center justify-center">
+              {previewBadge}
+              {activeLine ? (
+                <div className={`absolute left-0 right-0 px-4 flex flex-col pointer-events-none ${posClass}`}>
+                  <div data-testid="caption-preview-text-card" className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug" style={captionStyle}>
+                    {activeLine.text}
+                  </div>
+                </div>
               ) : (
-                /* No clip — black preview card with caption text */
-                <div className="rounded-xl border border-white/[0.07] bg-black aspect-video relative overflow-hidden flex items-center justify-center">
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
-                  {previewBadge}
-                  {activeLine ? (
-                    <div className={`absolute left-0 right-0 px-4 flex flex-col pointer-events-none ${posClass}`}>
-                      <div
-                        data-testid="caption-preview-text-card"
-                        className="text-center max-w-[92%] mx-auto px-4 py-2 rounded-lg leading-snug"
-                        style={{
-                          fontSize: "clamp(15px, 3.5vw, 22px)",
-                          fontWeight: 800,
-                          color: cap.textColor || "#ffffff",
-                          background: cap.background ? "rgba(0,0,0,0.72)" : "transparent",
-                          textShadow: cap.outline
-                            ? "0 0 8px rgba(0,0,0,1), 1px 1px 0 #000, -1px -1px 0 #000"
-                            : "0 2px 8px rgba(0,0,0,0.9)",
-                          letterSpacing: "0.01em",
-                        }}
-                      >
-                        {activeLine.text}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative z-10 text-center px-4 space-y-1">
-                      <p className="text-xs text-white/30">
-                        {lines.length > 0
-                          ? "No video clip selected. Showing caption preview card."
-                          : "No captions yet — generate from lyrics first"}
-                      </p>
-                      {lines.length > 0 && (
-                        <p className="text-[10px] text-white/20">Click a caption line to preview it here</p>
-                      )}
-                    </div>
+                <div className="text-center px-4 space-y-1.5">
+                  <p className="text-xs text-white/30 font-medium">
+                    {lines.length > 0
+                      ? "No video clip selected. Showing caption preview card."
+                      : "No captions yet — generate from lyrics first"}
+                  </p>
+                  {simPlaying && (
+                    <p className="text-[11px] font-mono text-primary/60">{effectiveTime.toFixed(1)}s</p>
+                  )}
+                  {lines.length > 0 && !simPlaying && (
+                    <p className="text-[10px] text-white/20">Press Preview Captions to simulate playback</p>
                   )}
                 </div>
               )}
+            </div>
+          );
 
-              {/* Status row */}
-              <div className="flex items-center justify-between text-[10px] text-white/30 px-0.5">
-                <span>
-                  {selectedCaptionId
-                    ? <span className="text-primary/80 font-bold">Caption selected</span>
-                    : lines.length > 0
-                      ? "No caption selected"
-                      : <span className="text-white/20">No captions generated yet</span>
-                  }
-                </span>
-                <span className="capitalize">{cap.mode} · {cap.position}</span>
+          return (
+            <>
+              {/* Video or black card */}
+              <PreviewVideoPlayer
+                clipUrl={clipUrl}
+                videoRef={videoRef}
+                onTimeUpdate={setVideoTime}
+                overlay={<>{previewBadge}{captionOverlay}</>}
+                noClipNode={noClipCard}
+              />
+
+              {/* Preview Captions button */}
+              {lines.length > 0 && (
+                <button
+                  type="button"
+                  data-testid="preview-captions-btn"
+                  onClick={startCaptionPreview}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-primary/40 bg-primary/10 text-primary text-sm font-bold hover:bg-primary/20 transition-colors"
+                >
+                  <Play className="h-4 w-4" />
+                  {simPlaying ? "Previewing…" : "Preview Captions"}
+                </button>
+              )}
+
+              {/* Status messages */}
+              <div className="space-y-1 px-0.5">
+                {/* Main status */}
+                <div className="flex items-center justify-between text-[10px]">
+                  <span>
+                    {simPlaying ? (
+                      <span className="text-primary font-bold">◉ Caption Preview Active</span>
+                    ) : clipUrl ? (
+                      <span className="text-green-400/80 font-bold">✓ Video clip loaded</span>
+                    ) : (
+                      <span className="text-white/35">No video clip selected</span>
+                    )}
+                  </span>
+                  <span className="text-white/25 capitalize">{cap.mode} · {cap.position}</span>
+                </div>
+
+                {/* Selected caption indicator */}
+                <div className="flex items-center justify-between text-[10px]">
+                  <span>
+                    {activeLine ? (
+                      <span className="text-primary/80 font-bold">Caption: {activeLine.text.slice(0, 28)}{activeLine.text.length > 28 ? "…" : ""}</span>
+                    ) : selectedCaptionId ? (
+                      <span className="text-white/25">Caption not found</span>
+                    ) : lines.length > 0 ? (
+                      <span className="text-white/25">No caption selected</span>
+                    ) : (
+                      <span className="text-white/20">No captions generated yet</span>
+                    )}
+                  </span>
+                  {activeLine && (
+                    <span className="font-mono text-white/30">{activeLine.startSec.toFixed(1)}s–{activeLine.endSec.toFixed(1)}s</span>
+                  )}
+                </div>
+
+                {/* Sim time ticker when playing */}
+                {simPlaying && (
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-mono text-primary/50">{effectiveTime.toFixed(1)}s / {maxCaptionEnd.toFixed(1)}s</span>
+                    <button
+                      type="button"
+                      onClick={() => setSimPlaying(false)}
+                      className="text-white/30 hover:text-white/60 font-bold transition-colors"
+                    >
+                      ■ Stop
+                    </button>
+                  </div>
+                )}
+
+                {/* Live Preview ready message when nothing selected */}
+                {!simPlaying && !activeLine && lines.length > 0 && (
+                  <p className="text-[10px] text-white/20">
+                    Live Preview ready — click Preview Captions or select a caption row.
+                  </p>
+                )}
               </div>
 
-              {/* Caption count + timing info */}
+              {/* Caption count */}
               {lines.length > 0 && (
-                <div className="flex items-center justify-between text-[10px] text-white/25 px-0.5">
-                  <span>{lines.length} caption{lines.length !== 1 ? "s" : ""}</span>
-                  {activeLine && (
-                    <span className="font-mono">
-                      {activeLine.startSec.toFixed(1)}s – {activeLine.endSec.toFixed(1)}s
-                    </span>
-                  )}
+                <div className="text-[10px] text-white/20 px-0.5">
+                  {lines.length} caption{lines.length !== 1 ? "s" : ""} · {maxCaptionEnd.toFixed(1)}s total
                 </div>
               )}
             </>
@@ -1029,7 +1144,10 @@ function LivePreviewPanel({
         {/* ── EFFECTS tab ── */}
         {tab === "effects" && (
           <>
-            <VideoPlayer
+            <PreviewVideoPlayer
+              clipUrl={clipUrl}
+              videoRef={videoRef}
+              onTimeUpdate={setVideoTime}
               filterStyle={buildEffectFilter(settings.effects)}
               overlay={
                 settings.effects.length > 0 ? (
@@ -1046,6 +1164,11 @@ function LivePreviewPanel({
                     )}
                   </div>
                 ) : null
+              }
+              noClipNode={
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] aspect-video flex items-center justify-center p-4">
+                  <p className="text-sm text-white/30">No clip loaded — effects are applied at export.</p>
+                </div>
               }
             />
             {settings.effects.length > 0 ? (
