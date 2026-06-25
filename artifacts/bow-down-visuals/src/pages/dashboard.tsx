@@ -332,13 +332,13 @@ export default function Dashboard() {
                 borderRadius: "2px 0 0 2px",
               }} />
               <div style={{
-                width: 44, height: 44, borderRadius: 13, flexShrink: 0,
+                width: 56, height: 56, borderRadius: 16, flexShrink: 0,
                 background: "linear-gradient(135deg, rgba(201,168,76,0.2) 0%, rgba(201,168,76,0.06) 100%)",
                 border: "1.5px solid rgba(201,168,76,0.4)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 0 14px rgba(201,168,76,0.2)",
+                boxShadow: "0 0 18px rgba(201,168,76,0.25)",
                 position: "relative", overflow: "hidden",
-                fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 900, color: "#C9A84C",
+                fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 900, color: "#C9A84C",
               }}>
                 {activeArtist.reference_image_url ? (
                   <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />

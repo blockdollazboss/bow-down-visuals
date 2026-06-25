@@ -123,7 +123,7 @@ export default function ChooseArtist() {
 
                   {/* Top image / avatar band */}
                   <div style={{
-                    height: 110,
+                    height: 140,
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) center/cover no-repeat`
                       : isSelected
@@ -148,15 +148,15 @@ export default function ChooseArtist() {
                     {!vault.reference_image_url && (
                       <div style={{
                         position: "relative",
-                        width: 48, height: 48, borderRadius: "50%",
+                        width: 64, height: 64, borderRadius: "50%",
                         background: isSelected ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
                         border: isSelected ? `2px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.1)",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: isSelected ? `0 0 18px ${G(0.3)}` : "none",
+                        boxShadow: isSelected ? `0 0 24px ${G(0.35)}` : "none",
                       }}>
                         <span style={{
                           fontFamily: "Georgia, serif",
-                          fontSize: 15, fontWeight: 900,
+                          fontSize: 20, fontWeight: 900,
                           color: isSelected ? GOLD : "rgba(255,255,255,0.35)",
                           letterSpacing: "0.04em",
                         }}>{initials}</span>

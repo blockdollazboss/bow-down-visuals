@@ -626,13 +626,13 @@ export default function VideoEditor() {
                         background: "#C9A84C", borderRadius: "2px 0 0 2px",
                       }} />
                       <div style={{
-                        width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                        width: 38, height: 38, borderRadius: 11, flexShrink: 0,
                         background: "rgba(201,168,76,0.18)",
                         border: "1.5px solid rgba(201,168,76,0.4)",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 10, fontWeight: 900, color: "#C9A84C",
+                        fontSize: 13, fontWeight: 900, color: "#C9A84C",
                         fontFamily: "Georgia, serif",
-                        boxShadow: "0 0 10px rgba(201,168,76,0.2)",
+                        boxShadow: "0 0 14px rgba(201,168,76,0.25)",
                         overflow: "hidden",
                       }}>
                         {activeArtist.reference_image_url ? (

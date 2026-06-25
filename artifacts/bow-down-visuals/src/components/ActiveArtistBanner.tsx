@@ -40,7 +40,7 @@ export function ActiveArtistBanner({ artist, onContinue }: Props) {
 
         {/* ── Top band: photo or initials avatar ── */}
         <div style={{
-          height: 180,
+          height: 210,
           background: hasImage
             ? `url(${artist.reference_image_url!}) center/cover no-repeat`
             : "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)",
@@ -67,7 +67,7 @@ export function ActiveArtistBanner({ artist, onContinue }: Props) {
           {!hasImage && (
             <div style={{
               position: "relative",
-              width: 72, height: 72, borderRadius: "50%",
+              width: 88, height: 88, borderRadius: "50%",
               background: `linear-gradient(135deg, ${G(0.25)} 0%, ${G(0.06)} 100%)`,
               border: `2px solid ${G(0.4)}`,
               display: "flex", alignItems: "center", justifyContent: "center",
@@ -75,7 +75,7 @@ export function ActiveArtistBanner({ artist, onContinue }: Props) {
             }}>
               <span style={{
                 fontFamily: "Georgia, serif",
-                fontSize: 22, fontWeight: 900,
+                fontSize: 28, fontWeight: 900,
                 color: GOLD, letterSpacing: "0.05em",
               }}>{initials}</span>
             </div>

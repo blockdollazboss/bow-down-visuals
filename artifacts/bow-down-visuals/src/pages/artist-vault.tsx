@@ -484,7 +484,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
 
       {/* Top image band */}
       <div style={{
-        height: 120,
+        height: 150,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) center/cover no-repeat`
           : isActive
@@ -512,17 +512,17 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
         {!vault.reference_image_url && (
           <div style={{
             position: "relative",
-            width: 52, height: 52, borderRadius: "50%",
+            width: 68, height: 68, borderRadius: "50%",
             background: isActive
               ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})`
               : "rgba(255,255,255,0.06)",
             border: isActive ? `2px solid ${G(0.45)}` : "1px solid rgba(255,255,255,0.12)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: isActive ? `0 0 20px ${G(0.25)}` : "none",
+            boxShadow: isActive ? `0 0 28px ${G(0.3)}` : "none",
           }}>
             <span style={{
               fontFamily: "Georgia, serif",
-              fontSize: 16, fontWeight: 900,
+              fontSize: 22, fontWeight: 900,
               color: isActive ? GOLD : "rgba(255,255,255,0.4)",
               letterSpacing: "0.04em",
             }}>{initials}</span>
