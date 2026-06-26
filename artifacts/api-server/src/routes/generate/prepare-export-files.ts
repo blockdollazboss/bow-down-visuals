@@ -409,12 +409,16 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     failedScenes: results.filter((r) => !r.readyForFFmpeg).map((r) => r.sceneNumber),
   }, `EXPORT DEBUG END — ready: ${readyCount}/${results.length}`);
 
+  const createdAt = Date.now();
+  const expiresAt = createdAt + 30 * 60 * 1000;
+
   registerPreparedExport(prepareId, {
     projectId,
     exportDir,
     clips: results,
     allReady,
-    createdAt: Date.now(),
+    createdAt,
+    expiresAt,
   });
 
   res.json({
@@ -424,6 +428,7 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     totalClips: results.length,
     readyClips: readyCount,
     clips: results,
+    expiresAt,
   });
 });
 

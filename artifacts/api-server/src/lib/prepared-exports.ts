@@ -41,6 +41,8 @@ export interface PreparedExportEntry {
   clips: PreparedClipEntry[];
   allReady: boolean;
   createdAt: number;
+  /** Unix ms when this session expires (createdAt + 30 min) */
+  expiresAt: number;
 }
 
 const registry = new Map<string, PreparedExportEntry>();
