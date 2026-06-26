@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
 import { FinalVideoExport } from "@/components/FinalVideoExport";
+import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   VIDEO_FORMATS,
@@ -851,6 +852,13 @@ export function ExportSection({
           return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
         })}
         overlayItems={settings.overlayItems}
+      />
+
+      {/* ── Export Doctor (single-clip diagnostics) ── */}
+      <ExportDoctor
+        scenes={scenes}
+        projectId={projectId}
+        masterAudioUrl={masterAudioUrl ?? null}
       />
     </div>
   );

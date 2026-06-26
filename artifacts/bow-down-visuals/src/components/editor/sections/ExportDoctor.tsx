@@ -1,0 +1,357 @@
+import { useState } from "react";
+import {
+  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EditorCard } from "@/components/editor/controls";
+import { useAuth } from "@/contexts/AuthContext";
+import type { SceneData } from "@/lib/scene-parser";
+
+interface ExportDoctorProps {
+  scenes: SceneData[];
+  projectId: string;
+  /** The exact audio URL the master player is using. */
+  masterAudioUrl?: string | null;
+}
+
+/** Every candidate URL field the spec asks us to surface for Scene 1. */
+const URL_FIELD_KEYS = [
+  "clip.url", "clip.video_url", "clip.videoUrl", "clip.output_url", "clip.outputUrl",
+  "clip.asset_url", "clip.assetUrl", "clip.runway_url", "clip.runwayUrl",
+  "clip.storage_url", "clip.storageUrl",
+  "scene.clip_url", "scene.clipUrl", "scene.video_url", "scene.videoUrl",
+  "scene.runway_output_url", "scene.runwayOutputUrl",
+  "scene.generated_clip_url", "scene.generatedClipUrl",
+  "scene.demoClipUrl",
+] as const;
+
+type UrlTestResult = {
+  urlProvided: boolean;
+  startsWithHttp: boolean;
+  resolvedUrl?: string;
+  status: number;
+  contentType: string;
+  contentLength: number | null;
+  isVideo: boolean;
+  isHtml: boolean;
+  snippet: string | null;
+  message: string;
+};
+
+type DownloadResult = {
+  doctorId: string;
+  localPath: string;
+  fileExists: boolean;
+  fileSize: number;
+  responseStatus: number;
+  contentType: string;
+  duration?: number;
+  codec?: string;
+  width?: number;
+  height?: number;
+  ffprobeValid: boolean;
+  error: string | null;
+};
+
+type ExportResult = {
+  success?: boolean;
+  url?: string;
+  fileSize?: number;
+  duration?: number;
+  width?: number;
+  height?: number;
+  hasAudio?: boolean;
+  audioDownloaded?: boolean;
+  audioValid?: boolean;
+  audioFileSize?: number;
+  audioDuration?: number;
+  error?: string;
+  stderrTail?: string[];
+};
+
+async function readJson<T>(res: Response): Promise<T> {
+  const ct = res.headers.get("content-type") ?? "";
+  const text = await res.text();
+  if (!ct.toLowerCase().includes("application/json")) {
+    throw new Error(`API returned ${ct || "non-JSON"} (HTTP ${res.status}) instead of JSON.`);
+  }
+  return JSON.parse(text) as T;
+}
+
+function fmtBytes(n: number | null | undefined): string {
+  if (!n || n <= 0) return "—";
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(2)} MB`;
+}
+
+export function ExportDoctor({ scenes, projectId, masterAudioUrl }: ExportDoctorProps) {
+  const { getAccessToken } = useAuth();
+
+  // Scene 1 = first scene that has a usable clip URL
+  const scene1 = scenes.find((s) => !!s.demoClipUrl?.startsWith("http")) ?? scenes[0] ?? null;
+  const scene1Url = scene1?.demoClipUrl ?? "";
+
+  const [busy, setBusy] = useState<null | "url" | "download" | "export" | "export-audio">(null);
+  const [urlResult, setUrlResult] = useState<UrlTestResult | null>(null);
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+  const [audioExportResult, setAudioExportResult] = useState<ExportResult | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  const doctorId = downloadResult?.doctorId ?? null;
+  const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
+
+  async function authHeaders() {
+    const token = await getAccessToken();
+    return { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` };
+  }
+
+  async function testUrl() {
+    setBusy("url"); setLastError(null); setUrlResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/test-url", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ url: scene1Url }),
+        signal: AbortSignal.timeout(60_000),
+      });
+      const data = await readJson<UrlTestResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setUrlResult(data);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function downloadScene1() {
+    setBusy("download"); setLastError(null); setDownloadResult(null);
+    setExportResult(null); setAudioExportResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/download", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ projectId, url: scene1Url }),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      const data = await readJson<DownloadResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setDownloadResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportScene1() {
+    if (!doctorId) return;
+    setBusy("export"); setLastError(null); setExportResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ doctorId }),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setExportResult(data);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportScene1Audio() {
+    if (!doctorId) return;
+    setBusy("export-audio"); setLastError(null); setAudioExportResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-audio", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ doctorId, audioUrl: masterAudioUrl ?? null }),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setAudioExportResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  if (!scene1) return null;
+
+  // Every candidate URL field for Scene 1 (only demoClipUrl is populated in this data model)
+  const fieldValues: Record<string, string> = {};
+  for (const k of URL_FIELD_KEYS) fieldValues[k] = "";
+  fieldValues["scene.demoClipUrl"] = scene1.demoClipUrl ?? "";
+
+  const statusRows: [string, boolean | null][] = [
+    ["Scene 1 URL found", scene1Url.startsWith("http")],
+    ["Scene 1 URL returns video", urlResult ? urlResult.isVideo : null],
+    ["Scene 1 downloaded", downloadResult ? !!downloadResult.fileExists : null],
+    ["Scene 1 ffprobe valid", downloadResult ? !!downloadResult.ffprobeValid : null],
+    ["Scene 1 simple export works", exportResult ? !!exportResult.success : null],
+    ["Audio downloaded", audioExportResult ? !!audioExportResult.audioDownloaded : null],
+    ["Scene 1 + audio export works", audioExportResult ? !!audioExportResult.success : null],
+  ];
+
+  return (
+    <EditorCard
+      icon={<Stethoscope className="h-4 w-4" />}
+      title="Export Doctor"
+      subtitle="Prove ONE clip can download and export before running the full video."
+    >
+      <div className="space-y-4">
+
+        {/* ── Status panel ── */}
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3 space-y-1.5">
+          <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">Export Doctor Status</p>
+          {statusRows.map(([label, val]) => (
+            <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+              <span className="text-white/40">{label}</span>
+              <span className={`font-bold ${val === null ? "text-white/25" : val ? "text-green-400" : "text-red-400"}`}>
+                {val === null ? "—" : val ? "yes" : "no"}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-start justify-between gap-2 text-[11px] font-mono pt-1 mt-1 border-t border-white/[0.06]">
+            <span className="text-white/40 shrink-0">Last error</span>
+            <span className="text-red-400/80 text-right break-words leading-snug">{lastError ?? "—"}</span>
+          </div>
+        </div>
+
+        {/* ── Four action buttons ── */}
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={testUrl} disabled={busy !== null || !scene1Url} variant="outline"
+            className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs"
+            data-testid="btn-doctor-test-url">
+            {busy === "url" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+            Test Scene 1 Source URL
+          </Button>
+          <Button onClick={downloadScene1} disabled={busy !== null || !scene1Url} variant="outline"
+            className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs"
+            data-testid="btn-doctor-download">
+            {busy === "download" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Download Scene 1 Only
+          </Button>
+          <Button onClick={exportScene1} disabled={busy !== null || !downloadOk} variant="outline"
+            className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"
+            data-testid="btn-doctor-export">
+            {busy === "export" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
+            Export Scene 1 Only
+          </Button>
+          <Button onClick={exportScene1Audio} disabled={busy !== null || !downloadOk} variant="outline"
+            className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"
+            data-testid="btn-doctor-export-audio">
+            {busy === "export-audio" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />}
+            Export Scene 1 + Audio Only
+          </Button>
+        </div>
+        {!downloadOk && (
+          <p className="text-center text-[10px] text-white/25 leading-relaxed -mt-1">
+            Export buttons unlock after Scene 1 downloads and passes ffprobe.
+          </p>
+        )}
+
+        {/* ── TEST 1 result: URL fields ── */}
+        <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+          <div className="px-3 py-2 bg-white/[0.03] border-b border-white/[0.06]">
+            <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Scene 1 URL Fields</p>
+          </div>
+          <div className="px-3 py-2.5 space-y-1 text-[9px] font-mono">
+            {URL_FIELD_KEYS.map((k) => {
+              const v = fieldValues[k] ?? "";
+              const used = k === "scene.demoClipUrl";
+              return (
+                <div key={k} className="flex items-start gap-2">
+                  <span className={`shrink-0 w-[180px] ${used ? "text-primary/70" : "text-white/30"}`}>
+                    {k}{used ? " (master player)" : ""}
+                  </span>
+                  <span className={`break-all leading-tight ${v ? "text-white/55" : "text-white/20"}`}>
+                    {v || "(empty)"}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="flex items-start gap-2 pt-1.5 mt-1.5 border-t border-white/[0.06]">
+              <span className="shrink-0 w-[180px] text-white/40">Final selected URL</span>
+              <span className="break-all leading-tight text-white/60">{scene1Url || "(none)"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 w-[180px] text-white/40">Starts with http</span>
+              <span className={`font-bold ${scene1Url.startsWith("http") ? "text-green-400" : "text-red-400"}`}>
+                {scene1Url.startsWith("http") ? "yes" : "no"}
+              </span>
+            </div>
+            {urlResult && (
+              <>
+                <div className="flex items-center gap-2"><span className="shrink-0 w-[180px] text-white/40">HTTP status</span><span className="text-white/60">{urlResult.status || "—"}</span></div>
+                <div className="flex items-center gap-2"><span className="shrink-0 w-[180px] text-white/40">Content-Type</span><span className="text-white/60">{urlResult.contentType || "—"}</span></div>
+                <div className="flex items-center gap-2"><span className="shrink-0 w-[180px] text-white/40">Content-Length</span><span className="text-white/60">{fmtBytes(urlResult.contentLength)}</span></div>
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 w-[180px] text-white/40">Returns video</span>
+                  <span className={`font-bold ${urlResult.isVideo ? "text-green-400" : "text-red-400"}`}>{urlResult.isVideo ? "yes" : "no"}</span>
+                </div>
+                {urlResult.snippet && (
+                  <div className="flex items-start gap-2">
+                    <span className="shrink-0 w-[180px] text-white/40">First 100 chars</span>
+                    <span className="break-all leading-tight text-amber-400/80">{urlResult.snippet.slice(0, 100)}</span>
+                  </div>
+                )}
+                <div className={`mt-1 pt-1 border-t border-white/[0.06] ${urlResult.isHtml ? "text-red-400" : urlResult.isVideo ? "text-green-400" : "text-amber-400"}`}>
+                  {urlResult.message}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── TEST 2 result: download ── */}
+        {downloadResult && (
+          <div className={`rounded-xl border overflow-hidden ${downloadOk ? "border-green-500/25 bg-green-500/[0.04]" : "border-red-500/25 bg-red-500/[0.04]"}`}>
+            <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
+              {downloadOk ? <CheckCircle2 className="h-3.5 w-3.5 text-green-400" /> : <XCircle className="h-3.5 w-3.5 text-red-400" />}
+              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Scene 1 Download</p>
+            </div>
+            <div className="px-3 py-2.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] font-mono">
+              <div className="col-span-2 flex items-start gap-2"><span className="text-white/35 shrink-0 w-[110px]">Local path</span><span className="text-white/55 break-all">{downloadResult.localPath}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[110px]">File exists</span><span className={`font-bold ${downloadResult.fileExists ? "text-green-400" : "text-red-400"}`}>{downloadResult.fileExists ? "yes" : "no"}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[80px]">File size</span><span className="text-white/55">{fmtBytes(downloadResult.fileSize)}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[110px]">Duration</span><span className="text-white/55">{downloadResult.duration ? `${downloadResult.duration.toFixed(2)}s` : "—"}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[80px]">Codec</span><span className="text-white/55">{downloadResult.codec || "—"}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[110px]">Resolution</span><span className="text-white/55">{downloadResult.width ? `${downloadResult.width}×${downloadResult.height}` : "—"}</span></div>
+              <div className="flex items-center gap-2"><span className="text-white/35 w-[80px]">ffprobe</span><span className={`font-bold ${downloadResult.ffprobeValid ? "text-green-400" : "text-red-400"}`}>{downloadResult.ffprobeValid ? "valid" : "invalid"}</span></div>
+              {downloadResult.error && <div className="col-span-2 text-red-400/80 break-words pt-1 border-t border-red-500/20">{downloadResult.error}</div>}
+            </div>
+          </div>
+        )}
+
+        {/* ── TEST 3 result: simple export ── */}
+        {exportResult?.success && exportResult.url && (
+          <div className="rounded-xl border border-green-500/25 bg-green-500/[0.04] px-3 py-3 space-y-2">
+            <div className="flex items-center gap-2 text-[11px] text-green-400 font-bold">
+              <CheckCircle2 className="h-4 w-4" /> Scene 1 test export succeeded · {exportResult.duration?.toFixed(1)}s · {fmtBytes(exportResult.fileSize)}
+            </div>
+            <video src={exportResult.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+            <a href={exportResult.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+              <ExternalLink className="h-3 w-3" /> Open / download test video
+            </a>
+          </div>
+        )}
+
+        {/* ── TEST 4 result: scene 1 + audio ── */}
+        {audioExportResult?.success && audioExportResult.url && (
+          <div className="rounded-xl border border-green-500/25 bg-green-500/[0.04] px-3 py-3 space-y-2">
+            <div className="flex items-center gap-2 text-[11px] text-green-400 font-bold">
+              <CheckCircle2 className="h-4 w-4" /> Scene 1 + audio export succeeded · {audioExportResult.duration?.toFixed(1)}s · audio {audioExportResult.hasAudio ? "✓" : "✗"}
+            </div>
+            <video src={audioExportResult.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+            <a href={audioExportResult.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+              <ExternalLink className="h-3 w-3" /> Open / download test video
+            </a>
+          </div>
+        )}
+
+      </div>
+    </EditorCard>
+  );
+}

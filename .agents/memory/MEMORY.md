@@ -4,3 +4,4 @@
 - [ASS caption time offset](caption-time-offset.md) — when intro card is enabled all ASS caption times shift by introDuration; buildAssContent takes timeOffset=0 param.
 - [DejaVu drawtext font path](drawtext-font.md) — confirmed path: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf for FFmpeg drawtext filters.
 - [Segmented control type constraint](segmented-types.md) — Segmented<T extends string> only accepts strings; convert numeric settings (CardDuration) with String/Number at call site.
+- [Export Doctor diagnostics](export-doctor.md) — single-clip Scene 1 export diagnostic; clip SSRF allowlist must include Runway CDN (.cloudfront.net/.runwayml.com), audio is Supabase-only.

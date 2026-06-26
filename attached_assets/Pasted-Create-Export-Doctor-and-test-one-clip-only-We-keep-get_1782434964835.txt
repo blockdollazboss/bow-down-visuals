@@ -1,0 +1,134 @@
+Create Export Doctor and test one clip only.
+
+We keep getting the same export error:
+FFmpeg failed exit 254
+No such file or directory
+
+The old export fix is not working. Stop trying to export the full project for now.
+
+Do not change:
+- master player
+- captions
+- effects
+- overlays
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe
+- credits
+- payments
+
+Only create a simple Export Doctor test system.
+
+Goal:
+Find out if the backend can access and download ONE clip before trying to export the full video.
+
+Add a new section in Export tab called:
+
+Export Doctor
+
+Add these buttons:
+
+1. Test Scene 1 Source URL
+2. Download Scene 1 Only
+3. Export Scene 1 Only
+4. Export Scene 1 + Audio Only
+
+TEST 1 — Test Scene 1 Source URL
+
+When clicked:
+- find Scene 1 clip
+- show every possible URL field:
+  - clip.url
+  - clip.video_url
+  - clip.videoUrl
+  - clip.output_url
+  - clip.outputUrl
+  - clip.asset_url
+  - clip.assetUrl
+  - clip.runway_url
+  - clip.runwayUrl
+  - clip.storage_url
+  - clip.storageUrl
+  - scene.clip_url
+  - scene.clipUrl
+  - scene.video_url
+  - scene.videoUrl
+  - scene.runway_output_url
+  - scene.runwayOutputUrl
+  - scene.generated_clip_url
+  - scene.generatedClipUrl
+- show which field is actually used by the master player
+- show final selected source URL
+- show if URL starts with http
+- show HTTP status
+- show content-type
+- show content-length
+- show first 100 characters only if response is not video
+
+Important:
+If response starts with HTML like <!DOCTYPE, show:
+This URL is not a video file. It is returning HTML.
+
+TEST 2 — Download Scene 1 Only
+
+When clicked:
+- create fresh folder /tmp/export-doctor-[timestamp]
+- download only Scene 1 video URL
+- write it as /tmp/export-doctor-[timestamp]/scene-1.mp4
+- await full file write
+- run fs.stat
+- run ffprobe
+- show:
+  - local file path
+  - file exists
+  - file size
+  - duration
+  - codec
+  - width/height
+  - ffprobe valid
+  - error if any
+
+TEST 3 — Export Scene 1 Only
+
+When clicked:
+- use only the downloaded Scene 1 local file
+- create a simple MP4 output
+- no captions
+- no effects
+- no overlays
+- no audio
+- only normalize to 1080x1920
+- output a 3-second test file
+- show download/view link if success
+
+TEST 4 — Export Scene 1 + Audio Only
+
+Only after Scene 1 Only works:
+- find the same audio source used by the master player
+- download audio locally
+- ffprobe audio
+- combine Scene 1 video + audio
+- output 3-second test file
+- no captions, no effects, no overlays yet
+
+Hard rules:
+- Do not run full export.
+- Do not touch all 5 scenes.
+- Do not include captions/effects/overlays until Scene 1 export works.
+- Do not run FFmpeg if the local Scene 1 file does not exist.
+- Do not hide errors.
+
+Add visible status:
+Export Doctor Status:
+- Scene 1 URL found: yes/no
+- Scene 1 URL returns video: yes/no
+- Scene 1 downloaded: yes/no
+- Scene 1 ffprobe valid: yes/no
+- Scene 1 simple export works: yes/no
+- Audio downloaded: yes/no
+- Scene 1 + audio export works: yes/no
+- Last error
+
+Final goal:
+Prove one clip can download and export first. After Scene 1 Only works, then we can build the full export safely.
