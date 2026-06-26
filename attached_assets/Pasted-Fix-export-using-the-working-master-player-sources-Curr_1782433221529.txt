@@ -1,0 +1,128 @@
+Fix export using the working master player sources.
+
+Current export problems:
+1. Export still fails:
+FFmpeg failed exit 254
+Error opening input files: No such file or directory
+
+2. Export header now says:
+no audio
+
+But the master player has project audio working.
+
+This means export is not using the same clip/audio sources that the master player uses.
+
+Do not change:
+- master player layout
+- synced captions
+- caption styles
+- effects
+- overlays
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe
+- credits
+- payments
+
+Only fix export source collection and export preparation.
+
+Core rule:
+Export must use the exact same active sources that the master player uses.
+
+PART 1 — USE MASTER PLAYER CLIP SOURCES
+
+For each selected scene, get the same video URL/source used by the master player.
+
+Do not use stale /tmp files.
+Do not use fake clip-scene paths before files are written.
+Do not use only checkmarks.
+
+Add debug:
+
+Scene Export Source:
+- scene number
+- scene title
+- master player video source
+- database clip URL
+- final source URL used
+- source URL valid: yes/no
+- downloaded local file: yes/no
+- local file exists: yes/no
+- file size
+- ffprobe valid: yes/no
+
+PART 2 — USE MASTER PLAYER AUDIO SOURCE
+
+Export must use the same audio source as the master player.
+
+Find the working master player audio source:
+- project.video_audio_url
+- project.audioUrl
+- musicMixer selected song URL
+- uploaded original song URL
+- same source used in master player audioRef
+
+Add debug:
+
+Export Audio Source:
+- master player audio URL found: yes/no
+- project audio URL found: yes/no
+- final audio URL used
+- downloaded local audio file: yes/no
+- audio file exists: yes/no
+- ffprobe audio valid: yes/no
+
+If audio exists in master player but export says no audio, show:
+Export audio source not connected to master player audio source.
+
+PART 3 — PREPARE FILES BEFORE FFMPEG
+
+Add button:
+Prepare Export Files Only
+
+When clicked:
+- download all selected scene videos from their real URLs
+- download the project audio from the real master player audio URL
+- write them into a fresh export temp folder
+- await every write fully
+- ffprobe every local file
+- show table before export
+
+Do not allow FFmpeg until:
+- all selected clips have local files
+- all selected clips pass ffprobe
+- audio file exists if project has audio
+
+PART 4 — DO NOT RUN FFMPEG TOO EARLY
+
+Disable Export Selected Range and Full Export until:
+
+Prepared clips: 5/5
+Prepared audio: yes
+Ready for FFmpeg: yes
+
+If not ready, show:
+Prepare export files first.
+
+PART 5 — FIX API / JSON ROUTE
+
+If any prepare/export API returns HTML instead of JSON, show the route and fix it.
+
+Prepare/export API responses must be JSON only.
+
+PART 6 — FINAL TEST STATUS
+
+Add visible status:
+
+Export Readiness:
+- master clip sources found: 5/5
+- clip files downloaded: 5/5
+- clip files valid: 5/5
+- master audio source found: yes/no
+- audio file downloaded: yes/no
+- audio valid: yes/no
+- ready for FFmpeg: yes/no
+
+Final goal:
+Export should use the same videos and audio that already work in the master player. The export page should not say “no audio” if the master player has audio. FFmpeg should not start until all local video and audio files physically exist and pass ffprobe.
