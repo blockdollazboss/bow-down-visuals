@@ -1,0 +1,121 @@
+Fix Prepare Export Files API returning HTML instead of JSON.
+
+Current error:
+Prepare Export Files fails with:
+Unexpected token '<', "<!DOCTYPE" ... is not valid JSON
+
+This means the frontend is calling an export API endpoint but receiving an HTML page instead of JSON.
+
+Do not change:
+- master player
+- captions
+- caption sync
+- caption styles
+- effects
+- overlays
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe, credits, or payments
+
+Only fix the Prepare Export Files API route and frontend fetch handling.
+
+Required fix:
+
+1. Find the frontend function for:
+Prepare Export Files
+Prepare Export Files Only
+Debug Export Sources
+
+2. Check what URL it is calling.
+
+It should call a real backend API route, not a React route.
+
+Example:
+Correct:
+POST /api/export/prepare
+
+Wrong:
+GET /export/prepare
+/export
+/video-editor/export
+or any route that returns index.html
+
+3. Create or fix the backend route:
+
+POST /api/export/prepare
+
+This route must return JSON only.
+
+4. The backend response must use:
+Content-Type: application/json
+
+5. Successful response shape:
+
+{
+  "success": true,
+  "prepareSessionId": "...",
+  "clipsReady": 5,
+  "clipsTotal": 5,
+  "clips": [
+    {
+      "sceneNumber": 1,
+      "sceneTitle": "Intro",
+      "actualSourceUrl": "...",
+      "downloadStatus": 200,
+      "contentType": "video/mp4",
+      "localPath": "...",
+      "fileExists": true,
+      "fileSizeBytes": 123456,
+      "ffprobeValid": true,
+      "readyForFFmpeg": true,
+      "error": null
+    }
+  ]
+}
+
+6. Failed response shape:
+
+{
+  "success": false,
+  "error": "real error message",
+  "clips": []
+}
+
+7. Frontend fetch must check response content type before parsing JSON.
+
+If response is HTML, show:
+Prepare Export API returned HTML instead of JSON. The frontend is calling the wrong route or the backend route is missing.
+
+8. Add frontend debug:
+- Prepare API URL
+- HTTP status
+- Content-Type
+- Raw response first 200 chars if not JSON
+
+9. Do not allow this code:
+const data = await response.json()
+
+unless content-type includes application/json.
+
+10. If using Vite/React dev server with backend:
+Make sure API requests are proxied correctly to the backend.
+Do not let /api/export/prepare fall through to index.html.
+
+11. Add console/backend logs:
+PREPARE EXPORT API HIT
+projectId:
+selectedClips:
+userId:
+PREPARE EXPORT API RESPONSE JSON
+
+12. After this fix, clicking Prepare Export Files should no longer show:
+Unexpected token '<'
+
+It should either show:
+- clips ready table
+or
+- a real JSON error message.
+
+Final goal:
+Prepare Export Files must call a real backend API endpoint that returns JSON, not an HTML page.

@@ -196,6 +196,13 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     clips: ClipInput[];
   };
 
+  req.log.info({
+    msg: "PREPARE EXPORT API HIT",
+    projectId: projectId ?? "(missing)",
+    userId: req.userId ?? "(no userId)",
+    selectedClips: Array.isArray(clips) ? clips.length : "(not an array)",
+  }, "PREPARE EXPORT API HIT");
+
   if (!projectId?.trim()) {
     res.status(400).json({ error: "projectId is required" });
     return;

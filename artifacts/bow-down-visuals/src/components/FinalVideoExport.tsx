@@ -273,13 +273,38 @@ export function FinalVideoExport({
           },
         };
       });
-      const res = await fetch("/api/prepare-export-files", {
+      const PREPARE_URL = "/api/prepare-export-files";
+      console.log("[BDV] PREPARE EXPORT API HIT", { url: PREPARE_URL, projectId, clipCount: clips.length });
+
+      const res = await fetch(PREPARE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ projectId, clips }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
       });
-      const data = (await res.json()) as {
+
+      // Guard: read as text first, then parse as JSON only if the server
+      // actually returned JSON. A proxy error or SPA fallback will give HTML.
+      const rawText = await res.text();
+      const ct = res.headers.get("content-type") ?? "";
+      console.log("[BDV] PREPARE EXPORT API RESPONSE", {
+        url: PREPARE_URL,
+        status: res.status,
+        contentType: ct,
+        bodyPreview: rawText.slice(0, 200),
+      });
+
+      if (!ct.includes("application/json")) {
+        throw new Error(
+          `Prepare Export API returned "${ct || "no content-type"}" instead of JSON ` +
+          `(HTTP ${res.status}). ` +
+          (rawText.trimStart().startsWith("<")
+            ? "The frontend is calling the wrong route or the backend route is missing — got HTML page instead of API response."
+            : `Response preview: ${rawText.slice(0, 200)}`)
+        );
+      }
+
+      const data = JSON.parse(rawText) as {
         prepareId: string;
         allReady: boolean;
         totalClips: number;
