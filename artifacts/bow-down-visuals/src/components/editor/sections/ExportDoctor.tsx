@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink,
+  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
@@ -61,12 +61,38 @@ type ExportResult = {
   width?: number;
   height?: number;
   hasAudio?: boolean;
+  clipCount?: number;
   audioDownloaded?: boolean;
   audioValid?: boolean;
   audioFileSize?: number;
   audioDuration?: number;
   error?: string;
   stderrTail?: string[];
+};
+
+type MultiClipRow = {
+  sceneNumber: number;
+  sceneTitle: string;
+  fileExists: boolean;
+  fileSize: number;
+  duration: number;
+  width: number;
+  height: number;
+  codec: string;
+  ffprobeValid: boolean;
+  responseStatus: number;
+  contentType: string;
+  error: string | null;
+};
+
+type DownloadAllResult = {
+  multiId: string;
+  total: number;
+  downloaded: number;
+  valid: number;
+  allValid: boolean;
+  lastError: string | null;
+  clips: MultiClipRow[];
 };
 
 async function readJson<T>(res: Response): Promise<T> {
@@ -91,15 +117,35 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl }: ExportDoctor
   const scene1 = scenes.find((s) => !!s.demoClipUrl?.startsWith("http")) ?? scenes[0] ?? null;
   const scene1Url = scene1?.demoClipUrl ?? "";
 
-  const [busy, setBusy] = useState<null | "url" | "download" | "export" | "export-audio">(null);
+  const [busy, setBusy] = useState<
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio"
+  >(null);
   const [urlResult, setUrlResult] = useState<UrlTestResult | null>(null);
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const [audioExportResult, setAudioExportResult] = useState<ExportResult | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
+  // Multi-clip ("All 5 Clips") doctor state
+  const [downloadAllResult, setDownloadAllResult] = useState<DownloadAllResult | null>(null);
+  const [exportAllResult, setExportAllResult] = useState<ExportResult | null>(null);
+  const [exportAllAudioResult, setExportAllAudioResult] = useState<ExportResult | null>(null);
+
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
+
+  // Every scene that has a usable clip URL is part of the multi-clip set.
+  const multiClips = scenes.map((s, i) => {
+    const n = s.sceneNumber ?? i + 1;
+    return {
+      sceneNumber: n,
+      title: s.section ? `Scene ${n} · ${s.section}` : `Scene ${n}`,
+      url: s.demoClipUrl ?? null,
+    };
+  });
+  const multiClipsWithUrl = multiClips.filter((c) => !!c.url?.startsWith("http"));
+  const multiId = downloadAllResult?.multiId ?? null;
+  const allClipsValid = !!downloadAllResult?.allValid && downloadAllResult.total > 0;
 
   async function authHeaders() {
     const token = await getAccessToken();
@@ -169,6 +215,60 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl }: ExportDoctor
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setAudioExportResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function downloadAllClips() {
+    setBusy("download-all"); setLastError(null);
+    setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/download-all", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ projectId, clips: multiClips }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = await readJson<DownloadAllResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setDownloadAllResult(data);
+      if (data.lastError) setLastError(data.lastError);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportAllClips() {
+    if (!multiId) return;
+    setBusy("export-all"); setLastError(null); setExportAllResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-all", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ multiId }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setExportAllResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportAllClipsAudio() {
+    if (!multiId) return;
+    setBusy("export-all-audio"); setLastError(null); setExportAllAudioResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-all-audio", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ multiId, audioUrl: masterAudioUrl ?? null }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setExportAllAudioResult(data);
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -359,6 +459,139 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl }: ExportDoctor
             </a>
           </div>
         )}
+
+        {/* ════════ ALL CLIPS DOCTOR ════════ */}
+        <div className="pt-2 mt-2 border-t border-white/[0.08]">
+          <div className="flex items-center gap-2 mb-3">
+            <Layers className="h-4 w-4 text-primary" />
+            <p className="text-[11px] font-black text-white/70 uppercase tracking-widest">All {multiClips.length} Clips Doctor</p>
+          </div>
+
+          {/* ── Multi-clip status block ── */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3 space-y-1.5 mb-3">
+            {([
+              ["clips found", downloadAllResult ? `${multiClipsWithUrl.length}/${multiClips.length}` : `${multiClipsWithUrl.length}/${multiClips.length}`, multiClipsWithUrl.length === multiClips.length && multiClips.length > 0],
+              ["clips downloaded", downloadAllResult ? `${downloadAllResult.downloaded}/${downloadAllResult.total}` : "—", downloadAllResult ? downloadAllResult.downloaded === downloadAllResult.total : null],
+              ["clips ffprobe valid", downloadAllResult ? `${downloadAllResult.valid}/${downloadAllResult.total}` : "—", downloadAllResult ? downloadAllResult.valid === downloadAllResult.total : null],
+              ["all clips export works", exportAllResult ? (exportAllResult.success ? "yes" : "no") : "—", exportAllResult ? !!exportAllResult.success : null],
+              ["all clips + audio export works", exportAllAudioResult ? (exportAllAudioResult.success ? "yes" : "no") : "—", exportAllAudioResult ? !!exportAllAudioResult.success : null],
+            ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+              <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40">{label}</span>
+                <span className={`font-bold ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+              </div>
+            ))}
+            <div className="flex items-start justify-between gap-2 text-[11px] font-mono pt-1 mt-1 border-t border-white/[0.06]">
+              <span className="text-white/40 shrink-0">last error</span>
+              <span className="text-red-400/80 text-right break-words leading-snug">{lastError ?? "—"}</span>
+            </div>
+          </div>
+
+          {/* ── Multi-clip action buttons ── */}
+          <div className="grid grid-cols-1 gap-2 mb-3">
+            <Button onClick={downloadAllClips} disabled={busy !== null || multiClipsWithUrl.length === 0} variant="outline"
+              className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs"
+              data-testid="btn-doctor-download-all">
+              {busy === "download-all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              Download All {multiClips.length} Clips
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={exportAllClips} disabled={busy !== null || !allClipsValid} variant="outline"
+                className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"
+                data-testid="btn-doctor-export-all">
+                {busy === "export-all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
+                Export All {multiClips.length} Clips Only
+              </Button>
+              <Button onClick={exportAllClipsAudio} disabled={busy !== null || !allClipsValid} variant="outline"
+                className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"
+                data-testid="btn-doctor-export-all-audio">
+                {busy === "export-all-audio" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />}
+                Export All {multiClips.length} Clips + Audio Only
+              </Button>
+            </div>
+          </div>
+          {!allClipsValid && (
+            <p className="text-center text-[10px] text-white/25 leading-relaxed -mt-1 mb-3">
+              Export buttons unlock after all clips download and pass ffprobe.
+            </p>
+          )}
+
+          {/* ── Per-scene table ── */}
+          {downloadAllResult && (
+            <div className="rounded-xl border border-white/[0.08] overflow-hidden mb-3">
+              <div className="px-3 py-2 bg-white/[0.03] border-b border-white/[0.06]">
+                <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Per-Scene Results</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px] font-mono">
+                  <thead>
+                    <tr className="text-white/35 border-b border-white/[0.06]">
+                      <th className="text-left px-2 py-1.5 font-medium">Scene</th>
+                      <th className="text-center px-1 py-1.5 font-medium">File</th>
+                      <th className="text-right px-1 py-1.5 font-medium">Size</th>
+                      <th className="text-right px-1 py-1.5 font-medium">Dur</th>
+                      <th className="text-center px-1 py-1.5 font-medium">Res</th>
+                      <th className="text-center px-2 py-1.5 font-medium">ffprobe</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {downloadAllResult.clips.map((c) => (
+                      <tr key={c.sceneNumber} className="border-b border-white/[0.04] last:border-0">
+                        <td className="px-2 py-1.5 text-white/55 whitespace-nowrap">{c.sceneNumber}</td>
+                        <td className="text-center px-1 py-1.5">
+                          <span className={c.fileExists ? "text-green-400" : "text-red-400"}>{c.fileExists ? "✓" : "✗"}</span>
+                        </td>
+                        <td className="text-right px-1 py-1.5 text-white/45">{fmtBytes(c.fileSize)}</td>
+                        <td className="text-right px-1 py-1.5 text-white/45">{c.duration ? `${c.duration.toFixed(1)}s` : "—"}</td>
+                        <td className="text-center px-1 py-1.5 text-white/45">{c.width ? `${c.width}×${c.height}` : "—"}</td>
+                        <td className="text-center px-2 py-1.5">
+                          <span className={`font-bold ${c.ffprobeValid ? "text-green-400" : "text-red-400"}`}>{c.ffprobeValid ? "valid" : "invalid"}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {downloadAllResult.clips.some((c) => c.error) && (
+                <div className="px-3 py-2 border-t border-white/[0.06] space-y-1">
+                  {downloadAllResult.clips.filter((c) => c.error).map((c) => (
+                    <div key={c.sceneNumber} className="text-[10px] font-mono text-red-400/80 break-words">
+                      Scene {c.sceneNumber}: {c.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── All clips export result ── */}
+          {exportAllResult?.success && exportAllResult.url && (
+            <div className="rounded-xl border border-green-500/25 bg-green-500/[0.04] px-3 py-3 space-y-2 mb-3">
+              <div className="flex items-center gap-2 text-[11px] text-green-400 font-bold">
+                <CheckCircle2 className="h-4 w-4" /> All clips export succeeded · {exportAllResult.clipCount ?? "?"} clips · {exportAllResult.duration?.toFixed(1)}s · {fmtBytes(exportAllResult.fileSize)}
+              </div>
+              <video src={exportAllResult.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={exportAllResult.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download test video
+              </a>
+            </div>
+          )}
+
+          {/* ── All clips + audio export result ── */}
+          {exportAllAudioResult?.success && exportAllAudioResult.url && (
+            <div className="rounded-xl border border-green-500/25 bg-green-500/[0.04] px-3 py-3 space-y-2">
+              <div className="flex items-center gap-2 text-[11px] text-green-400 font-bold">
+                <CheckCircle2 className="h-4 w-4" /> All clips + audio export succeeded · {exportAllAudioResult.clipCount ?? "?"} clips · {exportAllAudioResult.duration?.toFixed(1)}s · audio {exportAllAudioResult.hasAudio ? "✓" : "✗"}
+              </div>
+              <video src={exportAllAudioResult.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={exportAllAudioResult.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download test video
+              </a>
+            </div>
+          )}
+        </div>
 
       </div>
     </EditorCard>

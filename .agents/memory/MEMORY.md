@@ -4,4 +4,4 @@
 - [ASS caption time offset](caption-time-offset.md) — when intro card is enabled all ASS caption times shift by introDuration; buildAssContent takes timeOffset=0 param.
 - [DejaVu drawtext font path](drawtext-font.md) — confirmed path: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf for FFmpeg drawtext filters.
 - [Segmented control type constraint](segmented-types.md) — Segmented<T extends string> only accepts strings; convert numeric settings (CardDuration) with String/Number at call site.
-- [Export Doctor diagnostics](export-doctor.md) — single-clip Scene 1 export diagnostic; media SSRF allowlist covers Supabase, Runway CDN, AND Replit object storage (storage.googleapis.com/replit-objstore-), the host the master player plays from.
+- [Export Doctor diagnostics](export-doctor.md) — single-clip + multi-clip (download→normalize→concat→export+audio) diagnostics; SEPARATE from real export pipeline; media SSRF allowlist covers Supabase, Runway CDN, AND Replit object storage (storage.googleapis.com/replit-objstore-), the host the master player plays from.
