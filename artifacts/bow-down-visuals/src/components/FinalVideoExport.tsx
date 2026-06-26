@@ -343,13 +343,13 @@ export function FinalVideoExport({
       });
 
       if (!res.ok) {
-        const body = (await res.json()) as {
+        const body = await parseJsonResponse<{
           error?: string;
           exportStatus?: Record<string, unknown>;
           ffmpegStderr?: string;
           stderrTail?: string[];
           ffmpegExitCode?: number;
-        };
+        }>(res, "POST /api/generate/export-video");
         const err = Object.assign(
           new Error(body.error ?? `Export failed (HTTP ${res.status})`),
           {
@@ -362,7 +362,7 @@ export function FinalVideoExport({
         throw err;
       }
 
-      const data = (await res.json()) as {
+      const data = await parseJsonResponse<{
         url: string;
         clipCount: number;
         audioIncluded: boolean;
@@ -371,7 +371,7 @@ export function FinalVideoExport({
         testMode?: boolean;
         exportStatus?: Record<string, unknown>;
         debug?: { identicalClipsDetected?: boolean };
-      };
+      }>(res, "POST /api/generate/export-video");
 
       if (data.debug?.identicalClipsDetected) {
         throw new Error(

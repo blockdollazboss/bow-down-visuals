@@ -735,6 +735,41 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           return;
         }
       }
+
+      // ── Source-identity hard stop: prepared files must match the EXACT clips/audio being exported ──
+      if (preparedEntry.clips.length !== clipUrls.length) {
+        res.status(400).json({
+          error: `FFmpeg blocked — clip selection changed since preparation (prepared ${preparedEntry.clips.length}, exporting ${clipUrls.length}). Re-prepare before exporting.`,
+          exportStatus,
+        });
+        return;
+      }
+      for (let i = 0; i < clipUrls.length; i++) {
+        if (preparedEntry.clips[i]!.resolvedUrl !== clipUrls[i]) {
+          res.status(400).json({
+            error: `FFmpeg blocked — clip ${i + 1} source changed since preparation. Re-prepare before exporting so the export uses the same clips as the player.`,
+            exportStatus,
+          });
+          return;
+        }
+      }
+      const requestedAudio = !!audioUrl?.trim();
+      if (requestedAudio) {
+        if (!preparedEntry.audio?.requested) {
+          res.status(400).json({
+            error: `FFmpeg blocked — audio was added after preparation. Re-prepare before exporting so the export includes the player's audio.`,
+            exportStatus,
+          });
+          return;
+        }
+        if (preparedEntry.audio.sourceUrl !== audioUrl) {
+          res.status(400).json({
+            error: `FFmpeg blocked — audio source changed since preparation. Re-prepare before exporting so the export uses the same audio as the player.`,
+            exportStatus,
+          });
+          return;
+        }
+      }
     }
 
     const usePrepared = !!(

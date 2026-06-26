@@ -259,6 +259,7 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     return;
   }
 
+  try {
   const prepareId = randomUUID();
   const exportDir = path.join(os.tmpdir(), `export-${projectId}-${Date.now()}`);
   mkdirSync(exportDir, { recursive: true });
@@ -554,6 +555,13 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     audioRequested,
     audioReady,
   });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    req.log.error({ error: message }, "EXPORT DEBUG: prepare-export-files unexpected failure");
+    if (!res.headersSent) {
+      res.status(500).json({ error: `Prepare failed: ${message}` });
+    }
+  }
 });
 
 export default router;
