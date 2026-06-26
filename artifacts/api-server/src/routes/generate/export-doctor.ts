@@ -23,14 +23,30 @@ const SUPABASE_HOST = (() => {
 const MAX_CLIP_BYTES = 500 * 1024 * 1024;  // 500 MB
 const MAX_AUDIO_BYTES = 100 * 1024 * 1024; // 100 MB
 
-/** SSRF guard for Scene 1 video clips: https only, from Supabase storage or the
- *  Runway CDN. Blocks internal/metadata/private hosts that don't match. */
+/** Replit object storage (GCS) — the master player and our own exports use this. */
+function isReplitObjectStorageUrl(u: URL): boolean {
+  return u.host === "storage.googleapis.com" && u.pathname.startsWith("/replit-objstore-");
+}
+
+/** SSRF guard for Scene 1 video clips: https only, from Supabase storage, the
+ *  Runway CDN, or Replit object storage (the host the master player plays from).
+ *  Blocks internal/metadata/private hosts that don't match. */
 function isAllowedClipUrl(url: string): boolean {
   let u: URL;
   try { u = new URL(url); } catch { return false; }
   if (u.protocol !== "https:") return false;
   if (SUPABASE_HOST && u.host === SUPABASE_HOST) return true;
+  if (isReplitObjectStorageUrl(u)) return true;
   return u.hostname.endsWith(".cloudfront.net") || u.hostname.endsWith(".runwayml.com");
+}
+
+/** SSRF guard for audio: Supabase storage (shared stem guard) or Replit object
+ *  storage. Does not modify the shared isAllowedStemUrl used by the real export. */
+function isAllowedAudioUrl(url: string): boolean {
+  if (isAllowedStemUrl(url)) return true;
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  return u.protocol === "https:" && isReplitObjectStorageUrl(u);
 }
 
 /** Stream transform that aborts once `max` bytes have flowed through. */
@@ -174,7 +190,7 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
         isVideo: false,
         isHtml: false,
         snippet: null,
-        message: "URL host is not an allowed media source (only Supabase storage or the Runway CDN over HTTPS).",
+        message: "URL host is not an allowed media source (Supabase storage, Runway CDN, or Replit object storage over HTTPS).",
       });
       return;
     }
@@ -193,7 +209,10 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
     const lenHeader = r.headers.get("content-range")?.split("/")[1] ?? r.headers.get("content-length");
     const contentLength = lenHeader ? Number(lenHeader) : null;
     const ctLower = contentType.toLowerCase();
-    const isVideo = ctLower.startsWith("video/");
+    // Object-storage hosts often serve videos as application/octet-stream (or no
+    // content-type). Treat octet-stream / empty as "likely video" — the real
+    // proof is the download + ffprobe step.
+    const isVideo = ctLower.startsWith("video/") || ctLower.startsWith("application/octet-stream") || ctLower === "";
     const buf = Buffer.from(await r.arrayBuffer());
     const head = buf.subarray(0, 100).toString("utf8");
     const isHtml = head.trimStart().toLowerCase().startsWith("<!doctype") || head.trimStart().toLowerCase().startsWith("<html");
@@ -205,13 +224,15 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
       status: r.status,
       contentType,
       contentLength,
-      isVideo,
+      isVideo: isVideo && !isHtml,
       isHtml,
-      snippet: isVideo ? null : head,
+      snippet: isVideo && !isHtml ? null : head,
       message: isHtml
         ? "This URL is not a video file. It is returning HTML."
-        : isVideo
+        : ctLower.startsWith("video/")
         ? "URL returns a video file."
+        : isVideo
+        ? `URL returns binary data (${contentType || "no content-type"}) — likely video; confirm with Download + ffprobe.`
         : `URL returned non-video content-type: ${contentType || "unknown"}.`,
     });
   } catch (e) {
@@ -228,7 +249,7 @@ router.post("/export-doctor/download", requireAuth, async (req, res) => {
       return;
     }
     if (!isAllowedClipUrl(url)) {
-      res.status(400).json({ error: "Scene 1 URL host is not an allowed media source (only Supabase storage or the Runway CDN over HTTPS)." });
+      res.status(400).json({ error: "Scene 1 URL host is not an allowed media source (Supabase storage, Runway CDN, or Replit object storage over HTTPS)." });
       return;
     }
 
@@ -406,8 +427,8 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
       res.status(400).json({ error: "No master-player audio URL was provided." });
       return;
     }
-    if (!isAllowedStemUrl(audioUrl)) {
-      res.status(400).json({ error: "Audio URL host is not an allowed media source (only Supabase storage over HTTPS)." });
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source (Supabase storage or Replit object storage over HTTPS)." });
       return;
     }
 

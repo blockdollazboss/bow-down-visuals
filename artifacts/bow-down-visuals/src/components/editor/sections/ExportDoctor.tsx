@@ -182,8 +182,17 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl }: ExportDoctor
   for (const k of URL_FIELD_KEYS) fieldValues[k] = "";
   fieldValues["scene.demoClipUrl"] = scene1.demoClipUrl ?? "";
 
+  const isReplitObjStore = /storage\.googleapis\.com\/replit-objstore-/.test(scene1Url);
+  const masterSourceAccepted = urlResult
+    ? urlResult.status >= 200 && urlResult.status < 400 && !urlResult.isHtml
+    : downloadResult
+    ? !!downloadResult.fileExists
+    : null;
+
   const statusRows: [string, boolean | null][] = [
     ["Scene 1 URL found", scene1Url.startsWith("http")],
+    ["Scene 1 master player source accepted", masterSourceAccepted],
+    ["Scene 1 Replit object storage allowed", scene1Url.startsWith("http") ? isReplitObjStore : null],
     ["Scene 1 URL returns video", urlResult ? urlResult.isVideo : null],
     ["Scene 1 downloaded", downloadResult ? !!downloadResult.fileExists : null],
     ["Scene 1 ffprobe valid", downloadResult ? !!downloadResult.ffprobeValid : null],
