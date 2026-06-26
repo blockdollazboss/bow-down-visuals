@@ -1,0 +1,97 @@
+Fix Export Doctor allowed media source for master player clip URLs.
+
+Good news:
+Export Doctor found the real Scene 1 video source.
+
+It found:
+scene.demoClipUrl (master player)
+
+The URL starts with:
+https://storage.googleapis.com/...
+
+Current problem:
+Export Doctor says:
+Scene 1 URL host is not an allowed media source.
+
+That is wrong because this is the exact video source the master player is using.
+
+Do not change:
+
+* master player
+* captions
+* caption sync
+* caption styles
+* effects
+* overlays
+* Auto PiP
+* Bow Down AI Guide
+* Runway generation
+* Stripe
+* credits
+* payments
+
+Only fix Export Doctor/export URL validation and downloading.
+
+Requirements:
+
+1. Allow the export system to use the same URL that the master player uses.
+
+Specifically allow:
+
+* scene.demoClipUrl
+* master player video source URL
+* HTTPS storage.googleapis.com Replit object storage URLs
+* Supabase Storage URLs
+* Runway CDN URLs
+
+2. Do not allow unsafe files blindly.
+
+A URL is allowed only if:
+
+* it starts with https://
+* fetch returns response.ok
+* content-type is video/mp4 or video/*
+* file size is greater than 0
+* ffprobe passes after download
+
+3. Update Export Doctor so scene.demoClipUrl is treated as a valid possible clip source.
+
+Add these fields to the URL search list:
+
+* scene.demoClipUrl
+* scene.demo_clip_url
+* clip.demoClipUrl
+* clip.demo_clip_url
+* masterPlayer.videoUrl
+* activeScene.videoUrl
+
+4. If scene.demoClipUrl is the URL used by the master player, show:
+   Actual source URL field name: scene.demoClipUrl
+   Source is master player video: yes
+
+5. Fix this error:
+   URL host is not an allowed media source
+
+Do not block storage.googleapis.com if the response is a real video file.
+
+6. After URL validation, Download Scene 1 Only must:
+
+* download scene.demoClipUrl
+* write it to the local export folder
+* wait for write to finish
+* fs.stat the file
+* run ffprobe
+* show file exists: yes
+* show ffprobe valid: yes
+
+7. Keep protections:
+   If storage.googleapis.com returns HTML, XML, JSON, or an error page instead of video, show:
+   URL did not return a video file.
+
+8. Final goal:
+   Export Doctor should show:
+   Scene 1 URL found: yes
+   Scene 1 URL returns video: yes
+   Scene 1 downloaded: yes
+   Scene 1 ffprobe valid: yes
+   Scene 1 simple export works: yes
