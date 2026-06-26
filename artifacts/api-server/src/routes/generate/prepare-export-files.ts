@@ -196,13 +196,6 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     clips: ClipInput[];
   };
 
-  req.log.info({
-    msg: "PREPARE EXPORT API HIT",
-    projectId: projectId ?? "(missing)",
-    userId: req.userId ?? "(no userId)",
-    selectedClips: Array.isArray(clips) ? clips.length : "(not an array)",
-  }, "PREPARE EXPORT API HIT");
-
   if (!projectId?.trim()) {
     res.status(400).json({ error: "projectId is required" });
     return;
@@ -416,16 +409,12 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     failedScenes: results.filter((r) => !r.readyForFFmpeg).map((r) => r.sceneNumber),
   }, `EXPORT DEBUG END — ready: ${readyCount}/${results.length}`);
 
-  const createdAt = Date.now();
-  const expiresAt = createdAt + 30 * 60 * 1000;
-
   registerPreparedExport(prepareId, {
     projectId,
     exportDir,
     clips: results,
     allReady,
-    createdAt,
-    expiresAt,
+    createdAt: Date.now(),
   });
 
   res.json({
@@ -435,7 +424,6 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     totalClips: results.length,
     readyClips: readyCount,
     clips: results,
-    expiresAt,
   });
 });
 

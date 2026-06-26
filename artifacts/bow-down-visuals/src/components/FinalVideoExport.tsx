@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
-  Shield, RefreshCw, ChevronDown, ChevronUp, Trash2,
+  Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -158,89 +158,13 @@ export function FinalVideoExport({
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
 
-  const [prepareState, setPrepareState]           = useState<"idle" | "running" | "done" | "failed">("idle");
-  const [prepareId, setPrepareId]                 = useState<string | null>(null);
-  const [prepareExpiresAt, setPrepareExpiresAt]   = useState<number | null>(null);
-  const [clipCheckResults, setClipCheckResults]   = useState<ClipCheckRow[] | null>(null);
-  const [prepareError, setPrepareError]           = useState<string | null>(null);
-  const [prepareAllReady, setPrepareAllReady]     = useState(false);
+  const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
+  const [prepareId, setPrepareId]               = useState<string | null>(null);
+  const [clipCheckResults, setClipCheckResults] = useState<ClipCheckRow[] | null>(null);
+  const [prepareError, setPrepareError]         = useState<string | null>(null);
+  const [prepareAllReady, setPrepareAllReady]   = useState(false);
   const [prepareReadyCount, setPrepareReadyCount] = useState(0);
   const [checkTableExpanded, setCheckTableExpanded] = useState(true);
-
-  // ── LocalStorage session persistence ──────────────────────────────────────
-  // Key is per-project so switching projects never leaks sessions.
-  const sessionKey = projectId ? `bdv-prepare-${projectId}` : null;
-
-  // Fingerprint of the currently selected clip URLs (sorted, joined).
-  // Used to detect when the user changes selected clips — which invalidates the session.
-  const clipUrlsFingerprint = clipUrls.slice().sort().join("|");
-  const prevFingerprintRef = useRef<string>("");
-
-  // Restore session from localStorage on mount (or when projectId changes).
-  useEffect(() => {
-    if (!sessionKey) return;
-    const raw = localStorage.getItem(sessionKey);
-    if (!raw) return;
-    try {
-      const saved = JSON.parse(raw) as {
-        prepareId: string; allReady: boolean; readyCount: number;
-        clips: ClipCheckRow[]; expiresAt: number;
-        clipUrlsFingerprint: string; prepareError: string | null;
-      };
-      if (saved.expiresAt <= Date.now()) {
-        localStorage.removeItem(sessionKey);
-        return;
-      }
-      if (saved.clipUrlsFingerprint !== clipUrlsFingerprint) {
-        localStorage.removeItem(sessionKey);
-        return;
-      }
-      setPrepareId(saved.prepareId);
-      setPrepareExpiresAt(saved.expiresAt);
-      setPrepareAllReady(saved.allReady);
-      setPrepareReadyCount(saved.readyCount);
-      setClipCheckResults(saved.clips);
-      setPrepareState(saved.allReady ? "done" : "failed");
-      setPrepareError(saved.prepareError);
-    } catch {
-      localStorage.removeItem(sessionKey);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey]);
-
-  // Detect when selected clip URLs change → clear the session.
-  useEffect(() => {
-    const prev = prevFingerprintRef.current;
-    prevFingerprintRef.current = clipUrlsFingerprint;
-    if (!prev || prev === clipUrlsFingerprint) return;
-    // Clips changed — invalidate stored session.
-    if (sessionKey) localStorage.removeItem(sessionKey);
-    setPrepareId(null);
-    setPrepareExpiresAt(null);
-    setPrepareState("idle");
-    setPrepareAllReady(false);
-    setPrepareReadyCount(0);
-    setClipCheckResults(null);
-    setPrepareError(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clipUrlsFingerprint]);
-
-  function clearPrepareSession() {
-    if (sessionKey) localStorage.removeItem(sessionKey);
-    setPrepareId(null);
-    setPrepareExpiresAt(null);
-    setPrepareState("idle");
-    setPrepareAllReady(false);
-    setPrepareReadyCount(0);
-    setClipCheckResults(null);
-    setPrepareError(null);
-  }
-
-  // Compute "expires in X minutes" for display (no live timer needed — shown on render).
-  const prepareExpiresInMin = prepareExpiresAt
-    ? Math.max(0, Math.round((prepareExpiresAt - Date.now()) / 60_000))
-    : null;
-  const prepareSessionActive = !!(prepareId && prepareExpiresAt && prepareExpiresAt > Date.now());
 
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
@@ -249,13 +173,11 @@ export function FinalVideoExport({
     if (!projectId || selectedScenes.length === 0) return;
     setPrepareState("running");
     setPrepareId(null);
-    setPrepareExpiresAt(null);
     setClipCheckResults(null);
     setPrepareError(null);
     setPrepareAllReady(false);
     setPrepareReadyCount(0);
     setCheckTableExpanded(true);
-    if (sessionKey) localStorage.removeItem(sessionKey);
     try {
       const token = await getAccessToken();
       const clips = selectedScenes.map((s) => {
@@ -273,70 +195,29 @@ export function FinalVideoExport({
           },
         };
       });
-      const PREPARE_URL = "/api/prepare-export-files";
-      console.log("[BDV] PREPARE EXPORT API HIT", { url: PREPARE_URL, projectId, clipCount: clips.length });
-
-      const res = await fetch(PREPARE_URL, {
+      const res = await fetch("/api/prepare-export-files", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ projectId, clips }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
       });
-
-      // Guard: read as text first, then parse as JSON only if the server
-      // actually returned JSON. A proxy error or SPA fallback will give HTML.
-      const rawText = await res.text();
-      const ct = res.headers.get("content-type") ?? "";
-      console.log("[BDV] PREPARE EXPORT API RESPONSE", {
-        url: PREPARE_URL,
-        status: res.status,
-        contentType: ct,
-        bodyPreview: rawText.slice(0, 200),
-      });
-
-      if (!ct.includes("application/json")) {
-        throw new Error(
-          `Prepare Export API returned "${ct || "no content-type"}" instead of JSON ` +
-          `(HTTP ${res.status}). ` +
-          (rawText.trimStart().startsWith("<")
-            ? "The frontend is calling the wrong route or the backend route is missing — got HTML page instead of API response."
-            : `Response preview: ${rawText.slice(0, 200)}`)
-        );
-      }
-
-      const data = JSON.parse(rawText) as {
+      const data = (await res.json()) as {
         prepareId: string;
         allReady: boolean;
         totalClips: number;
         readyClips: number;
         clips: ClipCheckRow[];
-        expiresAt?: number;
         error?: string;
       };
       if (!res.ok) throw new Error(data.error ?? `Prepare failed (HTTP ${res.status})`);
-      const expires = data.expiresAt ?? (Date.now() + 30 * 60 * 1000);
       setPrepareId(data.prepareId);
-      setPrepareExpiresAt(expires);
       setClipCheckResults(data.clips);
       setPrepareAllReady(data.allReady);
       setPrepareReadyCount(data.readyClips);
       setPrepareState(data.allReady ? "done" : "failed");
-      // Persist to localStorage so tab switches don't lose the session.
-      if (sessionKey) {
-        localStorage.setItem(sessionKey, JSON.stringify({
-          prepareId: data.prepareId,
-          allReady: data.allReady,
-          readyCount: data.readyClips,
-          clips: data.clips,
-          expiresAt: expires,
-          clipUrlsFingerprint,
-          prepareError: null,
-        }));
-      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Prepare failed";
       setPrepareState("failed");
-      setPrepareError(msg);
+      setPrepareError(err instanceof Error ? err.message : "Prepare failed");
     }
   }
 
@@ -452,8 +333,6 @@ export function FinalVideoExport({
       setExportUrl(data.url);
       setStatus("completed");
       setProgressStep("");
-      // Clear the prepare session — it was consumed by the export.
-      if (sessionKey) localStorage.removeItem(sessionKey);
 
       const record: ExportRecord = {
         final_video_url: data.url,
@@ -699,83 +578,33 @@ export function FinalVideoExport({
             {!hasDuplicateUrls && selectedScenes.length > 0 && (
               <div className="space-y-3">
 
-                {/* Prepare session status panel */}
+                {/* Prepare status summary */}
                 {prepareState !== "idle" && (
-                  <div className={`rounded-xl border text-[10px] font-mono overflow-hidden ${
-                    prepareSessionActive && prepareAllReady
+                  <div className={`flex flex-wrap gap-x-4 gap-y-1.5 px-3 py-2.5 rounded-xl border text-[10px] font-mono ${
+                    prepareAllReady
                       ? "border-green-500/25 bg-green-500/[0.05]"
-                      : prepareState === "running"
-                      ? "border-white/[0.07] bg-white/[0.02]"
-                      : "border-red-500/20 bg-red-500/[0.04]"
+                      : prepareState === "failed"
+                      ? "border-red-500/20 bg-red-500/[0.04]"
+                      : "border-white/[0.07] bg-white/[0.02]"
                   }`}>
-                    <div className="px-3 py-2 border-b border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-2">
-                      <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">Prepare Session Status</p>
-                      {prepareState !== "running" && (
-                        <button
-                          type="button"
-                          onClick={clearPrepareSession}
-                          className="flex items-center gap-1 text-[9px] text-red-400/50 hover:text-red-400/80 transition-colors"
-                          title="Clear prepared files"
-                        >
-                          <Trash2 className="h-2.5 w-2.5" />
-                          Clear
-                        </button>
-                      )}
-                    </div>
-                    <div className="divide-y divide-white/[0.04]">
-                      <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                        <span className="text-white/40">Prepare Session Active</span>
-                        {prepareState === "running"
-                          ? <span className="text-white/50">…</span>
-                          : prepareSessionActive
-                          ? <span className="text-green-400 font-bold">yes</span>
-                          : <span className="text-red-400 font-bold">no</span>}
-                      </div>
-                      {prepareId && (
-                        <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                          <span className="text-white/40">Prepare Session ID</span>
-                          <span className="text-white/30 font-mono text-[9px]">{prepareId.slice(0, 18)}…</span>
-                        </div>
-                      )}
-                      {prepareExpiresInMin !== null && prepareSessionActive && (
-                        <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                          <span className="text-white/40">Expires in</span>
-                          <span className={`font-bold ${prepareExpiresInMin < 5 ? "text-amber-400" : "text-white/50"}`}>
-                            {prepareExpiresInMin} min
-                          </span>
-                        </div>
-                      )}
-                      {prepareState !== "running" && clipCheckResults && (
-                        <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                          <span className="text-white/40">Clips ready</span>
-                          <span className={`font-bold ${prepareAllReady ? "text-green-400" : "text-amber-400"}`}>
-                            {prepareReadyCount}/{clipCheckResults.length}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                        <span className="text-white/40">Local files still exist</span>
-                        {prepareState === "running"
-                          ? <span className="text-white/50">…</span>
-                          : prepareSessionActive
-                          ? <span className="text-green-400 font-bold">yes (verified at prepare time)</span>
-                          : <span className="text-white/25">—</span>}
-                      </div>
-                      <div className="flex items-center justify-between px-3 py-1.5 gap-2">
-                        <span className="text-white/40">Ready for FFmpeg</span>
-                        {prepareState === "running"
-                          ? <span className="text-white/50">…</span>
-                          : prepareSessionActive && prepareAllReady
-                          ? <span className="text-green-400 font-bold">yes ✓</span>
-                          : <span className="text-red-400 font-bold">no</span>}
-                      </div>
-                      {prepareState !== "running" && prepareError && (
-                        <div className="flex items-start justify-between px-3 py-1.5 gap-2">
-                          <span className="text-white/40 shrink-0">Last session error</span>
-                          <span className="text-red-400/80 break-words text-right leading-snug">{prepareError}</span>
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-white/40">Export files prepared:
+                      <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : prepareState === "running" ? "text-white/50" : "text-red-400"}`}>
+                        {prepareState === "running" ? "…" : prepareAllReady ? "yes" : "no"}
+                      </span>
+                    </span>
+                    {prepareState !== "running" && clipCheckResults && (
+                      <span className="text-white/40">Clips ready:
+                        <span className={`ml-1 font-bold ${prepareAllReady ? "text-green-400" : "text-amber-400"}`}>
+                          {prepareReadyCount}/{clipCheckResults.length}
+                        </span>
+                      </span>
+                    )}
+                    <span className="text-white/40">FFmpeg started:
+                      <span className="ml-1 font-bold text-white/30">no</span>
+                    </span>
+                    {prepareState === "failed" && prepareError && (
+                      <span className="w-full text-red-400/80 mt-0.5">{prepareError}</span>
+                    )}
                   </div>
                 )}
 
@@ -818,19 +647,6 @@ export function FinalVideoExport({
                       : "Prepare Export Files Only"}
                   </Button>
                 </div>
-
-                {/* Clear Prepared Files button */}
-                {prepareState !== "idle" && prepareState !== "running" && (
-                  <Button
-                    onClick={clearPrepareSession}
-                    variant="outline"
-                    className="w-full gap-2 text-xs border-red-500/20 bg-red-500/[0.03] text-red-400/60 hover:bg-red-500/10 hover:text-red-400"
-                    data-testid="btn-clear-prepared-files"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Clear Prepared Files
-                  </Button>
-                )}
 
                 {/* Check table */}
                 {clipCheckResults && clipCheckResults.length > 0 && (
