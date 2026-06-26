@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { createWriteStream, existsSync, mkdirSync, statSync, readFileSync, rmSync } from "fs";
+import { createWriteStream, existsSync, mkdirSync, statSync, readFileSync, writeFileSync, rmSync } from "fs";
 import { pipeline } from "stream/promises";
 import { Transform } from "stream";
 import { randomUUID } from "crypto";
@@ -10,6 +10,7 @@ import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { isAllowedStemUrl } from "../../lib/audioExport";
+import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -173,12 +174,13 @@ async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]>
   return normPaths;
 }
 
-/** Concatenate normalized clips (scene order) with optional audio. Returns output path. */
+/** Concatenate normalized clips (scene order) with optional audio + optional burned ASS captions. */
 async function concatMultiClips(
   folder: string,
   normPaths: string[],
   audioPath: string | null,
   outName: string,
+  assPath: string | null = null,
 ): Promise<string> {
   const outputPath = path.join(folder, outName);
   const filterParts: string[] = [];
@@ -188,11 +190,22 @@ async function concatMultiClips(
   const segs = normPaths.map((_, i) => `[v${i}]`).join("");
   filterParts.push(`${segs}concat=n=${normPaths.length}:v=1:a=0[vout]`);
 
+  // Burn ASS captions over the concatenated video (same subtitles filter the real export uses).
+  let videoLabel = "[vout]";
+  if (assPath) {
+    const escapedPath = assPath
+      .replace(/\\/g, "\\\\")
+      .replace(/:/g, "\\:")
+      .replace(/'/g, "\\'");
+    filterParts.push(`[vout]subtitles='${escapedPath}'[vfinal]`);
+    videoLabel = "[vfinal]";
+  }
+
   const audioIdx = audioPath ? normPaths.length : -1;
   const args: string[] = [];
   for (const np of normPaths) args.push("-i", np);
   if (audioPath) args.push("-i", audioPath);
-  args.push("-filter_complex", filterParts.join(";"), "-map", "[vout]");
+  args.push("-filter_complex", filterParts.join(";"), "-map", videoLabel);
   if (audioPath && audioIdx >= 0) args.push("-map", `${audioIdx}:a`);
   args.push("-c:v", "libx264", "-preset", "ultrafast", "-crf", "22", "-pix_fmt", "yuv420p");
   if (audioPath) args.push("-c:a", "aac", "-b:a", "192k", "-shortest");
@@ -963,6 +976,170 @@ router.post("/export-doctor/export-all-audio", requireAuth, async (req, res) => 
       success: true,
       url: signedUrl,
       clipCount: normPaths.length,
+      audioDownloaded: true,
+      audioValid: true,
+      audioFileSize: statSync(audioPath).size,
+      audioDuration: aProbe.duration,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ── TEST 8: export ALL clips + audio + synced captions (no effects/overlays/branding) ── */
+router.post("/export-doctor/export-all-captions", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, captions } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      captions?: CaptionBurnConfig | null;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+
+    // HARD STOP: every clip must be valid + present before mixing audio + captions.
+    const blocker = multiClipsBlocker(session);
+    if (blocker) {
+      res.status(400).json({ error: blocker });
+      return;
+    }
+
+    // ── Caption validation — must have real synced lines (or artist/title) to burn ──
+    const validLines = (captions?.lines ?? []).filter(
+      (l) => !!l.text?.trim() && Number.isFinite(l.startSec) && Number.isFinite(l.endSec) && l.endSec > l.startSec && l.startSec >= 0,
+    );
+    const captionRows = captions?.lines?.length ?? 0;
+    const captionTimingValid = captionRows > 0 && validLines.length === captionRows;
+    const captionsFound =
+      !!captions && captions.mode !== "none" &&
+      (validLines.length > 0 || captions.showArtistName || captions.showSongTitle);
+    const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal", "drill", "luxury", "rnb", "kids"];
+    const captionStyleFound = !!captions && KNOWN_PRESETS.includes(captions.stylePreset);
+
+    if (!captionsFound) {
+      res.status(400).json({
+        error: "No captions found — add synced caption lines (or enable artist/song title) before running the caption test.",
+        captionsFound: false, captionRows, captionTimingValid: false, captionStyleFound,
+      });
+      return;
+    }
+
+    if (!audioUrl || !audioUrl.startsWith("http")) {
+      res.status(400).json({ error: "No master-player audio URL was provided.", captionsFound, captionRows, captionTimingValid, captionStyleFound });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source (Supabase storage or Replit object storage over HTTPS).", captionsFound, captionRows, captionTimingValid, captionStyleFound });
+      return;
+    }
+
+    // Download the SAME audio source the other audio tests used.
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `cap-audio${ext}`);
+
+    req.log.info({ multiId, audioUrl: target.slice(0, 100) }, "EXPORT DOCTOR download audio for all-clips+captions export");
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ captionsFound, captionRows, captionTimingValid, captionStyleFound, audioDownloaded: false, audioValid: false, error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aCt = (ar.headers.get("content-type") ?? "").toLowerCase();
+    if (aCt.startsWith("text/") || aCt.startsWith("application/json") || aCt.startsWith("application/xml")) {
+      res.json({ captionsFound, captionRows, captionTimingValid, captionStyleFound, audioDownloaded: false, audioValid: false, error: `Audio URL returned non-audio content (${aCt || "unknown"}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    const audioDownloaded = existsSync(audioPath) && statSync(audioPath).size > 1024;
+    if (!audioDownloaded) {
+      res.json({ captionsFound, captionRows, captionTimingValid, captionStyleFound, audioDownloaded: false, audioValid: false, error: "Audio file was not created or is too small." });
+      return;
+    }
+    const aProbe = await probeMedia(audioPath);
+    if (!aProbe.hasAudio) {
+      res.json({
+        captionsFound, captionRows, captionTimingValid, captionStyleFound,
+        audioDownloaded: true, audioValid: false, audioFileSize: statSync(audioPath).size,
+        error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.`,
+      });
+      return;
+    }
+    session.audioPath = audioPath;
+
+    // ── Build the ASS caption file from the SAVED synced timings (timeOffset 0 — no intro card). ──
+    const totalDuration = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
+    const assContent = buildAssContent(captions!, MULTI_TARGET_W, MULTI_TARGET_H, totalDuration, 0);
+    if (!assContent.trim()) {
+      res.json({
+        captionsFound, captionRows, captionTimingValid, captionStyleFound,
+        audioDownloaded: true, audioValid: true, captionsBurned: false,
+        error: "Captions produced no burn-in events — check that lines have text and end > start.",
+      });
+      return;
+    }
+    const assPath = path.join(session.folder, `captions-${multiId}.ass`);
+    writeFileSync(assPath, assContent, "utf8");
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ captionsFound, captionRows, captionTimingValid, captionStyleFound, audioDownloaded: true, audioValid: true, error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    req.log.info({ multiId, clipCount: normPaths.length, captionRows }, "EXPORT DOCTOR export all clips + audio + captions");
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "all-clips-audio-captions-test.mp4", assPath);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        captionsFound, captionRows, captionTimingValid, captionStyleFound,
+        audioDownloaded: true, audioValid: true, captionsBurned: false,
+        error: `FFmpeg concat+audio+captions failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ captionsFound, captionRows, captionTimingValid, captionStyleFound, audioDownloaded: true, audioValid: true, captionsBurned: false, error: "FFmpeg produced no usable output file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-all-clips-audio-captions.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+      contentType: "video/mp4", resumable: false,
+    });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      clipCount: normPaths.length,
+      captionsFound,
+      captionRows,
+      captionTimingValid,
+      captionStyleFound,
+      stylePreset: captions!.stylePreset,
+      captionsBurned: true,
       audioDownloaded: true,
       audioValid: true,
       audioFileSize: statSync(audioPath).size,

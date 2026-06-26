@@ -859,6 +859,7 @@ export function ExportSection({
         scenes={scenes}
         projectId={projectId}
         masterAudioUrl={masterAudioUrl ?? null}
+        captions={settings.captions}
       />
     </div>
   );
