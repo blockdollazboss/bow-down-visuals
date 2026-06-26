@@ -829,6 +829,7 @@ export function ExportSection({
         scenes={scenes}
         projectId={projectId}
         audioUrl={resolvedAudioUrl}
+        masterAudioUrl={masterAudioUrl ?? null}
         audioSource={va.source}
         audioSourceLabel={audioSourceLabel}
         fadeAudioIn={va.fadeIn}

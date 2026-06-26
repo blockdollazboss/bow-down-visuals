@@ -51,10 +51,45 @@ interface ClipCheckRow {
   contentType: string;
 }
 
+interface AudioCheckRow {
+  requested: boolean;
+  sourceUrl: string;
+  localPath: string;
+  fileWritten: boolean;
+  fileExistsAfterWrite: boolean;
+  fileSize: number;
+  duration: number;
+  ffprobeValid: boolean;
+  ready: boolean;
+  error: string | null;
+  responseStatus: number;
+  contentType: string;
+}
+
+/** Parse a fetch Response as JSON, surfacing the route when HTML is returned (PART 5) */
+async function parseJsonResponse<T>(res: Response, route: string): Promise<T> {
+  const ct = res.headers.get("content-type") ?? "";
+  const text = await res.text();
+  if (!ct.toLowerCase().includes("application/json")) {
+    const snippet = text.slice(0, 120).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `Route ${route} returned ${ct || "non-JSON"} instead of JSON (HTTP ${res.status}). ` +
+      `This is an API routing problem. First bytes: ${snippet || "(empty)"}`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Route ${route} returned malformed JSON (HTTP ${res.status}).`);
+  }
+}
+
 interface FinalVideoExportProps {
   scenes: SceneData[];
   projectId?: string | null;
   audioUrl?: string | null;
+  /** The EXACT audio URL the master player is using — preferred source. */
+  masterAudioUrl?: string | null;
   audioSource?: VideoAudioSource;
   audioSourceLabel?: string;
   fadeAudioIn?: boolean;
@@ -117,6 +152,7 @@ export function FinalVideoExport({
   scenes,
   projectId,
   audioUrl,
+  masterAudioUrl,
   audioSource = "uploaded",
   audioSourceLabel,
   fadeAudioIn = false,
@@ -161,10 +197,14 @@ export function FinalVideoExport({
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
   const [prepareId, setPrepareId]               = useState<string | null>(null);
   const [clipCheckResults, setClipCheckResults] = useState<ClipCheckRow[] | null>(null);
+  const [audioCheckResult, setAudioCheckResult] = useState<AudioCheckRow | null>(null);
   const [prepareError, setPrepareError]         = useState<string | null>(null);
   const [prepareAllReady, setPrepareAllReady]   = useState(false);
   const [prepareReadyCount, setPrepareReadyCount] = useState(0);
   const [checkTableExpanded, setCheckTableExpanded] = useState(true);
+
+  /* ── Audio source: prefer the EXACT URL the master player uses ── */
+  const effectiveAudioUrl = (masterAudioUrl?.trim() || audioUrl?.trim()) || null;
 
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
@@ -174,6 +214,7 @@ export function FinalVideoExport({
     setPrepareState("running");
     setPrepareId(null);
     setClipCheckResults(null);
+    setAudioCheckResult(null);
     setPrepareError(null);
     setPrepareAllReady(false);
     setPrepareReadyCount(0);
@@ -198,20 +239,27 @@ export function FinalVideoExport({
       const res = await fetch("/api/prepare-export-files", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({ projectId, clips }),
+        body: JSON.stringify({
+          projectId,
+          clips,
+          // PART 2/3 — prepare the SAME audio the master player plays
+          audioUrl: hasAudio ? effectiveAudioUrl : null,
+        }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
       });
-      const data = (await res.json()) as {
+      const data = await parseJsonResponse<{
         prepareId: string;
         allReady: boolean;
         totalClips: number;
         readyClips: number;
         clips: ClipCheckRow[];
+        audio?: AudioCheckRow | null;
         error?: string;
-      };
+      }>(res, "/api/prepare-export-files");
       if (!res.ok) throw new Error(data.error ?? `Prepare failed (HTTP ${res.status})`);
       setPrepareId(data.prepareId);
       setClipCheckResults(data.clips);
+      setAudioCheckResult(data.audio ?? null);
       setPrepareAllReady(data.allReady);
       setPrepareReadyCount(data.readyClips);
       setPrepareState(data.allReady ? "done" : "failed");
@@ -221,7 +269,9 @@ export function FinalVideoExport({
     }
   }
 
-  const hasAudio = !!audioUrl && audioSource !== "none";
+  const hasAudio = !!effectiveAudioUrl && audioSource !== "none";
+  /** Master player has audio but export couldn't resolve any audio URL */
+  const audioSourceMismatch = !!masterAudioUrl?.trim() && !effectiveAudioUrl;
   const aspectLabel = aspectRatio === "9:16" ? "1080×1920 · TikTok / Reels / Shorts"
     : aspectRatio === "16:9" ? "1920×1080 · YouTube"
     : "1080×1080 · Square";
@@ -270,7 +320,7 @@ export function FinalVideoExport({
         body: JSON.stringify({
           projectId,
           clipUrls,
-          audioUrl: hasAudio ? audioUrl : null,
+          audioUrl: hasAudio ? effectiveAudioUrl : null,
           timelineOrder,
           testMode: false,
           aspectRatio,
@@ -599,6 +649,13 @@ export function FinalVideoExport({
                         </span>
                       </span>
                     )}
+                    {prepareState !== "running" && hasAudio && (
+                      <span className="text-white/40">Audio ready:
+                        <span className={`ml-1 font-bold ${audioCheckResult?.ready ? "text-green-400" : "text-red-400"}`}>
+                          {audioCheckResult?.ready ? "yes" : "no"}
+                        </span>
+                      </span>
+                    )}
                     <span className="text-white/40">FFmpeg started:
                       <span className="ml-1 font-bold text-white/30">no</span>
                     </span>
@@ -648,12 +705,44 @@ export function FinalVideoExport({
                   </Button>
                 </div>
 
+                {/* Audio source mismatch warning (PART 2) */}
+                {audioSourceMismatch && (
+                  <div className="px-3 py-2 rounded-xl border border-red-500/25 bg-red-500/[0.05] text-[11px] text-red-400/90 leading-relaxed">
+                    Export audio source not connected to master player audio source.
+                    The master player is playing audio but no export audio URL could be resolved.
+                  </div>
+                )}
+
                 {/* Check table */}
                 {clipCheckResults && clipCheckResults.length > 0 && (
                   <ExportFileCheckTable
                     rows={clipCheckResults}
                     expanded={checkTableExpanded}
                     onToggle={() => setCheckTableExpanded((x) => !x)}
+                  />
+                )}
+
+                {/* Export Audio Source debug (PART 2) */}
+                {prepareState !== "idle" && hasAudio && (
+                  <ExportAudioDebug
+                    audio={audioCheckResult}
+                    masterAudioUrl={masterAudioUrl ?? null}
+                    effectiveAudioUrl={effectiveAudioUrl}
+                  />
+                )}
+
+                {/* Export Readiness summary (PART 6) */}
+                {prepareState !== "idle" && prepareState !== "running" && clipCheckResults && (
+                  <ExportReadinessPanel
+                    clipSourcesFound={clipCheckResults.filter((r) => !!r.sourceFieldName).length}
+                    clipsDownloaded={clipCheckResults.filter((r) => r.fileExistsAfterWrite).length}
+                    clipsValid={clipCheckResults.filter((r) => r.ffprobeValid).length}
+                    totalClips={clipCheckResults.length}
+                    hasAudio={hasAudio}
+                    audioSourceFound={hasAudio}
+                    audioDownloaded={!!audioCheckResult?.fileExistsAfterWrite}
+                    audioValid={!!audioCheckResult?.ffprobeValid}
+                    readyForFFmpeg={prepareAllReady}
                   />
                 )}
 
@@ -1027,6 +1116,105 @@ function Field({
           {value ?? "—"}
         </span>
       )}
+    </div>
+  );
+}
+
+/* ── Export Audio Source debug (PART 2) ───────────────── */
+function ExportAudioDebug({
+  audio, masterAudioUrl, effectiveAudioUrl,
+}: {
+  audio: AudioCheckRow | null;
+  masterAudioUrl: string | null;
+  effectiveAudioUrl: string | null;
+}) {
+  function fmt(bytes: number): string {
+    if (bytes === 0) return "—";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  }
+  const yn = (v: boolean) => v
+    ? <span className="text-green-400 font-bold">yes</span>
+    : <span className="text-red-400 font-bold">no</span>;
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+      <div className="px-3 py-2 bg-white/[0.03] border-b border-white/[0.06]">
+        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Audio Source</p>
+      </div>
+      <div className="px-3 py-3 grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px]">
+        <Field label="Master player audio URL found" node={yn(!!masterAudioUrl)} />
+        <Field label="Final audio URL used" value={effectiveAudioUrl ? "set" : "none"} />
+        <div className="col-span-2 mb-0.5">
+          <div className="flex items-start gap-2">
+            <span className="text-white/25 shrink-0 w-[150px]">Audio URL value</span>
+            {effectiveAudioUrl ? (
+              <div className="flex items-start gap-1 min-w-0">
+                <span className="font-mono text-white/40 break-all leading-tight">{effectiveAudioUrl}</span>
+                <a href={effectiveAudioUrl} target="_blank" rel="noopener noreferrer"
+                  className="shrink-0 mt-0.5 text-primary/40 hover:text-primary/80" title="Open audio URL">
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              </div>
+            ) : <span className="text-red-400 font-bold">missing</span>}
+          </div>
+        </div>
+        <Field label="Downloaded local audio file" node={yn(!!audio?.fileWritten)} />
+        <Field label="Audio file exists" node={yn(!!audio?.fileExistsAfterWrite)} />
+        <Field label="Audio file size" value={audio && audio.fileSize > 0 ? `${audio.fileSize.toLocaleString()} bytes (${fmt(audio.fileSize)})` : "—"} />
+        <Field label="Audio HTTP status" value={audio && audio.responseStatus > 0 ? String(audio.responseStatus) : "—"} mono />
+        <Field label="Audio duration" value={audio && audio.duration > 0 ? `${audio.duration.toFixed(1)}s` : "—"} />
+        <Field label="ffprobe audio valid" node={yn(!!audio?.ffprobeValid)} />
+        {audio?.error && (
+          <div className="col-span-2 mt-1 pt-1 border-t border-red-500/20">
+            <div className="flex items-start gap-2">
+              <span className="text-white/25 shrink-0 w-[150px]">Audio error</span>
+              <span className="text-red-400/80 break-words leading-snug">{audio.error}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Export Readiness summary (PART 6) ────────────────── */
+function ExportReadinessPanel({
+  clipSourcesFound, clipsDownloaded, clipsValid, totalClips,
+  hasAudio, audioSourceFound, audioDownloaded, audioValid, readyForFFmpeg,
+}: {
+  clipSourcesFound: number;
+  clipsDownloaded: number;
+  clipsValid: number;
+  totalClips: number;
+  hasAudio: boolean;
+  audioSourceFound: boolean;
+  audioDownloaded: boolean;
+  audioValid: boolean;
+  readyForFFmpeg: boolean;
+}) {
+  const rows: [string, string, boolean][] = [
+    ["master clip sources found", `${clipSourcesFound}/${totalClips}`, clipSourcesFound === totalClips && totalClips > 0],
+    ["clip files downloaded",     `${clipsDownloaded}/${totalClips}`, clipsDownloaded === totalClips && totalClips > 0],
+    ["clip files valid",          `${clipsValid}/${totalClips}`,      clipsValid === totalClips && totalClips > 0],
+    ["master audio source found", hasAudio ? (audioSourceFound ? "yes" : "no") : "no audio", !hasAudio || audioSourceFound],
+    ["audio file downloaded",     hasAudio ? (audioDownloaded ? "yes" : "no") : "—",        !hasAudio || audioDownloaded],
+    ["audio valid",               hasAudio ? (audioValid ? "yes" : "no") : "—",             !hasAudio || audioValid],
+    ["ready for FFmpeg",          readyForFFmpeg ? "yes" : "no",                            readyForFFmpeg],
+  ];
+  return (
+    <div className={`rounded-xl border overflow-hidden ${readyForFFmpeg ? "border-green-500/25 bg-green-500/[0.04]" : "border-amber-500/25 bg-amber-500/[0.03]"}`}>
+      <div className="px-3 py-2 border-b border-white/[0.06]">
+        <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Readiness</p>
+      </div>
+      <div className="px-3 py-2.5 space-y-1">
+        {rows.map(([label, value, ok]) => (
+          <div key={label} className="flex items-center justify-between gap-2 text-[10px] font-mono">
+            <span className="text-white/35">{label}:</span>
+            <span className={`font-bold ${ok ? "text-green-400" : "text-red-400"}`}>{value}{ok && value !== "—" && value !== "no audio" ? " ✓" : ""}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

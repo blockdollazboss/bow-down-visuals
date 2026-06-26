@@ -35,10 +35,30 @@ export interface PreparedClipEntry {
   contentType: string;
 }
 
+export interface PreparedAudioEntry {
+  /** True when the project supplied an audio URL to prepare */
+  requested: boolean;
+  /** The exact master-player / export audio URL used */
+  sourceUrl: string;
+  localPath: string;
+  fileWritten: boolean;
+  fileExistsAfterWrite: boolean;
+  fileSize: number;
+  duration: number;
+  ffprobeValid: boolean;
+  /** True when audio file exists and passes ffprobe */
+  ready: boolean;
+  error: string | null;
+  responseStatus: number;
+  contentType: string;
+}
+
 export interface PreparedExportEntry {
   projectId: string;
   exportDir: string;
   clips: PreparedClipEntry[];
+  /** Prepared project audio (null when project has no audio) */
+  audio: PreparedAudioEntry | null;
   allReady: boolean;
   createdAt: number;
 }

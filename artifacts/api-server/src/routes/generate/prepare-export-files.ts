@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
-import { registerPreparedExport, type PreparedClipEntry } from "../../lib/prepared-exports";
+import { registerPreparedExport, type PreparedClipEntry, type PreparedAudioEntry } from "../../lib/prepared-exports";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -156,6 +156,58 @@ async function probeClip(filePath: string): Promise<ProbeResult> {
   }
 }
 
+interface AudioProbeResult {
+  valid: boolean;
+  duration: number;
+  codec: string;
+  error: string | null;
+}
+
+async function probeAudio(filePath: string): Promise<AudioProbeResult> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      ["-v", "quiet", "-print_format", "json", "-show_streams", "-show_format", filePath],
+      { timeout: 30_000 },
+    );
+    const info = JSON.parse(stdout) as {
+      streams?: Array<{ codec_type?: string; codec_name?: string; duration?: string }>;
+      format?: { duration?: string };
+    };
+    const as_ = info.streams?.find((s) => s.codec_type === "audio");
+    if (!as_) return { valid: false, duration: 0, codec: "", error: "no audio stream" };
+    const dur = parseFloat(info.format?.duration ?? as_.duration ?? "0");
+    if (isNaN(dur) || dur <= 0) return { valid: false, duration: 0, codec: as_.codec_name ?? "", error: "zero or invalid audio duration" };
+    return { valid: true, duration: dur, codec: as_.codec_name ?? "", error: null };
+  } catch (e) {
+    return { valid: false, duration: 0, codec: "", error: e instanceof Error ? e.message.slice(0, 120) : "ffprobe failed" };
+  }
+}
+
+/** Download audio without rejecting non-video content-types (audio/* expected) */
+async function downloadAudioToFile(url: string, dest: string): Promise<DownloadResult> {
+  const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
+  const contentType = res.headers.get("content-type") ?? "";
+  const status = res.status;
+  if (!res.ok) {
+    throw new Error(
+      `Audio download failed (HTTP ${status}): ${url.slice(0, 100)}` +
+      (contentType ? ` — Content-Type: ${contentType.split(";")[0]}` : ""),
+    );
+  }
+  const ctLower = contentType.toLowerCase();
+  if (ctLower.startsWith("text/") || ctLower.startsWith("application/json") || ctLower.startsWith("application/xml")) {
+    throw new Error(
+      `Audio URL returned non-audio content (${contentType.split(";")[0] || "unknown"}). ` +
+      `The audio URL may be expired or invalid.`,
+    );
+  }
+  const ws = createWriteStream(dest);
+  await pipeline(res.body as Parameters<typeof pipeline>[0], ws);
+  const bytesWritten = existsSync(dest) ? statSync(dest).size : 0;
+  return { status, contentType, bytesWritten };
+}
+
 async function tryFreshSignedUrl(url: string): Promise<{ url: string; changed: boolean }> {
   const match = url.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/?]+)\/(.+?)(?:\?|$)/);
   if (!match) return { url, changed: false };
@@ -191,9 +243,11 @@ interface ClipInput {
 }
 
 router.post("/prepare-export-files", requireAuth, async (req, res) => {
-  const { projectId, clips } = req.body as {
+  const { projectId, clips, audioUrl } = req.body as {
     projectId: string;
     clips: ClipInput[];
+    /** Exact master-player audio URL — null when project has no audio */
+    audioUrl?: string | null;
   };
 
   if (!projectId?.trim()) {
@@ -397,22 +451,94 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     results.push(entry);
   }
 
-  const allReady = results.length > 0 && results.every((r) => r.readyForFFmpeg);
+  /* ── Audio: download + ffprobe the SAME master-player audio URL ── */
+  let audio: PreparedAudioEntry | null = null;
+  const audioRequested = !!audioUrl && audioUrl.trim().startsWith("http");
+
+  if (audioRequested) {
+    const a: PreparedAudioEntry = {
+      requested: true,
+      sourceUrl: audioUrl!,
+      localPath: "",
+      fileWritten: false,
+      fileExistsAfterWrite: false,
+      fileSize: 0,
+      duration: 0,
+      ffprobeValid: false,
+      ready: false,
+      error: null,
+      responseStatus: 0,
+      contentType: "",
+    };
+    try {
+      let resolvedAudio = audioUrl!;
+      if (SUPABASE_HOST && resolvedAudio.includes(SUPABASE_HOST)) {
+        const { url: freshUrl, changed } = await tryFreshSignedUrl(resolvedAudio);
+        if (changed) resolvedAudio = freshUrl;
+      }
+      const ext = resolvedAudio.includes(".mp3") ? ".mp3"
+        : resolvedAudio.includes(".ogg") ? ".ogg"
+        : resolvedAudio.includes(".wav") ? ".wav" : ".aac";
+      const audioPath = path.join(exportDir, `audio${ext}`);
+
+      req.log.info({ audioUrl: resolvedAudio.slice(0, 120) }, "EXPORT DEBUG AUDIO download");
+      const dl = await downloadAudioToFile(resolvedAudio, audioPath);
+      a.fileWritten = true;
+      a.responseStatus = dl.status;
+      a.contentType = dl.contentType;
+
+      const exists = existsSync(audioPath);
+      a.fileExistsAfterWrite = exists;
+      if (!exists) throw new Error("Audio file was not created after write.");
+
+      a.localPath = audioPath;
+      a.fileSize = statSync(audioPath).size;
+      if (a.fileSize < 1024) throw new Error(`Audio download incomplete — only ${a.fileSize} bytes.`);
+
+      const probe = await probeAudio(audioPath);
+      a.ffprobeValid = probe.valid;
+      a.duration = probe.duration;
+      if (!probe.valid) throw new Error(`Audio ffprobe invalid: ${probe.error}`);
+
+      a.ready = true;
+      req.log.info({
+        audioStatus: dl.status,
+        contentType: dl.contentType || "(none)",
+        fileSize: a.fileSize,
+        duration: probe.duration.toFixed(2),
+      }, `EXPORT DEBUG AUDIO ready: YES ✓ status: ${dl.status} size: ${a.fileSize} bytes duration: ${probe.duration.toFixed(2)}`);
+    } catch (e) {
+      a.error = e instanceof Error ? e.message : String(e);
+      a.ready = false;
+      req.log.warn({ error: a.error }, `EXPORT DEBUG AUDIO FAILED: ${a.error}`);
+    }
+    audio = a;
+  } else {
+    req.log.info("EXPORT DEBUG AUDIO: no audio URL supplied — exporting video only");
+  }
+
+  const clipsReady = results.length > 0 && results.every((r) => r.readyForFFmpeg);
+  const audioReady = !audioRequested || (audio?.ready ?? false);
+  const allReady = clipsReady && audioReady;
   const readyCount = results.filter((r) => r.readyForFFmpeg).length;
 
   req.log.info({
     msg: "EXPORT DEBUG END",
     prepareId,
     allReady,
+    clipsReady,
+    audioReady,
+    audioRequested,
     readyCount,
     total: results.length,
     failedScenes: results.filter((r) => !r.readyForFFmpeg).map((r) => r.sceneNumber),
-  }, `EXPORT DEBUG END — ready: ${readyCount}/${results.length}`);
+  }, `EXPORT DEBUG END — clips: ${readyCount}/${results.length} audio: ${audioRequested ? (audioReady ? "ready" : "FAILED") : "none"} allReady: ${allReady}`);
 
   registerPreparedExport(prepareId, {
     projectId,
     exportDir,
     clips: results,
+    audio,
     allReady,
     createdAt: Date.now(),
   });
@@ -424,6 +550,9 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     totalClips: results.length,
     readyClips: readyCount,
     clips: results,
+    audio,
+    audioRequested,
+    audioReady,
   });
 });
 

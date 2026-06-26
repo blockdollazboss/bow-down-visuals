@@ -718,6 +718,23 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           return;
         }
       }
+      // ── Audio hard stop: if audio was requested it must be ready + on disk ──
+      if (preparedEntry.audio?.requested) {
+        if (!preparedEntry.audio.ready) {
+          res.status(400).json({
+            error: `FFmpeg blocked — project audio failed preparation: ${preparedEntry.audio.error ?? "unknown error"}. Re-prepare before exporting.`,
+            exportStatus,
+          });
+          return;
+        }
+        if (!existsSync(preparedEntry.audio.localPath)) {
+          res.status(400).json({
+            error: `Prepared audio file is gone from disk (${preparedEntry.audio.localPath}). Re-prepare before exporting.`,
+            exportStatus,
+          });
+          return;
+        }
+      }
     }
 
     const usePrepared = !!(
@@ -971,12 +988,19 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       "[export] pre-flight passed — all normalized clips present and valid",
     );
 
-    /* ── 2: Download audio ── */
+    /* ── 2: Resolve audio (reuse prepared file or download fresh) ── */
     let audioPath: string | null = null;
-    const useAudio = !testMode && !!audioUrl?.trim();
     const DEFAULT_WATERMARK = path.join(process.cwd(), "artifacts/bow-down-visuals/public/bdv-watermark.png");
 
-    if (useAudio) {
+    if (!testMode && usePrepared && preparedEntry?.audio?.ready && existsSync(preparedEntry.audio.localPath)) {
+      // Use the EXACT audio file already downloaded + ffprobe-verified in prepare step
+      audioPath = preparedEntry.audio.localPath;
+      req.log.info({
+        audioPath,
+        fileSize: preparedEntry.audio.fileSize,
+        duration: preparedEntry.audio.duration.toFixed(2),
+      }, "[export] using pre-downloaded audio from prepare step ✓");
+    } else if (!testMode && !!audioUrl?.trim()) {
       const ext = audioUrl!.includes(".mp3") ? ".mp3" : audioUrl!.includes(".ogg") ? ".ogg" : audioUrl!.includes(".wav") ? ".wav" : ".aac";
       audioPath = path.join(tmpDir, `bdv-audio-${exportId}${ext}`);
       tmpFiles.push(audioPath);
