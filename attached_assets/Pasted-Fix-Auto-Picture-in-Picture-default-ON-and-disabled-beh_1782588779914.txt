@@ -1,0 +1,176 @@
+Fix Auto Picture-in-Picture default ON and disabled behavior.
+
+Problem:
+Auto Picture-in-Picture should be enabled automatically by default.
+
+When Auto PiP is ON:
+- if I leave the Video Editor page
+- switch tabs inside the app
+- go to another page
+- scroll away from the master player
+- browser tab loses focus
+- app route changes away from the editor
+
+Then the master player should automatically pop into Picture-in-Picture.
+
+But once I disable Auto PiP, it should stop completely.
+If Auto PiP is OFF, it should never pop up automatically anymore.
+
+Do not change:
+- manual PiP button
+- master player transport controls
+- timeline waveform
+- captions
+- effects
+- overlays
+- watermark
+- fullscreen aspect ratio
+- Export Doctor
+- payments or credits
+
+Only fix:
+- Auto PiP default state
+- Auto PiP enable/disable behavior
+- duplicate PiP handling
+- master-player-only PiP source
+
+PART 1 — DEFAULT AUTO PiP ON
+
+Set Auto PiP default to ON for new users/projects.
+
+Default:
+autoPiPEnabled = true
+
+Persist setting in:
+- user settings if available
+- localStorage fallback
+- project/editor settings if needed
+
+When user changes it, save it immediately.
+
+PART 2 — AUTO PiP ON BEHAVIOR
+
+If Auto PiP is ON, trigger PiP when:
+- user leaves the Video Editor page
+- user changes route away from the editor
+- user switches browser tab
+- browser window loses focus
+- document visibility changes to hidden
+- user scrolls the master player out of view
+
+Only trigger if:
+- master player has a valid video source
+- video is playing or project preview is active
+- browser supports PiP
+- no PiP is already active
+- user has not disabled Auto PiP
+
+PART 3 — AUTO PiP OFF BEHAVIOR
+
+If Auto PiP is OFF:
+- never auto-open PiP on route change
+- never auto-open PiP on tab switch
+- never auto-open PiP on window blur
+- never auto-open PiP on visibilitychange
+- never auto-open PiP on scroll
+- never auto-open PiP when leaving editor
+- never auto-open PiP after refresh
+
+Manual PiP button should still work if the user clicks it.
+
+PART 4 — ONE PiP BUTTON ONLY
+
+There should be exactly one PiP button.
+
+Keep only one PiP button inside the master player controls.
+
+Remove duplicate PiP buttons from:
+- fullscreen duplicate controls
+- old preview players
+- timeline player
+- right-side panels
+- floating players
+- hidden player controls
+
+PART 5 — MASTER PLAYER ONLY
+
+Auto PiP must use only the master player video element.
+
+Do not use:
+- old clip preview
+- hidden player
+- timeline preview
+- right-side preview
+- duplicate video element
+
+Add safety:
+If active PiP source is not the master player, exit it and use the master player only.
+
+PART 6 — AUTO PiP TOGGLE UI
+
+Add one Auto PiP toggle near the master player controls or settings.
+
+Label:
+Auto PiP
+
+States:
+- ON: Auto PiP will open when you leave the editor
+- OFF: Auto PiP disabled
+
+When toggled OFF, immediately save:
+autoPiPEnabled = false
+
+Also cancel/remove all auto PiP event triggers.
+
+When toggled ON, save:
+autoPiPEnabled = true
+
+PART 7 — PREVENT OLD EVENT LISTENERS
+
+Clean up duplicate/old event listeners.
+
+There should only be one Auto PiP controller.
+
+Remove duplicate listeners for:
+- visibilitychange
+- blur
+- focus
+- route change
+- scroll
+- pagehide
+- beforeunload
+
+Make sure disabling Auto PiP removes or ignores all these auto triggers.
+
+PART 8 — DEBUG BELOW TIMELINE ONLY
+
+Add PiP debug only inside collapsed debug panel below the timeline.
+
+PiP Debug:
+- autoPiPEnabled: true/false
+- default autoPiPEnabled: true
+- setting saved: yes/no
+- auto trigger blocked because disabled: yes/no
+- active PiP element is master player: yes/no
+- duplicate PiP buttons found: number
+- event listeners active: yes/no
+- last PiP trigger reason
+
+Do not show debug in fullscreen.
+
+PART 9 — TESTS
+
+Add a debug-only test:
+Test Auto PiP
+
+It should verify:
+- Auto PiP ON triggers when leaving editor
+- Auto PiP OFF blocks route change trigger
+- Auto PiP OFF blocks visibilitychange trigger
+- Auto PiP OFF blocks blur trigger
+- Auto PiP OFF blocks scroll trigger
+- only one PiP button exists
+- PiP source equals master player
+
+Final goal:
+Auto PiP should be ON automatically by default and pop up when I leave the editor/page. But when I turn Auto PiP OFF, it must never pop up automatically anymore. Manual PiP should still work from the one PiP button.

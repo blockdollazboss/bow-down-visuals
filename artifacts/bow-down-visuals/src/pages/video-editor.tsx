@@ -1291,8 +1291,11 @@ function MasterPreviewPlayer({
   const scrubRef        = useRef<HTMLDivElement | null>(null);
   const isDraggingRef   = useRef(false);
 
-  /* ── Auto PiP state ── */
-  const [autoPiP,            setAutoPiP           ] = useState(false);
+  /* ── Auto PiP state — default ON, persisted to localStorage ── */
+  const [autoPiP,            setAutoPiP           ] = useState<boolean>(() => {
+    try { const s = localStorage.getItem("bdv:autoPiP"); return s === null ? true : s === "true"; }
+    catch { return true; }
+  });
   const [enterOnScroll,      setEnterOnScroll     ] = useState(true);
   const [keepOnTabSwitch,    setKeepOnTabSwitch   ] = useState(true);
   /* Return-to-browser tracking */
@@ -1346,7 +1349,7 @@ function MasterPreviewPlayer({
   }, [fitMode, liveVideoRef]);
 
   /* Refs — callbacks always see latest values without re-subscribing */
-  const autoPiPRef          = useRef(false);
+  const autoPiPRef          = useRef(autoPiP); /* matches lazy-init state */
   const enterOnScrollRef    = useRef(true);
   const keepOnTabSwitchRef  = useRef(true);
   const isPlayingRef        = useRef(false);
@@ -1359,6 +1362,8 @@ function MasterPreviewPlayer({
   useEffect(() => { keepOnTabSwitchRef.current = keepOnTabSwitch;       }, [keepOnTabSwitch]);
   useEffect(() => { isPlayingRef.current       = eng?.isPlaying ?? false; }, [eng?.isPlaying]);
   useEffect(() => { engRef.current             = eng;                   }, [eng]);
+  /* Persist Auto PiP preference to localStorage whenever it changes */
+  useEffect(() => { try { localStorage.setItem("bdv:autoPiP", String(autoPiP)); } catch {} }, [autoPiP]);
 
   /* Fullscreen */
   useEffect(() => {
