@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
 import type { SceneData } from "@/lib/scene-parser";
-import type { CaptionSettings } from "@/lib/editor-settings";
+import type { CaptionSettings, AudioVideoSyncMode } from "@/lib/editor-settings";
 
 interface ExportDoctorProps {
   scenes: SceneData[];
@@ -37,6 +37,8 @@ interface ExportDoctorProps {
   projectDurationSec?: number;
   /** Applied scene transitions from settings.aiEdit.appliedTransitions. */
   appliedTransitions?: { sceneIndex: number; type: string }[] | null;
+  /** Audio/video sync mode selected on the timeline. */
+  syncMode?: AudioVideoSyncMode | null;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -206,7 +208,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL

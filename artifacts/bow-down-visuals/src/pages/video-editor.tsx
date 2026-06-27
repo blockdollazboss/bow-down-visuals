@@ -780,6 +780,16 @@ export default function VideoEditor() {
                 effects={settings.effects}
                 appliedTransitions={settings.aiEdit?.appliedTransitions}
                 audioUrl={previewAudioUrl}
+                syncMode={settings.musicStudio.videoAudio.syncMode}
+                onSyncModeChange={(mode) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    musicStudio: {
+                      ...prev.musicStudio,
+                      videoAudio: { ...prev.musicStudio.videoAudio, syncMode: mode },
+                    },
+                  }))
+                }
                 onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
                 onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
               />

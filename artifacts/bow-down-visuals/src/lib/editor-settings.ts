@@ -826,6 +826,24 @@ export interface MasterSettings {
 
 export type VideoAudioSource = "uploaded" | "full-mix" | "instrumental" | "acapella" | "none";
 
+/**
+ * How the project audio and video clips are aligned when their durations differ.
+ *
+ * keep-as-is   — no stretching; each track uses its own real duration.
+ * trim-audio   — audio is cut at the end of the video clips (+ optional fade).
+ * extend-video — extra empty clip slots are added until video matches audio length.
+ * loop-clips   — existing clips repeat until they cover the full audio duration.
+ * auto-fit     — clips are evenly distributed across the entire audio duration.
+ * fade-audio   — clips unchanged; audio fades out when the last clip ends.
+ */
+export type AudioVideoSyncMode =
+  | "keep-as-is"
+  | "trim-audio"
+  | "extend-video"
+  | "loop-clips"
+  | "auto-fit"
+  | "fade-audio";
+
 export interface VideoAudioSync {
   /** Which audio plays under the video clips. */
   source: VideoAudioSource;
@@ -842,6 +860,12 @@ export interface VideoAudioSync {
    * Timeline Preview, Auto Sync Captions, and export.
    */
   duration?: number;
+  /**
+   * How to handle an audio/video length mismatch.
+   * Saved per-project and respected by Export Doctor.
+   * Defaults to "keep-as-is" (no automatic stretching).
+   */
+  syncMode: AudioVideoSyncMode;
 }
 
 export type AudioExportKind = "full" | "instrumental" | "acapella";
@@ -1101,6 +1125,7 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
       fadeOut: true,
       loopAudio: false,
       matchVideoLength: true,
+      syncMode: "keep-as-is",
     },
     exportSelections: [],
     exports: [],

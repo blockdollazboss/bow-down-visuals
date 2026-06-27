@@ -13,6 +13,7 @@ import {
   type AudioExportRecord,
   type CaptionExportMode,
   type ExportRangeMode,
+  type AudioVideoSyncMode,
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
@@ -864,6 +865,7 @@ export function ExportSection({
           sceneIndex: t.sceneIndex,
           type: t.transitionType,
         }))}
+        syncMode={settings.musicStudio.videoAudio.syncMode}
       />
     </div>
   );
