@@ -1645,6 +1645,7 @@ function MasterPreviewPlayer({
         case ".":          e.preventDefault(); frameStep(1);  break;
         case "m": case "M": e.preventDefault(); toggleMute(); break;
         case "f": case "F": e.preventDefault(); void toggleFullscreen(); break;
+        case "p": case "P": e.preventDefault(); void togglePiP(); break;
       }
     };
     document.addEventListener("keydown", handler);
@@ -2012,55 +2013,68 @@ function MasterPreviewPlayer({
             {speed}×
           </button>
           <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
-          {/* Auto PiP */}
-          <button type="button"
-            onClick={() => autoPiP ? disableAutoPiP() : void enableAutoPiP()}
-            className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 relative ${
-              autoPiP
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white/80"
-            }`}
-            title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP"}>
-            <PictureInPicture2 className="h-3 w-3" />
-            {autoPiP && (
-              <span className="absolute -top-1 -right-1 text-[7px] font-black text-black bg-primary rounded-full w-3 h-3 flex items-center justify-center leading-none">A</span>
-            )}
-          </button>
-          {/* Manual PiP */}
+          {/* PiP — one button, manual only; Auto PiP toggled via settings row below */}
           <button type="button" onClick={() => void togglePiP()}
             className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
               pipActive
                 ? "border-primary/40 bg-primary/10 text-primary"
                 : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white/80"
             }`}
-            title={pipActive ? "Exit Picture-in-Picture" : "Picture-in-Picture"}>
+            title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
             <PictureInPicture2 className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Auto PiP sub-settings — visible while Auto PiP is on, hidden in fullscreen */}
-      {autoPiP && !isFullscreen && (
-        <div className="px-4 py-2 border-t border-primary/[0.12] bg-primary/[0.03] flex flex-wrap items-center gap-x-5 gap-y-1">
-          <span className="text-[10px] font-bold text-primary/60 shrink-0">Auto PiP:</span>
+      {/* Auto PiP sub-settings — always visible when not fullscreen */}
+      {!isFullscreen && (
+        <div className="px-4 py-2 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-5 gap-y-1">
+          <span className="text-[10px] font-bold text-white/30 shrink-0">Auto PiP:</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
             <input
               type="checkbox"
-              checked={enterOnScroll}
-              onChange={(e) => setEnterOnScroll(e.target.checked)}
+              checked={autoPiP}
+              onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
               className="accent-primary w-3 h-3"
             />
-            <span className="text-[10px] text-white/50">Enter PiP when scrolling</span>
+            <span className="text-[10px] text-white/50">Enable Auto PiP</span>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={keepOnTabSwitch}
-              onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
-              className="accent-primary w-3 h-3"
-            />
-            <span className="text-[10px] text-white/50">Keep PiP when switching tabs</span>
-          </label>
+          {autoPiP && (<>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={enterOnScroll}
+                onChange={(e) => setEnterOnScroll(e.target.checked)}
+                className="accent-primary w-3 h-3"
+              />
+              <span className="text-[10px] text-white/50">On scroll</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={keepOnTabSwitch}
+                onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
+                className="accent-primary w-3 h-3"
+              />
+              <span className="text-[10px] text-white/50">On tab switch</span>
+            </label>
+          </>)}
+        </div>
+      )}
+
+      {/* PiP debug status — hidden in fullscreen, collapsed-debug-only appearance */}
+      {!isFullscreen && (
+        <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
+          {([
+            ["pip auto",      autoPiP   ? "enabled" : "off"],
+            ["pip active",    pipActive  ? "yes ✓"  : "no"],
+            ["pip support",   pipSupported ? "yes ✓" : "no"],
+          ] as [string, string][]).map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className="text-[8px] font-mono text-white/20">{k}</span>
+              <span className={`text-[8px] font-bold ${v.includes("✓") || v === "enabled" ? "text-green-400/50" : v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+            </span>
+          ))}
         </div>
       )}
 
