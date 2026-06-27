@@ -45,6 +45,62 @@ interface ProcessState {
   lastError:  string | null;
 }
 
+/* ── Scene timing helpers ─────────────────────────────────────────────────── */
+
+/** Sync Labs plan limit in seconds (kept in sync with backend PROVIDER_LIMIT_SEC) */
+const PROVIDER_LIMIT_SEC = 20;
+
+/** Parse "M:SS" or "MM:SS" → total seconds */
+function parseTimePart(s: string): number {
+  const parts = s.trim().split(":").map(Number);
+  if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+  if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+  return 0;
+}
+
+/** Format seconds as "M:SS" */
+function fmtSec(s: number): string {
+  const m = Math.floor(s / 60);
+  const ss = Math.round(s % 60);
+  return `${m}:${String(ss).padStart(2, "0")}`;
+}
+
+interface SceneTiming {
+  startSec:    number;
+  endSec:      number;
+  durationSec: number;
+  hasExplicitEnd: boolean;
+}
+
+/**
+ * Parse a scene's timestamp string into start/end seconds.
+ * Handles "M:SS-M:SS", "M:SS", etc.
+ * Falls back to the next scene's start (or start + 8s) when end is not explicit.
+ */
+function parseSceneTiming(scene: SceneData, allScenes: SceneData[]): SceneTiming {
+  const ts    = scene.timestamp ?? "";
+  const parts = ts.split("-").map((p) => p.trim()).filter(Boolean);
+  const startSec = parts[0] ? parseTimePart(parts[0]) : 0;
+  let endSec: number;
+  let hasExplicitEnd = false;
+
+  if (parts[1]) {
+    endSec = parseTimePart(parts[1]);
+    hasExplicitEnd = true;
+  } else {
+    const next = allScenes.find((s) => s.sceneNumber === scene.sceneNumber + 1);
+    if (next) {
+      const np = (next.timestamp ?? "").split("-").map((p) => p.trim()).filter(Boolean);
+      endSec = np[0] ? parseTimePart(np[0]) : startSec + 8;
+    } else {
+      endSec = startSec + 8;
+    }
+  }
+
+  const durationSec = Math.max(0, endSec - startSec);
+  return { startSec, endSec, durationSec, hasExplicitEnd };
+}
+
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -295,9 +351,12 @@ export function LipSyncSection({
     updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
 
     try {
+      const timing = parseSceneTiming(selectedScene, scenes);
       const result = await callLipSyncBackend({
         clipUrl:            selectedScene.demoClipUrl!,
         audioUrl:           effectiveAudioUrl!,
+        sceneStartSec:      timing.startSec,
+        sceneEndSec:        timing.endSec,
         audioSourceType:    ls.audioSource === "vocals" ? "vocals_only" : "full_mix",
         strength:           ls.strength,
         preserveFaceIdentity: ls.preserveFaceIdentity,
@@ -370,9 +429,12 @@ export function LipSyncSection({
       updateClipEdit(scene.id, { lipSyncStatus: "processing", lipSyncError: null });
 
       try {
+        const sceneTiming = parseSceneTiming(scene, scenes);
         const result = await callLipSyncBackend({
           clipUrl:            scene.demoClipUrl!,
           audioUrl:           effectiveAudioUrl!,
+          sceneStartSec:      sceneTiming.startSec,
+          sceneEndSec:        sceneTiming.endSec,
           audioSourceType:    ls.audioSource === "vocals" ? "vocals_only" : "full_mix",
           strength:           ls.strength,
           preserveFaceIdentity: ls.preserveFaceIdentity,
@@ -794,54 +856,89 @@ export function LipSyncSection({
               )}
 
               {/* Confirm dialog */}
-              {confirmOpen && (
-                <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-3 py-3 space-y-2">
-                  <p className="text-[11px] text-white/70 font-semibold">
-                    {demoMode
-                      ? confirmOpen === "single"
-                        ? `Run Demo simulation on Scene ${selectedScene?.sceneNumber ?? "—"}?`
-                        : `Run Demo simulation on all ${clipsWithFaces.length} clips?`
-                      : confirmOpen === "single"
-                        ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
-                        : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
-                  </p>
-                  {demoMode ? (
-                    <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
-                      <FlaskConical className="h-3 w-3 shrink-0" />
-                      Demo mode — no real API call will be made. No credits charged.
+              {confirmOpen && (() => {
+                const timing = (confirmOpen === "single" && selectedScene)
+                  ? parseSceneTiming(selectedScene, scenes)
+                  : null;
+                const segmentDuration = timing?.durationSec ?? 0;
+                const safeToSubmit    = !timing || !providerConnected || demoMode || segmentDuration <= PROVIDER_LIMIT_SEC;
+
+                return (
+                  <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-3 py-3 space-y-2">
+                    <p className="text-[11px] text-white/70 font-semibold">
+                      {demoMode
+                        ? confirmOpen === "single"
+                          ? `Run Demo simulation on Scene ${selectedScene?.sceneNumber ?? "—"}?`
+                          : `Run Demo simulation on all ${clipsWithFaces.length} clips?`
+                        : confirmOpen === "single"
+                          ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
+                          : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
+                    </p>
+
+                    {/* Submit Preview — single scene only, real mode */}
+                    {confirmOpen === "single" && selectedScene && !demoMode && timing && (
+                      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
+                        <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest pb-0.5">
+                          Lip Sync Submit Preview
+                        </p>
+                        <StatusRow label="selected scene"      value={`Scene ${selectedScene.sceneNumber}`}                 ok={null} />
+                        <StatusRow label="scene start"         value={fmtSec(timing.startSec)}                              ok={null} />
+                        <StatusRow label="scene end"           value={`${fmtSec(timing.endSec)}${timing.hasExplicitEnd ? "" : " (estimated)"}`} ok={null} />
+                        <StatusRow label="audio segment"       value={`${timing.durationSec.toFixed(1)}s`}                  ok={safeToSubmit ? true : false} />
+                        <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                             ok={null} />
+                        <StatusRow label="safe to submit"      value={safeToSubmit ? "yes" : "no"}                          ok={safeToSubmit ? true : false} />
+                      </div>
+                    )}
+
+                    {/* Over-limit warning */}
+                    {!safeToSubmit && (
+                      <div className="flex items-start gap-1.5 text-[10px] text-red-400/90 font-semibold">
+                        <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                        Selected scene audio is longer than your Sync Labs plan limit ({PROVIDER_LIMIT_SEC}s). Trim the scene or upgrade your plan.
+                      </div>
+                    )}
+
+                    {demoMode ? (
+                      <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
+                        <FlaskConical className="h-3 w-3 shrink-0" />
+                        Demo mode — no real API call will be made. No credits charged.
+                      </div>
+                    ) : !providerConnected ? (
+                      <p className="text-[10px] text-amber-400/80">
+                        ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
+                      </p>
+                    ) : safeToSubmit ? (
+                      <p className="text-[10px] text-white/40">
+                        Only the scene audio segment will be sent to Sync Labs — not the full song.
+                      </p>
+                    ) : null}
+
+                    {!demoMode && usingFullMix && ls.audioSource === "vocals" && (
+                      <p className="text-[10px] text-amber-400/70">
+                        ⚠ No vocal stem found — using full mix. Accuracy may be lower.
+                      </p>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={!safeToSubmit}
+                        onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
+                        className="flex-1 py-1.5 rounded-lg bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmOpen(null)}
+                        className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[11px] font-semibold hover:bg-white/[0.04] transition-colors"
+                      >
+                        Cancel
+                      </button>
                     </div>
-                  ) : !providerConnected ? (
-                    <p className="text-[10px] text-amber-400/80">
-                      ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-white/40">
-                      Processing will begin immediately. Charges apply only on successful results.
-                    </p>
-                  )}
-                  {!demoMode && usingFullMix && ls.audioSource === "vocals" && (
-                    <p className="text-[10px] text-amber-400/70">
-                      ⚠ No vocal stem found — using full mix. Accuracy may be lower.
-                    </p>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
-                      className="flex-1 py-1.5 rounded-lg bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors"
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmOpen(null)}
-                      className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[11px] font-semibold hover:bg-white/[0.04] transition-colors"
-                    >
-                      Cancel
-                    </button>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Apply to selected */}
               {!confirmOpen && selectedScene && (
@@ -1034,6 +1131,8 @@ export function LipSyncSection({
 interface LipSyncBackendRequest {
   clipUrl:              string;
   audioUrl:             string;
+  sceneStartSec:        number;
+  sceneEndSec:          number;
   audioSourceType:      "vocals_only" | "full_mix";
   strength:             LipSyncStrength;
   preserveFaceIdentity: boolean;
@@ -1057,11 +1156,14 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     body: JSON.stringify({
       clipUrl:              req.clipUrl,
       audioUrl:             req.audioUrl,
+      sceneStartSec:        req.sceneStartSec,
+      sceneEndSec:          req.sceneEndSec,
       audioSourceType:      req.audioSourceType,
       strength:             req.strength,
       preserveFaceIdentity: req.preserveFaceIdentity,
       preserveArtistLook:   req.preserveArtistLook,
     }),
+    signal: AbortSignal.timeout(480_000),
   });
 
   const data = await res.json() as { url?: string; provider?: string; error?: string; code?: string };
