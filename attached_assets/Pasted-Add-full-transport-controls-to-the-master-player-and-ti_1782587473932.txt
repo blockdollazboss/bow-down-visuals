@@ -1,0 +1,210 @@
+Add full transport controls to the master player and timeline.
+
+Problem:
+The master player does not have full transport controls.
+
+I should be able to control the whole project like a real video/music editor:
+- scrub
+- play
+- pause
+- restart
+- rewind
+- fast-forward
+- jump frame/seconds
+- sync timeline, audio waveform, captions, clips, effects, and overlays
+
+Do not change:
+- aspect ratio icon
+- fit mode icon
+- fullscreen aspect ratio behavior
+- transparent logo watermark
+- synced caption timing
+- timeline clip order
+- effects
+- overlays
+- Export Doctor working pipeline
+- Auto PiP
+- Bow Down AI Guide
+- Stripe, credits, or payments
+
+Only fix:
+- master player transport controls
+- scrub behavior
+- timeline sync
+- keyboard shortcuts
+
+PART 1 — MASTER PLAYER TRANSPORT BAR
+
+Add full transport controls inside the master player:
+
+Controls:
+- Play / Pause
+- Restart from beginning
+- Rewind 5 seconds
+- Rewind 10 seconds
+- Fast-forward 5 seconds
+- Fast-forward 10 seconds
+- Previous clip
+- Next clip
+- Step backward 1 frame
+- Step forward 1 frame
+- Mute / Unmute
+- Volume slider
+- Playback speed
+- Timecode display
+- Scrub bar / progress bar
+- Aspect Ratio icon
+- Fit Mode icon
+- Fullscreen
+- PiP
+
+PART 2 — SCRUB EVERYTHING TOGETHER
+
+When I scrub the master player:
+- video jumps to that time
+- project audio jumps to that time
+- timeline playhead jumps to that time
+- audio waveform playhead jumps to that time
+- active clip updates
+- active caption updates
+- effects update
+- overlays update
+- transitions update
+
+Everything must stay synced.
+
+PART 3 — TIMELINE SCRUB SYNC
+
+When I scrub the timeline:
+- master player updates
+- audio updates
+- captions update
+- clip track updates
+- waveform updates
+- effect markers update
+
+Master player and timeline must always use the same currentTime.
+
+PART 4 — REWIND / FAST-FORWARD
+
+Add buttons:
+
+Rewind 5 seconds
+Rewind 10 seconds
+Fast-forward 5 seconds
+Fast-forward 10 seconds
+
+These should:
+- clamp at 0 and total duration
+- update master player
+- update timeline playhead
+- update waveform
+- update captions/effects
+
+PART 5 — PREVIOUS / NEXT CLIP
+
+Add:
+Previous Clip
+Next Clip
+
+These should jump to:
+- start time of previous clip
+- start time of next clip
+
+Update:
+- active clip highlight
+- timeline
+- captions
+- effects
+
+PART 6 — FRAME STEP
+
+Add:
+Step Back 1 Frame
+Step Forward 1 Frame
+
+Use project frame rate if available.
+Default:
+30fps
+
+Frame step should pause playback first, then move exactly one frame.
+
+PART 7 — PLAYBACK SPEED
+
+Add playback speed:
+- 0.25x
+- 0.5x
+- 1x
+- 1.25x
+- 1.5x
+- 2x
+
+Default:
+1x
+
+Speed should apply to preview only.
+Do not change export speed unless user chooses that later.
+
+PART 8 — KEYBOARD SHORTCUTS
+
+Add keyboard shortcuts when master player/editor is focused:
+
+Space = play/pause
+Home = restart
+Left Arrow = rewind 5 seconds
+Right Arrow = fast-forward 5 seconds
+Shift + Left Arrow = previous clip
+Shift + Right Arrow = next clip
+Comma = step back 1 frame
+Period = step forward 1 frame
+M = mute/unmute
+F = fullscreen
+P = PiP if supported
+
+Do not trigger shortcuts while typing in text boxes.
+
+PART 9 — TIME DISPLAY
+
+Add timecode:
+
+Current time / total duration
+
+Example:
+00:42.15 / 03:12.08
+
+Use the same duration as the full timeline project.
+
+PART 10 — FULLSCREEN CONTROLS
+
+In fullscreen, keep transport controls available:
+- play/pause
+- scrub bar
+- timecode
+- rewind
+- fast-forward
+- aspect ratio icon
+- fit mode icon
+- exit fullscreen
+
+Controls can auto-hide but must reappear on mouse move/tap.
+
+No debug panels in fullscreen.
+
+PART 11 — DEBUG BELOW TIMELINE ONLY
+
+Add transport debug only inside the collapsed debug panel below the timeline:
+
+Transport Debug:
+- currentTime
+- duration
+- audio currentTime
+- video currentTime
+- timeline playhead time
+- active clip
+- active caption
+- synced: yes/no
+
+Do not show transport debug inside fullscreen.
+
+Final goal:
+The master player should feel like a real editor transport system. I should be able to scrub, rewind, fast-forward, restart, step frames, jump clips, play/pause, and keep the video, project audio, waveform, captions, effects, overlays, and timeline perfectly synced.

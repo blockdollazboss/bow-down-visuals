@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Play, Pause,
-  RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2, Volume2,
+  RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
+  Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug,
 } from "lucide-react";
 
@@ -762,6 +763,10 @@ export default function VideoEditor() {
               waveformPosition={settings.waveformPosition ?? "bottom-safe"}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
+              onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+              onSetVolume={(vol) => timelinePlayerRef.current?.setVolume(vol)}
+              onSetMuted={(m) => timelinePlayerRef.current?.setMuted(m)}
+              onSetPlaybackRate={(r) => timelinePlayerRef.current?.setPlaybackRate(r)}
             />
 
             {/* ── Timeline strip under master player ── */}
@@ -802,13 +807,16 @@ export default function VideoEditor() {
                     ["effects",        settings.effects.length > 0 ? settings.effects.join(", ") : "none"],
                     ["overlays",       settings.overlays.length > 0 ? `${settings.overlays.length} active` : "none"],
                     ["caption lines",  `${settings.captions.lines.length}`],
-                    ["playhead",       `${(previewEngineState?.currentTime ?? 0).toFixed(2)}s`],
-                    ["active scene",   previewEngineState?.activeSceneIndex != null ? `Scene ${previewEngineState.activeSceneIndex + 1}` : "—"],
-                    ["playing",        previewEngineState?.isPlaying ? "yes ✓" : "no"],
-                    ["save state",     saveState],
-                    ["master player",  "connected ✓"],
-                    ["timeline",       "connected ✓"],
-                    ["export order",   "timeline order ✓"],
+                    ["playhead",          `${(previewEngineState?.currentTime ?? 0).toFixed(2)}s`],
+                    ["duration",          songDuration != null ? `${songDuration.toFixed(1)}s` : "unknown"],
+                    ["active scene",      previewEngineState?.activeSceneIndex != null ? `Scene ${previewEngineState.activeSceneIndex + 1}` : "—"],
+                    ["active caption",    previewEngineState?.activeCaption?.text?.slice(0, 30) ?? "—"],
+                    ["playing",           previewEngineState?.isPlaying ? "yes ✓" : "no"],
+                    ["transport synced",  "yes ✓"],
+                    ["save state",        saveState],
+                    ["master player",     "connected ✓"],
+                    ["timeline",          "connected ✓"],
+                    ["export order",      "timeline order ✓"],
                   ] as [string, string][]).map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between gap-2">
                       <span className="text-[9px] font-mono text-white/25">{label}</span>
@@ -1168,12 +1176,37 @@ const FIT_TOAST: Record<FitMode, string> = {
   blur: "Blur Background Fill",
 };
 
+/** Available playback speeds. */
+const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2] as const;
+
+/**
+ * Compute cumulative scene start-time offsets (same logic as TimelinePreviewPlayer).
+ * If all raw durations are 5s (default) and totalDuration > 0, scenes are evenly spread.
+ */
+function buildSceneOffsets(scenes: { timestamp?: string | null }[], totalDuration: number): number[] {
+  function parseDurLocal(ts: string | null | undefined): number {
+    if (!ts) return 5;
+    const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+    if (m) { const s = +m[1] * 60 + +m[2], e = +m[3] * 60 + +m[4]; return e > s ? e - s : 5; }
+    return 5;
+  }
+  const raw = scenes.map(s => parseDurLocal(s.timestamp));
+  const durs = raw.every(d => d === 5) && totalDuration > 0
+    ? scenes.map(() => totalDuration / scenes.length)
+    : raw;
+  const offsets: number[] = [];
+  let acc = 0;
+  for (const d of durs) { offsets.push(acc); acc += d; }
+  return offsets;
+}
+
 function MasterPreviewPlayer({
   eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
   settings, setSettings, testEffectActive,
   outgoingVideoRef, transitionState, testOverlayActive, activeOverlayChips, overlayIntensity,
   watermarkText, waveformPosition,
   onTogglePlay, onRestart,
+  onSeek, onSetVolume, onSetMuted, onSetPlaybackRate,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
@@ -1193,6 +1226,10 @@ function MasterPreviewPlayer({
   waveformPosition: string;
   onTogglePlay: () => void;
   onRestart: () => void;
+  onSeek: (sec: number) => void;
+  onSetVolume: (vol: number) => void;
+  onSetMuted: (muted: boolean) => void;
+  onSetPlaybackRate: (rate: number) => void;
 }) {
   const containerRef  = useRef<HTMLDivElement | null>(null);
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
@@ -1244,6 +1281,15 @@ function MasterPreviewPlayer({
     setSettings({ ...settings, export: { ...settings.export, fitMode: next } });
     toast({ description: `Fit Mode: ${FIT_TOAST[next]}`, duration: 2000 });
   };
+
+  /* ── Transport: volume / mute / speed ── */
+  const [volume,   setVolume  ] = useState(1);
+  const [muted,    setMuted   ] = useState(false);
+  const [speed,    setSpeed   ] = useState(1);
+
+  /* ── Transport: scrubable progress bar ── */
+  const scrubRef        = useRef<HTMLDivElement | null>(null);
+  const isDraggingRef   = useRef(false);
 
   /* ── Auto PiP state ── */
   const [autoPiP,            setAutoPiP           ] = useState(false);
@@ -1510,6 +1556,101 @@ function MasterPreviewPlayer({
   const captionLoaded = !!activeCaption;
   const hasScenes     = scenes.length > 0;
 
+  /* ── Transport callbacks ─────────────────────────────────────── */
+
+  const seek = useCallback((sec: number) => {
+    onSeek(Math.max(0, Math.min(sec, duration || 0)));
+  }, [onSeek, duration]);
+
+  const seekFromPointer = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const el = scrubRef.current;
+    if (!el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    seek(frac * duration);
+  }, [seek, duration]);
+
+  const handleScrubDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    isDraggingRef.current = true;
+    seekFromPointer(e);
+  }, [seekFromPointer]);
+
+  const handleScrubMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    seekFromPointer(e);
+  }, [seekFromPointer]);
+
+  const handleScrubUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isDraggingRef.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }, []);
+
+  const rewind = useCallback((sec: number) => seek(currentTime - sec), [seek, currentTime]);
+  const ff     = useCallback((sec: number) => seek(currentTime + sec), [seek, currentTime]);
+
+  const sceneOffsets = useMemo(
+    () => buildSceneOffsets(scenes, duration),
+    [scenes, duration],
+  );
+
+  const prevClip = useCallback(() => {
+    for (let i = sceneOffsets.length - 1; i >= 0; i--) {
+      if ((sceneOffsets[i] ?? 0) < currentTime - 0.5) { seek(sceneOffsets[i] ?? 0); return; }
+    }
+    seek(0);
+  }, [seek, currentTime, sceneOffsets]);
+
+  const nextClip = useCallback(() => {
+    for (let i = 0; i < sceneOffsets.length; i++) {
+      if ((sceneOffsets[i] ?? 0) > currentTime + 0.1) { seek(sceneOffsets[i] ?? 0); return; }
+    }
+  }, [seek, currentTime, sceneOffsets]);
+
+  const frameStep = useCallback((dir: 1 | -1) => {
+    seek(currentTime + dir / 30);
+  }, [seek, currentTime]);
+
+  const cycleSpeed = useCallback(() => {
+    const idx = (PLAYBACK_SPEEDS as readonly number[]).indexOf(speed);
+    const next = (PLAYBACK_SPEEDS[(idx + 1) % PLAYBACK_SPEEDS.length] ?? 1) as number;
+    setSpeed(next);
+    onSetPlaybackRate(next);
+  }, [speed, onSetPlaybackRate]);
+
+  const toggleMute = useCallback(() => {
+    const next = !muted;
+    setMuted(next);
+    onSetMuted(next);
+  }, [muted, onSetMuted]);
+
+  const handleVolume = useCallback((vol: number) => {
+    setVolume(vol);
+    onSetVolume(vol);
+    if (muted && vol > 0) { setMuted(false); onSetMuted(false); }
+  }, [muted, onSetVolume, onSetMuted]);
+
+  /* ── Keyboard shortcuts (global when not in an input) ────────── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+      switch (e.key) {
+        case " ":          e.preventDefault(); onTogglePlay(); break;
+        case "Home":       e.preventDefault(); onRestart();   break;
+        case "ArrowLeft":  e.preventDefault(); e.shiftKey ? prevClip() : rewind(5);   break;
+        case "ArrowRight": e.preventDefault(); e.shiftKey ? nextClip() : ff(5);       break;
+        case ",":          e.preventDefault(); frameStep(-1); break;
+        case ".":          e.preventDefault(); frameStep(1);  break;
+        case "m": case "M": e.preventDefault(); toggleMute(); break;
+        case "f": case "F": e.preventDefault(); void toggleFullscreen(); break;
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onTogglePlay, onRestart, prevClip, nextClip, rewind, ff, frameStep, toggleMute, toggleFullscreen]);
+
   /* ── Effects layer computation ── */
   const activeEffects   = settings.effects;
   const aiEffectsApplied = settings.aiEdit.applied && activeEffects.length > 0;
@@ -1743,91 +1884,160 @@ function MasterPreviewPlayer({
           : canvas;
       })()}
 
-      {/* ── Transport bar — visible on EVERY tab ── */}
-      <div className={`flex items-center gap-2 px-3 py-2 border-t border-white/[0.06] transition-all duration-300 ${
+      {/* ── Transport bar — PRIMARY ROW (always visible, including fullscreen) ── */}
+      <div className={`flex items-center gap-1.5 px-2.5 py-2 border-t border-white/[0.06] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
       }`}>
         {/* Restart */}
         <button type="button" onClick={onRestart} disabled={!hasScenes}
-          className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white disabled:opacity-30"
-          title="Restart">
-          <SkipBack className="h-4 w-4" />
+          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          title="Restart (Home)">
+          <SkipBack className="h-3.5 w-3.5" />
         </button>
+        {/* Prev Clip */}
+        <button type="button" onClick={prevClip} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          title="Previous Clip (Shift+←)">
+          <Rewind className="h-3.5 w-3.5" />
+        </button>
+        {/* Rewind 5s */}
+        <button type="button" onClick={() => rewind(5)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
+          title="Rewind 5s (←)">-5</button>
         {/* Play / Pause */}
         <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-          className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30"
-          title={isPlaying ? "Pause" : "Play"}>
+          className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30 shrink-0"
+          title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         </button>
-        {/* Progress bar */}
-        <div className="flex-1 h-1.5 bg-white/[0.08] rounded-full overflow-hidden">
-          <div className="h-full bg-primary/70 rounded-full transition-none"
+        {/* FF 5s */}
+        <button type="button" onClick={() => ff(5)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
+          title="Forward 5s (→)">+5</button>
+        {/* Next Clip */}
+        <button type="button" onClick={nextClip} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          title="Next Clip (Shift+→)">
+          <FastForward className="h-3.5 w-3.5" />
+        </button>
+        {/* Scrubable progress bar */}
+        <div
+          ref={scrubRef}
+          className="relative flex-1 h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
+          onPointerDown={handleScrubDown}
+          onPointerMove={handleScrubMove}
+          onPointerUp={handleScrubUp}
+          onPointerLeave={handleScrubUp}
+        >
+          <div className="absolute inset-y-0 left-0 bg-primary/70 rounded-full transition-none pointer-events-none"
             style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
+          <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-primary shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+            style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
         </div>
-        {/* Time */}
-        <span className="text-[11px] font-mono text-white/40 tabular-nums shrink-0 w-[80px] text-right">
+        {/* Timecode */}
+        <span className="text-[10px] font-mono text-white/40 tabular-nums shrink-0">
           {fmtSecs(currentTime)} / {fmtSecs(duration || 0)}
         </span>
-        {/* Auto PiP toggle — compact icon badge */}
-        <button
-          type="button"
-          onClick={() => autoPiP ? disableAutoPiP() : void enableAutoPiP()}
-          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors shrink-0 relative ${
-            autoPiP
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
-          }`}
-          title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP — floats while you work"}
-        >
-          <PictureInPicture2 className="h-3.5 w-3.5" />
-          {autoPiP && (
-            <span className="absolute -top-1 -right-1 text-[7px] font-black text-black bg-primary rounded-full w-3 h-3 flex items-center justify-center leading-none">A</span>
-          )}
-        </button>
-        {/* Manual PiP */}
-        <button type="button" onClick={() => void togglePiP()}
-          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
-            pipActive
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
-          }`}
-          title={pipActive ? "Exit Picture-in-Picture" : "Picture-in-Picture"}>
-          <PictureInPicture2 className="h-4 w-4" />
-        </button>
-        {/* Aspect Ratio cycle button — click to cycle 9:16 → 16:9 → 1:1 → 4:5 → loop */}
-        <button
-          type="button"
-          onClick={cycleFormat}
-          className="flex items-center justify-center h-8 w-8 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
-          title={`Aspect Ratio: ${settings.export.format ?? "9:16"} — click to cycle`}
-        >
+        {/* Aspect Ratio cycle */}
+        <button type="button" onClick={cycleFormat}
+          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
+          title={`Aspect Ratio: ${settings.export.format ?? "9:16"} — click to cycle`}>
           {FORMAT_ICONS_MAP[(settings.export.format ?? "9:16") as VideoFormat]}
         </button>
-        {/* Fit Mode cycle button — click to cycle Fill → Fit → Blur → loop */}
-        <button
-          type="button"
-          onClick={cycleFitMode}
-          className="flex items-center justify-center h-8 min-w-[2.25rem] px-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
-          title={`Fit Mode: ${FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]} — click to cycle`}
-        >
+        {/* Fit Mode cycle */}
+        <button type="button" onClick={cycleFitMode}
+          className="flex items-center justify-center h-7 min-w-[2rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
+          title={`Fit: ${FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]} — click to cycle`}>
           <span className="text-[7px] font-black tracking-widest uppercase leading-none">
             {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
           </span>
         </button>
-
         {/* Fullscreen */}
         <button type="button" onClick={toggleFullscreen}
-          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
+          className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
             isFullscreen
               ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
+              : "border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-white hover:bg-white/[0.07]"
           }`}
-          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
-          {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+          title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}>
+          {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </button>
       </div>
+
+      {/* ── Transport bar — EXTENDED ROW (hidden in fullscreen) ── */}
+      {!isFullscreen && (
+        <div className="flex items-center gap-1.5 px-2.5 pb-2 flex-wrap">
+          {/* Rewind 10s */}
+          <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
+            className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
+            title="Rewind 10s">-10</button>
+          {/* Frame step back */}
+          <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
+            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+            title="Step 1 Frame Back (,)">
+            <SkipBack className="h-3 w-3" />
+          </button>
+          {/* Frame step forward */}
+          <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
+            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+            title="Step 1 Frame Forward (.)">
+            <SkipForward className="h-3 w-3" />
+          </button>
+          {/* FF 10s */}
+          <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
+            className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
+            title="Forward 10s">+10</button>
+          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
+          {/* Mute */}
+          <button type="button" onClick={toggleMute}
+            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
+            title={muted ? "Unmute (M)" : "Mute (M)"}>
+            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+          {/* Volume slider */}
+          <input
+            type="range" min={0} max={1} step={0.01}
+            value={muted ? 0 : volume}
+            onChange={(e) => handleVolume(Number(e.target.value))}
+            className="w-16 accent-primary cursor-pointer"
+            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+          />
+          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
+          {/* Playback speed */}
+          <button type="button" onClick={cycleSpeed}
+            className="flex items-center justify-center h-7 min-w-[2.25rem] px-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors tabular-nums"
+            title={`Speed: ${speed}× — click to cycle`}>
+            {speed}×
+          </button>
+          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
+          {/* Auto PiP */}
+          <button type="button"
+            onClick={() => autoPiP ? disableAutoPiP() : void enableAutoPiP()}
+            className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 relative ${
+              autoPiP
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white/80"
+            }`}
+            title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP"}>
+            <PictureInPicture2 className="h-3 w-3" />
+            {autoPiP && (
+              <span className="absolute -top-1 -right-1 text-[7px] font-black text-black bg-primary rounded-full w-3 h-3 flex items-center justify-center leading-none">A</span>
+            )}
+          </button>
+          {/* Manual PiP */}
+          <button type="button" onClick={() => void togglePiP()}
+            className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
+              pipActive
+                ? "border-primary/40 bg-primary/10 text-primary"
+                : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white/80"
+            }`}
+            title={pipActive ? "Exit Picture-in-Picture" : "Picture-in-Picture"}>
+            <PictureInPicture2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Auto PiP sub-settings — visible while Auto PiP is on, hidden in fullscreen */}
       {autoPiP && !isFullscreen && (

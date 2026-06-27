@@ -80,6 +80,12 @@ export interface TimelinePlayerHandle {
   previewTransition: (sceneIndex: number) => void;
   /** Seek to an absolute time in seconds (works whether playing or paused). */
   seekTo: (sec: number) => void;
+  /** Set audio volume 0–1 */
+  setVolume: (vol: number) => void;
+  /** Mute or unmute audio */
+  setMuted: (muted: boolean) => void;
+  /** Set playback rate for audio and video (e.g. 0.5, 1, 1.5, 2) */
+  setPlaybackRate: (rate: number) => void;
 }
 
 export interface TimelinePreviewPlayerProps {
@@ -466,6 +472,16 @@ function TimelinePreviewPlayer({
         v.currentTime = clipOffset;
         if (playing) v.play().catch(() => {});
       }
+    },
+    setVolume(vol: number) {
+      if (audioRef.current) audioRef.current.volume = Math.max(0, Math.min(1, vol));
+    },
+    setMuted(m: boolean) {
+      if (audioRef.current) audioRef.current.muted = m;
+    },
+    setPlaybackRate(rate: number) {
+      if (audioRef.current) audioRef.current.playbackRate = rate;
+      if (videoRef.current) videoRef.current.playbackRate = rate;
     },
   }));
 
