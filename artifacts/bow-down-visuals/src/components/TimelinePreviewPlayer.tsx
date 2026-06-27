@@ -76,6 +76,8 @@ export interface TimelinePlayerHandle {
   togglePlay: () => void;
   /** Restart playback from the beginning */
   restart: () => void;
+  /** Seek to ~1s before the given scene's boundary and play through its transition. */
+  previewTransition: (sceneIndex: number) => void;
 }
 
 export interface TimelinePreviewPlayerProps {
@@ -402,6 +404,31 @@ function TimelinePreviewPlayer({
     else void containerRef.current.requestFullscreen();
   }
 
+  /** Seek ~1s before a scene boundary and play so its transition renders. */
+  function previewTransition(sceneIndex: number) {
+    const boundary = offsets[sceneIndex] ?? 0;
+    const start = Math.max(0, boundary - 1);
+    setMode("timeline");
+    setLastError(null);
+    setNeedsUserTap(false);
+    setCurrentTime(start);
+    currentTimeRef.current = start;
+    setPlaying(true);
+    // Force the scene-change effect to fire as playback crosses into sceneIndex.
+    prevSceneIdxRef.current = -999;
+    doAudioPlay(start);
+
+    const startIdx = sceneAt(start, offsets, durs);
+    const scene = scenes[startIdx];
+    if (scene?.demoClipUrl && videoRef.current) {
+      const v = videoRef.current;
+      v.src = scene.demoClipUrl;
+      v.muted = true;
+      v.currentTime = 0;
+      v.play().catch((e: Error) => setLastError(`Clip: ${e.message}`));
+    }
+  }
+
   /* ─── Imperative handle for master player ─────────────────── */
   useImperativeHandle(ref, () => ({
     togglePlay() {
@@ -414,6 +441,7 @@ function TimelinePreviewPlayer({
       }
     },
     restart: startTimeline,
+    previewTransition,
   }));
 
   /* ─── Caption style ─────────────────────────────────────────── */

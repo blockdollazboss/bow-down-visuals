@@ -157,6 +157,12 @@ export default function VideoEditor() {
     transitionTimerRef.current = setTimeout(() => setTransitionState(null), 1100);
   }
 
+  /** Jump the master player to ~1s before a scene's transition and play it. */
+  function handlePreviewTransition(sceneIndex: number) {
+    setTab("timeline");
+    timelinePlayerRef.current?.previewTransition(sceneIndex);
+  }
+
   function triggerTestOverlay() {
     setTestOverlayActive(true);
     if (testOverlayTimerRef.current) clearTimeout(testOverlayTimerRef.current);
@@ -930,6 +936,8 @@ export default function VideoEditor() {
                 onTestEffect={triggerTestEffect}
                 onTestTransition={triggerTestTransition}
                 onTestOverlay={triggerTestOverlay}
+                activeTransitionType={transitionState?.type ?? null}
+                onPreviewTransition={handlePreviewTransition}
               />
             )}
 

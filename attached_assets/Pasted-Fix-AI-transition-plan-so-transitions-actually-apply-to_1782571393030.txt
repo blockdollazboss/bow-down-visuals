@@ -1,0 +1,113 @@
+Fix AI transition plan so transitions actually apply to the master player and export.
+
+Problem:
+The AI Edit Plan creates a Transition Plan, but the transitions are not auto-applied.
+
+I can see transition recommendations like:
+- Scene 1: Cut
+- Scene 2: Whip Pan
+- Scene 4: Crossfade
+- Scene 10: Fade to Black
+
+But they only show as text. They do not appear in the master player and they are not being applied to export.
+
+Do not change:
+- Stripe
+- credits
+- payments
+- Runway generation
+- Artist Profiles
+- caption sync
+- caption styles
+- Auto PiP
+- Bow Down AI Guide
+- master player layout
+- working Export Doctor clips/audio/captions pipeline
+
+Only fix AI transitions being applied.
+
+Required fix:
+
+1. Convert the Transition Plan into real structured transition data.
+
+Each transition should be saved like:
+
+{
+  sceneId,
+  sceneIndex,
+  transitionType,
+  startTime,
+  duration,
+  fromSceneId,
+  toSceneId,
+  direction,
+  intensity,
+  applied: true
+}
+
+2. Add button:
+Apply AI Transitions To Timeline
+
+When clicked:
+- read the AI Transition Plan
+- convert each transition into structured timeline transition objects
+- save them to the project
+- update the master player immediately
+- show Applied status on each transition row
+
+3. Add auto-apply option:
+Auto Apply AI Transitions
+
+When AI Edit Plan finishes, if this is enabled:
+- apply transitions automatically
+- do not leave them as text-only recommendations
+
+4. Master player must visually render transitions.
+
+Supported preview transitions:
+- Cut: instant scene switch
+- Crossfade: fade outgoing clip while fading incoming clip
+- Fade to Black: fade scene to black before next scene
+- Whip Pan: fast horizontal blur/slide transition
+- Zoom Transition: quick zoom-in or zoom-out between scenes
+- Flash Cut: quick white/gold flash between scenes
+
+5. During master player playback:
+- detect when currentTime reaches a scene boundary
+- if a transition exists at that boundary, render it visually
+- do not just switch scenes instantly unless transition is Cut
+
+6. Add visible debug:
+
+Transition Render Debug:
+- transition plan found: yes/no
+- structured transitions created: number
+- transitions saved: yes/no
+- active transition now: transition type
+- master player rendering transition: yes/no
+- transition export connected: yes/no
+- last transition error
+
+7. Update the Transition Plan UI.
+
+Each row should show:
+- transition type
+- reason
+- applied: yes/no
+- preview button
+- remove button
+- change transition dropdown
+
+8. Preview button:
+When clicked, jump master player to 1 second before that transition and play through it.
+
+9. Export Doctor effects test must include transitions when using:
+Export All 5 Clips + Audio + Captions + Effects Only
+
+If transition export is not connected yet, show:
+Transitions visible in preview but not connected to export yet.
+
+10. Do not claim transitions are applied unless they visibly render in the master player.
+
+Final goal:
+The AI Transition Plan should not be text-only. It should create real timeline transitions, apply them to the master player, save them to the project, and include them in Export Doctor effects export.

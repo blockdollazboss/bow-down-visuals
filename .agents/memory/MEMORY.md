@@ -4,6 +4,7 @@
 - [ASS caption time offset](caption-time-offset.md) — when intro card is enabled all ASS caption times shift by introDuration; buildAssContent takes timeOffset=0 param.
 - [DejaVu drawtext font path](drawtext-font.md) — confirmed path: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf for FFmpeg drawtext filters.
 - [Segmented control type constraint](segmented-types.md) — Segmented<T extends string> only accepts strings; convert numeric settings (CardDuration) with String/Number at call site.
+- [Timeline transition rendering](transition-rendering.md) — master player renders transitions from clips[sceneId].transition; scene 0 never transitions (prevSceneIdxRef=-999 sentinel forces re-fire for preview).
 - [Caption ASS render parity](caption-ass-parity.md) — real export + Export Doctor share ONE ASS builder (caption-ass.ts); never fork it; persist doctor response body before checking res.ok.
 - [Export Doctor diagnostics](export-doctor.md) — single + multi-clip diagnostics SEPARATE from real export; media SSRF allowlist covers Supabase, Runway CDN, Replit object storage.
 - [Effects export parity](effects-export-doctor.md) — real export does NOT burn effects (CSS-only preview); master player applies global settings.effects; replicate EFFECT_CSS_FILTERS table and translate CSS→FFmpeg.

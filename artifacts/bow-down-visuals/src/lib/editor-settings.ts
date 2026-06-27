@@ -218,6 +218,20 @@ export interface AiEditPlan {
   generatedAt: string;
 }
 
+/** Structured transition created from the AI Transition Plan and applied to the timeline. */
+export interface AppliedTransition {
+  sceneId: string;
+  sceneIndex: number;
+  transitionType: string;
+  startTime: number;
+  duration: number;
+  fromSceneId: string | null;
+  toSceneId: string;
+  direction: string;
+  intensity: number;
+  applied: boolean;
+}
+
 export interface AiEditSettings {
   enabled: boolean;
   style: AiEditStylePreset;
@@ -225,6 +239,12 @@ export interface AiEditSettings {
   applied: boolean;
   preApplyEffects: string[] | null;
   preApplyCaptionStylePreset: CaptionStylePreset | null;
+  /** When true, AI transitions are applied to the timeline automatically after a plan is generated. */
+  autoApplyTransitions: boolean;
+  /** True once the AI transition plan has been written into per-clip transition data. */
+  transitionsApplied: boolean;
+  /** Structured transitions created the last time the plan was applied. */
+  appliedTransitions: AppliedTransition[];
 }
 
 export function defaultAiEditSettings(): AiEditSettings {
@@ -235,6 +255,9 @@ export function defaultAiEditSettings(): AiEditSettings {
     applied: false,
     preApplyEffects: null,
     preApplyCaptionStylePreset: null,
+    autoApplyTransitions: false,
+    transitionsApplied: false,
+    appliedTransitions: [],
   };
 }
 
@@ -1187,4 +1210,118 @@ export function getClipEdit(settings: EditorSettings, sceneId: string): ClipEdit
 /** A scene has a usable clip when it has an http(s) demo clip URL. */
 export function sceneHasClip(scene: SceneData): boolean {
   return !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
+}
+
+/* ─────────────────────────────────────────────────────────────
+   AI Transition Plan → timeline transitions.
+
+   The master player renders transitions from per-clip ClipEdit.transition
+   (see handleSceneChange in video-editor.tsx → TransitionCompositor).
+   These helpers translate the AI Transition Plan (free-text transition
+   names) into that vocabulary and write them onto the per-clip data so
+   they actually render and persist.
+   ───────────────────────────────────────────────────────────── */
+
+/** Parse a "0:00 - 0:05" style timestamp into its duration in seconds. */
+function parseSceneDuration(ts: string | null | undefined): number {
+  if (!ts) return 5;
+  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+  if (m) {
+    const s = +m[1] * 60 + +m[2];
+    const e = +m[3] * 60 + +m[4];
+    return e > s ? e - s : 5;
+  }
+  return 5;
+}
+
+/**
+ * Normalize a free-text transition name (from the AI plan) into the exact
+ * vocabulary the master player's TransitionCompositor understands. Unknown
+ * names fall back to "Crossfade" so the transition is still visible.
+ */
+export function normalizeTransitionName(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim().toLowerCase();
+  if (!s) return "Cut";
+  if (s.includes("cut") && !s.includes("flash")) return "Cut";
+  if (s.includes("flash")) return "Flash";
+  if (s.includes("black") || (s.includes("fade") && s.includes("out"))) return "Fade to Black";
+  if (s.includes("whip") || s.includes("swipe") || s.includes("pan")) return "Whip Pan";
+  if (s.includes("zoom") || s.includes("punch")) return "Zoom";
+  if (s.includes("glitch")) return "Glitch";
+  if (s.includes("light") || s.includes("leak")) return "Light Leak";
+  if (s.includes("spin") || s.includes("rotate")) return "Spin";
+  if (s.includes("blur")) return "Blur Dissolve";
+  if (s.includes("slide")) return "Slide";
+  if (s.includes("cross") || s.includes("dissolve") || s.includes("fade")) return "Crossfade";
+  return "Crossfade";
+}
+
+/** Cumulative start time (seconds) for each scene, from parsed timestamps. */
+function sceneStartTimes(scenes: SceneData[]): number[] {
+  const out: number[] = [];
+  let acc = 0;
+  for (const s of scenes) { out.push(acc); acc += parseSceneDuration(s.timestamp); }
+  return out;
+}
+
+/**
+ * Build structured transitions from the AI plan, mapped onto real scenes.
+ * Scene 0 is always a "Cut" (nothing transitions INTO the first scene).
+ */
+export function buildAppliedTransitions(
+  plan: AiEditPlan,
+  scenes: SceneData[],
+): AppliedTransition[] {
+  const starts = sceneStartTimes(scenes);
+  const out: AppliedTransition[] = [];
+  for (const entry of plan.transitionPlan ?? []) {
+    const idx = entry.sceneIndex;
+    const scene = scenes[idx];
+    if (!scene) continue;
+    const type = idx === 0 ? "Cut" : normalizeTransitionName(entry.transition);
+    out.push({
+      sceneId: scene.id,
+      sceneIndex: idx,
+      transitionType: type,
+      startTime: starts[idx] ?? idx * 5,
+      duration: type === "Cut" ? 0 : 1.0,
+      fromSceneId: idx > 0 ? (scenes[idx - 1]?.id ?? null) : null,
+      toSceneId: scene.id,
+      direction: type === "Whip Pan" || type === "Slide" ? "left" : "none",
+      intensity: 100,
+      applied: true,
+    });
+  }
+  return out;
+}
+
+/**
+ * Apply the AI Transition Plan to the timeline: writes each transition into
+ * the per-clip ClipEdit data (which the master player renders) and records the
+ * structured transitions + flags on aiEdit. Returns a new EditorSettings.
+ */
+export function applyAiTransitionsToClips(
+  settings: EditorSettings,
+  scenes: SceneData[],
+  plan: AiEditPlan,
+): EditorSettings {
+  const applied = buildAppliedTransitions(plan, scenes);
+  const clips: Record<string, ClipEdit> = { ...settings.clips };
+  for (const t of applied) {
+    const current = getClipEdit(settings, t.sceneId);
+    clips[t.sceneId] = {
+      ...current,
+      transition: t.transitionType,
+      transitionDuration: t.duration > 0 ? t.duration : current.transitionDuration,
+    };
+  }
+  return {
+    ...settings,
+    clips,
+    aiEdit: {
+      ...settings.aiEdit,
+      transitionsApplied: true,
+      appliedTransitions: applied,
+    },
+  };
 }

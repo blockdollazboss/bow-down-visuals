@@ -772,6 +772,13 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 ))}
               </div>
             )}
+            {/* Transitions are preview-only — not part of the effects export pipeline yet */}
+            <div className="flex items-start justify-between gap-2 text-[11px] font-mono pt-1 mt-1 border-t border-white/[0.06]">
+              <span className="text-white/40 shrink-0">transitions in export</span>
+              <span className="text-amber-300/80 font-bold text-right break-words leading-snug">
+                Transitions visible in preview but not connected to export yet.
+              </span>
+            </div>
           </div>
 
           {/* ── Effects test export result ── */}

@@ -17,6 +17,10 @@ interface EffectsSectionProps {
   onTestEffect?: () => void;
   onTestTransition?: () => void;
   onTestOverlay?: () => void;
+  /** Transition type currently rendering in the master player (live), or null. */
+  activeTransitionType?: string | null;
+  /** Jump the master player to ~1s before a scene's transition and play through it. */
+  onPreviewTransition?: (sceneIndex: number) => void;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
@@ -59,7 +63,7 @@ function IntensityRow({
   );
 }
 
-export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition }: EffectsSectionProps) {
   function patchClip(sceneId: string, patch: Partial<ClipEdit>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
@@ -90,6 +94,8 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         setSettings={setSettings}
         audioUrl={audioUrl}
         onTestEffect={onTestEffect}
+        activeTransitionType={activeTransitionType}
+        onPreviewTransition={onPreviewTransition}
       />
 
       {/* ── Global Effects ── */}
