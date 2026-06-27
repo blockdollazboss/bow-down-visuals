@@ -23,6 +23,7 @@ interface ProviderStatus {
   serverKeyFound:     boolean;
   frontendKeyExposed: boolean;
   mode:               "real" | "mock";
+  missingKeyMessage:  string | null;
 }
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
@@ -482,7 +483,9 @@ export function LipSyncSection({
                 <div className="space-y-3">
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
                     <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                    <span>Lip Sync is not connected yet.<br />
+                    <span>
+                      {providerStatus?.missingKeyMessage ?? "Lip Sync is not connected yet."}
+                      <br />
                       <span className="font-normal text-amber-400/70">
                         To use real lip sync, connect a lip sync provider API key in Replit Secrets.
                       </span>
@@ -570,13 +573,13 @@ export function LipSyncSection({
 
               {/* Status rows */}
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                <StatusRow label="real provider connected" value={providerConnected ? "yes" : "no"}         ok={providerConnected} />
-                <StatusRow label="demo mode active"        value={demoMode ? "yes" : "no"}                  ok={demoMode ? null : undefined} />
-                <StatusRow label="server key found"        value={providerStatus?.serverKeyFound ? "yes" : "no"} ok={providerStatus?.serverKeyFound} />
-                <StatusRow label="frontend key exposed"    value="no"                                        ok={true} />
-                <StatusRow label="mode"                    value={demoMode ? "demo" : (providerStatus?.mode ?? "—")} ok={providerConnected || demoMode ? true : false} />
-                <StatusRow label="clips lip synced"        value={`${allDoneCount} / ${scenes.length}`}      ok={allDoneCount > 0 ? true : null} />
-                <StatusRow label="clips processing"        value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
+                <StatusRow label="provider"            value={providerStatus?.providerName ?? "none"}              ok={providerConnected} />
+                <StatusRow label="connected"           value={providerConnected ? "yes" : "no"}                    ok={providerConnected} />
+                <StatusRow label="server key found"    value={providerStatus?.serverKeyFound ? "yes" : "no"}       ok={providerStatus?.serverKeyFound} />
+                <StatusRow label="frontend key exposed" value="no"                                                  ok={true} />
+                <StatusRow label="mode"                value={demoMode ? "demo" : (providerStatus?.mode ?? "—")}   ok={providerConnected || demoMode ? true : false} />
+                <StatusRow label="clips lip synced"    value={`${allDoneCount} / ${scenes.length}`}                ok={allDoneCount > 0 ? true : null} />
+                <StatusRow label="clips processing"    value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
               </div>
               <button
                 type="button"
