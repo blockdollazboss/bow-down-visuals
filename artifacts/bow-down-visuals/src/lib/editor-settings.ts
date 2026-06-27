@@ -988,6 +988,8 @@ export interface LipSyncSettings {
   preserveArtistLook: boolean;
   /** Whether to use isolated vocal stem (if available) or full mix. */
   audioSource: "vocals" | "full";
+  /** URL of a manually-uploaded vocal stem (saved via /api/lip-sync/upload-vocal-stem). */
+  uploadedVocalStemUrl: string | null;
 }
 
 export function defaultClipEdit(): ClipEdit {
@@ -1018,6 +1020,7 @@ export function defaultLipSyncSettings(): LipSyncSettings {
     preserveFaceIdentity: true,
     preserveArtistLook: true,
     audioSource: "vocals",
+    uploadedVocalStemUrl: null,
   };
 }
 

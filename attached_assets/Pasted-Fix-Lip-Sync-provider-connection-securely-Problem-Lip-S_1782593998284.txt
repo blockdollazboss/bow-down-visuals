@@ -1,0 +1,158 @@
+Fix Lip Sync provider connection securely.
+
+Problem:
+Lip Sync UI is showing:
+
+* provider: none
+* mode: mock / not connected
+* project audio found: yes
+* vocal stem found: no
+* using full audio: yes
+* audio ready: yes
+
+The Lip Sync tool is ready, but no real provider is connected yet.
+
+Important security fix:
+Do not use VITE_LIP_SYNC_API_KEY for the secret API key.
+VITE environment variables are exposed to the frontend.
+
+Do not change:
+
+* master player
+* captions
+* timeline
+* watermark
+* effects
+* overlays
+* Export Doctor
+* payments or credits
+
+Only fix:
+
+* secure lip sync provider setup
+* backend lip sync route
+* provider status
+* vocal/full-audio fallback
+
+Requirements:
+
+1. Replace frontend secret usage.
+
+Do not require:
+VITE_LIP_SYNC_API_KEY
+
+Use server-side Replit Secret instead:
+LIP_SYNC_API_KEY
+
+Optional:
+LIP_SYNC_PROVIDER
+
+Frontend may only read safe status like:
+provider connected: yes/no
+
+2. Create a backend lip sync route.
+
+Add server endpoint:
+POST /api/lip-sync/preview
+
+It should accept:
+
+* projectId
+* clipId
+* audioSourceType: vocals_only or full_mix
+* strength
+* preserveFaceIdentity
+* preserveArtistLook
+
+The backend should:
+
+* read LIP_SYNC_API_KEY from server environment only
+* call the selected lip sync provider
+* return real result URL when successful
+* return real error when failed
+
+3. Do not fake success.
+
+If no API key exists, show:
+Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.
+
+4. Provider status should show:
+
+provider:
+
+* connected / not connected
+* provider name
+* server key found: yes/no
+* frontend key exposed: no
+* mode: real / mock
+
+5. Audio source behavior:
+
+If vocal stem exists:
+
+* use vocal stem for lip sync
+
+If no vocal stem exists:
+
+* allow full mix fallback
+* show warning:
+    No vocal stem found. Using full mix may reduce lip sync accuracy.
+
+6. Add upload vocal stem option.
+
+Add button:
+Upload Vocal Stem
+
+When uploaded:
+
+* save vocal stem
+* mark vocal stem found: yes
+* use it when Vocals Only is selected
+
+7. Add Music Mixer export option.
+
+Button:
+Export Vocals / Acapella Stem
+
+If stem separation is available, export vocals and save as project vocal stem.
+
+If not available, show:
+Vocal stem export not connected yet.
+
+8. Lip Sync selected clip flow:
+
+When I select a clip and click Preview Lip Sync:
+
+* check provider connected
+* check clip exists
+* check face found
+* check audio ready
+* send request to backend
+* show progress
+* save result to clip.lipSyncUrl
+* update master player to use lip synced clip
+
+9. Save fields:
+
+clip.lipSyncUrl
+clip.lipSyncStatus
+clip.lipSyncProvider
+clip.lipSyncCreatedAt
+clip.lipSyncError
+
+10. Add status:
+
+Lip Sync Provider:
+
+* provider
+* connected
+* server key found
+* frontend key exposed: no
+* selected clip
+* audio source
+* vocal stem found
+* using full mix fallback
+* last error
+
+Final goal:
+Lip Sync should connect securely through the backend using server-side LIP_SYNC_API_KEY. The frontend should never expose the secret key. If no vocal stem exists, it can use full mix with a warning, but should allow uploading or exporting a vocal stem.

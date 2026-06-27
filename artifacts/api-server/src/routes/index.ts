@@ -28,6 +28,7 @@ import creditsRouter from "./credits";
 import generatedClipsRouter from "./generated-clips";
 import draftsRouter from "./drafts";
 import generationHistoryRouter from "./generation-history";
+import lipSyncRouter from "./lip-sync";
 
 const router: IRouter = Router();
 
@@ -60,5 +61,6 @@ router.use(creditsRouter);
 router.use(generatedClipsRouter);
 router.use(draftsRouter);
 router.use(generationHistoryRouter);
+router.use(lipSyncRouter);
 
 export default router;

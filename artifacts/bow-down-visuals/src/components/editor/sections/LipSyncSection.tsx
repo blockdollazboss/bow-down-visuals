@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
-  SkipForward, Info, Radio, User, Sliders, RefreshCw, X,
+  SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -13,48 +13,49 @@ import {
 } from "@/lib/editor-settings";
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
+import { useAuth } from "@/contexts/AuthContext";
 
-/* ── Env / provider check ─────────────────────────────────────────────────── */
-const LIP_SYNC_API_KEY   = import.meta.env.VITE_LIP_SYNC_API_KEY  as string | undefined;
-const LIP_SYNC_PROVIDER  = import.meta.env.VITE_LIP_SYNC_PROVIDER as string | undefined;
-const PROVIDER_CONNECTED = !!(LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length > 0);
-const PROVIDER_NAME      = LIP_SYNC_PROVIDER || (PROVIDER_CONNECTED ? "Custom" : null);
+/* ── Provider status (fetched from backend — no secrets in frontend) ── */
+interface ProviderStatus {
+  connected:          boolean;
+  providerName:       string | null;
+  serverKeyFound:     boolean;
+  frontendKeyExposed: boolean;
+  mode:               "real" | "mock";
+}
 
 /* ── Types ────────────────────────────────────────────────────────────────── */
 interface LipSyncSectionProps {
-  scenes: SceneData[];
-  settings: EditorSettings;
+  scenes:      SceneData[];
+  settings:    EditorSettings;
   setSettings: (s: EditorSettings) => void;
   /** Raw project audio URL (from project.input_data.audioUrl). */
-  audioUrl?: string | null;
+  audioUrl?:       string | null;
   /** Effective master-player audio URL (stem-aware). */
   masterAudioUrl?: string | null;
 }
 
 interface ProcessState {
-  running: boolean;
-  current: number;
-  total: number;
-  cancelled: boolean;
-  lastError: string | null;
+  running:    boolean;
+  current:    number;
+  total:      number;
+  cancelled:  boolean;
+  lastError:  string | null;
 }
 
-/* ── Helper ───────────────────────────────────────────────────────────────── */
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
   try { return new Date(iso).toLocaleString(); } catch { return iso; }
 }
 
 function Toggle({
-  value,
-  onChange,
-  label,
-  sub,
+  value, onChange, label, sub,
 }: {
-  value: boolean;
+  value:    boolean;
   onChange: (v: boolean) => void;
-  label: string;
-  sub?: string;
+  label:    string;
+  sub?:     string;
 }) {
   return (
     <button
@@ -78,13 +79,11 @@ function Toggle({
 }
 
 function StatusRow({
-  label,
-  value,
-  ok,
+  label, value, ok,
 }: {
-  label: string;
-  value: string;
-  ok?: boolean | null;
+  label:  string;
+  value:  string;
+  ok?:    boolean | null;
 }) {
   const color =
     ok === true  ? "text-green-400" :
@@ -107,20 +106,57 @@ export function LipSyncSection({
   masterAudioUrl,
 }: LipSyncSectionProps) {
 
-  const ls          = settings.lipSync;
-  const ms          = settings.musicStudio;
+  const ls = settings.lipSync;
+  const ms = settings.musicStudio;
+  const { getAccessToken } = useAuth();
+
+  /* ── Provider status (fetched from backend on mount) ── */
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+  const [providerLoading, setProviderLoading] = useState(false);
+
+  const fetchProviderStatus = useCallback(async () => {
+    setProviderLoading(true);
+    try {
+      const res = await fetch("/api/lip-sync/status");
+      if (res.ok) {
+        const data = await res.json() as ProviderStatus;
+        setProviderStatus(data);
+      }
+    } catch {
+      /* network error — leave null */
+    } finally {
+      setProviderLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchProviderStatus();
+  }, [fetchProviderStatus]);
+
+  const providerConnected = providerStatus?.connected ?? false;
+  const providerName      = providerStatus?.providerName ?? null;
 
   /* ── Process-all state ── */
   const [processState, setProcessState] = useState<ProcessState | null>(null);
   const cancelRef = useRef(false);
 
   /* ── Local apply state ── */
-  const [applyError, setApplyError] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState<"single" | "all" | null>(null);
+  const [applyError, setApplyError]     = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen]   = useState<"single" | "all" | null>(null);
+
+  /* ── Vocal stem upload state ── */
+  const [stemUploading, setStemUploading] = useState(false);
+  const [stemUploadError, setStemUploadError] = useState<string | null>(null);
+  const stemInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── Music Mixer acapella export state ── */
+  const [acapellaExporting, setAcapellaExporting] = useState(false);
+  const [acapellaError, setAcapellaError] = useState<string | null>(null);
 
   /* ── Derived: audio source ── */
   const vocalExportUrl = ms.exports.find(r => r.kind === "acapella")?.url ?? null;
   const vocalStemUrl   =
+    ls.uploadedVocalStemUrl ??
     vocalExportUrl ??
     ms.stems.find(s =>
       s.name?.toLowerCase().includes("vocal") ||
@@ -133,18 +169,19 @@ export function LipSyncSection({
     ls.audioSource === "vocals" && vocalStemFound
       ? vocalStemUrl
       : (masterAudioUrl ?? audioUrl ?? null);
-  const audioReady = !!effectiveAudioUrl;
+  const audioReady     = !!effectiveAudioUrl;
+  const usingFullMix   = !vocalStemFound || ls.audioSource === "full";
 
   /* ── Derived: selected scene ── */
-  const clipsWithFaces = scenes.filter(s => sceneHasClip(s));
-  const selectedScene  = scenes.find(s => s.id === ls.selectedSceneId) ?? clipsWithFaces[0] ?? null;
+  const clipsWithFaces  = scenes.filter(s => sceneHasClip(s));
+  const selectedScene   = scenes.find(s => s.id === ls.selectedSceneId) ?? clipsWithFaces[0] ?? null;
   const selectedClipEdit: ClipEdit | null = selectedScene
     ? getClipEdit(settings, selectedScene.id)
     : null;
 
   /* ── Derived: face detection (mock — based on whether clip URL exists) ── */
-  const faceDetected   = !!selectedScene?.demoClipUrl;
-  const faceConfidence = faceDetected ? "high (mock)" : "—";
+  const faceDetected    = !!selectedScene?.demoClipUrl;
+  const faceConfidence  = faceDetected ? "high (mock)" : "—";
   const clipSourceReady = !!selectedScene?.demoClipUrl;
 
   /* ── Helpers ── */
@@ -163,28 +200,90 @@ export function LipSyncSection({
     });
   }
 
+  /* ── Upload vocal stem ── */
+  async function uploadVocalStem(file: File) {
+    setStemUploading(true);
+    setStemUploadError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/lip-sync/upload-vocal-stem", {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type || "audio/mpeg",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: file,
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? `Upload failed: HTTP ${res.status}`);
+      }
+      updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
+    } catch (err) {
+      setStemUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setStemUploading(false);
+    }
+  }
+
+  /* ── Export acapella from Music Mixer ── */
+  async function exportAcapellaStem() {
+    const acapellaStems = ms.stems.filter(s =>
+      s.name?.toLowerCase().includes("vocal") ||
+      s.name?.toLowerCase().includes("acapella") ||
+      s.name?.toLowerCase().includes("voice") ||
+      s.name?.toLowerCase().includes("lead") ||
+      s.name?.toLowerCase().includes("ad-lib") ||
+      s.name?.toLowerCase().includes("background")
+    );
+    if (acapellaStems.length === 0) {
+      setAcapellaError("No vocal stems found in Music Mixer. Label your stems (Lead, Acapella, Background) and try again.");
+      return;
+    }
+    setAcapellaExporting(true);
+    setAcapellaError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/music/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ exportType: "acapella-mp3", stems: ms.stems, masterVolume: 100 }),
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? `Export failed: HTTP ${res.status}`);
+      }
+      updateLipSync({ uploadedVocalStemUrl: data.url, audioSource: "vocals" });
+    } catch (err) {
+      setAcapellaError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setAcapellaExporting(false);
+    }
+  }
+
   /* ── Apply to selected ── */
   async function applyToSelected() {
-    if (!PROVIDER_CONNECTED) {
-      setApplyError("Lip Sync provider not connected yet. Add VITE_LIP_SYNC_API_KEY to connect.");
+    if (!providerConnected) {
+      setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
       return;
     }
     if (!selectedScene) return;
-    if (!faceDetected) { setApplyError("No clear face found for lip sync on this clip."); return; }
-    if (!audioReady) { setApplyError("No audio source available."); return; }
+    if (!faceDetected)  { setApplyError("No clear face found for lip sync on this clip."); return; }
+    if (!audioReady)    { setApplyError("No audio source available."); return; }
 
     setApplyError(null);
     setConfirmOpen(null);
-
     updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
 
     try {
-      const result = await callLipSyncProvider({
-        clipUrl:     selectedScene.demoClipUrl!,
-        audioUrl:    effectiveAudioUrl!,
-        strength:    ls.strength,
-        preserveFace: ls.preserveFaceIdentity,
-        provider:    PROVIDER_NAME ?? "unknown",
+      const result = await callLipSyncBackend({
+        clipUrl:            selectedScene.demoClipUrl!,
+        audioUrl:           effectiveAudioUrl!,
+        audioSourceType:    ls.audioSource === "vocals" ? "vocals_only" : "full_mix",
+        strength:           ls.strength,
+        preserveFaceIdentity: ls.preserveFaceIdentity,
+        preserveArtistLook:   ls.preserveArtistLook,
+        getAccessToken,
       });
 
       updateClipEdit(selectedScene.id, {
@@ -197,28 +296,24 @@ export function LipSyncSection({
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      updateClipEdit(selectedScene.id, {
-        lipSyncStatus: "failed",
-        lipSyncError:  msg,
-      });
+      updateClipEdit(selectedScene.id, { lipSyncStatus: "failed", lipSyncError: msg });
       setApplyError(msg);
     }
   }
 
   /* ── Apply to all ── */
   async function applyToAll() {
-    if (!PROVIDER_CONNECTED) {
-      setApplyError("Lip Sync provider not connected yet. Add VITE_LIP_SYNC_API_KEY to connect.");
+    if (!providerConnected) {
+      setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
       return;
     }
     const eligible = clipsWithFaces.filter(s => !!s.demoClipUrl);
     if (eligible.length === 0) { setApplyError("No clips with detectable faces found."); return; }
-    if (!audioReady) { setApplyError("No audio source available."); return; }
+    if (!audioReady)           { setApplyError("No audio source available."); return; }
 
     setApplyError(null);
     setConfirmOpen(null);
     cancelRef.current = false;
-
     setProcessState({ running: true, current: 0, total: eligible.length, cancelled: false, lastError: null });
 
     for (let i = 0; i < eligible.length; i++) {
@@ -231,12 +326,14 @@ export function LipSyncSection({
       updateClipEdit(scene.id, { lipSyncStatus: "processing", lipSyncError: null });
 
       try {
-        const result = await callLipSyncProvider({
-          clipUrl:      scene.demoClipUrl!,
-          audioUrl:     effectiveAudioUrl!,
-          strength:     ls.strength,
-          preserveFace: ls.preserveFaceIdentity,
-          provider:     PROVIDER_NAME ?? "unknown",
+        const result = await callLipSyncBackend({
+          clipUrl:            scene.demoClipUrl!,
+          audioUrl:           effectiveAudioUrl!,
+          audioSourceType:    ls.audioSource === "vocals" ? "vocals_only" : "full_mix",
+          strength:           ls.strength,
+          preserveFaceIdentity: ls.preserveFaceIdentity,
+          preserveArtistLook:   ls.preserveArtistLook,
+          getAccessToken,
         });
         updateClipEdit(scene.id, {
           lipSyncUrl:       result.url,
@@ -256,9 +353,7 @@ export function LipSyncSection({
     setProcessState(p => p ? { ...p, running: false } : null);
   }
 
-  function cancelAll() {
-    cancelRef.current = true;
-  }
+  function cancelAll() { cancelRef.current = true; }
 
   /* ── Clear result ── */
   function clearLipSync(sceneId: string) {
@@ -274,7 +369,7 @@ export function LipSyncSection({
           lipSyncProvider:  null,
           lipSyncCreatedAt: null,
           lipSyncError:     null,
-          replaceUrl:       existing.replaceUrl === existing.lipSyncUrl ? null : existing.replaceUrl,
+          replaceUrl: existing.replaceUrl === existing.lipSyncUrl ? null : existing.replaceUrl,
         },
       },
     });
@@ -307,25 +402,45 @@ export function LipSyncSection({
           {/* ── Provider status ── */}
           <EditorCard title="Provider" icon={<Radio className="h-4 w-4" />}>
             <div className="space-y-2">
-              {PROVIDER_CONNECTED ? (
+              {providerLoading ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] text-white/40 text-[11px]">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                  Checking provider…
+                </div>
+              ) : providerConnected ? (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[11px] font-semibold">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                  Connected · {PROVIDER_NAME}
+                  Connected · {providerName}
                 </div>
               ) : (
                 <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>Lip Sync provider not connected yet.<br />
-                    <span className="font-normal text-amber-400/70">Set <code className="bg-white/5 px-0.5 rounded">VITE_LIP_SYNC_API_KEY</code> and optionally <code className="bg-white/5 px-0.5 rounded">VITE_LIP_SYNC_PROVIDER</code> to connect.</span>
+                  <span>Lip Sync provider not connected.<br />
+                    <span className="font-normal text-amber-400/70">
+                      Add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in{" "}
+                      Replit Secrets (Tools → Secrets) and optionally{" "}
+                      <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_PROVIDER</code>.
+                    </span>
                   </span>
                 </div>
               )}
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                <StatusRow label="provider"          value={PROVIDER_NAME ?? "none"} ok={PROVIDER_CONNECTED} />
-                <StatusRow label="mode"              value={PROVIDER_CONNECTED ? "live" : "mock / not connected"} ok={PROVIDER_CONNECTED} />
-                <StatusRow label="clips lip synced"  value={`${allDoneCount} / ${scenes.length}`} ok={allDoneCount > 0 ? true : null} />
-                <StatusRow label="clips processing"  value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
+                <StatusRow label="provider"           value={providerName ?? "none"}                   ok={providerConnected} />
+                <StatusRow label="connected"          value={providerConnected ? "yes" : "no"}         ok={providerConnected} />
+                <StatusRow label="server key found"   value={providerStatus?.serverKeyFound ? "yes" : "no"} ok={providerStatus?.serverKeyFound} />
+                <StatusRow label="frontend key exposed" value="no"                                     ok={true} />
+                <StatusRow label="mode"               value={providerStatus?.mode ?? "—"}              ok={providerConnected} />
+                <StatusRow label="clips lip synced"   value={`${allDoneCount} / ${scenes.length}`}     ok={allDoneCount > 0 ? true : null} />
+                <StatusRow label="clips processing"   value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
               </div>
+              <button
+                type="button"
+                onClick={() => void fetchProviderStatus()}
+                disabled={providerLoading}
+                className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+              >
+                <RefreshCw className="h-3 w-3" /> Refresh status
+              </button>
             </div>
           </EditorCard>
 
@@ -341,18 +456,88 @@ export function LipSyncSection({
                 ]}
               />
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                <StatusRow label="project audio found" value={projectAudioFound ? "yes" : "no"}       ok={projectAudioFound} />
-                <StatusRow label="vocal stem found"    value={vocalStemFound    ? "yes" : "no"}       ok={vocalStemFound} />
-                <StatusRow label="using full audio"    value={!vocalStemFound || ls.audioSource === "full" ? "yes" : "no"} ok={null} />
-                <StatusRow label="audio ready"         value={audioReady ? "yes ✓" : "no"}            ok={audioReady} />
-                <StatusRow label="effective source"    value={effectiveAudioUrl ? "loaded ✓" : "none"} ok={!!effectiveAudioUrl} />
+                <StatusRow label="project audio found"  value={projectAudioFound ? "yes" : "no"}                              ok={projectAudioFound} />
+                <StatusRow label="vocal stem found"     value={vocalStemFound ? "yes" : "no"}                                 ok={vocalStemFound} />
+                <StatusRow label="uploaded stem"        value={ls.uploadedVocalStemUrl ? "yes ✓" : "none"}                    ok={!!ls.uploadedVocalStemUrl} />
+                <StatusRow label="using full mix"       value={usingFullMix ? "yes" : "no"}                                   ok={null} />
+                <StatusRow label="audio ready"          value={audioReady ? "yes ✓" : "no"}                                   ok={audioReady} />
               </div>
+
+              {/* Full mix fallback warning */}
               {ls.audioSource === "vocals" && !vocalStemFound && (
                 <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px]">
-                  <Info className="h-3 w-3 shrink-0 mt-0.5" />
-                  No vocal stem found. Export an acapella from the Music Mixer or upload a vocal stem to use isolated vocals.
+                  <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                  No vocal stem found. Using full mix may reduce lip sync accuracy.
+                  Upload or export a vocal stem below for better results.
                 </div>
               )}
+
+              {/* Upload vocal stem */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Upload Vocal Stem</p>
+                <input
+                  ref={stemInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadVocalStem(file);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={stemUploading}
+                  onClick={() => stemInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {stemUploading
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading…</>
+                    : <><Upload className="h-3.5 w-3.5" /> Upload Vocal Stem</>}
+                </button>
+                {stemUploadError && (
+                  <p className="text-[10px] text-red-400/80">{stemUploadError}</p>
+                )}
+                {ls.uploadedVocalStemUrl && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-green-400/80 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Vocal stem uploaded
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateLipSync({ uploadedVocalStemUrl: null })}
+                      className="text-[10px] text-white/30 hover:text-red-400 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Export acapella from Music Mixer */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Export Vocals from Music Mixer</p>
+                <button
+                  type="button"
+                  disabled={acapellaExporting || ms.stems.length === 0}
+                  onClick={() => void exportAcapellaStem()}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={ms.stems.length === 0 ? "Add stems in the Music Mixer first" : undefined}
+                >
+                  {acapellaExporting
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
+                    : <><Music className="h-3.5 w-3.5" /> Export Vocals / Acapella Stem</>}
+                </button>
+                {ms.stems.length === 0 && (
+                  <p className="text-[10px] text-white/25">
+                    Vocal stem export not connected yet — add stems in the Music Mixer tab.
+                  </p>
+                )}
+                {acapellaError && (
+                  <p className="text-[10px] text-red-400/80">{acapellaError}</p>
+                )}
+              </div>
             </div>
           </EditorCard>
 
@@ -366,9 +551,9 @@ export function LipSyncSection({
               ) : (
                 <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto">
                   {clipsWithFaces.map((scene) => {
-                    const ce       = getClipEdit(settings, scene.id);
-                    const isSel    = scene.id === (ls.selectedSceneId ?? clipsWithFaces[0]?.id);
-                    const status   = ce.lipSyncStatus;
+                    const ce    = getClipEdit(settings, scene.id);
+                    const isSel = scene.id === (ls.selectedSceneId ?? clipsWithFaces[0]?.id);
+                    const status = ce.lipSyncStatus;
                     return (
                       <button
                         key={scene.id}
@@ -400,10 +585,10 @@ export function LipSyncSection({
             <EditorCard title="Face Detection" icon={<User className="h-4 w-4" />}>
               <div className="space-y-2">
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                  <StatusRow label="scene selected"    value={`Scene ${selectedScene.sceneNumber}`}    ok={null} />
-                  <StatusRow label="face found"        value={faceDetected ? "yes" : "no"}             ok={faceDetected} />
-                  <StatusRow label="face confidence"   value={faceConfidence}                          ok={faceDetected ? true : false} />
-                  <StatusRow label="clip source ready" value={clipSourceReady ? "yes ✓" : "no"}        ok={clipSourceReady} />
+                  <StatusRow label="scene selected"    value={`Scene ${selectedScene.sceneNumber}`} ok={null} />
+                  <StatusRow label="face found"        value={faceDetected ? "yes" : "no"}          ok={faceDetected} />
+                  <StatusRow label="face confidence"   value={faceConfidence}                        ok={faceDetected ? true : false} />
+                  <StatusRow label="clip source ready" value={clipSourceReady ? "yes ✓" : "no"}     ok={clipSourceReady} />
                 </div>
                 {!faceDetected && (
                   <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
@@ -468,20 +653,24 @@ export function LipSyncSection({
                       ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
                       : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
                   </p>
-                  {!PROVIDER_CONNECTED && (
+                  {!providerConnected ? (
                     <p className="text-[10px] text-amber-400/80">
-                      ⚠ No credits will be charged — provider not yet connected.
+                      ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
                     </p>
-                  )}
-                  {PROVIDER_CONNECTED && (
+                  ) : (
                     <p className="text-[10px] text-white/40">
                       Processing will begin immediately. Charges apply only on successful results.
+                    </p>
+                  )}
+                  {usingFullMix && ls.audioSource === "vocals" && (
+                    <p className="text-[10px] text-amber-400/70">
+                      ⚠ No vocal stem found — using full mix. Accuracy may be lower.
                     </p>
                   )}
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={confirmOpen === "single" ? applyToSelected : applyToAll}
+                      onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
                       className="flex-1 py-1.5 rounded-lg bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors"
                     >
                       Confirm
@@ -597,10 +786,7 @@ export function LipSyncSection({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          const url = selectedClipEdit.lipSyncUrl!;
-                          window.open(url, "_blank");
-                        }}
+                        onClick={() => window.open(selectedClipEdit.lipSyncUrl!, "_blank")}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
                       >
                         <Play className="h-3 w-3" /> Preview Result
@@ -623,7 +809,7 @@ export function LipSyncSection({
           <Collapsible title="All Clips Lip Sync Status">
             <div className="space-y-1">
               {scenes.map(scene => {
-                const ce = getClipEdit(settings, scene.id);
+                const ce     = getClipEdit(settings, scene.id);
                 const hasClip = sceneHasClip(scene);
                 return (
                   <div key={scene.id} className="flex items-center justify-between gap-2 py-1 border-b border-white/[0.04] last:border-0">
@@ -665,16 +851,17 @@ export function LipSyncSection({
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   Lip Sync Provider Wrapper
-   Swap this function body when a real API key is available.
-   Current: always throws "provider not connected".
+   Backend lip sync call — all secrets stay server-side.
+   The frontend never sees LIP_SYNC_API_KEY.
 ══════════════════════════════════════════════════════════════════════════ */
-interface LipSyncRequest {
-  clipUrl:      string;
-  audioUrl:     string;
-  strength:     LipSyncStrength;
-  preserveFace: boolean;
-  provider:     string;
+interface LipSyncBackendRequest {
+  clipUrl:              string;
+  audioUrl:             string;
+  audioSourceType:      "vocals_only" | "full_mix";
+  strength:             LipSyncStrength;
+  preserveFaceIdentity: boolean;
+  preserveArtistLook:   boolean;
+  getAccessToken:       () => Promise<string | null>;
 }
 
 interface LipSyncResult {
@@ -682,22 +869,32 @@ interface LipSyncResult {
   provider: string;
 }
 
-async function callLipSyncProvider(_req: LipSyncRequest): Promise<LipSyncResult> {
-  if (!PROVIDER_CONNECTED) {
-    throw new Error("Lip Sync provider not connected yet. Set VITE_LIP_SYNC_API_KEY to enable.");
+async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult> {
+  const token = await req.getAccessToken();
+  const res = await fetch("/api/lip-sync/preview", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token ?? ""}`,
+    },
+    body: JSON.stringify({
+      clipUrl:              req.clipUrl,
+      audioUrl:             req.audioUrl,
+      audioSourceType:      req.audioSourceType,
+      strength:             req.strength,
+      preserveFaceIdentity: req.preserveFaceIdentity,
+      preserveArtistLook:   req.preserveArtistLook,
+    }),
+  });
+
+  const data = await res.json() as { url?: string; provider?: string; error?: string; code?: string };
+
+  if (!res.ok || !data.url) {
+    throw new Error(data.error ?? `Lip sync failed: HTTP ${res.status}`);
   }
 
-  /* ── Real implementation goes here ── */
-  /* Example (pseudo-code):
-  const res = await fetch("https://api.your-provider.com/lip-sync", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${LIP_SYNC_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ video_url: req.clipUrl, audio_url: req.audioUrl, strength: req.strength }),
-  });
-  if (!res.ok) throw new Error(`Provider error: HTTP ${res.status}`);
-  const data = await res.json();
-  return { url: data.result_url, provider: req.provider };
-  */
-
-  throw new Error("Lip Sync provider not connected yet.");
+  return {
+    url:      data.url,
+    provider: data.provider ?? "connected",
+  };
 }
