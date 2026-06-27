@@ -12,12 +12,16 @@ import {
   CAPTION_STYLE_PRESET_DEFS,
   CAPTION_FONT_SIZES,
   CAPTION_ANIMATIONS,
+  FORMAT_PRESET_LABELS,
+  formatDimensions,
   type CaptionLine,
   type CaptionMode,
   type CaptionAnimation,
   type CaptionStylePreset,
+  type VideoFormat,
   type EditorSettings,
 } from "@/lib/editor-settings";
+import { LayoutTemplate } from "lucide-react";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 
@@ -1545,6 +1549,94 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
           </div>
         </EditorCard>
       )}
+
+      {/* ── Caption Layout — safe area, max width, max lines ── */}
+        <EditorCard
+          title="Caption Layout"
+          subtitle="Safe area, canvas width, and max visible lines"
+          icon={<LayoutTemplate className="h-4 w-4" />}
+        >
+          <div className="space-y-4">
+            {/* Show Safe Area toggle */}
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2.5">
+              <div>
+                <p className="text-xs font-semibold text-white/70">Show Caption Safe Area</p>
+                <p className="text-[10px] text-white/30">Dashed guide box in the master player</p>
+              </div>
+              <Switch
+                checked={c.showSafeArea ?? false}
+                onCheckedChange={(v) => setCaption("showSafeArea", v)}
+                data-testid="caption-toggle-safe-area"
+              />
+            </div>
+
+            {/* Max Width */}
+            <Field label="Max Caption Width">
+              <Segmented
+                value={(c.maxWidth ?? "80%") as "60%" | "70%" | "80%" | "90%"}
+                options={[
+                  { value: "60%", label: "60%" },
+                  { value: "70%", label: "70%" },
+                  { value: "80%", label: "80%" },
+                  { value: "90%", label: "90%" },
+                ]}
+                onChange={(v) => setCaption("maxWidth", v as "60%" | "70%" | "80%" | "90%")}
+              />
+            </Field>
+
+            {/* Max Lines */}
+            <Field label="Max Lines">
+              <Segmented
+                value={(c.maxLines ?? "2") as "2" | "3"}
+                options={[
+                  { value: "2", label: "2 lines" },
+                  { value: "3", label: "3 lines" },
+                ]}
+                onChange={(v) => setCaption("maxLines", v as "2" | "3")}
+              />
+            </Field>
+
+            {/* Caption Layout Debug */}
+            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-1">
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1.5">
+                Caption Layout Debug
+              </p>
+              {(() => {
+                const fmt        = (settings.export.format ?? "9:16") as VideoFormat;
+                const [cw, ch]   = formatDimensions(fmt);
+                const fmtLabel   = FORMAT_PRESET_LABELS[fmt]?.name ?? fmt;
+                const wmPos      = settings.watermarkPosition ?? "bottom-right";
+                const wfPos      = settings.waveformPosition  ?? "bottom-safe";
+                const posLower   = c.position === "Bottom" || c.position === "Lower Third";
+                const overlapsWm = posLower && (wmPos.startsWith("bottom") || wmPos.startsWith("top"));
+                const overlapsWf = posLower && (wfPos === "bottom-safe" || wfPos === "bottom");
+                return ([
+                  ["project format",             fmtLabel],
+                  ["canvas width × height",      `${cw}×${ch}px`],
+                  ["caption position",            c.position],
+                  ["max width",                   c.maxWidth ?? "80%"],
+                  ["max lines",                   c.maxLines ?? "2"],
+                  ["caption safe area active",    (c.showSafeArea ?? false) ? "yes" : "no"],
+                  ["caption inside frame",        "yes — %-based margins"],
+                  ["overlaps watermark",          overlapsWm ? "possible — check position" : "no"],
+                  ["overlaps waveform",           overlapsWf ? "possible — check position" : "no"],
+                  ["export uses same layout",     "yes — ASS margins match"],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] font-mono text-white/28">{label}</span>
+                    <span className={`text-[9px] font-mono font-bold ${
+                      value === "yes" || value.startsWith("yes")
+                        ? "text-green-400"
+                        : value.startsWith("possible") || value.startsWith("no")
+                          ? value.startsWith("possible") ? "text-yellow-400" : "text-white/45"
+                          : "text-white/55"
+                    }`}>{value}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        </EditorCard>
 
       {/* ── Content by mode (lyrics / hook / best-bar text inputs) ── */}
       {c.mode === "auto" && (

@@ -524,6 +524,12 @@ export interface CaptionSettings {
   titleText: string;
   lyricText: string;
   timingOffset: number;
+  /** Show dashed safe-area guide box in the master player. */
+  showSafeArea: boolean;
+  /** Max caption width as % of canvas width. */
+  maxWidth: "60%" | "70%" | "80%" | "90%";
+  /** Max visible lines before text is clipped. */
+  maxLines: "2" | "3";
 }
 
 export interface AudioSettings {
@@ -978,6 +984,9 @@ export function defaultEditorSettings(): EditorSettings {
       titleText: "",
       lyricText: "",
       timingOffset: 0,
+      showSafeArea: false,
+      maxWidth: "80%",
+      maxLines: "2",
     },
     effects: [],
     overlays: [],

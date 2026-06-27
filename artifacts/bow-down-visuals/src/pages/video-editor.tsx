@@ -1040,24 +1040,32 @@ function MasterVideoElement({
 import type { CaptionSettings } from "@/lib/editor-settings";
 
 function buildCaptionOverlayStyle(cs: CaptionSettings): {
-  positionClass: string;
+  containerStyle: React.CSSProperties;
   wrapperStyle: React.CSSProperties;
   textStyle: React.CSSProperties;
   animClass: string;
+  maxWidth: string;
 } {
+  // cqw = container-query width — scales relative to the video canvas, not the browser window
   const fsMap: Record<string, string> = {
-    Small:  "clamp(11px,2vw,15px)",
-    Medium: "clamp(14px,3vw,20px)",
-    Large:  "clamp(18px,4vw,26px)",
-    XL:     "clamp(22px,5vw,34px)",
+    Small:  "clamp(10px, 2.5cqw, 18px)",
+    Medium: "clamp(13px, 3.5cqw, 24px)",
+    Large:  "clamp(16px, 5cqw, 32px)",
+    XL:     "clamp(20px, 7cqw, 42px)",
   };
   const fontSize = fsMap[cs.fontSize] ?? fsMap["Medium"]!;
+  const maxWidth = cs.maxWidth ?? "80%";
 
-  const positionClass =
-    cs.position === "Top"          ? "top-4 bottom-auto"
-    : cs.position === "Center"     ? "top-1/2 -translate-y-1/2 bottom-auto"
-    : cs.position === "Lower Third" ? "bottom-14"
-    : "bottom-6"; // Bottom (default)
+  // %-based insets so captions respect safe margins on every aspect ratio
+  const sidePad: React.CSSProperties = { paddingLeft: "5%", paddingRight: "5%" };
+  const containerStyle: React.CSSProperties =
+    cs.position === "Top"
+      ? { ...sidePad, top: "7%", bottom: "auto" }
+    : cs.position === "Center"
+      ? { ...sidePad, top: "50%", bottom: "auto", transform: "translateY(-50%)" }
+    : cs.position === "Lower Third"
+      ? { ...sidePad, bottom: "22%", top: "auto" }
+    : /* Bottom */ { ...sidePad, bottom: "7%", top: "auto" };
 
   const animClass =
     cs.animation === "fade"      ? "bdv-caption-fade"
@@ -1098,7 +1106,7 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
   };
 
   const ps = presets[cs.stylePreset] ?? presets["clean-white"]!;
-  return { positionClass, wrapperStyle: ps.wrapperStyle, textStyle: { fontSize, ...ps.textStyle }, animClass };
+  return { containerStyle, wrapperStyle: ps.wrapperStyle, textStyle: { fontSize, ...ps.textStyle }, animClass, maxWidth };
 }
 
 function MasterPreviewPlayer({
@@ -1424,13 +1432,12 @@ function MasterPreviewPlayer({
     >
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
       {(() => {
-        const fmt     = settings.export.format ?? "9:16";
-        const fitMode = settings.export.fitMode ?? "fill";
-        const arCss   = formatAspectCss(fmt);
-        const isWide  = fmt === "16:9";
+        const fmt    = settings.export.format ?? "9:16";
+        const arCss  = formatAspectCss(fmt);
+        const isWide = fmt === "16:9";
         return (
       <div
-        className={`bg-black relative overflow-hidden ${isFullscreen ? "flex-1 min-h-0" : ""}`}
+        className={`bg-black relative overflow-hidden [container-type:inline-size] ${isFullscreen ? "flex-1 min-h-0" : ""}`}
         style={isFullscreen ? {} : {
           aspectRatio: arCss,
           maxHeight: isWide ? undefined : "72vh",
@@ -1540,18 +1547,48 @@ function MasterPreviewPlayer({
           </div>
         )}
 
+        {/* ── Caption safe-area guide box ── */}
+        {captionSettings.showSafeArea && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: "7%", bottom: "7%", left: "5%", right: "5%",
+              border: "1.5px dashed rgba(201,168,76,0.55)",
+              borderRadius: "4px",
+              zIndex: 28,
+            }}
+          >
+            <span style={{
+              position: "absolute", top: 3, left: 5,
+              fontSize: "clamp(7px, 1.2cqw, 10px)",
+              color: "rgba(201,168,76,0.75)",
+              fontFamily: "monospace", fontWeight: "bold",
+              letterSpacing: "0.06em", textTransform: "uppercase",
+            }}>Caption Safe Area</span>
+          </div>
+        )}
+
         {/* Caption overlay — styled from captionSettings */}
         {activeCaption && (() => {
-          const { positionClass, wrapperStyle, textStyle, animClass } = buildCaptionOverlayStyle(captionSettings);
+          const { containerStyle, wrapperStyle, textStyle, animClass, maxWidth } = buildCaptionOverlayStyle(captionSettings);
+          const lineClamp = Number(captionSettings.maxLines ?? "2");
           return (
-            <div className={`absolute left-0 right-0 px-4 flex justify-center pointer-events-none ${positionClass}`}>
+            <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ ...containerStyle, zIndex: 27 }}>
               <div
                 key={activeCaption.id}
-                className={`text-center leading-snug max-w-[90%] ${animClass}`}
-                style={wrapperStyle}
+                className={`text-center leading-snug ${animClass}`}
+                style={{ ...wrapperStyle, maxWidth }}
                 data-testid="master-caption-text"
               >
-                <span style={textStyle}>{activeCaption.text}</span>
+                <span style={{
+                  ...textStyle,
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: lineClamp,
+                  overflow: "hidden",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                }}>{activeCaption.text}</span>
               </div>
             </div>
           );

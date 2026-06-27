@@ -13,6 +13,8 @@ export interface CaptionBurnConfig {
   artistNameText: string;
   songTitleText: string;
   lines: Array<{ startSec: number; endSec: number; text: string }>;
+  /** Max caption width as % of canvas, e.g. "80%". Default 80%. */
+  maxWidth?: string;
 }
 
 /** Convert #RRGGBB → ASS &H00BBGGRR */
@@ -239,6 +241,12 @@ export function buildAssContent(
 
   if (events.length === 0) return "";
 
+  // Derive horizontal margins from maxWidth (default 80% → 10% each side)
+  const mwStr     = config.maxWidth ?? "80%";
+  const mwPct     = Math.max(0, Math.min(100, parseFloat(mwStr) || 80));
+  const sidePct   = (100 - mwPct) / 2 / 100;
+  const marginH   = Math.max(20, Math.round(targetW * sidePct));
+
   const styleLine = [
     "Style: Default",
     s.fontname,
@@ -257,7 +265,7 @@ export function buildAssContent(
     s.outline,
     s.shadow,
     s.alignment,
-    30, 30,              // marginL, marginR
+    marginH, marginH,    // marginL, marginR (from maxWidth)
     s.marginV,
     1,                   // encoding
   ].join(",");
