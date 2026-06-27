@@ -1,0 +1,119 @@
+Add Export Doctor test for overlays and watermark before normal export.
+
+Stop connecting normal export for now.
+
+Good news:
+Export Doctor already works for:
+- dragged timeline order
+- all 5 clips
+- audio
+- synced captions
+- effects
+
+Missing before normal export:
+- overlays
+- watermark/logo
+
+Do not change:
+- Export Doctor working clips/audio/captions/effects pipeline
+- master player
+- dragged timeline order
+- caption timing
+- caption styles
+- effects that already export
+- transitions that already preview/export
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe, credits, or payments
+- normal export yet
+
+Only add overlays and watermark to Export Doctor.
+
+Requirements:
+
+1. Add Export Doctor button:
+Export All 5 Clips + Audio + Captions + Effects + Overlays + Watermark
+
+2. Use the already working Export Doctor method from:
+Export All 5 Clips + Audio + Captions + Effects Only
+
+3. Add overlays on top:
+- rain
+- smoke
+- sparks
+- dust
+- light leaks
+- lens flare
+- animated waveform
+
+4. Add watermark/logo on top:
+- Bow Down Visuals logo if available
+- uploaded project watermark if available
+- text watermark fallback: BOW DOWN VISUALS
+
+5. Watermark controls:
+- top left
+- top right
+- bottom left
+- bottom right
+- center
+- opacity
+- size
+- margin
+
+Default:
+- bottom right
+- 70% opacity
+- small clean size
+- safe margin
+
+6. Overlay controls:
+- enabled/disabled
+- opacity
+- intensity
+- speed
+- start time
+- end time
+- scene scope/global scope
+
+7. If an overlay is visible in the master player, Export Doctor should include it.
+
+8. If an overlay is not export-safe yet, skip only that overlay and show:
+Unsupported overlay skipped: [name]
+
+9. Do not break:
+- audio
+- captions
+- effects
+- timeline order
+
+10. Add status:
+Overlay + Watermark Export Doctor:
+- overlays found: yes/no
+- overlays included: list
+- unsupported overlays skipped: list
+- watermark found: yes/no
+- watermark included: yes/no
+- watermark source
+- captions preserved: yes/no
+- effects preserved: yes/no
+- audio preserved: yes/no
+- timeline order preserved: yes/no
+- test export created: yes/no
+- last error
+
+11. Add button:
+Render 3-Second Overlay/Watermark Match Test
+
+This should export the current master player time for 3 seconds with:
+- active overlays
+- watermark
+- effects
+- captions
+- audio
+
+12. Do not connect to normal export until this Export Doctor test works.
+
+Final goal:
+Export Doctor must prove overlays and watermark export correctly before normal export uses the pipeline.
