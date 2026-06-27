@@ -14,10 +14,18 @@ const router = Router();
 const execFileAsync = promisify(execFile);
 
 /* ── Server-side secrets (never sent to the browser) ── */
-const LIP_SYNC_API_KEY  = process.env["LIP_SYNC_API_KEY"];
+/* Key resolution: prefer LIP_SYNC_API_KEY; fall back to SYNC_LABS_API_KEY so
+   the app works whichever variable name the user added in Replit Secrets.    */
+const _LIP_SYNC_API_KEY_RAW  = process.env["LIP_SYNC_API_KEY"];
+const _SYNC_LABS_API_KEY_RAW = process.env["SYNC_LABS_API_KEY"];
+const LIP_SYNC_API_KEY  = _LIP_SYNC_API_KEY_RAW ?? _SYNC_LABS_API_KEY_RAW;
+const ACTIVE_KEY_VAR: string | null =
+  _LIP_SYNC_API_KEY_RAW  ? "LIP_SYNC_API_KEY"  :
+  _SYNC_LABS_API_KEY_RAW ? "SYNC_LABS_API_KEY" : null;
+const MULTIPLE_KEYS_FOUND = !!(_LIP_SYNC_API_KEY_RAW && _SYNC_LABS_API_KEY_RAW);
 const LIP_SYNC_PROVIDER = (process.env["LIP_SYNC_PROVIDER"] ?? "").toLowerCase().trim();
 const SERVER_KEY_FOUND  = !!(LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length > 0);
-const PROVIDER_NAME     = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "custom" : null);
+const PROVIDER_NAME     = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "sync" : null);
 
 const STEM_BUCKET = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
 const SIDECAR     = "http://127.0.0.1:1106";
@@ -291,6 +299,97 @@ router.get("/lip-sync/status", (_req, res) => {
     mode:               SERVER_KEY_FOUND ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec:   PROVIDER_LIMIT_SEC,
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/account-check
+   Returns key inventory + billing status from Sync Labs.
+   Never exposes full API key — only last 4 chars and env var name.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/account-check", async (_req, res) => {
+  const activeKeyLast4 =
+    LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length >= 4
+      ? LIP_SYNC_API_KEY.slice(-4)
+      : LIP_SYNC_API_KEY
+        ? "****"
+        : null;
+
+  if (!LIP_SYNC_API_KEY) {
+    res.json({
+      keyPresent:                false,
+      activeKeyVar:              null,
+      activeKeyLast4:            null,
+      multipleKeysFound:         MULTIPLE_KEYS_FOUND,
+      providerEndpointConfigured: true,
+      accountStatusAvailable:    false,
+      billingBlocked:            null,
+      httpStatus:                null,
+      lastError:                 "No Sync Labs API key found. Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets.",
+      message:                   "No API key configured.",
+    });
+    return;
+  }
+
+  /* Try Sync Labs list-jobs endpoint — read-only, does not consume credits */
+  let httpStatus: number | null = null;
+  let billingBlocked: boolean | null = null;
+  let accountStatusAvailable = false;
+  let lastError: string | null = null;
+
+  /* Probe billing by fetching a non-existent job ID.
+     Sync Labs returns 404 "job not found" when the key is valid and billing OK.
+     It returns 402 when the free tier is exhausted regardless of job ID.
+     It returns 401/403 when the key is invalid.
+     This is read-only and does not consume credits.                          */
+  const PROBE_JOB_ID = "00000000-0000-0000-0000-000000000000";
+  try {
+    const r = await fetch(`${SYNC_LABS_BASE}/generate/${PROBE_JOB_ID}`, {
+      headers: { "x-api-key": LIP_SYNC_API_KEY },
+      signal: AbortSignal.timeout(12_000),
+    });
+    httpStatus = r.status;
+    const body = await r.text().catch(() => "");
+
+    if (r.status === 404) {
+      /* "Job not found" — key is valid, billing is active */
+      accountStatusAvailable = true;
+      billingBlocked = false;
+      lastError = null;
+    } else if (r.status === 200) {
+      /* Unlikely for a fake UUID, but handle it */
+      accountStatusAvailable = true;
+      billingBlocked = false;
+    } else if (r.status === 402) {
+      accountStatusAvailable = true;
+      billingBlocked = true;
+      lastError = `HTTP 402 — ${body.slice(0, 300) || "free_tier_generations_exhausted"}`;
+    } else if (r.status === 401 || r.status === 403) {
+      accountStatusAvailable = true;
+      billingBlocked = null;
+      lastError = `HTTP ${r.status} — API key invalid or unauthorized. ${body.slice(0, 200)}`;
+    } else {
+      lastError = `HTTP ${r.status} — ${body.slice(0, 200)}`;
+    }
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : "Network error contacting Sync Labs";
+  }
+
+  const message = MULTIPLE_KEYS_FOUND
+    ? `Multiple keys found. Using ${ACTIVE_KEY_VAR} ending in ${activeKeyLast4}`
+    : `Using ${ACTIVE_KEY_VAR} ending in ${activeKeyLast4}`;
+
+  res.json({
+    keyPresent:                 true,
+    activeKeyVar:               ACTIVE_KEY_VAR,
+    activeKeyLast4,
+    multipleKeysFound:          MULTIPLE_KEYS_FOUND,
+    providerEndpointConfigured: true,
+    accountStatusAvailable,
+    billingBlocked,
+    httpStatus,
+    lastError,
+    message,
   });
 });
 

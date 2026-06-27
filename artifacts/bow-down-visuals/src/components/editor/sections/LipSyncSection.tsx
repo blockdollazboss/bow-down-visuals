@@ -67,6 +67,20 @@ interface InputCheckResult {
   checkedAt:      string;
 }
 
+interface AccountCheckResult {
+  keyPresent:                 boolean;
+  activeKeyVar:               string | null;
+  activeKeyLast4:             string | null;
+  multipleKeysFound:          boolean;
+  providerEndpointConfigured: boolean;
+  accountStatusAvailable:     boolean;
+  billingBlocked:             boolean | null;
+  httpStatus:                 number | null;
+  lastError:                  string | null;
+  message:                    string;
+  checkedAt:                  string;
+}
+
 /* ── Scene timing helpers ─────────────────────────────────────────────────── */
 
 /** Sync Labs plan limit in seconds (kept in sync with backend PROVIDER_LIMIT_SEC) */
@@ -241,6 +255,10 @@ export function LipSyncSection({
   /* ── Input check state ── */
   const [inputCheck, setInputCheck]         = useState<InputCheckResult | null>(null);
   const [inputCheckLoading, setInputCheckLoading] = useState(false);
+
+  /* ── Account check state ── */
+  const [accountCheck, setAccountCheck]         = useState<AccountCheckResult | null>(null);
+  const [accountCheckLoading, setAccountCheckLoading] = useState(false);
 
   /* ── Route test state ── */
   const [routeTest, setRouteTest] = useState<{
@@ -536,6 +554,39 @@ export function LipSyncSection({
       return null;
     } finally {
       setInputCheckLoading(false);
+    }
+  }
+
+  /* ── Sync Labs account check ── */
+  async function fetchAccountCheck() {
+    setAccountCheckLoading(true);
+    try {
+      const res = await fetch("/api/lip-sync/account-check");
+      const ct  = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        const preview = (await res.text()).slice(0, 120);
+        setAccountCheck({
+          keyPresent: false, activeKeyVar: null, activeKeyLast4: null,
+          multipleKeysFound: false, providerEndpointConfigured: false,
+          accountStatusAvailable: false, billingBlocked: null,
+          httpStatus: res.status, lastError: `Non-JSON response: ${preview}`,
+          message: "Account check failed", checkedAt: new Date().toLocaleTimeString(),
+        });
+        return;
+      }
+      const data = await res.json() as Omit<AccountCheckResult, "checkedAt">;
+      setAccountCheck({ ...data, checkedAt: new Date().toLocaleTimeString() });
+    } catch (err) {
+      setAccountCheck({
+        keyPresent: false, activeKeyVar: null, activeKeyLast4: null,
+        multipleKeysFound: false, providerEndpointConfigured: false,
+        accountStatusAvailable: false, billingBlocked: null,
+        httpStatus: null,
+        lastError: err instanceof Error ? err.message : "Network error",
+        message: "Account check failed", checkedAt: new Date().toLocaleTimeString(),
+      });
+    } finally {
+      setAccountCheckLoading(false);
     }
   }
 
@@ -839,6 +890,118 @@ export function LipSyncSection({
                           : "Provider key missing — add LIP_SYNC_API_KEY in Replit Secrets"}
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          </EditorCard>
+
+          {/* ── Sync Labs Account Check ── */}
+          <EditorCard title="Sync Labs Account Check" icon={<KeyRound className="h-4 w-4" />}>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => void fetchAccountCheck()}
+                disabled={accountCheckLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-bold hover:bg-white/[0.08] transition-colors disabled:opacity-40"
+              >
+                {accountCheckLoading
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking Sync Labs account…</>
+                  : <><RefreshCw className="h-3.5 w-3.5" /> Refresh Sync Labs Account Status</>}
+              </button>
+
+              {!accountCheck && !accountCheckLoading && (
+                <p className="text-[10px] text-white/35 text-center">
+                  Click to verify which API key is active and check billing status
+                </p>
+              )}
+
+              {accountCheck && !accountCheckLoading && (
+                <div className="space-y-1.5">
+                  {/* Key inventory */}
+                  <StatusRow
+                    label="Sync Labs API key present"
+                    value={accountCheck.keyPresent ? "yes ✓" : "no ✗"}
+                    ok={accountCheck.keyPresent}
+                  />
+                  {accountCheck.keyPresent && (
+                    <>
+                      <StatusRow
+                        label="API key source"
+                        value={accountCheck.activeKeyVar ?? "—"}
+                        ok={null}
+                      />
+                      <StatusRow
+                        label="API key last 4 chars"
+                        value={accountCheck.activeKeyLast4 ? `…${accountCheck.activeKeyLast4}` : "—"}
+                        ok={null}
+                      />
+                    </>
+                  )}
+                  {accountCheck.multipleKeysFound && (
+                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                      <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                      Multiple Sync Labs keys found. Using: {accountCheck.activeKeyVar} ending in {accountCheck.activeKeyLast4}
+                    </div>
+                  )}
+                  <StatusRow
+                    label="provider endpoint configured"
+                    value={accountCheck.providerEndpointConfigured ? "yes" : "no"}
+                    ok={accountCheck.providerEndpointConfigured}
+                  />
+                  <StatusRow
+                    label="account status checked"
+                    value={accountCheck.accountStatusAvailable ? "yes" : "n/a"}
+                    ok={accountCheck.accountStatusAvailable ? true : null}
+                  />
+                  <StatusRow
+                    label="billing / free-tier blocked"
+                    value={
+                      accountCheck.billingBlocked === true  ? "yes ✗" :
+                      accountCheck.billingBlocked === false ? "no ✓"  : "unknown"
+                    }
+                    ok={
+                      accountCheck.billingBlocked === true  ? false :
+                      accountCheck.billingBlocked === false ? true  : null
+                    }
+                  />
+                  {accountCheck.httpStatus !== null && (
+                    <StatusRow
+                      label="last HTTP status"
+                      value={String(accountCheck.httpStatus)}
+                      ok={accountCheck.httpStatus === 200 ? true : accountCheck.httpStatus === 405 ? null : false}
+                    />
+                  )}
+
+                  {/* Main verdict */}
+                  {accountCheck.billingBlocked === true && (
+                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/[0.06] text-red-400 text-[10px] font-bold">
+                      <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                      This API key is tied to a free / exhausted Sync Labs account. Replace it with your paid account API key.
+                    </div>
+                  )}
+                  {accountCheck.billingBlocked === false && (
+                    <div className="flex items-center gap-1.5 mt-1 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[10px] font-bold">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      Account active — billing looks good
+                    </div>
+                  )}
+                  {!accountCheck.keyPresent && (
+                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                      <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                      Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets
+                    </div>
+                  )}
+
+                  {/* Last error / info message */}
+                  {accountCheck.lastError && (
+                    <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] text-[9px] text-white/40 font-mono break-all">
+                      {accountCheck.lastError}
+                    </div>
+                  )}
+
+                  <p className="text-[9px] text-white/25 text-right pt-0.5">
+                    checked {accountCheck.checkedAt}
+                  </p>
                 </div>
               )}
             </div>
