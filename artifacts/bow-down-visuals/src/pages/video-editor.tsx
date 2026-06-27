@@ -1179,25 +1179,11 @@ const FIT_TOAST: Record<FitMode, string> = {
 /** Available playback speeds. */
 const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 1.25, 1.5, 2] as const;
 
-/**
- * Compute cumulative scene start-time offsets (same logic as TimelinePreviewPlayer).
- * If all raw durations are 5s (default) and totalDuration > 0, scenes are evenly spread.
- */
-function buildSceneOffsets(scenes: { timestamp?: string | null }[], totalDuration: number): number[] {
-  function parseDurLocal(ts: string | null | undefined): number {
-    if (!ts) return 5;
-    const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
-    if (m) { const s = +m[1] * 60 + +m[2], e = +m[3] * 60 + +m[4]; return e > s ? e - s : 5; }
-    return 5;
-  }
-  const raw = scenes.map(s => parseDurLocal(s.timestamp));
-  const durs = raw.every(d => d === 5) && totalDuration > 0
-    ? scenes.map(() => totalDuration / scenes.length)
-    : raw;
-  const offsets: number[] = [];
-  let acc = 0;
-  for (const d of durs) { offsets.push(acc); acc += d; }
-  return offsets;
+/** Compute scene start offsets — mirrors TLP exactly: even distribution over audioDuration. */
+function buildSceneOffsets(scenes: unknown[], totalDuration: number): number[] {
+  if (!scenes.length || totalDuration <= 0) return scenes.map(() => 0);
+  const d = totalDuration / scenes.length;
+  return scenes.map((_, i) => i * d);
 }
 
 function MasterPreviewPlayer({
@@ -1599,13 +1585,12 @@ function MasterPreviewPlayer({
     [scenes, duration],
   );
 
-  /* Find index of the scene that contains currentTime */
+  /* Mirror TLP's sceneAt(): scan backwards, first offset <= currentTime wins */
   const activeSceneIdx = useMemo(() => {
-    let idx = 0;
     for (let i = sceneOffsets.length - 1; i >= 0; i--) {
-      if (currentTime >= (sceneOffsets[i] ?? 0) - 0.05) { idx = i; break; }
+      if (currentTime >= (sceneOffsets[i] ?? 0)) return i;
     }
-    return idx;
+    return 0;
   }, [currentTime, sceneOffsets]);
 
   const prevClip = useCallback(() => {
