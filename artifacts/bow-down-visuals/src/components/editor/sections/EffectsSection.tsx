@@ -5,6 +5,7 @@ import {
   getClipEdit,
   type EditorSettings, type ClipEdit,
 } from "@/lib/editor-settings";
+import { STRENGTH_PRESETS } from "@/components/ActiveOverlayEffects";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
@@ -146,23 +147,27 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         subtitle="Animated visual effects — visible immediately in the player"
         icon={<Film className="h-4 w-4" />}
       >
-        {/* ── Test Clean Overlay Pack ── */}
+        {/* ── Test Music Video Overlay Pack ── */}
         <button
           type="button"
           onClick={() => setSettings({
             ...settings,
-            overlays: ["Light Leaks", "Dust", "Logo / Watermark"],
+            overlays: ["Light Leaks", "Sparks", "Dust", "Lens Flare", "Animated Waveform", "Logo / Watermark"],
             overlayIntensity: {
               ...settings.overlayIntensity,
-              "Light Leaks": 8,
-              "Dust": 6,
+              "Light Leaks": 35,
+              "Sparks": 35,
+              "Dust": 25,
+              "Lens Flare": 30,
+              "Animated Waveform": 45,
               "Logo / Watermark": 65,
             },
-            overlayQualityMode: "subtle",
+            overlayQualityMode: "music-video",
+            soloPreviewOverlay: null,
           })}
           className="w-full mb-3 text-left text-[10px] font-bold text-[#C9A84C] bg-[#C9A84C]/[0.06] border border-[#C9A84C]/20 rounded-md px-3 py-2 hover:bg-[#C9A84C]/[0.12] transition-colors"
         >
-          ✦ Test Clean Overlay Pack — Light Leaks 8% · Dust 6% · BDV Watermark 65%
+          ✦ Test Music Video Overlay Pack — Light Leaks 35% · Sparks 35% · Dust 25% · Lens Flare 30% · Waveform 45%
         </button>
 
         {/* Chip row */}
@@ -189,21 +194,55 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           })}
         </div>
 
-        {/* Per-overlay intensity sliders */}
+        {/* Per-overlay intensity sliders + solo preview */}
         {settings.overlays.length > 0 && (
           <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-3">
             <p className="text-[10px] text-white/30 mb-2 uppercase tracking-wide font-semibold">
               Effect Intensity
             </p>
-            {settings.overlays.map((ov) => (
-              <IntensityRow
-                key={ov}
-                label={ov}
-                value={settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20}
-                onChange={(v) => setIntensity(ov, v)}
-                onRemove={() => removeOverlay(ov)}
-              />
-            ))}
+            {settings.overlays.map((ov) => {
+              const isSolo = settings.soloPreviewOverlay === ov;
+              return (
+                <div key={ov}>
+                  <IntensityRow
+                    label={ov}
+                    value={settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20}
+                    onChange={(v) => setIntensity(ov, v)}
+                    onRemove={() => removeOverlay(ov)}
+                  />
+                  {ov !== "Logo / Watermark" && (
+                    <div className="flex justify-end -mt-0.5 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => setSettings({
+                          ...settings,
+                          soloPreviewOverlay: isSolo ? null : ov,
+                          overlayIntensity: isSolo
+                            ? settings.overlayIntensity
+                            : { ...settings.overlayIntensity, [ov]: STRENGTH_PRESETS["music-video"][ov] ?? settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 35 },
+                        })}
+                        className={`text-[9px] font-bold px-2 py-0.5 rounded border transition-colors ${
+                          isSolo
+                            ? "bg-[#C9A84C]/25 border-[#C9A84C]/50 text-[#C9A84C]"
+                            : "bg-white/[0.04] border-white/[0.08] text-white/30 hover:text-white/55"
+                        }`}
+                      >
+                        {isSolo ? "EXIT SOLO" : "Preview Only This"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {settings.soloPreviewOverlay && (
+              <button
+                type="button"
+                onClick={() => setSettings({ ...settings, soloPreviewOverlay: null })}
+                className="w-full text-[9px] text-amber-400 border border-amber-500/20 rounded px-2 py-1 bg-amber-500/[0.06] hover:bg-amber-500/[0.12] transition-colors mt-1"
+              >
+                ← Exit Solo Preview (show all overlays)
+              </button>
+            )}
           </div>
         )}
 
@@ -366,14 +405,24 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           </div>
         )}
 
-        {/* ── Overlay quality mode ── */}
+        {/* ── Overlay Strength mode ── */}
         {settings.overlays.filter((o) => ["Rain","Smoke","Sparks","Dust","Light Leaks","Lens Flare","Animated Waveform"].includes(o)).length > 0 && (
           <div className="mt-3 pt-2 border-t border-white/[0.06]">
-            <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Overlay Quality</label>
+            <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Overlay Strength</label>
             <div className="flex gap-1.5 flex-wrap">
-              {(["subtle", "music-video", "cinematic", "heavy"] as const).map((mode) => (
+              {(["off", "subtle", "visible", "music-video", "heavy"] as const).map((mode) => (
                 <button key={mode} type="button"
-                  onClick={() => setSettings({ ...settings, overlayQualityMode: mode })}
+                  onClick={() => {
+                    const preset = STRENGTH_PRESETS[mode] ?? {};
+                    const VISUAL = ["Light Leaks","Lens Flare","Smoke","Rain","Sparks","Dust","Animated Waveform"];
+                    const newIntensity = { ...settings.overlayIntensity };
+                    for (const ov of settings.overlays) {
+                      if (VISUAL.includes(ov)) {
+                        newIntensity[ov] = mode === "off" ? 0 : (preset[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 25);
+                      }
+                    }
+                    setSettings({ ...settings, overlayQualityMode: mode, overlayIntensity: newIntensity });
+                  }}
                   className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-colors ${
                     (settings.overlayQualityMode ?? "music-video") === mode
                       ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]"
@@ -383,7 +432,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-white/22 mt-1">Controls how strong all overlay effects appear.</p>
+            <p className="text-[10px] text-white/22 mt-1">Sets intensity of all active visual overlays instantly.</p>
           </div>
         )}
 
@@ -416,34 +465,41 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           </div>
         )}
 
-        {/* ── Overlay preview status ── */}
+        {/* ── Overlay Debug ── */}
         {settings.overlays.length > 0 && (() => {
           const VISUAL = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
-          const vCount = settings.overlays.filter((o) => VISUAL.includes(o)).length;
-          const wfPos = settings.waveformPosition ?? "bottom-safe";
-          const stackSafe = vCount <= 3;
-          const captionsOk =
-            !settings.overlays.includes("Animated Waveform") || ["bottom-safe", "top", "hidden"].includes(wfPos);
-          const wmType = settings.watermarkType ?? "logo";
-          const wmLabel = wmType === "logo" ? "Bow Down Visuals logo" : wmType === "text" ? `"${settings.watermarkText ?? "Bow Down Visuals"}"` : "off";
+          const activeVisual = settings.overlays.filter((o) => VISUAL.includes(o));
           const qm = settings.overlayQualityMode ?? "music-video";
-          const rows: [string, string, boolean][] = [
-            ["overlay preview active", "yes", true],
-            ["overlay quality", qm === "music-video" ? "Music Video" : qm.charAt(0).toUpperCase() + qm.slice(1), true],
-            ["watermark source", wmLabel, wmType !== "none"],
-            ["overlay stack safe", stackSafe ? "yes" : `${vCount} overlays — reduced`, stackSafe],
-            ["captions protected", (settings.overlayProtectCaptions ?? true) && captionsOk ? "yes" : captionsOk ? "yes" : "waveform may overlap", captionsOk],
-            ["face protected", (settings.overlayProtectFace ?? true) ? "yes" : "off", settings.overlayProtectFace ?? true],
+          const rows: [string, string, "ok" | "warn" | "neutral"][] = [
+            ["overlay strength mode",  qm === "music-video" ? "Music Video" : qm.charAt(0).toUpperCase() + qm.slice(1), qm === "off" ? "warn" : "ok"],
+            ["selected overlays",       settings.overlays.join(", ") || "none", settings.overlays.length > 0 ? "ok" : "warn"],
+            ["active overlay count",    String(settings.overlays.length), "neutral"],
+            ["solo preview",            settings.soloPreviewOverlay ?? "none", settings.soloPreviewOverlay ? "warn" : "neutral"],
+            ...(VISUAL.map((ov): [string, string, "ok" | "warn" | "neutral"] => {
+              const active = settings.overlays.includes(ov);
+              const pct = active ? (settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20) : 0;
+              return [
+                `${ov.toLowerCase().replace("animated ", "")} visible`,
+                active ? `yes — ${pct}%` : "no",
+                active && pct > 0 ? "ok" : "warn",
+              ];
+            })),
+            ["animation running",        activeVisual.length > 0 ? "yes" : "no", activeVisual.length > 0 ? "ok" : "warn"],
+            ["master player connected",  "yes", "ok"],
           ];
           return (
             <div className="mt-3 pt-2 border-t border-white/[0.06] space-y-1">
-              <p className="text-[10px] font-black text-white/28 uppercase tracking-wide mb-1">Overlay Preview Status</p>
-              {rows.map(([label, val, ok]) => (
-                <div key={label} className="flex items-center justify-between gap-2 text-[10px] font-mono">
-                  <span className="text-white/35">{label}</span>
-                  <span className={`font-bold ${ok ? "text-green-400" : "text-amber-400"}`}>{val}</span>
-                </div>
-              ))}
+              <p className="text-[10px] font-black text-white/25 uppercase tracking-widest mb-1.5">Overlay Debug</p>
+              <div className="bg-white/[0.02] rounded px-2.5 py-2 border border-white/[0.05] space-y-1">
+                {rows.map(([label, val, state]) => (
+                  <div key={label} className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] font-mono text-white/30">{label}</span>
+                    <span className={`text-[9px] font-mono font-bold ${
+                      state === "ok" ? "text-green-400" : state === "warn" ? "text-amber-400" : "text-white/45"
+                    }`}>{val}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })()}

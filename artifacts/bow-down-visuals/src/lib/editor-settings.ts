@@ -844,13 +844,13 @@ export interface MusicStudioSettings {
 
 /** Per-effect intensity defaults — professional/subtle, not 100%. */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
-  "Light Leaks":        8,
-  "Lens Flare":         8,
-  "Smoke":              8,
-  "Rain":              10,
-  "Sparks":             6,
-  "Dust":               6,
-  "Animated Waveform": 20,
+  "Light Leaks":       35,
+  "Lens Flare":        30,
+  "Smoke":             28,
+  "Rain":              35,
+  "Sparks":            35,
+  "Dust":              25,
+  "Animated Waveform": 45,
   "Logo / Watermark":  65,
 };
 
@@ -888,6 +888,8 @@ export interface EditorSettings {
   overlayProtectCaptions: boolean;
   /** Protect center/face area from overlays */
   overlayProtectFace: boolean;
+  /** When set, only this overlay is shown in the master player (solo preview mode). */
+  soloPreviewOverlay: string | null;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
   /** Structured transition data (fromSceneId → toSceneId). */
@@ -966,6 +968,7 @@ export function defaultEditorSettings(): EditorSettings {
     watermarkIncludeInExport: true,
     overlayProtectCaptions: true,
     overlayProtectFace: true,
+    soloPreviewOverlay: null,
     overlayItems: [],
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
@@ -1230,7 +1233,7 @@ export function normalizeEditorSettings(
     overlayIntensity: (stored.overlayIntensity && typeof stored.overlayIntensity === "object" && !Array.isArray(stored.overlayIntensity)) ? stored.overlayIntensity as Record<string, number> : {},
     watermarkText: typeof stored.watermarkText === "string" ? stored.watermarkText : "Bow Down Visuals",
     waveformPosition: typeof stored.waveformPosition === "string" ? stored.waveformPosition : "bottom-safe",
-    overlayQualityMode: (stored.overlayQualityMode && ["subtle", "music-video", "cinematic", "heavy"].includes(stored.overlayQualityMode)) ? stored.overlayQualityMode : "music-video",
+    overlayQualityMode: (stored.overlayQualityMode && ["off", "subtle", "visible", "music-video", "heavy"].includes(stored.overlayQualityMode)) ? stored.overlayQualityMode : "music-video",
     watermarkType: (stored.watermarkType && ["logo", "text", "none"].includes(stored.watermarkType)) ? stored.watermarkType : "logo",
     watermarkPosition: (stored.watermarkPosition && ["bottom-right", "bottom-left", "top-right", "top-left"].includes(stored.watermarkPosition)) ? stored.watermarkPosition : "bottom-right",
     watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "medium",
@@ -1239,6 +1242,7 @@ export function normalizeEditorSettings(
     watermarkIncludeInExport: typeof stored.watermarkIncludeInExport === "boolean" ? stored.watermarkIncludeInExport : true,
     overlayProtectCaptions: typeof stored.overlayProtectCaptions === "boolean" ? stored.overlayProtectCaptions : true,
     overlayProtectFace: typeof stored.overlayProtectFace === "boolean" ? stored.overlayProtectFace : true,
+    soloPreviewOverlay: typeof stored.soloPreviewOverlay === "string" ? stored.soloPreviewOverlay : null,
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },

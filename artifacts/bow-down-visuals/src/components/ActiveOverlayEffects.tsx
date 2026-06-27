@@ -1,73 +1,84 @@
 /**
- * ActiveOverlayEffects — premium animated CSS/SVG overlays for the master player.
+ * ActiveOverlayEffects — premium animated CSS/SVG overlays.
  *
- * Design goals:
- *   • Subtle, cinematic defaults — nothing at 100% opacity
- *   • Logo watermark (Bow Down Visuals PNG) by default, not text
- *   • Overlay quality mode scales all intensities uniformly
- *   • Captions and artist face safe areas respected
+ * Opacity architecture:
+ *   Each effect's inner elements animate 1.0 → 0.0.
+ *   The outer container carries gi() = the user's intensity setting.
+ *   This ensures "35%" really means 35% visible — no hidden multiplier.
  */
 import type React from "react";
 
-/* ─── Watermark asset — PNG with real alpha transparency ────────────────── */
+/* ─── Watermark asset (transparent PNG) ─────────────────────────────────── */
 const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.png`;
 
-/* ─── Per-effect intensity defaults — subtle/cinematic, never 100% ──────── */
+/* ─── Music Video defaults — clearly visible, never 100% ────────────────── */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
-  "Light Leaks":        8,
-  "Lens Flare":         8,
-  "Smoke":              8,
-  "Rain":              10,
-  "Sparks":             6,
-  "Dust":               6,
-  "Animated Waveform": 20,
+  "Light Leaks":       35,
+  "Lens Flare":        30,
+  "Smoke":             28,
+  "Rain":              35,
+  "Sparks":            35,
+  "Dust":              25,
+  "Animated Waveform": 45,
   "Logo / Watermark":  65,
 };
 
-/* ─── Quality mode multipliers ──────────────────────────────────────────── */
-function qualityMult(mode: string): number {
-  if (mode === "subtle")    return 0.50;
-  if (mode === "cinematic") return 1.30;
-  if (mode === "heavy")     return 1.75;
-  return 1.0; // music-video (default)
-}
+/* ─── Per-mode intensity presets ─────────────────────────────────────────── */
+export const STRENGTH_PRESETS: Record<string, Record<string, number>> = {
+  subtle: {
+    "Light Leaks": 8, "Lens Flare": 8, "Smoke": 8,
+    "Rain": 10, "Sparks": 6, "Dust": 6, "Animated Waveform": 20,
+  },
+  visible: {
+    "Light Leaks": 25, "Lens Flare": 22, "Smoke": 20,
+    "Rain": 25, "Sparks": 25, "Dust": 18, "Animated Waveform": 35,
+  },
+  "music-video": {
+    "Light Leaks": 35, "Lens Flare": 30, "Smoke": 28,
+    "Rain": 35, "Sparks": 35, "Dust": 25, "Animated Waveform": 45,
+  },
+  heavy: {
+    "Light Leaks": 55, "Lens Flare": 45, "Smoke": 45,
+    "Rain": 55, "Sparks": 55, "Dust": 40, "Animated Waveform": 65,
+  },
+};
 
-/* ─── CSS keyframes ─────────────────────────────────────────────────────── */
+/* ─── CSS keyframes — elements animate 1.0 → 0 so container opacity is sole scale ── */
 const KEYFRAMES = `
 @keyframes bdv-rain{
-  0%  { transform:translateY(-10%) rotate(12deg);opacity:.55 }
-  100%{ transform:translateY(118%) rotate(12deg);opacity:.03 }
+  0%  { transform:translateY(-15%) rotate(10deg); opacity:1   }
+  100%{ transform:translateY(120%) rotate(10deg); opacity:0   }
 }
 @keyframes bdv-smoke{
-  0%  { transform:translateY(0)    scale(1);   opacity:.22 }
-  60% { opacity:.09 }
-  100%{ transform:translateY(-130%) scale(3.4); opacity:0  }
+  0%  { transform:translateY(0)     scale(1);   opacity:1   }
+  55% { opacity:0.65 }
+  100%{ transform:translateY(-90%)  scale(3.2); opacity:0   }
 }
 @keyframes bdv-spark{
-  0%  { transform:translate(0,0)               scale(1.3); opacity:1   }
-  60% { opacity:.45 }
-  100%{ transform:translate(var(--dx),var(--dy)) scale(.04); opacity:0  }
+  0%  { transform:translate(0,0) scale(1.4);               opacity:1   }
+  70% { opacity:0.55 }
+  100%{ transform:translate(var(--dx),var(--dy)) scale(0); opacity:0   }
 }
 @keyframes bdv-dust{
   0%  { transform:translate(0,0); opacity:0   }
-  14% { opacity:.50 }
-  84% { opacity:.18 }
+  15% { opacity:1   }
+  80% { opacity:0.6 }
   100%{ transform:translate(var(--dx),var(--dy)); opacity:0 }
 }
 @keyframes bdv-flare-pulse{
-  0%,100%{ opacity:.60; transform:scale(1)    }
-  40%    { opacity:.75; transform:scale(1.06) }
-  70%    { opacity:.42; transform:scale(.95)  }
+  0%,100%{ opacity:1;    transform:scale(1)    }
+  45%    { opacity:0.75; transform:scale(1.08) }
+  70%    { opacity:0.55; transform:scale(0.95) }
 }
 @keyframes bdv-flare-drift{
-  0%,100%{ left:68% }
+  0%,100%{ left:66% }
   50%    { left:74% }
 }
 @keyframes bdv-leak{
-  0%  { opacity:0; transform:translateX(-72%) skewX(-12deg) }
-  22% { opacity:.35 }
-  72% { opacity:.20 }
-  100%{ opacity:0; transform:translateX(92%)  skewX(-12deg) }
+  0%  { opacity:0; transform:translateX(-80%) skewX(-10deg) }
+  25% { opacity:1   }
+  70% { opacity:0.75 }
+  100%{ opacity:0; transform:translateX(100%) skewX(-10deg) }
 }
 @keyframes bdv-bar{
   0%,100%{ transform:scaleY(var(--h1)) }
@@ -75,46 +86,44 @@ const KEYFRAMES = `
 }
 `;
 
-/* ─── Deterministic pseudo-random ─────────────────────────────────────── */
+/* ─── Pseudo-random ──────────────────────────────────────────────────────── */
 const dr = (s: number) => ((s * 1664525 + 1013904223) & 0x7fffffff) / 0x7fffffff;
 
 /* ─── Effective opacity for one effect ──────────────────────────────────── */
 type IntensityMap = Record<string, number>;
-const gi = (map: IntensityMap, name: string, qm: number, sm: number) =>
-  Math.max(0.02, Math.min(1, (map[name] ?? OVERLAY_DEFAULT_INTENSITY[name] ?? 12) / 100 * qm * sm));
-
-/* ─── Stack multiplier — prevent washed-out video with many overlays ────── */
-function calcStackMult(n: number): number {
-  if (n <= 1) return 1.0;
-  if (n === 2) return 0.82;
-  if (n === 3) return 0.65;
-  return 0.52;
-}
+const gi = (map: IntensityMap, name: string) =>
+  Math.max(0.01, Math.min(1, (map[name] ?? OVERLAY_DEFAULT_INTENSITY[name] ?? 20) / 100));
 
 /* ══════════════════ Rain ══════════════════════════════════════════════════ */
 function RainEffect({ opacity }: { opacity: number }) {
   return (
-    <div style={{ position: "absolute", inset: 0, opacity }}>
-      {Array.from({ length: 28 }, (_, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${dr(i * 3) * 95 + 0.5}%`,
-            top: `${-10 - dr(i * 3 + 1) * 8}%`,
-            width: dr(i * 3 + 2) > 0.75 ? "0.7px" : "0.45px",
-            height: `${28 + dr(i * 7) * 32}px`,
-            background: `rgba(200,225,255,${0.28 + dr(i * 5) * 0.25})`,
-            borderRadius: "1px",
-            filter: "blur(0.2px)",
-            animationName: "bdv-rain",
-            animationDuration: `${0.28 + dr(i * 11) * 0.42}s`,
-            animationDelay: `${-dr(i * 13) * 1.4}s`,
-            animationTimingFunction: "linear",
-            animationIterationCount: "infinite",
-          }}
-        />
-      ))}
+    <div
+      style={{ position: "absolute", inset: 0, opacity }}
+      data-effect="rain"
+    >
+      {Array.from({ length: 44 }, (_, i) => {
+        const thick = dr(i * 3 + 2) > 0.6;
+        return (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `${dr(i * 3) * 96}%`,
+              top: `${-15 - dr(i * 3 + 1) * 10}%`,
+              width: thick ? "1.8px" : "1.1px",
+              height: `${55 + dr(i * 7) * 80}px`,
+              background: `rgba(190,215,255,${0.7 + dr(i * 5) * 0.3})`,
+              borderRadius: "2px",
+              filter: "blur(0.4px)",
+              animationName: "bdv-rain",
+              animationDuration: `${0.22 + dr(i * 11) * 0.38}s`,
+              animationDelay: `${-dr(i * 13) * 1.2}s`,
+              animationTimingFunction: "linear",
+              animationIterationCount: "infinite",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -122,21 +131,24 @@ function RainEffect({ opacity }: { opacity: number }) {
 /* ══════════════════ Smoke ═════════════════════════════════════════════════ */
 function SmokeEffect({ opacity }: { opacity: number }) {
   return (
-    <div style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const }}>
-      {Array.from({ length: 5 }, (_, i) => (
+    <div
+      style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const }}
+      data-effect="smoke"
+    >
+      {Array.from({ length: 8 }, (_, i) => (
         <div
           key={i}
           style={{
             position: "absolute",
-            left: `${18 + dr(i * 7) * 64}%`,
-            bottom: `${-6 + dr(i * 3) * 12}%`,
-            width: `${45 + dr(i * 11) * 65}px`,
-            height: `${45 + dr(i * 5) * 65}px`,
-            background: `rgba(210,210,210,0.07)`,
+            left: `${10 + dr(i * 7) * 70}%`,
+            bottom: `${-8 + dr(i * 3) * 15}%`,
+            width: `${80 + dr(i * 11) * 120}px`,
+            height: `${80 + dr(i * 5) * 120}px`,
+            background: `rgba(200,200,200,${0.55 + dr(i * 9) * 0.30})`,
             borderRadius: "50%",
-            filter: `blur(${32 + dr(i * 13) * 38}px)`,
+            filter: `blur(${38 + dr(i * 13) * 45}px)`,
             animationName: "bdv-smoke",
-            animationDuration: `${4.5 + dr(i * 7) * 5}s`,
+            animationDuration: `${3.5 + dr(i * 7) * 5}s`,
             animationDelay: `${-dr(i * 17) * 5.5}s`,
             animationTimingFunction: "ease-out",
             animationIterationCount: "infinite",
@@ -149,34 +161,41 @@ function SmokeEffect({ opacity }: { opacity: number }) {
 
 /* ══════════════════ Sparks ════════════════════════════════════════════════ */
 function SparksEffect({ opacity }: { opacity: number }) {
-  const N = 16;
+  const N = 28;
   return (
-    <div style={{ position: "absolute", inset: 0, opacity }}>
+    <div
+      style={{ position: "absolute", inset: 0, opacity }}
+      data-effect="sparks"
+    >
       {Array.from({ length: N }, (_, i) => {
-        const angle = (i / N) * 2 * Math.PI + dr(i * 7) * 0.6 - Math.PI / 2;
-        const dist  = 45 + dr(i * 13) * 90;
+        const angle = (i / N) * 2 * Math.PI + dr(i * 7) * 0.8 - Math.PI / 2;
+        const dist  = 55 + dr(i * 13) * 110;
         const dx    = Math.round(Math.cos(angle) * dist);
-        const dy    = Math.round(Math.sin(angle) * dist) - 25;
-        const sz    = 1.2 + dr(i * 7) * 2.5;
-        const r     = 205 + Math.round(dr(i * 9) * 50);
-        const g     = 60  + Math.round(dr(i * 11) * 80);
+        const dy    = Math.round(Math.sin(angle) * dist) - 30;
+        const sz    = 2.5 + dr(i * 7) * 4.5;
+        const r     = 210 + Math.round(dr(i * 9) * 45);
+        const g     = 55  + Math.round(dr(i * 11) * 90);
         return (
           <div
             key={i}
             style={{
               position: "absolute",
-              left: `calc(${44 + dr(i * 5) * 12}% + ${Math.round((dr(i * 3) - 0.5) * 35)}px)`,
-              bottom: `${4 + dr(i * 11) * 12}%`,
+              left: `calc(${42 + dr(i * 5) * 16}% + ${Math.round((dr(i * 3) - 0.5) * 45)}px)`,
+              bottom: `${3 + dr(i * 11) * 14}%`,
               width: `${sz}px`,
               height: `${sz}px`,
-              background: `rgba(${r},${g},10,1)`,
+              background: `rgb(${r},${g},8)`,
               borderRadius: "50%",
-              boxShadow: `0 0 ${sz * 1.3}px rgba(${r},${g},10,0.75), 0 0 ${sz * 2.5}px rgba(255,100,10,0.40)`,
+              boxShadow: [
+                `0 0 ${sz * 1.5}px ${sz * 0.4}px rgba(${r},${g},8,0.90)`,
+                `0 0 ${sz * 3}px ${sz * 1.0}px rgba(255,100,10,0.55)`,
+                `0 0 ${sz * 6}px ${sz * 1.5}px rgba(255,50,0,0.22)`,
+              ].join(","),
               "--dx": `${dx}px`,
               "--dy": `${dy}px`,
               animationName: "bdv-spark",
-              animationDuration: `${0.50 + dr(i * 17) * 1.1}s`,
-              animationDelay: `${-dr(i * 19) * 2.3}s`,
+              animationDuration: `${0.45 + dr(i * 17) * 1.0}s`,
+              animationDelay: `${-dr(i * 19) * 2.2}s`,
               animationTimingFunction: "ease-out",
               animationIterationCount: "infinite",
             } as React.CSSProperties}
@@ -190,11 +209,14 @@ function SparksEffect({ opacity }: { opacity: number }) {
 /* ══════════════════ Dust ══════════════════════════════════════════════════ */
 function DustEffect({ opacity }: { opacity: number }) {
   return (
-    <div style={{ position: "absolute", inset: 0, opacity }}>
-      {Array.from({ length: 22 }, (_, i) => {
-        const dx = Math.round((dr(i * 3) - 0.5) * 55);
-        const dy = Math.round((dr(i * 7) - 0.5) * 55);
-        const sz = 0.7 + dr(i * 5) * 1.8;
+    <div
+      style={{ position: "absolute", inset: 0, opacity }}
+      data-effect="dust"
+    >
+      {Array.from({ length: 40 }, (_, i) => {
+        const dx = Math.round((dr(i * 3) - 0.5) * 70);
+        const dy = Math.round((dr(i * 7) - 0.5) * 70);
+        const sz = 1.2 + dr(i * 5) * 3.0;
         return (
           <div
             key={i}
@@ -204,12 +226,13 @@ function DustEffect({ opacity }: { opacity: number }) {
               top:  `${dr(i * 13) * 94}%`,
               width:  `${sz}px`,
               height: `${sz}px`,
-              background: `rgba(218,200,162,${0.22 + dr(i * 17) * 0.25})`,
+              background: `rgba(220,205,168,${0.65 + dr(i * 17) * 0.35})`,
               borderRadius: "50%",
+              boxShadow: `0 0 ${sz * 1.8}px rgba(220,200,150,0.50)`,
               "--dx": `${dx}px`,
               "--dy": `${dy}px`,
               animationName: "bdv-dust",
-              animationDuration: `${5 + dr(i * 11) * 7}s`,
+              animationDuration: `${4 + dr(i * 11) * 6}s`,
               animationDelay: `${-dr(i * 19) * 7}s`,
               animationTimingFunction: "ease-in-out",
               animationIterationCount: "infinite",
@@ -223,48 +246,55 @@ function DustEffect({ opacity }: { opacity: number }) {
 
 /* ══════════════════ Lens Flare ════════════════════════════════════════════ */
 function LensFlareEffect({ opacity }: { opacity: number }) {
-  const cy = "18%";
+  const cy = "16%";
   const pulse: React.CSSProperties = {
     animationName: "bdv-flare-pulse",
-    animationDuration: "3.0s",
+    animationDuration: "2.8s",
     animationTimingFunction: "ease-in-out",
     animationIterationCount: "infinite",
   };
   return (
-    <div style={{ position: "absolute", inset: 0, opacity }}>
+    <div
+      style={{ position: "absolute", inset: 0, opacity }}
+      data-effect="lens-flare"
+    >
+      {/* Core glow */}
       <div style={{
         ...pulse,
         position: "absolute",
         top: cy,
         animationName: "bdv-flare-drift, bdv-flare-pulse",
-        animationDuration: "13s, 3.0s",
+        animationDuration: "11s, 2.8s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
         transform: "translateY(-50%)",
-        width: "46px", height: "46px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,248,188,0.65) 0%, rgba(255,210,65,0.22) 36%, transparent 72%)",
-        filter: "blur(2px)",
-        boxShadow: "0 0 18px 6px rgba(255,225,90,0.15)",
+        width: "70px", height: "70px", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(255,248,180,0.95) 0%, rgba(255,210,50,0.55) 35%, transparent 70%)",
+        filter: "blur(1.5px)",
+        boxShadow: "0 0 28px 8px rgba(255,225,80,0.42)",
       }} />
+      {/* Horizontal streak */}
+      <div style={{
+        ...pulse,
+        position: "absolute", top: cy, left: 0, right: 0,
+        height: "2px",
+        background: "linear-gradient(90deg,transparent 2%,rgba(255,230,120,0.22) 20%,rgba(255,248,188,0.65) 66%,rgba(255,230,120,0.22) 82%,transparent 97%)",
+      }} />
+      {/* Ring halo */}
       <div style={{
         ...pulse,
         position: "absolute", left: "68%", top: cy,
         transform: "translate(-50%,-50%)",
-        width: "90px", height: "90px", borderRadius: "50%",
-        border: "0.6px solid rgba(255,228,120,0.10)",
+        width: "120px", height: "120px", borderRadius: "50%",
+        border: "1px solid rgba(255,228,120,0.22)",
       }} />
+      {/* Counter flare */}
       <div style={{
         ...pulse,
-        position: "absolute", top: cy, left: 0, right: 0,
-        height: "0.5px",
-        background: "linear-gradient(90deg,transparent 3%,rgba(255,225,120,0.08) 25%,rgba(255,248,188,0.28) 68%,rgba(255,225,120,0.08) 84%,transparent 97%)",
-      }} />
-      <div style={{
-        ...pulse,
-        position: "absolute", left: "26%", top: "80%",
+        position: "absolute", left: "24%", top: "78%",
         transform: "translate(-50%,-50%)",
-        width: "10px", height: "10px", borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(100,200,255,0.30) 0%, transparent 72%)",
+        width: "18px", height: "18px", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(100,200,255,0.70) 0%, transparent 70%)",
         filter: "blur(1px)",
       }} />
     </div>
@@ -273,32 +303,36 @@ function LensFlareEffect({ opacity }: { opacity: number }) {
 
 /* ══════════════════ Light Leaks ═══════════════════════════════════════════ */
 function LightLeaksEffect({ opacity, protectCaptions }: { opacity: number; protectCaptions: boolean }) {
-  /* If captions are protected we clip the leak so it doesn't bleed into bottom 22% */
   const clipStyle: React.CSSProperties = protectCaptions
     ? { clipPath: "inset(0 0 22% 0)" }
     : {};
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", opacity, mixBlendMode: "screen" as const }}>
+    <div
+      style={{ position: "absolute", inset: 0, overflow: "hidden", opacity, mixBlendMode: "screen" as const }}
+      data-effect="light-leaks"
+    >
+      {/* Primary warm sweep */}
       <div style={{
         ...clipStyle,
         position: "absolute",
-        top: "-20%", left: "-30%",
-        width: "55%", height: "148%",
-        background: "linear-gradient(132deg,rgba(255,195,55,.28) 0%,rgba(255,105,18,.16) 34%,rgba(220,50,70,.06) 62%,transparent 82%)",
+        top: "-25%", left: "-35%",
+        width: "60%", height: "155%",
+        background: "linear-gradient(135deg,rgba(255,200,60,0.90) 0%,rgba(255,110,20,0.55) 32%,rgba(220,55,75,0.18) 60%,transparent 80%)",
         animationName: "bdv-leak",
-        animationDuration: "5.0s",
+        animationDuration: "4.8s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
       }} />
+      {/* Secondary cool accent */}
       <div style={{
         ...clipStyle,
         position: "absolute",
-        top: "-20%", left: "-30%",
-        width: "44%", height: "148%",
-        background: "linear-gradient(150deg,rgba(90,180,255,.12) 0%,rgba(255,180,55,.09) 42%,transparent 68%)",
+        top: "-25%", left: "-35%",
+        width: "48%", height: "155%",
+        background: "linear-gradient(150deg,rgba(100,190,255,0.40) 0%,rgba(255,190,60,0.30) 40%,transparent 65%)",
         animationName: "bdv-leak",
-        animationDuration: "6.2s",
-        animationDelay: "-2.8s",
+        animationDuration: "6.0s",
+        animationDelay: "-2.6s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
       }} />
@@ -318,27 +352,25 @@ function WaveformEffect({
   position?: WavePosition;
   protectCaptions: boolean;
 }) {
-  /* When captions are protected, never let waveform sit at raw "bottom" */
   const effectivePos: WavePosition =
     protectCaptions && position === "bottom" ? "bottom-safe" : position;
-
   if (effectivePos === "hidden") return null;
 
-  const N   = 28;
-  const BAR = 5;
+  const N   = 34;
+  const BAR = 6;
   const GAP = 3;
-  const H   = 46;
+  const H   = 56;
   const W   = N * (BAR + GAP) - GAP;
-  const rgb = { r: 201, g: 168, b: 76 }; // gold
 
   const posStyle: React.CSSProperties =
     effectivePos === "top"    ? { top: "4%",  bottom: "auto" } :
     effectivePos === "bottom" ? { bottom: "2%", top: "auto"  } :
-                                { bottom: "21%", top: "auto" }; /* bottom-safe */
+                                { bottom: "22%", top: "auto" };
 
   return (
     <svg
       width={W} height={H}
+      data-effect="waveform"
       style={{
         position: "absolute",
         left: "50%",
@@ -346,22 +378,24 @@ function WaveformEffect({
         transform: "translateX(-50%)",
         opacity,
         overflow: "visible",
-        filter: `drop-shadow(0 0 3px rgba(${rgb.r},${rgb.g},${rgb.b},0.28))`,
+        filter: `drop-shadow(0 0 4px rgba(201,168,76,0.50))`,
       }}
     >
       {Array.from({ length: N }, (_, i) => {
-        const h1 = (6 + dr(i * 7) * 35) / H;
-        const h2 = (6 + dr(i * 11 + 3) * 35) / H;
-        const alpha = 0.65 + dr(i * 5) * 0.28;
+        const h1 = (8 + dr(i * 7) * 42) / H;
+        const h2 = (8 + dr(i * 11 + 3) * 42) / H;
+        const alpha = 0.80 + dr(i * 5) * 0.20;
+        const r = 201 + Math.round(dr(i * 3) * 20);
+        const g = 148 + Math.round(dr(i * 7) * 30);
         return (
           <rect
             key={i}
             x={i * (BAR + GAP)} y={0} width={BAR} height={H} rx={2}
-            fill={`rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`}
+            fill={`rgba(${r},${g},40,${alpha})`}
             style={{
               transformBox: "fill-box", transformOrigin: "50% 100%",
               animationName: "bdv-bar",
-              animationDuration: `${0.24 + dr(i * 13) * 0.54}s`,
+              animationDuration: `${0.20 + dr(i * 13) * 0.50}s`,
               animationDelay: `${-dr(i * 17) * 0.55}s`,
               animationTimingFunction: "ease-in-out",
               animationIterationCount: "infinite",
@@ -374,7 +408,7 @@ function WaveformEffect({
   );
 }
 
-/* ══════════════════ Logo / Watermark ══════════════════════════════════════ */
+/* ══════════════════ Logo / Watermark (transparent, no box) ════════════════ */
 function WatermarkEffect({
   opacity,
   type = "logo",
@@ -405,8 +439,6 @@ function WatermarkEffect({
 
   if (type === "logo") {
     const h = size === "small" ? 28 : size === "large" ? 58 : 42;
-    /* Render the transparent PNG directly — no wrapper box, no background.
-       A double drop-shadow gives legibility on any background without a rectangle. */
     return (
       <img
         data-testid="watermark-overlay"
@@ -419,14 +451,12 @@ function WatermarkEffect({
           width: "auto",
           opacity,
           display: "block",
-          filter:
-            "drop-shadow(0 1px 4px rgba(0,0,0,0.72)) drop-shadow(0 0 2px rgba(0,0,0,0.50))",
+          filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.72)) drop-shadow(0 0 2px rgba(0,0,0,0.50))",
         }}
       />
     );
   }
 
-  /* type === "text" */
   const fontSize =
     size === "small" ? "clamp(7px,1.1vw,10px)" :
     size === "large" ? "clamp(10px,1.8vw,15px)" :
@@ -460,16 +490,14 @@ export interface ActiveOverlayEffectsProps {
   activeOverlays: string[];
   intensity: IntensityMap;
   testActive: boolean;
-  /* Watermark */
+  soloPreviewOverlay?: string | null;
   watermarkText?: string;
   watermarkType?: string;
   watermarkPosition?: string;
   watermarkSize?: string;
   watermarkMargin?: number;
   watermarkShowOnPreview?: boolean;
-  /* Waveform */
   waveformPosition?: string;
-  /* Quality / Safe areas */
   overlayQualityMode?: string;
   overlayProtectCaptions?: boolean;
 }
@@ -480,6 +508,7 @@ export function ActiveOverlayEffects({
   activeOverlays,
   intensity,
   testActive,
+  soloPreviewOverlay = null,
   watermarkText = "Bow Down Visuals",
   watermarkType = "logo",
   watermarkPosition = "bottom-right",
@@ -487,19 +516,22 @@ export function ActiveOverlayEffects({
   watermarkMargin = 16,
   watermarkShowOnPreview = true,
   waveformPosition = "bottom-safe",
-  overlayQualityMode = "music-video",
   overlayProtectCaptions = true,
 }: ActiveOverlayEffectsProps) {
-  const show = testActive
-    ? [...new Set([...activeOverlays, "Rain", "Sparks", "Lens Flare"])]
-    : activeOverlays;
+  /* If solo preview is active, show only that overlay + watermark */
+  let show: string[];
+  if (soloPreviewOverlay) {
+    show = [soloPreviewOverlay];
+    if (activeOverlays.includes("Logo / Watermark")) show.push("Logo / Watermark");
+  } else if (testActive) {
+    show = [...new Set([...activeOverlays, "Rain", "Sparks", "Lens Flare"])];
+  } else {
+    show = activeOverlays;
+  }
 
   if (show.length === 0) return null;
 
-  const qm = qualityMult(overlayQualityMode);
-  const visualCount = show.filter((x) => VISUAL_EFFECTS.includes(x)).length;
-  const sm = calcStackMult(visualCount);
-  const o = (name: string) => gi(intensity, name, qm, sm);
+  const o = (name: string) => gi(intensity, name);
 
   return (
     <div
@@ -509,13 +541,13 @@ export function ActiveOverlayEffects({
     >
       <style>{KEYFRAMES}</style>
 
-      {show.includes("Rain")               && <RainEffect         opacity={o("Rain")} />}
-      {show.includes("Smoke")              && <SmokeEffect        opacity={o("Smoke")} />}
-      {show.includes("Sparks")             && <SparksEffect       opacity={o("Sparks")} />}
-      {show.includes("Lens Flare")         && <LensFlareEffect    opacity={o("Lens Flare")} />}
-      {show.includes("Dust")               && <DustEffect         opacity={o("Dust")} />}
-      {show.includes("Light Leaks")        && <LightLeaksEffect   opacity={o("Light Leaks")} protectCaptions={overlayProtectCaptions} />}
-      {show.includes("Animated Waveform")  && (
+      {show.includes("Rain")              && <RainEffect        opacity={o("Rain")} />}
+      {show.includes("Smoke")             && <SmokeEffect       opacity={o("Smoke")} />}
+      {show.includes("Sparks")            && <SparksEffect      opacity={o("Sparks")} />}
+      {show.includes("Lens Flare")        && <LensFlareEffect   opacity={o("Lens Flare")} />}
+      {show.includes("Dust")              && <DustEffect        opacity={o("Dust")} />}
+      {show.includes("Light Leaks")       && <LightLeaksEffect  opacity={o("Light Leaks")} protectCaptions={overlayProtectCaptions} />}
+      {show.includes("Animated Waveform") && (
         <WaveformEffect
           opacity={o("Animated Waveform")}
           position={(waveformPosition as WavePosition) || "bottom-safe"}
@@ -524,7 +556,7 @@ export function ActiveOverlayEffects({
       )}
       {show.includes("Logo / Watermark") && (
         <WatermarkEffect
-          opacity={gi(intensity, "Logo / Watermark", 1.0, 1.0)} /* watermark ignores stack+quality multipliers */
+          opacity={gi(intensity, "Logo / Watermark")}
           type={watermarkType}
           text={watermarkText}
           position={watermarkPosition}
@@ -534,27 +566,26 @@ export function ActiveOverlayEffects({
         />
       )}
 
-      {testActive && (
-        <div
-          data-testid="active-overlay-test-label"
-          style={{
-            position: "absolute",
-            top: "12%",
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "rgba(0,0,0,0.90)",
-            color: "#C9A84C",
-            fontWeight: 900,
-            fontSize: "clamp(11px,2.5vw,19px)",
-            padding: "0.38rem 1.4rem",
-            borderRadius: "0.5rem",
-            border: "2px solid #C9A84C",
-            letterSpacing: "0.1em",
-            whiteSpace: "nowrap",
-            boxShadow: "0 0 30px rgba(201,168,76,0.55)",
-            zIndex: 30,
-          }}
-        >
+      {soloPreviewOverlay && (
+        <div style={{
+          position: "absolute", top: "8%", left: "50%", transform: "translateX(-50%)",
+          background: "rgba(0,0,0,0.88)", color: "#C9A84C", fontWeight: 900,
+          fontSize: "clamp(10px,2.2vw,16px)", padding: "0.3rem 1.2rem",
+          borderRadius: "0.5rem", border: "1.5px solid #C9A84C", letterSpacing: "0.08em",
+          whiteSpace: "nowrap", boxShadow: "0 0 22px rgba(201,168,76,0.45)", zIndex: 30,
+        }}>
+          SOLO: {soloPreviewOverlay}
+        </div>
+      )}
+
+      {testActive && !soloPreviewOverlay && (
+        <div style={{
+          position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)",
+          background: "rgba(0,0,0,0.90)", color: "#C9A84C", fontWeight: 900,
+          fontSize: "clamp(11px,2.5vw,19px)", padding: "0.38rem 1.4rem",
+          borderRadius: "0.5rem", border: "2px solid #C9A84C", letterSpacing: "0.1em",
+          whiteSpace: "nowrap", boxShadow: "0 0 30px rgba(201,168,76,0.55)", zIndex: 30,
+        }}>
           OVERLAY TEST ACTIVE
         </div>
       )}
