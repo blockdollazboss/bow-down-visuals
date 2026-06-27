@@ -1,0 +1,175 @@
+Fix master player format icon visibility and fullscreen aspect ratio behavior.
+
+Problem:
+I cannot see the Project Format icon inside the master player.
+It needs to be visible in all aspect ratios.
+
+Also fullscreen is not working properly.
+When I go fullscreen, I should still see the selected project aspect ratio correctly.
+
+Do not change:
+- master player playback logic
+- timeline waveform
+- dragged clip order
+- synced captions
+- caption styles
+- effects
+- overlays
+- transparent logo watermark
+- Export Doctor working pipeline
+- Auto PiP
+- Bow Down AI Guide
+- Stripe, credits, or payments
+
+Only fix:
+- Project Format icon visibility inside master player
+- fullscreen behavior for all aspect ratios
+- fullscreen controls layout
+- canvas scaling
+
+PART 1 — FORMAT ICON MUST ALWAYS BE VISIBLE
+
+The Project Format icon should be inside the master player controls and visible for every aspect ratio.
+
+Support:
+- 9:16 vertical
+- 16:9 landscape
+- 1:1 square
+- 4:5 portrait
+- custom sizes
+
+The icon should never disappear, get clipped, hide behind video, hide behind captions, or move outside the player.
+
+Place it in a safe control bar inside the master player.
+
+Control bar should include:
+- Play/Pause
+- Restart
+- Format icon
+- Fullscreen
+- PiP
+
+The Format icon should open the format popover.
+
+Format popover should show:
+- TikTok / Reels / Shorts — 9:16 — 1080x1920
+- YouTube / Landscape — 16:9 — 1920x1080
+- Square — 1:1 — 1080x1080
+- Instagram Portrait — 4:5 — 1080x1350
+- Custom
+
+Fit Mode:
+- Fill / Crop
+- Fit / Letterbox
+- Blur Background Fill
+
+PART 2 — RESPONSIVE CONTROL BAR
+
+For small/narrow vertical players:
+- use compact icons
+- allow controls to wrap or collapse into a small menu
+- never hide the Format icon
+- never hide Fullscreen icon
+
+For wide players:
+- show normal controls
+
+For square/portrait:
+- keep controls inside bottom safe area
+
+PART 3 — FULLSCREEN MUST PRESERVE ASPECT RATIO
+
+Fullscreen should not stretch the video.
+
+When fullscreen opens:
+- keep the selected project aspect ratio
+- center the video canvas on screen
+- scale it as large as possible without distortion
+- use black surrounding background if needed
+
+Examples:
+9:16 fullscreen:
+- vertical phone canvas centered
+- black space left/right if monitor is wide
+- video not stretched wide
+
+16:9 fullscreen:
+- wide video fills most screen
+- no vertical stretching
+
+1:1 fullscreen:
+- square video centered
+- black space around if needed
+
+4:5 fullscreen:
+- portrait video centered
+- no stretching
+
+PART 4 — FULLSCREEN CONTROLS
+
+In fullscreen, still show:
+- Play/Pause
+- Scrub bar/playhead
+- Format icon
+- Fit Mode icon or option
+- Exit Fullscreen
+- PiP if supported
+
+Controls should auto-hide after a few seconds but reappear on mouse move/tap.
+
+Format icon must remain available in fullscreen.
+
+PART 5 — FULLSCREEN CAPTIONS / OVERLAYS / WATERMARK
+
+In fullscreen:
+- captions must stay inside the video canvas
+- watermark must stay inside the video canvas
+- overlays must stay inside the video canvas
+- waveform overlay must stay inside safe area
+- nothing should be positioned relative to the browser window instead of the video canvas
+
+PART 6 — CSS / LAYOUT RULES
+
+Use one real project canvas wrapper.
+
+The canvas wrapper should control:
+- aspect ratio
+- video layer
+- captions layer
+- overlays layer
+- watermark layer
+- controls layer
+
+Use CSS aspect-ratio or equivalent logic.
+
+Do not size captions/overlays/watermark based on the browser window.
+Size them based on the project canvas.
+
+PART 7 — DEBUG STATUS INSIDE FORMAT POPOVER ONLY
+
+Inside the Format popover, show small debug status:
+
+Format Debug:
+- selected format
+- aspect ratio
+- export size
+- master player icon visible: yes/no
+- fullscreen active: yes/no
+- fullscreen preserves aspect ratio: yes/no
+- canvas width/height
+- controls inside canvas: yes/no
+
+Do not show large debug panels elsewhere.
+
+PART 8 — TEST BUTTONS
+
+Add simple internal tests:
+
+Test Format Icon Visibility
+- checks icon exists and is visible for 9:16, 16:9, 1:1, 4:5
+
+Test Fullscreen Aspect Ratios
+- opens/checks fullscreen canvas sizing or logs expected sizes
+
+Final goal:
+The Project Format icon should always be visible inside the master player. Fullscreen should show the selected aspect ratio correctly without stretching, clipping, or hiding controls.

@@ -768,10 +768,12 @@ export default function VideoEditor() {
               <VideoTimeline
                 scenes={scenes}
                 currentTimeSec={previewEngineState?.currentTime ?? 0}
+                totalDurationSec={songDuration ?? undefined}
                 activeSceneIndex={previewEngineState?.activeSceneIndex ?? 0}
                 captionLines={settings.captions.lines}
                 effects={settings.effects}
                 appliedTransitions={settings.aiEdit?.appliedTransitions}
+                audioUrl={previewAudioUrl}
                 onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
                 onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
               />
@@ -785,7 +787,6 @@ export default function VideoEditor() {
             {/* Tab nav */}
             <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-6">
               <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
-              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
               <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Mixer" testId="tab-music" />
               <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
               <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
@@ -794,29 +795,20 @@ export default function VideoEditor() {
             </div>
 
             {/* ── Timeline tab — always in DOM so audio keeps playing across tab switches ── */}
-            <div className={tab === "timeline" ? "" : "hidden"}>
-              {scenes.length > 0 ? (
-                <TimelinePreviewPlayer
-                  ref={timelinePlayerRef}
-                  scenes={scenes}
-                  captionLines={settings.captions.lines}
-                  audioUrl={previewAudioUrl}
-                  initialSceneId={previewSceneId}
-                  captionSettings={settings.captions}
-                  onEngineUpdate={setPreviewEngineState}
-                  externalVideoRef={liveVideoRef}
-                  outgoingVideoRef={outgoingVideoRef}
-                  onSceneChange={handleSceneChange}
-                />
-              ) : (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-8 text-center space-y-3">
-                  <ListVideo className="h-8 w-8 text-primary/30 mx-auto" />
-                  <p className="text-sm font-bold text-white/50">No scenes yet</p>
-                  <p className="text-xs text-white/30 leading-relaxed">
-                    Generate a music video plan first, then come back to preview the full timeline.
-                  </p>
-                </div>
-              )}
+            {/* TimelinePreviewPlayer — always mounted (it IS the playback engine), visually hidden */}
+            <div className="hidden">
+              <TimelinePreviewPlayer
+                ref={timelinePlayerRef}
+                scenes={scenes}
+                captionLines={settings.captions.lines}
+                audioUrl={previewAudioUrl}
+                initialSceneId={previewSceneId}
+                captionSettings={settings.captions}
+                onEngineUpdate={setPreviewEngineState}
+                externalVideoRef={liveVideoRef}
+                outgoingVideoRef={outgoingVideoRef}
+                onSceneChange={handleSceneChange}
+              />
             </div>
 
             {tab === "clips" && (

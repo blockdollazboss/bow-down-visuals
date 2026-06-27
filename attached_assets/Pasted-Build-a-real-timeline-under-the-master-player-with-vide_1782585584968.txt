@@ -1,0 +1,152 @@
+Build a real timeline under the master player with video track + audio waveform track.
+
+Problem:
+The timeline should be directly under the master player and show the full project view.
+
+I need to scrub the master player and see:
+- video clips on the top timeline track
+- project audio waveform on the bottom timeline track
+- playhead moving across both
+- clips and audio lined up in sync
+
+Also remove the duplicate Timeline section/tab area on the right side because the real timeline should live under the master player.
+
+Do not change:
+- master player playback
+- dragged clip order
+- saved timeline order
+- caption sync
+- caption styles
+- effects
+- transitions
+- watermark
+- overlays
+- Export Doctor working pipeline
+- Auto PiP
+- Bow Down AI Guide
+- Stripe, credits, or payments
+
+Only fix:
+- timeline layout under master player
+- audio waveform track
+- scrubbing
+- right-side duplicate timeline section removal
+
+PART 1 — REAL TIMELINE UNDER MASTER PLAYER
+
+Place the main timeline directly under the master player.
+
+Timeline layout:
+
+Top track:
+Video Clips Track
+
+Bottom track:
+Project Audio Waveform Track
+
+The timeline should show:
+- clip blocks in dragged order
+- clip thumbnails
+- scene numbers
+- scene titles
+- clip durations
+- transitions between clips
+- effect markers
+- caption markers if possible
+- audio waveform under the clips
+- playhead line
+- current time
+- total duration
+
+PART 2 — AUDIO WAVEFORM
+
+Generate and display a waveform from the selected project audio.
+
+Use the same audio source as the master player.
+
+Waveform requirements:
+- show full song/project audio
+- line up with the video clips
+- playhead moves over waveform during playback
+- waveform stays synced with master player currentTime
+- if audio is longer than clips, show full length or mark extra audio area
+- if clips are longer than audio, show audio ending point
+
+If waveform generation fails, show:
+Audio waveform failed: [real error]
+
+PART 3 — SCRUBBING
+
+I should be able to click or drag the playhead on the timeline.
+
+When I scrub:
+- master player currentTime updates
+- audio jumps to the same time
+- active video clip updates
+- active caption updates
+- active effects update
+- active transitions update
+- waveform position updates
+
+PART 4 — CLIPS TRACK
+
+The video track should use the dragged/saved clip order.
+
+When clip order changes in Clips:
+- timeline updates immediately
+- master player follows the new order
+- Export Doctor uses the same order
+
+Each clip block should show:
+- thumbnail
+- scene number
+- short scene title
+- duration
+
+PART 5 — ZOOM / SCROLL
+
+Add timeline controls:
+- Zoom In
+- Zoom Out
+- Fit Timeline
+- Scroll horizontally if needed
+
+Default:
+Fit Timeline
+
+PART 6 — REMOVE DUPLICATE RIGHT-SIDE TIMELINE SECTION
+
+Remove or hide the old Timeline tab/section on the right side.
+
+The right side should not have a separate timeline editor anymore.
+
+The timeline should only exist:
+under the master player
+
+If keeping the Timeline tab for controls, rename it:
+Timeline Tools
+
+It should not show another timeline player or duplicate timeline.
+
+PART 7 — SYNC STATUS
+
+Add visible status near the timeline:
+
+Timeline Sync:
+- master player connected: yes/no
+- audio waveform loaded: yes/no
+- video track loaded: yes/no
+- dragged order applied: yes/no
+- playhead synced: yes/no
+- current time
+- total duration
+- export order source: timeline order
+
+PART 8 — EXPORT ORDER
+
+Export Doctor and normal export must use the same timeline order and timeline timing.
+
+Do not use old scene order.
+
+Final goal:
+The editor should feel like a real music video editor. The master player is on the left/top, and directly underneath it is one synced timeline with video clips on top and project audio waveform on bottom. I can scrub the timeline and see the master player, clips, captions, effects, transitions, and audio stay in sync.
