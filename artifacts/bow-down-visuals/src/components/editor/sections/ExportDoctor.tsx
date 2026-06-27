@@ -17,6 +17,12 @@ interface ExportDoctorProps {
   captions?: CaptionSettings | null;
   /** The exact saved Auto AI effects (settings.effects) the master player is using. */
   effects?: string[] | null;
+  /** Active overlay chip names (settings.overlays). */
+  overlays?: string[] | null;
+  /** Per-overlay intensity map (settings.overlayIntensity). */
+  overlayIntensity?: Record<string, number> | null;
+  /** Watermark text (settings.watermarkText). */
+  watermarkText?: string | null;
   /** Current master-player playhead (seconds) — origin of the 3-second match test. */
   masterCurrentTimeSec?: number;
   /** Total project duration (seconds) from the master player. */
@@ -141,6 +147,15 @@ type ExportResult = {
   unsupportedTransitions?: TransitionPlanEntry[];
   error?: string;
   stderrTail?: string[];
+  // Overlay export doctor (export-all-overlays)
+  overlaysFound?: boolean;
+  overlaysIncluded?: string[];
+  unsupportedOverlays?: string[];
+  watermarkFound?: boolean;
+  watermarkIncluded?: boolean;
+  overlayWatermarkText?: string;
+  overlayExportConnected?: boolean;
+  effectsPreserved?: boolean;
 };
 
 type MultiClipRow = {
@@ -183,7 +198,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL
@@ -191,7 +206,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test"
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -208,6 +223,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [exportAllAudioResult, setExportAllAudioResult] = useState<ExportResult | null>(null);
   const [exportAllCaptionsResult, setExportAllCaptionsResult] = useState<ExportResult | null>(null);
   const [exportAllEffectsResult, setExportAllEffectsResult] = useState<ExportResult | null>(null);
+  const [exportAllOverlaysResult, setExportAllOverlaysResult] = useState<ExportResult | null>(null);
+  const [overlayMatchResult, setOverlayMatchResult] = useState<ExportResult | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -309,7 +326,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
   async function downloadAllClips() {
     setBusy("download-all"); setLastError(null);
-    setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null); setExportAllEffectsResult(null);
+    setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null); setExportAllEffectsResult(null); setExportAllOverlaysResult(null); setOverlayMatchResult(null);
     try {
       const res = await fetch("/api/export-doctor/download-all", {
         method: "POST", headers: await authHeaders(),
@@ -392,6 +409,53 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       const data = await readJson<ExportResult>(res);
       // Persist the body even on non-2xx so the real FFmpeg error + stderrTail survive.
       setExportAllEffectsResult(data);
+      if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportAllClipsOverlays() {
+    if (!multiId) return;
+    setBusy("export-all-overlays"); setLastError(null); setExportAllOverlaysResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-all-overlays", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId, audioUrl: masterAudioUrl ?? null,
+          captions: captions ?? null, effects: effects ?? [],
+          overlays: overlays ?? [], overlayIntensity: overlayIntensity ?? {},
+          watermarkText: watermarkText ?? "Bow Down Visuals", conflictMode,
+        }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      setExportAllOverlaysResult(data);
+      if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function runOverlayMatchTest() {
+    if (!multiId) return;
+    setBusy("overlay-match-test"); setLastError(null); setOverlayMatchResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-overlays-range", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId, audioUrl: masterAudioUrl ?? null,
+          captions: captions ?? null, effects: effects ?? [],
+          overlays: overlays ?? [], overlayIntensity: overlayIntensity ?? {},
+          watermarkText: watermarkText ?? "Bow Down Visuals", conflictMode,
+          startSec: masterCurrentTimeSec ?? 0, durationSec: 3,
+        }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      setOverlayMatchResult(data);
       if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
       if (data.error) setLastError(data.error);
     } catch (e) {
@@ -549,6 +613,26 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     ["export effects applied", em ? String(em.effectsApplied ?? 0) : "—", em ? (em.effectsApplied ?? 0) > 0 : null],
     ["output created", em ? (em.success ? "yes" : "no") : "—", em ? !!em.success : null],
     ["effect stack matched", em ? (em.stackMatch ? "yes" : "no") : "—", em ? !!em.stackMatch : null],
+  ];
+
+  // ── Overlay pre-check (frontend, from settings.overlays) ──
+  const ANIMATED_OVERLAYS = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
+  const ovList = overlays ?? [];
+  const fcOverlaysFound = ovList.length > 0 || !!(watermarkText?.trim());
+  const fcWatermarkFound = ovList.includes("Logo / Watermark") || !!(watermarkText?.trim());
+  const fcUnsupportedOverlays = ovList.filter((o) => ANIMATED_OVERLAYS.includes(o));
+  const ovr = exportAllOverlaysResult;
+  const ovrWmText = ovr?.overlayWatermarkText ?? watermarkText ?? "Bow Down Visuals";
+  const overlayStatusRows: [string, string, boolean | null][] = [
+    ["overlays found", (ovr?.overlaysFound ?? fcOverlaysFound) ? "yes" : "no", ovr?.overlaysFound ?? fcOverlaysFound],
+    ["unsupported overlays skipped", (ovr?.unsupportedOverlays ?? fcUnsupportedOverlays).join(", ") || "none", (ovr?.unsupportedOverlays ?? fcUnsupportedOverlays).length === 0 ? true : null],
+    ["watermark found", (ovr?.watermarkFound ?? fcWatermarkFound) ? "yes" : "no", ovr?.watermarkFound ?? fcWatermarkFound],
+    ["watermark included", ovr ? (ovr.watermarkIncluded ? "yes" : "no") : "—", ovr ? !!ovr.watermarkIncluded : null],
+    ["watermark text", ovrWmText, null],
+    ["effects preserved", ovr ? (ovr.effectsPreserved ? "yes" : "no") : "—", ovr ? !!ovr.effectsPreserved : null],
+    ["captions preserved", ovr ? (ovr.captionsPreserved ? "yes" : "no") : "—", ovr ? !!ovr.captionsPreserved : null],
+    ["audio preserved", ovr ? (ovr.audioPreserved ? "yes" : "no") : "—", ovr ? !!ovr.audioPreserved : null],
+    ["overlay export created", ovr ? (ovr.testExportCreated ? "yes" : "no") : "—", ovr ? !!ovr.testExportCreated : null],
   ];
 
   // ── Transitions ──
@@ -816,6 +900,13 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 Connect Transitions To Export
               </Button>
             </div>
+            {/* ── Overlay / Watermark section ── */}
+            <Button onClick={exportAllClipsOverlays} disabled={busy !== null || !allClipsValid || !fcOverlaysFound} variant="outline"
+              className="gap-2 border-[#C9A84C]/30 bg-[#C9A84C]/5 text-[#C9A84C] hover:bg-[#C9A84C]/10 text-xs disabled:opacity-40 w-full"
+              data-testid="btn-doctor-export-all-overlays">
+              {busy === "export-all-overlays" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Export All {multiClips.length} Clips + Audio + Captions + Effects + Watermark
+            </Button>
           </div>
           {!allClipsValid && (
             <p className="text-center text-[10px] text-white/25 leading-relaxed -mt-1 mb-3">
@@ -1148,6 +1239,43 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
               <a href={exportAllEffectsResult.url} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
                 <ExternalLink className="h-3 w-3" /> Open / download effects test video
+              </a>
+            </div>
+          )}
+
+          {/* ── Overlay / Watermark Doctor status panel ── */}
+          {(fcOverlaysFound || !!ovr) && (
+            <div className="rounded-xl border border-[#C9A84C]/20 bg-[#C9A84C]/[0.03] px-3 py-3 space-y-1.5 mt-3">
+              <p className="text-[10px] font-black text-[#C9A84C]/60 uppercase tracking-widest mb-1">Overlay / Watermark Doctor</p>
+              {overlayStatusRows.map(([label, val, ok]) => (
+                <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                  <span className="text-white/40">{label}</span>
+                  <span className={`font-bold ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-amber-400"}`}>
+                    {String(val)}
+                  </span>
+                </div>
+              ))}
+              {ovr?.stderrTail && ovr.stderrTail.length > 0 && (
+                <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
+                  <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest">FFmpeg error</span>
+                  {ovr.stderrTail.map((line, i) => (
+                    <div key={i} className="text-[10px] font-mono text-red-400/70 break-words leading-snug">{line}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Overlay / Watermark test export result video ── */}
+          {ovr?.success && ovr.url && (
+            <div className="rounded-xl border border-[#C9A84C]/30 bg-[#C9A84C]/[0.05] px-3 py-3 space-y-2 mt-3">
+              <div className="flex items-center gap-2 text-[11px] text-[#C9A84C] font-bold">
+                <CheckCircle2 className="h-4 w-4" /> Watermark burned · {ovr.clipCount ?? "?"} clips · {ovr.duration?.toFixed(1)}s · "{ovr.overlayWatermarkText ?? "Bow Down Visuals"}"
+              </div>
+              <video src={ovr.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={ovr.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download overlay + watermark test
               </a>
             </div>
           )}

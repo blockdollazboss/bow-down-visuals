@@ -842,6 +842,18 @@ export interface MusicStudioSettings {
   exports: AudioExportRecord[];
 }
 
+/** Per-effect intensity defaults — professional/subtle, not 100%. */
+export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
+  "Light Leaks":       20,
+  "Lens Flare":        20,
+  "Smoke":             15,
+  "Rain":              20,
+  "Sparks":            15,
+  "Dust":              12,
+  "Animated Waveform": 35,
+  "Logo / Watermark":  65,
+};
+
 export interface EditorSettings {
   mode: "auto" | "manual";
   autoEdit: AutoEditOptions;
@@ -852,8 +864,12 @@ export interface EditorSettings {
   effects: string[];
   /** Legacy overlay type names (chips UI). */
   overlays: string[];
-  /** Per-overlay intensity 0–100 (missing key = 100). */
+  /** Per-overlay intensity 0–100 (missing key = per-effect default, not 100). */
   overlayIntensity: Record<string, number>;
+  /** Watermark text shown in the master player and burned into exports. */
+  watermarkText: string;
+  /** Waveform position: "bottom-safe" | "top" | "bottom" | "hidden" */
+  waveformPosition: string;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
   /** Structured transition data (fromSceneId → toSceneId). */
@@ -921,6 +937,8 @@ export function defaultEditorSettings(): EditorSettings {
     effects: [],
     overlays: [],
     overlayIntensity: {},
+    watermarkText: "Bow Down Visuals",
+    waveformPosition: "bottom-safe",
     overlayItems: [],
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
@@ -1183,6 +1201,8 @@ export function normalizeEditorSettings(
     effects: stored.effects ?? [],
     overlays: stored.overlays ?? [],
     overlayIntensity: (stored.overlayIntensity && typeof stored.overlayIntensity === "object" && !Array.isArray(stored.overlayIntensity)) ? stored.overlayIntensity as Record<string, number> : {},
+    watermarkText: typeof stored.watermarkText === "string" ? stored.watermarkText : "Bow Down Visuals",
+    waveformPosition: typeof stored.waveformPosition === "string" ? stored.waveformPosition : "bottom-safe",
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },

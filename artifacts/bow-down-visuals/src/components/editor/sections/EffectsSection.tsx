@@ -1,7 +1,7 @@
 import { Wand2, Film, ArrowLeftRight, FlaskConical, RotateCcw } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
-  TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS,
+  TRANSITIONS, EFFECTS, COLOR_GRADES, OVERLAYS, OVERLAY_DEFAULT_INTENSITY,
   getClipEdit,
   type EditorSettings, type ClipEdit,
 } from "@/lib/editor-settings";
@@ -154,7 +154,15 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
               <Chip
                 key={ov}
                 active={active}
-                onClick={() => setSettings({ ...settings, overlays: toggleListItem(settings.overlays, ov) })}
+                onClick={() => {
+                  const wasActive = settings.overlays.includes(ov);
+                  const newOverlays = toggleListItem(settings.overlays, ov);
+                  const newIntensity = { ...settings.overlayIntensity };
+                  if (!wasActive && !(ov in newIntensity)) {
+                    newIntensity[ov] = OVERLAY_DEFAULT_INTENSITY[ov] ?? 20;
+                  }
+                  setSettings({ ...settings, overlays: newOverlays, overlayIntensity: newIntensity });
+                }}
               >
                 {ov}
               </Chip>
@@ -172,7 +180,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
               <IntensityRow
                 key={ov}
                 label={ov}
-                value={settings.overlayIntensity[ov] ?? 100}
+                value={settings.overlayIntensity[ov] ?? OVERLAY_DEFAULT_INTENSITY[ov] ?? 20}
                 onChange={(v) => setIntensity(ov, v)}
                 onRemove={() => removeOverlay(ov)}
               />
@@ -185,6 +193,66 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
             Click a chip above to add a live overlay effect to the master player.
           </p>
         )}
+
+        {/* ── Watermark text ── */}
+        {settings.overlays.includes("Logo / Watermark") && (
+          <div className="mt-3 pt-2 border-t border-white/[0.06]">
+            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+              Watermark Text
+            </label>
+            <input
+              type="text"
+              value={settings.watermarkText ?? "Bow Down Visuals"}
+              onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
+              placeholder="Bow Down Visuals"
+              className="w-full bg-white/[0.04] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
+            />
+          </div>
+        )}
+
+        {/* ── Waveform position ── */}
+        {settings.overlays.includes("Animated Waveform") && (
+          <div className="mt-3 pt-2 border-t border-white/[0.06]">
+            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
+              Waveform Position
+            </label>
+            <Dropdown
+              value={settings.waveformPosition ?? "bottom-safe"}
+              options={["bottom-safe", "top", "bottom", "hidden"]}
+              onChange={(v) => setSettings({ ...settings, waveformPosition: v })}
+            />
+            <p className="text-[10px] text-white/25 mt-1">
+              "bottom-safe" keeps the waveform above the caption area.
+            </p>
+          </div>
+        )}
+
+        {/* ── Overlay preview status ── */}
+        {settings.overlays.length > 0 && (() => {
+          const VISUAL = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
+          const vCount = settings.overlays.filter((o) => VISUAL.includes(o)).length;
+          const stackSafe = vCount <= 3;
+          const wfPos = settings.waveformPosition ?? "bottom-safe";
+          const captionsReadable =
+            !settings.overlays.includes("Animated Waveform") ||
+            ["bottom-safe", "top", "hidden"].includes(wfPos);
+          const rows: [string, string, boolean][] = [
+            ["overlay preview active", "yes", true],
+            ["overlay stack safe", stackSafe ? "yes" : `${vCount} overlays — opacity reduced`, stackSafe],
+            ["captions readable", captionsReadable ? "yes" : "waveform may cover captions", captionsReadable],
+          ];
+          return (
+            <div className="mt-3 pt-2 border-t border-white/[0.06] space-y-1">
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-wide mb-1">Overlay Preview Status</p>
+              {rows.map(([label, val, ok]) => (
+                <div key={label} className="flex items-center justify-between gap-2 text-[10px] font-mono">
+                  <span className="text-white/35">{label}</span>
+                  <span className={`font-bold ${ok ? "text-green-400" : "text-amber-400"}`}>{val}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </EditorCard>
 
       {/* ── Transitions ── */}

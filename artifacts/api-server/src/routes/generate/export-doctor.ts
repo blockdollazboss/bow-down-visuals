@@ -1715,6 +1715,171 @@ router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) =
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * POST /export-doctor/export-all-overlays
+ * Extends the full effects + captions pipeline with a watermark drawtext.
+ * Animated CSS overlays (Rain/Smoke/Sparks/etc.) are NOT export-safe and are
+ * reported as unsupportedOverlays.  Only the watermarkText field is burned.
+ * ────────────────────────────────────────────────────────────────────────── */
+router.post("/export-doctor/export-all-overlays", requireAuth, async (req, res) => {
+  try {
+    type OvrBody = {
+      multiId?: string;
+      audioUrl?: string;
+      captions?: CaptionBurnConfig | null;
+      effects?: string[] | null;
+      overlays?: string[] | null;
+      overlayIntensity?: Record<string, number> | null;
+      watermarkText?: string;
+      conflictMode?: EffectConflictMode;
+    };
+    const { multiId, audioUrl, captions, effects, overlays, overlayIntensity, watermarkText, conflictMode } = req.body as OvrBody;
+
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+    const blocker = multiClipsBlocker(session);
+    if (blocker) {
+      res.status(400).json({ error: blocker });
+      return;
+    }
+
+    /* ── Classify overlays ── */
+    const ANIMATED = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
+    const ovList = Array.isArray(overlays) ? overlays : [];
+    const unsupportedOverlays = ovList.filter((o) => ANIMATED.includes(o));
+    const watermarkTextSafe = (watermarkText ?? "Bow Down Visuals").trim() || "Bow Down Visuals";
+    const overlaysFound = ovList.length > 0 || !!watermarkTextSafe;
+    const watermarkFound = !!watermarkTextSafe;
+    const overlaysIncluded = ["Watermark Text"];
+    const watermarkIncluded = true;
+
+    /* ── Effects pipeline ── */
+    const totalDurationSec = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
+    const effectList = Array.isArray(effects) ? effects.filter((e) => typeof e === "string" && e.trim()) : [];
+    const resolvedConflictMode: EffectConflictMode =
+      conflictMode === "bw-only" || conflictMode === "gold-only" ? conflictMode : "blend";
+    const stackResult = buildEffectStack(effectList, totalDurationSec, resolvedConflictMode);
+    const effectFilter = stackResult.filter;
+    const effectsFound = effectList.length > 0;
+    const effectsExportConnected = !!effectFilter && stackResult.stackMatch;
+
+    /* ── Watermark drawtext filter ── */
+    const fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+    const wmEsc = watermarkTextSafe.replace(/\\/g, "\\\\").replace(/'/g, "'\\''").replace(/:/g, "\\:").replace(/,/g, "\\,");
+    const wmOpacity = Math.max(0.10, Math.min(1.0, ((overlayIntensity ?? {})["Logo / Watermark"] ?? 65) / 100));
+    const drawtextFilter = `drawtext=fontfile='${fontPath}':text='${wmEsc}':fontsize=20:fontcolor=white@${wmOpacity.toFixed(2)}:x=w-tw-18:y=h-th-18:box=1:boxcolor=black@0.42:boxborderw=5`;
+    const combinedFilter = effectFilter ? `${effectFilter},${drawtextFilter}` : drawtextFilter;
+
+    if (!audioUrl || !audioUrl.startsWith("http")) {
+      res.status(400).json({ error: "No master-player audio URL provided.", overlaysFound, unsupportedOverlays, watermarkFound });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source.", overlaysFound, unsupportedOverlays, watermarkFound });
+      return;
+    }
+
+    /* ── Download audio ── */
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `ovr-audio${ext}`);
+    req.log.info({ multiId, watermarkText: watermarkTextSafe, unsupportedOverlays }, "EXPORT DOCTOR export-all-overlays");
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ overlaysFound, unsupportedOverlays, watermarkFound, audioDownloaded: false, error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    if (!existsSync(audioPath) || statSync(audioPath).size < 1024) {
+      res.json({ overlaysFound, unsupportedOverlays, watermarkFound, audioDownloaded: false, error: "Audio file was not created or is too small." });
+      return;
+    }
+    const aProbe = await probeMedia(audioPath);
+
+    /* ── Captions ── */
+    const validLines = (captions?.lines ?? []).filter(
+      (l) => !!l.text?.trim() && Number.isFinite(l.startSec) && Number.isFinite(l.endSec) && l.endSec > l.startSec && l.startSec >= 0,
+    );
+    const captionsFound = !!captions && captions.mode !== "none" && (validLines.length > 0 || captions.showArtistName || captions.showSongTitle);
+    let assPath: string | null = null;
+    let captionsBurned = false;
+    if (captionsFound) {
+      const assContent = buildAssContent(captions!, MULTI_TARGET_W, MULTI_TARGET_H, totalDurationSec, 0);
+      if (assContent.trim()) {
+        assPath = path.join(session.folder, `ovr-captions-${multiId}.ass`);
+        writeFileSync(assPath, assContent, "utf8");
+        captionsBurned = true;
+      }
+    }
+
+    /* ── Normalize + concat ── */
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ overlaysFound, unsupportedOverlays, watermarkFound, error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "ovr-test.mp4", assPath, combinedFilter || null);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        overlaysFound, unsupportedOverlays, watermarkFound, watermarkIncluded, overlaysIncluded,
+        effectsFound, effectsExportConnected, testExportCreated: false,
+        error: `FFmpeg concat+watermark failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ overlaysFound, unsupportedOverlays, watermarkFound, testExportCreated: false, error: "FFmpeg produced no usable output file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-all-clips-overlays-watermark.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+      contentType: "video/mp4", resumable: false,
+    });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      clipCount: normPaths.length,
+      overlaysFound, unsupportedOverlays, watermarkFound, watermarkIncluded,
+      overlaysIncluded, overlayWatermarkText: watermarkTextSafe,
+      overlayExportConnected: true,
+      effectsFound, effectsExportConnected, effectsPreserved: true,
+      captionsFound, captionsPreserved: captionsBurned,
+      audioPreserved: probe.hasAudio, audioDownloaded: true, audioValid: true,
+      audioFileSize: statSync(audioPath).size, audioDuration: aProbe.duration,
+      testExportCreated: true,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
  * POST /export-doctor/export-effects-range
  * Render a short window (≤3s) starting at the master playhead with the EXACT
  * effect stack the master uses — the "3-Second Effect Match Test".

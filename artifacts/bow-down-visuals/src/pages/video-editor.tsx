@@ -749,6 +749,8 @@ export default function VideoEditor() {
               testOverlayActive={testOverlayActive}
               activeOverlayChips={settings.overlays}
               overlayIntensity={settings.overlayIntensity}
+              watermarkText={settings.watermarkText ?? "Bow Down Visuals"}
+              waveformPosition={settings.waveformPosition ?? "bottom-safe"}
               onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
@@ -1087,6 +1089,7 @@ function MasterPreviewPlayer({
   eng, scenes, liveVideoRef, previewScene, tab, captionSettings,
   settings, testEffectActive,
   outgoingVideoRef, transitionState, testOverlayActive, activeOverlayChips, overlayIntensity,
+  watermarkText, waveformPosition,
   onTogglePlay, onRestart,
 }: {
   eng: SharedPreviewState | null;
@@ -1102,6 +1105,8 @@ function MasterPreviewPlayer({
   testOverlayActive: boolean;
   activeOverlayChips: string[];
   overlayIntensity: Record<string, number>;
+  watermarkText: string;
+  waveformPosition: string;
   onTogglePlay: () => void;
   onRestart: () => void;
 }) {
@@ -1388,6 +1393,8 @@ function MasterPreviewPlayer({
           activeOverlays={activeOverlayChips}
           intensity={overlayIntensity}
           testActive={testOverlayActive}
+          watermarkText={watermarkText}
+          waveformPosition={waveformPosition}
         />
 
         {/* ── Structured overlay layer (timed items + test badge) ── */}

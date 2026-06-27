@@ -1,0 +1,159 @@
+Fix overlays and watermark before normal export.
+
+Problem:
+Overlays and watermark are still broken.
+
+In the master player I can see:
+- Light leaks are too strong and cover the video
+- Smoke/rain/sparks/dust are unclear or not realistic
+- Animated waveform covers the caption area
+- Logo/watermark still says “YOUR WATERMARK”
+- All overlay intensity sliders are at 100%, which looks bad
+- Overlay export is not proven yet
+
+Do not change:
+- Export Doctor clips/audio/captions/effects pipeline
+- normal export connection
+- caption sync
+- caption styles
+- master player layout
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe, credits, or payments
+
+Only fix overlays and watermark.
+
+PART 1 — DEFAULT OVERLAY INTENSITY
+
+Change overlay defaults so they look professional:
+
+- Light Leaks: 20%
+- Lens Flare: 20%
+- Smoke: 15%
+- Rain: 20%
+- Sparks: 15%
+- Dust: 12%
+- Animated Waveform: 35%
+- Logo / Watermark: 65%
+
+Do not default every overlay to 100%.
+
+PART 2 — OVERLAY STACKING
+
+If multiple overlays are active, reduce combined intensity automatically.
+
+Example:
+If Light Leaks + Smoke + Rain + Sparks are all active:
+- do not let the video become washed out
+- lower opacity/blend safely
+- keep captions readable
+
+PART 3 — WATERMARK FIX
+
+Replace placeholder text:
+YOUR WATERMARK
+
+With real project branding.
+
+Use one of these:
+- Bow Down Visuals
+- uploaded logo if available
+- project watermark text setting
+
+Add a text field:
+Watermark Text
+
+Default:
+Bow Down Visuals
+
+Add controls:
+- position: bottom right, bottom left, top right, top left, center
+- opacity
+- size
+- show/hide watermark
+
+PART 4 — WAVEFORM FIX
+
+Animated waveform should not cover captions.
+
+Add waveform positions:
+- bottom under captions
+- top
+- left side
+- right side
+- behind captions
+- hidden
+
+Default:
+bottom under captions
+
+Waveform should respect caption safe area.
+
+PART 5 — REALISTIC OVERLAY QUALITY
+
+Improve overlays:
+
+Rain:
+- thinner streaks
+- natural falling motion
+- not thick lines
+
+Smoke:
+- soft drifting smoke
+- not a solid fog block
+
+Sparks:
+- small glowing particles
+- random movement
+- not flat dots
+
+Dust:
+- subtle particles
+- low opacity
+
+Light Leaks:
+- soft cinematic glow
+- not a giant solid orange block
+
+Lens Flare:
+- subtle cinematic flare
+- not a huge circle blocking the face
+
+PART 6 — MASTER PLAYER PREVIEW
+
+When I change any overlay slider:
+- master player updates immediately
+- no refresh needed
+
+Show status:
+Overlay Preview Active: yes
+Overlay Stack Safe: yes/no
+Captions Readable: yes/no
+
+PART 7 — EXPORT DOCTOR OVERLAY TEST
+
+Add Export Doctor button:
+Export All 5 Clips + Audio + Captions + Effects + Overlays Only
+
+Use the already working effects export pipeline and add overlays.
+
+Add status:
+Overlay Export Doctor:
+- overlays found: yes/no
+- overlays included: list
+- watermark text
+- waveform position
+- captions preserved: yes/no
+- effects preserved: yes/no
+- audio preserved: yes/no
+- overlay export created: yes/no
+- unsupported overlays skipped: list
+- last error
+
+PART 8 — DO NOT CONNECT TO NORMAL EXPORT YET
+
+Do not connect overlays to normal export until Export Doctor overlay test works.
+
+Final goal:
+Overlays should look premium, subtle, readable, and not block the artist or captions. Watermark must not say “YOUR WATERMARK.” Export Doctor must prove overlays export correctly before normal export uses them.

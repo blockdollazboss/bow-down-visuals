@@ -861,6 +861,9 @@ export function ExportSection({
         masterAudioUrl={masterAudioUrl ?? null}
         captions={settings.captions}
         effects={settings.effects}
+        overlays={settings.overlays}
+        overlayIntensity={settings.overlayIntensity}
+        watermarkText={settings.watermarkText}
         masterCurrentTimeSec={masterCurrentTimeSec}
         projectDurationSec={projectDurationSec}
         appliedTransitions={(settings.aiEdit?.appliedTransitions ?? []).map((t) => ({
