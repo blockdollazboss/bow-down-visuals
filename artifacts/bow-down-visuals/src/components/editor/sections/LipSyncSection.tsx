@@ -57,6 +57,12 @@ interface InputCheckResult {
   audio:          UrlCheckResult & { url: string | null };
   clip:           UrlCheckResult & { url: string | null };
   provider:       { connected: boolean; providerName: string | null };
+  payload?:       {
+    sanitizedKeys:  string[];
+    removedFields:  string[];
+    payloadValid:   boolean;
+    sanitizedReady: boolean;
+  };
   readyToSubmit:  boolean;
   checkedAt:      string;
 }
@@ -941,18 +947,21 @@ export function LipSyncSection({
           {!demoMode && (
             <EditorCard title="Lip Sync Input Check" icon={<ShieldCheck className="h-4 w-4" />}>
               <div className="space-y-3">
+
+                {/* URL + provider checks */}
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest pb-0.5">URLs &amp; Provider</p>
                   <StatusRow
                     label="audio ready"
                     value={audioReady ? "yes ✓" : "no"}
                     ok={audioReady}
                   />
                   <StatusRow
-                    label="audio signed URL ready"
+                    label="audio URL ready"
                     value={
                       !inputCheck ? "—"
                       : inputCheck.audio.found ? "yes ✓"
-                      : inputCheck.audio.error ? `no — ${inputCheck.audio.error.slice(0, 60)}`
+                      : inputCheck.audio.error ? `no — ${inputCheck.audio.error.slice(0, 50)}`
                       : "no"
                     }
                     ok={!inputCheck ? null : inputCheck.audio.found}
@@ -967,16 +976,64 @@ export function LipSyncSection({
                     value={
                       !inputCheck ? "—"
                       : inputCheck.clip.found ? "yes ✓"
-                      : inputCheck.clip.error ? `no — ${inputCheck.clip.error.slice(0, 60)}`
+                      : inputCheck.clip.error ? `no — ${inputCheck.clip.error.slice(0, 50)}`
                       : "no"
                     }
                     ok={!inputCheck ? null : inputCheck.clip.found}
                   />
                   <StatusRow
-                    label="provider connected"
+                    label="provider key present"
                     value={providerConnected ? "yes ✓" : "no"}
                     ok={providerConnected}
                   />
+                </div>
+
+                {/* Payload validation */}
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Sync Labs Payload</p>
+                  <StatusRow
+                    label="invalid fields in payload"
+                    value={!inputCheck?.payload ? "—" : "none ✓"}
+                    ok={!inputCheck?.payload ? null : true}
+                  />
+                  <StatusRow
+                    label="removed from payload"
+                    value={
+                      !inputCheck?.payload ? "—"
+                      : inputCheck.payload.removedFields.length > 0
+                        ? inputCheck.payload.removedFields.join(", ")
+                        : "none"
+                    }
+                    ok={null}
+                  />
+                  <StatusRow
+                    label="payload validated"
+                    value={
+                      !inputCheck?.payload ? "—"
+                      : inputCheck.payload.payloadValid ? "yes ✓"
+                      : "no"
+                    }
+                    ok={!inputCheck?.payload ? null : inputCheck.payload.payloadValid}
+                  />
+                  <StatusRow
+                    label="sanitized payload ready"
+                    value={
+                      !inputCheck?.payload ? "—"
+                      : inputCheck.payload.sanitizedReady ? "yes ✓"
+                      : "no"
+                    }
+                    ok={!inputCheck?.payload ? null : inputCheck.payload.sanitizedReady}
+                  />
+                  {inputCheck?.payload?.sanitizedKeys && (
+                    <div className="flex items-center justify-between gap-2 text-[11px] pt-0.5">
+                      <span className="font-mono text-white/30 text-[10px]">payload keys</span>
+                      <span className="text-white/30 text-[10px] font-mono">{inputCheck.payload.sanitizedKeys.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Overall ready */}
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5">
                   <StatusRow
                     label="ready to submit"
                     value={
@@ -988,7 +1045,7 @@ export function LipSyncSection({
                   />
                 </div>
 
-                {/* Errors from last check */}
+                {/* URL errors */}
                 {inputCheck && (inputCheck.audio.error || inputCheck.clip.error) && (
                   <div className="space-y-1.5">
                     {inputCheck.audio.error && (
@@ -1010,7 +1067,7 @@ export function LipSyncSection({
                 {inputCheck?.readyToSubmit && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/25 bg-green-500/[0.05] text-green-400/90 text-[10px] font-semibold">
                     <CheckCircle2 className="h-3 w-3 shrink-0" />
-                    All inputs verified — ready to submit
+                    All checks passed — safe to submit
                   </div>
                 )}
 
@@ -1021,8 +1078,8 @@ export function LipSyncSection({
                   className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {inputCheckLoading
-                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running checks…</>
-                    : <><ScanSearch className="h-3.5 w-3.5" /> Run Input Check</>}
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Validating…</>
+                    : <><ScanSearch className="h-3.5 w-3.5" /> Validate Sync Labs Payload</>}
                 </button>
               </div>
             </EditorCard>

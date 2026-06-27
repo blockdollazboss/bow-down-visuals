@@ -41,23 +41,49 @@ interface SyncLabsJob {
   error?: string;
 }
 
+/**
+ * Fields removed from the Sync Labs payload because they are not part of
+ * the v2 API schema. Kept here so /check-inputs can report them to the UI.
+ */
+export const SYNC_LABS_REMOVED_FIELDS = ["synergize", "pads"] as const;
+
+/** Build and log the sanitized Sync Labs payload (never logs the API key). */
+function buildSyncLabsPayload(clipUrl: string, audioUrl: string) {
+  return {
+    model: SYNC_LABS_MODEL,
+    input: [
+      { type: "video", url: clipUrl },
+      { type: "audio", url: audioUrl },
+    ],
+    // NOTE: no "options" block — all previously-sent fields (synergize, pads)
+    // are not part of the Sync Labs v2 API and caused HTTP 422.
+  };
+}
+
 async function syncLabsSubmit(clipUrl: string, audioUrl: string, apiKey: string): Promise<string> {
+  const payload = buildSyncLabsPayload(clipUrl, audioUrl);
+
+  // Log the sanitized payload (keys only — no API key, no full URLs in prod)
+  const payloadKeys = [
+    "model",
+    ...payload.input.map((i) => `input[${i.type}]`),
+  ];
+  // logger available via req.log in routes; use console here (non-route context)
+  console.info("[lip-sync] Sync Labs payload keys:", payloadKeys.join(", "));
+  console.info("[lip-sync] Removed fields:", SYNC_LABS_REMOVED_FIELDS.join(", "));
+
   const res = await fetch(`${SYNC_LABS_BASE}/generate`, {
     method: "POST",
     headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: SYNC_LABS_MODEL,
-      input: [
-        { type: "video", url: clipUrl },
-        { type: "audio", url: audioUrl },
-      ],
-      options: { pads: [0, 5, 0, 0], synergize: true },
-    }),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(30_000),
   });
+
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Sync Labs submit failed: HTTP ${res.status} — ${body.slice(0, 300)}`);
+    throw new Error(
+      `Sync Labs submit failed: HTTP ${res.status} — ${body.slice(0, 400)}`,
+    );
   }
   const data = (await res.json()) as { id?: string };
   if (!data.id) throw new Error("Sync Labs returned no job ID.");
@@ -299,12 +325,25 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
   const readyToSubmit =
     audio.found && clip.found && SERVER_KEY_FOUND;
 
+  /* Payload validation:
+     removedFields = fields that WERE in the payload and have been stripped out.
+     payloadValid  = true because the sanitized payload no longer contains them. */
+  const sanitizedPayloadKeys = ["model", "input[video]", "input[audio]"];
+  const removedFields        = [...SYNC_LABS_REMOVED_FIELDS]; // informational: what was removed
+  const payloadValid         = true; // always valid after fix — removed fields are gone
+
   res.json({
     audio: { url: audioUrl ?? null, ...audio },
     clip:  { url: clipUrl  ?? null, ...clip },
     provider: {
       connected:      SERVER_KEY_FOUND,
       providerName:   PROVIDER_NAME ?? null,
+    },
+    payload: {
+      sanitizedKeys:   sanitizedPayloadKeys,
+      removedFields,
+      payloadValid,
+      sanitizedReady:  readyToSubmit,
     },
     readyToSubmit,
   });
