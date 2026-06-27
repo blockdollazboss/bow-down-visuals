@@ -860,6 +860,7 @@ export function ExportSection({
         projectId={projectId}
         masterAudioUrl={masterAudioUrl ?? null}
         captions={settings.captions}
+        effects={settings.effects}
       />
     </div>
   );

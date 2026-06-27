@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers,
+  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
@@ -15,6 +15,8 @@ interface ExportDoctorProps {
   masterAudioUrl?: string | null;
   /** The exact caption settings (synced lines + style) the master player is using. */
   captions?: CaptionSettings | null;
+  /** The exact saved Auto AI effects (settings.effects) the master player is using. */
+  effects?: string[] | null;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -75,6 +77,15 @@ type ExportResult = {
   captionStyleFound?: boolean;
   captionsBurned?: boolean;
   stylePreset?: string;
+  effectsFound?: boolean;
+  effectsCount?: number;
+  effectsExportConnected?: boolean;
+  supportedEffects?: string[];
+  unsupportedEffects?: string[];
+  effectFilter?: string;
+  captionsPreserved?: boolean;
+  audioPreserved?: boolean;
+  testExportCreated?: boolean;
   error?: string;
   stderrTail?: string[];
 };
@@ -119,7 +130,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL
@@ -127,7 +138,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects"
   >(null);
   const [urlResult, setUrlResult] = useState<UrlTestResult | null>(null);
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
@@ -140,6 +151,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
   const [exportAllResult, setExportAllResult] = useState<ExportResult | null>(null);
   const [exportAllAudioResult, setExportAllAudioResult] = useState<ExportResult | null>(null);
   const [exportAllCaptionsResult, setExportAllCaptionsResult] = useState<ExportResult | null>(null);
+  const [exportAllEffectsResult, setExportAllEffectsResult] = useState<ExportResult | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -233,7 +245,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
 
   async function downloadAllClips() {
     setBusy("download-all"); setLastError(null);
-    setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null);
+    setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null); setExportAllEffectsResult(null);
     try {
       const res = await fetch("/api/export-doctor/download-all", {
         method: "POST", headers: await authHeaders(),
@@ -304,6 +316,25 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
     } finally { setBusy(null); }
   }
 
+  async function exportAllClipsEffects() {
+    if (!multiId) return;
+    setBusy("export-all-effects"); setLastError(null); setExportAllEffectsResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-all-effects", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ multiId, audioUrl: masterAudioUrl ?? null, captions: captions ?? null, effects: effects ?? [] }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      // Persist the body even on non-2xx so the real FFmpeg error + stderrTail survive.
+      setExportAllEffectsResult(data);
+      if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
   if (!scene1) return null;
 
   // Every candidate URL field for Scene 1 (only demoClipUrl is populated in this data model)
@@ -350,6 +381,28 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
     ["caption style found", `${(r?.captionStyleFound ?? fcCaptionStyleFound) ? "yes" : "no"}${captions?.stylePreset ? ` · ${r?.stylePreset ?? captions.stylePreset}` : ""}`, r?.captionStyleFound ?? fcCaptionStyleFound],
     ["captions burned into export", r ? (r.captionsBurned ? "yes" : "no") : "—", r ? !!r.captionsBurned : null],
     ["test export created", r ? (r.success ? "yes" : "no") : "—", r ? !!r.success : null],
+  ];
+
+  // ── Effects pre-check (frontend, from the master player's saved Auto AI effects) ──
+  const SUPPORTED_EFFECTS = [
+    "Film Grain", "Glow", "Blur", "Sharpen", "Vignette", "Black & White", "Neon Glow", "VHS",
+    "Cinematic Bars", "Camera Shake", "Slow Zoom", "Speed Ramp", "Warm Grade", "Cool Grade",
+    "Teal & Orange", "Moody Desaturated", "Vibrant Pop", "Street Night", "Luxury Gold", "Dark Drill", "Cinematic Contrast",
+  ];
+  const fxList = effects ?? [];
+  const fcEffectsCount = fxList.length;
+  const fcEffectsFound = fcEffectsCount > 0;
+  const fcUnsupported = fxList.filter((e) => !SUPPORTED_EFFECTS.includes(e));
+  const fx = exportAllEffectsResult;
+  const fxUnsupported = fx?.unsupportedEffects ?? fcUnsupported;
+  const effectsStatusRows: [string, string, boolean | null][] = [
+    ["effects found", (fx?.effectsFound ?? fcEffectsFound) ? "yes" : "no", fx?.effectsFound ?? fcEffectsFound],
+    ["effects count", String(fx?.effectsCount ?? fcEffectsCount), (fx?.effectsCount ?? fcEffectsCount) > 0],
+    ["effects export connected", fx ? (fx.effectsExportConnected ? "yes" : "no") : "—", fx ? !!fx.effectsExportConnected : null],
+    ["unsupported effects skipped", fxUnsupported.length > 0 ? fxUnsupported.join(", ") : "none", fxUnsupported.length === 0 ? true : null],
+    ["captions preserved", fx ? (fx.captionsPreserved ? "yes" : "no") : "—", fx ? !!fx.captionsPreserved : null],
+    ["audio preserved", fx ? (fx.audioPreserved ? "yes" : "no") : "—", fx ? !!fx.audioPreserved : null],
+    ["test export created", fx ? (fx.testExportCreated ? "yes" : "no") : "—", fx ? !!fx.testExportCreated : null],
   ];
 
   return (
@@ -566,6 +619,12 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
               {busy === "export-all-captions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
               Export All {multiClips.length} Clips + Audio + Captions Only
             </Button>
+            <Button onClick={exportAllClipsEffects} disabled={busy !== null || !allClipsValid || !fcEffectsFound} variant="outline"
+              className="gap-2 border-fuchsia-500/30 bg-fuchsia-500/5 text-fuchsia-400 hover:bg-fuchsia-500/10 text-xs disabled:opacity-40"
+              data-testid="btn-doctor-export-all-effects">
+              {busy === "export-all-effects" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Export All {multiClips.length} Clips + Audio + Captions + Effects Only
+            </Button>
           </div>
           {!allClipsValid && (
             <p className="text-center text-[10px] text-white/25 leading-relaxed -mt-1 mb-3">
@@ -685,6 +744,46 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions }: Ex
               <a href={exportAllCaptionsResult.url} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
                 <ExternalLink className="h-3 w-3" /> Open / download captioned test video
+              </a>
+            </div>
+          )}
+
+          {/* ── Effects Export Doctor status block ── */}
+          <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
+            <p className="text-[10px] font-black text-fuchsia-400/70 uppercase tracking-widest mb-1">Effects Export Doctor</p>
+            {effectsStatusRows.map(([label, val, ok]) => (
+              <div key={label} className="flex items-start justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40 shrink-0">{label}</span>
+                <span className={`font-bold text-right break-words ${ok === null ? "text-white/30" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+              </div>
+            ))}
+            <div className="flex items-start justify-between gap-2 text-[11px] font-mono pt-1 mt-1 border-t border-white/[0.06]">
+              <span className="text-white/40 shrink-0">last error</span>
+              <span className="text-red-400/80 text-right break-words leading-snug">
+                {exportAllEffectsResult?.error ?? (busy !== "export-all-effects" && exportAllEffectsResult === null ? (lastError ?? "—") : "—")}
+              </span>
+            </div>
+            {/* Real FFmpeg effects error tail on failure */}
+            {exportAllEffectsResult?.stderrTail && exportAllEffectsResult.stderrTail.length > 0 && (
+              <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
+                <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest">FFmpeg effects error</span>
+                {exportAllEffectsResult.stderrTail.map((line, i) => (
+                  <div key={i} className="text-[10px] font-mono text-red-400/70 break-words leading-snug">{line}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Effects test export result ── */}
+          {exportAllEffectsResult?.success && exportAllEffectsResult.url && (
+            <div className="rounded-xl border border-fuchsia-500/25 bg-fuchsia-500/[0.04] px-3 py-3 space-y-2 mt-3">
+              <div className="flex items-center gap-2 text-[11px] text-fuchsia-300 font-bold">
+                <CheckCircle2 className="h-4 w-4" /> Effects burned · {exportAllEffectsResult.clipCount ?? "?"} clips · {exportAllEffectsResult.duration?.toFixed(1)}s · {exportAllEffectsResult.effectsCount ?? 0} fx · captions {exportAllEffectsResult.captionsPreserved ? "✓" : "—"} · audio {exportAllEffectsResult.hasAudio ? "✓" : "✗"}
+              </div>
+              <video src={exportAllEffectsResult.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={exportAllEffectsResult.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download effects test video
               </a>
             </div>
           )}

@@ -174,13 +174,112 @@ async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]>
   return normPaths;
 }
 
-/** Concatenate normalized clips (scene order) with optional audio + optional burned ASS captions. */
+/* ── Auto AI effects → FFmpeg filter translation ──────────
+ * Mirrors the master player's EFFECT_CSS_FILTERS table (video-editor.tsx) so a
+ * burned export matches the live CSS preview as closely as possible. Only color
+ * effects (eq / hue / colorchannelmixer / gblur) are export-safe here; animated
+ * overlays (Smoke / Rain / Sparks) are intentionally NOT in this map. */
+const EFFECT_CSS_FILTERS: Record<string, string> = {
+  "Film Grain":        "contrast(108%) brightness(97%)",
+  "Glow":              "brightness(118%) saturate(140%)",
+  "Blur":              "blur(2px)",
+  "Sharpen":           "contrast(125%) brightness(103%)",
+  "Vignette":          "brightness(82%)",
+  "Black & White":     "grayscale(100%)",
+  "Neon Glow":         "hue-rotate(270deg) saturate(180%) brightness(115%)",
+  "VHS":               "saturate(75%) contrast(112%) hue-rotate(8deg) brightness(92%)",
+  "Cinematic Bars":    "brightness(83%) contrast(112%)",
+  "Camera Shake":      "contrast(108%) saturate(105%)",
+  "Slow Zoom":         "saturate(115%) brightness(103%)",
+  "Speed Ramp":        "contrast(120%) brightness(98%)",
+  "Warm Grade":        "sepia(40%) saturate(135%) brightness(108%)",
+  "Cool Grade":        "hue-rotate(195deg) saturate(115%) brightness(94%)",
+  "Teal & Orange":     "hue-rotate(20deg) saturate(165%) contrast(110%)",
+  "Moody Desaturated": "saturate(40%) contrast(120%) brightness(88%)",
+  "Vibrant Pop":       "saturate(210%) brightness(108%) contrast(106%)",
+  "Street Night":      "hue-rotate(230deg) saturate(145%) brightness(80%) contrast(128%)",
+  "Luxury Gold":       "sepia(65%) saturate(175%) brightness(112%) contrast(108%)",
+  "Dark Drill":        "brightness(72%) contrast(148%) saturate(55%)",
+  "Cinematic Contrast":"contrast(155%) saturate(88%) brightness(90%)",
+};
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+/** Standard sepia matrix blended toward identity by `amount` (0..1). */
+function sepiaColorMixer(amount: number): string {
+  const a = clamp(amount, 0, 1);
+  const id = (x: number) => 1 - a + a * x; // diagonal
+  const off = (x: number) => a * x;        // off-diagonal
+  const rr = id(0.393), rg = off(0.769), rb = off(0.189);
+  const gr = off(0.349), gg = id(0.686), gb = off(0.168);
+  const br = off(0.272), bg = off(0.534), bb = id(0.131);
+  const f = (x: number) => x.toFixed(4);
+  return `colorchannelmixer=rr=${f(rr)}:rg=${f(rg)}:rb=${f(rb)}:gr=${f(gr)}:gg=${f(gg)}:gb=${f(gb)}:br=${f(br)}:bg=${f(bg)}:bb=${f(bb)}`;
+}
+
+/**
+ * Translate the combined CSS filter string (exactly as the master player builds it)
+ * into an FFmpeg filter chain. Returns "" when nothing translatable is present.
+ */
+function cssToFfmpegChain(combinedCss: string): string {
+  let brightnessMul = 1, contrastMul = 1, satMul = 1, hueDeg = 0, blurSigma = 0, sepiaAmt = 0;
+  const re = /([a-z-]+)\(([^)]+)\)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(combinedCss)) !== null) {
+    const fn = m[1]!.toLowerCase();
+    const raw = m[2]!.trim();
+    const num = parseFloat(raw);
+    if (!Number.isFinite(num)) continue;
+    const pct = raw.includes("%") ? num / 100 : num;
+    switch (fn) {
+      case "brightness": brightnessMul *= pct; break;
+      case "contrast":   contrastMul   *= pct; break;
+      case "saturate":   satMul        *= pct; break;
+      case "grayscale":  satMul        *= (1 - pct); break;
+      case "hue-rotate": hueDeg        += num; break; // degrees
+      case "blur":       blurSigma      = Math.max(blurSigma, num); break;
+      case "sepia":      sepiaAmt       = Math.max(sepiaAmt, pct); break;
+      default: break;
+    }
+  }
+  const parts: string[] = [];
+  if (sepiaAmt > 0) parts.push(sepiaColorMixer(sepiaAmt));
+  // eq: CSS brightness is multiplicative → approximate as additive (mul-1)*0.5
+  const eqBrightness = clamp((brightnessMul - 1) * 0.5, -1, 1);
+  const eqContrast = clamp(contrastMul, 0, 3);
+  const eqSaturation = clamp(satMul, 0, 3);
+  const eqBits: string[] = [];
+  if (Math.abs(eqContrast - 1) > 0.001) eqBits.push(`contrast=${eqContrast.toFixed(4)}`);
+  if (Math.abs(eqBrightness) > 0.001) eqBits.push(`brightness=${eqBrightness.toFixed(4)}`);
+  if (Math.abs(eqSaturation - 1) > 0.001) eqBits.push(`saturation=${eqSaturation.toFixed(4)}`);
+  if (eqBits.length > 0) parts.push(`eq=${eqBits.join(":")}`);
+  if (hueDeg !== 0) parts.push(`hue=h=${(((hueDeg % 360) + 360) % 360).toFixed(2)}`);
+  if (blurSigma > 0) parts.push(`gblur=sigma=${blurSigma.toFixed(2)}`);
+  return parts.join(",");
+}
+
+/** Build the FFmpeg effect chain + report which named effects were supported / skipped. */
+function buildEffectFilter(effects: string[]): { filter: string; supported: string[]; unsupported: string[] } {
+  const supported: string[] = [];
+  const unsupported: string[] = [];
+  const cssBits: string[] = [];
+  for (const fx of effects) {
+    const css = EFFECT_CSS_FILTERS[fx];
+    if (css) { supported.push(fx); cssBits.push(css); }
+    else unsupported.push(fx);
+  }
+  const filter = cssBits.length > 0 ? cssToFfmpegChain(cssBits.join(" ")) : "";
+  return { filter, supported, unsupported };
+}
+
+/** Concatenate normalized clips (scene order) with optional audio + optional effects + optional burned ASS captions. */
 async function concatMultiClips(
   folder: string,
   normPaths: string[],
   audioPath: string | null,
   outName: string,
   assPath: string | null = null,
+  effectFilter: string | null = null,
 ): Promise<string> {
   const outputPath = path.join(folder, outName);
   const filterParts: string[] = [];
@@ -190,16 +289,22 @@ async function concatMultiClips(
   const segs = normPaths.map((_, i) => `[v${i}]`).join("");
   filterParts.push(`${segs}concat=n=${normPaths.length}:v=1:a=0[vout]`);
 
-  // Burn ASS captions over the concatenated video (same subtitles filter the real export uses).
-  let videoLabel = "[vout]";
+  // Effects first (so captions sit on top of the graded video, matching the master player),
+  // then burn ASS captions — same subtitles filter the real export uses.
+  let label = "vout";
+  if (effectFilter) {
+    filterParts.push(`[${label}]${effectFilter}[veff]`);
+    label = "veff";
+  }
   if (assPath) {
     const escapedPath = assPath
       .replace(/\\/g, "\\\\")
       .replace(/:/g, "\\:")
       .replace(/'/g, "\\'");
-    filterParts.push(`[vout]subtitles='${escapedPath}'[vfinal]`);
-    videoLabel = "[vfinal]";
+    filterParts.push(`[${label}]subtitles='${escapedPath}'[vfinal]`);
+    label = "vfinal";
   }
+  const videoLabel = `[${label}]`;
 
   const audioIdx = audioPath ? normPaths.length : -1;
   const args: string[] = [];
@@ -1144,6 +1249,197 @@ router.post("/export-doctor/export-all-captions", requireAuth, async (req, res) 
       audioValid: true,
       audioFileSize: statSync(audioPath).size,
       audioDuration: aProbe.duration,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * EXPORT ALL CLIPS + AUDIO + CAPTIONS + EFFECTS (export-safe Auto AI effects)
+ * Reuses the working clips+audio+captions path and layers the saved global
+ * Auto AI effects (settings.effects) on top, translated to FFmpeg filters that
+ * mirror the master player's CSS preview. Animated overlays (Smoke/Rain/Sparks)
+ * and branding are intentionally NOT applied here — unsupported effects are
+ * skipped and reported, never fatal.
+ * ────────────────────────────────────────────────────────────────────────── */
+router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, captions, effects } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      captions?: CaptionBurnConfig | null;
+      effects?: string[] | null;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+
+    // HARD STOP: every clip must be valid + present before mixing audio + captions + effects.
+    const blocker = multiClipsBlocker(session);
+    if (blocker) {
+      res.status(400).json({ error: blocker });
+      return;
+    }
+
+    // ── Effects: translate saved global Auto AI effects to FFmpeg, skip unsupported ──
+    const effectList = Array.isArray(effects) ? effects.filter((e) => typeof e === "string" && e.trim()) : [];
+    const effectsCount = effectList.length;
+    const effectsFound = effectsCount > 0;
+    const { filter: effectFilter, supported: supportedEffects, unsupported: unsupportedEffects } = buildEffectFilter(effectList);
+    const effectsExportConnected = !!effectFilter;
+
+    if (!effectsFound) {
+      res.status(400).json({
+        error: "No Auto AI effects found — select at least one effect or color grade (Effects tab) before running the effects test.",
+        effectsFound: false, effectsCount: 0, effectsExportConnected: false, unsupportedEffects: [],
+      });
+      return;
+    }
+
+    // ── Captions are optional here (focus is effects), but burned + reported when present ──
+    const validLines = (captions?.lines ?? []).filter(
+      (l) => !!l.text?.trim() && Number.isFinite(l.startSec) && Number.isFinite(l.endSec) && l.endSec > l.startSec && l.startSec >= 0,
+    );
+    const captionRows = captions?.lines?.length ?? 0;
+    const captionTimingValid = captionRows > 0 && validLines.length === captionRows;
+    const captionsFound =
+      !!captions && captions.mode !== "none" &&
+      (validLines.length > 0 || captions.showArtistName || captions.showSongTitle);
+    const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal", "drill", "luxury", "rnb", "kids"];
+    const captionStyleFound = !!captions && KNOWN_PRESETS.includes(captions.stylePreset);
+
+    const baseStatus = {
+      effectsFound, effectsCount, effectsExportConnected, supportedEffects, unsupportedEffects,
+      captionsFound, captionRows, captionTimingValid, captionStyleFound,
+    };
+
+    if (!audioUrl || !audioUrl.startsWith("http")) {
+      res.status(400).json({ ...baseStatus, error: "No master-player audio URL was provided." });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ ...baseStatus, error: "Audio URL host is not an allowed media source (Supabase storage or Replit object storage over HTTPS)." });
+      return;
+    }
+
+    // Download the SAME audio source the other audio tests used.
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `fx-audio${ext}`);
+
+    req.log.info({ multiId, audioUrl: target.slice(0, 100), effectsCount }, "EXPORT DOCTOR download audio for all-clips+captions+effects export");
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ ...baseStatus, audioDownloaded: false, audioValid: false, error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aCt = (ar.headers.get("content-type") ?? "").toLowerCase();
+    if (aCt.startsWith("text/") || aCt.startsWith("application/json") || aCt.startsWith("application/xml")) {
+      res.json({ ...baseStatus, audioDownloaded: false, audioValid: false, error: `Audio URL returned non-audio content (${aCt || "unknown"}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    const audioDownloaded = existsSync(audioPath) && statSync(audioPath).size > 1024;
+    if (!audioDownloaded) {
+      res.json({ ...baseStatus, audioDownloaded: false, audioValid: false, error: "Audio file was not created or is too small." });
+      return;
+    }
+    const aProbe = await probeMedia(audioPath);
+    if (!aProbe.hasAudio) {
+      res.json({
+        ...baseStatus, audioDownloaded: true, audioValid: false, audioFileSize: statSync(audioPath).size,
+        error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.`,
+      });
+      return;
+    }
+    session.audioPath = audioPath;
+
+    // ── Build the ASS caption file from SAVED synced timings when captions exist (timeOffset 0 — no intro). ──
+    const totalDuration = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
+    let assPath: string | null = null;
+    let captionsBurned = false;
+    if (captionsFound) {
+      const assContent = buildAssContent(captions!, MULTI_TARGET_W, MULTI_TARGET_H, totalDuration, 0);
+      if (assContent.trim()) {
+        assPath = path.join(session.folder, `fx-captions-${multiId}.ass`);
+        writeFileSync(assPath, assContent, "utf8");
+        captionsBurned = true;
+      }
+    }
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ ...baseStatus, audioDownloaded: true, audioValid: true, error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    req.log.info({ multiId, clipCount: normPaths.length, effectsCount, supportedEffects, unsupportedEffects, captionsBurned }, "EXPORT DOCTOR export all clips + audio + captions + effects");
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "all-clips-audio-captions-effects-test.mp4", assPath, effectFilter || null);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        ...baseStatus, audioDownloaded: true, audioValid: true, captionsBurned: false, testExportCreated: false,
+        error: `FFmpeg concat+audio+captions+effects failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        effectFilter,
+        stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ ...baseStatus, audioDownloaded: true, audioValid: true, captionsBurned, testExportCreated: false, error: "FFmpeg produced no usable output file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-all-clips-audio-captions-effects.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+      contentType: "video/mp4", resumable: false,
+    });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      clipCount: normPaths.length,
+      effectsFound,
+      effectsCount,
+      effectsExportConnected,
+      supportedEffects,
+      unsupportedEffects,
+      effectFilter,
+      captionsFound,
+      captionRows,
+      captionTimingValid,
+      captionStyleFound,
+      stylePreset: captions?.stylePreset ?? null,
+      captionsPreserved: captionsBurned,
+      captionsBurned,
+      audioPreserved: probe.hasAudio,
+      audioDownloaded: true,
+      audioValid: true,
+      audioFileSize: statSync(audioPath).size,
+      audioDuration: aProbe.duration,
+      testExportCreated: true,
       fileSize: statSync(outputPath).size,
       duration: probe.duration,
       width: probe.width,
