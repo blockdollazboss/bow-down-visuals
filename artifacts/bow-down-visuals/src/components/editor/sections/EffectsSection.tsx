@@ -194,19 +194,116 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           </p>
         )}
 
-        {/* ── Watermark text ── */}
+        {/* ── Watermark settings ── */}
         {settings.overlays.includes("Logo / Watermark") && (
-          <div className="mt-3 pt-2 border-t border-white/[0.06]">
-            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide block mb-1.5">
-              Watermark Text
-            </label>
-            <input
-              type="text"
-              value={settings.watermarkText ?? "Bow Down Visuals"}
-              onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
-              placeholder="Bow Down Visuals"
-              className="w-full bg-white/[0.04] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
-            />
+          <div className="mt-3 pt-2 border-t border-white/[0.06] space-y-3">
+            <p className="text-[10px] font-black text-white/30 uppercase tracking-wide">Watermark</p>
+            {/* Type selector */}
+            <div>
+              <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Type</label>
+              <div className="flex gap-1.5">
+                {(["logo", "text", "none"] as const).map((t) => (
+                  <button key={t} type="button"
+                    onClick={() => setSettings({ ...settings, watermarkType: t })}
+                    className={`flex-1 py-1.5 rounded text-[10px] font-bold border transition-colors ${
+                      (settings.watermarkType ?? "logo") === t
+                        ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]"
+                        : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"
+                    }`}>
+                    {t === "logo" ? "BDV Logo" : t === "text" ? "Text" : "None"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Logo preview */}
+            {(settings.watermarkType ?? "logo") === "logo" && (
+              <div className="flex items-center gap-2.5 bg-white/[0.03] rounded-lg px-2.5 py-2 border border-white/[0.06]">
+                <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-7 w-auto" />
+                <span className="text-[10px] text-white/35 leading-tight">Default — Bow Down Visuals logo</span>
+              </div>
+            )}
+            {/* Text input */}
+            {(settings.watermarkType ?? "logo") === "text" && (
+              <div>
+                <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Text</label>
+                <input type="text"
+                  value={settings.watermarkText ?? "Bow Down Visuals"}
+                  onChange={(e) => setSettings({ ...settings, watermarkText: e.target.value })}
+                  placeholder="Bow Down Visuals"
+                  className="w-full bg-white/[0.04] border border-white/[0.10] rounded-md px-2.5 py-1.5 text-xs text-white/80 placeholder:text-white/20 focus:outline-none focus:border-[#C9A84C]/40"
+                />
+              </div>
+            )}
+            {/* Position */}
+            {(settings.watermarkType ?? "logo") !== "none" && (<>
+              <div>
+                <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Position</label>
+                <div className="grid grid-cols-2 gap-1">
+                  {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((pos) => (
+                    <button key={pos} type="button"
+                      onClick={() => setSettings({ ...settings, watermarkPosition: pos })}
+                      className={`py-1 rounded text-[10px] font-semibold border transition-colors capitalize ${
+                        (settings.watermarkPosition ?? "bottom-right") === pos
+                          ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]"
+                          : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"
+                      }`}>
+                      {pos.replace("-", " ")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Size */}
+              <div>
+                <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Size</label>
+                <div className="flex gap-1.5">
+                  {(["small", "medium", "large"] as const).map((s) => (
+                    <button key={s} type="button"
+                      onClick={() => setSettings({ ...settings, watermarkSize: s })}
+                      className={`flex-1 py-1 rounded text-[10px] font-bold capitalize border transition-colors ${
+                        (settings.watermarkSize ?? "medium") === s
+                          ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]"
+                          : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"
+                      }`}>
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Margin */}
+              <div>
+                <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1">
+                  Edge margin — {settings.watermarkMargin ?? 16}px
+                </label>
+                <input type="range" min={4} max={48} step={2}
+                  value={settings.watermarkMargin ?? 16}
+                  onChange={(e) => setSettings({ ...settings, watermarkMargin: Number(e.target.value) })}
+                  className="w-full accent-[#C9A84C] h-1"
+                />
+              </div>
+            </>)}
+            {/* Show / Include toggles */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/45">Show on preview</span>
+                <button type="button"
+                  onClick={() => setSettings({ ...settings, watermarkShowOnPreview: !(settings.watermarkShowOnPreview ?? true) })}
+                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                    (settings.watermarkShowOnPreview ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                  }`}>
+                  {(settings.watermarkShowOnPreview ?? true) ? "On" : "Off"}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/45">Include in export</span>
+                <button type="button"
+                  onClick={() => setSettings({ ...settings, watermarkIncludeInExport: !(settings.watermarkIncludeInExport ?? true) })}
+                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                    (settings.watermarkIncludeInExport ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                  }`}>
+                  {(settings.watermarkIncludeInExport ?? true) ? "On" : "Off"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -227,23 +324,78 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           </div>
         )}
 
+        {/* ── Overlay quality mode ── */}
+        {settings.overlays.filter((o) => ["Rain","Smoke","Sparks","Dust","Light Leaks","Lens Flare","Animated Waveform"].includes(o)).length > 0 && (
+          <div className="mt-3 pt-2 border-t border-white/[0.06]">
+            <label className="text-[10px] font-semibold text-white/35 uppercase tracking-wide block mb-1.5">Overlay Quality</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {(["subtle", "music-video", "cinematic", "heavy"] as const).map((mode) => (
+                <button key={mode} type="button"
+                  onClick={() => setSettings({ ...settings, overlayQualityMode: mode })}
+                  className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-colors ${
+                    (settings.overlayQualityMode ?? "music-video") === mode
+                      ? "bg-[#C9A84C]/20 border-[#C9A84C]/50 text-[#C9A84C]"
+                      : "bg-white/[0.03] border-white/[0.08] text-white/40 hover:text-white/60"
+                  }`}>
+                  {mode === "music-video" ? "Music Video" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-white/22 mt-1">Controls how strong all overlay effects appear.</p>
+          </div>
+        )}
+
+        {/* ── Safe areas ── */}
+        {settings.overlays.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-white/[0.06]">
+            <p className="text-[10px] font-black text-white/28 uppercase tracking-wide mb-2">Safe Areas</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/42">Protect captions area</span>
+                <button type="button"
+                  onClick={() => setSettings({ ...settings, overlayProtectCaptions: !(settings.overlayProtectCaptions ?? true) })}
+                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                    (settings.overlayProtectCaptions ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                  }`}>
+                  {(settings.overlayProtectCaptions ?? true) ? "On" : "Off"}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-white/42">Protect face / center</span>
+                <button type="button"
+                  onClick={() => setSettings({ ...settings, overlayProtectFace: !(settings.overlayProtectFace ?? true) })}
+                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                    (settings.overlayProtectFace ?? true) ? "bg-green-500/20 text-green-400" : "bg-white/[0.05] text-white/30"
+                  }`}>
+                  {(settings.overlayProtectFace ?? true) ? "On" : "Off"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Overlay preview status ── */}
         {settings.overlays.length > 0 && (() => {
           const VISUAL = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
           const vCount = settings.overlays.filter((o) => VISUAL.includes(o)).length;
-          const stackSafe = vCount <= 3;
           const wfPos = settings.waveformPosition ?? "bottom-safe";
-          const captionsReadable =
-            !settings.overlays.includes("Animated Waveform") ||
-            ["bottom-safe", "top", "hidden"].includes(wfPos);
+          const stackSafe = vCount <= 3;
+          const captionsOk =
+            !settings.overlays.includes("Animated Waveform") || ["bottom-safe", "top", "hidden"].includes(wfPos);
+          const wmType = settings.watermarkType ?? "logo";
+          const wmLabel = wmType === "logo" ? "Bow Down Visuals logo" : wmType === "text" ? `"${settings.watermarkText ?? "Bow Down Visuals"}"` : "off";
+          const qm = settings.overlayQualityMode ?? "music-video";
           const rows: [string, string, boolean][] = [
             ["overlay preview active", "yes", true],
-            ["overlay stack safe", stackSafe ? "yes" : `${vCount} overlays — opacity reduced`, stackSafe],
-            ["captions readable", captionsReadable ? "yes" : "waveform may cover captions", captionsReadable],
+            ["overlay quality", qm === "music-video" ? "Music Video" : qm.charAt(0).toUpperCase() + qm.slice(1), true],
+            ["watermark source", wmLabel, wmType !== "none"],
+            ["overlay stack safe", stackSafe ? "yes" : `${vCount} overlays — reduced`, stackSafe],
+            ["captions protected", (settings.overlayProtectCaptions ?? true) && captionsOk ? "yes" : captionsOk ? "yes" : "waveform may overlap", captionsOk],
+            ["face protected", (settings.overlayProtectFace ?? true) ? "yes" : "off", settings.overlayProtectFace ?? true],
           ];
           return (
             <div className="mt-3 pt-2 border-t border-white/[0.06] space-y-1">
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-wide mb-1">Overlay Preview Status</p>
+              <p className="text-[10px] font-black text-white/28 uppercase tracking-wide mb-1">Overlay Preview Status</p>
               {rows.map(([label, val, ok]) => (
                 <div key={label} className="flex items-center justify-between gap-2 text-[10px] font-mono">
                   <span className="text-white/35">{label}</span>

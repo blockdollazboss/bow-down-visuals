@@ -23,6 +23,14 @@ interface ExportDoctorProps {
   overlayIntensity?: Record<string, number> | null;
   /** Watermark text (settings.watermarkText). */
   watermarkText?: string | null;
+  /** Watermark type: "logo" | "text" | "none" */
+  watermarkType?: string | null;
+  /** Watermark corner position */
+  watermarkPosition?: string | null;
+  /** Watermark size */
+  watermarkSize?: string | null;
+  /** Include watermark in export */
+  watermarkIncludeInExport?: boolean | null;
   /** Current master-player playhead (seconds) — origin of the 3-second match test. */
   masterCurrentTimeSec?: number;
   /** Total project duration (seconds) from the master player. */
@@ -198,7 +206,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL
@@ -426,7 +434,12 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
           multiId, audioUrl: masterAudioUrl ?? null,
           captions: captions ?? null, effects: effects ?? [],
           overlays: overlays ?? [], overlayIntensity: overlayIntensity ?? {},
-          watermarkText: watermarkText ?? "Bow Down Visuals", conflictMode,
+          watermarkText: watermarkText ?? "Bow Down Visuals",
+          watermarkType: watermarkType ?? "logo",
+          watermarkPosition: watermarkPosition ?? "bottom-right",
+          watermarkSize: watermarkSize ?? "medium",
+          watermarkIncludeInExport: watermarkIncludeInExport ?? true,
+          conflictMode,
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
@@ -449,7 +462,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
           multiId, audioUrl: masterAudioUrl ?? null,
           captions: captions ?? null, effects: effects ?? [],
           overlays: overlays ?? [], overlayIntensity: overlayIntensity ?? {},
-          watermarkText: watermarkText ?? "Bow Down Visuals", conflictMode,
+          watermarkText: watermarkText ?? "Bow Down Visuals",
+          watermarkType: watermarkType ?? "logo",
+          watermarkIncludeInExport: watermarkIncludeInExport ?? true,
+          conflictMode,
           startSec: masterCurrentTimeSec ?? 0, durationSec: 3,
         }),
         signal: AbortSignal.timeout(5 * 60 * 1000),

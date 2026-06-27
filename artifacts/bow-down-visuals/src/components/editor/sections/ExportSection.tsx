@@ -864,6 +864,10 @@ export function ExportSection({
         overlays={settings.overlays}
         overlayIntensity={settings.overlayIntensity}
         watermarkText={settings.watermarkText}
+        watermarkType={settings.watermarkType}
+        watermarkPosition={settings.watermarkPosition}
+        watermarkSize={settings.watermarkSize}
+        watermarkIncludeInExport={settings.watermarkIncludeInExport}
         masterCurrentTimeSec={masterCurrentTimeSec}
         projectDurationSec={projectDurationSec}
         appliedTransitions={(settings.aiEdit?.appliedTransitions ?? []).map((t) => ({

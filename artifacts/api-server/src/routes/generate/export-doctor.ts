@@ -1724,6 +1724,10 @@ router.post("/export-doctor/export-all-overlays", requireAuth, async (req, res) 
   try {
     type OvrBody = {
       multiId?: string;
+      watermarkType?: string;
+      watermarkPosition?: string;
+      watermarkSize?: string;
+      watermarkIncludeInExport?: boolean;
       audioUrl?: string;
       captions?: CaptionBurnConfig | null;
       effects?: string[] | null;
@@ -1732,7 +1736,7 @@ router.post("/export-doctor/export-all-overlays", requireAuth, async (req, res) 
       watermarkText?: string;
       conflictMode?: EffectConflictMode;
     };
-    const { multiId, audioUrl, captions, effects, overlays, overlayIntensity, watermarkText, conflictMode } = req.body as OvrBody;
+    const { multiId, audioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, conflictMode } = req.body as OvrBody;
 
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
@@ -1749,11 +1753,16 @@ router.post("/export-doctor/export-all-overlays", requireAuth, async (req, res) 
     const ANIMATED = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
     const ovList = Array.isArray(overlays) ? overlays : [];
     const unsupportedOverlays = ovList.filter((o) => ANIMATED.includes(o));
-    const watermarkTextSafe = (watermarkText ?? "Bow Down Visuals").trim() || "Bow Down Visuals";
-    const overlaysFound = ovList.length > 0 || !!watermarkTextSafe;
-    const watermarkFound = !!watermarkTextSafe;
-    const overlaysIncluded = ["Watermark Text"];
-    const watermarkIncluded = true;
+    const wmType = watermarkType ?? "logo";
+    const wmInclude = watermarkIncludeInExport !== false;
+    /* For "logo" type, burn "Bow Down Visuals" text (image overlay not yet supported in export) */
+    const watermarkTextSafe = wmType === "logo"
+      ? "Bow Down Visuals"
+      : (watermarkText ?? "Bow Down Visuals").trim() || "Bow Down Visuals";
+    const overlaysFound = ovList.length > 0 || wmType !== "none";
+    const watermarkFound = wmType !== "none";
+    const watermarkIncluded = wmType !== "none" && wmInclude;
+    const overlaysIncluded = watermarkIncluded ? [`Watermark (${wmType === "logo" ? "BDV Logo → text fallback" : "text"})`] : [];
 
     /* ── Effects pipeline ── */
     const totalDurationSec = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
@@ -1766,11 +1775,20 @@ router.post("/export-doctor/export-all-overlays", requireAuth, async (req, res) 
     const effectsExportConnected = !!effectFilter && stackResult.stackMatch;
 
     /* ── Watermark drawtext filter ── */
-    const fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
-    const wmEsc = watermarkTextSafe.replace(/\\/g, "\\\\").replace(/'/g, "'\\''").replace(/:/g, "\\:").replace(/,/g, "\\,");
-    const wmOpacity = Math.max(0.10, Math.min(1.0, ((overlayIntensity ?? {})["Logo / Watermark"] ?? 65) / 100));
-    const drawtextFilter = `drawtext=fontfile='${fontPath}':text='${wmEsc}':fontsize=20:fontcolor=white@${wmOpacity.toFixed(2)}:x=w-tw-18:y=h-th-18:box=1:boxcolor=black@0.42:boxborderw=5`;
-    const combinedFilter = effectFilter ? `${effectFilter},${drawtextFilter}` : drawtextFilter;
+    let combinedFilter = effectFilter ?? null;
+    if (watermarkIncluded) {
+      const fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+      const wmEsc = watermarkTextSafe.replace(/\\/g, "\\\\").replace(/'/g, "'\\''").replace(/:/g, "\\:").replace(/,/g, "\\,");
+      const wmOpacity = Math.max(0.10, Math.min(1.0, ((overlayIntensity ?? {})["Logo / Watermark"] ?? 65) / 100));
+      const wmPos = watermarkPosition ?? "bottom-right";
+      const margin = 18;
+      const wmSize = watermarkSize ?? "medium";
+      const fontSize = wmSize === "small" ? 14 : wmSize === "large" ? 26 : 20;
+      const xExpr = wmPos.includes("right")  ? `w-tw-${margin}` : String(margin);
+      const yExpr = wmPos.includes("bottom") ? `h-th-${margin}` : String(margin);
+      const drawtextFilter = `drawtext=fontfile='${fontPath}':text='${wmEsc}':fontsize=${fontSize}:fontcolor=white@${wmOpacity.toFixed(2)}:x=${xExpr}:y=${yExpr}:box=1:boxcolor=black@0.42:boxborderw=5`;
+      combinedFilter = effectFilter ? `${effectFilter},${drawtextFilter}` : drawtextFilter;
+    }
 
     if (!audioUrl || !audioUrl.startsWith("http")) {
       res.status(400).json({ error: "No master-player audio URL provided.", overlaysFound, unsupportedOverlays, watermarkFound });

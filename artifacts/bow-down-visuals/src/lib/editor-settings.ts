@@ -844,13 +844,13 @@ export interface MusicStudioSettings {
 
 /** Per-effect intensity defaults — professional/subtle, not 100%. */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
-  "Light Leaks":       20,
-  "Lens Flare":        20,
-  "Smoke":             15,
-  "Rain":              20,
-  "Sparks":            15,
-  "Dust":              12,
-  "Animated Waveform": 35,
+  "Light Leaks":       12,
+  "Lens Flare":        10,
+  "Smoke":             10,
+  "Rain":              12,
+  "Sparks":             8,
+  "Dust":               8,
+  "Animated Waveform": 25,
   "Logo / Watermark":  65,
 };
 
@@ -870,6 +870,24 @@ export interface EditorSettings {
   watermarkText: string;
   /** Waveform position: "bottom-safe" | "top" | "bottom" | "hidden" */
   waveformPosition: string;
+  /** Overlay quality preset: "subtle" | "music-video" | "cinematic" | "heavy" */
+  overlayQualityMode: string;
+  /** Watermark type: "logo" | "text" | "none" */
+  watermarkType: string;
+  /** Watermark corner: "bottom-right" | "bottom-left" | "top-right" | "top-left" */
+  watermarkPosition: string;
+  /** Watermark size: "small" | "medium" | "large" */
+  watermarkSize: string;
+  /** Watermark edge margin in pixels */
+  watermarkMargin: number;
+  /** Show watermark in master player preview */
+  watermarkShowOnPreview: boolean;
+  /** Include watermark when burning to export */
+  watermarkIncludeInExport: boolean;
+  /** Protect caption safe area from overlays */
+  overlayProtectCaptions: boolean;
+  /** Protect center/face area from overlays */
+  overlayProtectFace: boolean;
   /** Structured timed overlay items rendered above the video. */
   overlayItems: OverlayItem[];
   /** Structured transition data (fromSceneId → toSceneId). */
@@ -939,6 +957,15 @@ export function defaultEditorSettings(): EditorSettings {
     overlayIntensity: {},
     watermarkText: "Bow Down Visuals",
     waveformPosition: "bottom-safe",
+    overlayQualityMode: "music-video",
+    watermarkType: "logo",
+    watermarkPosition: "bottom-right",
+    watermarkSize: "medium",
+    watermarkMargin: 16,
+    watermarkShowOnPreview: true,
+    watermarkIncludeInExport: true,
+    overlayProtectCaptions: true,
+    overlayProtectFace: true,
     overlayItems: [],
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
@@ -1203,6 +1230,15 @@ export function normalizeEditorSettings(
     overlayIntensity: (stored.overlayIntensity && typeof stored.overlayIntensity === "object" && !Array.isArray(stored.overlayIntensity)) ? stored.overlayIntensity as Record<string, number> : {},
     watermarkText: typeof stored.watermarkText === "string" ? stored.watermarkText : "Bow Down Visuals",
     waveformPosition: typeof stored.waveformPosition === "string" ? stored.waveformPosition : "bottom-safe",
+    overlayQualityMode: (stored.overlayQualityMode && ["subtle", "music-video", "cinematic", "heavy"].includes(stored.overlayQualityMode)) ? stored.overlayQualityMode : "music-video",
+    watermarkType: (stored.watermarkType && ["logo", "text", "none"].includes(stored.watermarkType)) ? stored.watermarkType : "logo",
+    watermarkPosition: (stored.watermarkPosition && ["bottom-right", "bottom-left", "top-right", "top-left"].includes(stored.watermarkPosition)) ? stored.watermarkPosition : "bottom-right",
+    watermarkSize: (stored.watermarkSize && ["small", "medium", "large"].includes(stored.watermarkSize)) ? stored.watermarkSize : "medium",
+    watermarkMargin: typeof stored.watermarkMargin === "number" ? stored.watermarkMargin : 16,
+    watermarkShowOnPreview: typeof stored.watermarkShowOnPreview === "boolean" ? stored.watermarkShowOnPreview : true,
+    watermarkIncludeInExport: typeof stored.watermarkIncludeInExport === "boolean" ? stored.watermarkIncludeInExport : true,
+    overlayProtectCaptions: typeof stored.overlayProtectCaptions === "boolean" ? stored.overlayProtectCaptions : true,
+    overlayProtectFace: typeof stored.overlayProtectFace === "boolean" ? stored.overlayProtectFace : true,
     overlayItems: Array.isArray(stored.overlayItems) ? stored.overlayItems : [],
     transitions: Array.isArray(stored.transitions) ? stored.transitions : [],
     audio: { ...base.audio, ...(stored.audio ?? {}) },

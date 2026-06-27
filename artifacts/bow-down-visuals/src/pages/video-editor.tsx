@@ -1393,8 +1393,15 @@ function MasterPreviewPlayer({
           activeOverlays={activeOverlayChips}
           intensity={overlayIntensity}
           testActive={testOverlayActive}
-          watermarkText={watermarkText}
-          waveformPosition={waveformPosition}
+          watermarkText={settings.watermarkText ?? "Bow Down Visuals"}
+          watermarkType={settings.watermarkType ?? "logo"}
+          watermarkPosition={settings.watermarkPosition ?? "bottom-right"}
+          watermarkSize={settings.watermarkSize ?? "medium"}
+          watermarkMargin={settings.watermarkMargin ?? 16}
+          watermarkShowOnPreview={settings.watermarkShowOnPreview ?? true}
+          waveformPosition={settings.waveformPosition ?? "bottom-safe"}
+          overlayQualityMode={settings.overlayQualityMode ?? "music-video"}
+          overlayProtectCaptions={settings.overlayProtectCaptions ?? true}
         />
 
         {/* ── Structured overlay layer (timed items + test badge) ── */}
