@@ -1,0 +1,177 @@
+Fix timeline audio sync so waveform uses real audio duration and clips use real clip timing.
+
+Problem:
+The audio is not synced with my video clips.
+
+The timeline currently looks like it is stretching or matching the audio waveform to the total clip row, which does not make sense.
+
+The audio waveform should show the real project audio/song duration.
+The video clips should show their real timeline duration.
+They should be lined up on one shared time ruler, not forced to equal each other visually.
+
+Do not change:
+- master player playback
+- captions timing
+- clip grid layout
+- effects
+- overlays
+- watermark
+- aspect ratio icon
+- fit mode icon
+- fullscreen
+- Auto PiP
+- Export Doctor working pipeline
+- payments or credits
+
+Only fix:
+- timeline time scale
+- audio waveform duration
+- clip timing
+- playhead sync
+- audio/video sync display
+
+PART 1 — ONE REAL TIMELINE CLOCK
+
+Create one shared timeline clock in seconds.
+
+Use:
+timelineTime = masterPlayer.currentTime
+
+Everything must use this same clock:
+- video clips
+- project audio waveform
+- captions
+- effects
+- overlays
+- playhead
+- timecode
+
+PART 2 — AUDIO WAVEFORM MUST USE REAL AUDIO DURATION
+
+The audio waveform track must use the real project audio duration.
+
+Do not stretch the waveform to match total clips unless the audio truly has the same duration.
+
+Get audio duration from:
+- uploaded audio metadata
+- master audio element duration
+- waveform decoder duration
+- fallback only if metadata unavailable
+
+Show:
+Audio duration: [real duration]
+
+PART 3 — VIDEO CLIPS MUST USE REAL CLIP DURATIONS
+
+The video clip track must use real clip durations.
+
+Get clip durations from:
+- video metadata
+- timeline clip duration
+- trim start/end
+- scene duration
+- fallback only if missing
+
+Show:
+Video timeline duration: [real duration]
+
+PART 4 — TIMELINE WIDTH SHOULD BE BASED ON LONGEST DURATION
+
+Timeline ruler length should be based on:
+
+max(projectAudioDuration, totalVideoClipDuration)
+
+Example:
+If audio is 3:00 and clips are 0:45:
+- waveform shows full 3:00
+- clips only fill first 0:45
+- the rest of the audio continues after clips
+- do not stretch clips to 3:00 unless user chooses auto-extend
+
+Example:
+If clips are 3:00 and audio is 0:45:
+- clips show full 3:00
+- audio waveform ends at 0:45
+- do not stretch audio to 3:00 unless user chooses loop/extend
+
+PART 5 — SHOW MISMATCH CLEARLY
+
+If audio and video durations do not match, show a clear warning:
+
+Audio/video duration mismatch:
+- audio: 3:00
+- video clips: 0:45
+- difference: 2:15
+
+Add options:
+- Keep as-is
+- Trim audio to video length
+- Extend video clips to audio length
+- Loop clips to audio length
+- Auto-fit clips to song sections
+- Add blank/end screen after clips
+- Fade audio out at video end
+
+Do not automatically stretch anything without user choosing.
+
+PART 6 — PLAYHEAD SYNC
+
+The playhead must move across both tracks using the same time.
+
+When I scrub:
+- master player currentTime updates
+- audio currentTime updates
+- active clip updates based on time
+- waveform playhead updates
+- captions update
+- effects update
+
+PART 7 — CLIP TRACK BEHAVIOR
+
+Video clips should appear as blocks based on actual start/end times.
+
+Example:
+Scene 1: 0:00–0:08
+Scene 2: 0:08–0:16
+Scene 3: 0:16–0:24
+
+Do not spread clips evenly across the full audio duration unless user chooses “Auto-fit clips to song.”
+
+PART 8 — AUDIO TRACK BEHAVIOR
+
+Audio waveform should start at 0:00 unless user sets an audio offset.
+
+Add audio controls:
+- audio start offset
+- trim audio start
+- trim audio end
+- fade in
+- fade out
+- volume
+
+PART 9 — ADD SYNC STATUS
+
+Add a clean status near the timeline:
+
+Timeline Sync:
+- audio duration
+- video clips duration
+- timeline duration source: longest track
+- audio stretched: no
+- clips stretched: no
+- shared playhead: yes/no
+- audio/video mismatch: yes/no
+
+Debug details should be collapsed below the timeline only.
+
+PART 10 — EXPORT DOCTOR MUST FOLLOW THIS
+
+Export Doctor must use the same timing:
+- real clip durations
+- real audio duration
+- audio trim/offset if set
+- no fake waveform stretching
+- no fake clip stretching
+
+Final goal:
+The timeline should look and behave like a real editor. The audio waveform shows the real song length, video clips show their real duration, and both line up on the same time ruler without being stretched to fake sync.

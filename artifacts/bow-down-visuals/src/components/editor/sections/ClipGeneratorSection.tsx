@@ -768,6 +768,27 @@ export function ClipGeneratorSection({
             </span>
           </div>
         )}
+
+        {/* Debug status (collapsed) */}
+        <details className="group">
+          <summary className="text-[9px] font-bold text-white/20 uppercase tracking-widest cursor-pointer list-none hover:text-white/40 transition-colors">
+            ▸ Debug
+          </summary>
+          <div className="pt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+            {([
+              ["grid cols",    "1 / 2 / 3"],
+              ["clip count",   String(scenes.length)],
+              ["no clip",      String(scenes.filter((s) => !sceneHasClip(s)).length)],
+              ["selected",     selectedSceneId ? `Scene ${scenes.findIndex((s) => s.id === selectedSceneId) + 1}` : "none"],
+              ["drag reorder", "yes ✓"],
+            ] as [string, string][]).map(([k, v]) => (
+              <span key={k} className="flex items-center gap-1">
+                <span className="text-[8px] font-mono text-white/20">{k}</span>
+                <span className={`text-[8px] font-bold ${v.includes("✓") ? "text-green-400/50" : v === "none" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+              </span>
+            ))}
+          </div>
+        </details>
       </div>
 
       {/* ── Scene count ── */}
@@ -788,7 +809,7 @@ export function ClipGeneratorSection({
       {/* ── Scene cards grid ── */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={scenes.map((s) => s.id)} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
             {scenes.map((scene, i) => (
               <SortableSceneCard key={scene.id} id={scene.id}>
                 {(dragHandleProps, isDragging) => (
@@ -966,7 +987,7 @@ function SceneClipCard({
       </div>
 
       {/* ── Thumbnail ── */}
-      <div className="relative h-[200px] sm:h-[220px] xl:h-[190px] bg-black shrink-0">
+      <div className="relative h-[110px] bg-black shrink-0">
         {hasClip ? (
           <video src={scene.demoClipUrl ?? undefined} muted preload="metadata" playsInline className="w-full h-full object-cover" />
         ) : (
@@ -1000,15 +1021,8 @@ function SceneClipCard({
         )}
       </div>
 
-      {/* ── Lyric / action line ── */}
-      {(scene.lyricLine || scene.action) && (
-        <p className="px-3 py-1.5 text-[10px] text-white/40 italic truncate border-b border-white/[0.04]">
-          "{scene.lyricLine || scene.action}"
-        </p>
-      )}
-
       {/* ── Quick action row ── */}
-      <div className="px-3 py-2 flex items-center gap-1.5 flex-wrap">
+      <div className="px-2 py-1.5 flex items-center gap-1 flex-wrap">
         {hasClip && (
           <button
             type="button"
@@ -1025,7 +1039,7 @@ function SceneClipCard({
           </button>
         )}
 
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-0.5 ml-auto">
           <IconBtn title="Move to start" disabled={index === 0} onClick={() => onMoveToStart(index)} testId={`btn-start-${index}`}>
             <ChevronsUp className="h-3 w-3" />
           </IconBtn>
@@ -1053,7 +1067,7 @@ function SceneClipCard({
                 : "border-white/10 bg-white/[0.03] text-white/40 hover:text-white/70"
             }`}
           >
-            {hasClip ? (detailOpen ? "▲ Edit" : "▼ Edit") : (detailOpen ? "▲ Gen" : "▼ Gen")}
+            {detailOpen ? "▲ Details" : "▼ Details"}
           </button>
         </div>
       </div>
@@ -1061,6 +1075,13 @@ function SceneClipCard({
       {/* ── Expandable detail / edit panel ── */}
       {detailOpen && (
         <div className="border-t border-white/[0.06] px-3 py-3 space-y-3">
+          {/* Lyric / action line */}
+          {(scene.lyricLine || scene.action) && (
+            <p className="text-[10px] text-white/40 italic leading-snug">
+              "{scene.lyricLine || scene.action}"
+            </p>
+          )}
+
           {/* AI Prompt */}
           {scene.aiVideoPrompt && (
             <details className="group">
