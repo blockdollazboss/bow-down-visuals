@@ -844,13 +844,13 @@ export interface MusicStudioSettings {
 
 /** Per-effect intensity defaults — professional/subtle, not 100%. */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
-  "Light Leaks":       12,
-  "Lens Flare":        10,
-  "Smoke":             10,
-  "Rain":              12,
-  "Sparks":             8,
-  "Dust":               8,
-  "Animated Waveform": 25,
+  "Light Leaks":        8,
+  "Lens Flare":         8,
+  "Smoke":              8,
+  "Rain":              10,
+  "Sparks":             6,
+  "Dust":               6,
+  "Animated Waveform": 20,
   "Logo / Watermark":  65,
 };
 

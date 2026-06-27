@@ -146,6 +146,25 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         subtitle="Animated visual effects — visible immediately in the player"
         icon={<Film className="h-4 w-4" />}
       >
+        {/* ── Test Clean Overlay Pack ── */}
+        <button
+          type="button"
+          onClick={() => setSettings({
+            ...settings,
+            overlays: ["Light Leaks", "Dust", "Logo / Watermark"],
+            overlayIntensity: {
+              ...settings.overlayIntensity,
+              "Light Leaks": 8,
+              "Dust": 6,
+              "Logo / Watermark": 65,
+            },
+            overlayQualityMode: "subtle",
+          })}
+          className="w-full mb-3 text-left text-[10px] font-bold text-[#C9A84C] bg-[#C9A84C]/[0.06] border border-[#C9A84C]/20 rounded-md px-3 py-2 hover:bg-[#C9A84C]/[0.12] transition-colors"
+        >
+          ✦ Test Clean Overlay Pack — Light Leaks 8% · Dust 6% · BDV Watermark 65%
+        </button>
+
         {/* Chip row */}
         <div className="flex flex-wrap gap-2 mb-3">
           {OVERLAYS.map((ov) => {
@@ -215,11 +234,34 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 ))}
               </div>
             </div>
-            {/* Logo preview */}
+            {/* Logo preview + transparency status */}
             {(settings.watermarkType ?? "logo") === "logo" && (
-              <div className="flex items-center gap-2.5 bg-white/[0.03] rounded-lg px-2.5 py-2 border border-white/[0.06]">
-                <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-7 w-auto" />
-                <span className="text-[10px] text-white/35 leading-tight">Default — Bow Down Visuals logo</span>
+              <div className="space-y-2">
+                {/* Visual preview on a mid-grey swatch so transparency is obvious */}
+                <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
+                  style={{ background: "linear-gradient(135deg,#2a2a2a 50%,#1a1a1a 50%)" }}>
+                  <img src={`${import.meta.env.BASE_URL}bdv-watermark.png`} alt="Bow Down Visuals watermark"
+                    className="h-8 w-auto"
+                    style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }} />
+                  <span className="text-[10px] text-white/40 leading-tight">Transparent PNG — no background</span>
+                </div>
+                {/* Status rows */}
+                <div className="bg-white/[0.02] rounded px-2.5 py-2 border border-white/[0.06] space-y-1">
+                  <p className="text-[9px] font-black text-white/25 uppercase tracking-widest mb-1.5">Watermark Logo Status</p>
+                  {([
+                    ["source file", "bdv-watermark.png"],
+                    ["file type", "PNG"],
+                    ["transparent alpha", "yes"],
+                    ["background removed", "yes"],
+                    ["visible in player", (settings.watermarkShowOnPreview ?? true) ? "yes" : "off"],
+                    ["safe from captions", (settings.overlayProtectCaptions ?? true) ? "yes" : "check safe areas"],
+                  ] as [string, string][]).map(([label, val]) => (
+                    <div key={label} className="flex items-center justify-between gap-2 text-[9px] font-mono">
+                      <span className="text-white/30">{label}</span>
+                      <span className={val === "yes" ? "font-bold text-green-400" : val === "off" || val.startsWith("check") ? "font-bold text-amber-400" : "text-white/50"}>{val}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {/* Text input */}

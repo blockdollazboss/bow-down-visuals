@@ -9,18 +9,18 @@
  */
 import type React from "react";
 
-/* ─── Logo asset path (served from public/) ─────────────────────────────── */
-const LOGO_URL = `${import.meta.env.BASE_URL}logo-static.png`;
+/* ─── Watermark asset — PNG with real alpha transparency ────────────────── */
+const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.png`;
 
 /* ─── Per-effect intensity defaults — subtle/cinematic, never 100% ──────── */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
-  "Light Leaks":       12,
-  "Lens Flare":        10,
-  "Smoke":             10,
-  "Rain":              12,
-  "Sparks":             8,
-  "Dust":               8,
-  "Animated Waveform": 25,
+  "Light Leaks":        8,
+  "Lens Flare":         8,
+  "Smoke":              8,
+  "Rain":              10,
+  "Sparks":             6,
+  "Dust":               6,
+  "Animated Waveform": 20,
   "Logo / Watermark":  65,
 };
 
@@ -405,25 +405,24 @@ function WatermarkEffect({
 
   if (type === "logo") {
     const h = size === "small" ? 28 : size === "large" ? 58 : 42;
+    /* Render the transparent PNG directly — no wrapper box, no background.
+       A double drop-shadow gives legibility on any background without a rectangle. */
     return (
-      <div
+      <img
         data-testid="watermark-overlay"
+        src={WATERMARK_URL}
+        alt="Bow Down Visuals"
+        draggable={false}
         style={{
           ...posStyle,
+          height: h,
+          width: "auto",
           opacity,
-          padding: "3px 5px",
-          borderRadius: "0.3rem",
-          background: "rgba(0,0,0,0.35)",
-          backdropFilter: "blur(3px)",
+          display: "block",
+          filter:
+            "drop-shadow(0 1px 4px rgba(0,0,0,0.72)) drop-shadow(0 0 2px rgba(0,0,0,0.50))",
         }}
-      >
-        <img
-          src={LOGO_URL}
-          alt="Bow Down Visuals"
-          style={{ height: h, width: "auto", display: "block" }}
-          draggable={false}
-        />
-      </div>
+      />
     );
   }
 
