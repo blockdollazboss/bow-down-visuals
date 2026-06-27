@@ -795,6 +795,55 @@ export function LipSyncSection({
             </div>
           </EditorCard>
 
+          {/* ── Test Submit Route ── */}
+          <EditorCard title="Test Sync Labs Submit Route" icon={<ShieldCheck className="h-4 w-4" />}>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => void testSubmitRoute()}
+                disabled={routeTestLoading}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-bold hover:bg-primary/[0.12] transition-colors disabled:opacity-40"
+              >
+                {routeTestLoading
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing route…</>
+                  : <><ShieldCheck className="h-3.5 w-3.5" /> Test Sync Labs Submit Route</>}
+              </button>
+
+              {!routeTest && !routeTestLoading && (
+                <p className="text-[10px] text-white/35 text-center">
+                  Click to verify the submit route works before applying lip sync
+                </p>
+              )}
+
+              {routeTest && !routeTestLoading && (
+                <div className="space-y-1.5">
+                  <StatusRow label="internal route reachable"     value={routeTest.reachable ? "yes ✓" : "no ✗"}             ok={routeTest.reachable} />
+                  <StatusRow label="route returns JSON"           value={routeTest.returnsJson ? "yes ✓" : "no ✗"}           ok={routeTest.returnsJson} />
+                  <StatusRow label="provider key present"         value={routeTest.providerKeyPresent ? "yes ✓" : "no ✗"}    ok={routeTest.providerKeyPresent} />
+                  <StatusRow label="provider endpoint configured" value={routeTest.providerEndpointConfigured ? "yes" : "no"} ok={routeTest.providerEndpointConfigured} />
+                  <StatusRow label="last response status"         value={routeTest.status ? String(routeTest.status) : "—"}  ok={routeTest.status === 200 ? true : null} />
+                  <StatusRow label="last response content-type"   value={routeTest.contentType}                               ok={routeTest.returnsJson ? true : false} />
+
+                  {routeTest.reachable && routeTest.returnsJson && routeTest.providerKeyPresent ? (
+                    <div className="flex items-center gap-1.5 mt-1 px-3 py-2 rounded-lg border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[10px] font-bold">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      Ready — now click Apply to Scene
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5 mt-1 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold">
+                      <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                      {!routeTest.reachable
+                        ? "Route unreachable — check API server is running"
+                        : !routeTest.returnsJson
+                          ? "Route not returning JSON — check server logs"
+                          : "Provider key missing — add LIP_SYNC_API_KEY in Replit Secrets"}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </EditorCard>
+
           {/* ── Audio Source ── */}
           <EditorCard title="Lip Sync Audio Source" icon={<Radio className="h-4 w-4" />}>
             <div className="space-y-3">
