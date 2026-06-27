@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
   Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
-  GripVertical, ChevronsUp, ChevronsDown, Undo2, Plus,
+  GripVertical, ChevronsUp, ChevronsDown, Undo2, Plus, Scissors, Upload,
+  ChevronDown, Check, X, Clock, Zap,
 } from "lucide-react";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
@@ -21,8 +22,11 @@ import { IconBtn } from "@/components/editor/sections/shared";
 import type { SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
+const CLIP_BUCKET = "clips";
 
 const SECTION_COLORS: Record<string, string> = {
   intro:  "bg-white/[0.12] text-zinc-200 border-white/20",
@@ -42,7 +46,6 @@ function sectionColor(section: string): string {
   return "bg-white/10 text-white/60 border-white/20";
 }
 
-/* Cameras cycled to ensure every scene gets a distinct shot type */
 const ENHANCE_CAMERAS = [
   "tracking shot — camera follows artist from behind",
   "low angle close-up — camera looks up at artist",
@@ -59,6 +62,34 @@ const ENHANCE_CAMERAS = [
 interface EnhanceStatus { type: "success" | "error" | "warning"; message: string }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+type InsertMode = "end" | "before" | "after" | "playhead";
+type UploadStatus = "idle" | "uploading" | "done" | "error";
+
+function makeBlankScene(sceneCount: number): SceneData {
+  return {
+    id: crypto.randomUUID(),
+    sceneNumber: sceneCount + 1,
+    timestamp: "",
+    section: "New Clip",
+    lyricLine: "",
+    location: "",
+    action: "",
+    cameraMovement: "",
+    lighting: "",
+    mood: "",
+    aiVideoPrompt: "New blank clip — edit prompt and generate",
+    negativePrompt: "",
+    approved: false,
+    demoClipUrl: null,
+    thumbnailUrl: null,
+    clipId: null,
+    runwayJobId: null,
+    provider: null,
+    generationStatus: null,
+    promptUsed: null,
+    generatedAt: null,
+  };
+}
 
 interface ClipGeneratorSectionProps {
   scenes: SceneData[];
@@ -71,6 +102,8 @@ interface ClipGeneratorSectionProps {
   previewSceneId?: string | null;
   getAccessToken?: () => Promise<string | null>;
   saveState?: SaveState;
+  playheadTimeSec?: number;
+  totalDurationSec?: number;
 }
 
 export function ClipGeneratorSection({
@@ -84,16 +117,34 @@ export function ClipGeneratorSection({
   previewSceneId,
   getAccessToken,
   saveState = "idle",
+  playheadTimeSec = 0,
+  totalDurationSec,
 }: ClipGeneratorSectionProps) {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [createAllTrigger, setCreateAllTrigger] = useState(0);
   const [enhancing, setEnhancing] = useState(false);
   const [enhanceProgress, setEnhanceProgress] = useState<{ done: number; total: number } | null>(null);
   const [enhancedIds, setEnhancedIds] = useState<Set<string>>(new Set());
   const [enhanceStatus, setEnhanceStatus] = useState<EnhanceStatus | null>(null);
 
-  /* ── DnD + Undo ───────────────────────────────────────────────── */
   const [undoSnapshot, setUndoSnapshot] = useState<SceneData[] | null>(null);
   const [reorderStatus, setReorderStatus] = useState<"saved" | "failed" | null>(null);
+
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
+  const [insertMode, setInsertMode] = useState<InsertMode>("end");
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
+
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const [splitStatus, setSplitStatus] = useState<"idle" | "done" | "error">("idle");
+  const [splitError, setSplitError] = useState<string | null>(null);
+
+  const [timelineSaveMsg, setTimelineSaveMsg] = useState<string | null>(null);
+  const [timelineSaveMsgType, setTimelineSaveMsgType] = useState<"saved" | "error">("saved");
+  const mutatedRef = useRef(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -108,6 +159,52 @@ export function ClipGeneratorSection({
     return;
   }, [saveState, undoSnapshot]);
 
+  useEffect(() => {
+    if (!mutatedRef.current) return;
+    if (saveState === "saved") {
+      setTimelineSaveMsg("Timeline saved");
+      setTimelineSaveMsgType("saved");
+      mutatedRef.current = false;
+      const t = setTimeout(() => setTimelineSaveMsg(null), 4000);
+      return () => clearTimeout(t);
+    }
+    if (saveState === "error") {
+      setTimelineSaveMsg("Timeline save failed — check your connection");
+      setTimelineSaveMsgType("error");
+    }
+    return;
+  }, [saveState]);
+
+  useEffect(() => {
+    if (splitStatus === "done") {
+      const t = setTimeout(() => setSplitStatus("idle"), 3000);
+      return () => clearTimeout(t);
+    }
+    return;
+  }, [splitStatus]);
+
+  useEffect(() => {
+    if (uploadStatus === "done") {
+      const t = setTimeout(() => setUploadStatus("idle"), 3000);
+      return () => clearTimeout(t);
+    }
+    return;
+  }, [uploadStatus]);
+
+  useEffect(() => {
+    if (showInsertMenu) {
+      const close = () => setShowInsertMenu(false);
+      document.addEventListener("click", close, { once: true });
+      return () => document.removeEventListener("click", close);
+    }
+    return;
+  }, [showInsertMenu]);
+
+  function markMutated() {
+    mutatedRef.current = true;
+    setTimelineSaveMsg(null);
+  }
+
   function reorder(newOrder: SceneData[]) {
     setUndoSnapshot([...scenes]);
     setScenes(newOrder);
@@ -120,33 +217,6 @@ export function ClipGeneratorSection({
     setReorderStatus(null);
   }
 
-  function addBlankClip() {
-    const newScene: SceneData = {
-      id: crypto.randomUUID(),
-      sceneNumber: scenes.length + 1,
-      timestamp: "",
-      section: "New Clip",
-      lyricLine: "",
-      location: "",
-      action: "",
-      cameraMovement: "",
-      lighting: "",
-      mood: "",
-      aiVideoPrompt: "New blank clip — edit prompt and generate",
-      negativePrompt: "",
-      approved: false,
-      demoClipUrl: null,
-      thumbnailUrl: null,
-      clipId: null,
-      runwayJobId: null,
-      provider: null,
-      generationStatus: null,
-      promptUsed: null,
-      generatedAt: null,
-    };
-    setScenes([...scenes, newScene]);
-  }
-
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -156,96 +226,135 @@ export function ClipGeneratorSection({
     reorder(arrayMove(scenes, oldIdx, newIdx));
   }
 
-  const scenesWithoutClip = scenes.filter((s) => !sceneHasClip(s));
-  const hasArtist = !!artistVault;
+  const addClipAt = useCallback((mode: InsertMode) => {
+    const newScene = makeBlankScene(scenes.length);
+    markMutated();
+    if (mode === "end" || !selectedSceneId) {
+      setScenes([...scenes, newScene]);
+      setSelectedSceneId(newScene.id);
+      return;
+    }
+    if (mode === "before") {
+      const idx = scenes.findIndex((s) => s.id === selectedSceneId);
+      const next = [...scenes];
+      next.splice(idx < 0 ? scenes.length : idx, 0, newScene);
+      setScenes(next);
+      setSelectedSceneId(newScene.id);
+      return;
+    }
+    if (mode === "after") {
+      const idx = scenes.findIndex((s) => s.id === selectedSceneId);
+      const next = [...scenes];
+      next.splice(idx < 0 ? scenes.length : idx + 1, 0, newScene);
+      setScenes(next);
+      setSelectedSceneId(newScene.id);
+      return;
+    }
+    if (mode === "playhead" && totalDurationSec && totalDurationSec > 0) {
+      const sceneDuration = totalDurationSec / scenes.length;
+      const activeIdx = Math.min(
+        Math.floor(playheadTimeSec / sceneDuration),
+        scenes.length - 1,
+      );
+      const next = [...scenes];
+      next.splice(activeIdx + 1, 0, newScene);
+      setScenes(next);
+      setSelectedSceneId(newScene.id);
+      return;
+    }
+    setScenes([...scenes, newScene]);
+    setSelectedSceneId(newScene.id);
+  }, [scenes, selectedSceneId, insertMode, playheadTimeSec, totalDurationSec, setScenes]);
 
-  function updateScene(id: string, patch: Partial<SceneData>) {
-    setScenes(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  function splitAtPlayhead() {
+    if (!totalDurationSec || totalDurationSec <= 0 || scenes.length === 0) {
+      setSplitError("Cannot split — no audio duration available");
+      setSplitStatus("error");
+      return;
+    }
+    const sceneDuration = totalDurationSec / scenes.length;
+    const activeIdx = Math.min(
+      Math.floor(playheadTimeSec / sceneDuration),
+      scenes.length - 1,
+    );
+    const scene = scenes[activeIdx];
+    if (!scene) return;
+
+    const sceneStart = activeIdx * sceneDuration;
+    const splitWithin = Math.max(0.1, Math.min(playheadTimeSec - sceneStart, sceneDuration - 0.1));
+
+    if (splitWithin <= 0 || splitWithin >= sceneDuration) {
+      setSplitError("Playhead is at a scene boundary — move it into the scene first");
+      setSplitStatus("error");
+      return;
+    }
+
+    const currentEdit = getClipEdit(settings, scene.id);
+    const secondId = `${scene.id}-split-${Date.now()}`;
+    const secondScene: SceneData = { ...scene, id: secondId, approved: false };
+
+    const trimEndFirst = currentEdit.trimEnd + (sceneDuration - splitWithin);
+    const trimStartSecond = currentEdit.trimStart + splitWithin;
+
+    const next = [...scenes];
+    next.splice(activeIdx + 1, 0, secondScene);
+    setScenes(next);
+
+    const newClips = { ...settings.clips };
+    newClips[scene.id] = { ...currentEdit, trimEnd: Number(trimEndFirst.toFixed(2)) };
+    newClips[secondId] = { ...currentEdit, trimStart: Number(trimStartSecond.toFixed(2)), trimEnd: 0 };
+    setSettings({ ...settings, clips: newClips });
+
+    markMutated();
+    setSplitStatus("done");
+    setSplitError(null);
   }
 
-  async function handleEnhanceAll() {
-    if (!getAccessToken || scenes.length === 0 || enhancing) return;
-    setEnhancing(true);
-    setEnhanceStatus(null);
-    setEnhanceProgress({ done: 0, total: scenes.length });
+  async function handleUploadClip(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
-    let token: string | null;
+    setUploadStatus("uploading");
+    setUploadError(null);
+
     try {
-      token = await getAccessToken();
-    } catch {
-      setEnhanceStatus({ type: "error", message: "Could not authenticate. Please refresh and try again." });
-      setEnhancing(false);
-      return;
-    }
-    if (!token) {
-      setEnhanceStatus({ type: "error", message: "Not signed in. Please sign in and try again." });
-      setEnhancing(false);
-      return;
-    }
+      const sb = supabase;
+      if (!sb) throw new Error("Storage client not initialised — check Supabase env vars");
 
-    /* Keep a mutable local copy so sequential updates don't clobber each other */
-    const updatedScenes = scenes.map((s) => ({ ...s }));
-    const newEnhancedIds = new Set(enhancedIds);
-    let failed = 0;
+      const ext = file.name.split(".").pop() ?? "mp4";
+      const folder = user?.id ?? "anon";
+      const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    for (let i = 0; i < scenes.length; i++) {
-      const scene = scenes[i]!;
-      const cameraHint = ENHANCE_CAMERAS[i % ENHANCE_CAMERAS.length]!;
-      try {
-        const res = await fetch("/api/improve-prompt", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            prompt: scene.aiVideoPrompt || `${scene.action} at ${scene.location}`,
-            sceneContext: {
-              section: scene.section,
-              lyricLine: scene.lyricLine,
-              action: scene.action,
-              location: scene.location,
-              cameraMovement: cameraHint,
-              lighting: scene.lighting,
-              mood: scene.mood,
-            },
-            artistVault,
-          }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as { improvedPrompt: string };
-          updatedScenes[i] = { ...updatedScenes[i]!, aiVideoPrompt: data.improvedPrompt };
-          newEnhancedIds.add(scene.id);
-          /* Push accumulated updates after each scene so the UI feels live */
-          setScenes([...updatedScenes]);
-        } else {
-          failed++;
-        }
-      } catch {
-        failed++;
-      }
-      setEnhanceProgress({ done: i + 1, total: scenes.length });
-    }
+      const { error: upErr } = await sb.storage
+        .from(CLIP_BUCKET)
+        .upload(path, file, { upsert: true });
 
-    setEnhancedIds(new Set(newEnhancedIds));
-    setEnhancing(false);
-    setEnhanceProgress(null);
+      if (upErr) throw new Error(upErr.message);
 
-    if (failed === 0) {
-      setEnhanceStatus({
-        type: "success",
-        message: `All ${scenes.length} scene prompts enhanced with cinematic variety. No credits used.`,
-      });
-    } else if (failed < scenes.length) {
-      setEnhanceStatus({
-        type: "warning",
-        message: `${scenes.length - failed} of ${scenes.length} prompts enhanced. ${failed} scene${failed !== 1 ? "s" : ""} failed — try again.`,
-      });
-    } else {
-      setEnhanceStatus({
-        type: "error",
-        message: "Enhancement failed. Check your connection and try again.",
-      });
+      const { data } = sb.storage.from(CLIP_BUCKET).getPublicUrl(path);
+      const url = data.publicUrl;
+
+      const newScene: SceneData = {
+        ...makeBlankScene(scenes.length),
+        demoClipUrl: url,
+        generationStatus: "completed",
+        section: file.name.replace(/\.[^.]+$/, "").slice(0, 40),
+      };
+
+      const insertIdx = selectedSceneId
+        ? scenes.findIndex((s) => s.id === selectedSceneId) + 1
+        : scenes.length;
+      const next = [...scenes];
+      next.splice(insertIdx, 0, newScene);
+      setScenes(next);
+      setSelectedSceneId(newScene.id);
+      markMutated();
+      setUploadStatus("done");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setUploadError(msg);
+      setUploadStatus("error");
     }
   }
 
@@ -279,23 +388,129 @@ export function ClipGeneratorSection({
     const next = [...scenes];
     next.splice(index + 1, 0, copy);
     setScenes(next);
+    markMutated();
   }
 
   function remove(id: string) {
     setScenes(scenes.filter((s) => s.id !== id));
+    if (selectedSceneId === id) setSelectedSceneId(null);
+    markMutated();
   }
 
   function patchClip(sceneId: string, patch: Partial<ReturnType<typeof getClipEdit>>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
+    markMutated();
   }
+
+  function updateScene(id: string, patch: Partial<SceneData>) {
+    setScenes(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    markMutated();
+  }
+
+  async function handleEnhanceAll() {
+    if (!getAccessToken || scenes.length === 0 || enhancing) return;
+    setEnhancing(true);
+    setEnhanceStatus(null);
+    setEnhanceProgress({ done: 0, total: scenes.length });
+
+    let token: string | null;
+    try {
+      token = await getAccessToken();
+    } catch {
+      setEnhanceStatus({ type: "error", message: "Could not authenticate. Please refresh and try again." });
+      setEnhancing(false);
+      return;
+    }
+    if (!token) {
+      setEnhanceStatus({ type: "error", message: "Not signed in. Please sign in and try again." });
+      setEnhancing(false);
+      return;
+    }
+
+    const updatedScenes = scenes.map((s) => ({ ...s }));
+    const newEnhancedIds = new Set(enhancedIds);
+    let failed = 0;
+
+    for (let i = 0; i < scenes.length; i++) {
+      const scene = scenes[i]!;
+      const cameraHint = ENHANCE_CAMERAS[i % ENHANCE_CAMERAS.length]!;
+      try {
+        const res = await fetch("/api/improve-prompt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            prompt: scene.aiVideoPrompt || `${scene.action} at ${scene.location}`,
+            sceneContext: {
+              section: scene.section,
+              lyricLine: scene.lyricLine,
+              action: scene.action,
+              location: scene.location,
+              cameraMovement: cameraHint,
+              lighting: scene.lighting,
+              mood: scene.mood,
+            },
+            artistVault,
+          }),
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { improvedPrompt: string };
+          updatedScenes[i] = { ...updatedScenes[i]!, aiVideoPrompt: data.improvedPrompt };
+          newEnhancedIds.add(scene.id);
+          setScenes([...updatedScenes]);
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
+      setEnhanceProgress({ done: i + 1, total: scenes.length });
+    }
+
+    setEnhancedIds(new Set(newEnhancedIds));
+    setEnhancing(false);
+    setEnhanceProgress(null);
+
+    if (failed === 0) {
+      setEnhanceStatus({ type: "success", message: `All ${scenes.length} scene prompts enhanced with cinematic variety. No credits used.` });
+    } else if (failed < scenes.length) {
+      setEnhanceStatus({ type: "warning", message: `${scenes.length - failed} of ${scenes.length} prompts enhanced. ${failed} scene${failed !== 1 ? "s" : ""} failed — try again.` });
+    } else {
+      setEnhanceStatus({ type: "error", message: "Enhancement failed. Check your connection and try again." });
+    }
+  }
+
+  const INSERT_MODE_LABELS: Record<InsertMode, string> = {
+    end: "Add at end",
+    before: "Insert before selected",
+    after: "Insert after selected",
+    playhead: "Insert at playhead",
+  };
+
+  const scenesWithoutClip = scenes.filter((s) => !sceneHasClip(s));
+  const hasArtist = !!artistVault;
+
+  const canSplit = totalDurationSec && totalDurationSec > 0 && scenes.length > 0;
+
+  const activeSceneIdx = canSplit
+    ? Math.min(Math.floor(playheadTimeSec / (totalDurationSec! / scenes.length)), scenes.length - 1)
+    : -1;
 
   if (scenes.length === 0) {
     return (
-      <div className="text-center py-12">
-        <Film className="h-10 w-10 text-white/15 mx-auto mb-3" />
-        <p className="text-sm font-bold text-white/40">No scenes loaded yet</p>
-        <p className="text-[11px] text-white/25 mt-1">Rebuild scenes from your saved video plan above.</p>
+      <div className="space-y-4">
+        <div className="text-center py-8">
+          <Film className="h-10 w-10 text-white/15 mx-auto mb-3" />
+          <p className="text-sm font-bold text-white/40">No scenes loaded yet</p>
+          <p className="text-[11px] text-white/25 mt-1">Rebuild scenes from your saved video plan above, or add a blank clip.</p>
+          <button
+            type="button"
+            onClick={() => { markMutated(); setScenes([makeBlankScene(0)]); }}
+            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-primary/30 bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add First Clip
+          </button>
+        </div>
       </div>
     );
   }
@@ -303,21 +518,28 @@ export function ClipGeneratorSection({
   return (
     <div className="space-y-4">
 
-      {/* ── Undo / save status bar ── */}
-      {(reorderStatus || undoSnapshot) && (
+      {/* ── Global save / undo status bar ── */}
+      {(timelineSaveMsg || reorderStatus || undoSnapshot) && (
         <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-semibold ${
-          reorderStatus === "failed"
+          timelineSaveMsgType === "error" || reorderStatus === "failed"
             ? "border-red-500/30 bg-red-500/[0.06] text-red-400"
-            : reorderStatus === "saved"
+            : timelineSaveMsg || reorderStatus === "saved"
             ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
             : "border-white/[0.07] bg-white/[0.02] text-white/50"
         }`}>
-          {reorderStatus === "saved" ? (
+          {timelineSaveMsg ? (
+            <>
+              {timelineSaveMsgType === "saved"
+                ? <CheckCircle2 className="h-4 w-4 shrink-0" />
+                : <AlertCircle className="h-4 w-4 shrink-0" />}
+              {timelineSaveMsg}
+            </>
+          ) : reorderStatus === "saved" ? (
             <><CheckCircle2 className="h-4 w-4 shrink-0" /> Order saved</>
           ) : reorderStatus === "failed" ? (
             <><AlertCircle className="h-4 w-4 shrink-0" /> Order save failed — click Undo to restore</>
           ) : (
-            <><span className="h-4 w-4 shrink-0 inline-flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" /></span> Saving order…</>
+            <><span className="h-4 w-4 shrink-0 inline-flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" /></span> Saving…</>
           )}
           {undoSnapshot && (
             <button type="button" onClick={undoReorder}
@@ -328,7 +550,43 @@ export function ClipGeneratorSection({
         </div>
       )}
 
-      {/* ── Enhance Scene Prompts banner ── */}
+      {/* ── Split status ── */}
+      {splitStatus !== "idle" && (
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold ${
+          splitStatus === "done"
+            ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
+            : "border-red-500/30 bg-red-500/[0.06] text-red-400"
+        }`}>
+          {splitStatus === "done"
+            ? <><Check className="h-4 w-4 shrink-0" /> Clip split — two scenes created with trim points set</>
+            : <><AlertCircle className="h-4 w-4 shrink-0" /> {splitError}</>}
+        </div>
+      )}
+
+      {/* ── Upload status ── */}
+      {uploadStatus !== "idle" && (
+        <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold ${
+          uploadStatus === "done"
+            ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
+            : uploadStatus === "error"
+            ? "border-red-500/30 bg-red-500/[0.06] text-red-400"
+            : "border-primary/25 bg-primary/[0.05] text-primary/80"
+        }`}>
+          {uploadStatus === "uploading" && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
+          {uploadStatus === "done" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+          {uploadStatus === "error" && <AlertCircle className="h-4 w-4 shrink-0" />}
+          {uploadStatus === "uploading" && "Uploading clip…"}
+          {uploadStatus === "done" && "Clip uploaded and added to timeline"}
+          {uploadStatus === "error" && (
+            <span>
+              Upload failed: {uploadError ?? "unknown error"}{" "}
+              <span className="text-white/40 font-normal">— paste the URL into "Replace clip URL" instead</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── Enhance Scene Prompts ── */}
       <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="space-y-0.5">
@@ -350,71 +608,116 @@ export function ClipGeneratorSection({
             data-testid="btn-enhance-all-prompts"
           >
             {enhancing ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Enhancing {enhanceProgress ? `${enhanceProgress.done}/${enhanceProgress.total}` : "…"}
-              </>
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Enhancing {enhanceProgress ? `${enhanceProgress.done}/${enhanceProgress.total}` : "…"}</>
             ) : (
-              <>
-                <Sparkles className="h-3.5 w-3.5" />
-                Enhance Scene Prompts
-              </>
+              <><Sparkles className="h-3.5 w-3.5" /> Enhance Scene Prompts</>
             )}
           </Button>
         </div>
-
-        {/* Progress bar */}
         {enhancing && enhanceProgress && (
           <div className="h-1 w-full rounded-full bg-white/[0.07] overflow-hidden">
-            <div
-              className="h-full bg-primary/70 transition-all duration-300 rounded-full"
-              style={{ width: `${(enhanceProgress.done / enhanceProgress.total) * 100}%` }}
-            />
+            <div className="h-full bg-primary/70 transition-all duration-300 rounded-full"
+              style={{ width: `${(enhanceProgress.done / enhanceProgress.total) * 100}%` }} />
           </div>
         )}
-
-        {/* Status */}
         {enhanceStatus && (
           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${
-            enhanceStatus.type === "success"
-              ? "border-green-500/25 bg-green-500/[0.07] text-green-400"
-              : enhanceStatus.type === "warning"
-              ? "border-yellow-500/25 bg-yellow-500/[0.07] text-yellow-400"
+            enhanceStatus.type === "success" ? "border-green-500/25 bg-green-500/[0.07] text-green-400"
+              : enhanceStatus.type === "warning" ? "border-yellow-500/25 bg-yellow-500/[0.07] text-yellow-400"
               : "border-red-500/25 bg-red-500/[0.07] text-red-400"
           }`}>
-            {enhanceStatus.type === "success"
-              ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
+            {enhanceStatus.type === "success" ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> : <AlertCircle className="h-3.5 w-3.5 shrink-0" />}
             {enhanceStatus.message}
           </div>
         )}
       </div>
 
-      {/* Scene count + quick-add controls */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <p className="text-xs font-black text-white/60 uppercase tracking-widest">
-            {scenes.length} Scene{scenes.length !== 1 ? "s" : ""}
-            {scenesWithoutClip.length > 0 && (
-              <span className="ml-1.5 text-white/30 font-normal normal-case tracking-normal">
-                · {scenesWithoutClip.length} without a clip
-              </span>
-            )}
-          </p>
-        </div>
+      {/* ── Timeline editing toolbar ── */}
+      <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-3">
+        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Timeline Controls</p>
+
+        {/* Add Clip row */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Add blank clip */}
-          <Button
-            size="sm"
-            onClick={addBlankClip}
-            className="gap-1.5 border border-white/15 bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.08] font-bold text-xs h-8"
-            variant="outline"
-            title="Add a blank scene to the end of the timeline"
+          {/* Add Clip dropdown */}
+          <div className="relative">
+            <div className="flex items-stretch rounded-lg border border-white/15 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => addClipAt(insertMode)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
+                title={INSERT_MODE_LABELS[insertMode]}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Clip
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setShowInsertMenu((v) => !v); }}
+                className="flex items-center px-2 border-l border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:bg-white/[0.08] transition-colors"
+                title="Choose insert position"
+              >
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </div>
+            {showInsertMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-full mt-1 left-0 z-50 min-w-[200px] rounded-xl border border-white/10 bg-zinc-900 shadow-xl shadow-black/40 py-1 text-xs"
+              >
+                {(["end", "before", "after", "playhead"] as InsertMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      setInsertMode(mode);
+                      setShowInsertMenu(false);
+                      addClipAt(mode);
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-white/[0.06] transition-colors text-left ${
+                      insertMode === mode ? "text-primary" : "text-white/60"
+                    }`}
+                  >
+                    {insertMode === mode && <Check className="h-3 w-3 shrink-0" />}
+                    {insertMode !== mode && <span className="w-3" />}
+                    {INSERT_MODE_LABELS[mode]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Upload Clip */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadStatus === "uploading"}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50"
+            title="Upload a local video file"
           >
-            <Plus className="h-3.5 w-3.5" />
-            Add Clip
-          </Button>
-          {/* Create all */}
+            {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            Upload Clip
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={handleUploadClip}
+          />
+
+          {/* Split at playhead */}
+          <button
+            type="button"
+            onClick={splitAtPlayhead}
+            disabled={!canSplit}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+            title={canSplit ? `Split scene ${activeSceneIdx + 1} at playhead (${playheadTimeSec.toFixed(1)}s)` : "Load audio first to enable split"}
+          >
+            <Scissors className="h-3.5 w-3.5" />
+            Split at ▶
+          </button>
+
+          {/* Create All */}
           {scenesWithoutClip.length > 0 && (
             <Button
               size="sm"
@@ -428,9 +731,61 @@ export function ClipGeneratorSection({
             </Button>
           )}
         </div>
+
+        {/* Selected scene indicator */}
+        {selectedSceneId && (() => {
+          const selIdx = scenes.findIndex((s) => s.id === selectedSceneId);
+          const selScene = scenes[selIdx];
+          if (!selScene) return null;
+          return (
+            <div className="flex items-center gap-2 text-[10px] text-white/40">
+              <div className="h-1 w-1 rounded-full bg-primary/60" />
+              <span>
+                Selected: <span className="text-white/60 font-semibold">Scene {selIdx + 1} — {selScene.section || "New Clip"}</span>
+                {" "}— inserts will go <span className="text-primary/80 font-semibold">{INSERT_MODE_LABELS[insertMode]}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedSceneId(null)}
+                className="ml-auto text-white/30 hover:text-white/60 transition-colors"
+                title="Clear selection"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* Playhead / split info */}
+        {canSplit && (
+          <div className="flex items-center gap-2 text-[10px] text-white/30">
+            <Clock className="h-3 w-3 shrink-0" />
+            <span>
+              Playhead: <span className="text-white/50">{playheadTimeSec.toFixed(2)}s</span>
+              {activeSceneIdx >= 0 && (
+                <> · Active scene: <span className="text-white/50">Scene {activeSceneIdx + 1}</span></>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Scene cards — 1 col mobile / 2 col tablet / 3 col desktop */}
+      {/* ── Scene count ── */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <p className="text-xs font-black text-white/60 uppercase tracking-widest">
+          {scenes.length} Scene{scenes.length !== 1 ? "s" : ""}
+          {scenesWithoutClip.length > 0 && (
+            <span className="ml-1.5 text-white/30 font-normal normal-case tracking-normal">
+              · {scenesWithoutClip.length} without a clip
+            </span>
+          )}
+        </p>
+        {selectedSceneId && (
+          <p className="text-[10px] text-white/30">Click a card to change selection</p>
+        )}
+      </div>
+
+      {/* ── Scene cards grid ── */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={scenes.map((s) => s.id)} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -445,6 +800,8 @@ export function ClipGeneratorSection({
                     artistVault={artistVault}
                     projectId={projectId}
                     settings={settings}
+                    isSelected={selectedSceneId === scene.id}
+                    onSelect={() => setSelectedSceneId((prev) => prev === scene.id ? null : scene.id)}
                     onUpdateScene={updateScene}
                     onPatchClip={patchClip}
                     onMove={move}
@@ -469,7 +826,7 @@ export function ClipGeneratorSection({
   );
 }
 
-/* ── Sortable wrapper for DnD ────────────────────────────────── */
+/* ── Sortable wrapper ────────────────────────────────────────── */
 function SortableSceneCard({
   id,
   children,
@@ -481,12 +838,7 @@ function SortableSceneCard({
   return (
     <div
       ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: isDragging ? 50 : undefined,
-        opacity: isDragging ? 0.85 : 1,
-      }}
+      style={{ transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.85 : 1 }}
     >
       {children({ ...attributes, ...listeners }, isDragging)}
     </div>
@@ -502,6 +854,8 @@ interface SceneClipCardProps {
   artistVault?: ArtistVault | null;
   projectId?: string | null;
   settings: EditorSettings;
+  isSelected?: boolean;
+  onSelect: () => void;
   onUpdateScene: (id: string, patch: Partial<SceneData>) => void;
   onPatchClip: (sceneId: string, patch: Partial<ReturnType<typeof getClipEdit>>) => void;
   onMove: (index: number, dir: -1 | 1) => void;
@@ -525,6 +879,8 @@ function SceneClipCard({
   artistVault,
   projectId,
   settings,
+  isSelected,
+  onSelect,
   onUpdateScene,
   onPatchClip,
   onMove,
@@ -548,33 +904,37 @@ function SceneClipCard({
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden flex flex-col transition-colors ${
+      className={`rounded-xl border overflow-hidden flex flex-col transition-all ${
         isDragging
           ? "border-primary/60 bg-primary/[0.08] shadow-xl shadow-primary/20"
+          : isSelected
+          ? "border-primary/70 bg-primary/[0.06] shadow-[0_0_18px_rgba(234,179,8,0.1)] ring-1 ring-primary/30"
           : isPreviewing
           ? "border-primary/50 bg-primary/[0.04] shadow-[0_0_18px_rgba(234,179,8,0.07)]"
           : "border-white/[0.08] bg-white/[0.025]"
       }`}
       data-testid={`clip-gen-card-${index}`}
     >
-      {/* ── Compact header ── */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
-        {/* Drag handle */}
+      {/* ── Header — click to select ── */}
+      <div
+        className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] cursor-pointer hover:bg-white/[0.02] transition-colors"
+        onClick={onSelect}
+        title={isSelected ? "Click to deselect" : "Click to select for insert positioning"}
+      >
         {dragHandleProps && (
           <div
             {...dragHandleProps}
+            onClick={(e) => e.stopPropagation()}
             className="shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors touch-none"
             title="Drag to reorder"
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
         )}
-        {/* Scene number badge */}
         <div className="h-6 w-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
           <span className="text-[10px] font-black text-primary">{index + 1}</span>
         </div>
 
-        {/* Section + flag badges */}
         <div className="flex-1 min-w-0 flex items-center gap-1 flex-wrap">
           {scene.section && (
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border truncate max-w-[90px] ${sectionColor(scene.section)}`}>
@@ -591,37 +951,29 @@ function SceneClipCard({
               <ShieldCheck className="h-2 w-2" /> Consistent
             </span>
           )}
+          {isSelected && (
+            <span className="flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-[8px] font-black text-primary shrink-0">
+              ✓ Selected
+            </span>
+          )}
         </div>
 
-        {/* Status badge */}
         {hasClip ? (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 shrink-0">
-            Ready
-          </span>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-green-500/30 bg-green-500/10 text-green-400 shrink-0">Ready</span>
         ) : (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/10 text-white/25 shrink-0">
-            No clip
-          </span>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-white/10 text-white/25 shrink-0">No clip</span>
         )}
       </div>
 
-      {/* ── Video thumbnail area — fixed heights so cards stay compact ── */}
+      {/* ── Thumbnail ── */}
       <div className="relative h-[200px] sm:h-[220px] xl:h-[190px] bg-black shrink-0">
         {hasClip ? (
-          <video
-            src={scene.demoClipUrl ?? undefined}
-            muted
-            preload="metadata"
-            playsInline
-            className="w-full h-full object-cover"
-          />
+          <video src={scene.demoClipUrl ?? undefined} muted preload="metadata" playsInline className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
             <Film className="h-8 w-8 text-white/10" />
           </div>
         )}
-
-        {/* Preview overlay — click to load into master player */}
         {hasClip && onPreview && (
           <button
             type="button"
@@ -641,22 +993,14 @@ function SceneClipCard({
             )}
           </button>
         )}
-
-        {/* No-clip generate hint */}
         {!hasClip && (
-          <button
-            type="button"
-            onClick={() => setDetailOpen(true)}
-            className="absolute inset-0 flex items-center justify-center"
-          >
-            <span className="text-[10px] text-white/20 hover:text-primary font-bold transition-colors">
-              + Generate clip
-            </span>
+          <button type="button" onClick={() => setDetailOpen(true)} className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[10px] text-white/20 hover:text-primary font-bold transition-colors">+ Generate clip</span>
           </button>
         )}
       </div>
 
-      {/* ── Lyric line ── */}
+      {/* ── Lyric / action line ── */}
       {(scene.lyricLine || scene.action) && (
         <p className="px-3 py-1.5 text-[10px] text-white/40 italic truncate border-b border-white/[0.04]">
           "{scene.lyricLine || scene.action}"
@@ -665,7 +1009,6 @@ function SceneClipCard({
 
       {/* ── Quick action row ── */}
       <div className="px-3 py-2 flex items-center gap-1.5 flex-wrap">
-        {/* Approve */}
         {hasClip && (
           <button
             type="button"
@@ -682,7 +1025,6 @@ function SceneClipCard({
           </button>
         )}
 
-        {/* Spacer + icon buttons on the right */}
         <div className="flex items-center gap-1 ml-auto">
           <IconBtn title="Move to start" disabled={index === 0} onClick={() => onMoveToStart(index)} testId={`btn-start-${index}`}>
             <ChevronsUp className="h-3 w-3" />
@@ -696,13 +1038,12 @@ function SceneClipCard({
           <IconBtn title="Move to end" disabled={index === totalScenes - 1} onClick={() => onMoveToEnd(index)} testId={`btn-end-${index}`}>
             <ChevronsDown className="h-3 w-3" />
           </IconBtn>
-          <IconBtn title="Duplicate" onClick={() => onDuplicate(index)} testId={`btn-dup-${index}`}>
+          <IconBtn title="Duplicate clip" onClick={() => onDuplicate(index)} testId={`btn-dup-${index}`}>
             <Copy className="h-3 w-3" />
           </IconBtn>
-          <IconBtn title="Remove" danger onClick={() => onRemove(scene.id)} testId={`btn-rem-${index}`}>
+          <IconBtn title="Ripple delete (removes clip and closes gap)" danger onClick={() => onRemove(scene.id)} testId={`btn-rem-${index}`}>
             <Trash2 className="h-3 w-3" />
           </IconBtn>
-          {/* Toggle detail/generate panel */}
           <button
             type="button"
             onClick={() => setDetailOpen((o) => !o)}
@@ -717,7 +1058,7 @@ function SceneClipCard({
         </div>
       </div>
 
-      {/* ── Expandable detail panel ── */}
+      {/* ── Expandable detail / edit panel ── */}
       {detailOpen && (
         <div className="border-t border-white/[0.06] px-3 py-3 space-y-3">
           {/* AI Prompt */}
@@ -732,7 +1073,6 @@ function SceneClipCard({
             </details>
           )}
 
-          {/* Artist consistency note */}
           {hasArtist && !hasConsistency && (
             <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary/[0.06] border border-primary/20">
               <ShieldCheck className="h-3 w-3 text-primary shrink-0" />
@@ -742,7 +1082,7 @@ function SceneClipCard({
             </div>
           )}
 
-          {/* InlineRunwayGenerator — create / regenerate clip */}
+          {/* Generate / Regenerate */}
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5">
             <InlineRunwayGenerator
               scene={scene}
@@ -753,9 +1093,10 @@ function SceneClipCard({
             />
           </div>
 
-          {/* Clip editing — approve / mute / trim / replace */}
+          {/* Clip editing controls */}
           {hasClip && (
             <div className="space-y-2.5">
+              {/* Quick toggles */}
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   type="button"
@@ -772,16 +1113,28 @@ function SceneClipCard({
                 </button>
               </div>
 
-              <Collapsible title="Trim · Volume · Replace URL">
+              {/* Trim · Volume · Fade · Replace */}
+              <Collapsible title="Trim · Volume · Fade · Replace URL">
                 <div className="space-y-3">
                   <Field label="Trim start" hint={`${edit.trimStart.toFixed(1)}s`}>
-                    <Slider value={[edit.trimStart]} min={0} max={10} step={0.5} onValueChange={([v]) => onPatchClip(scene.id, { trimStart: v ?? 0 })} />
+                    <Slider value={[edit.trimStart]} min={0} max={15} step={0.5}
+                      onValueChange={([v]) => onPatchClip(scene.id, { trimStart: v ?? 0 })} />
                   </Field>
                   <Field label="Trim end" hint={`${edit.trimEnd.toFixed(1)}s`}>
-                    <Slider value={[edit.trimEnd]} min={0} max={10} step={0.5} onValueChange={([v]) => onPatchClip(scene.id, { trimEnd: v ?? 0 })} />
+                    <Slider value={[edit.trimEnd]} min={0} max={15} step={0.5}
+                      onValueChange={([v]) => onPatchClip(scene.id, { trimEnd: v ?? 0 })} />
                   </Field>
                   <Field label="Clip volume" hint={`${edit.volume}%`}>
-                    <Slider value={[edit.volume]} min={0} max={100} step={5} onValueChange={([v]) => onPatchClip(scene.id, { volume: v ?? 100 })} />
+                    <Slider value={[edit.volume]} min={0} max={100} step={5}
+                      onValueChange={([v]) => onPatchClip(scene.id, { volume: v ?? 100 })} />
+                  </Field>
+                  <Field label="Fade in" hint={`${edit.fadeIn.toFixed(1)}s`}>
+                    <Slider value={[edit.fadeIn]} min={0} max={5} step={0.1}
+                      onValueChange={([v]) => onPatchClip(scene.id, { fadeIn: v ?? 0 })} />
+                  </Field>
+                  <Field label="Fade out" hint={`${edit.fadeOut.toFixed(1)}s`}>
+                    <Slider value={[edit.fadeOut]} min={0} max={5} step={0.1}
+                      onValueChange={([v]) => onPatchClip(scene.id, { fadeOut: v ?? 0 })} />
                   </Field>
                   <Field label="Replace clip URL">
                     <div className="flex items-center gap-2">

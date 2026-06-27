@@ -486,6 +486,10 @@ export interface ClipEdit {
   effect: string;
   /** Optional replacement clip URL override (edit-plan only). */
   replaceUrl: string | null;
+  /** Fade-in duration in seconds (edit-plan only). */
+  fadeIn: number;
+  /** Fade-out duration in seconds (edit-plan only). */
+  fadeOut: number;
 }
 
 export interface CaptionSettings {
@@ -943,6 +947,8 @@ export function defaultClipEdit(): ClipEdit {
     transitionDuration: 1.0,
     effect: "None",
     replaceUrl: null,
+    fadeIn: 0,
+    fadeOut: 0,
   };
 }
 

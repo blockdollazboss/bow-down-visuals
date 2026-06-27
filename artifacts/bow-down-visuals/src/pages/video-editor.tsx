@@ -963,6 +963,8 @@ export default function VideoEditor() {
                       previewSceneId={previewSceneId}
                       getAccessToken={getAccessToken}
                       saveState={saveState}
+                      playheadTimeSec={previewEngineState?.currentTime ?? 0}
+                      totalDurationSec={songDuration ?? undefined}
                     />
                   </div>
                 )}
