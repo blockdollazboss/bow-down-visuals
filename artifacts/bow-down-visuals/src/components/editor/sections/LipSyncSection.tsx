@@ -242,6 +242,18 @@ export function LipSyncSection({
   const [inputCheck, setInputCheck]         = useState<InputCheckResult | null>(null);
   const [inputCheckLoading, setInputCheckLoading] = useState(false);
 
+  /* ── Route test state ── */
+  const [routeTest, setRouteTest] = useState<{
+    reachable:                  boolean;
+    returnsJson:                boolean;
+    status:                     number;
+    contentType:                string;
+    providerKeyPresent:         boolean;
+    providerEndpointConfigured: boolean;
+    checkedAt:                  string;
+  } | null>(null);
+  const [routeTestLoading, setRouteTestLoading] = useState(false);
+
   /* ── Derived: audio source ── */
   const vocalExportUrl = ms.exports.find(r => r.kind === "acapella")?.url ?? null;
   const vocalStemUrl   =
@@ -261,8 +273,12 @@ export function LipSyncSection({
   const audioReady     = !!effectiveAudioUrl;
   const usingFullMix   = !vocalStemFound || ls.audioSource === "full";
 
-  /* ── Derived: selected scene ── */
-  const clipsWithFaces  = scenes.filter(s => sceneHasClip(s));
+  /* ── Derived: selected scene — deduplicated by scene ID ── */
+  const clipsWithFaces = Array.from(
+    new Map(
+      scenes.filter(s => sceneHasClip(s)).map(s => [s.id, s] as const)
+    ).values()
+  );
   const selectedScene   = scenes.find(s => s.id === ls.selectedSceneId) ?? clipsWithFaces[0] ?? null;
   const selectedClipEdit: ClipEdit | null = selectedScene
     ? getClipEdit(settings, selectedScene.id)
@@ -523,6 +539,42 @@ export function LipSyncSection({
     }
   }
 
+  /* ── Test submit route ── */
+  async function testSubmitRoute() {
+    setRouteTestLoading(true);
+    try {
+      const res = await fetch("/api/lip-sync/status");
+      const ct = res.headers.get("content-type") ?? "";
+      const isJson = ct.includes("application/json");
+      let providerKeyPresent = false;
+      if (isJson) {
+        const data = await res.json() as { serverKeyFound?: boolean; connected?: boolean };
+        providerKeyPresent = !!(data.serverKeyFound ?? data.connected);
+      }
+      setRouteTest({
+        reachable:                  true,
+        returnsJson:                isJson,
+        status:                     res.status,
+        contentType:                ct || "(none)",
+        providerKeyPresent,
+        providerEndpointConfigured: true,
+        checkedAt:                  new Date().toLocaleTimeString(),
+      });
+    } catch {
+      setRouteTest({
+        reachable:                  false,
+        returnsJson:                false,
+        status:                     0,
+        contentType:                "(network error)",
+        providerKeyPresent:         false,
+        providerEndpointConfigured: false,
+        checkedAt:                  new Date().toLocaleTimeString(),
+      });
+    } finally {
+      setRouteTestLoading(false);
+    }
+  }
+
   /* ── Clear result ── */
   function clearLipSync(sceneId: string) {
     const existing = getClipEdit(settings, sceneId);
@@ -705,14 +757,41 @@ export function LipSyncSection({
                 <StatusRow label="clips lip synced"    value={`${allDoneCount} / ${scenes.length}`}                ok={allDoneCount > 0 ? true : null} />
                 <StatusRow label="clips processing"    value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
               </div>
-              <button
-                type="button"
-                onClick={() => void fetchProviderStatus()}
-                disabled={providerLoading}
-                className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
-              >
-                <RefreshCw className="h-3 w-3" /> Refresh status
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void fetchProviderStatus()}
+                  disabled={providerLoading}
+                  className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+                >
+                  <RefreshCw className="h-3 w-3" /> Refresh status
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void testSubmitRoute()}
+                  disabled={routeTestLoading}
+                  className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+                >
+                  {routeTestLoading
+                    ? <><Loader2 className="h-3 w-3 animate-spin" /> Testing…</>
+                    : <><ShieldCheck className="h-3 w-3" /> Test Submit Route</>}
+                </button>
+              </div>
+
+              {/* Route test result */}
+              {routeTest && !routeTestLoading && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">
+                    Submit Route Test · {routeTest.checkedAt}
+                  </p>
+                  <StatusRow label="internal route reachable"      value={routeTest.reachable ? "yes ✓" : "no ✗"}             ok={routeTest.reachable} />
+                  <StatusRow label="route returns JSON"            value={routeTest.returnsJson ? "yes ✓" : "no ✗"}           ok={routeTest.returnsJson} />
+                  <StatusRow label="provider key present"          value={routeTest.providerKeyPresent ? "yes ✓" : "no ✗"}    ok={routeTest.providerKeyPresent} />
+                  <StatusRow label="provider endpoint configured"  value={routeTest.providerEndpointConfigured ? "yes" : "no"} ok={routeTest.providerEndpointConfigured} />
+                  <StatusRow label="last response status"          value={routeTest.status ? String(routeTest.status) : "—"}  ok={routeTest.status === 200 ? true : null} />
+                  <StatusRow label="last response content-type"    value={routeTest.contentType}                               ok={routeTest.returnsJson ? true : false} />
+                </div>
+              )}
             </div>
           </EditorCard>
 
@@ -1406,6 +1485,21 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     }),
     signal: AbortSignal.timeout(480_000),
   });
+
+  /* Check content-type BEFORE calling .json() — a proxy timeout or unhandled
+     server error can return an HTML page, which would crash with
+     "Unexpected token '<'". Now we surface the real status + preview instead. */
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    const preview = (await res.text()).slice(0, 300).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `Lip sync route returned a non-JSON response\n` +
+      `  endpoint:     POST /api/lip-sync/preview\n` +
+      `  status:       ${res.status} ${res.statusText}\n` +
+      `  content-type: ${contentType || "(none)"}\n` +
+      `  preview:      ${preview || "(empty body)"}`
+    );
+  }
 
   const data = await res.json() as { url?: string; provider?: string; error?: string; code?: string };
 

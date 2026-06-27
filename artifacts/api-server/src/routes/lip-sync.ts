@@ -354,92 +354,93 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
    Trims audio to the scene's exact time range, then submits to Sync Labs.
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/preview", requireAuth, async (req, res) => {
-  const {
-    clipUrl,
-    audioUrl,
-    sceneStartSec,
-    sceneEndSec,
-    audioSourceType,
-    strength,
-    preserveFaceIdentity,
-    preserveArtistLook,
-  } = (req.body ?? {}) as {
-    clipUrl?:              string;
-    audioUrl?:             string;
-    sceneStartSec?:        number;
-    sceneEndSec?:          number;
-    audioSourceType?:      string;
-    strength?:             string;
-    preserveFaceIdentity?: boolean;
-    preserveArtistLook?:  boolean;
-  };
-
-  void audioSourceType; void strength; void preserveFaceIdentity; void preserveArtistLook;
-
-  /* ── Validate inputs ── */
-  if (!clipUrl || typeof clipUrl !== "string" || !clipUrl.startsWith("http")) {
-    res.status(400).json({ error: "clipUrl is required and must be an HTTP URL.", code: "invalid_clip_url" });
-    return;
-  }
-  if (!audioUrl || typeof audioUrl !== "string") {
-    res.status(400).json({ error: "audioUrl is required.", code: "invalid_audio_url" });
-    return;
-  }
-  if (audioUrl.startsWith("blob:")) {
-    res.status(400).json({
-      error: "Audio URL is a temporary browser blob URL (blob:…). Upload the audio file to permanent storage first.",
-      code: "blob_url_not_supported",
-    });
-    return;
-  }
-  if (!audioUrl.startsWith("http")) {
-    res.status(400).json({ error: `Audio URL must start with https:// (got: ${audioUrl.slice(0, 30)})`, code: "invalid_audio_url" });
-    return;
-  }
-  if (typeof sceneStartSec !== "number" || typeof sceneEndSec !== "number" || sceneEndSec <= sceneStartSec) {
-    res.status(400).json({
-      error: "sceneStartSec and sceneEndSec are required; sceneEndSec must be greater than sceneStartSec.",
-      code: "invalid_timing",
-    });
-    return;
-  }
-  if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
-    const msg = PROVIDER_NAME === "sync"
-      ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-      : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
-    res.status(503).json({ error: msg, code: "provider_not_connected" });
-    return;
-  }
-
-  /* ── Pre-flight: verify audio URL is reachable ── */
-  const audioProbe = await probeUrl(audioUrl);
-  if (!audioProbe.ok) {
-    res.status(400).json({
-      error: `Audio URL is not reachable: ${audioProbe.error} (type: ${detectUrlType(audioUrl)}, url: ${audioUrl.slice(0, 100)})`,
-      code: "audio_url_unreachable",
-    });
-    return;
-  }
-
-  /* ── Pre-flight: verify clip URL is reachable ── */
-  const clipProbe = await probeUrl(clipUrl);
-  if (!clipProbe.ok) {
-    res.status(400).json({
-      error: `Clip URL is not reachable: ${clipProbe.error} (url: ${clipUrl.slice(0, 100)})`,
-      code: "clip_url_unreachable",
-    });
-    return;
-  }
-
-  /* Extend socket timeout for trimming + polling */
-  req.socket.setTimeout(480_000);
-
-  req.log.info(
-    { clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
-    "[lip-sync] starting preview — trimming audio segment",
-  );
-
+  /* Single catch wraps EVERYTHING — guarantees JSON even on unhandled errors */
   try {
+    const {
+      clipUrl,
+      audioUrl,
+      sceneStartSec,
+      sceneEndSec,
+      audioSourceType,
+      strength,
+      preserveFaceIdentity,
+      preserveArtistLook,
+    } = (req.body ?? {}) as {
+      clipUrl?:              string;
+      audioUrl?:             string;
+      sceneStartSec?:        number;
+      sceneEndSec?:          number;
+      audioSourceType?:      string;
+      strength?:             string;
+      preserveFaceIdentity?: boolean;
+      preserveArtistLook?:  boolean;
+    };
+
+    void audioSourceType; void strength; void preserveFaceIdentity; void preserveArtistLook;
+
+    /* ── Validate inputs ── */
+    if (!clipUrl || typeof clipUrl !== "string" || !clipUrl.startsWith("http")) {
+      res.status(400).json({ error: "clipUrl is required and must be an HTTP URL.", code: "invalid_clip_url" });
+      return;
+    }
+    if (!audioUrl || typeof audioUrl !== "string") {
+      res.status(400).json({ error: "audioUrl is required.", code: "invalid_audio_url" });
+      return;
+    }
+    if (audioUrl.startsWith("blob:")) {
+      res.status(400).json({
+        error: "Audio URL is a temporary browser blob URL (blob:…). Upload the audio file to permanent storage first.",
+        code: "blob_url_not_supported",
+      });
+      return;
+    }
+    if (!audioUrl.startsWith("http")) {
+      res.status(400).json({ error: `Audio URL must start with https:// (got: ${audioUrl.slice(0, 30)})`, code: "invalid_audio_url" });
+      return;
+    }
+    if (typeof sceneStartSec !== "number" || typeof sceneEndSec !== "number" || sceneEndSec <= sceneStartSec) {
+      res.status(400).json({
+        error: "sceneStartSec and sceneEndSec are required; sceneEndSec must be greater than sceneStartSec.",
+        code: "invalid_timing",
+      });
+      return;
+    }
+    if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
+      const msg = PROVIDER_NAME === "sync"
+        ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
+        : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
+      res.status(503).json({ error: msg, code: "provider_not_connected" });
+      return;
+    }
+
+    /* ── Pre-flight: verify audio URL is reachable ── */
+    const audioProbe = await probeUrl(audioUrl);
+    if (!audioProbe.ok) {
+      res.status(400).json({
+        error: `Audio URL is not reachable: ${audioProbe.error} (type: ${detectUrlType(audioUrl)}, url: ${audioUrl.slice(0, 100)})`,
+        code: "audio_url_unreachable",
+      });
+      return;
+    }
+
+    /* ── Pre-flight: verify clip URL is reachable ── */
+    const clipProbe = await probeUrl(clipUrl);
+    if (!clipProbe.ok) {
+      res.status(400).json({
+        error: `Clip URL is not reachable: ${clipProbe.error} (url: ${clipUrl.slice(0, 100)})`,
+        code: "clip_url_unreachable",
+      });
+      return;
+    }
+
+    /* Extend socket timeout for trimming + polling */
+    req.socket.setTimeout(480_000);
+
+    req.log.info(
+      { clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
+      "[lip-sync] starting preview — trimming audio segment",
+    );
+
     /* ── Step 1: Trim audio to scene range ── */
     const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(audioUrl, sceneStartSec, sceneEndSec);
 
@@ -478,7 +479,9 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lip sync failed";
     req.log.error({ err }, "[lip-sync] preview failed");
-    res.status(502).json({ error: msg, code: "provider_error" });
+    if (!res.headersSent) {
+      res.status(502).json({ error: msg, code: "provider_error" });
+    }
   }
 });
 

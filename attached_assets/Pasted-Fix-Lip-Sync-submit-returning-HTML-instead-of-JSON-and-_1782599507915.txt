@@ -1,0 +1,205 @@
+Fix Lip Sync submit returning HTML instead of JSON and remove duplicate scene rows.
+
+Problem:
+Lip Sync input check now passes:
+- audio ready: yes
+- audio URL ready: yes
+- clip video ready: yes
+- clip URL ready: yes
+- provider key present: yes
+- payload validated: yes
+- sanitized payload ready: yes
+- ready to submit: yes
+
+But Apply to Scene fails with:
+
+Unexpected token '<', "<!DOCTYPE"... is not valid JSON
+
+This means the submit request is receiving an HTML page, not JSON.
+
+Also the Select Clip / Scene list shows duplicate Scene 5 / Outro rows.
+
+Do not change:
+- signed URL checks
+- payload sanitizer
+- master player
+- timeline
+- captions
+- watermark
+- effects
+- overlays
+- Export Doctor
+- payments or credits
+
+Only fix:
+- Lip Sync submit route
+- Sync Labs API endpoint
+- response parsing
+- real error display
+- duplicate scene rows in Lip Sync clip selector
+
+PART 1 — FIX HTML INSTEAD OF JSON ERROR
+
+Find where Apply Lip Sync submits the request.
+
+Do not blindly call response.json().
+
+Before parsing, check:
+- response.status
+- response.statusText
+- response.headers.get("content-type")
+- raw response text preview
+
+If content-type is not JSON, show a real error:
+
+Lip Sync submit returned non-JSON response:
+- status
+- content-type
+- response preview
+- endpoint called
+
+Do not show only:
+Unexpected token '<'
+
+PART 2 — VERIFY FRONTEND ROUTE
+
+Make sure the frontend calls the correct internal server route.
+
+Example:
+POST /api/lip-sync/submit
+
+Do not call:
+- a missing route
+- a page route
+- a Vite/React fallback route
+- a client-side route that returns index.html
+
+If the route is missing, create it server-side.
+
+PART 3 — VERIFY SERVER ROUTE RETURNS JSON ALWAYS
+
+The server route must always return JSON, even on errors.
+
+Every response should be:
+
+{ success: true, ... }
+
+or
+
+{ success: false, error: "...", details: ... }
+
+Do not return HTML error pages.
+
+Wrap the server route in try/catch.
+
+PART 4 — VERIFY SYNC LABS API URL
+
+Check the Sync Labs endpoint URL.
+
+Make sure it is the correct current API endpoint for creating a lip sync generation.
+
+Do not submit to:
+- website URL
+- docs URL
+- dashboard URL
+- old/deprecated endpoint
+- undefined environment variable URL
+- empty string
+
+Add config status:
+Sync Labs Endpoint:
+- endpoint configured: yes/no
+- endpoint host
+- endpoint path
+- request method
+- content-type sent
+- response status
+- response content-type
+
+Do not expose API key.
+
+PART 5 — SERVER-SIDE PROVIDER CALL ONLY
+
+Sync Labs request must happen server-side.
+
+Frontend should call app server.
+App server should call Sync Labs.
+
+Do not expose Sync Labs API key in browser.
+
+PART 6 — RESPONSE HANDLING
+
+When Sync Labs returns JSON:
+- parse JSON
+- save generation id/status
+- show provider result
+
+When Sync Labs returns non-JSON:
+- do not crash
+- show real response status/content-type/preview
+- save failure reason
+
+PART 7 — ADD TEST BUTTON
+
+Add button:
+Test Sync Labs Submit Route
+
+This should test the internal app route without running a real generation if possible.
+
+It should show:
+- internal route reachable: yes/no
+- route returns JSON: yes/no
+- provider endpoint configured: yes/no
+- provider key present: yes/no
+- last response content-type
+- last response status
+
+PART 8 — FIX DUPLICATE SCENE ROWS
+
+The Lip Sync Select Clip / Scene list shows duplicate Scene 5 / Outro rows.
+
+Fix the list so each clip/scene appears once.
+
+Deduplicate by:
+- clipId first
+- sceneId second
+- scene index third only if no ID exists
+
+Do not show duplicates from:
+- timeline clips
+- generated scenes
+- lip sync status list
+- old scene array
+
+The selector should use one source of truth:
+current timeline clips
+
+Show:
+- Scene number
+- title
+- lip sync status
+- selected state
+
+PART 9 — DISABLE APPLY IF DUPLICATE OR INVALID
+
+Apply to Scene should only enable when:
+- exactly one valid clip is selected
+- audio URL ready
+- clip URL ready
+- payload validated
+- internal submit route returns JSON
+
+PART 10 — SAVE REAL ERROR
+
+If failed:
+clip.lipSyncStatus = failed
+clip.lipSyncError = real error
+
+Show:
+- status
+- provider
+- result URL
+- last error
+
+Final goal:
+Apply Lip Sync should call a real server route that always returns JSON, then the server calls the correct Sync Labs API endpoint. If anything fails, show the real endpoint/status/content-type instead of “Unexpected token '<'”. Also remove duplicate Scene 5 rows from the Lip Sync selector.
