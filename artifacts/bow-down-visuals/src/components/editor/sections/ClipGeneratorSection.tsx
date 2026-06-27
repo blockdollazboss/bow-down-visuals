@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
   Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
-  GripVertical, ChevronsUp, ChevronsDown, Undo2,
+  GripVertical, ChevronsUp, ChevronsDown, Undo2, Plus,
 } from "lucide-react";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
@@ -118,6 +118,33 @@ export function ClipGeneratorSection({
     setScenes(undoSnapshot);
     setUndoSnapshot(null);
     setReorderStatus(null);
+  }
+
+  function addBlankClip() {
+    const newScene: SceneData = {
+      id: crypto.randomUUID(),
+      sceneNumber: scenes.length + 1,
+      timestamp: "",
+      section: "New Clip",
+      lyricLine: "",
+      location: "",
+      action: "",
+      cameraMovement: "",
+      lighting: "",
+      mood: "",
+      aiVideoPrompt: "New blank clip — edit prompt and generate",
+      negativePrompt: "",
+      approved: false,
+      demoClipUrl: null,
+      thumbnailUrl: null,
+      clipId: null,
+      runwayJobId: null,
+      provider: null,
+      generationStatus: null,
+      promptUsed: null,
+      generatedAt: null,
+    };
+    setScenes([...scenes, newScene]);
   }
 
   function onDragEnd(event: DragEndEvent) {
@@ -363,7 +390,7 @@ export function ClipGeneratorSection({
         )}
       </div>
 
-      {/* Create All button */}
+      {/* Scene count + quick-add controls */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">
@@ -375,18 +402,32 @@ export function ClipGeneratorSection({
             )}
           </p>
         </div>
-        {scenesWithoutClip.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Add blank clip */}
           <Button
             size="sm"
-            onClick={() => setCreateAllTrigger((n) => n + 1)}
-            className="gap-2 bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 font-bold text-xs h-8"
+            onClick={addBlankClip}
+            className="gap-1.5 border border-white/15 bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.08] font-bold text-xs h-8"
             variant="outline"
-            data-testid="btn-create-all-clips"
+            title="Add a blank scene to the end of the timeline"
           >
-            <Video className="h-3.5 w-3.5" />
-            Create All Video Clips ({scenesWithoutClip.length})
+            <Plus className="h-3.5 w-3.5" />
+            Add Clip
           </Button>
-        )}
+          {/* Create all */}
+          {scenesWithoutClip.length > 0 && (
+            <Button
+              size="sm"
+              onClick={() => setCreateAllTrigger((n) => n + 1)}
+              className="gap-2 bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 font-bold text-xs h-8"
+              variant="outline"
+              data-testid="btn-create-all-clips"
+            >
+              <Video className="h-3.5 w-3.5" />
+              Create All ({scenesWithoutClip.length})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Scene cards — 1 col mobile / 2 col tablet / 3 col desktop */}

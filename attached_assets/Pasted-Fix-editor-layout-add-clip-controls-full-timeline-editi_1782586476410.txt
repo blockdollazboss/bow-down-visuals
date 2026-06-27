@@ -1,0 +1,237 @@
+Fix editor layout, add clip controls, full timeline editing, and remove debug from fullscreen.
+
+Problem:
+The editor layout is wrong.
+
+I need:
+- master player on top
+- real full timeline directly under the master player
+- debug panel under the timeline, not directly under the master player
+- no debug in fullscreen mode
+- Clip section should allow adding new clips
+- Timeline should have full editing controls
+
+Do not change:
+- working master player playback
+- project format icon
+- aspect ratio behavior
+- fullscreen aspect ratio behavior
+- synced captions timing
+- caption styles
+- transparent logo watermark
+- effects
+- overlays
+- Export Doctor working pipeline
+- Auto PiP
+- Bow Down AI Guide
+- Stripe, credits, or payments
+
+Only fix:
+- editor layout
+- timeline placement
+- debug placement
+- fullscreen debug hiding
+- clip adding controls
+- timeline editing controls
+
+PART 1 — CLEAN MAIN LAYOUT
+
+Use this layout order:
+
+1. Master Player
+2. Full Timeline Editor
+3. Debug Panel
+
+The timeline must be between the master player and debug.
+
+Do not place debug directly under the master player anymore.
+
+PART 2 — FULLSCREEN MODE
+
+When fullscreen is active:
+- hide all debug panels
+- hide timeline debug
+- hide Export Doctor debug
+- hide format debug
+- show only the video canvas and player controls
+
+Fullscreen should show:
+- video canvas
+- play/pause
+- scrub bar
+- timecode
+- format icon
+- fullscreen exit
+- PiP if supported
+
+Do not show:
+- debug panels
+- sync status panels
+- export logs
+- right-side tools
+- timeline debug
+
+PART 3 — CLIP SECTION ADD NEW CLIPS
+
+In the Clips section, add controls:
+
+Add Clip
+Upload Clip
+Generate New Clip
+Duplicate Clip
+Delete Clip
+Replace Clip
+Trim Clip
+Split Clip
+Move Up
+Move Down
+Move To Start
+Move To End
+
+When I add a new clip:
+- it appears in the Clips section
+- it appears on the timeline video track
+- it appears in master player sequence
+- it saves to the project
+- Export Doctor sees it in the timeline order
+
+Add options:
+- add clip at end
+- add clip before selected clip
+- add clip after selected clip
+- insert at playhead
+
+PART 4 — FULL TIMELINE EDITING CONTROLS
+
+The timeline under master player should support:
+
+Video track:
+- drag reorder clips
+- trim clip start
+- trim clip end
+- split clip at playhead
+- duplicate clip
+- delete clip
+- replace clip
+- snap clips together
+- show gaps
+- close gap
+- ripple delete
+
+Audio waveform track:
+- show project audio waveform
+- scrub audio
+- trim audio start
+- trim audio end
+- volume control
+- mute/unmute
+- fade in
+- fade out
+
+Caption markers:
+- show caption markers on timeline
+- click marker to jump to caption
+- move caption timing if unlocked
+- keep sync locked by default
+
+Effects/overlays markers:
+- show effect markers
+- show transition markers
+- click marker to edit
+
+PART 5 — PLAYHEAD AND SCRUBBING
+
+The playhead should run through:
+- video clip track
+- audio waveform track
+- captions
+- effects
+- transitions
+
+When I drag playhead:
+- master player scrubs
+- audio scrubs
+- active clip updates
+- active caption updates
+- active effects update
+
+PART 6 — SELECTED CLIP EDIT PANEL
+
+When I click a clip on the timeline or Clips section, show clip edit controls on the right panel:
+
+Selected Clip:
+- scene number
+- title
+- duration
+- source URL status
+- trim start
+- trim end
+- replace clip
+- regenerate clip
+- duplicate
+- delete
+- move controls
+
+Do not show a duplicate timeline on the right side.
+
+PART 7 — RIGHT SIDE CLEANUP
+
+Remove the old Timeline section from the right-side area.
+
+If needed, rename it:
+Clip Tools
+
+The right side should only show controls for the selected clip/effect/caption, not another full timeline.
+
+PART 8 — DEBUG PANEL PLACEMENT
+
+Move debug below the timeline.
+
+Debug should be collapsible.
+
+Default:
+collapsed
+
+Debug panel should include:
+- timeline sync
+- audio waveform status
+- export order source
+- caption layout status
+- format debug
+- overlay debug
+- last error
+
+Do not show debug unless I open it.
+
+PART 9 — SAVE EVERYTHING
+
+Timeline edits must save:
+- clip order
+- added clips
+- deleted clips
+- trims
+- splits
+- audio trims
+- transitions
+- effects markers
+
+Show:
+Timeline saved
+
+If save fails:
+Show real error.
+
+PART 10 — EXPORT DOCTOR MUST FOLLOW TIMELINE
+
+Export Doctor must use:
+- current timeline clip order
+- added clips
+- deleted clips removed
+- trims
+- audio timing
+- captions
+- effects
+- overlays
+
+Final goal:
+The editor should feel like a real video editor. I can add clips in the Clips section, edit clips on the timeline, scrub the master player with video clips on top and audio waveform under it, and debug stays below the timeline and never appears in fullscreen.

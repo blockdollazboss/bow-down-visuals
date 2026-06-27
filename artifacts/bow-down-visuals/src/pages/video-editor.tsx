@@ -5,7 +5,7 @@ import {
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
   CheckCircle2, Circle, Layers, Play, Pause,
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2, Volume2,
-  Crop, Smartphone, Monitor, Square, Instagram,
+  Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -134,6 +134,7 @@ export default function VideoEditor() {
   const [transitionState, setTransitionState] = useState<TransitionState | null>(null);
   const testOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [testOverlayActive, setTestOverlayActive] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
 
   /** Called by TimelinePreviewPlayer when a scene switch fires during playback. */
   function handleSceneChange(_oldIdx: number, newIdx: number) {
@@ -778,6 +779,49 @@ export default function VideoEditor() {
                 onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
               />
             )}
+
+            {/* ── Collapsible Debug Panel — below timeline, collapsed by default ── */}
+            <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setDebugOpen((o) => !o)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-white/[0.03] transition-colors"
+              >
+                <Bug className="h-3 w-3 text-white/20" />
+                <span className="text-[10px] font-bold text-white/25 uppercase tracking-widest flex-1">Debug Panel</span>
+                {debugOpen ? <ChevronUp className="h-3 w-3 text-white/20" /> : <ChevronDown className="h-3 w-3 text-white/20" />}
+              </button>
+              {debugOpen && (
+                <div className="px-3 pb-3 border-t border-white/[0.05] pt-2 space-y-0.5">
+                  {([
+                    ["scenes",         `${scenes.length} total · ${scenes.filter(s => sceneHasClip(s)).length} with clip`],
+                    ["audio url",      previewAudioUrl ? "loaded ✓" : "none"],
+                    ["audio duration", songDuration != null ? `${songDuration.toFixed(1)}s` : "unknown"],
+                    ["format",         settings.export.format ?? "9:16"],
+                    ["fit mode",       settings.export.fitMode ?? "fill"],
+                    ["effects",        settings.effects.length > 0 ? settings.effects.join(", ") : "none"],
+                    ["overlays",       settings.overlays.length > 0 ? `${settings.overlays.length} active` : "none"],
+                    ["caption lines",  `${settings.captions.lines.length}`],
+                    ["playhead",       `${(previewEngineState?.currentTime ?? 0).toFixed(2)}s`],
+                    ["active scene",   previewEngineState?.activeSceneIndex != null ? `Scene ${previewEngineState.activeSceneIndex + 1}` : "—"],
+                    ["playing",        previewEngineState?.isPlaying ? "yes ✓" : "no"],
+                    ["save state",     saveState],
+                    ["master player",  "connected ✓"],
+                    ["timeline",       "connected ✓"],
+                    ["export order",   "timeline order ✓"],
+                  ] as [string, string][]).map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-mono text-white/25">{label}</span>
+                      <span className={`text-[9px] font-bold shrink-0 ${
+                        value.includes("✓") ? "text-green-400/70"
+                          : value === "none" || value === "no" || value === "unknown" ? "text-white/25"
+                          : "text-[#C9A84C]/70"
+                      }`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
               </div>{/* /left-panel */}
 
@@ -1876,8 +1920,8 @@ function MasterPreviewPlayer({
         </button>
       </div>
 
-      {/* Auto PiP sub-settings — visible while Auto PiP is on */}
-      {autoPiP && (
+      {/* Auto PiP sub-settings — visible while Auto PiP is on, hidden in fullscreen */}
+      {autoPiP && !isFullscreen && (
         <div className="px-4 py-2 border-t border-primary/[0.12] bg-primary/[0.03] flex flex-wrap items-center gap-x-5 gap-y-1">
           <span className="text-[10px] font-bold text-primary/60 shrink-0">Auto PiP:</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -1901,121 +1945,13 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* Error message — PiP or Auto PiP */}
-      {pipError && (
+      {/* Error message — PiP or Auto PiP, hidden in fullscreen */}
+      {pipError && !isFullscreen && (
         <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono flex items-start gap-1.5">
           <span className="shrink-0 mt-px">⚠</span>
           <span>{pipError}</span>
         </div>
       )}
-
-      {/* ── Status bar ── */}
-      <div className="px-4 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/25">
-          Master Player: <span className="text-green-400/70">Connected ✓</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          Active Clip: <span className={clipLoaded ? "text-green-400/70" : "text-white/25"}>{clipLoaded ? "loaded ✓" : "none"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          Caption: <span className={captionLoaded ? "text-blue-400/70" : "text-white/25"}>
-            {captionLoaded ? `"${activeCaption!.text.slice(0, 20)}…"` : "none"}
-          </span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          Audio: <span className={isPlaying ? "text-green-400/70" : "text-white/25"}>{isPlaying ? "playing ✓" : "stopped"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          Auto PiP: <span className={autoPiP ? "text-primary/70" : "text-white/25"}>{autoPiP ? "on ✓" : "off"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          PiP supported: <span className={pipSupported ? "text-green-400/70" : "text-red-400/60"}>{pipSupported ? "yes" : "no"}</span>
-        </span>
-        <span className="text-[10px] font-mono text-white/25">
-          PiP active: <span className={pipActive ? "text-primary/70" : "text-white/25"}>{pipActive ? "yes ✓" : "no"}</span>
-        </span>
-        {pipError && (
-          <span className="text-[10px] font-mono text-red-400/60 w-full truncate">
-            Last error: {pipError}
-          </span>
-        )}
-      </div>
-
-      {/* ── Auto PiP Debug ── */}
-      <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Auto PiP Debug:</span>
-        {[
-          ["autoPiPEnabled",       autoPiP          ? "yes ✓" : "no",   autoPiP],
-          ["pipActive",            pipActive         ? "yes ✓" : "no",   pipActive],
-          ["document hidden",      docHidden         ? "yes"   : "no",   docHidden],
-          ["browser focused",      browserFocused    ? "yes"   : "no",   browserFocused],
-          ["master currentTime",   `${currentTime.toFixed(2)}s`,         true],
-          ["lastKnownTime",        lastKnownTime > 0 ? `${lastKnownTime.toFixed(2)}s` : "—", lastKnownTime > 0],
-          ["wasPlayingBeforePiP",  wasPlayingBeforePiP ? "yes" : "no",   wasPlayingBeforePiP],
-          ["returned from PiP",    returnedFromPiP   ? "yes ✓" : "no",  returnedFromPiP],
-          ["playback restored",    playbackRestored  ? "yes ✓" : "no",  playbackRestored],
-          ["lastKnownScene",       lastKnownScene >= 0 ? `Scene ${lastKnownScene + 1}` : "—", lastKnownScene >= 0],
-          ["lastKnownCaption",     lastKnownCaption  ? `"${lastKnownCaption.slice(0,20)}…"` : "—", !!lastKnownCaption],
-          ["using master player",  "yes ✓",          true],
-        ].map(([label, value, ok]) => (
-          <span key={String(label)} className="text-[10px] font-mono text-white/20">
-            {label}:{" "}
-            <span className={ok ? "text-green-400/60" : "text-white/30"}>{String(value)}</span>
-          </span>
-        ))}
-        {pipError && (
-          <span className="text-[10px] font-mono text-amber-400/60 w-full">⚠ {pipError}</span>
-        )}
-        {pipActive && (
-          <span className="text-[10px] font-mono text-amber-400/50 w-full">
-            ⚠ PiP may not show HTML overlays — captions appear in final export.
-          </span>
-        )}
-        {returnedFromPiP && !playbackRestored && wasPlayingBeforePiP && (
-          <span className="text-[10px] font-mono text-red-400/70 w-full">
-            ⚠ Playback may not have resumed — check master player controls.
-          </span>
-        )}
-      </div>
-
-      {/* ── Effects Quality Debug ── */}
-      <div className="px-4 py-1.5 border-t border-white/[0.03] flex flex-wrap gap-x-4 gap-y-0.5">
-        <span className="text-[10px] font-mono text-white/20 w-full font-bold">Effects Quality Debug:</span>
-        {([
-          ["effects layer mounted",      true,                                   "yes ✓"],
-          ["selected effects",           activeEffects.length > 0,              activeEffects.length > 0 ? activeEffects.join(", ") : "none"],
-          ["active overlays",            activeOverlayChips.length > 0,         activeOverlayChips.length > 0 ? activeOverlayChips.join(", ") : "none"],
-          ["intensity values",           activeOverlayChips.length > 0,         activeOverlayChips.map((k) => `${k.split(" ")[0]}:${overlayIntensity[k] ?? 100}%`).join(" ") || "—"],
-          ["blend modes",                activeOverlayChips.some((k) => ["Light Leaks","Smoke"].includes(k)), activeOverlayChips.some((k) => ["Light Leaks","Smoke"].includes(k)) ? "screen ✓" : "normal"],
-          ["animation running",          activeOverlayChips.length > 0,         activeOverlayChips.length > 0 ? "yes ✓" : "no"],
-          ["master player connected",    true,                                   "yes ✓"],
-          ["export connected",           false,                                  "preview only — export rendering needs connection"],
-          ["test overlay active",        testOverlayActive,                     testOverlayActive ? "yes ✓" : "no"],
-          ["active transition",          !!transitionState,                     transitionState ? `${transitionState.type} (${transitionState.duration}s)` : "idle"],
-          ["AI effects applied",         aiEffectsApplied,                     aiEffectsApplied ? "yes ✓" : "no"],
-        ] as [string, boolean | null, string][]).map(([label, ok, value]) => (
-          <span key={label} className="text-[10px] font-mono text-white/20">
-            {label}:{" "}
-            <span className={ok === true ? "text-green-400/60" : ok === false ? "text-amber-400/50" : "text-white/30"}>
-              {value}
-            </span>
-          </span>
-        ))}
-        {activeOverlayChips.length > 0 && (
-          <span className="text-[10px] font-mono text-green-400/60 w-full">
-            ✓ Animated overlays rendering: {activeOverlayChips.map((k) => `${k} (${overlayIntensity[k] ?? 100}%)`).join(" · ")}
-          </span>
-        )}
-        {activeEffects.length > 0 && (
-          <span className="text-[10px] font-mono text-green-400/60 w-full">✓ CSS grade/effects active: {activeEffects.join(" · ")}</span>
-        )}
-        {transitionState && (
-          <span className="text-[10px] font-mono text-blue-400/70 w-full">↔ Transition: {transitionState.type}</span>
-        )}
-        {testOverlayActive && (
-          <span className="text-[10px] font-mono text-[#C9A84C]/70 w-full">◈ Test overlay active — Rain + Sparks + Lens Flare showing</span>
-        )}
-      </div>
     </div>
   );
 }
