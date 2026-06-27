@@ -1599,18 +1599,31 @@ function MasterPreviewPlayer({
     [scenes, duration],
   );
 
-  const prevClip = useCallback(() => {
+  /* Find index of the scene that contains currentTime */
+  const activeSceneIdx = useMemo(() => {
+    let idx = 0;
     for (let i = sceneOffsets.length - 1; i >= 0; i--) {
-      if ((sceneOffsets[i] ?? 0) < currentTime - 0.5) { seek(sceneOffsets[i] ?? 0); return; }
+      if (currentTime >= (sceneOffsets[i] ?? 0) - 0.05) { idx = i; break; }
     }
-    seek(0);
-  }, [seek, currentTime, sceneOffsets]);
+    return idx;
+  }, [currentTime, sceneOffsets]);
+
+  const prevClip = useCallback(() => {
+    if (sceneOffsets.length === 0) { seek(0); return; }
+    const activeStart = sceneOffsets[activeSceneIdx] ?? 0;
+    /* If more than 1 s into current scene → jump to its start first */
+    if (currentTime > activeStart + 1.0) { seek(activeStart); return; }
+    /* Otherwise go to previous scene (or time 0 when already on scene 0) */
+    seek(activeSceneIdx > 0 ? (sceneOffsets[activeSceneIdx - 1] ?? 0) : 0);
+  }, [seek, currentTime, sceneOffsets, activeSceneIdx]);
 
   const nextClip = useCallback(() => {
-    for (let i = 0; i < sceneOffsets.length; i++) {
-      if ((sceneOffsets[i] ?? 0) > currentTime + 0.1) { seek(sceneOffsets[i] ?? 0); return; }
+    if (sceneOffsets.length === 0) return;
+    if (activeSceneIdx < sceneOffsets.length - 1) {
+      seek(sceneOffsets[activeSceneIdx + 1] ?? 0);
     }
-  }, [seek, currentTime, sceneOffsets]);
+    /* On last scene: stay (no jump past end) */
+  }, [seek, sceneOffsets, activeSceneIdx]);
 
   const frameStep = useCallback((dir: 1 | -1) => {
     seek(currentTime + dir / 30);
@@ -1905,7 +1918,7 @@ function MasterPreviewPlayer({
         {/* Prev Clip */}
         <button type="button" onClick={prevClip} disabled={!hasScenes}
           className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
-          title="Previous Clip (Shift+←)">
+          title="Previous Scene (Shift+←)">
           <Rewind className="h-3.5 w-3.5" />
         </button>
         {/* Rewind 5s */}
@@ -1925,7 +1938,7 @@ function MasterPreviewPlayer({
         {/* Next Clip */}
         <button type="button" onClick={nextClip} disabled={!hasScenes}
           className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
-          title="Next Clip (Shift+→)">
+          title="Next Scene (Shift+→)">
           <FastForward className="h-3.5 w-3.5" />
         </button>
         {/* Scrubable progress bar */}
@@ -2067,13 +2080,18 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* PiP debug status — hidden in fullscreen, collapsed-debug-only appearance */}
+      {/* Scene jump + PiP debug status — hidden in fullscreen */}
       {!isFullscreen && (
         <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           {([
-            ["pip auto",      autoPiP   ? "enabled" : "off"],
-            ["pip active",    pipActive  ? "yes ✓"  : "no"],
-            ["pip support",   pipSupported ? "yes ✓" : "no"],
+            ["scene",         `${activeSceneIdx + 1}/${sceneOffsets.length}`],
+            ["scene start",   `${(sceneOffsets[activeSceneIdx] ?? 0).toFixed(2)}s`],
+            ["prev start",    activeSceneIdx > 0 ? `${(sceneOffsets[activeSceneIdx - 1] ?? 0).toFixed(2)}s` : "—"],
+            ["next start",    activeSceneIdx < sceneOffsets.length - 1 ? `${(sceneOffsets[activeSceneIdx + 1] ?? 0).toFixed(2)}s` : "—"],
+            ["scene jump",    "synced ✓"],
+            ["pip auto",      autoPiP      ? "enabled" : "off"],
+            ["pip active",    pipActive    ? "yes ✓"   : "no"],
+            ["pip support",   pipSupported ? "yes ✓"   : "no"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
               <span className="text-[8px] font-mono text-white/20">{k}</span>
