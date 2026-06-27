@@ -67,6 +67,25 @@ interface InputCheckResult {
   checkedAt:      string;
 }
 
+/* ── Structured debug for non-JSON / network errors from the apply route ── */
+interface LipSyncDebug {
+  endpoint:    string;
+  status:      string;
+  contentType: string;
+  isJson:      boolean;
+  preview:     string;
+  nextStep:    string;
+}
+
+class LipSyncNetworkError extends Error {
+  debug: LipSyncDebug;
+  constructor(message: string, debug: LipSyncDebug) {
+    super(message);
+    this.name = "LipSyncNetworkError";
+    this.debug = debug;
+  }
+}
+
 interface AccountCheckResult {
   keyPresent:                 boolean;
   activeKeyVar:               string | null;
@@ -236,6 +255,7 @@ export function LipSyncSection({
 
   /* ── Local apply state ── */
   const [applyError, setApplyError]     = useState<string | null>(null);
+  const [applyDebug, setApplyDebug]     = useState<LipSyncDebug | null>(null);
   const [confirmOpen, setConfirmOpen]   = useState<"single" | "all" | null>(null);
 
   /* ── Vocal stem upload state ── */
@@ -420,6 +440,7 @@ export function LipSyncSection({
     }
 
     setApplyError(null);
+    setApplyDebug(null);
     setConfirmOpen(null);
     updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
 
@@ -449,6 +470,7 @@ export function LipSyncSection({
       const msg = err instanceof Error ? err.message : String(err);
       updateClipEdit(selectedScene.id, { lipSyncStatus: "failed", lipSyncError: msg });
       setApplyError(msg);
+      setApplyDebug(err instanceof LipSyncNetworkError ? err.debug : null);
     }
   }
 
@@ -488,6 +510,7 @@ export function LipSyncSection({
     if (!audioReady) { setApplyError("No audio source available."); return; }
 
     setApplyError(null);
+    setApplyDebug(null);
     setConfirmOpen(null);
     cancelRef.current = false;
     setProcessState({ running: true, current: 0, total: eligible.length, cancelled: false, lastError: null });
@@ -526,6 +549,7 @@ export function LipSyncSection({
         const msg = err instanceof Error ? err.message : String(err);
         updateClipEdit(scene.id, { lipSyncStatus: "failed", lipSyncError: msg });
         setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: ${msg}` } : null);
+        if (err instanceof LipSyncNetworkError) setApplyDebug(err.debug);
       }
     }
 
@@ -1569,7 +1593,7 @@ export function LipSyncSection({
                   <StatusRow label="created"   value={fmtDate(selectedClipEdit.lipSyncCreatedAt)}  ok={null} />
                   <StatusRow label="result url" value={selectedClipEdit.lipSyncUrl ? "saved ✓" : "none"} ok={!!selectedClipEdit.lipSyncUrl} />
                   {selectedClipEdit.lipSyncError && (
-                    <StatusRow label="last error" value={selectedClipEdit.lipSyncError.slice(0, 60)} ok={false} />
+                    <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
                   )}
                 </div>
 
@@ -1608,6 +1632,27 @@ export function LipSyncSection({
                   </div>
                 )}
               </div>
+            </EditorCard>
+          )}
+
+          {/* ── Apply debug card (shown only when non-JSON / network error occurred) ── */}
+          {applyDebug && (
+            <EditorCard title="Lip Sync Apply Debug" icon={<AlertTriangle className="h-4 w-4 text-amber-400" />}>
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                <StatusRow label="endpoint called" value={applyDebug.endpoint}    ok={null} />
+                <StatusRow label="status"          value={applyDebug.status}      ok={false} />
+                <StatusRow label="content-type"    value={applyDebug.contentType} ok={null} />
+                <StatusRow label="returned JSON"   value={applyDebug.isJson ? "yes" : "no"} ok={applyDebug.isJson} />
+                <StatusRow label="next step"       value={applyDebug.nextStep}    ok={null} />
+              </div>
+              {applyDebug.preview && (
+                <div className="mt-2">
+                  <p className="text-[10px] text-white/40 mb-1 px-1">response preview</p>
+                  <pre className="text-[10px] text-red-400/80 whitespace-pre-wrap break-all font-mono leading-relaxed px-3 py-2 rounded-xl border border-red-500/20 bg-red-500/[0.04]">
+                    {applyDebug.preview}
+                  </pre>
+                </div>
+              )}
             </EditorCard>
           )}
 
@@ -1700,16 +1745,27 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
 
   /* Check content-type BEFORE calling .json() — a proxy timeout or unhandled
      server error can return an HTML page, which would crash with
-     "Unexpected token '<'". Now we surface the real status + preview instead. */
+     "Unexpected token '<'". Throw a LipSyncNetworkError with structured debug
+     fields so the UI can display them clearly.                                */
   const contentType = res.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
-    const preview = (await res.text()).slice(0, 300).replace(/\s+/g, " ").trim();
-    throw new Error(
-      `Lip sync route returned a non-JSON response\n` +
-      `  endpoint:     POST /api/lip-sync/preview\n` +
-      `  status:       ${res.status} ${res.statusText}\n` +
-      `  content-type: ${contentType || "(none)"}\n` +
-      `  preview:      ${preview || "(empty body)"}`
+    const preview  = (await res.text()).slice(0, 200).replace(/\s+/g, " ").trim();
+    const status   = `${res.status} ${res.statusText}`.trim();
+    const nextStep =
+      res.status === 401 || res.status === 403
+        ? "Sign in again or refresh the page."
+        : res.status === 402
+          ? "Sync Labs billing blocked — replace API key with a paid account key in Replit Secrets."
+          : res.status === 503
+            ? "API server not available. Check Replit Secrets or try again."
+            : res.status >= 500
+              ? "Server error. Try again in a moment."
+              : contentType.includes("text/html")
+                ? "Server returned an HTML page — may be restarting. Try again."
+                : "Retry the operation. If the problem persists, check server logs.";
+    throw new LipSyncNetworkError(
+      `Lip sync returned non-JSON (HTTP ${res.status}) — see debug card below`,
+      { endpoint: "POST /api/lip-sync/preview", status, contentType: contentType || "(none)", isJson: false, preview: preview || "(empty body)", nextStep },
     );
   }
 
