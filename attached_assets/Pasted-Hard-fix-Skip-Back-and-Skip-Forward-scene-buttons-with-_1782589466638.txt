@@ -1,0 +1,174 @@
+Hard fix Skip Back and Skip Forward scene buttons with visible proof they are connected.
+
+Problem:
+Skip Back and Skip Forward still do not work.
+Rewind 5 seconds works, but the scene skip buttons do nothing or do not jump scene-to-scene.
+
+This means the buttons are probably not connected to the real scene jump handler.
+
+Do not change:
+- Rewind 5 seconds
+- Fast-forward 5 seconds
+- play/pause
+- scrub bar
+- timeline waveform
+- captions
+- effects
+- overlays
+- watermark
+- aspect ratio icon
+- fit mode icon
+- fullscreen
+- Auto PiP
+- Export Doctor
+
+Only fix:
+- Skip Back button
+- Skip Forward button
+- their click handlers
+- scene jump map
+- shared seek call
+
+PART 1 — FIND THE REAL BUTTONS
+
+Find the actual Skip Back and Skip Forward buttons rendered inside the master player transport controls.
+
+Do not create new duplicate buttons.
+
+Wire the existing buttons directly to:
+
+handlePreviousScene()
+handleNextScene()
+
+Add console/log/debug proof when clicked:
+- Skip Back clicked
+- Skip Forward clicked
+
+PART 2 — BUILD SCENE JUMP POINTS FROM THE TIMELINE
+
+Create sceneJumpPoints from the current timeline clips, not old scene data.
+
+Use the exact clip order shown in the timeline.
+
+For every timeline clip, calculate:
+
+{
+  sceneId,
+  clipId,
+  sceneIndex,
+  startTime,
+  endTime,
+  duration,
+  title
+}
+
+Start time must be cumulative.
+
+Example:
+Clip 1 duration 8 seconds = start 0, end 8
+Clip 2 duration 8 seconds = start 8, end 16
+Clip 3 duration 8 seconds = start 16, end 24
+
+PART 3 — IF DURATIONS ARE MISSING
+
+If clip durations are missing, get duration from:
+- loaded video metadata
+- timeline clip duration
+- scene duration
+- fallback duration
+
+Fallback duration:
+5 seconds per clip
+
+Do not fail silently.
+
+PART 4 — NEXT SCENE FUNCTION
+
+handleNextScene() must:
+
+1. Read currentTime from the master transport state.
+2. Find the first sceneJumpPoint where startTime > currentTime + 0.25.
+3. Seek to that scene startTime.
+4. If none found, seek to last scene startTime.
+
+PART 5 — PREVIOUS SCENE FUNCTION
+
+handlePreviousScene() must:
+
+1. Read currentTime from the master transport state.
+2. Find current scene.
+3. If currentTime is more than 1 second after current scene startTime:
+   seek to current scene startTime.
+4. Else seek to previous scene startTime.
+5. If already first scene, seek to 0.
+
+PART 6 — MUST USE THE WORKING SEEK FUNCTION
+
+The skip scene buttons must call the same working seek function as Rewind 5 seconds.
+
+Use the working seek path.
+
+Do not only update UI state.
+
+The seek must update:
+- master player currentTime
+- project audio currentTime
+- timeline playhead
+- waveform playhead
+- active clip
+- active caption
+- effects
+- overlays
+- timecode
+
+PART 7 — ADD TEMPORARY VISIBLE TEST STATUS
+
+Add a small temporary status under the master player transport controls, not fullscreen:
+
+Scene Skip Test:
+- Skip Back button connected: yes/no
+- Skip Forward button connected: yes/no
+- last button clicked
+- currentTime before click
+- targetTime after click
+- sceneJumpPoints count
+- scene jump points: list of start times
+- used shared seek function: yes/no
+- seek completed: yes/no
+
+This can be placed inside collapsed debug after confirmed working, but show it temporarily while fixing.
+
+PART 8 — BUTTON DISABLED RULES
+
+Disable Skip Back only if:
+- currentTime is 0 and there is no previous scene
+
+Disable Skip Forward only if:
+- there is only one scene or no sceneJumpPoints
+
+Do not disable them just because playback is paused.
+
+They must work while:
+- playing
+- paused
+- fullscreen
+- normal mode
+
+PART 9 — TEST INSIDE APP
+
+Add debug-only button:
+Force Test Scene Skip
+
+When clicked:
+- seek to 0
+- call handleNextScene()
+- verify currentTime becomes scene 2 start
+- call handleNextScene()
+- verify currentTime becomes scene 3 start
+- call handlePreviousScene()
+- verify currentTime goes back correctly
+
+Show pass/fail.
+
+Final goal:
+Skip Back and Skip Forward must physically jump scene-to-scene using the current timeline clips. The UI must show proof that the real buttons are connected, what scene times exist, what target time was chosen, and whether the shared seek function completed.

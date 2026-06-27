@@ -1550,7 +1550,9 @@ function MasterPreviewPlayer({
   /* ── Transport callbacks ─────────────────────────────────────── */
 
   const seek = useCallback((sec: number) => {
-    onSeek(Math.max(0, Math.min(sec, duration || 0)));
+    /* Only clamp to duration when we actually know it; otherwise let TLP handle bounds */
+    const clamped = Math.max(0, duration > 0 ? Math.min(sec, duration) : sec);
+    onSeek(clamped);
   }, [onSeek, duration]);
 
   const seekFromPointer = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -1593,22 +1595,44 @@ function MasterPreviewPlayer({
     return 0;
   }, [currentTime, sceneOffsets]);
 
+  /* Refs so callbacks always read the latest values, no stale closure capture */
+  const currentTimeRef2  = useRef(currentTime);
+  const sceneOffsetsRef2 = useRef(sceneOffsets);
+  useEffect(() => { currentTimeRef2.current  = currentTime;   }, [currentTime]);
+  useEffect(() => { sceneOffsetsRef2.current = sceneOffsets;  }, [sceneOffsets]);
+
+  /* Debug state for scene skip — shown in status row */
+  const [skipDebug, setSkipDebug] = useState<{
+    action: string; before: number; target: number; idx: number; count: number;
+  } | null>(null);
+
   const prevClip = useCallback(() => {
-    if (sceneOffsets.length === 0) { seek(0); return; }
-    const activeStart = sceneOffsets[activeSceneIdx] ?? 0;
-    /* If more than 1 s into current scene → jump to its start first */
-    if (currentTime > activeStart + 1.0) { seek(activeStart); return; }
-    /* Otherwise go to previous scene (or time 0 when already on scene 0) */
-    seek(activeSceneIdx > 0 ? (sceneOffsets[activeSceneIdx - 1] ?? 0) : 0);
-  }, [seek, currentTime, sceneOffsets, activeSceneIdx]);
+    const offs = sceneOffsetsRef2.current;
+    const ct   = currentTimeRef2.current;
+    console.log('[PrevScene] clicked — ct:', ct.toFixed(3), 'offsets:', offs, 'duration:', duration);
+    let idx = 0;
+    for (let i = offs.length - 1; i >= 0; i--) { if (ct >= (offs[i] ?? 0)) { idx = i; break; } }
+    const activeStart = offs[idx] ?? 0;
+    const target = ct > activeStart + 1.0
+      ? activeStart
+      : idx > 0 ? (offs[idx - 1] ?? 0) : 0;
+    console.log('[PrevScene] idx:', idx, 'activeStart:', activeStart.toFixed(3), '→ target:', target.toFixed(3));
+    setSkipDebug({ action: '⏮ prev', before: ct, target, idx, count: offs.length });
+    seek(target);
+  }, [seek, duration]);
 
   const nextClip = useCallback(() => {
-    if (sceneOffsets.length === 0) return;
-    if (activeSceneIdx < sceneOffsets.length - 1) {
-      seek(sceneOffsets[activeSceneIdx + 1] ?? 0);
-    }
-    /* On last scene: stay (no jump past end) */
-  }, [seek, sceneOffsets, activeSceneIdx]);
+    const offs = sceneOffsetsRef2.current;
+    const ct   = currentTimeRef2.current;
+    console.log('[NextScene] clicked — ct:', ct.toFixed(3), 'offsets:', offs, 'duration:', duration);
+    if (offs.length === 0) { console.log('[NextScene] no offsets, aborting'); return; }
+    let idx = 0;
+    for (let i = offs.length - 1; i >= 0; i--) { if (ct >= (offs[i] ?? 0)) { idx = i; break; } }
+    const target = idx < offs.length - 1 ? (offs[idx + 1] ?? 0) : (offs[offs.length - 1] ?? 0);
+    console.log('[NextScene] idx:', idx, '→ target:', target.toFixed(3));
+    setSkipDebug({ action: '⏭ next', before: ct, target, idx, count: offs.length });
+    seek(target);
+  }, [seek, duration]);
 
   const frameStep = useCallback((dir: 1 | -1) => {
     seek(currentTime + dir / 30);
@@ -2069,18 +2093,25 @@ function MasterPreviewPlayer({
       {!isFullscreen && (
         <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           {([
+            ["scenes",        `${sceneOffsets.length} pts`],
             ["scene",         `${activeSceneIdx + 1}/${sceneOffsets.length}`],
             ["scene start",   `${(sceneOffsets[activeSceneIdx] ?? 0).toFixed(2)}s`],
             ["prev start",    activeSceneIdx > 0 ? `${(sceneOffsets[activeSceneIdx - 1] ?? 0).toFixed(2)}s` : "—"],
             ["next start",    activeSceneIdx < sceneOffsets.length - 1 ? `${(sceneOffsets[activeSceneIdx + 1] ?? 0).toFixed(2)}s` : "—"],
-            ["scene jump",    "synced ✓"],
+            ...(skipDebug ? [
+              ["last skip",   skipDebug.action],
+              ["before",      `${skipDebug.before.toFixed(2)}s`],
+              ["→ target",    `${skipDebug.target.toFixed(2)}s`],
+              ["seek used",   "shared ✓"],
+            ] as [string, string][] : [
+              ["last skip",   "—"],
+            ] as [string, string][]),
             ["pip auto",      autoPiP      ? "enabled" : "off"],
             ["pip active",    pipActive    ? "yes ✓"   : "no"],
-            ["pip support",   pipSupported ? "yes ✓"   : "no"],
           ] as [string, string][]).map(([k, v]) => (
             <span key={k} className="flex items-center gap-1">
               <span className="text-[8px] font-mono text-white/20">{k}</span>
-              <span className={`text-[8px] font-bold ${v.includes("✓") || v === "enabled" ? "text-green-400/50" : v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+              <span className={`text-[8px] font-bold ${v.includes("✓") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
             </span>
           ))}
         </div>
