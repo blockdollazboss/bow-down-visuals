@@ -104,6 +104,8 @@ export interface VideoTimelineProps {
   audioUrl?: string | null;
   syncMode?: AudioVideoSyncMode;
   onSyncModeChange?: (mode: AudioVideoSyncMode) => void;
+  /** Per-clip edits keyed by scene id — used to show lip sync badges. */
+  clipEdits?: Record<string, import("@/lib/editor-settings").ClipEdit>;
   onSeek?: (sec: number) => void;
   onSceneClick?: (sceneId: string, startSec: number) => void;
 }
@@ -121,6 +123,7 @@ export function VideoTimeline({
   audioUrl,
   syncMode = "keep-as-is",
   onSyncModeChange,
+  clipEdits,
   onSeek,
   onSceneClick,
 }: VideoTimelineProps) {
@@ -497,6 +500,15 @@ export function VideoTimeline({
                         {hasEffects && <Zap className="h-2 w-2 text-amber-400/60 shrink-0" />}
                         {transition && transition.transitionType !== "Cut" && (
                           <ArrowRightLeft className="h-2 w-2 text-blue-400/60 shrink-0" />
+                        )}
+                        {clipEdits?.[scene.id]?.lipSyncStatus === "done" && (
+                          <span className="text-[7px] font-black text-green-400/80 bg-green-400/10 border border-green-400/20 rounded px-0.5 leading-tight shrink-0">LS✓</span>
+                        )}
+                        {clipEdits?.[scene.id]?.lipSyncStatus === "processing" && (
+                          <span className="text-[7px] font-black text-primary/80 bg-primary/10 border border-primary/20 rounded px-0.5 leading-tight shrink-0">LS…</span>
+                        )}
+                        {clipEdits?.[scene.id]?.lipSyncStatus === "failed" && (
+                          <span className="text-[7px] font-black text-red-400/80 bg-red-400/10 border border-red-400/20 rounded px-0.5 leading-tight shrink-0">LS✗</span>
                         )}
                       </div>
                     </div>

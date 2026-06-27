@@ -866,6 +866,7 @@ export function ExportSection({
           type: t.transitionType,
         }))}
         syncMode={settings.musicStudio.videoAudio.syncMode}
+        clipEdits={settings.clips}
       />
     </div>
   );

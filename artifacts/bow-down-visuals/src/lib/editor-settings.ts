@@ -469,6 +469,12 @@ export interface TransitionItem {
   enabled: boolean;
 }
 
+/** Lip-sync processing strength. */
+export type LipSyncStrength = "low" | "medium" | "high";
+
+/** Per-clip lip-sync job status. */
+export type LipSyncStatus = "idle" | "processing" | "done" | "failed";
+
 /** Per-clip edit data, keyed by scene id inside EditorSettings.clips. */
 export interface ClipEdit {
   /** Seconds to trim from the start of the clip (edit-plan only). */
@@ -490,6 +496,16 @@ export interface ClipEdit {
   fadeIn: number;
   /** Fade-out duration in seconds (edit-plan only). */
   fadeOut: number;
+  /** Lip-sync result clip URL (replaces demoClipUrl in preview/export when set). */
+  lipSyncUrl: string | null;
+  /** Current lip-sync job status for this clip. */
+  lipSyncStatus: LipSyncStatus | null;
+  /** Provider that produced the lip-sync result. */
+  lipSyncProvider: string | null;
+  /** ISO timestamp when lip sync was created. */
+  lipSyncCreatedAt: string | null;
+  /** Error message if lip sync failed. */
+  lipSyncError: string | null;
 }
 
 export interface CaptionSettings {
@@ -958,7 +974,20 @@ export interface EditorSettings {
   musicStudio: MusicStudioSettings;
   branding: BrandingSettings;
   aiEdit: AiEditSettings;
+  lipSync: LipSyncSettings;
   updatedAt: string;
+}
+
+/** Global lip-sync settings stored in EditorSettings. */
+export interface LipSyncSettings {
+  enabled: boolean;
+  /** Scene id of the currently selected clip for lip sync. */
+  selectedSceneId: string | null;
+  strength: LipSyncStrength;
+  preserveFaceIdentity: boolean;
+  preserveArtistLook: boolean;
+  /** Whether to use isolated vocal stem (if available) or full mix. */
+  audioSource: "vocals" | "full";
 }
 
 export function defaultClipEdit(): ClipEdit {
@@ -973,6 +1002,22 @@ export function defaultClipEdit(): ClipEdit {
     replaceUrl: null,
     fadeIn: 0,
     fadeOut: 0,
+    lipSyncUrl: null,
+    lipSyncStatus: null,
+    lipSyncProvider: null,
+    lipSyncCreatedAt: null,
+    lipSyncError: null,
+  };
+}
+
+export function defaultLipSyncSettings(): LipSyncSettings {
+  return {
+    enabled: false,
+    selectedSceneId: null,
+    strength: "medium",
+    preserveFaceIdentity: true,
+    preserveArtistLook: true,
+    audioSource: "vocals",
   };
 }
 
@@ -1074,6 +1119,7 @@ export function defaultEditorSettings(): EditorSettings {
         stylePreset: "clean-white",
       },
     },
+    lipSync: defaultLipSyncSettings(),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1316,6 +1362,9 @@ export function normalizeEditorSettings(
     aiEdit: stored.aiEdit
       ? { ...defaultAiEditSettings(), ...stored.aiEdit }
       : defaultAiEditSettings(),
+    lipSync: stored.lipSync
+      ? { ...defaultLipSyncSettings(), ...stored.lipSync }
+      : defaultLipSyncSettings(),
     branding: stored.branding
       ? {
           introCard:    { ...base.branding.introCard,    ...(stored.branding.introCard    ?? {}) },

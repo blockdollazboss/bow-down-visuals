@@ -39,6 +39,8 @@ interface ExportDoctorProps {
   appliedTransitions?: { sceneIndex: number; type: string }[] | null;
   /** Audio/video sync mode selected on the timeline. */
   syncMode?: AudioVideoSyncMode | null;
+  /** Per-clip edits keyed by scene id — used for lip sync export test. */
+  clipEdits?: Record<string, import("@/lib/editor-settings").ClipEdit>;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -208,7 +210,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode, clipEdits }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL
@@ -216,7 +218,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -235,6 +237,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [exportAllEffectsResult, setExportAllEffectsResult] = useState<ExportResult | null>(null);
   const [exportAllOverlaysResult, setExportAllOverlaysResult] = useState<ExportResult | null>(null);
   const [overlayMatchResult, setOverlayMatchResult] = useState<ExportResult | null>(null);
+  const [lipSyncExportResult, setLipSyncExportResult] = useState<ExportResult | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -519,6 +522,32 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       const data = await readJson<ExportResult>(res);
       setTransitionsResult(data);
       if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportLipSyncPreview() {
+    if (!multiId) return;
+    const lipSyncScene = scenes.find(s => clipEdits?.[s.id]?.lipSyncStatus === "done" && clipEdits?.[s.id]?.lipSyncUrl);
+    if (!lipSyncScene) { setLastError("No lip synced clips found. Apply lip sync first."); return; }
+    setBusy("lip-sync-preview"); setLastError(null); setLipSyncExportResult(null);
+    const lipSyncUrl = clipEdits![lipSyncScene.id]!.lipSyncUrl!;
+    try {
+      const res = await fetch("/api/export-doctor/export-all-audio", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId,
+          audioUrl: masterAudioUrl ?? null,
+          overrideClips: [{ sceneNumber: 1, url: lipSyncUrl }],
+          clipCount: 1,
+        }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setLipSyncExportResult(data);
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -818,6 +847,57 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
             </a>
           </div>
         )}
+
+        {/* ════════ LIP SYNC EXPORT TEST ════════ */}
+        {(() => {
+          const lipSyncScenes = scenes.filter(s => clipEdits?.[s.id]?.lipSyncStatus === "done" && clipEdits?.[s.id]?.lipSyncUrl);
+          const hasLipSync = lipSyncScenes.length > 0;
+          return (
+            <div className="pt-2 mt-2 border-t border-white/[0.08]">
+              <div className="flex items-center gap-2 mb-3">
+                <Stethoscope className="h-4 w-4 text-primary/70" />
+                <p className="text-[11px] font-black text-white/70 uppercase tracking-widest">Lip Sync Export Test</p>
+              </div>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3 space-y-1.5 mb-3">
+                {([
+                  ["lip synced clips", `${lipSyncScenes.length} / ${scenes.length}`, hasLipSync],
+                  ["export test status", lipSyncExportResult ? (lipSyncExportResult.success ? "passed ✓" : "failed") : "not run", lipSyncExportResult ? !!lipSyncExportResult.success : null],
+                  ["result url", lipSyncExportResult?.url ? "available ✓" : "—", !!lipSyncExportResult?.url],
+                ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+                  <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                    <span className="text-white/40">{label}</span>
+                    <span className={`font-bold ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+                  </div>
+                ))}
+              </div>
+              {!hasLipSync && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/70 text-[10px] mb-3">
+                  <span className="shrink-0 mt-px">⚠</span>
+                  No lip synced clips. Apply lip sync in the Lip Sync tab first.
+                </div>
+              )}
+              <Button
+                onClick={exportLipSyncPreview}
+                disabled={busy !== null || !hasLipSync || !allClipsValid}
+                variant="outline"
+                className="w-full gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs disabled:opacity-40"
+                data-testid="btn-doctor-lip-sync-preview"
+              >
+                {busy === "lip-sync-preview" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
+                Export Lip Sync Preview Clip
+              </Button>
+              {lipSyncExportResult?.url && (
+                <a href={lipSyncExportResult.url} target="_blank" rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                  <ExternalLink className="h-3 w-3" /> Open / download lip sync preview
+                </a>
+              )}
+              {lipSyncExportResult && !lipSyncExportResult.success && (
+                <p className="mt-2 text-[10px] text-red-400/80">{lipSyncExportResult.error ?? "Export failed"}</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ════════ ALL CLIPS DOCTOR ════════ */}
         <div className="pt-2 mt-2 border-t border-white/[0.08]">

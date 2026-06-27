@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Layers, Play, Pause,
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
-  Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug,
+  Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug, Mic2,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -39,8 +39,9 @@ import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
+import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -790,6 +791,7 @@ export default function VideoEditor() {
                     },
                   }))
                 }
+                clipEdits={settings.clips}
                 onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
                 onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
               />
@@ -827,6 +829,13 @@ export default function VideoEditor() {
                     ["master player",     "connected ✓"],
                     ["timeline",          "connected ✓"],
                     ["export order",      "timeline order ✓"],
+                    ["lip sync enabled",  settings.lipSync.enabled ? "yes" : "no"],
+                    ["lip sync selected", settings.lipSync.selectedSceneId ? `scene ${scenes.findIndex(s => s.id === settings.lipSync.selectedSceneId) + 1}` : "none"],
+                    ["lip sync audio",    settings.lipSync.audioSource],
+                    ["lip sync provider", (import.meta.env.VITE_LIP_SYNC_API_KEY as string | undefined) ? "connected ✓" : "not connected"],
+                    ["lip sync done",     `${scenes.filter(s => getClipEdit(settings, s.id).lipSyncStatus === "done").length} / ${scenes.length}`],
+                    ["lip sync result",   (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncUrl ? "saved ✓" : "none"; })()],
+                    ["lip sync error",    (() => { const ce = settings.lipSync.selectedSceneId ? getClipEdit(settings, settings.lipSync.selectedSceneId) : null; return ce?.lipSyncError?.slice(0, 40) ?? "—"; })()],
                   ] as [string, string][]).map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between gap-2">
                       <span className="text-[9px] font-mono text-white/25">{label}</span>
@@ -853,6 +862,7 @@ export default function VideoEditor() {
               <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
               <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
               <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
+              <TabButton active={tab === "lip-sync"} onClick={() => setTab("lip-sync")} icon={<Mic2 className="h-4 w-4" />} label="Lip Sync" testId="tab-lip-sync" />
               <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
             </div>
 
@@ -1029,6 +1039,16 @@ export default function VideoEditor() {
                 setSettings={setSettings}
                 artistName={artistName}
                 songTitle={songTitle}
+              />
+            )}
+
+            {tab === "lip-sync" && (
+              <LipSyncSection
+                scenes={scenes}
+                settings={settings}
+                setSettings={setSettings}
+                audioUrl={audioUrl}
+                masterAudioUrl={previewAudioUrl}
               />
             )}
 
