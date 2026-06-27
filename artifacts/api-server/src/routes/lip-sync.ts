@@ -280,6 +280,89 @@ async function trimAndUploadAudioSegment(
   }
 }
 
+/* ── In-process async job store ──────────────────────────────────────────
+   Each POST /lip-sync/preview enqueues a job here and returns its ID
+   immediately so the HTTP response completes before the proxy times out.
+   Jobs are pruned after 2 h; the server process is long-running so this
+   is safe for a single-instance dev/prod deployment.                       */
+interface LipSyncJob {
+  status:      "queued" | "processing" | "done" | "failed";
+  url?:        string;
+  provider?:   string;
+  error?:      string;
+  code?:       string;
+  durationSec?: number;
+  createdAt:   string;
+  updatedAt:   string;
+}
+
+interface LipSyncJobParams {
+  clipUrl:       string;
+  audioUrl:      string;
+  sceneStartSec: number;
+  sceneEndSec:   number;
+}
+
+const lipSyncJobs = new Map<string, LipSyncJob>();
+
+setInterval(() => {
+  const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
+  for (const [id, job] of lipSyncJobs) {
+    if (new Date(job.createdAt).getTime() < cutoffMs) lipSyncJobs.delete(id);
+  }
+}, 30 * 60 * 1000).unref();
+
+async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promise<void> {
+  const now    = () => new Date().toISOString();
+  const update = (patch: Partial<LipSyncJob>) => {
+    const j = lipSyncJobs.get(jobId);
+    if (j) lipSyncJobs.set(jobId, { ...j, ...patch, updatedAt: now() });
+  };
+
+  try {
+    update({ status: "processing" });
+
+    const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(
+      params.audioUrl, params.sceneStartSec, params.sceneEndSec,
+    );
+
+    if (durationSec > PROVIDER_LIMIT_SEC) {
+      update({
+        status: "failed",
+        error:  `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
+        code:   "segment_too_long",
+        durationSec,
+      });
+      return;
+    }
+
+    if (PROVIDER_NAME === "sync") {
+      const syncId    = await syncLabsSubmit(params.clipUrl, segmentUrl, LIP_SYNC_API_KEY!);
+      const outputUrl = await syncLabsPoll(syncId, LIP_SYNC_API_KEY!);
+      update({ status: "done", url: outputUrl, provider: "sync", durationSec });
+      return;
+    }
+
+    throw new Error(
+      `Provider "${PROVIDER_NAME}" is not wired. Set LIP_SYNC_PROVIDER=sync in Replit Secrets.`,
+    );
+  } catch (err) {
+    update({
+      status: "failed",
+      error:  err instanceof Error ? err.message : "Lip sync job failed",
+      code:   "provider_error",
+    });
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/health
+   Simple reachability probe — no auth required.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/health", (_req, res) => {
+  res.json({ success: true, route: "lip-sync-health-ok" });
+});
+
 /* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/status
 ────────────────────────────────────────────────────────────────────────── */
@@ -394,6 +477,20 @@ router.get("/lip-sync/account-check", async (_req, res) => {
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/job/:id
+   Poll a queued / running / finished lip-sync job.
+   Returns the LipSyncJob record directly.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/job/:id", requireAuth, (req, res) => {
+  const job = lipSyncJobs.get(String(req.params["id"] ?? ""));
+  if (!job) {
+    res.status(404).json({ error: "Job not found or expired", code: "job_not_found" });
+    return;
+  }
+  res.json(job);
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/check-inputs
    Validate audio URL and clip URL before submitting to Sync Labs.
    Never exposes secrets; never requires auth (read-only probe).
@@ -453,7 +550,8 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
    Trims audio to the scene's exact time range, then submits to Sync Labs.
 ────────────────────────────────────────────────────────────────────────── */
 router.post("/lip-sync/preview", requireAuth, async (req, res) => {
-  /* Single catch wraps EVERYTHING — guarantees JSON even on unhandled errors */
+  /* Validate inputs synchronously, then fire-and-forget background processing.
+     The HTTP response completes in < 1 s so the Replit proxy never times out. */
   try {
     const {
       clipUrl,
@@ -512,7 +610,7 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       return;
     }
 
-    /* ── Pre-flight: verify audio URL is reachable ── */
+    /* ── Pre-flight: verify audio URL is reachable (fast HEAD check) ── */
     const audioProbe = await probeUrl(audioUrl);
     if (!audioProbe.ok) {
       res.status(400).json({
@@ -532,52 +630,25 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       return;
     }
 
-    /* Extend socket timeout for trimming + polling */
-    req.socket.setTimeout(480_000);
+    /* ── Enqueue job and return immediately ────────────────────────────────
+       Background processing (FFmpeg trim + Sync Labs submit/poll) runs after
+       the HTTP response is sent. The client polls GET /api/lip-sync/job/:id
+       every few seconds until status becomes "done" or "failed".           */
+    const jobId = randomUUID();
+    const now   = new Date().toISOString();
+    lipSyncJobs.set(jobId, { status: "queued", createdAt: now, updatedAt: now });
+
+    void processLipSyncJob(jobId, { clipUrl, audioUrl, sceneStartSec, sceneEndSec });
 
     req.log.info(
-      { clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
-      "[lip-sync] starting preview — trimming audio segment",
+      { jobId, clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
+      "[lip-sync] job queued — returning immediately",
     );
 
-    /* ── Step 1: Trim audio to scene range ── */
-    const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(audioUrl, sceneStartSec, sceneEndSec);
-
-    req.log.info({ durationSec, sceneStartSec, sceneEndSec }, "[lip-sync] audio segment trimmed and uploaded");
-
-    /* ── Step 2: Verify duration against provider plan limit ── */
-    if (durationSec > PROVIDER_LIMIT_SEC) {
-      res.status(400).json({
-        error: `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
-        code: "segment_too_long",
-        durationSec,
-        limitSec: PROVIDER_LIMIT_SEC,
-      });
-      return;
-    }
-
-    /* ── Step 3: Submit to provider ── */
-    if (PROVIDER_NAME === "sync") {
-      const jobId     = await syncLabsSubmit(clipUrl, segmentUrl, LIP_SYNC_API_KEY);
-      req.log.info({ jobId }, "[lip-sync] Sync Labs job submitted");
-      const outputUrl = await syncLabsPoll(jobId, LIP_SYNC_API_KEY);
-      req.log.info({ jobId, outputUrl }, "[lip-sync] Sync Labs job completed");
-      res.json({
-        url:       outputUrl,
-        provider:  "sync",
-        createdAt: new Date().toISOString(),
-        segmentDurationSec: durationSec,
-      });
-      return;
-    }
-
-    throw new Error(
-      `Provider "${PROVIDER_NAME}" is not wired. ` +
-      "Set LIP_SYNC_PROVIDER=sync in Replit Secrets to use Sync Labs.",
-    );
+    res.json({ jobId, status: "queued" });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Lip sync failed";
-    req.log.error({ err }, "[lip-sync] preview failed");
+    req.log.error({ err }, "[lip-sync] preview route error");
     if (!res.headersSent) {
       res.status(502).json({ error: msg, code: "provider_error" });
     }

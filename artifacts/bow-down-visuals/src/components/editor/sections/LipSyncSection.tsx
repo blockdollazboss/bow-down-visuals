@@ -280,6 +280,10 @@ export function LipSyncSection({
   const [accountCheck, setAccountCheck]         = useState<AccountCheckResult | null>(null);
   const [accountCheckLoading, setAccountCheckLoading] = useState(false);
 
+  /* ── Health check state ── */
+  const [healthCheck, setHealthCheck]           = useState<{ reachable: boolean; status: number; contentType: string; isJson: boolean } | null>(null);
+  const [healthLoading, setHealthLoading]       = useState(false);
+
   /* ── Route test state ── */
   const [routeTest, setRouteTest] = useState<{
     reachable:                  boolean;
@@ -611,6 +615,25 @@ export function LipSyncSection({
       });
     } finally {
       setAccountCheckLoading(false);
+    }
+  }
+
+  /* ── Health check ── */
+  async function fetchHealth() {
+    setHealthLoading(true);
+    try {
+      const res = await fetch("/api/lip-sync/health", { signal: AbortSignal.timeout(10_000) });
+      const contentType = res.headers.get("content-type") ?? "";
+      setHealthCheck({
+        reachable:   res.ok,
+        status:      res.status,
+        contentType: contentType || "(none)",
+        isJson:      contentType.includes("application/json"),
+      });
+    } catch {
+      setHealthCheck({ reachable: false, status: 0, contentType: "(none)", isJson: false });
+    } finally {
+      setHealthLoading(false);
     }
   }
 
@@ -1028,6 +1051,28 @@ export function LipSyncSection({
                   </p>
                 </div>
               )}
+
+              {/* ── Route health check ── */}
+              <div className="pt-1 border-t border-white/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => void fetchHealth()}
+                  disabled={healthLoading}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+                >
+                  {healthLoading
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                    : <><ShieldCheck className="h-3.5 w-3.5" /> Test Lip Sync Health</>}
+                </button>
+                {healthCheck && (
+                  <div className="mt-2 rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                    <StatusRow label="health route reachable" value={healthCheck.reachable ? "yes ✓" : "no ✗"} ok={healthCheck.reachable} />
+                    <StatusRow label="status"                 value={String(healthCheck.status)}             ok={healthCheck.reachable ? true : false} />
+                    <StatusRow label="content-type"           value={healthCheck.contentType}                ok={null} />
+                    <StatusRow label="returned JSON"          value={healthCheck.isJson ? "yes" : "no"}      ok={healthCheck.isJson} />
+                  </div>
+                )}
+              </div>
             </div>
           </EditorCard>
 
@@ -1724,7 +1769,12 @@ interface LipSyncResult {
 
 async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult> {
   const token = await req.getAccessToken();
-  const res = await fetch("/api/lip-sync/preview", {
+
+  /* ── Step 1: POST to enqueue the job — returns in < 1 s ────────────────
+     The server validates inputs, starts background processing, and returns
+     a jobId immediately. This avoids the Replit proxy timeout (which was
+     killing the old synchronous route after ~30–60 s).                     */
+  const startRes = await fetch("/api/lip-sync/preview", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1740,43 +1790,71 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       preserveFaceIdentity: req.preserveFaceIdentity,
       preserveArtistLook:   req.preserveArtistLook,
     }),
-    signal: AbortSignal.timeout(480_000),
+    signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
   });
 
-  /* Check content-type BEFORE calling .json() — a proxy timeout or unhandled
-     server error can return an HTML page, which would crash with
-     "Unexpected token '<'". Throw a LipSyncNetworkError with structured debug
-     fields so the UI can display them clearly.                                */
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
-    const preview  = (await res.text()).slice(0, 200).replace(/\s+/g, " ").trim();
-    const status   = `${res.status} ${res.statusText}`.trim();
+  const startCt = startRes.headers.get("content-type") ?? "";
+  if (!startCt.includes("application/json")) {
+    const preview  = (await startRes.text()).slice(0, 200).replace(/\s+/g, " ").trim();
+    const status   = `${startRes.status} ${startRes.statusText}`.trim();
     const nextStep =
-      res.status === 401 || res.status === 403
+      startRes.status === 401 || startRes.status === 403
         ? "Sign in again or refresh the page."
-        : res.status === 402
+        : startRes.status === 402
           ? "Sync Labs billing blocked — replace API key with a paid account key in Replit Secrets."
-          : res.status === 503
+          : startRes.status === 503
             ? "API server not available. Check Replit Secrets or try again."
-            : res.status >= 500
+            : startRes.status >= 500
               ? "Server error. Try again in a moment."
-              : contentType.includes("text/html")
+              : startCt.includes("text/html")
                 ? "Server returned an HTML page — may be restarting. Try again."
                 : "Retry the operation. If the problem persists, check server logs.";
     throw new LipSyncNetworkError(
-      `Lip sync returned non-JSON (HTTP ${res.status}) — see debug card below`,
-      { endpoint: "POST /api/lip-sync/preview", status, contentType: contentType || "(none)", isJson: false, preview: preview || "(empty body)", nextStep },
+      `Lip sync returned non-JSON (HTTP ${startRes.status}) — see debug card below`,
+      { endpoint: "POST /api/lip-sync/preview", status, contentType: startCt || "(none)", isJson: false, preview: preview || "(empty body)", nextStep },
     );
   }
 
-  const data = await res.json() as { url?: string; provider?: string; error?: string; code?: string };
-
-  if (!res.ok || !data.url) {
-    throw new Error(data.error ?? `Lip sync failed: HTTP ${res.status}`);
+  const startData = await startRes.json() as { jobId?: string; error?: string; code?: string };
+  if (!startRes.ok || !startData.jobId) {
+    throw new Error(startData.error ?? `Lip sync failed: HTTP ${startRes.status}`);
   }
 
-  return {
-    url:      data.url,
-    provider: data.provider ?? "connected",
-  };
+  const { jobId } = startData;
+
+  /* ── Step 2: Poll for job completion ────────────────────────────────────
+     Check every 3 s. The Sync Labs processing + FFmpeg can take 2–8 minutes
+     so we allow up to 8 minutes total before giving up.                    */
+  const deadline = Date.now() + 480_000;
+  while (Date.now() < deadline) {
+    await new Promise<void>(r => setTimeout(r, 3_000));
+
+    const pollRes = await fetch(`/api/lip-sync/job/${jobId}`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+      signal:  AbortSignal.timeout(15_000),
+    });
+
+    if (!pollRes.ok) {
+      const body = await pollRes.text().catch(() => "");
+      throw new Error(`Job polling failed: HTTP ${pollRes.status} — ${body.slice(0, 200)}`);
+    }
+
+    const job = await pollRes.json() as {
+      status:    string;
+      url?:      string;
+      provider?: string;
+      error?:    string;
+    };
+
+    if (job.status === "done") {
+      if (!job.url) throw new Error("Lip sync job completed but returned no URL.");
+      return { url: job.url, provider: job.provider ?? "sync" };
+    }
+    if (job.status === "failed") {
+      throw new Error(job.error ?? "Lip sync job failed.");
+    }
+    /* "queued" | "processing" — keep polling */
+  }
+
+  throw new Error("Lip sync job timed out after 8 minutes. Check Sync Labs billing and try again.");
 }
