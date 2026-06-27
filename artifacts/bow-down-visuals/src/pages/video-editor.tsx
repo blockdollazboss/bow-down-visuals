@@ -25,6 +25,7 @@ import { TransitionCompositor, type TransitionState } from "@/components/Transit
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
+import { VideoTimeline } from "@/components/editor/VideoTimeline";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
@@ -752,6 +753,20 @@ export default function VideoEditor() {
               onRestart={() => timelinePlayerRef.current?.restart()}
             />
 
+            {/* ── Timeline strip under master player ── */}
+            {scenes.length > 0 && (
+              <VideoTimeline
+                scenes={scenes}
+                currentTimeSec={previewEngineState?.currentTime ?? 0}
+                activeSceneIndex={previewEngineState?.activeSceneIndex ?? 0}
+                captionLines={settings.captions.lines}
+                effects={settings.effects}
+                appliedTransitions={settings.aiEdit?.appliedTransitions}
+                onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
+              />
+            )}
+
               </div>{/* /left-panel */}
 
               {/* RIGHT: scrollable tabs column */}
@@ -893,6 +908,7 @@ export default function VideoEditor() {
                       onPreview={(id) => setPreviewSceneId(id)}
                       previewSceneId={previewSceneId}
                       getAccessToken={getAccessToken}
+                      saveState={saveState}
                     />
                   </div>
                 )}

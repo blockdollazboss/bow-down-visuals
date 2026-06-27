@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
   Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
+  GripVertical, ChevronsUp, ChevronsDown, Undo2,
 } from "lucide-react";
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, rectSortingStrategy, useSortable, arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -49,6 +58,8 @@ const ENHANCE_CAMERAS = [
 
 interface EnhanceStatus { type: "success" | "error" | "warning"; message: string }
 
+type SaveState = "idle" | "saving" | "saved" | "error";
+
 interface ClipGeneratorSectionProps {
   scenes: SceneData[];
   setScenes: (s: SceneData[]) => void;
@@ -59,6 +70,7 @@ interface ClipGeneratorSectionProps {
   onPreview?: (sceneId: string) => void;
   previewSceneId?: string | null;
   getAccessToken?: () => Promise<string | null>;
+  saveState?: SaveState;
 }
 
 export function ClipGeneratorSection({
@@ -71,12 +83,51 @@ export function ClipGeneratorSection({
   onPreview,
   previewSceneId,
   getAccessToken,
+  saveState = "idle",
 }: ClipGeneratorSectionProps) {
   const [createAllTrigger, setCreateAllTrigger] = useState(0);
   const [enhancing, setEnhancing] = useState(false);
   const [enhanceProgress, setEnhanceProgress] = useState<{ done: number; total: number } | null>(null);
   const [enhancedIds, setEnhancedIds] = useState<Set<string>>(new Set());
   const [enhanceStatus, setEnhanceStatus] = useState<EnhanceStatus | null>(null);
+
+  /* ── DnD + Undo ───────────────────────────────────────────────── */
+  const [undoSnapshot, setUndoSnapshot] = useState<SceneData[] | null>(null);
+  const [reorderStatus, setReorderStatus] = useState<"saved" | "failed" | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  useEffect(() => {
+    if (undoSnapshot === null) return;
+    if (saveState === "saved") {
+      setReorderStatus("saved");
+      const t = setTimeout(() => setReorderStatus(null), 3000);
+      return () => clearTimeout(t);
+    }
+    if (saveState === "error") setReorderStatus("failed");
+    return;
+  }, [saveState, undoSnapshot]);
+
+  function reorder(newOrder: SceneData[]) {
+    setUndoSnapshot([...scenes]);
+    setScenes(newOrder);
+  }
+
+  function undoReorder() {
+    if (!undoSnapshot) return;
+    setScenes(undoSnapshot);
+    setUndoSnapshot(null);
+    setReorderStatus(null);
+  }
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = scenes.findIndex((s) => s.id === active.id);
+    const newIdx = scenes.findIndex((s) => s.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    reorder(arrayMove(scenes, oldIdx, newIdx));
+  }
 
   const scenesWithoutClip = scenes.filter((s) => !sceneHasClip(s));
   const hasArtist = !!artistVault;
@@ -176,7 +227,23 @@ export function ClipGeneratorSection({
     if (target < 0 || target >= scenes.length) return;
     const next = [...scenes];
     [next[index], next[target]] = [next[target]!, next[index]!];
-    setScenes(next);
+    reorder(next);
+  }
+
+  function moveToStart(index: number) {
+    if (index === 0) return;
+    const next = [...scenes];
+    const [item] = next.splice(index, 1);
+    next.unshift(item!);
+    reorder(next);
+  }
+
+  function moveToEnd(index: number) {
+    if (index === scenes.length - 1) return;
+    const next = [...scenes];
+    const [item] = next.splice(index, 1);
+    next.push(item!);
+    reorder(next);
   }
 
   function duplicate(index: number) {
@@ -208,6 +275,31 @@ export function ClipGeneratorSection({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Undo / save status bar ── */}
+      {(reorderStatus || undoSnapshot) && (
+        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-semibold ${
+          reorderStatus === "failed"
+            ? "border-red-500/30 bg-red-500/[0.06] text-red-400"
+            : reorderStatus === "saved"
+            ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
+            : "border-white/[0.07] bg-white/[0.02] text-white/50"
+        }`}>
+          {reorderStatus === "saved" ? (
+            <><CheckCircle2 className="h-4 w-4 shrink-0" /> Order saved</>
+          ) : reorderStatus === "failed" ? (
+            <><AlertCircle className="h-4 w-4 shrink-0" /> Order save failed — click Undo to restore</>
+          ) : (
+            <><span className="h-4 w-4 shrink-0 inline-flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-white/40 animate-pulse" /></span> Saving order…</>
+          )}
+          {undoSnapshot && (
+            <button type="button" onClick={undoReorder}
+              className="ml-auto flex items-center gap-1.5 px-3 py-1 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:border-white/20 transition-colors text-xs font-bold">
+              <Undo2 className="h-3.5 w-3.5" /> Undo Reorder
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Enhance Scene Prompts banner ── */}
       <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 space-y-3">
@@ -298,29 +390,64 @@ export function ClipGeneratorSection({
       </div>
 
       {/* Scene cards — 1 col mobile / 2 col tablet / 3 col desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        {scenes.map((scene, i) => (
-          <SceneClipCard
-            key={scene.id}
-            scene={scene}
-            index={i}
-            totalScenes={scenes.length}
-            hasArtist={hasArtist}
-            artistVault={artistVault}
-            projectId={projectId}
-            settings={settings}
-            onUpdateScene={updateScene}
-            onPatchClip={patchClip}
-            onMove={move}
-            onDuplicate={duplicate}
-            onRemove={remove}
-            onPreview={onPreview}
-            previewSceneId={previewSceneId}
-            createAllTrigger={createAllTrigger}
-            isEnhanced={enhancedIds.has(scene.id)}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={scenes.map((s) => s.id)} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {scenes.map((scene, i) => (
+              <SortableSceneCard key={scene.id} id={scene.id}>
+                {(dragHandleProps, isDragging) => (
+                  <SceneClipCard
+                    scene={scene}
+                    index={i}
+                    totalScenes={scenes.length}
+                    hasArtist={hasArtist}
+                    artistVault={artistVault}
+                    projectId={projectId}
+                    settings={settings}
+                    onUpdateScene={updateScene}
+                    onPatchClip={patchClip}
+                    onMove={move}
+                    onMoveToStart={moveToStart}
+                    onMoveToEnd={moveToEnd}
+                    onDuplicate={duplicate}
+                    onRemove={remove}
+                    onPreview={onPreview}
+                    previewSceneId={previewSceneId}
+                    createAllTrigger={createAllTrigger}
+                    isEnhanced={enhancedIds.has(scene.id)}
+                    dragHandleProps={dragHandleProps}
+                    isDragging={isDragging}
+                  />
+                )}
+              </SortableSceneCard>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+/* ── Sortable wrapper for DnD ────────────────────────────────── */
+function SortableSceneCard({
+  id,
+  children,
+}: {
+  id: string;
+  children: (dragHandleProps: React.HTMLAttributes<HTMLElement>, isDragging: boolean) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.85 : 1,
+      }}
+    >
+      {children({ ...attributes, ...listeners }, isDragging)}
     </div>
   );
 }
@@ -337,12 +464,16 @@ interface SceneClipCardProps {
   onUpdateScene: (id: string, patch: Partial<SceneData>) => void;
   onPatchClip: (sceneId: string, patch: Partial<ReturnType<typeof getClipEdit>>) => void;
   onMove: (index: number, dir: -1 | 1) => void;
+  onMoveToStart: (index: number) => void;
+  onMoveToEnd: (index: number) => void;
   onDuplicate: (index: number) => void;
   onRemove: (id: string) => void;
   onPreview?: (sceneId: string) => void;
   previewSceneId?: string | null;
   createAllTrigger: number;
   isEnhanced?: boolean;
+  dragHandleProps?: React.HTMLAttributes<HTMLElement>;
+  isDragging?: boolean;
 }
 
 function SceneClipCard({
@@ -356,12 +487,16 @@ function SceneClipCard({
   onUpdateScene,
   onPatchClip,
   onMove,
+  onMoveToStart,
+  onMoveToEnd,
   onDuplicate,
   onRemove,
   onPreview,
   previewSceneId,
   createAllTrigger,
   isEnhanced,
+  dragHandleProps,
+  isDragging,
 }: SceneClipCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -373,7 +508,9 @@ function SceneClipCard({
   return (
     <div
       className={`rounded-xl border overflow-hidden flex flex-col transition-colors ${
-        isPreviewing
+        isDragging
+          ? "border-primary/60 bg-primary/[0.08] shadow-xl shadow-primary/20"
+          : isPreviewing
           ? "border-primary/50 bg-primary/[0.04] shadow-[0_0_18px_rgba(234,179,8,0.07)]"
           : "border-white/[0.08] bg-white/[0.025]"
       }`}
@@ -381,6 +518,16 @@ function SceneClipCard({
     >
       {/* ── Compact header ── */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
+        {/* Drag handle */}
+        {dragHandleProps && (
+          <div
+            {...dragHandleProps}
+            className="shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors touch-none"
+            title="Drag to reorder"
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+        )}
         {/* Scene number badge */}
         <div className="h-6 w-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
           <span className="text-[10px] font-black text-primary">{index + 1}</span>
@@ -496,11 +643,17 @@ function SceneClipCard({
 
         {/* Spacer + icon buttons on the right */}
         <div className="flex items-center gap-1 ml-auto">
+          <IconBtn title="Move to start" disabled={index === 0} onClick={() => onMoveToStart(index)} testId={`btn-start-${index}`}>
+            <ChevronsUp className="h-3 w-3" />
+          </IconBtn>
           <IconBtn title="Move up" disabled={index === 0} onClick={() => onMove(index, -1)} testId={`btn-up-${index}`}>
             <ArrowUp className="h-3 w-3" />
           </IconBtn>
           <IconBtn title="Move down" disabled={index === totalScenes - 1} onClick={() => onMove(index, 1)} testId={`btn-down-${index}`}>
             <ArrowDown className="h-3 w-3" />
+          </IconBtn>
+          <IconBtn title="Move to end" disabled={index === totalScenes - 1} onClick={() => onMoveToEnd(index)} testId={`btn-end-${index}`}>
+            <ChevronsDown className="h-3 w-3" />
           </IconBtn>
           <IconBtn title="Duplicate" onClick={() => onDuplicate(index)} testId={`btn-dup-${index}`}>
             <Copy className="h-3 w-3" />

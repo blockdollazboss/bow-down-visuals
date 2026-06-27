@@ -78,6 +78,8 @@ export interface TimelinePlayerHandle {
   restart: () => void;
   /** Seek to ~1s before the given scene's boundary and play through its transition. */
   previewTransition: (sceneIndex: number) => void;
+  /** Seek to an absolute time in seconds (works whether playing or paused). */
+  seekTo: (sec: number) => void;
 }
 
 export interface TimelinePreviewPlayerProps {
@@ -442,6 +444,29 @@ function TimelinePreviewPlayer({
     },
     restart: startTimeline,
     previewTransition,
+    seekTo(sec: number) {
+      const t = Math.max(0, Math.min(sec, totalDurRef.current));
+      setCurrentTime(t);
+      currentTimeRef.current = t;
+      setMode("timeline");
+      prevSceneIdxRef.current = -999;
+      if (playing) {
+        doAudioPlay(t);
+      } else if (audioRef.current) {
+        audioRef.current.currentTime = t;
+      }
+      // Seek video to correct clip position
+      const idx = sceneAt(t, offsets, durs);
+      const scene = scenes[idx];
+      if (scene?.demoClipUrl && videoRef.current) {
+        const v = videoRef.current;
+        const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
+        if (v.src !== scene.demoClipUrl) v.src = scene.demoClipUrl;
+        v.muted = true;
+        v.currentTime = clipOffset;
+        if (playing) v.play().catch(() => {});
+      }
+    },
   }));
 
   /* ─── Caption style ─────────────────────────────────────────── */

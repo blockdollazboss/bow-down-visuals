@@ -1,0 +1,113 @@
+Add connected timeline under master player and drag-reorder clips.
+
+Problem:
+The timeline should be connected directly under the master player, and I should be able to drag and arrange my clips in the Clips section.
+
+Do not change:
+- export doctor working pipeline
+- captions sync
+- caption styles
+- effects
+- transitions
+- master player playback
+- Auto PiP
+- Bow Down AI Guide
+- Runway generation
+- Stripe, credits, or payments
+
+Only fix editor timeline layout and clip arranging.
+
+PART 1 — TIMELINE UNDER MASTER PLAYER
+
+Add a horizontal timeline directly under the master player.
+
+It should stay connected to the master player and show:
+- scene clips in order
+- clip thumbnails
+- scene numbers
+- scene titles
+- clip durations
+- current playhead position
+- caption markers
+- transition markers
+- effect markers
+- total video duration
+
+When the master player plays:
+- playhead moves across this timeline
+- active clip highlights
+- active caption marker highlights
+- active transition marker highlights
+
+When I click a timeline clip:
+- master player jumps to that clip
+- active scene updates
+- captions update
+- effects/transitions update
+
+When I drag the playhead:
+- master player scrubs to that time
+- scene/caption/effect state updates
+
+PART 2 — DRAG ARRANGE CLIPS
+
+In the Clips section, let me drag and reorder clip cards.
+
+Requirements:
+- drag clip card left/right/up/down
+- drop it into new order
+- update scene order immediately
+- update timeline order immediately
+- update master player sequence immediately
+- update export order immediately
+- save the new order to the project
+
+Add backup controls too:
+- Move Up
+- Move Down
+- Move To Start
+- Move To End
+
+PART 3 — SAVE ORDER SAFELY
+
+When clip order changes, save:
+- scene order
+- clip order
+- timeline order
+- export order
+
+Show:
+Order saved
+
+If save fails:
+Show:
+Order save failed: [real error]
+and allow undo.
+
+PART 4 — UNDO
+
+Add:
+Undo Reorder
+
+This should restore the previous order.
+
+PART 5 — EXPORT DOCTOR MUST USE NEW ORDER
+
+Export Doctor and normal export must use the timeline order, not the original generated order.
+
+Add status:
+Export order source: timeline order
+
+PART 6 — DEBUG
+
+Add debug:
+Timeline Connected:
+- master player connected: yes/no
+- playhead currentTime
+- active scene index
+- clip order
+- export order matches timeline: yes/no
+- order saved: yes/no
+
+Final goal:
+The timeline should sit directly under the master player and act like a real editor timeline. I should be able to drag-reorder clips, and the master player, captions, effects, transitions, and export order should follow the new arrangement.
