@@ -17,6 +17,12 @@ interface ExportDoctorProps {
   captions?: CaptionSettings | null;
   /** The exact saved Auto AI effects (settings.effects) the master player is using. */
   effects?: string[] | null;
+  /** Current master-player playhead (seconds) — origin of the 3-second match test. */
+  masterCurrentTimeSec?: number;
+  /** Total project duration (seconds) from the master player. */
+  projectDurationSec?: number;
+  /** Applied scene transitions from settings.aiEdit.appliedTransitions. */
+  appliedTransitions?: { sceneIndex: number; type: string }[] | null;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -58,6 +64,36 @@ type DownloadResult = {
   error: string | null;
 };
 
+type ExportEffectEntry = {
+  name: string;
+  type: "color-grade" | "filter";
+  scope: "global";
+  intensity: number | null;
+  opacity: number;
+  blend: "normal";
+  startSec: number;
+  endSec: number;
+  supported: boolean;
+  applied: boolean;
+  ffmpeg: string;
+};
+
+type EffectConflict = {
+  detected: boolean;
+  effects: string[];
+  mode: "bw-only" | "gold-only" | "blend";
+  note: string;
+};
+
+type TransitionPlanEntry = {
+  sceneIndex: number;
+  type: string;
+  supported: boolean;
+  xfade: string;
+  durationSec: number;
+  reason: string | null;
+};
+
 type ExportResult = {
   success?: boolean;
   url?: string;
@@ -86,6 +122,23 @@ type ExportResult = {
   captionsPreserved?: boolean;
   audioPreserved?: boolean;
   testExportCreated?: boolean;
+  // Effect stack engine (export-all-effects + export-effects-range)
+  effectStack?: ExportEffectEntry[];
+  appliedEffects?: string[];
+  conflict?: EffectConflict | null;
+  conflictMode?: "bw-only" | "gold-only" | "blend";
+  stackMatch?: boolean;
+  // 3-second match test (export-effects-range)
+  rangeStart?: number;
+  rangeDuration?: number;
+  activeSceneIndex?: number;
+  masterEffectsFound?: number;
+  effectsApplied?: number;
+  // Transitions (export-effects-transitions)
+  transitionsConnected?: boolean;
+  transitionPlan?: TransitionPlanEntry[];
+  supportedTransitions?: TransitionPlanEntry[];
+  unsupportedTransitions?: TransitionPlanEntry[];
   error?: string;
   stderrTail?: string[];
 };
@@ -130,7 +183,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, masterCurrentTimeSec, projectDurationSec, appliedTransitions }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Scene 1 = first scene that has a usable clip URL
@@ -138,8 +191,11 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions"
   >(null);
+  const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
+  const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
+  const [transitionsResult, setTransitionsResult] = useState<ExportResult | null>(null);
   const [urlResult, setUrlResult] = useState<UrlTestResult | null>(null);
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
@@ -322,12 +378,56 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     try {
       const res = await fetch("/api/export-doctor/export-all-effects", {
         method: "POST", headers: await authHeaders(),
-        body: JSON.stringify({ multiId, audioUrl: masterAudioUrl ?? null, captions: captions ?? null, effects: effects ?? [] }),
+        body: JSON.stringify({ multiId, audioUrl: masterAudioUrl ?? null, captions: captions ?? null, effects: effects ?? [], conflictMode }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
       const data = await readJson<ExportResult>(res);
       // Persist the body even on non-2xx so the real FFmpeg error + stderrTail survive.
       setExportAllEffectsResult(data);
+      if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function runEffectMatchTest() {
+    if (!multiId) return;
+    setBusy("effect-match-test"); setLastError(null); setEffectMatchResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-effects-range", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId, audioUrl: masterAudioUrl ?? null, captions: captions ?? null,
+          effects: effects ?? [], conflictMode,
+          startSec: masterCurrentTimeSec ?? 0, durationSec: 3,
+        }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      setEffectMatchResult(data);
+      if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function connectTransitions() {
+    if (!multiId) return;
+    setBusy("export-transitions"); setLastError(null); setTransitionsResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-effects-transitions", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId, audioUrl: masterAudioUrl ?? null,
+          effects: effects ?? [], conflictMode,
+          transitions: appliedTransitions ?? [],
+        }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<ExportResult>(res);
+      setTransitionsResult(data);
       if (!res.ok) { setLastError(data.error ?? `HTTP ${res.status}`); return; }
       if (data.error) setLastError(data.error);
     } catch (e) {
@@ -404,6 +504,51 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     ["audio preserved", fx ? (fx.audioPreserved ? "yes" : "no") : "—", fx ? !!fx.audioPreserved : null],
     ["test export created", fx ? (fx.testExportCreated ? "yes" : "no") : "—", fx ? !!fx.testExportCreated : null],
   ];
+
+  // ── Effect Stack Comparison (master vs export) ──
+  // Master stack is the flat global Auto AI list; the data model is global so
+  // scope/opacity/blend/range are reported honestly as global/100%/normal/full.
+  const COLOR_GRADE_EFFECTS = new Set([
+    "Black & White", "Warm Grade", "Cool Grade", "Teal & Orange", "Moody Desaturated",
+    "Vibrant Pop", "Street Night", "Luxury Gold", "Dark Drill", "Cinematic Contrast",
+  ]);
+  const masterStack: ExportEffectEntry[] = fxList.map((name) => ({
+    name,
+    type: COLOR_GRADE_EFFECTS.has(name) ? "color-grade" : "filter",
+    scope: "global",
+    intensity: null,
+    opacity: 1,
+    blend: "normal",
+    startSec: 0,
+    endSec: projectDurationSec ?? 0,
+    supported: SUPPORTED_EFFECTS.includes(name),
+    applied: true,
+    ffmpeg: "",
+  }));
+  // Prefer the most-recent stack result (match test or full effects export).
+  const stackSource = effectMatchResult?.effectStack?.length ? effectMatchResult : fx;
+  const exportStack: ExportEffectEntry[] = stackSource?.effectStack ?? [];
+  const conflict = stackSource?.conflict ?? null;
+  const stackMatch = stackSource?.stackMatch;
+  const stackMatchKnown = !!stackSource && stackMatch !== undefined;
+
+  // ── 3-Second Effect Match Test status ──
+  const em = effectMatchResult;
+  const matchStatusRows: [string, string, boolean | null][] = [
+    ["current master time", `${(em?.rangeStart ?? masterCurrentTimeSec ?? 0).toFixed(1)}s`, null],
+    ["active scene", em ? `Scene ${(em.activeSceneIndex ?? 0) + 1}` : "—", null],
+    ["master effects found", String(em?.masterEffectsFound ?? fcEffectsCount), (em?.masterEffectsFound ?? fcEffectsCount) > 0],
+    ["export effects applied", em ? String(em.effectsApplied ?? 0) : "—", em ? (em.effectsApplied ?? 0) > 0 : null],
+    ["output created", em ? (em.success ? "yes" : "no") : "—", em ? !!em.success : null],
+    ["effect stack matched", em ? (em.stackMatch ? "yes" : "no") : "—", em ? !!em.stackMatch : null],
+  ];
+
+  // ── Transitions ──
+  const appliedTx = appliedTransitions ?? [];
+  const tx = transitionsResult;
+  const txPlan = tx?.transitionPlan ?? [];
+  const txSupported = tx?.supportedTransitions ?? [];
+  const txUnsupported = tx?.unsupportedTransitions ?? [];
 
   return (
     <EditorCard
@@ -625,6 +770,20 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
               {busy === "export-all-effects" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               Export All {multiClips.length} Clips + Audio + Captions + Effects Only
             </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={runEffectMatchTest} disabled={busy !== null || !allClipsValid || !fcEffectsFound} variant="outline"
+                className="gap-2 border-cyan-500/30 bg-cyan-500/5 text-cyan-300 hover:bg-cyan-500/10 text-xs disabled:opacity-40"
+                data-testid="btn-doctor-effect-match-test">
+                {busy === "effect-match-test" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Render 3-Second Effect Match Test
+              </Button>
+              <Button onClick={connectTransitions} disabled={busy !== null || !allClipsValid} variant="outline"
+                className="gap-2 border-violet-500/30 bg-violet-500/5 text-violet-300 hover:bg-violet-500/10 text-xs disabled:opacity-40"
+                data-testid="btn-doctor-connect-transitions">
+                {busy === "export-transitions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                Connect Transitions To Export
+              </Button>
+            </div>
           </div>
           {!allClipsValid && (
             <p className="text-center text-[10px] text-white/25 leading-relaxed -mt-1 mb-3">
@@ -772,14 +931,180 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 ))}
               </div>
             )}
-            {/* Transitions are preview-only — not part of the effects export pipeline yet */}
             <div className="flex items-start justify-between gap-2 text-[11px] font-mono pt-1 mt-1 border-t border-white/[0.06]">
-              <span className="text-white/40 shrink-0">transitions in export</span>
-              <span className="text-amber-300/80 font-bold text-right break-words leading-snug">
-                Transitions visible in preview but not connected to export yet.
+              <span className="text-white/40 shrink-0">master/export effect stack match</span>
+              <span className={`font-bold text-right ${!stackMatchKnown ? "text-white/30" : stackMatch ? "text-green-400" : "text-red-400"}`}>
+                {!stackMatchKnown ? "—" : stackMatch ? "yes" : "no"}
               </span>
             </div>
           </div>
+
+          {/* ── Effect conflict resolver (Black & White ↔ Luxury Gold) ── */}
+          {conflict?.detected && (
+            <div className="rounded-xl border border-orange-500/30 bg-orange-500/[0.05] px-3 py-3 space-y-2 mt-3">
+              <p className="text-[10px] font-black text-orange-300/80 uppercase tracking-widest">Effect conflict detected</p>
+              <p className="text-[11px] text-orange-200/80 leading-snug">{conflict.note}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([["bw-only", "Black & White only"], ["gold-only", "Luxury Gold only"], ["blend", "Blend both"]] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setConflictMode(mode)}
+                    disabled={busy !== null}
+                    data-testid={`btn-conflict-${mode}`}
+                    className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold leading-tight transition-colors disabled:opacity-40 ${
+                      conflictMode === mode
+                        ? "border-orange-400/60 bg-orange-400/15 text-orange-200"
+                        : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/35 leading-snug">
+                Re-run the effects export or match test after changing the resolution to apply it.
+              </p>
+            </div>
+          )}
+
+          {/* ── Effect Stack Comparison (master vs export) ── */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3 space-y-2 mt-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest flex items-center gap-1.5">
+                <Layers className="h-3 w-3" /> Effect Stack Comparison
+              </p>
+              <span className={`text-[10px] font-bold ${!stackMatchKnown ? "text-white/30" : stackMatch ? "text-green-400" : "text-red-400"}`}>
+                match: {!stackMatchKnown ? "—" : stackMatch ? "yes" : "no"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {([["Master Effect Stack", masterStack], ["Export Effect Stack", exportStack]] as const).map(([title, stack]) => (
+                <div key={title} className="space-y-1">
+                  <p className="text-[9px] font-black text-white/35 uppercase tracking-widest">{title}</p>
+                  {stack.length === 0 ? (
+                    <p className="text-[10px] font-mono text-white/25">— none —</p>
+                  ) : (
+                    stack.map((e, i) => (
+                      <div key={`${e.name}-${i}`} className="rounded-md border border-white/[0.05] bg-white/[0.015] px-1.5 py-1 text-[9px] font-mono leading-tight">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-white/70 font-bold truncate">{e.name}</span>
+                          <span className={e.applied ? "text-green-400" : "text-white/30"}>{e.applied ? "applied" : "off"}</span>
+                        </div>
+                        <div className="text-white/35">
+                          {e.type} · {e.scope} · int {e.intensity ?? "—"} · op {Math.round(e.opacity * 100)}% · {e.blend} · {e.startSec.toFixed(0)}–{e.endSec > 0 ? e.endSec.toFixed(0) : "end"}s
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-white/30 leading-snug pt-1 border-t border-white/[0.06]">
+              Effects are global in this project, so scope=global, opacity=100%, blend=normal, range=full clip.
+            </p>
+          </div>
+
+          {/* ── 3-Second Effect Match Test status ── */}
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
+            <p className="text-[10px] font-black text-cyan-300/70 uppercase tracking-widest mb-1">Effect Match Test</p>
+            {matchStatusRows.map(([label, val, ok]) => (
+              <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40">{label}</span>
+                <span className={`font-bold ${ok === null ? "text-white/50" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+              </div>
+            ))}
+            {em?.stderrTail && em.stderrTail.length > 0 && (
+              <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
+                <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest">FFmpeg match-test error</span>
+                {em.stderrTail.map((line, i) => (
+                  <div key={i} className="text-[10px] font-mono text-red-400/70 break-words leading-snug">{line}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Effect match test result video ── */}
+          {em?.success && em.url && (
+            <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/[0.04] px-3 py-3 space-y-2 mt-3">
+              <div className="flex items-center gap-2 text-[11px] text-cyan-200 font-bold">
+                <CheckCircle2 className="h-4 w-4" /> 3s match · from {em.rangeStart?.toFixed(1)}s · Scene {(em.activeSceneIndex ?? 0) + 1} · {em.effectsApplied ?? 0} fx · match {em.stackMatch ? "✓" : "✗"}
+              </div>
+              <video src={em.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={em.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download match test
+              </a>
+            </div>
+          )}
+
+          {/* ── Transitions Export Doctor status block ── */}
+          <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.03] px-3 py-3 space-y-1.5 mt-3">
+            <p className="text-[10px] font-black text-violet-300/70 uppercase tracking-widest mb-1">Transitions In Export</p>
+            <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+              <span className="text-white/40">applied transitions</span>
+              <span className={`font-bold ${appliedTx.length > 0 ? "text-green-400" : "text-white/30"}`}>{appliedTx.length}</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+              <span className="text-white/40">connected to export</span>
+              <span className={`font-bold ${!tx ? "text-white/30" : tx.transitionsConnected ? "text-green-400" : "text-red-400"}`}>
+                {!tx ? "—" : tx.transitionsConnected ? "yes" : "no"}
+              </span>
+            </div>
+            {tx && (
+              <>
+                <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                  <span className="text-white/40">supported</span>
+                  <span className="font-bold text-green-400">{txSupported.length}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                  <span className="text-white/40">unsupported</span>
+                  <span className={`font-bold ${txUnsupported.length > 0 ? "text-amber-400" : "text-white/30"}`}>{txUnsupported.length}</span>
+                </div>
+                {txPlan.length > 0 && (
+                  <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-1">
+                    {txPlan.map((p) => (
+                      <div key={p.sceneIndex} className="text-[10px] font-mono leading-snug">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-white/55">Scene {p.sceneIndex + 1}→{p.sceneIndex + 2}: {p.type}</span>
+                          <span className={p.supported ? "text-green-400 font-bold" : "text-amber-400 font-bold"}>
+                            {p.supported ? `xfade=${p.xfade}` : "unsupported"}
+                          </span>
+                        </div>
+                        {p.reason && <div className="text-amber-400/70 break-words">{p.reason}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {!tx && (
+              <p className="text-[10px] text-white/35 leading-snug pt-1 border-t border-white/[0.06]">
+                Run "Connect Transitions To Export" to render the xfade chain. Supported: Cut, Crossfade, Fade to Black, Flash Cut. Whip Pan / Zoom export as a hard cut.
+              </p>
+            )}
+            {tx?.stderrTail && tx.stderrTail.length > 0 && (
+              <div className="pt-1 mt-1 border-t border-white/[0.06] space-y-0.5">
+                <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest">FFmpeg transitions error</span>
+                {tx.stderrTail.map((line, i) => (
+                  <div key={i} className="text-[10px] font-mono text-red-400/70 break-words leading-snug">{line}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Transitions test export result video ── */}
+          {tx?.success && tx.url && (
+            <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] px-3 py-3 space-y-2 mt-3">
+              <div className="flex items-center gap-2 text-[11px] text-violet-200 font-bold">
+                <CheckCircle2 className="h-4 w-4" /> Transitions burned · {tx.clipCount ?? "?"} clips · {tx.duration?.toFixed(1)}s · {txSupported.length} supported · {txUnsupported.length} fallback
+              </div>
+              <video src={tx.url} controls className="w-full max-h-64 rounded-lg bg-black" />
+              <a href={tx.url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline">
+                <ExternalLink className="h-3 w-3" /> Open / download transitions test
+              </a>
+            </div>
+          )}
 
           {/* ── Effects test export result ── */}
           {exportAllEffectsResult?.success && exportAllEffectsResult.url && (

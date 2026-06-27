@@ -258,18 +258,146 @@ function cssToFfmpegChain(combinedCss: string): string {
   return parts.join(",");
 }
 
-/** Build the FFmpeg effect chain + report which named effects were supported / skipped. */
-function buildEffectFilter(effects: string[]): { filter: string; supported: string[]; unsupported: string[] } {
+/* ── Named export-safe grades ────────────────────────────────────────────────
+ * A few grades get DEDICATED FFmpeg chains instead of the lossy CSS→eq path so
+ * the burned export actually looks like the master player (the generic sepia→eq
+ * translation washed Luxury Gold out and the merged-eq path zeroed saturation
+ * whenever Black & White was also active). */
+const BW_NAME = "Black & White";
+const LUXURY_GOLD_NAME = "Luxury Gold";
+
+/** Pure desaturation — export-safe Black & White. */
+const BW_FFMPEG = "eq=saturation=0.0";
+
+/** Real warm cinematic gold grade: warm balance, reduced blue/cool tones,
+ *  increased contrast, gold highlights, cinematic saturation. */
+const LUXURY_GOLD_FFMPEG =
+  "colorbalance=rs=0.06:gs=0.03:bs=-0.06:rm=0.08:gm=0.04:bm=-0.08:rh=0.12:gh=0.07:bh=-0.14,eq=contrast=1.12:saturation=1.30:brightness=0.02";
+
+/** Black & White + Luxury Gold "blend both": gold-tinted monochrome so BOTH
+ *  effects are visibly present (low saturation + strong warm gold cast). */
+const BW_GOLD_BLEND_FFMPEG =
+  "eq=saturation=0.18,colorbalance=rm=0.10:gm=0.05:bm=-0.10:rh=0.16:gh=0.08:bh=-0.16,eq=contrast=1.12:brightness=0.02";
+
+/** Effects treated as color grades (vs. plain filters) for the comparison panel. */
+const COLOR_GRADE_NAMES = new Set<string>([
+  "Warm Grade", "Cool Grade", "Teal & Orange", "Moody Desaturated", "Vibrant Pop",
+  "Street Night", LUXURY_GOLD_NAME, "Dark Drill", "Cinematic Contrast", BW_NAME,
+]);
+
+export type EffectConflictMode = "bw-only" | "gold-only" | "blend";
+
+export interface ExportEffectEntry {
+  name: string;
+  type: "color-grade" | "filter";
+  scope: "global";
+  intensity: number | null;
+  opacity: number;
+  blend: "normal";
+  startSec: number;
+  endSec: number;
+  supported: boolean;
+  applied: boolean;
+  ffmpeg: string;
+}
+
+export interface EffectStackResult {
+  filter: string;
+  stack: ExportEffectEntry[];
+  supported: string[];
+  unsupported: string[];
+  applied: string[];
+  conflict: { detected: boolean; effects: string[]; mode: EffectConflictMode; note: string } | null;
+  /** True only when every supported effect is actually applied and nothing is dropped. */
+  stackMatch: boolean;
+}
+
+/** Resolve ONE effect name to an FFmpeg chain (dedicated grades first, else CSS path). */
+function ffmpegForEffect(name: string): { ffmpeg: string; supported: boolean; type: "color-grade" | "filter" } {
+  if (name === BW_NAME) return { ffmpeg: BW_FFMPEG, supported: true, type: "color-grade" };
+  if (name === LUXURY_GOLD_NAME) return { ffmpeg: LUXURY_GOLD_FFMPEG, supported: true, type: "color-grade" };
+  const css = EFFECT_CSS_FILTERS[name];
+  if (!css) return { ffmpeg: "", supported: false, type: "filter" };
+  const ffmpeg = cssToFfmpegChain(css);
+  return { ffmpeg, supported: ffmpeg.length > 0, type: COLOR_GRADE_NAMES.has(name) ? "color-grade" : "filter" };
+}
+
+/**
+ * Build the full export effect stack: each effect is chained SEQUENTIALLY (not
+ * merged into one lossy eq), Black & White ↔ Luxury Gold conflicts are resolved
+ * by `conflictMode`, and every effect is reported (supported / applied / ffmpeg)
+ * so the UI can compare the master stack against what export actually burns.
+ */
+function buildEffectStack(
+  effects: string[],
+  totalDuration: number,
+  conflictMode: EffectConflictMode = "blend",
+): EffectStackResult {
+  const names = effects.filter((e) => typeof e === "string" && e.trim());
+  const hasBW = names.includes(BW_NAME);
+  const hasGold = names.includes(LUXURY_GOLD_NAME);
+  const conflictDetected = hasBW && hasGold;
+
+  const chains: string[] = [];
+  const stack: ExportEffectEntry[] = [];
   const supported: string[] = [];
   const unsupported: string[] = [];
-  const cssBits: string[] = [];
-  for (const fx of effects) {
-    const css = EFFECT_CSS_FILTERS[fx];
-    if (css) { supported.push(fx); cssBits.push(css); }
-    else unsupported.push(fx);
+  const applied: string[] = [];
+
+  for (const name of names) {
+    const base = ffmpegForEffect(name);
+    let isApplied = base.supported;
+    let usedFfmpeg = base.ffmpeg;
+
+    if (conflictDetected && (name === BW_NAME || name === LUXURY_GOLD_NAME)) {
+      if (conflictMode === "bw-only") {
+        isApplied = name === BW_NAME;
+        usedFfmpeg = name === BW_NAME ? BW_FFMPEG : "";
+      } else if (conflictMode === "gold-only") {
+        isApplied = name === LUXURY_GOLD_NAME;
+        usedFfmpeg = name === LUXURY_GOLD_NAME ? LUXURY_GOLD_FFMPEG : "";
+      } else {
+        // blend both — attribute the single blend chain to the Luxury Gold row
+        isApplied = true;
+        usedFfmpeg = name === LUXURY_GOLD_NAME ? BW_GOLD_BLEND_FFMPEG : "";
+      }
+    }
+
+    stack.push({
+      name,
+      type: base.type,
+      scope: "global",
+      intensity: null,
+      opacity: 1,
+      blend: "normal",
+      startSec: 0,
+      endSec: totalDuration,
+      supported: base.supported,
+      applied: isApplied,
+      ffmpeg: usedFfmpeg,
+    });
+
+    if (!base.supported) { unsupported.push(name); continue; }
+    supported.push(name);
+    if (isApplied) {
+      applied.push(name);
+      if (usedFfmpeg) chains.push(usedFfmpeg);
+    }
   }
-  const filter = cssBits.length > 0 ? cssToFfmpegChain(cssBits.join(" ")) : "";
-  return { filter, supported, unsupported };
+
+  const conflict = conflictDetected
+    ? {
+        detected: true,
+        effects: [BW_NAME, LUXURY_GOLD_NAME],
+        mode: conflictMode,
+        note: "Black & White reduces color from Luxury Gold.",
+      }
+    : null;
+
+  const stackMatch =
+    supported.length > 0 && applied.length === supported.length && unsupported.length === 0;
+
+  return { filter: chains.join(","), stack, supported, unsupported, applied, conflict, stackMatch };
 }
 
 /** Concatenate normalized clips (scene order) with optional audio + optional effects + optional burned ASS captions. */
@@ -280,6 +408,7 @@ async function concatMultiClips(
   outName: string,
   assPath: string | null = null,
   effectFilter: string | null = null,
+  range: { start: number; duration: number } | null = null,
 ): Promise<string> {
   const outputPath = path.join(folder, outName);
   const filterParts: string[] = [];
@@ -289,9 +418,19 @@ async function concatMultiClips(
   const segs = normPaths.map((_, i) => `[v${i}]`).join("");
   filterParts.push(`${segs}concat=n=${normPaths.length}:v=1:a=0[vout]`);
 
+  // Optional time-range trim (used by the 3-second effect match test) — clip the
+  // concatenated timeline BEFORE effects/captions so the burned look is identical
+  // to the master player at that playhead.
+  let label = "vout";
+  if (range) {
+    const s = Math.max(0, range.start);
+    const d = Math.max(0.1, range.duration);
+    filterParts.push(`[${label}]trim=start=${s.toFixed(3)}:duration=${d.toFixed(3)},setpts=PTS-STARTPTS[vtrim]`);
+    label = "vtrim";
+  }
+
   // Effects first (so captions sit on top of the graded video, matching the master player),
   // then burn ASS captions — same subtitles filter the real export uses.
-  let label = "vout";
   if (effectFilter) {
     filterParts.push(`[${label}]${effectFilter}[veff]`);
     label = "veff";
@@ -309,9 +448,112 @@ async function concatMultiClips(
   const audioIdx = audioPath ? normPaths.length : -1;
   const args: string[] = [];
   for (const np of normPaths) args.push("-i", np);
-  if (audioPath) args.push("-i", audioPath);
+  // For ranged exports, input-seek the audio so it lines up with the trimmed video.
+  if (audioPath) {
+    if (range) args.push("-ss", Math.max(0, range.start).toFixed(3), "-t", Math.max(0.1, range.duration).toFixed(3));
+    args.push("-i", audioPath);
+  }
   args.push("-filter_complex", filterParts.join(";"), "-map", videoLabel);
   if (audioPath && audioIdx >= 0) args.push("-map", `${audioIdx}:a`);
+  args.push("-c:v", "libx264", "-preset", "ultrafast", "-crf", "22", "-pix_fmt", "yuv420p");
+  if (audioPath) args.push("-c:a", "aac", "-b:a", "192k", "-shortest");
+  else args.push("-an");
+  args.push("-movflags", "+faststart", "-y", outputPath);
+
+  await execFileAsync("ffmpeg", args, { timeout: 5 * 60 * 1000 });
+  return outputPath;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * Transitions → FFmpeg xfade
+ * Supported (real xfade): Cut (hard), Crossfade, Fade to Black, Flash Cut.
+ * Unsupported: Whip Pan, Zoom Transition — they fall back to a hard cut at that
+ * boundary and are reported with a reason (no native xfade equivalent).
+ * ────────────────────────────────────────────────────────────────────────── */
+export interface TransitionPlanEntry {
+  sceneIndex: number;
+  type: string;
+  supported: boolean;
+  xfade: string;
+  durationSec: number;
+  reason: string | null;
+}
+
+function resolveTransition(type: string): { supported: boolean; xfade: string; durationSec: number; reason: string | null } {
+  const t = (type || "").trim().toLowerCase();
+  switch (t) {
+    case "cut":
+    case "":
+      return { supported: true, xfade: "fade", durationSec: 0.04, reason: null }; // ~1 frame = hard cut
+    case "crossfade":
+    case "cross fade":
+    case "dissolve":
+      return { supported: true, xfade: "fade", durationSec: 0.5, reason: null };
+    case "fade to black":
+    case "fadeblack":
+    case "fade":
+      return { supported: true, xfade: "fadeblack", durationSec: 0.6, reason: null };
+    case "flash cut":
+    case "flash":
+    case "fadewhite":
+      return { supported: true, xfade: "fadewhite", durationSec: 0.25, reason: null };
+    case "whip pan":
+    case "whippan":
+      return { supported: false, xfade: "fade", durationSec: 0.04, reason: "Whip Pan needs a motion-blur pan that FFmpeg xfade can't reproduce — exported as a hard cut." };
+    case "zoom":
+    case "zoom transition":
+      return { supported: false, xfade: "fade", durationSec: 0.04, reason: "Zoom transition needs scale/zoompan keyframes not available in xfade — exported as a hard cut." };
+    default:
+      return { supported: false, xfade: "fade", durationSec: 0.04, reason: `Unknown transition "${type}" — exported as a hard cut.` };
+  }
+}
+
+/** Concatenate clips with per-boundary xfade transitions + optional effects + optional audio. */
+async function concatMultiClipsXfade(
+  folder: string,
+  normPaths: string[],
+  durations: number[],
+  boundaries: { xfade: string; durationSec: number }[],
+  audioPath: string | null,
+  outName: string,
+  effectFilter: string | null = null,
+): Promise<string> {
+  const outputPath = path.join(folder, outName);
+  const n = normPaths.length;
+  const filterParts: string[] = [];
+
+  let label: string;
+  if (n === 1) {
+    filterParts.push(`[0:v]setpts=PTS-STARTPTS[vout]`);
+    label = "vout";
+  } else {
+    filterParts.push(`[0:v]setpts=PTS-STARTPTS[x0]`);
+    let acc = durations[0] ?? 0;
+    let prev = "x0";
+    for (let i = 1; i < n; i++) {
+      filterParts.push(`[${i}:v]setpts=PTS-STARTPTS[c${i}]`);
+      const b = boundaries[i - 1] ?? { xfade: "fade", durationSec: 0.04 };
+      const td = Math.max(0.04, b.durationSec);
+      const offset = Math.max(0, acc - td);
+      const out = i === n - 1 ? "vout" : `x${i}`;
+      filterParts.push(`[${prev}][c${i}]xfade=transition=${b.xfade}:duration=${td.toFixed(3)}:offset=${offset.toFixed(3)}[${out}]`);
+      acc = acc + (durations[i] ?? 0) - td;
+      prev = out;
+    }
+    label = "vout";
+  }
+
+  if (effectFilter) {
+    filterParts.push(`[${label}]${effectFilter}[veff]`);
+    label = "veff";
+  }
+  const videoLabel = `[${label}]`;
+
+  const args: string[] = [];
+  for (const np of normPaths) args.push("-i", np);
+  if (audioPath) args.push("-i", audioPath);
+  args.push("-filter_complex", filterParts.join(";"), "-map", videoLabel);
+  if (audioPath) args.push("-map", `${n}:a`);
   args.push("-c:v", "libx264", "-preset", "ultrafast", "-crf", "22", "-pix_fmt", "yuv420p");
   if (audioPath) args.push("-c:a", "aac", "-b:a", "192k", "-shortest");
   else args.push("-an");
@@ -1270,11 +1512,12 @@ router.post("/export-doctor/export-all-captions", requireAuth, async (req, res) 
  * ────────────────────────────────────────────────────────────────────────── */
 router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) => {
   try {
-    const { multiId, audioUrl, captions, effects } = req.body as {
+    const { multiId, audioUrl, captions, effects, conflictMode } = req.body as {
       multiId?: string;
       audioUrl?: string;
       captions?: CaptionBurnConfig | null;
       effects?: string[] | null;
+      conflictMode?: EffectConflictMode;
     };
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
@@ -1289,17 +1532,30 @@ router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) =
       return;
     }
 
-    // ── Effects: translate saved global Auto AI effects to FFmpeg, skip unsupported ──
+    // ── Effects: translate saved global Auto AI effects to FFmpeg (sequential chain,
+    //    dedicated grades + B&W↔Luxury Gold conflict resolution), skip unsupported ──
+    const totalDurationSec = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
     const effectList = Array.isArray(effects) ? effects.filter((e) => typeof e === "string" && e.trim()) : [];
     const effectsCount = effectList.length;
     const effectsFound = effectsCount > 0;
-    const { filter: effectFilter, supported: supportedEffects, unsupported: unsupportedEffects } = buildEffectFilter(effectList);
-    const effectsExportConnected = !!effectFilter;
+    const resolvedConflictMode: EffectConflictMode =
+      conflictMode === "bw-only" || conflictMode === "gold-only" ? conflictMode : "blend";
+    const stackResult = buildEffectStack(effectList, totalDurationSec, resolvedConflictMode);
+    const effectFilter = stackResult.filter;
+    const supportedEffects = stackResult.supported;
+    const unsupportedEffects = stackResult.unsupported;
+    const effectStack = stackResult.stack;
+    const appliedEffects = stackResult.applied;
+    const conflict = stackResult.conflict;
+    const stackMatch = stackResult.stackMatch;
+    // Only claim "connected" when a filter is built AND the supported stack fully matches.
+    const effectsExportConnected = !!effectFilter && stackMatch;
 
     if (!effectsFound) {
       res.status(400).json({
         error: "No Auto AI effects found — select at least one effect or color grade (Effects tab) before running the effects test.",
         effectsFound: false, effectsCount: 0, effectsExportConnected: false, unsupportedEffects: [],
+        effectStack: [], appliedEffects: [], conflict: null, stackMatch: false,
       });
       return;
     }
@@ -1318,6 +1574,7 @@ router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) =
 
     const baseStatus = {
       effectsFound, effectsCount, effectsExportConnected, supportedEffects, unsupportedEffects,
+      effectStack, appliedEffects, conflict, conflictMode: resolvedConflictMode, stackMatch, effectFilter,
       captionsFound, captionRows, captionTimingValid, captionStyleFound,
     };
 
@@ -1426,6 +1683,11 @@ router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) =
       effectsExportConnected,
       supportedEffects,
       unsupportedEffects,
+      effectStack,
+      appliedEffects,
+      conflict,
+      conflictMode: resolvedConflictMode,
+      stackMatch,
       effectFilter,
       captionsFound,
       captionRows,
@@ -1439,6 +1701,290 @@ router.post("/export-doctor/export-all-effects", requireAuth, async (req, res) =
       audioValid: true,
       audioFileSize: statSync(audioPath).size,
       audioDuration: aProbe.duration,
+      testExportCreated: true,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * POST /export-doctor/export-effects-range
+ * Render a short window (≤3s) starting at the master playhead with the EXACT
+ * effect stack the master uses — the "3-Second Effect Match Test".
+ * ────────────────────────────────────────────────────────────────────────── */
+router.post("/export-doctor/export-effects-range", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, captions, effects, conflictMode, startSec, durationSec } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      captions?: CaptionBurnConfig | null;
+      effects?: string[] | null;
+      conflictMode?: EffectConflictMode;
+      startSec?: number;
+      durationSec?: number;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+    const blocker = multiClipsBlocker(session);
+    if (blocker) {
+      res.status(400).json({ error: blocker });
+      return;
+    }
+
+    const totalDurationSec = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
+    const rangeStart = Math.min(Math.max(0, Number(startSec) || 0), Math.max(0, totalDurationSec - 0.5));
+    const rangeDuration = Math.min(3, Math.max(0.5, Number(durationSec) || 3), Math.max(0.5, totalDurationSec - rangeStart));
+
+    // Active scene at the playhead (cumulative clip durations).
+    let activeSceneIndex = 0;
+    let cursor = 0;
+    for (let i = 0; i < session.clips.length; i++) {
+      const d = session.clips[i]?.duration || 0;
+      if (rangeStart < cursor + d || i === session.clips.length - 1) { activeSceneIndex = i; break; }
+      cursor += d;
+    }
+
+    const effectList = Array.isArray(effects) ? effects.filter((e) => typeof e === "string" && e.trim()) : [];
+    if (effectList.length === 0) {
+      res.status(400).json({ error: "No Auto AI effects found — select at least one effect or color grade before the match test.", effectStack: [], appliedEffects: [], conflict: null, stackMatch: false });
+      return;
+    }
+    const resolvedConflictMode: EffectConflictMode =
+      conflictMode === "bw-only" || conflictMode === "gold-only" ? conflictMode : "blend";
+    const stackResult = buildEffectStack(effectList, rangeDuration, resolvedConflictMode);
+    const effectFilter = stackResult.filter;
+    const effectsExportConnected = !!effectFilter && stackResult.stackMatch;
+
+    if (!audioUrl || !audioUrl.startsWith("http") || !isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "A valid, allowed master-player audio URL is required for the match test." });
+      return;
+    }
+
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `fxrange-audio${ext}`);
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    const audioDownloaded = existsSync(audioPath) && statSync(audioPath).size > 1024;
+
+    // Burn captions shifted into the window so timings still line up at the playhead.
+    let assPath: string | null = null;
+    let captionsBurned = false;
+    const captionsActive = !!captions && captions.mode !== "none";
+    if (captionsActive) {
+      const assContent = buildAssContent(captions!, MULTI_TARGET_W, MULTI_TARGET_H, totalDurationSec, -rangeStart);
+      if (assContent.trim()) {
+        assPath = path.join(session.folder, `fxrange-captions-${multiId}.ass`);
+        writeFileSync(assPath, assContent, "utf8");
+        captionsBurned = true;
+      }
+    }
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    req.log.info({ multiId, rangeStart, rangeDuration, activeSceneIndex, effects: stackResult.applied }, "EXPORT DOCTOR 3s effect match test");
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(
+        session.folder, normPaths, audioDownloaded ? audioPath : null,
+        "effect-match-test.mp4", assPath, effectFilter || null,
+        { start: rangeStart, duration: rangeDuration },
+      );
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        error: `FFmpeg range export failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        effectFilter, stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ error: "FFmpeg produced no usable match-test file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-effect-match-test.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), { contentType: "video/mp4", resumable: false });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      rangeStart,
+      rangeDuration,
+      activeSceneIndex,
+      masterEffectsFound: effectList.length,
+      effectsApplied: stackResult.applied.length,
+      effectsExportConnected,
+      supportedEffects: stackResult.supported,
+      unsupportedEffects: stackResult.unsupported,
+      effectStack: stackResult.stack,
+      appliedEffects: stackResult.applied,
+      conflict: stackResult.conflict,
+      conflictMode: resolvedConflictMode,
+      stackMatch: stackResult.stackMatch,
+      effectFilter,
+      captionsBurned,
+      testExportCreated: true,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * POST /export-doctor/export-effects-transitions
+ * Build an xfade chain from applied transitions + the exact effect stack, and
+ * report per-transition support (Whip Pan / Zoom fall back to a hard cut).
+ * ────────────────────────────────────────────────────────────────────────── */
+router.post("/export-doctor/export-effects-transitions", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, effects, conflictMode, transitions } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      effects?: string[] | null;
+      conflictMode?: EffectConflictMode;
+      transitions?: { sceneIndex: number; type: string }[] | null;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+    const blocker = multiClipsBlocker(session);
+    if (blocker) {
+      res.status(400).json({ error: blocker });
+      return;
+    }
+
+    const clipCount = session.clips.length;
+    const boundaryCount = Math.max(0, clipCount - 1);
+    const inputTransitions = Array.isArray(transitions) ? transitions : [];
+
+    // One plan entry per clip boundary (scene b → b+1). The applied transition
+    // is keyed by its DESTINATION scene (transition INTO scene b+1), so boundary
+    // b maps to the transition with sceneIndex === b + 1. The plan entry keeps
+    // the boundary index `b` (used for the "Scene b+1 → b+2" display label).
+    // Missing = hard Cut.
+    const plan: TransitionPlanEntry[] = [];
+    for (let b = 0; b < boundaryCount; b++) {
+      const found = inputTransitions.find((t) => Number(t.sceneIndex) === b + 1);
+      const type = found?.type ?? "Cut";
+      const r = resolveTransition(type);
+      plan.push({ sceneIndex: b, type, supported: r.supported, xfade: r.xfade, durationSec: r.durationSec, reason: r.reason });
+    }
+    const supportedTransitions = plan.filter((p) => p.supported);
+    const unsupportedTransitions = plan.filter((p) => !p.supported);
+    const transitionsConnected = plan.length > 0;
+
+    // Effects (same engine as the master/export).
+    const effectList = Array.isArray(effects) ? effects.filter((e) => typeof e === "string" && e.trim()) : [];
+    const resolvedConflictMode: EffectConflictMode =
+      conflictMode === "bw-only" || conflictMode === "gold-only" ? conflictMode : "blend";
+    const totalDurationSec = session.clips.reduce((sum, c) => sum + (c.duration || 0), 0);
+    const stackResult = buildEffectStack(effectList, totalDurationSec, resolvedConflictMode);
+    const effectFilter = stackResult.filter;
+
+    // Optional audio.
+    let audioPath: string | null = null;
+    if (audioUrl && audioUrl.startsWith("http") && isAllowedAudioUrl(audioUrl)) {
+      let target = audioUrl;
+      if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+        const { url: fresh, changed } = await tryFreshSignedUrl(target);
+        if (changed) target = fresh;
+      }
+      const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+      const ap = path.join(session.folder, `fxtrans-audio${ext}`);
+      const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+      if (ar.ok) {
+        const aws = createWriteStream(ap);
+        await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+        if (existsSync(ap) && statSync(ap).size > 1024) audioPath = ap;
+      }
+    }
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+    const durations = session.clips.map((c) => c.duration || 0);
+    const boundaries = plan.map((p) => ({ xfade: p.xfade, durationSec: p.durationSec }));
+
+    req.log.info({ multiId, boundaries: plan.length, supported: supportedTransitions.length, unsupported: unsupportedTransitions.length }, "EXPORT DOCTOR transitions export");
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClipsXfade(session.folder, normPaths, durations, boundaries, audioPath, "transitions-test.mp4", effectFilter || null);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        error: `FFmpeg transitions export failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        transitionPlan: plan, supportedTransitions, unsupportedTransitions,
+        stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ error: "FFmpeg produced no usable transitions file.", transitionPlan: plan });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-transitions-test.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), { contentType: "video/mp4", resumable: false });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      clipCount,
+      transitionsConnected,
+      transitionPlan: plan,
+      supportedTransitions,
+      unsupportedTransitions,
+      effectStack: stackResult.stack,
+      appliedEffects: stackResult.applied,
+      conflict: stackResult.conflict,
+      stackMatch: stackResult.stackMatch,
+      effectFilter,
       testExportCreated: true,
       fileSize: statSync(outputPath).size,
       duration: probe.duration,

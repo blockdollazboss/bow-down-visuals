@@ -861,6 +861,12 @@ export function ExportSection({
         masterAudioUrl={masterAudioUrl ?? null}
         captions={settings.captions}
         effects={settings.effects}
+        masterCurrentTimeSec={masterCurrentTimeSec}
+        projectDurationSec={projectDurationSec}
+        appliedTransitions={(settings.aiEdit?.appliedTransitions ?? []).map((t) => ({
+          sceneIndex: t.sceneIndex,
+          type: t.transitionType,
+        }))}
       />
     </div>
   );
