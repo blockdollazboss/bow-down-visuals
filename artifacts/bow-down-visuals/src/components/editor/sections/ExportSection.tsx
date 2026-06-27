@@ -497,7 +497,7 @@ export function ExportSection({
       >
         <div className="space-y-5">
           <Field label="Aspect ratio">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {VIDEO_FORMATS.map((f) => (
                 <button
                   key={f.id}
@@ -513,6 +513,32 @@ export function ExportSection({
                   <AspectRatioIcon ratio={f.id as VideoFormat} active={settings.export.format === f.id} />
                   <span>{f.label}</span>
                   <span className="text-[9px] font-normal opacity-60 text-center leading-tight">{f.note}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Fit Mode — how clips fill the canvas">
+            <div className="flex flex-col gap-1.5">
+              {([
+                ["fill", "Fill / Crop",     "Crops clip edges to fill frame"],
+                ["fit",  "Fit / Letterbox", "Black bars, full clip visible"],
+                ["blur", "Blur Background", "Blurred fill behind contained clip"],
+              ] as const).map(([id, lbl, desc]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setExport({ fitMode: id })}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${
+                    (settings.export.fitMode ?? "fill") === id
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-white/[0.07] bg-white/[0.02] text-white/45 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  <span>
+                    <span className="text-[10px] font-bold block">{lbl}</span>
+                    <span className="text-[9px] text-white/30">{desc}</span>
+                  </span>
+                  {(settings.export.fitMode ?? "fill") === id && <span className="text-[9px] font-bold ml-2 shrink-0">✓</span>}
                 </button>
               ))}
             </div>

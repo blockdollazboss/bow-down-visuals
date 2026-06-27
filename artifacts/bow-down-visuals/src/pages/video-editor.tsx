@@ -19,7 +19,11 @@ import {
   normalizeEditorSettings,
   sceneHasClip,
   getClipEdit,
+  formatAspectCss,
+  formatDimensions,
+  FORMAT_PRESET_LABELS,
   type EditorSettings,
+  type FitMode,
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { OverlayLayer } from "@/components/OverlayLayer";
@@ -28,6 +32,7 @@ import { ClipGeneratorSection } from "@/components/editor/sections/ClipGenerator
 import { VideoTimeline } from "@/components/editor/VideoTimeline";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
+import { FormatSection } from "@/components/editor/sections/FormatSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
@@ -946,6 +951,10 @@ export default function VideoEditor() {
             )}
 
             {tab === "effects" && (
+              <FormatSection settings={settings} setSettings={setSettings} />
+            )}
+
+            {tab === "effects" && (
               <EffectsSection
                 scenes={scenes}
                 settings={settings}
@@ -1005,16 +1014,23 @@ function fmtSecs(s: number): string {
 
 /** Always in the DOM — callback ref sets muted so clips play silently
  *  (audio comes from TimelinePreviewPlayer's <audio> element). */
-function MasterVideoElement({ videoRef }: { videoRef: RefObject<HTMLVideoElement | null> }) {
+function MasterVideoElement({
+  videoRef,
+  fitMode = "fill",
+}: {
+  videoRef: RefObject<HTMLVideoElement | null>;
+  fitMode?: FitMode;
+}) {
   const setEl = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
     if (el) el.muted = true;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const objFit = fitMode === "fill" ? "object-cover" : "object-contain";
   return (
     <video
       ref={setEl}
       playsInline
-      className="w-full h-full object-contain"
+      className={`w-full h-full ${objFit}`}
       data-testid="master-preview-video"
     />
   );
@@ -1114,6 +1130,7 @@ function MasterPreviewPlayer({
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
+  const blurVideoRef = useRef<HTMLVideoElement | null>(null);
 
   /* ── Auto PiP state ── */
   const [autoPiP,            setAutoPiP           ] = useState(false);
@@ -1130,6 +1147,44 @@ function MasterPreviewPlayer({
   const [browserFocused,     setBrowserFocused    ] = useState(true);
 
   const pipSupported = typeof document !== "undefined" && !!document.pictureInPictureEnabled;
+
+  /* ── Blur-bg video sync — mirrors liveVideoRef src/time when fitMode=blur ── */
+  const fitMode = settings.export.fitMode ?? "fill";
+  useEffect(() => {
+    if (fitMode !== "blur") return;
+    const main = liveVideoRef.current;
+    const blur = blurVideoRef.current;
+    if (!main || !blur) return;
+
+    const syncSrc = () => {
+      if (blur.src !== main.src) {
+        blur.src = main.src;
+        blur.load();
+      }
+    };
+    syncSrc();
+    main.addEventListener("emptied", syncSrc);
+    main.addEventListener("loadedmetadata", syncSrc);
+
+    let raf: number;
+    const syncTime = () => {
+      if (blur.readyState >= 2 && Math.abs(blur.currentTime - main.currentTime) > 0.15) {
+        blur.currentTime = main.currentTime;
+      }
+      if (main.paused !== blur.paused) {
+        if (main.paused) blur.pause();
+        else             blur.play().catch(() => { /* ignore */ });
+      }
+      raf = requestAnimationFrame(syncTime);
+    };
+    raf = requestAnimationFrame(syncTime);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      main.removeEventListener("emptied", syncSrc);
+      main.removeEventListener("loadedmetadata", syncSrc);
+    };
+  }, [fitMode, liveVideoRef]);
 
   /* Refs — callbacks always see latest values without re-subscribing */
   const autoPiPRef          = useRef(false);
@@ -1368,7 +1423,35 @@ function MasterPreviewPlayer({
       }`}
     >
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
-      <div className={`bg-black relative overflow-hidden ${isFullscreen ? "flex-1 min-h-0" : "aspect-video"}`}>
+      {(() => {
+        const fmt     = settings.export.format ?? "9:16";
+        const fitMode = settings.export.fitMode ?? "fill";
+        const arCss   = formatAspectCss(fmt);
+        const isWide  = fmt === "16:9";
+        return (
+      <div
+        className={`bg-black relative overflow-hidden ${isFullscreen ? "flex-1 min-h-0" : ""}`}
+        style={isFullscreen ? {} : {
+          aspectRatio: arCss,
+          maxHeight: isWide ? undefined : "72vh",
+          transition: "aspect-ratio 0.35s ease",
+        }}
+      >
+        {/* ── Blur-background layer (fit mode = blur) ── */}
+        {fitMode === "blur" && !isFullscreen && (
+          <div
+            className="absolute inset-0 overflow-hidden pointer-events-none"
+            style={{ transform: "scale(1.08)", zIndex: 0 }}
+          >
+            <video
+              ref={blurVideoRef}
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              style={{ filter: "blur(22px) brightness(0.52)", willChange: "filter" }}
+            />
+          </div>
+        )}
 
         {/* ── Effects-wrapped video layer — filter + zoom applied here only ── */}
         <div
@@ -1378,9 +1461,10 @@ function MasterPreviewPlayer({
             transform: effectsTransform,
             transformOrigin: "center center",
             transition: "filter 0.3s ease, transform 0.4s ease",
+            zIndex: 1,
           }}
         >
-          <MasterVideoElement videoRef={liveVideoRef} />
+          <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
           {/* Outgoing video + CSS transition overlay */}
           <TransitionCompositor
             outgoingVideoRef={outgoingVideoRef}
@@ -1510,6 +1594,21 @@ function MasterPreviewPlayer({
           </button>
         )}
       </div>
+        );
+      })()}
+
+      {/* ── Format badge — shows active format below video area ── */}
+      {!isFullscreen && (
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-white/[0.04] bg-black/30">
+          <span className="text-[9px] font-bold text-white/30 font-mono">
+            {FORMAT_PRESET_LABELS[settings.export.format ?? "9:16"]?.name ?? "Custom"}
+          </span>
+          <span className="text-[9px] font-mono text-white/20">
+            {settings.export.format ?? "9:16"} · {formatDimensions(settings.export.format ?? "9:16").join("×")}
+            {" · "}{settings.export.fitMode === "blur" ? "Blur BG" : settings.export.fitMode === "fit" ? "Letterbox" : "Fill"}
+          </span>
+        </div>
+      )}
 
       {/* ── Transport bar — visible on EVERY tab ── */}
       <div className={`flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] ${isFullscreen ? "shrink-0" : ""}`}>

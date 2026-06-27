@@ -14,7 +14,8 @@ import type { SceneData } from "@/lib/scene-parser";
    persist on the scenes array itself.
 ───────────────────────────────────────────────────────────── */
 
-export type VideoFormat = "9:16" | "16:9" | "1:1";
+export type VideoFormat = "9:16" | "16:9" | "1:1" | "4:5";
+export type FitMode    = "fill" | "fit" | "blur";
 export type Intensity = "low" | "medium" | "high";
 export type ExportQuality = "draft" | "final";
 export type ExportResolution = "720p" | "1080p";
@@ -103,10 +104,32 @@ export const AUTO_EDIT_PRESETS: AutoEditPreset[] = [
 ];
 
 export const VIDEO_FORMATS: { id: VideoFormat; label: string; note: string }[] = [
-  { id: "9:16", label: "9:16", note: "TikTok · Reels · Shorts" },
-  { id: "16:9", label: "16:9", note: "YouTube widescreen" },
-  { id: "1:1", label: "1:1", note: "Square social post" },
+  { id: "9:16", label: "9:16",  note: "TikTok · Reels · Shorts" },
+  { id: "16:9", label: "16:9",  note: "YouTube · Landscape" },
+  { id: "1:1",  label: "1:1",   note: "Square social post" },
+  { id: "4:5",  label: "4:5",   note: "Instagram Portrait" },
 ];
+
+export const FORMAT_PRESET_LABELS: Record<VideoFormat, { name: string; dims: string }> = {
+  "9:16": { name: "TikTok / Reels / Shorts",  dims: "1080×1920" },
+  "16:9": { name: "YouTube / Landscape",       dims: "1920×1080" },
+  "1:1":  { name: "Square",                    dims: "1080×1080" },
+  "4:5":  { name: "Instagram Portrait",        dims: "1080×1350" },
+};
+
+/** CSS aspect-ratio value for the player container. */
+export function formatAspectCss(fmt: VideoFormat): string {
+  const map: Record<VideoFormat, string> = { "9:16": "9/16", "16:9": "16/9", "1:1": "1/1", "4:5": "4/5" };
+  return map[fmt] ?? "9/16";
+}
+
+/** Export pixel dimensions for a format. */
+export function formatDimensions(fmt: VideoFormat): [number, number] {
+  const map: Record<VideoFormat, [number, number]> = {
+    "9:16": [1080, 1920], "16:9": [1920, 1080], "1:1": [1080, 1080], "4:5": [1080, 1350],
+  };
+  return map[fmt] ?? [1080, 1920];
+}
 
 export const CAPTION_STYLES = [
   "None",
@@ -531,6 +554,8 @@ export interface ExportSettings {
   /** Controls how captions are included in the final exported video. */
   captionExportMode: CaptionExportMode;
   exportRange: ExportRangeSettings;
+  /** How source clips fill the target canvas. fill=crop, fit=letterbox, blur=blurred bg */
+  fitMode: FitMode;
 }
 
 export interface AutoEditOptions {
@@ -972,7 +997,7 @@ export function defaultEditorSettings(): EditorSettings {
     overlayItems: [],
     transitions: [],
     audio: { startSec: 0, volume: 100, fadeIn: true, fadeOut: true },
-    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 } },
+    export: { format: "9:16", resolution: "1080p", quality: "draft", watermark: true, customWatermarkUrl: null, captionExportMode: "burn" as CaptionExportMode, exportRange: { mode: "full" as ExportRangeMode, customStartSec: 0, customEndSec: 30 }, fitMode: "fill" as FitMode },
     musicStudio: defaultMusicStudioSettings(),
     aiEdit: defaultAiEditSettings(),
     branding: {
