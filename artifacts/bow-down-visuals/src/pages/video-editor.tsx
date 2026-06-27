@@ -1144,12 +1144,28 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
   return { containerStyle, wrapperStyle: ps.wrapperStyle, textStyle: { fontSize, ...ps.textStyle }, animClass, maxWidth };
 }
 
-/** Small icon-map used in the format popover (module-level, no re-creation). */
+/** Icon shown on the Aspect Ratio cycle button for each format. */
 const FORMAT_ICONS_MAP: Record<VideoFormat, React.ReactNode> = {
   "9:16":  <Smartphone className="h-3.5 w-3.5" />,
   "16:9":  <Monitor   className="h-3.5 w-3.5" />,
   "1:1":   <Square    className="h-3.5 w-3.5" />,
   "4:5":   <Instagram className="h-3.5 w-3.5" />,
+};
+
+/** Ordered list for Aspect Ratio cycling. */
+const CYCLE_FORMATS: VideoFormat[] = ["9:16", "16:9", "1:1", "4:5"];
+
+/** Ordered list for Fit Mode cycling. */
+const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
+
+/** Short badge label shown on the Fit Mode button. */
+const FIT_BADGE: Record<FitMode, string> = { fill: "FILL", fit: "FIT", blur: "BLUR" };
+
+/** Toast-friendly label for each Fit Mode. */
+const FIT_TOAST: Record<FitMode, string> = {
+  fill: "Fill / Crop",
+  fit:  "Fit / Letterbox",
+  blur: "Blur Background Fill",
 };
 
 function MasterPreviewPlayer({
@@ -1183,20 +1199,6 @@ function MasterPreviewPlayer({
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
   const blurVideoRef = useRef<HTMLVideoElement | null>(null);
-  const [formatOpen,   setFormatOpen  ] = useState(false);
-  const formatPopoverRef = useRef<HTMLDivElement | null>(null);
-
-  /* Close format popover on outside click */
-  useEffect(() => {
-    if (!formatOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (formatPopoverRef.current && !formatPopoverRef.current.contains(e.target as Node)) {
-        setFormatOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [formatOpen]);
 
   /* ── Controls auto-hide (fullscreen only) ── */
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -1222,6 +1224,26 @@ function MasterPreviewPlayer({
     }
     return () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); };
   }, [isFullscreen]);
+
+  /* ── Format / Fit-Mode cycling ── */
+  const { toast } = useToast();
+
+  const cycleFormat = () => {
+    const curr = (settings.export.format ?? "9:16") as VideoFormat;
+    const idx  = CYCLE_FORMATS.indexOf(curr);
+    const next = CYCLE_FORMATS[(idx + 1) % CYCLE_FORMATS.length]!;
+    setSettings({ ...settings, export: { ...settings.export, format: next } });
+    const vf = VIDEO_FORMATS.find((v) => v.id === next);
+    toast({ description: `Format: ${next} · ${vf?.label ?? next}`, duration: 2000 });
+  };
+
+  const cycleFitMode = () => {
+    const curr = (settings.export.fitMode ?? "fill") as FitMode;
+    const idx  = CYCLE_FIT_MODES.indexOf(curr);
+    const next = CYCLE_FIT_MODES[(idx + 1) % CYCLE_FIT_MODES.length]!;
+    setSettings({ ...settings, export: { ...settings.export, fitMode: next } });
+    toast({ description: `Fit Mode: ${FIT_TOAST[next]}`, duration: 2000 });
+  };
 
   /* ── Auto PiP state ── */
   const [autoPiP,            setAutoPiP           ] = useState(false);
@@ -1774,139 +1796,26 @@ function MasterPreviewPlayer({
           title={pipActive ? "Exit Picture-in-Picture" : "Picture-in-Picture"}>
           <PictureInPicture2 className="h-4 w-4" />
         </button>
-        {/* Format popover */}
-        <div ref={formatPopoverRef} className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setFormatOpen((o) => !o)}
-            className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors ${
-              formatOpen
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
-            }`}
-            title="Project Format"
-          >
-            <Crop className="h-4 w-4" />
-          </button>
-
-          {formatOpen && (
-            <div className="absolute bottom-full right-0 mb-2 w-72 rounded-2xl border border-white/[0.10] bg-[#0c0c0c] shadow-2xl overflow-hidden z-50">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                <p className="text-[11px] font-black text-white/80 uppercase tracking-wide">Project Format</p>
-                <button type="button" onClick={() => setFormatOpen(false)} className="text-white/30 hover:text-white/60 text-[11px] transition-colors">✕</button>
-              </div>
-
-              {/* Format chips */}
-              <div className="p-3">
-                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-2">Canvas</p>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {VIDEO_FORMATS.map((vf) => {
-                    const active = settings.export.format === vf.id;
-                    const [fw, fh] = formatDimensions(vf.id as VideoFormat);
-                    return (
-                      <button
-                        key={vf.id}
-                        type="button"
-                        onClick={() => {
-                          setSettings({ ...settings, export: { ...settings.export, format: vf.id as VideoFormat } });
-                        }}
-                        className={`flex items-start gap-2 px-2.5 py-2 rounded-xl border text-left transition-all ${
-                          active
-                            ? "bg-[#C9A84C]/15 border-[#C9A84C]/50"
-                            : "bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]"
-                        }`}
-                      >
-                        <span className={`mt-0.5 shrink-0 ${active ? "text-[#C9A84C]" : "text-white/30"}`}>
-                          {FORMAT_ICONS_MAP[vf.id as VideoFormat]}
-                        </span>
-                        <span className="min-w-0">
-                          <span className={`block text-[10px] font-bold ${active ? "text-[#C9A84C]" : "text-white/55"}`}>{vf.label}</span>
-                          <span className="block text-[9px] text-white/30 font-mono">{vf.note}</span>
-                          <span className="block text-[8px] text-white/20 font-mono">{fw}×{fh}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                  {/* Custom (placeholder) */}
-                  <button
-                    type="button"
-                    disabled
-                    className="flex items-start gap-2 px-2.5 py-2 rounded-xl border border-white/[0.05] bg-white/[0.01] text-left opacity-40 cursor-not-allowed"
-                    title="Custom format — coming soon"
-                  >
-                    <Crop className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/25" />
-                    <span className="min-w-0">
-                      <span className="block text-[10px] font-bold text-white/40">Custom</span>
-                      <span className="block text-[9px] text-white/20">Coming soon</span>
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Fit Mode */}
-              <div className="px-3 pb-3 border-t border-white/[0.06] pt-3">
-                <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-2">Fit Mode</p>
-                <div className="space-y-1">
-                  {([
-                    ["fill", "Fill / Crop",         "Crops clip edges to fill canvas"],
-                    ["fit",  "Fit / Letterbox",      "Black bars, full clip visible"],
-                    ["blur", "Blur Background Fill", "Blurred fill behind contained clip"],
-                  ] as const).map(([id, lbl, desc]) => {
-                    const active = (settings.export.fitMode ?? "fill") === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setSettings({ ...settings, export: { ...settings.export, fitMode: id } })}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-left transition-colors ${
-                          active
-                            ? "bg-[#C9A84C]/12 border-[#C9A84C]/40"
-                            : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
-                        }`}
-                      >
-                        <span>
-                          <span className={`text-[10px] font-bold block ${active ? "text-[#C9A84C]" : "text-white/50"}`}>{lbl}</span>
-                          <span className="text-[9px] text-white/25">{desc}</span>
-                        </span>
-                        {active && <span className="text-[9px] font-bold text-[#C9A84C] ml-2 shrink-0">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Format debug */}
-              <div className="px-3 pb-3 pt-2.5 border-t border-white/[0.06]">
-                <p className="text-[8px] font-black text-white/25 uppercase tracking-widest mb-1.5">Format Debug</p>
-                <div className="space-y-0.5">
-                  {(() => {
-                    const [dw, dh] = formatDimensions(settings.export.format ?? "9:16");
-                    return ([
-                      ["selected format",            settings.export.format ?? "9:16"],
-                      ["export size",                `${dw}×${dh}`],
-                      ["fit mode",                   settings.export.fitMode ?? "fill"],
-                      ["format icon visible",        "yes"],
-                      ["fullscreen active",          isFullscreen ? "yes" : "no"],
-                      ["fullscreen keeps ratio",     isFullscreen ? "yes" : "n/a"],
-                      ["master player matches",      "yes"],
-                      ["export matches",             "yes"],
-                    ] as [string, string][]).map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-2">
-                        <span className="text-[9px] font-mono text-white/28">{label}</span>
-                        <span className={`text-[9px] font-bold shrink-0 ${
-                          value === "yes" ? "text-green-400"
-                            : value === "no" || value === "n/a" ? "text-white/35"
-                            : "text-[#C9A84C]"
-                        }`}>{value}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Aspect Ratio cycle button — click to cycle 9:16 → 16:9 → 1:1 → 4:5 → loop */}
+        <button
+          type="button"
+          onClick={cycleFormat}
+          className="flex items-center justify-center h-8 w-8 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
+          title={`Aspect Ratio: ${settings.export.format ?? "9:16"} — click to cycle`}
+        >
+          {FORMAT_ICONS_MAP[(settings.export.format ?? "9:16") as VideoFormat]}
+        </button>
+        {/* Fit Mode cycle button — click to cycle Fill → Fit → Blur → loop */}
+        <button
+          type="button"
+          onClick={cycleFitMode}
+          className="flex items-center justify-center h-8 min-w-[2.25rem] px-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors shrink-0"
+          title={`Fit Mode: ${FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]} — click to cycle`}
+        >
+          <span className="text-[7px] font-black tracking-widest uppercase leading-none">
+            {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
+          </span>
+        </button>
 
         {/* Fullscreen */}
         <button type="button" onClick={toggleFullscreen}

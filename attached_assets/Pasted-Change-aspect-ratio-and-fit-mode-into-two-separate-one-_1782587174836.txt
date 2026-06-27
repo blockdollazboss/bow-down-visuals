@@ -1,0 +1,159 @@
+Change aspect ratio and fit mode into two separate one-click icons inside the master player.
+
+Problem:
+The Project Format / Aspect Ratio and Fit Mode should not open a menu every time.
+
+I want two separate icons inside the master player:
+1. Aspect Ratio icon
+2. Fit Mode icon
+
+Each one should switch on button click.
+
+Do not change:
+- master player playback
+- fullscreen behavior
+- timeline waveform
+- synced captions
+- caption styles
+- clips
+- effects
+- overlays
+- watermark
+- Export Doctor working pipeline
+- Auto PiP
+- Bow Down AI Guide
+- Stripe, credits, or payments
+
+Only fix:
+- aspect ratio icon behavior
+- fit mode icon behavior
+- master player controls UI
+
+PART 1 — ASPECT RATIO ICON
+
+Add one icon inside the master player controls:
+
+Icon label:
+Aspect Ratio
+
+When I click the Aspect Ratio icon, it should cycle instantly through:
+
+1. TikTok / Reels / Shorts — 9:16 — 1080x1920
+2. YouTube / Landscape — 16:9 — 1920x1080
+3. Square — 1:1 — 1080x1080
+4. Instagram Portrait — 4:5 — 1080x1350
+
+Then loop back to 9:16.
+
+No menu.
+No dropdown.
+No popup required.
+
+Each click should:
+- change the master player shape immediately
+- save the selected format to the project
+- update captions safe area
+- update watermark position
+- update overlays canvas
+- update timeline thumbnails
+- update export settings
+
+Show a small temporary toast:
+Format: 9:16 TikTok / Reels / Shorts
+
+or:
+Format: 16:9 YouTube / Landscape
+
+PART 2 — FIT MODE ICON
+
+Add a separate icon inside the master player controls:
+
+Icon label:
+Fit Mode
+
+When I click the Fit Mode icon, it should cycle instantly through:
+
+1. Fill / Crop
+2. Fit / Letterbox
+3. Blur Background Fill
+
+Then loop back to Fill / Crop.
+
+No menu.
+No dropdown.
+No popup required.
+
+Each click should:
+- update the video fit immediately
+- not change the selected aspect ratio
+- save fit mode to the project
+- preserve captions, watermark, overlays, and controls
+
+Show a small temporary toast:
+Fit Mode: Fill / Crop
+
+or:
+Fit Mode: Fit / Letterbox
+
+or:
+Fit Mode: Blur Background Fill
+
+PART 3 — ICONS MUST ALWAYS BE VISIBLE
+
+Both icons must be visible in:
+- 9:16
+- 16:9
+- 1:1
+- 4:5
+- fullscreen mode
+- normal mode
+
+They should never be hidden, clipped, or covered by captions.
+
+PART 4 — CONTROL BAR ORDER
+
+Master player control bar should include:
+
+- Play / Pause
+- Restart
+- Scrub bar
+- Aspect Ratio icon
+- Fit Mode icon
+- Fullscreen
+- PiP
+
+Use compact icons on small vertical players.
+
+PART 5 — FULLSCREEN
+
+In fullscreen:
+- Aspect Ratio icon still works
+- Fit Mode icon still works
+- selected canvas stays centered
+- video does not stretch
+- no debug panels appear
+
+PART 6 — OPTIONAL LONG PRESS / RIGHT CLICK
+
+Optional:
+Long press or right click on Aspect Ratio icon can open advanced settings.
+
+Optional:
+Long press or right click on Fit Mode icon can open advanced settings.
+
+But normal click must only cycle instantly.
+
+PART 7 — STATUS
+
+Inside hidden/collapsed debug only, show:
+- current aspect ratio
+- current export size
+- current fit mode
+- aspect ratio icon visible: yes/no
+- fit mode icon visible: yes/no
+- fullscreen controls visible: yes/no
+
+Do not show large debug on the main editor screen.
+
+Final goal:
+Aspect Ratio and Fit Mode should be two separate one-click icons inside the master player. Clicking Aspect Ratio cycles video formats. Clicking Fit Mode cycles fit behavior. No menu needed for normal use.
