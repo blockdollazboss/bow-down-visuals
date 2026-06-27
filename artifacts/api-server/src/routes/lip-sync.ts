@@ -8,6 +8,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
 import { objectStorageClient } from "../lib/objectStorage";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -23,6 +24,9 @@ const SIDECAR     = "http://127.0.0.1:1106";
 
 /** Sync Labs plan limit in seconds */
 const PROVIDER_LIMIT_SEC = 20;
+
+/** Supabase storage bucket for temporary lip-sync audio segments */
+const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
 
 /* ── Sync Labs ────────────────────────────────────────────────────────────── */
 const SYNC_LABS_BASE        = "https://api.sync.so/v2";
@@ -83,24 +87,123 @@ async function syncLabsPoll(jobId: string, apiKey: string): Promise<string> {
   throw new Error("Sync Labs job timed out after 6 minutes.");
 }
 
-/* ── Audio segmentation (FFmpeg) ─────────────────────────────────────────── */
+/* ── URL type detection ──────────────────────────────────────────────────── */
+type UrlType = "public-https" | "supabase" | "replit-storage" | "blob" | "unknown";
 
-/**
- * Download audioUrl, trim from startSec to endSec using FFmpeg,
- * upload the segment to object storage, return a signed URL + real duration.
- */
+function detectUrlType(url: string): UrlType {
+  if (!url) return "unknown";
+  if (url.startsWith("blob:"))   return "blob";
+  if (!url.startsWith("http"))   return "unknown";
+  const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
+  if (supabaseUrl && url.startsWith(supabaseUrl)) return "supabase";
+  if (
+    url.includes("storage.googleapis.com") ||
+    url.includes("replit-objstore") ||
+    url.includes("127.0.0.1:1106")
+  ) return "replit-storage";
+  return "public-https";
+}
+
+/** HEAD-check a URL, return { ok, status, contentType, error } */
+async function probeUrl(url: string, timeoutMs = 15_000): Promise<{
+  ok: boolean;
+  status: number;
+  contentType: string | null;
+  error: string | null;
+}> {
+  try {
+    const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(timeoutMs) });
+    return {
+      ok: res.ok,
+      status: res.status,
+      contentType: res.headers.get("content-type"),
+      error: res.ok ? null : `HTTP ${res.status}`,
+    };
+  } catch (err) {
+    return { ok: false, status: 0, contentType: null, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/* ── Supabase storage for trimmed audio segments ─────────────────────────── */
+
+async function ensureSupabaseBucket(): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.storage.createBucket(LIP_SYNC_AUDIO_BUCKET, {
+    public: false,
+    fileSizeLimit: 50 * 1024 * 1024,
+  });
+  // Ignore "already exists" — any other error propagates
+  if (error && !error.message?.toLowerCase().includes("already exist") && error.message !== "Duplicate") {
+    // Non-fatal: bucket might exist under a different error wording
+  }
+}
+
+async function uploadAudioToSupabase(buffer: Buffer, objectName: string): Promise<string> {
+  await ensureSupabaseBucket().catch(() => {/* ignore — bucket likely exists */});
+  const supabase = getSupabaseAdmin();
+
+  const { error: upErr } = await supabase.storage
+    .from(LIP_SYNC_AUDIO_BUCKET)
+    .upload(objectName, buffer, { contentType: "audio/mpeg", upsert: true });
+
+  if (upErr) {
+    throw new Error(
+      `Supabase audio upload failed: ${upErr.message}` +
+      ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
+    );
+  }
+
+  const { data: signData, error: signErr } = await supabase.storage
+    .from(LIP_SYNC_AUDIO_BUCKET)
+    .createSignedUrl(objectName, 7200); // 2-hour TTL
+
+  if (signErr || !signData?.signedUrl) {
+    throw new Error(
+      `Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}` +
+      ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
+    );
+  }
+
+  return signData.signedUrl;
+}
+
+/* ── Replit object storage signed URL (kept for vocal stems) ─────────────── */
+async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Object storage signing failed: HTTP ${res.status}` +
+      ` — bucket: ${bucketName}, path: ${objectName}` +
+      (body ? ` — ${body.slice(0, 200)}` : ""),
+    );
+  }
+  const { signed_url } = (await res.json()) as { signed_url: string };
+  return signed_url;
+}
+
+/* ── Audio segmentation (FFmpeg + Supabase storage) ──────────────────────── */
 async function trimAndUploadAudioSegment(
   audioUrl: string,
   startSec: number,
   endSec: number,
 ): Promise<{ segmentUrl: string; durationSec: number }> {
-  if (!STEM_BUCKET) throw new Error("Object storage not configured (no STEM_BUCKET).");
-
   const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-"));
   try {
-    /* 1. Download source audio */
+    /* 1. Download source audio — prefer direct fetch (works for signed HTTPS URLs) */
     const dlRes = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
-    if (!dlRes.ok) throw new Error(`Audio download failed: HTTP ${dlRes.status}`);
+    if (!dlRes.ok) {
+      throw new Error(
+        `Audio download failed: HTTP ${dlRes.status}` +
+        ` (url type: ${detectUrlType(audioUrl)})`,
+      );
+    }
     const ct  = dlRes.headers.get("content-type") ?? "";
     const ext = ct.includes("wav") ? "wav" : ct.includes("ogg") ? "ogg" : "mp3";
     const inputPath  = join(tmpDir, `input.${ext}`);
@@ -108,6 +211,7 @@ async function trimAndUploadAudioSegment(
     await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
 
     /* 2. Trim with FFmpeg */
+    let ffmpegStderr = "";
     await execFileAsync("ffmpeg", [
       "-y",
       "-i",   inputPath,
@@ -116,7 +220,10 @@ async function trimAndUploadAudioSegment(
       "-c:a", "libmp3lame",
       "-q:a", "2",
       outputPath,
-    ]);
+    ]).catch((err: Error & { stderr?: string }) => {
+      ffmpegStderr = (err as unknown as { stderr?: string }).stderr ?? "";
+      throw new Error(`FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`);
+    });
 
     /* 3. Verify actual duration */
     const { stdout } = await execFileAsync("ffprobe", [
@@ -128,31 +235,15 @@ async function trimAndUploadAudioSegment(
     const durationSec = parseFloat(stdout.trim());
     if (isNaN(durationSec)) throw new Error("Could not determine trimmed audio duration.");
 
-    /* 4. Upload trimmed segment to object storage */
+    /* 4. Upload trimmed segment to Supabase storage → signed URL */
     const buffer     = await readFile(outputPath);
-    const objectName = `lip-sync-segments/${randomUUID()}.mp3`;
-    const bucket     = objectStorageClient.bucket(STEM_BUCKET);
-    await bucket.file(objectName).save(buffer, { contentType: "audio/mpeg", resumable: false });
-    const segmentUrl = await signGetUrl(STEM_BUCKET, objectName);
+    const objectName = `segments/${randomUUID()}.mp3`;
+    const segmentUrl = await uploadAudioToSupabase(buffer, objectName);
 
     return { segmentUrl, durationSec };
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
-}
-
-/* ── Object storage helper ───────────────────────────────────────────────── */
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
-  const { signed_url } = (await res.json()) as { signed_url: string };
-  return signed_url;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -178,6 +269,48 @@ router.get("/lip-sync/status", (_req, res) => {
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/check-inputs
+   Validate audio URL and clip URL before submitting to Sync Labs.
+   Never exposes secrets; never requires auth (read-only probe).
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/check-inputs", async (req, res) => {
+  const { audioUrl, clipUrl } = req.query as { audioUrl?: string; clipUrl?: string };
+
+  async function checkUrl(url: string | undefined, label: string) {
+    if (!url) return { found: false, sourceType: "unknown" as UrlType, probe: null, error: `No ${label} URL provided` };
+    if (url.startsWith("blob:")) return { found: false, sourceType: "blob" as UrlType, probe: null, error: "Blob URL cannot be accessed server-side — use a permanent storage URL" };
+    if (!url.startsWith("http")) return { found: false, sourceType: "unknown" as UrlType, probe: null, error: "URL must start with https://" };
+
+    const sourceType = detectUrlType(url);
+    const probe = await probeUrl(url);
+    return {
+      found: probe.ok,
+      sourceType,
+      probe: { status: probe.status, contentType: probe.contentType },
+      error: probe.error ?? null,
+    };
+  }
+
+  const [audio, clip] = await Promise.all([
+    checkUrl(audioUrl, "audio"),
+    checkUrl(clipUrl, "clip"),
+  ]);
+
+  const readyToSubmit =
+    audio.found && clip.found && SERVER_KEY_FOUND;
+
+  res.json({
+    audio: { url: audioUrl ?? null, ...audio },
+    clip:  { url: clipUrl  ?? null, ...clip },
+    provider: {
+      connected:      SERVER_KEY_FOUND,
+      providerName:   PROVIDER_NAME ?? null,
+    },
+    readyToSubmit,
+  });
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
    POST /lip-sync/preview
    Trims audio to the scene's exact time range, then submits to Sync Labs.
 ────────────────────────────────────────────────────────────────────────── */
@@ -192,12 +325,12 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
     preserveFaceIdentity,
     preserveArtistLook,
   } = (req.body ?? {}) as {
-    clipUrl?:             string;
-    audioUrl?:            string;
-    sceneStartSec?:       number;
-    sceneEndSec?:         number;
-    audioSourceType?:     string;
-    strength?:            string;
+    clipUrl?:              string;
+    audioUrl?:             string;
+    sceneStartSec?:        number;
+    sceneEndSec?:          number;
+    audioSourceType?:      string;
+    strength?:             string;
     preserveFaceIdentity?: boolean;
     preserveArtistLook?:  boolean;
   };
@@ -209,18 +342,28 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
     res.status(400).json({ error: "clipUrl is required and must be an HTTP URL.", code: "invalid_clip_url" });
     return;
   }
-  if (!audioUrl || typeof audioUrl !== "string" || !audioUrl.startsWith("http")) {
-    res.status(400).json({ error: "audioUrl is required and must be an HTTP URL.", code: "invalid_audio_url" });
+  if (!audioUrl || typeof audioUrl !== "string") {
+    res.status(400).json({ error: "audioUrl is required.", code: "invalid_audio_url" });
+    return;
+  }
+  if (audioUrl.startsWith("blob:")) {
+    res.status(400).json({
+      error: "Audio URL is a temporary browser blob URL (blob:…). Upload the audio file to permanent storage first.",
+      code: "blob_url_not_supported",
+    });
+    return;
+  }
+  if (!audioUrl.startsWith("http")) {
+    res.status(400).json({ error: `Audio URL must start with https:// (got: ${audioUrl.slice(0, 30)})`, code: "invalid_audio_url" });
     return;
   }
   if (typeof sceneStartSec !== "number" || typeof sceneEndSec !== "number" || sceneEndSec <= sceneStartSec) {
     res.status(400).json({
-      error: "sceneStartSec and sceneEndSec are required and sceneEndSec must be greater than sceneStartSec.",
+      error: "sceneStartSec and sceneEndSec are required; sceneEndSec must be greater than sceneStartSec.",
       code: "invalid_timing",
     });
     return;
   }
-
   if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
     const msg = PROVIDER_NAME === "sync"
       ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
@@ -229,11 +372,31 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
     return;
   }
 
+  /* ── Pre-flight: verify audio URL is reachable ── */
+  const audioProbe = await probeUrl(audioUrl);
+  if (!audioProbe.ok) {
+    res.status(400).json({
+      error: `Audio URL is not reachable: ${audioProbe.error} (type: ${detectUrlType(audioUrl)}, url: ${audioUrl.slice(0, 100)})`,
+      code: "audio_url_unreachable",
+    });
+    return;
+  }
+
+  /* ── Pre-flight: verify clip URL is reachable ── */
+  const clipProbe = await probeUrl(clipUrl);
+  if (!clipProbe.ok) {
+    res.status(400).json({
+      error: `Clip URL is not reachable: ${clipProbe.error} (url: ${clipUrl.slice(0, 100)})`,
+      code: "clip_url_unreachable",
+    });
+    return;
+  }
+
   /* Extend socket timeout for trimming + polling */
   req.socket.setTimeout(480_000);
 
   req.log.info(
-    { clipUrl, sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
+    { clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
     "[lip-sync] starting preview — trimming audio segment",
   );
 
@@ -241,13 +404,13 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
     /* ── Step 1: Trim audio to scene range ── */
     const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(audioUrl, sceneStartSec, sceneEndSec);
 
-    req.log.info({ durationSec, sceneStartSec, sceneEndSec }, "[lip-sync] audio segment trimmed");
+    req.log.info({ durationSec, sceneStartSec, sceneEndSec }, "[lip-sync] audio segment trimmed and uploaded");
 
     /* ── Step 2: Verify duration against provider plan limit ── */
     if (durationSec > PROVIDER_LIMIT_SEC) {
       res.status(400).json({
         error: `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
-        code:  "segment_too_long",
+        code: "segment_too_long",
         durationSec,
         limitSec: PROVIDER_LIMIT_SEC,
       });
@@ -256,7 +419,7 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
 
     /* ── Step 3: Submit to provider ── */
     if (PROVIDER_NAME === "sync") {
-      const jobId    = await syncLabsSubmit(clipUrl, segmentUrl, LIP_SYNC_API_KEY);
+      const jobId     = await syncLabsSubmit(clipUrl, segmentUrl, LIP_SYNC_API_KEY);
       req.log.info({ jobId }, "[lip-sync] Sync Labs job submitted");
       const outputUrl = await syncLabsPoll(jobId, LIP_SYNC_API_KEY);
       req.log.info({ jobId, outputUrl }, "[lip-sync] Sync Labs job completed");
@@ -308,7 +471,15 @@ router.post(
       const bucket = objectStorageClient.bucket(STEM_BUCKET);
       await bucket.file(objectName).save(buffer, { contentType, resumable: false });
 
-      const url = await signGetUrl(STEM_BUCKET, objectName);
+      // Try Replit sidecar first; fall back to Supabase if it fails
+      let url: string;
+      try {
+        url = await signGetUrl(STEM_BUCKET, objectName);
+      } catch (signErr) {
+        req.log.warn({ err: signErr, objectName }, "[lip-sync] Replit sidecar signing failed for vocal stem — trying Supabase");
+        url = await uploadAudioToSupabase(buffer, `vocal-stems/${req.userId}/${randomUUID()}.${ext}`);
+      }
+
       req.log.info({ objectName, bytes: buffer.length }, "[lip-sync] vocal stem uploaded");
       res.json({ url, ext, bytes: buffer.length });
     } catch (err) {

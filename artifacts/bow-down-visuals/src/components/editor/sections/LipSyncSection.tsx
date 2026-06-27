@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
-  KeyRound, FlaskConical,
+  KeyRound, FlaskConical, ScanSearch, ShieldCheck,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -43,6 +43,22 @@ interface ProcessState {
   total:      number;
   cancelled:  boolean;
   lastError:  string | null;
+}
+
+/* ── Input check types ── */
+interface UrlCheckResult {
+  found:       boolean;
+  sourceType:  string;
+  probe:       { status: number; contentType: string | null } | null;
+  error:       string | null;
+}
+
+interface InputCheckResult {
+  audio:          UrlCheckResult & { url: string | null };
+  clip:           UrlCheckResult & { url: string | null };
+  provider:       { connected: boolean; providerName: string | null };
+  readyToSubmit:  boolean;
+  checkedAt:      string;
 }
 
 /* ── Scene timing helpers ─────────────────────────────────────────────────── */
@@ -216,6 +232,10 @@ export function LipSyncSection({
   const [showKeyInstructions, setShowKeyInstructions] = useState(false);
   const [demoRunSet, setDemoRunSet]               = useState<Set<string>>(new Set());
 
+  /* ── Input check state ── */
+  const [inputCheck, setInputCheck]         = useState<InputCheckResult | null>(null);
+  const [inputCheckLoading, setInputCheckLoading] = useState(false);
+
   /* ── Derived: audio source ── */
   const vocalExportUrl = ms.exports.find(r => r.kind === "acapella")?.url ?? null;
   const vocalStemUrl   =
@@ -346,6 +366,19 @@ export function LipSyncSection({
     }
     if (!audioReady) { setApplyError("No audio source available."); return; }
 
+    /* ── Pre-flight: check both URLs are reachable before burning credits ── */
+    const check = await checkInputs(effectiveAudioUrl!, selectedScene.demoClipUrl!);
+    if (check) {
+      if (!check.audio.found) {
+        setApplyError(`Audio URL check failed: ${check.audio.error ?? "not reachable"} (type: ${check.audio.sourceType})`);
+        return;
+      }
+      if (!check.clip.found) {
+        setApplyError(`Clip URL check failed: ${check.clip.error ?? "not reachable"}`);
+        return;
+      }
+    }
+
     setApplyError(null);
     setConfirmOpen(null);
     updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
@@ -460,6 +493,29 @@ export function LipSyncSection({
   }
 
   function cancelAll() { cancelRef.current = true; }
+
+  /* ── Check lip sync inputs ── */
+  async function checkInputs(overrideAudioUrl?: string, overrideClipUrl?: string): Promise<InputCheckResult | null> {
+    const audioToCheck = overrideAudioUrl ?? effectiveAudioUrl;
+    const clipToCheck  = overrideClipUrl  ?? selectedScene?.demoClipUrl;
+    if (!audioToCheck && !clipToCheck) return null;
+    setInputCheckLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (audioToCheck) params.set("audioUrl", audioToCheck);
+      if (clipToCheck)  params.set("clipUrl",  clipToCheck);
+      const res = await fetch(`/api/lip-sync/check-inputs?${params.toString()}`);
+      if (!res.ok) return null;
+      const data = await res.json() as Omit<InputCheckResult, "checkedAt">;
+      const result: InputCheckResult = { ...data, checkedAt: new Date().toLocaleTimeString() };
+      setInputCheck(result);
+      return result;
+    } catch {
+      return null;
+    } finally {
+      setInputCheckLoading(false);
+    }
+  }
 
   /* ── Clear result ── */
   function clearLipSync(sceneId: string) {
@@ -673,6 +729,43 @@ export function LipSyncSection({
                 <StatusRow label="audio ready"          value={audioReady ? "yes ✓" : "no"}                                   ok={audioReady} />
               </div>
 
+              {/* ── Check Audio URL button ── */}
+              <button
+                type="button"
+                disabled={!effectiveAudioUrl || inputCheckLoading}
+                onClick={() => void checkInputs()}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {inputCheckLoading
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                  : <><ScanSearch className="h-3.5 w-3.5" /> Check Lip Sync Audio URL</>}
+              </button>
+
+              {/* Check result inline */}
+              {inputCheck && !inputCheckLoading && (
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">
+                    Last check · {inputCheck.checkedAt}
+                  </p>
+                  <StatusRow
+                    label="audio source type"
+                    value={inputCheck.audio.sourceType}
+                    ok={null}
+                  />
+                  <StatusRow
+                    label="audio reachable"
+                    value={inputCheck.audio.found ? "yes ✓" : "no ✗"}
+                    ok={inputCheck.audio.found}
+                  />
+                  {inputCheck.audio.error && (
+                    <div className="flex items-start gap-1.5 text-[10px] text-red-400/80 font-semibold pt-0.5">
+                      <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                      {inputCheck.audio.error}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Full mix fallback warning */}
               {ls.audioSource === "vocals" && !vocalStemFound && (
                 <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/80 text-[10px]">
@@ -843,6 +936,97 @@ export function LipSyncSection({
               </div>
             </div>
           </EditorCard>
+
+          {/* ── Lip Sync Input Check panel ── */}
+          {!demoMode && (
+            <EditorCard title="Lip Sync Input Check" icon={<ShieldCheck className="h-4 w-4" />}>
+              <div className="space-y-3">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                  <StatusRow
+                    label="audio ready"
+                    value={audioReady ? "yes ✓" : "no"}
+                    ok={audioReady}
+                  />
+                  <StatusRow
+                    label="audio signed URL ready"
+                    value={
+                      !inputCheck ? "—"
+                      : inputCheck.audio.found ? "yes ✓"
+                      : inputCheck.audio.error ? `no — ${inputCheck.audio.error.slice(0, 60)}`
+                      : "no"
+                    }
+                    ok={!inputCheck ? null : inputCheck.audio.found}
+                  />
+                  <StatusRow
+                    label="clip video ready"
+                    value={clipSourceReady ? "yes ✓" : "no"}
+                    ok={clipSourceReady}
+                  />
+                  <StatusRow
+                    label="clip URL ready"
+                    value={
+                      !inputCheck ? "—"
+                      : inputCheck.clip.found ? "yes ✓"
+                      : inputCheck.clip.error ? `no — ${inputCheck.clip.error.slice(0, 60)}`
+                      : "no"
+                    }
+                    ok={!inputCheck ? null : inputCheck.clip.found}
+                  />
+                  <StatusRow
+                    label="provider connected"
+                    value={providerConnected ? "yes ✓" : "no"}
+                    ok={providerConnected}
+                  />
+                  <StatusRow
+                    label="ready to submit"
+                    value={
+                      !inputCheck ? "run check first"
+                      : inputCheck.readyToSubmit ? "yes ✓"
+                      : "no ✗"
+                    }
+                    ok={!inputCheck ? null : inputCheck.readyToSubmit}
+                  />
+                </div>
+
+                {/* Errors from last check */}
+                {inputCheck && (inputCheck.audio.error || inputCheck.clip.error) && (
+                  <div className="space-y-1.5">
+                    {inputCheck.audio.error && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-red-500/25 bg-red-500/[0.05] text-red-400/90 text-[10px] font-semibold">
+                        <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                        Audio: {inputCheck.audio.error}
+                      </div>
+                    )}
+                    {inputCheck.clip.error && (
+                      <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-red-500/25 bg-red-500/[0.05] text-red-400/90 text-[10px] font-semibold">
+                        <XCircle className="h-3 w-3 shrink-0 mt-0.5" />
+                        Clip: {inputCheck.clip.error}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Ready banner */}
+                {inputCheck?.readyToSubmit && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/25 bg-green-500/[0.05] text-green-400/90 text-[10px] font-semibold">
+                    <CheckCircle2 className="h-3 w-3 shrink-0" />
+                    All inputs verified — ready to submit
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={!effectiveAudioUrl || inputCheckLoading}
+                  onClick={() => void checkInputs()}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[11px] font-semibold hover:bg-white/[0.07] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {inputCheckLoading
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running checks…</>
+                    : <><ScanSearch className="h-3.5 w-3.5" /> Run Input Check</>}
+                </button>
+              </div>
+            </EditorCard>
+          )}
 
           {/* ── Apply / Preview / Save ── */}
           <EditorCard title="Apply Lip Sync" icon={<Mic2 className="h-4 w-4" />}>
