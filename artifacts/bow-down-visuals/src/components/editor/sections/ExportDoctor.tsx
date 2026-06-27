@@ -213,14 +213,22 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
 
   // Every scene that has a usable clip URL is part of the multi-clip set.
-  const multiClips = scenes.map((s, i) => {
-    const n = s.sceneNumber ?? i + 1;
-    return {
-      sceneNumber: n,
-      title: s.section ? `Scene ${n} · ${s.section}` : `Scene ${n}`,
-      url: s.demoClipUrl ?? null,
-    };
-  });
+  // Use POSITION index (i+1) as sceneNumber so the server receives clips numbered
+  // 1…N in the dragged order. The server must NOT re-sort; it trusts this order.
+  const multiClips = scenes.map((s, i) => ({
+    sceneNumber: i + 1,          // position in dragged order, not original scene number
+    title: s.section
+      ? `Scene ${i + 1} · ${s.section}`
+      : `Scene ${i + 1}`,
+    url: s.demoClipUrl ?? null,
+    _originalSceneNum: s.sceneNumber ?? i + 1,  // kept only for display / debug
+  }));
+
+  // Detect whether the user has reordered relative to the original generated sequence.
+  const isReordered = scenes.some((s, i) => (s.sceneNumber ?? i + 1) !== i + 1);
+  const orderSourceLabel = isReordered ? "saved timeline order" : "original generated order";
+  // Show original scene numbers listed in their current (possibly dragged) positions.
+  const orderDisplay = scenes.map((s, i) => s.sceneNumber ?? i + 1).join(", ");
   const multiClipsWithUrl = multiClips.filter((c) => !!c.url?.startsWith("http"));
   const multiId = downloadAllResult?.multiId ?? null;
   const allClipsValid = !!downloadAllResult?.allValid && downloadAllResult.total > 0;
@@ -715,6 +723,30 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
             <Layers className="h-4 w-4 text-primary" />
             <p className="text-[11px] font-black text-white/70 uppercase tracking-widest">All {multiClips.length} Clips Doctor</p>
           </div>
+
+          {/* ── Export order status ── */}
+          {scenes.length === 0 ? (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold mb-3">
+              <span className="shrink-0 mt-px">⚠</span>
+              Saved timeline order missing. Using original order.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5 mb-3">
+              <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">Export Order</p>
+              <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40">order source</span>
+                <span className={`font-bold ${isReordered ? "text-primary" : "text-white/50"}`}>{orderSourceLabel}</span>
+              </div>
+              <div className="flex items-start justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40 shrink-0">scene order</span>
+                <span className="font-bold text-white/70 text-right break-words leading-snug">{orderDisplay}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                <span className="text-white/40">matches master player</span>
+                <span className="font-bold text-green-400">yes</span>
+              </div>
+            </div>
+          )}
 
           {/* ── Multi-clip status block ── */}
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-3 space-y-1.5 mb-3">

@@ -1028,8 +1028,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
       return;
     }
 
-    // Concatenate in deterministic scene order regardless of request ordering.
-    const orderedClips = [...clips].sort((a, b) => (a.sceneNumber ?? 0) - (b.sceneNumber ?? 0));
+    // Use the order sent by the client — this is the saved timeline (drag) order.
+    // Do NOT re-sort by sceneNumber; the client sends clips in the user's dragged order.
+    const orderedClips = clips;
 
     const multiId = randomUUID();
     const folder = path.join(os.tmpdir(), `export-doctor-multi-${Date.now()}`);
