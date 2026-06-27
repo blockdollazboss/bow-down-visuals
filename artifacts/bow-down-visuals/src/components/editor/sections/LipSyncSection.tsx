@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
+  KeyRound, FlaskConical,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -153,6 +154,11 @@ export function LipSyncSection({
   const [acapellaExporting, setAcapellaExporting] = useState(false);
   const [acapellaError, setAcapellaError] = useState<string | null>(null);
 
+  /* ── Setup / demo mode state ── */
+  const [demoMode, setDemoMode]                   = useState(false);
+  const [showKeyInstructions, setShowKeyInstructions] = useState(false);
+  const [demoRunSet, setDemoRunSet]               = useState<Set<string>>(new Set());
+
   /* ── Derived: audio source ── */
   const vocalExportUrl = ms.exports.find(r => r.kind === "acapella")?.url ?? null;
   const vocalStemUrl   =
@@ -263,13 +269,25 @@ export function LipSyncSection({
 
   /* ── Apply to selected ── */
   async function applyToSelected() {
+    if (!selectedScene) return;
+    if (!faceDetected)  { setApplyError("No clear face found for lip sync on this clip."); return; }
+
+    /* Demo mode — simulate processing, no real API call */
+    if (demoMode) {
+      setApplyError(null);
+      setConfirmOpen(null);
+      updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
+      await new Promise<void>(r => setTimeout(r, 1500));
+      updateClipEdit(selectedScene.id, { lipSyncStatus: null, lipSyncError: null });
+      setDemoRunSet(prev => new Set([...prev, selectedScene.id]));
+      return;
+    }
+
     if (!providerConnected) {
       setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
       return;
     }
-    if (!selectedScene) return;
-    if (!faceDetected)  { setApplyError("No clear face found for lip sync on this clip."); return; }
-    if (!audioReady)    { setApplyError("No audio source available."); return; }
+    if (!audioReady) { setApplyError("No audio source available."); return; }
 
     setApplyError(null);
     setConfirmOpen(null);
@@ -303,13 +321,38 @@ export function LipSyncSection({
 
   /* ── Apply to all ── */
   async function applyToAll() {
+    const eligible = clipsWithFaces.filter(s => !!s.demoClipUrl);
+    if (eligible.length === 0) { setApplyError("No clips with detectable faces found."); return; }
+
+    /* Demo mode — simulate each clip, no real API calls */
+    if (demoMode) {
+      setApplyError(null);
+      setConfirmOpen(null);
+      cancelRef.current = false;
+      setProcessState({ running: true, current: 0, total: eligible.length, cancelled: false, lastError: null });
+
+      for (let i = 0; i < eligible.length; i++) {
+        if (cancelRef.current) {
+          setProcessState(p => p ? { ...p, running: false, cancelled: true } : null);
+          return;
+        }
+        const scene = eligible[i]!;
+        setProcessState(p => p ? { ...p, current: i + 1 } : null);
+        updateClipEdit(scene.id, { lipSyncStatus: "processing", lipSyncError: null });
+        await new Promise<void>(r => setTimeout(r, 900));
+        updateClipEdit(scene.id, { lipSyncStatus: null, lipSyncError: null });
+        setDemoRunSet(prev => new Set([...prev, scene.id]));
+      }
+
+      setProcessState(p => p ? { ...p, running: false } : null);
+      return;
+    }
+
     if (!providerConnected) {
       setApplyError("Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.");
       return;
     }
-    const eligible = clipsWithFaces.filter(s => !!s.demoClipUrl);
-    if (eligible.length === 0) { setApplyError("No clips with detectable faces found."); return; }
-    if (!audioReady)           { setApplyError("No audio source available."); return; }
+    if (!audioReady) { setApplyError("No audio source available."); return; }
 
     setApplyError(null);
     setConfirmOpen(null);
@@ -402,36 +445,138 @@ export function LipSyncSection({
           {/* ── Provider status ── */}
           <EditorCard title="Provider" icon={<Radio className="h-4 w-4" />}>
             <div className="space-y-2">
-              {providerLoading ? (
+              {/* Checking */}
+              {providerLoading && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] text-white/40 text-[11px]">
                   <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                   Checking provider…
                 </div>
-              ) : providerConnected ? (
+              )}
+
+              {/* Connected */}
+              {!providerLoading && providerConnected && (
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[11px] font-semibold">
                   <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
                   Connected · {providerName}
                 </div>
-              ) : (
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
-                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <span>Lip Sync provider not connected.<br />
-                    <span className="font-normal text-amber-400/70">
-                      Add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in{" "}
-                      Replit Secrets (Tools → Secrets) and optionally{" "}
-                      <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_PROVIDER</code>.
-                    </span>
-                  </span>
+              )}
+
+              {/* Demo mode active */}
+              {!providerLoading && !providerConnected && demoMode && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/[0.06] text-blue-400 text-[11px] font-semibold">
+                  <FlaskConical className="h-3.5 w-3.5 shrink-0" />
+                  Demo Mode Active — simulations only, no real API calls
+                  <button
+                    type="button"
+                    onClick={() => setDemoMode(false)}
+                    className="ml-auto text-white/30 hover:text-white/60 transition-colors"
+                    title="Exit demo mode"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               )}
+
+              {/* Not connected — setup flow */}
+              {!providerLoading && !providerConnected && !demoMode && (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>Lip Sync is not connected yet.<br />
+                      <span className="font-normal text-amber-400/70">
+                        To use real lip sync, connect a lip sync provider API key in Replit Secrets.
+                      </span>
+                    </span>
+                  </div>
+
+                  {!showKeyInstructions && (
+                    <>
+                      {/* Setup steps */}
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-3 space-y-2">
+                        <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Lip Sync Setup</p>
+                        {[
+                          "Choose a lip sync provider (e.g. HeyGen, Sync.so, Hedra)",
+                          "Copy your API key from that provider's dashboard",
+                          "Add it to Replit Secrets as LIP_SYNC_API_KEY",
+                          "Refresh this page",
+                        ].map((step, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-white/10 text-[9px] font-black text-white/50 mt-0.5">{i + 1}</span>
+                            <span className="text-[11px] text-white/60">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Two action buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowKeyInstructions(true)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                          I Have An API Key
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDemoMode(true)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/[0.06] transition-colors"
+                        >
+                          <FlaskConical className="h-3.5 w-3.5" />
+                          Use Demo Mode For Now
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* "I Have An API Key" instructions */}
+                  {showKeyInstructions && (
+                    <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-3 space-y-2.5">
+                      <p className="text-[11px] font-bold text-primary">Add your API key to Replit Secrets:</p>
+                      <div className="space-y-1.5">
+                        {[
+                          "Open Replit → Tools → Secrets",
+                          "Click + Add new secret",
+                          "Key: LIP_SYNC_API_KEY",
+                          "Value: paste your provider API key",
+                          "Save, then click Refresh below",
+                        ].map((step, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-primary/20 text-[9px] font-black text-primary/70 mt-0.5">{i + 1}</span>
+                            <span className="text-[10px] text-white/60">{step}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { void fetchProviderStatus(); setShowKeyInstructions(false); }}
+                          disabled={providerLoading}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                        >
+                          <RefreshCw className="h-3 w-3" /> Refresh
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowKeyInstructions(false)}
+                          className="px-3 py-2 rounded-xl border border-white/10 text-white/40 text-[11px] hover:bg-white/[0.04] transition-colors"
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Status rows */}
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                <StatusRow label="provider"           value={providerName ?? "none"}                   ok={providerConnected} />
-                <StatusRow label="connected"          value={providerConnected ? "yes" : "no"}         ok={providerConnected} />
-                <StatusRow label="server key found"   value={providerStatus?.serverKeyFound ? "yes" : "no"} ok={providerStatus?.serverKeyFound} />
-                <StatusRow label="frontend key exposed" value="no"                                     ok={true} />
-                <StatusRow label="mode"               value={providerStatus?.mode ?? "—"}              ok={providerConnected} />
-                <StatusRow label="clips lip synced"   value={`${allDoneCount} / ${scenes.length}`}     ok={allDoneCount > 0 ? true : null} />
-                <StatusRow label="clips processing"   value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
+                <StatusRow label="real provider connected" value={providerConnected ? "yes" : "no"}         ok={providerConnected} />
+                <StatusRow label="demo mode active"        value={demoMode ? "yes" : "no"}                  ok={demoMode ? null : undefined} />
+                <StatusRow label="server key found"        value={providerStatus?.serverKeyFound ? "yes" : "no"} ok={providerStatus?.serverKeyFound} />
+                <StatusRow label="frontend key exposed"    value="no"                                        ok={true} />
+                <StatusRow label="mode"                    value={demoMode ? "demo" : (providerStatus?.mode ?? "—")} ok={providerConnected || demoMode ? true : false} />
+                <StatusRow label="clips lip synced"        value={`${allDoneCount} / ${scenes.length}`}      ok={allDoneCount > 0 ? true : null} />
+                <StatusRow label="clips processing"        value={allProcessingCount > 0 ? `${allProcessingCount} running` : "none"} ok={allProcessingCount > 0 ? null : undefined} />
               </div>
               <button
                 type="button"
@@ -649,11 +794,20 @@ export function LipSyncSection({
               {confirmOpen && (
                 <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-3 py-3 space-y-2">
                   <p className="text-[11px] text-white/70 font-semibold">
-                    {confirmOpen === "single"
-                      ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
-                      : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
+                    {demoMode
+                      ? confirmOpen === "single"
+                        ? `Run Demo simulation on Scene ${selectedScene?.sceneNumber ?? "—"}?`
+                        : `Run Demo simulation on all ${clipsWithFaces.length} clips?`
+                      : confirmOpen === "single"
+                        ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
+                        : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
                   </p>
-                  {!providerConnected ? (
+                  {demoMode ? (
+                    <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
+                      <FlaskConical className="h-3 w-3 shrink-0" />
+                      Demo mode — no real API call will be made. No credits charged.
+                    </div>
+                  ) : !providerConnected ? (
                     <p className="text-[10px] text-amber-400/80">
                       ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
                     </p>
@@ -662,7 +816,7 @@ export function LipSyncSection({
                       Processing will begin immediately. Charges apply only on successful results.
                     </p>
                   )}
-                  {usingFullMix && ls.audioSource === "vocals" && (
+                  {!demoMode && usingFullMix && ls.audioSource === "vocals" && (
                     <p className="text-[10px] text-amber-400/70">
                       ⚠ No vocal stem found — using full mix. Accuracy may be lower.
                     </p>
@@ -690,15 +844,19 @@ export function LipSyncSection({
               {!confirmOpen && selectedScene && (
                 <button
                   type="button"
-                  disabled={!faceDetected || !audioReady || selectedClipEdit?.lipSyncStatus === "processing"}
+                  disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing"}
                   onClick={() => { setApplyError(null); setConfirmOpen("single"); }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    demoMode
+                      ? "border-blue-500/30 bg-blue-500/[0.06] text-blue-400 hover:bg-blue-500/[0.12]"
+                      : "border-primary/40 bg-primary/[0.08] text-primary hover:bg-primary/[0.15]"
+                  }`}
                   data-testid="btn-lip-sync-apply-selected"
                 >
                   {selectedClipEdit?.lipSyncStatus === "processing"
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Mic2 className="h-3.5 w-3.5" />}
-                  Apply to Scene {selectedScene.sceneNumber}
+                    : demoMode ? <FlaskConical className="h-3.5 w-3.5" /> : <Mic2 className="h-3.5 w-3.5" />}
+                  {demoMode ? "Simulate" : "Apply to"} Scene {selectedScene.sceneNumber}
                 </button>
               )}
 
@@ -706,22 +864,24 @@ export function LipSyncSection({
               {!confirmOpen && !processState?.running && (
                 <button
                   type="button"
-                  disabled={clipsWithFaces.length === 0 || !audioReady}
+                  disabled={clipsWithFaces.length === 0 || (!demoMode && !audioReady)}
                   onClick={() => { setApplyError(null); setConfirmOpen("all"); }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/[0.06] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   data-testid="btn-lip-sync-apply-all"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
-                  Apply to All {clipsWithFaces.length} Clips
+                  {demoMode ? "Simulate All" : "Apply to All"} {clipsWithFaces.length} Clips
                 </button>
               )}
 
               {/* Progress bar */}
               {processState?.running && (
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-3 space-y-2">
+                <div className={`rounded-xl border px-3 py-3 space-y-2 ${
+                  demoMode ? "border-blue-500/20 bg-blue-500/[0.04]" : "border-primary/20 bg-primary/[0.04]"
+                }`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-bold text-primary">
-                      Lip Sync {processState.current} of {processState.total}
+                    <span className={`text-[11px] font-bold ${demoMode ? "text-blue-400" : "text-primary"}`}>
+                      {demoMode ? "Simulating" : "Lip Sync"} {processState.current} of {processState.total}
                     </span>
                     <button
                       type="button"
@@ -746,11 +906,15 @@ export function LipSyncSection({
                 <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-semibold ${
                   processState.cancelled
                     ? "border-amber-500/30 bg-amber-500/[0.06] text-amber-400"
-                    : "border-green-500/30 bg-green-500/[0.06] text-green-400"
+                    : demoMode
+                      ? "border-blue-500/30 bg-blue-500/[0.06] text-blue-400"
+                      : "border-green-500/30 bg-green-500/[0.06] text-green-400"
                 }`}>
                   {processState.cancelled
                     ? <><AlertTriangle className="h-3.5 w-3.5 shrink-0" /> Cancelled at {processState.current} of {processState.total}</>
-                    : <><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Done · {processState.total} clips processed</>}
+                    : demoMode
+                      ? <><FlaskConical className="h-3.5 w-3.5 shrink-0" /> Demo complete · {processState.total} clips simulated — no real API calls made</>
+                      : <><CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Done · {processState.total} clips processed</>}
                   <button
                     type="button"
                     onClick={() => setProcessState(null)}
@@ -776,6 +940,16 @@ export function LipSyncSection({
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError.slice(0, 60)} ok={false} />
                   )}
                 </div>
+
+                {/* Demo run result */}
+                {demoRunSet.has(selectedScene.id) && !selectedClipEdit.lipSyncUrl && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/[0.06] text-blue-400 text-[11px] font-semibold">
+                    <FlaskConical className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>Demo simulation complete.<br />
+                      <span className="font-normal text-blue-400/70">No real API call was made. Connect a provider to run real lip sync.</span>
+                    </span>
+                  </div>
+                )}
 
                 {selectedClipEdit.lipSyncStatus === "done" && selectedClipEdit.lipSyncUrl && (
                   <div className="space-y-2">
