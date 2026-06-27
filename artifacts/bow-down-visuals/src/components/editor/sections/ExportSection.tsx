@@ -492,57 +492,21 @@ export function ExportSection({
       {/* ── Export Format ── */}
       <EditorCard
         title="Export Format"
-        subtitle="Aspect ratio and resolution"
+        subtitle="Resolution and output quality — use the Format icon in the player to change aspect ratio"
         icon={<Download className="h-4 w-4" />}
       >
         <div className="space-y-5">
-          <Field label="Aspect ratio">
-            <div className="grid grid-cols-2 gap-2">
-              {VIDEO_FORMATS.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setExport({ format: f.id as VideoFormat })}
-                  data-testid={`export-format-${f.id}`}
-                  className={`flex flex-col items-center gap-1 px-3 py-3 rounded-xl border text-sm font-black transition-colors ${
-                    settings.export.format === f.id
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-white/10 bg-white/[0.03] text-white/60 hover:border-white/20"
-                  }`}
-                >
-                  <AspectRatioIcon ratio={f.id as VideoFormat} active={settings.export.format === f.id} />
-                  <span>{f.label}</span>
-                  <span className="text-[9px] font-normal opacity-60 text-center leading-tight">{f.note}</span>
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Fit Mode — how clips fill the canvas">
-            <div className="flex flex-col gap-1.5">
-              {([
-                ["fill", "Fill / Crop",     "Crops clip edges to fill frame"],
-                ["fit",  "Fit / Letterbox", "Black bars, full clip visible"],
-                ["blur", "Blur Background", "Blurred fill behind contained clip"],
-              ] as const).map(([id, lbl, desc]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setExport({ fitMode: id })}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${
-                    (settings.export.fitMode ?? "fill") === id
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-white/[0.07] bg-white/[0.02] text-white/45 hover:bg-white/[0.05]"
-                  }`}
-                >
-                  <span>
-                    <span className="text-[10px] font-bold block">{lbl}</span>
-                    <span className="text-[9px] text-white/30">{desc}</span>
-                  </span>
-                  {(settings.export.fitMode ?? "fill") === id && <span className="text-[9px] font-bold ml-2 shrink-0">✓</span>}
-                </button>
-              ))}
-            </div>
-          </Field>
+          {/* Active format read-only status */}
+          <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2.5 flex items-center justify-between gap-2">
+            <span className="text-[10px] text-white/40">Canvas format</span>
+            <span className="text-[10px] font-bold text-white/60 font-mono">
+              {settings.export.format ?? "9:16"} · {(() => {
+                const [w, h] = (settings.export.format ?? "9:16").split(":").map(Number);
+                const dims: Record<string, string> = { "9:16": "1080×1920", "16:9": "1920×1080", "1:1": "1080×1080", "4:5": "1080×1350" };
+                return dims[settings.export.format ?? "9:16"] ?? `${w}:${h}`;
+              })()}
+            </span>
+          </div>
           <Field label="Resolution">
             <Segmented
               value={settings.export.resolution}
