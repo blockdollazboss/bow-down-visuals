@@ -1154,6 +1154,31 @@ function MasterPreviewPlayer({
     return () => document.removeEventListener("mousedown", handler);
   }, [formatOpen]);
 
+  /* ── Controls auto-hide (fullscreen only) ── */
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFullscreenRef  = useRef(false);
+  useEffect(() => { isFullscreenRef.current = isFullscreen; }, [isFullscreen]);
+
+  const showControls = () => {
+    setControlsVisible(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    if (isFullscreenRef.current) {
+      controlsTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+    }
+  };
+
+  /* Reset / start hide-timer on fullscreen toggle */
+  useEffect(() => {
+    if (!isFullscreen) {
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+      setControlsVisible(true);
+    } else {
+      controlsTimerRef.current = setTimeout(() => setControlsVisible(false), 3000);
+    }
+    return () => { if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current); };
+  }, [isFullscreen]);
+
   /* ── Auto PiP state ── */
   const [autoPiP,            setAutoPiP           ] = useState(false);
   const [enterOnScroll,      setEnterOnScroll     ] = useState(true);
@@ -1438,6 +1463,7 @@ function MasterPreviewPlayer({
   return (
     <div
       ref={containerRef}
+      onMouseMove={showControls}
       className={`overflow-hidden mb-6 ${
         isFullscreen
           ? "bg-black flex flex-col"
@@ -1449,14 +1475,13 @@ function MasterPreviewPlayer({
         const fmt    = settings.export.format ?? "9:16";
         const arCss  = formatAspectCss(fmt);
         const isWide = fmt === "16:9";
-        return (
+        const canvas = (
       <div
-        className={`bg-black relative overflow-hidden [container-type:inline-size] ${isFullscreen ? "flex-1 min-h-0" : ""}`}
-        style={isFullscreen ? {} : {
-          aspectRatio: arCss,
-          maxHeight: isWide ? undefined : "72vh",
-          transition: "aspect-ratio 0.35s ease",
-        }}
+        className="bg-black relative overflow-hidden [container-type:inline-size]"
+        style={isFullscreen
+          ? { aspectRatio: arCss, height: "100%", maxWidth: "100%" }
+          : { aspectRatio: arCss, maxHeight: isWide ? undefined : "72vh", transition: "aspect-ratio 0.35s ease" }
+        }
       >
         {/* ── Blur-background layer (fit mode = blur) ── */}
         {fitMode === "blur" && !isFullscreen && (
@@ -1646,10 +1671,18 @@ function MasterPreviewPlayer({
         )}
       </div>
         );
+        /* Fullscreen: center canvas with correct aspect ratio; non-fullscreen: raw canvas */
+        return isFullscreen
+          ? <div className="flex-1 min-h-0 flex items-center justify-center bg-black overflow-hidden">{canvas}</div>
+          : canvas;
       })()}
 
       {/* ── Transport bar — visible on EVERY tab ── */}
-      <div className={`flex items-center gap-2 px-4 py-2.5 border-t border-white/[0.06] ${isFullscreen ? "shrink-0" : ""}`}>
+      <div className={`flex items-center gap-2 px-3 py-2 border-t border-white/[0.06] transition-all duration-300 ${
+        isFullscreen
+          ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
+          : ""
+      }`}>
         {/* Restart */}
         <button type="button" onClick={onRestart} disabled={!hasScenes}
           className="flex items-center justify-center h-8 w-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] transition-colors text-white/70 hover:text-white disabled:opacity-30"
@@ -1671,18 +1704,21 @@ function MasterPreviewPlayer({
         <span className="text-[11px] font-mono text-white/40 tabular-nums shrink-0 w-[80px] text-right">
           {fmtSecs(currentTime)} / {fmtSecs(duration || 0)}
         </span>
-        {/* Auto PiP toggle */}
+        {/* Auto PiP toggle — compact icon badge */}
         <button
           type="button"
           onClick={() => autoPiP ? disableAutoPiP() : void enableAutoPiP()}
-          className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold transition-colors shrink-0 ${
+          className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors shrink-0 relative ${
             autoPiP
               ? "border-primary/40 bg-primary/10 text-primary"
               : "border-white/10 bg-white/[0.04] text-white/50 hover:text-white/80"
           }`}
-          title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP — video floats while you work"}
+          title={autoPiP ? "Disable Auto PiP" : "Enable Auto PiP — floats while you work"}
         >
-          {autoPiP ? "Auto PiP ✓" : "Auto PiP"}
+          <PictureInPicture2 className="h-3.5 w-3.5" />
+          {autoPiP && (
+            <span className="absolute -top-1 -right-1 text-[7px] font-black text-black bg-primary rounded-full w-3 h-3 flex items-center justify-center leading-none">A</span>
+          )}
         </button>
         {/* Manual PiP */}
         <button type="button" onClick={() => void togglePiP()}
@@ -1796,17 +1832,33 @@ function MasterPreviewPlayer({
                 </div>
               </div>
 
-              {/* Mini status */}
-              <div className="px-3 pb-3 pt-2.5 border-t border-white/[0.06] space-y-0.5">
-                {([
-                  ["master player matches format", "yes"],
-                  ["export matches format",        "yes"],
-                ] as const).map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-2">
-                    <span className="text-[9px] font-mono text-white/28">{label}</span>
-                    <span className="text-[9px] font-bold text-green-400">{value}</span>
-                  </div>
-                ))}
+              {/* Format debug */}
+              <div className="px-3 pb-3 pt-2.5 border-t border-white/[0.06]">
+                <p className="text-[8px] font-black text-white/25 uppercase tracking-widest mb-1.5">Format Debug</p>
+                <div className="space-y-0.5">
+                  {(() => {
+                    const [dw, dh] = formatDimensions(settings.export.format ?? "9:16");
+                    return ([
+                      ["selected format",            settings.export.format ?? "9:16"],
+                      ["export size",                `${dw}×${dh}`],
+                      ["fit mode",                   settings.export.fitMode ?? "fill"],
+                      ["format icon visible",        "yes"],
+                      ["fullscreen active",          isFullscreen ? "yes" : "no"],
+                      ["fullscreen keeps ratio",     isFullscreen ? "yes" : "n/a"],
+                      ["master player matches",      "yes"],
+                      ["export matches",             "yes"],
+                    ] as [string, string][]).map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-2">
+                        <span className="text-[9px] font-mono text-white/28">{label}</span>
+                        <span className={`text-[9px] font-bold shrink-0 ${
+                          value === "yes" ? "text-green-400"
+                            : value === "no" || value === "n/a" ? "text-white/35"
+                            : "text-[#C9A84C]"
+                        }`}>{value}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
               </div>
             </div>
           )}
