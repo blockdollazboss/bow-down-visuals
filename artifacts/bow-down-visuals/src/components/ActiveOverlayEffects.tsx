@@ -5,6 +5,11 @@
  *   Each effect's inner elements animate 1.0 → 0.0.
  *   The outer container carries gi() = the user's intensity setting.
  *   This ensures "35%" really means 35% visible — no hidden multiplier.
+ *
+ * Play-state architecture:
+ *   isPlaying prop is forwarded to every sub-effect.
+ *   Every animated element sets animation-play-state: running|paused.
+ *   When master player is paused/scrubbing, all CSS animations freeze instantly.
  */
 import type React from "react";
 
@@ -95,7 +100,8 @@ const gi = (map: IntensityMap, name: string) =>
   Math.max(0.01, Math.min(1, (map[name] ?? OVERLAY_DEFAULT_INTENSITY[name] ?? 20) / 100));
 
 /* ══════════════════ Rain ══════════════════════════════════════════════════ */
-function RainEffect({ opacity }: { opacity: number }) {
+function RainEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   return (
     <div
       style={{ position: "absolute", inset: 0, opacity }}
@@ -120,6 +126,7 @@ function RainEffect({ opacity }: { opacity: number }) {
               animationDelay: `${-dr(i * 13) * 1.2}s`,
               animationTimingFunction: "linear",
               animationIterationCount: "infinite",
+              animationPlayState: playState,
             }}
           />
         );
@@ -129,7 +136,8 @@ function RainEffect({ opacity }: { opacity: number }) {
 }
 
 /* ══════════════════ Smoke ═════════════════════════════════════════════════ */
-function SmokeEffect({ opacity }: { opacity: number }) {
+function SmokeEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   return (
     <div
       style={{ position: "absolute", inset: 0, opacity, mixBlendMode: "screen" as const }}
@@ -152,6 +160,7 @@ function SmokeEffect({ opacity }: { opacity: number }) {
             animationDelay: `${-dr(i * 17) * 5.5}s`,
             animationTimingFunction: "ease-out",
             animationIterationCount: "infinite",
+            animationPlayState: playState,
           }}
         />
       ))}
@@ -160,7 +169,8 @@ function SmokeEffect({ opacity }: { opacity: number }) {
 }
 
 /* ══════════════════ Sparks ════════════════════════════════════════════════ */
-function SparksEffect({ opacity }: { opacity: number }) {
+function SparksEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   const N = 28;
   return (
     <div
@@ -198,6 +208,7 @@ function SparksEffect({ opacity }: { opacity: number }) {
               animationDelay: `${-dr(i * 19) * 2.2}s`,
               animationTimingFunction: "ease-out",
               animationIterationCount: "infinite",
+              animationPlayState: playState,
             } as React.CSSProperties}
           />
         );
@@ -207,7 +218,8 @@ function SparksEffect({ opacity }: { opacity: number }) {
 }
 
 /* ══════════════════ Dust ══════════════════════════════════════════════════ */
-function DustEffect({ opacity }: { opacity: number }) {
+function DustEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   return (
     <div
       style={{ position: "absolute", inset: 0, opacity }}
@@ -236,6 +248,7 @@ function DustEffect({ opacity }: { opacity: number }) {
               animationDelay: `${-dr(i * 19) * 7}s`,
               animationTimingFunction: "ease-in-out",
               animationIterationCount: "infinite",
+              animationPlayState: playState,
             } as React.CSSProperties}
           />
         );
@@ -245,13 +258,15 @@ function DustEffect({ opacity }: { opacity: number }) {
 }
 
 /* ══════════════════ Lens Flare ════════════════════════════════════════════ */
-function LensFlareEffect({ opacity }: { opacity: number }) {
+function LensFlareEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   const cy = "16%";
   const pulse: React.CSSProperties = {
     animationName: "bdv-flare-pulse",
     animationDuration: "2.8s",
     animationTimingFunction: "ease-in-out",
     animationIterationCount: "infinite",
+    animationPlayState: playState,
   };
   return (
     <div
@@ -267,6 +282,7 @@ function LensFlareEffect({ opacity }: { opacity: number }) {
         animationDuration: "11s, 2.8s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
+        animationPlayState: playState,
         transform: "translateY(-50%)",
         width: "70px", height: "70px", borderRadius: "50%",
         background: "radial-gradient(circle, rgba(255,248,180,0.95) 0%, rgba(255,210,50,0.55) 35%, transparent 70%)",
@@ -302,7 +318,8 @@ function LensFlareEffect({ opacity }: { opacity: number }) {
 }
 
 /* ══════════════════ Light Leaks ═══════════════════════════════════════════ */
-function LightLeaksEffect({ opacity, protectCaptions }: { opacity: number; protectCaptions: boolean }) {
+function LightLeaksEffect({ opacity, protectCaptions, isPlaying }: { opacity: number; protectCaptions: boolean; isPlaying: boolean }) {
+  const playState = isPlaying ? "running" : "paused";
   const clipStyle: React.CSSProperties = protectCaptions
     ? { clipPath: "inset(0 0 22% 0)" }
     : {};
@@ -322,6 +339,7 @@ function LightLeaksEffect({ opacity, protectCaptions }: { opacity: number; prote
         animationDuration: "4.8s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
+        animationPlayState: playState,
       }} />
       {/* Secondary cool accent */}
       <div style={{
@@ -335,6 +353,7 @@ function LightLeaksEffect({ opacity, protectCaptions }: { opacity: number; prote
         animationDelay: "-2.6s",
         animationTimingFunction: "ease-in-out",
         animationIterationCount: "infinite",
+        animationPlayState: playState,
       }} />
     </div>
   );
@@ -347,11 +366,14 @@ function WaveformEffect({
   opacity,
   position = "bottom-safe",
   protectCaptions,
+  isPlaying,
 }: {
   opacity: number;
   position?: WavePosition;
   protectCaptions: boolean;
+  isPlaying: boolean;
 }) {
+  const playState = isPlaying ? "running" : "paused";
   const effectivePos: WavePosition =
     protectCaptions && position === "bottom" ? "bottom-safe" : position;
   if (effectivePos === "hidden") return null;
@@ -399,6 +421,7 @@ function WaveformEffect({
               animationDelay: `${-dr(i * 17) * 0.55}s`,
               animationTimingFunction: "ease-in-out",
               animationIterationCount: "infinite",
+              animationPlayState: playState,
               "--h1": String(h1), "--h2": String(h2),
             } as React.CSSProperties}
           />
@@ -490,6 +513,7 @@ export interface ActiveOverlayEffectsProps {
   activeOverlays: string[];
   intensity: IntensityMap;
   testActive: boolean;
+  isPlaying?: boolean;
   soloPreviewOverlay?: string | null;
   watermarkText?: string;
   watermarkType?: string;
@@ -508,6 +532,7 @@ export function ActiveOverlayEffects({
   activeOverlays,
   intensity,
   testActive,
+  isPlaying = true,
   soloPreviewOverlay = null,
   watermarkText = "Bow Down Visuals",
   watermarkType = "logo",
@@ -541,17 +566,18 @@ export function ActiveOverlayEffects({
     >
       <style>{KEYFRAMES}</style>
 
-      {show.includes("Rain")              && <RainEffect        opacity={o("Rain")} />}
-      {show.includes("Smoke")             && <SmokeEffect       opacity={o("Smoke")} />}
-      {show.includes("Sparks")            && <SparksEffect      opacity={o("Sparks")} />}
-      {show.includes("Lens Flare")        && <LensFlareEffect   opacity={o("Lens Flare")} />}
-      {show.includes("Dust")              && <DustEffect        opacity={o("Dust")} />}
-      {show.includes("Light Leaks")       && <LightLeaksEffect  opacity={o("Light Leaks")} protectCaptions={overlayProtectCaptions} />}
+      {show.includes("Rain")              && <RainEffect        opacity={o("Rain")}        isPlaying={isPlaying} />}
+      {show.includes("Smoke")             && <SmokeEffect       opacity={o("Smoke")}       isPlaying={isPlaying} />}
+      {show.includes("Sparks")            && <SparksEffect      opacity={o("Sparks")}      isPlaying={isPlaying} />}
+      {show.includes("Lens Flare")        && <LensFlareEffect   opacity={o("Lens Flare")}  isPlaying={isPlaying} />}
+      {show.includes("Dust")              && <DustEffect        opacity={o("Dust")}        isPlaying={isPlaying} />}
+      {show.includes("Light Leaks")       && <LightLeaksEffect  opacity={o("Light Leaks")} protectCaptions={overlayProtectCaptions} isPlaying={isPlaying} />}
       {show.includes("Animated Waveform") && (
         <WaveformEffect
           opacity={o("Animated Waveform")}
           position={(waveformPosition as WavePosition) || "bottom-safe"}
           protectCaptions={overlayProtectCaptions}
+          isPlaying={isPlaying}
         />
       )}
       {show.includes("Logo / Watermark") && (

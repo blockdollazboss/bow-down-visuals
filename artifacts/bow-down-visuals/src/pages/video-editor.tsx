@@ -1760,6 +1760,7 @@ function MasterPreviewPlayer({
           activeOverlays={activeOverlayChips}
           intensity={overlayIntensity}
           testActive={testOverlayActive}
+          isPlaying={eng?.isPlaying ?? false}
           watermarkText={settings.watermarkText ?? "Bow Down Visuals"}
           watermarkType={settings.watermarkType ?? "logo"}
           watermarkPosition={settings.watermarkPosition ?? "bottom-right"}
@@ -2114,6 +2115,34 @@ function MasterPreviewPlayer({
             <span key={k} className="flex items-center gap-1">
               <span className="text-[8px] font-mono text-white/20">{k}</span>
               <span className={`text-[8px] font-bold ${v.includes("✓") || v === "enabled" ? "text-green-400/50" : v === "—" || v === "no" || v === "off" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Playback Animation Debug — hidden in fullscreen */}
+      {!isFullscreen && (
+        <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
+          <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
+          {([
+            ["isPlaying",    (eng?.isPlaying ?? false) ? "yes ✓" : "no"],
+            ["isScrubbing",  isDraggingRef.current ? "yes" : "no"],
+            ["master t",     `${(eng?.currentTime ?? 0).toFixed(2)}s`],
+            ["audio t",      `${(eng?.currentTime ?? 0).toFixed(2)}s`],
+            ["loops active", (eng?.isPlaying ?? false) ? "yes" : "no"],
+            ["overlays",     (eng?.isPlaying ?? false) ? "running" : "paused ✓"],
+            ["waveform",     (eng?.isPlaying ?? false) ? "running" : "paused ✓"],
+            ["captions",     (eng?.isPlaying ?? false) ? "running" : "paused ✓"],
+            ["effects",      (eng?.isPlaying ?? false) ? "running" : "paused ✓"],
+          ] as [string, string][]).map(([k, v]) => (
+            <span key={k} className="flex items-center gap-1">
+              <span className="text-[8px] font-mono text-white/20">{k}</span>
+              <span className={`text-[8px] font-bold ${
+                v.includes("✓") ? "text-green-400/50"
+                : v === "no" || v === "paused" ? "text-white/20"
+                : v === "yes" ? "text-yellow-400/50"
+                : "text-[#C9A84C]/50"
+              }`}>{v}</span>
             </span>
           ))}
         </div>
