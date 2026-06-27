@@ -25,3 +25,20 @@ whole job; the renderer was already there.
   transition names into this set before writing them to clips.
 - Transitions are preview-only — they are NOT part of the FFmpeg effects export
   pipeline.
+
+# Export transition boundary mapping (Export Doctor)
+
+`AppliedTransition.sceneIndex` is the DESTINATION scene — the transition INTO
+scene N (scene 0 is always "Cut", nothing transitions into it). When mapping
+applied transitions onto export clip boundaries (boundary b = scene b → b+1 in
+`export-effects-transitions`), look up the transition by `sceneIndex === b + 1`,
+NOT `=== b`. Using `=== b` shifts every transition one boundary early and drops
+the last one.
+
+**Why:** off-by-one caught in code review — boundary index and destination-scene
+index differ by one.
+
+**How to apply:** keep the plan entry's own `sceneIndex` as the boundary index
+`b` (the frontend renders the label as `Scene b+1 → b+2`), but resolve the input
+transition type via `b + 1`. xfade chain consumes boundaries by array order, so
+only the per-boundary type selection depends on this lookup.
