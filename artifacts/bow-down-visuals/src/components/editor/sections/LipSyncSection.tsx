@@ -311,6 +311,7 @@ export function LipSyncSection({
   const [clipDurationReloadKey, setClipDurationReloadKey] = useState(0);
   const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
   const [showTimingValidation, setShowTimingValidation] = useState(false);
+  const [previewModalUrl, setPreviewModalUrl]   = useState<string | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1898,7 +1899,7 @@ export function LipSyncSection({
                           <div className="space-y-2">
                             <button
                               type="button"
-                              onClick={() => window.open(cjr.outputUrl!, "_blank")}
+                              onClick={() => setPreviewModalUrl(cjr.outputUrl!)}
                               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-500/40 bg-green-500/[0.08] text-green-300 text-[11px] font-bold hover:bg-green-500/[0.15] transition-colors"
                             >
                               <Play className="h-3.5 w-3.5" /> Preview Lip Sync Result
@@ -2225,7 +2226,7 @@ export function LipSyncSection({
                   <StatusRow label="master player using"      value={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? "lip sync ✓" : "original clip"}  ok={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? true : null} />
                   <StatusRow label="timeline badge"           value={selectedClipEdit.lipSyncStatus === "done" ? "LS✓ visible" : "not shown"} ok={selectedClipEdit.lipSyncStatus === "done"} />
                   <StatusRow label="persisted after refresh"  value="yes — stored in browser"                                               ok={true} />
-                  {selectedClipEdit.lipSyncError && (
+                  {selectedClipEdit.lipSyncError && selectedClipEdit.lipSyncStatus !== "done" && (
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
                   )}
                 </div>
@@ -2267,20 +2268,36 @@ export function LipSyncSection({
                   <div className="space-y-2">
                     <button
                       type="button"
-                      onClick={() => window.open(selectedClipEdit.lipSyncUrl!, "_blank")}
+                      onClick={() => setPreviewModalUrl(selectedClipEdit.lipSyncUrl!)}
                       className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-500/35 bg-green-500/[0.07] text-green-300 text-[11px] font-bold hover:bg-green-500/[0.14] transition-colors"
                     >
                       <Play className="h-3.5 w-3.5" /> Preview Lip Sync Result
                     </button>
-                    {!selectedClipEdit.useLipSync && (
-                      <button
-                        type="button"
-                        onClick={attachStoredResult}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.07] text-primary text-[11px] font-bold hover:bg-primary/[0.14] transition-colors"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Attach Completed Result to Selected Scene
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={attachStoredResult}
+                      disabled={selectedClipEdit.useLipSync}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.07] text-primary text-[11px] font-bold hover:bg-primary/[0.14] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {selectedClipEdit.useLipSync ? "Master Player Using Lip Sync ✓" : "Use Result in Master Player"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedClipEdit.lipSyncStatus || selectedClipEdit.lipSyncStatus !== "done") {
+                          /* not yet saved — save it first */
+                          if (selectedClipEdit.lipSyncUrl && selectedClipEdit.lipSyncJobId) {
+                            saveResultToScene(selectedClipEdit.lipSyncJobId, selectedClipEdit.lipSyncUrl);
+                          }
+                        }
+                      }}
+                      disabled={selectedClipEdit.lipSyncStatus === "done"}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {selectedClipEdit.lipSyncStatus === "done" ? "Result Saved to Scene ✓" : "Save Result to Scene"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => clearLipSync(selectedScene.id)}
@@ -2394,6 +2411,82 @@ export function LipSyncSection({
           </Collapsible>
 
         </>
+      )}
+
+      {/* ── Lip Sync Preview Modal ── */}
+      {previewModalUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setPreviewModalUrl(null); }}
+        >
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d0d0d] overflow-hidden shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.07]">
+              <div className="flex items-center gap-2">
+                <Play className="h-4 w-4 text-green-400" />
+                <p className="text-sm font-black text-white">Lip Sync Result Preview</p>
+                {selectedScene && (
+                  <span className="text-[10px] text-white/40 font-normal">Scene {selectedScene.sceneNumber}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalUrl(null)}
+                className="text-white/40 hover:text-white/80 transition-colors"
+                aria-label="Close preview"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Video */}
+            <video
+              src={previewModalUrl}
+              controls
+              autoPlay
+              className="w-full max-h-[55vh] bg-black"
+            />
+
+            {/* Action buttons */}
+            <div className="p-4 space-y-2 border-t border-white/[0.07]">
+              {selectedScene && selectedClipEdit && (() => {
+                const url    = previewModalUrl;
+                const jobId  = selectedClipEdit.lipSyncJobId ?? "";
+                const isSaved    = selectedClipEdit.lipSyncStatus === "done" && selectedClipEdit.lipSyncUrl === url;
+                const isInPlayer = selectedClipEdit.useLipSync && isSaved;
+                return (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => { useResultInPlayer(jobId, url); setPreviewModalUrl(null); }}
+                      disabled={isInPlayer}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      {isInPlayer ? "Master Player Using Lip Sync ✓" : "Use Result in Master Player"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { saveResultToScene(jobId, url); }}
+                      disabled={isSaved}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {isSaved ? "Result Saved to Scene ✓" : "Save Result to Scene"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewModalUrl(null)}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/40 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" /> Close Preview
+                    </button>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
