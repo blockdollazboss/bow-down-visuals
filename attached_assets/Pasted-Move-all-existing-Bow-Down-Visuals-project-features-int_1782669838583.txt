@@ -1,0 +1,203 @@
+Move all existing Bow Down Visuals project features into Bow Down Studio Editor without deleting anything.
+
+Goal:
+Bow Down Studio Editor should become the main all-in-one workspace for each music video project.
+
+This should feel like:
+Suno + CapCut in one website.
+
+Important:
+Do not delete old features.
+Do not break existing routes.
+Do not reset database.
+Do not remove old Export Doctor.
+Do not remove old project tools.
+
+Instead, connect existing features into the new Studio Editor as tabs/panels.
+
+Main route:
+/studio/:projectId
+
+Add Studio Editor sections/tabs:
+
+1. Overview
+- project name
+- project status
+- audio loaded status
+- clips ready status
+- timeline locked status
+- export ready status
+- credit usage summary
+
+2. Song / Audio
+Include existing features:
+- upload song
+- play song
+- replace song
+- song waveform if available
+- song duration
+- audio starts at 0:00
+- audio analysis
+- intro / hook / verse / bridge / outro detection
+
+3. Lyrics
+Include existing features:
+- lyrics editor
+- AI lyrics generator
+- section labels
+- lyric timing
+- hook / verse / intro / outro mapping
+- captions source text
+
+4. Artist Profile
+Include existing features:
+- artist profile upload
+- artist reference images
+- artist vault
+- consistency lock
+- character style notes
+- selected artist bubble
+- reference bucket
+
+5. Video Clips
+Include existing features:
+- generated clips
+- clip previews
+- regenerate clip
+- repair missing clip URL
+- attach existing video URL
+- use placeholder clip
+- clip status
+- scene prompt
+- generation job status
+
+6. Timeline Editor
+This is the main CapCut-style editor:
+- song audio is the master clock
+- 12 video clips appear on timeline
+- drag clips
+- trim clips
+- split clips
+- replace clips
+- clip start/end
+- clip duration
+- locked timeline JSON
+- master player preview
+- reset master sync
+- lock timeline
+
+7. Lip Sync
+Include existing features:
+- Sync.so integration
+- submit lip sync job
+- check job status
+- use completed lip sync result
+- lip sync preview
+- mouth early / mouth late controls
+- looks correct lock
+- saved lip sync offset
+- export lip sync offset check
+
+8. Captions
+Include existing features:
+- AI captions
+- lyrics captions
+- caption timing
+- caption style
+- caption preview
+- caption export toggle
+
+9. Effects
+Include existing features:
+- video effects
+- transitions
+- filters
+- motion effects
+- section-based effects
+- preview before export
+
+10. Overlays / Branding
+Include existing features:
+- Bow Down Visuals watermark
+- transparent logo overlay
+- logo position
+- logo size
+- intro/outro branding
+- promo overlays
+
+11. Promo Clips
+Include existing features:
+- create short promo clips
+- hook clip export
+- social media format
+- 9:16 / 16:9 / 1:1 options
+- teaser export
+
+12. Thumbnail / Cover
+Include existing features:
+- generate thumbnail
+- upload thumbnail
+- title text
+- artist image
+- cover image export
+
+13. Export
+Use the new Export Engine V2:
+- Build Locked Timeline
+- Validate Timeline V2
+- Preview Render Plan V2
+- Export First 20s Test
+- Export Full Video
+- export progress
+- download result
+- error logs
+
+Also keep:
+- Advanced / Legacy Export Doctor link for debugging only
+
+14. Credits / Costs
+Include existing features:
+- credit balance
+- credit history
+- generation cost estimate
+- export cost estimate
+- Stripe test/live status if already built
+
+Navigation requirements:
+- Add left sidebar or top tabs inside Studio Editor.
+- Each tab should use existing project data by projectId.
+- Do not create fake/demo data.
+- If data is missing, show the exact missing item and repair action.
+
+Data requirements:
+Studio Editor must load:
+- projectId
+- userId
+- song audio URL
+- lyrics
+- sections
+- clips
+- video URLs
+- artist profile
+- lip sync results
+- captions
+- effects
+- overlays
+- export jobs
+- credit data
+
+Safety requirements:
+Before making changes, create a checkpoint:
+before-full-studio-editor-feature-merge
+
+Database:
+Do not drop tables.
+Do not delete columns.
+Only add optional new tables/fields if needed:
+- locked_timelines
+- studio_editor_state
+- export_v2_jobs
+- clip_repairs
+
+Final goal:
+All previous Bow Down Visuals features should live inside Bow Down Studio Editor as one complete music video workspace. The old features should still exist, but the Studio Editor should become the main place users work on a project from start to final export.
