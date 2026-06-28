@@ -120,6 +120,11 @@ interface DoctorClipFile {
   /** True when the raw source video is shorter than masterDuration.
    *  normalizeMultiClip will pad with tpad (freeze-last-frame) to reach masterDuration. */
   rawShorterThanMaster: boolean;
+  /** Lip sync video offset in seconds (master player lipSyncOffsetSeconds).
+   *  When > 0, the video is seeked forward by this amount so the mouth appears later —
+   *  matching the master player behaviour of setting video.currentTime = offset.
+   *  Applied as additional seek during normalization: effectiveTrim = trimStartSec + clipVideoOffsetSec. */
+  clipVideoOffsetSec: number;
   width: number;
   height: number;
   codec: string;
@@ -318,7 +323,9 @@ function multiClipsBlocker(session: DoctorMultiSession): string | null {
 /** Normalize only the clips needed to cover `maxDurationSec` seconds.
  *  Reuses existing normalized files from a previous run on the same session to avoid
  *  redundant FFmpeg work (critical for short-test speed).
- *  Passes rawFileDuration so tpad freeze-last-frame padding triggers when source < master. */
+ *  Applies each clip's clipVideoOffsetSec (lip sync offset) in addition to trimStartSec:
+ *    effectiveTrim = trimStartSec + clipVideoOffsetSec
+ *  This matches the master player, which seeks video.currentTime = clipVideoOffsetSec. */
 async function normalizeClipsForDuration(
   session: DoctorMultiSession,
   maxDurationSec: number,
@@ -327,16 +334,18 @@ async function normalizeClipsForDuration(
   const normPaths: string[] = [];
   let accumulated = 0;
   for (const c of session.clips) {
-    const trimStart   = c.trimStartSec  ?? 0;
-    const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
-    const clipDur     = timelineDur ?? c.duration;
+    const trimStart      = c.trimStartSec       ?? 0;
+    const clipOffset     = c.clipVideoOffsetSec  ?? 0;
+    const effectiveTrim  = trimStart + clipOffset;
+    const timelineDur    = c.timelineDuration > 0 ? c.timelineDuration : null;
+    const clipDur        = timelineDur ?? c.duration;
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
 
     if (existsSync(np) && statSync(np).size >= 1024) {
       logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip (${statSync(np).size} bytes)`);
     } else {
-      logStep?.(`scene ${c.sceneNumber}: normalizing (trimStart=${trimStart.toFixed(2)}s, dur=${timelineDur?.toFixed(2) ?? "raw"}s, rawShorter=${c.rawShorterThanMaster})...`);
-      const fb = await normalizeMultiClipWithFallback(c.localPath, np, trimStart, timelineDur, c.duration);
+      logStep?.(`scene ${c.sceneNumber}: normalizing (effectiveTrim=${effectiveTrim.toFixed(2)}s [trim=${trimStart.toFixed(2)}+offset=${clipOffset.toFixed(2)}], dur=${timelineDur?.toFixed(2) ?? "raw"}s, rawShorter=${c.rawShorterThanMaster})...`);
+      const fb = await normalizeMultiClipWithFallback(c.localPath, np, effectiveTrim, timelineDur, c.duration);
       if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
         throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty. stderr: ${fb.stderrTail.slice(0, 200)}`);
       }
@@ -349,17 +358,84 @@ async function normalizeClipsForDuration(
   return normPaths;
 }
 
-/** Normalize all clips in scene order applying master player trims.
- *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player.
+/** Variant of normalizeClipsForDuration for the lip sync offset test.
+ *  Uses separate file paths (norm-scene-{N}-lipsync.mp4) for clips that have a
+ *  clipVideoOffsetSec so they never clobber the standard norm files.
+ *  Always re-normalizes lip sync clips (no cache reuse) since the extra fine-tune
+ *  offset may have changed since the last run.
+ *  @param lipSyncExtraOffsetSec  Fine-tune delta added on top of clipVideoOffsetSec.
+ *                                 Positive = delay mouth further; negative = advance. */
+async function normalizeClipsForDurationLipSyncTest(
+  session: DoctorMultiSession,
+  maxDurationSec: number,
+  lipSyncExtraOffsetSec: number,
+  logStep?: (msg: string) => void,
+): Promise<{ normPaths: string[]; offsetInfo: Array<{ sceneNumber: number; sceneTitle: string; masterOffsetSec: number; fineTuneOffsetSec: number; totalOffsetSec: number; offsetApplied: boolean }> }> {
+  const normPaths: string[] = [];
+  const offsetInfo: Array<{ sceneNumber: number; sceneTitle: string; masterOffsetSec: number; fineTuneOffsetSec: number; totalOffsetSec: number; offsetApplied: boolean }> = [];
+  let accumulated = 0;
+  for (const c of session.clips) {
+    const trimStart      = c.trimStartSec       ?? 0;
+    const clipOffset     = c.clipVideoOffsetSec  ?? 0;
+    const isLipSync      = clipOffset > 0;
+    const extraOffset    = isLipSync ? lipSyncExtraOffsetSec : 0;
+    const effectiveTrim  = trimStart + clipOffset + extraOffset;
+    const timelineDur    = c.timelineDuration > 0 ? c.timelineDuration : null;
+    const clipDur        = timelineDur ?? c.duration;
+    // Use a dedicated file path for lip-sync clips to avoid stomping standard norm files
+    const np = isLipSync
+      ? path.join(session.folder, `norm-scene-${c.sceneNumber}-lipsync.mp4`)
+      : path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
+
+    if (isLipSync) {
+      // Always re-normalize lip sync clips — the extra offset may differ from last run
+      if (existsSync(np)) { try { rmSync(np, { force: true }); } catch { /* best-effort */ } }
+      logStep?.(`scene ${c.sceneNumber} (lip sync): normalizing with effectiveTrim=${effectiveTrim.toFixed(2)}s [trim=${trimStart.toFixed(2)}+offset=${clipOffset.toFixed(2)}+fineTune=${extraOffset.toFixed(2)}]...`);
+      const fb = await normalizeMultiClipWithFallback(c.localPath, np, effectiveTrim, timelineDur, c.duration);
+      if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
+        throw new Error(`Scene ${c.sceneNumber} (lip sync) failed to normalize. stderr: ${fb.stderrTail.slice(0, 200)}`);
+      }
+      logStep?.(`scene ${c.sceneNumber} (lip sync): normalized OK via ${fb.method}`);
+    } else if (existsSync(np) && statSync(np).size >= 1024) {
+      logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip`);
+    } else {
+      logStep?.(`scene ${c.sceneNumber}: normalizing (effectiveTrim=${effectiveTrim.toFixed(2)}s)...`);
+      const fb = await normalizeMultiClipWithFallback(c.localPath, np, effectiveTrim, timelineDur, c.duration);
+      if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
+        throw new Error(`Scene ${c.sceneNumber} failed to normalize. stderr: ${fb.stderrTail.slice(0, 200)}`);
+      }
+      logStep?.(`scene ${c.sceneNumber}: normalized OK`);
+    }
+
+    normPaths.push(np);
+    offsetInfo.push({
+      sceneNumber: c.sceneNumber,
+      sceneTitle: c.sceneTitle,
+      masterOffsetSec: clipOffset,
+      fineTuneOffsetSec: extraOffset,
+      totalOffsetSec: clipOffset + extraOffset,
+      offsetApplied: isLipSync || effectiveTrim > 0.01,
+    });
+    accumulated += clipDur;
+    if (accumulated >= maxDurationSec) break;
+  }
+  return { normPaths, offsetInfo };
+}
+
+/** Normalize all clips in scene order applying master player trims and lip sync offsets.
+ *  Uses each clip's trimStartSec + clipVideoOffsetSec + timelineDuration so the export
+ *  matches the master player exactly.
  *  Always re-normalizes (never reuses cached files) so full exports are always fresh.
  *  Uses the fallback (still-frame) path when tpad produces empty output. */
 async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]> {
   const normPaths: string[] = [];
   for (const c of session.clips) {
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
-    const trimStart   = c.trimStartSec  ?? 0;
-    const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
-    const fb = await normalizeMultiClipWithFallback(c.localPath, np, trimStart, timelineDur, c.duration);
+    const trimStart      = c.trimStartSec       ?? 0;
+    const clipOffset     = c.clipVideoOffsetSec  ?? 0;
+    const effectiveTrim  = trimStart + clipOffset;
+    const timelineDur    = c.timelineDuration > 0 ? c.timelineDuration : null;
+    const fb = await normalizeMultiClipWithFallback(c.localPath, np, effectiveTrim, timelineDur, c.duration);
     if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
       throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty. stderr: ${fb.stderrTail.slice(0, 200)}`);
     }
@@ -1360,6 +1436,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         /** Explicit master player clip duration from scene timestamps.
          *  When > 0, overrides the computed raw - trimStart - trimEnd. */
         masterDuration?: number;
+        /** Lip sync video offset (master player lipSyncOffsetSeconds).
+         *  Stored in the session clip so normalization can apply it as additional seek. */
+        clipVideoOffsetSec?: number;
       }>;
     };
     if (!Array.isArray(clips) || clips.length === 0) {
@@ -1381,9 +1460,10 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
     for (let idx = 0; idx < orderedClips.length; idx++) {
       const c = orderedClips[idx]!;
       const sceneNumber = c.sceneNumber ?? idx + 1;
-      const trimStart     = Math.max(0, c.trimStart ?? 0);
-      const trimEnd       = Math.max(0, c.trimEnd   ?? 0);
-      const masterDuration = Math.max(0, c.masterDuration ?? 0);
+      const trimStart         = Math.max(0, c.trimStart         ?? 0);
+      const trimEnd           = Math.max(0, c.trimEnd           ?? 0);
+      const masterDuration    = Math.max(0, c.masterDuration    ?? 0);
+      const clipVideoOffsetSec = Math.max(0, c.clipVideoOffsetSec ?? 0);
       const entry: DoctorClipFile = {
         sceneNumber,
         sceneTitle: c.title ?? `Scene ${sceneNumber}`,
@@ -1397,6 +1477,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         masterDuration,
         timelineDuration: 0, // filled after ffprobe
         rawShorterThanMaster: false, // filled after ffprobe
+        clipVideoOffsetSec,
         width: 0,
         height: 0,
         codec: "",
@@ -2152,12 +2233,16 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
   const routeStart = Date.now();
   let lastStep = "received request";
   try {
-    const { multiId, audioUrl, audioStartSec, syncMode, durationSec } = req.body as {
+    const { multiId, audioUrl, audioStartSec, syncMode, durationSec, lipSyncFineTuneSec } = req.body as {
       multiId?: string;
       audioUrl?: string;
       audioStartSec?: number;
       syncMode?: string;
       durationSec?: number;
+      /** Extra fine-tune offset applied on top of each clip's saved clipVideoOffsetSec.
+       *  Positive = delay mouth further; negative = advance mouth.
+       *  When non-zero, uses normalizeClipsForDurationLipSyncTest (separate file paths). */
+      lipSyncFineTuneSec?: number;
     };
 
     req.log.info({ multiId, clipCount: undefined, audioUrl: audioUrl?.slice(0, 80) }, "EXPORT SHORT TEST: request received");
@@ -2250,21 +2335,53 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
     );
 
     // ── Step: normalize only the clips needed to fill testDuration ───────────
-    // We need enough clips to cover testDuration. Use 2× buffer so the concat
-    // trim has something to trim from (needed for short clips where one clip
-    // barely covers the test window).
+    // Only normalize clips that actually overlap the first testDuration seconds.
+    // Using testDuration (not testDuration * 2) prevents normalizing Scene 12
+    // (which starts at ~24s) for a 20-second test — avoiding failures on short clips
+    // that are outside the test window.
+    //
+    // When lipSyncFineTuneSec != 0, use the dedicated lip-sync-test normalizer which:
+    //   • uses separate file paths (norm-scene-{N}-lipsync.mp4) for lip-sync clips
+    //   • always re-normalizes lip-sync clips (no stale cache reuse)
+    //   • applies clipVideoOffsetSec + lipSyncFineTuneSec as the effective seek position
+    // When lipSyncFineTuneSec == 0, use the standard normalizer (applies clipVideoOffsetSec
+    // automatically and reuses cached files for speed).
     lastStep = "normalizing clips";
+    const safeFineTune = typeof lipSyncFineTuneSec === "number" && isFinite(lipSyncFineTuneSec)
+      ? lipSyncFineTuneSec
+      : 0;
+    const useLipSyncTestPath = safeFineTune !== 0;
+
     let normPaths: string[];
+    let lipSyncOffsetInfo: Array<{ sceneNumber: number; sceneTitle: string; masterOffsetSec: number; fineTuneOffsetSec: number; totalOffsetSec: number; offsetApplied: boolean }> = [];
+
     try {
-      // Only normalize clips that actually overlap the first testDuration seconds.
-      // Using testDuration (not testDuration * 2) prevents normalizing Scene 12
-      // (which starts at ~24s) for a 20-second test — avoiding failures on short clips
-      // that are outside the test window.
-      normPaths = await normalizeClipsForDuration(
-        session,
-        testDuration,
-        (msg) => req.log.info({ multiId }, `EXPORT SHORT TEST normalize: ${msg}`),
-      );
+      if (useLipSyncTestPath) {
+        const result = await normalizeClipsForDurationLipSyncTest(
+          session,
+          testDuration,
+          safeFineTune,
+          (msg) => req.log.info({ multiId }, `EXPORT SHORT TEST (lip sync) normalize: ${msg}`),
+        );
+        normPaths = result.normPaths;
+        lipSyncOffsetInfo = result.offsetInfo;
+        req.log.info({ multiId, fineTune: safeFineTune, lipSyncClips: lipSyncOffsetInfo.filter(c => c.masterOffsetSec > 0).length }, "EXPORT SHORT TEST: lip sync normalize done");
+      } else {
+        normPaths = await normalizeClipsForDuration(
+          session,
+          testDuration,
+          (msg) => req.log.info({ multiId }, `EXPORT SHORT TEST normalize: ${msg}`),
+        );
+        // Build offset info for the standard path too (so the response always has it)
+        lipSyncOffsetInfo = session.clips.slice(0, normPaths.length).map(c => ({
+          sceneNumber: c.sceneNumber,
+          sceneTitle: c.sceneTitle,
+          masterOffsetSec: c.clipVideoOffsetSec ?? 0,
+          fineTuneOffsetSec: 0,
+          totalOffsetSec: c.clipVideoOffsetSec ?? 0,
+          offsetApplied: (c.clipVideoOffsetSec ?? 0) > 0.01,
+        }));
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       req.log.error({ err: e, multiId, lastStep }, "EXPORT SHORT TEST: normalization failed");
@@ -2322,6 +2439,11 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
     const signedUrl = await signGetUrl(bucketId, objectName);
     req.log.info({ multiId, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: done");
 
+    // Build lipSyncOffsetSummary for response — highlights scenes with active offsets
+    const scenesWithOffset = lipSyncOffsetInfo.filter(c => c.masterOffsetSec > 0 || c.fineTuneOffsetSec !== 0);
+    const masterOffsetApplied = lipSyncOffsetInfo.some(c => c.masterOffsetSec > 0.01);
+    const fineTuneApplied     = safeFineTune !== 0;
+
     res.json({
       success: true,
       url: signedUrl,
@@ -2340,6 +2462,14 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
       clipTimeline,
       elapsedMs: Date.now() - routeStart,
       lastStep: "done",
+      // Lip sync offset info
+      lipSyncOffsetInfo: {
+        masterOffsetApplied,
+        fineTuneApplied,
+        fineTuneSec: safeFineTune,
+        scenesWithOffset,
+        allScenes: lipSyncOffsetInfo,
+      },
     });
   } catch (e) {
     req.log.error({ err: e, lastStep, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: unexpected error");

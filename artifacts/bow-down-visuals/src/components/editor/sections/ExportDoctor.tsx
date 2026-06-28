@@ -284,6 +284,23 @@ type AudioSyncClipRow = {
   lipSyncOffsetSec?: number;
 };
 
+type LipSyncOffsetScene = {
+  sceneNumber: number;
+  sceneTitle: string;
+  masterOffsetSec: number;
+  fineTuneOffsetSec: number;
+  totalOffsetSec: number;
+  offsetApplied: boolean;
+};
+
+type LipSyncOffsetInfo = {
+  masterOffsetApplied: boolean;
+  fineTuneApplied: boolean;
+  fineTuneSec: number;
+  scenesWithOffset: LipSyncOffsetScene[];
+  allScenes: LipSyncOffsetScene[];
+};
+
 type AudioSyncDiagResult = {
   success?: boolean;
   url?: string;
@@ -311,6 +328,8 @@ type AudioSyncDiagResult = {
   finalSyncExpected?: boolean;
   // Per-clip map
   clipTimeline?: AudioSyncClipRow[];
+  // Lip sync offset info (from export-audio-sync-short)
+  lipSyncOffsetInfo?: LipSyncOffsetInfo;
   error?: string;
   stderrTail?: string[];
 };
@@ -379,7 +398,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview" | `repair-${number}` | `repair-normalize-${number}`
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-audio-sync-short-lipsync" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview" | `repair-${number}` | `repair-normalize-${number}`
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -421,6 +440,11 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [audioSyncDiagResult, setAudioSyncDiagResult] = useState<AudioSyncDiagResult | null>(null);
   /** Result of the First 20 Seconds Audio Sync Short Test. */
   const [audioSyncShortResult, setAudioSyncShortResult] = useState<AudioSyncDiagResult | null>(null);
+  /** Result of the Lip Sync Offset Test (Export First 20s Lip Sync Offset Test button). */
+  const [audioSyncShortLipSyncResult, setAudioSyncShortLipSyncResult] = useState<AudioSyncDiagResult | null>(null);
+  /** Export-only fine-tune offset added on top of the saved master player lip sync offset.
+   *  Positive = delay mouth further (mouth too early); negative = advance mouth (mouth too late). */
+  const [exportLipSyncFineTune, setExportLipSyncFineTune] = useState(0);
   /** Live step label shown while the short test is running. */
   const [shortTestStep, setShortTestStep] = useState<string | null>(null);
   /** When the short test started (for elapsed time display). */
@@ -510,6 +534,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       /** Explicit master player clip duration from scene timestamps.
        *  Server uses this as the authoritative timeline duration for FFmpeg -t. */
       masterDuration: masterDurations[i] ?? 0,
+      /** Lip sync video offset from master player (lipSyncOffsetSeconds).
+       *  Server applies this as extra seek on top of trimStart during normalization,
+       *  matching the master player which seeks video.currentTime = offset. */
+      clipVideoOffsetSec: useLipSyncUrl ? (ce?.lipSyncOffsetSeconds ?? 0) : 0,
       _lipSyncActive: useLipSyncUrl,
       _originalSceneNum: s.sceneNumber ?? i + 1,  // kept only for display / debug
     };
@@ -869,7 +897,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       audioReady: !!(masterAudioUrl && !masterAudioIsLipSync),
       lastStep: "preparing clips",
     });
-    setBusy("export-audio-sync-short"); setLastError(null); setAudioSyncShortResult(null);
+    setBusy("export-audio-sync-short"); setLastError(null); setAudioSyncShortResult(null); setAudioSyncShortLipSyncResult(null);
 
     // 2-minute client timeout — must not spin forever
     const CLIENT_TIMEOUT_MS = 2 * 60 * 1000;
@@ -922,6 +950,54 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     } finally {
       setBusy(null);
       setShortTestStartedAt(null);
+    }
+  }
+
+  /** Export the first 20s applying lip sync offsets + optional fine-tune delta.
+   *  Uses normalizeClipsForDurationLipSyncTest on the server so lip-sync clips are
+   *  always freshly re-normalized with effectiveTrim = masterOffset + fineTune. */
+  async function exportAudioSyncShortLipSync() {
+    if (!multiId) return;
+    setBusy("export-audio-sync-short-lipsync");
+    setLastError(null);
+    setAudioSyncShortLipSyncResult(null);
+
+    const CLIENT_TIMEOUT_MS = 2 * 60 * 1000;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(new Error("Lip sync offset test timed out after 2 minutes.")), CLIENT_TIMEOUT_MS);
+
+      let res: Response;
+      try {
+        res = await fetch("/api/export-doctor/export-audio-sync-short", {
+          method: "POST", headers: await authHeaders(),
+          body: JSON.stringify({
+            multiId,
+            audioUrl: masterAudioUrl ?? null,
+            audioStartSec: 0,
+            syncMode: syncMode ?? "keep-as-is",
+            durationSec: 20,
+            lipSyncFineTuneSec: exportLipSyncFineTune,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      const data = await readJson<AudioSyncDiagResult & { lastStep?: string; elapsedMs?: number }>(res);
+
+      if (!res.ok) {
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+
+      setAudioSyncShortLipSyncResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -2465,6 +2541,152 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 Export First 20s + Audio Test
               </Button>
             </div>
+              );
+            })()}
+
+            {/* ── Lip Sync Export Offset Check ── */}
+            {(() => {
+              // Show if any clip has a lip sync offset saved
+              const lipSyncClips = multiClips.filter(c => (c.clipVideoOffsetSec ?? 0) > 0.005);
+              const hasSavedOffsets = lipSyncClips.length > 0;
+              if (!hasSavedOffsets && !audioSyncShortLipSyncResult) return null;
+              const totalOffset = (n: number) => Math.round(n * 100) / 100; // round to 2dp
+              return (
+                <div className="rounded-xl border border-violet-500/25 bg-violet-500/[0.04] px-3 py-3 space-y-2.5">
+                  <p className="text-[10px] font-black text-violet-300/70 uppercase tracking-widest">
+                    Lip Sync Export Offset Check
+                  </p>
+
+                  {/* Saved offset summary */}
+                  {hasSavedOffsets && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] text-white/40">
+                        {lipSyncClips.length} lip sync {lipSyncClips.length === 1 ? "clip has" : "clips have"} a saved master offset.
+                        These will be applied automatically in all exports.
+                      </p>
+                      <div className="divide-y divide-white/[0.04] max-h-36 overflow-y-auto rounded-lg border border-white/[0.06]">
+                        {lipSyncClips.map(c => (
+                          <div key={c.sceneNumber} className="grid grid-cols-[1fr_5rem_5rem_5rem] gap-1 px-2 py-1.5 text-[9px] font-mono">
+                            <span className="text-white/50 truncate">{c.title}</span>
+                            <span className="text-right text-violet-300/70">
+                              master: +{(c.clipVideoOffsetSec ?? 0).toFixed(2)}s
+                            </span>
+                            <span className="text-right text-amber-300/70">
+                              fine: {exportLipSyncFineTune >= 0 ? "+" : ""}{exportLipSyncFineTune.toFixed(2)}s
+                            </span>
+                            <span className="text-right text-white/70 font-bold">
+                              total: +{totalOffset((c.clipVideoOffsetSec ?? 0) + exportLipSyncFineTune).toFixed(2)}s
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fine-tune controls */}
+                  <div className="space-y-1.5">
+                    <p className="text-[9px] text-white/40 uppercase tracking-wider font-bold">
+                      Export Fine-Tune
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.03] px-1 py-0.5">
+                        <button
+                          onClick={() => setExportLipSyncFineTune(v => Math.round((v - 0.10) * 100) / 100)}
+                          disabled={busy !== null}
+                          className="px-2 py-1 text-[10px] font-mono font-bold text-amber-300 hover:bg-white/[0.06] rounded disabled:opacity-30 transition-colors">
+                          −0.10s
+                        </button>
+                        <span className="px-2 text-[11px] font-mono font-bold text-white/80 min-w-[4rem] text-center">
+                          {exportLipSyncFineTune >= 0 ? "+" : ""}{exportLipSyncFineTune.toFixed(2)}s
+                        </span>
+                        <button
+                          onClick={() => setExportLipSyncFineTune(v => Math.round((v + 0.10) * 100) / 100)}
+                          disabled={busy !== null}
+                          className="px-2 py-1 text-[10px] font-mono font-bold text-violet-300 hover:bg-white/[0.06] rounded disabled:opacity-30 transition-colors">
+                          +0.10s
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => setExportLipSyncFineTune(0)}
+                        disabled={busy !== null || exportLipSyncFineTune === 0}
+                        className="px-2.5 py-1 text-[9px] font-mono text-white/30 hover:text-white/60 hover:bg-white/[0.04] rounded disabled:opacity-20 transition-colors border border-white/[0.08]">
+                        Reset
+                      </button>
+                      <span className="text-[9px] text-white/25 italic">
+                        positive = delay mouth further · negative = advance mouth
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lip Sync Offset Test button */}
+                  <Button
+                    onClick={exportAudioSyncShortLipSync}
+                    disabled={busy !== null || !allClipsValid || !masterAudioUrl || masterAudioIsLipSync || !hasSavedOffsets}
+                    variant="outline"
+                    className="w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] text-violet-300 hover:bg-violet-500/[0.10] text-xs disabled:opacity-40">
+                    {busy === "export-audio-sync-short-lipsync"
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Film className="h-3.5 w-3.5" />}
+                    Export First 20s · Lip Sync Offset Test
+                  </Button>
+
+                  {/* Running indicator */}
+                  {busy === "export-audio-sync-short-lipsync" && (
+                    <div className="flex items-center gap-2 text-[10px] text-violet-300/60">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Normalizing lip sync clips with offset — this may take 30–90s…
+                    </div>
+                  )}
+
+                  {/* Result panel */}
+                  {audioSyncShortLipSyncResult && (
+                    <div className="space-y-2 pt-1 border-t border-white/[0.06]">
+                      {audioSyncShortLipSyncResult.error ? (
+                        <p className="text-[10px] font-mono text-red-400">{audioSyncShortLipSyncResult.error}</p>
+                      ) : (
+                        <>
+                          {audioSyncShortLipSyncResult.url && (
+                            <a
+                              href={audioSyncShortLipSyncResult.url}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-[10px] text-violet-300 hover:text-violet-200 underline underline-offset-2">
+                              <Film className="h-3 w-3" />
+                              Download Lip Sync Offset Test Video
+                            </a>
+                          )}
+                          {/* Per-scene offset summary from server */}
+                          {audioSyncShortLipSyncResult.lipSyncOffsetInfo && (
+                            <div className="space-y-1">
+                              <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">
+                                Applied Offsets
+                              </p>
+                              {audioSyncShortLipSyncResult.lipSyncOffsetInfo.scenesWithOffset.length === 0 ? (
+                                <p className="text-[9px] text-white/30">No lip sync clips in the first 20s.</p>
+                              ) : (
+                                <div className="divide-y divide-white/[0.04] rounded-lg border border-white/[0.06]">
+                                  {audioSyncShortLipSyncResult.lipSyncOffsetInfo.scenesWithOffset.map(s => (
+                                    <div key={s.sceneNumber} className="grid grid-cols-[1fr_4rem_4rem_4rem] gap-1 px-2 py-1.5 text-[9px] font-mono">
+                                      <span className="text-white/50 truncate">{s.sceneTitle}</span>
+                                      <span className="text-right text-violet-300/70">+{s.masterOffsetSec.toFixed(2)}s</span>
+                                      <span className="text-right text-amber-300/70">{s.fineTuneOffsetSec >= 0 ? "+" : ""}{s.fineTuneOffsetSec.toFixed(2)}s</span>
+                                      <span className="text-right text-green-300 font-bold">={s.totalOffsetSec.toFixed(2)}s</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <p className="text-[9px] text-white/25 pt-0.5">
+                                Master offset: {audioSyncShortLipSyncResult.lipSyncOffsetInfo.masterOffsetApplied ? "✓ applied" : "none"} ·
+                                Fine tune: {audioSyncShortLipSyncResult.lipSyncOffsetInfo.fineTuneApplied
+                                  ? `${audioSyncShortLipSyncResult.lipSyncOffsetInfo.fineTuneSec >= 0 ? "+" : ""}${audioSyncShortLipSyncResult.lipSyncOffsetInfo.fineTuneSec.toFixed(2)}s applied`
+                                  : "none (0.00s)"}
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               );
             })()}
 
