@@ -198,6 +198,30 @@ type DownloadAllResult = {
   clips: MultiClipRow[];
 };
 
+type ClipUrlCheckRow = {
+  sceneNumber: number;
+  title: string;
+  sourceType: string;
+  url: string;
+  host: string;
+  reachable: boolean;
+  httpStatus: number;
+  contentType: string;
+  isVideoContentType: boolean;
+  allowedByStaticList: boolean;
+  allowedByPublicHttps: boolean;
+  allowed: boolean;
+  error: string | null;
+};
+
+type UrlDoctorResult = {
+  clips: ClipUrlCheckRow[];
+  total: number;
+  passCount: number;
+  failCount: number;
+  allAllowed: boolean;
+};
+
 async function readJson<T>(res: Response): Promise<T> {
   const ct = res.headers.get("content-type") ?? "";
   const text = await res.text();
@@ -234,7 +258,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -266,6 +290,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [lipSyncButtonClicked, setLipSyncButtonClicked] = useState(false);
   /** True after the download route is called — shows "export route called: yes". */
   const [lipSyncDownloadCalled, setLipSyncDownloadCalled] = useState(false);
+  /** Result of the lightweight Check All Clip URLs (HEAD-only) doctor pass. */
+  const [urlDoctorResult, setUrlDoctorResult] = useState<UrlDoctorResult | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -287,6 +313,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         ? `Scene ${i + 1} · ${s.section}`
         : `Scene ${i + 1}`,
       url: exportUrl,
+      sourceType: useLipSyncUrl ? "lip-sync" : "original",
       _lipSyncActive: useLipSyncUrl,
       _originalSceneNum: s.sceneNumber ?? i + 1,  // kept only for display / debug
     };
@@ -370,6 +397,26 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setAudioExportResult(data);
       if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function checkAllClipUrls() {
+    setBusy("check-all-urls");
+    setUrlDoctorResult(null);
+    setLastError(null);
+    try {
+      const res = await fetch("/api/export-doctor/check-clip-urls", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ clips: multiClips }),
+        signal: AbortSignal.timeout(2 * 60 * 1000),
+      });
+      const data = await readJson<UrlDoctorResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setUrlDoctorResult(data);
+      const firstFail = data.clips.find(c => !c.allowed);
+      if (firstFail) setLastError(`Scene ${firstFail.sceneNumber}: ${firstFail.error ?? "URL not allowed"}`);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
     } finally { setBusy(null); }
@@ -1369,14 +1416,106 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
             </div>
           </div>
 
+          {/* ── URL Doctor ── */}
+          {(() => {
+            const udPassed = urlDoctorResult?.allAllowed === true;
+            const udRan    = urlDoctorResult !== null;
+            return (
+              <div className="mb-3 space-y-2">
+                {/* Check All Clip URLs button */}
+                <Button
+                  onClick={checkAllClipUrls}
+                  disabled={busy !== null || multiClipsWithUrl.length === 0}
+                  variant="outline"
+                  className="w-full gap-2 border-cyan-500/30 bg-cyan-500/[0.04] text-cyan-300 hover:bg-cyan-500/[0.10] text-xs"
+                  data-testid="btn-doctor-check-clip-urls"
+                >
+                  {busy === "check-all-urls"
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking URLs…</>
+                    : <><Stethoscope className="h-3.5 w-3.5" /> Check All {multiClips.length} Clip URLs</>}
+                </Button>
+
+                {/* Summary badge */}
+                {udRan && (
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-semibold ${
+                    udPassed
+                      ? "border-green-500/30 bg-green-500/[0.06] text-green-400"
+                      : "border-red-500/30 bg-red-500/[0.06] text-red-400"
+                  }`}>
+                    <span>{udPassed ? "✓" : "✗"}</span>
+                    {udPassed
+                      ? `All ${urlDoctorResult!.total} URLs passed — ready to Download All.`
+                      : `${urlDoctorResult!.failCount} of ${urlDoctorResult!.total} URLs failed — fix before downloading.`}
+                  </div>
+                )}
+
+                {/* Per-clip URL Doctor table */}
+                {udRan && urlDoctorResult!.clips.length > 0 && (
+                  <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+                    <div className="px-3 py-2 bg-white/[0.03] border-b border-white/[0.06]">
+                      <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+                        All Clip URL Doctor — {urlDoctorResult!.passCount}/{urlDoctorResult!.total} passed
+                      </p>
+                    </div>
+                    <div className="divide-y divide-white/[0.04]">
+                      {urlDoctorResult!.clips.map((c) => (
+                        <div key={c.sceneNumber} className={`px-3 py-2 space-y-0.5 ${c.allowed ? "" : "bg-red-500/[0.04]"}`}>
+                          {/* Row 1: scene + source badge */}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold text-white/70">
+                              Scene {c.sceneNumber}
+                              {c.title && c.title !== `Scene ${c.sceneNumber}` ? ` — ${c.title.replace(/^Scene \d+ · /, "")}` : ""}
+                            </span>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                              c.sourceType === "lip-sync"
+                                ? "bg-primary/15 text-primary"
+                                : "bg-white/[0.06] text-white/40"
+                            }`}>
+                              {c.sourceType === "lip-sync" ? "lip sync" : "original"}
+                            </span>
+                          </div>
+                          {/* Row 2: host + status columns */}
+                          <div className="grid grid-cols-2 gap-x-2 text-[9px] font-mono">
+                            <span className="text-white/35 truncate">host: {c.host || "—"}</span>
+                            <span className={`font-bold ${c.reachable ? "text-green-400" : c.error ? "text-red-400" : "text-white/30"}`}>
+                              {c.reachable ? `✓ HTTP ${c.httpStatus}` : c.error ? `✗ ${c.error.slice(0, 40)}` : "—"}
+                            </span>
+                            <span className="text-white/35 truncate">
+                              type: {c.contentType ? c.contentType.split(";")[0]!.slice(0, 24) : "—"}
+                            </span>
+                            <span className={`font-bold ${c.allowed ? "text-green-400" : "text-red-400"}`}>
+                              {c.allowed ? "allowed ✓" : "blocked ✗"}
+                            </span>
+                          </div>
+                          {/* Error line */}
+                          {c.error && !c.reachable && (
+                            <p className="text-[9px] text-red-400/70 leading-snug break-words">{c.error}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Multi-clip action buttons ── */}
           <div className="grid grid-cols-1 gap-2 mb-3">
-            <Button onClick={downloadAllClips} disabled={busy !== null || multiClipsWithUrl.length === 0} variant="outline"
-              className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs"
+            {/* Download All — gated on URL Doctor passing */}
+            <Button onClick={downloadAllClips}
+              disabled={busy !== null || multiClipsWithUrl.length === 0 || urlDoctorResult?.allAllowed === false}
+              variant="outline"
+              className="gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs disabled:opacity-40"
               data-testid="btn-doctor-download-all">
               {busy === "download-all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               Download All {multiClips.length} Clips
             </Button>
+            {urlDoctorResult?.allAllowed === false && (
+              <p className="text-center text-[10px] text-red-400/70 -mt-1">
+                Fix failing URLs above before downloading.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Button onClick={exportAllClips} disabled={busy !== null || !allClipsValid} variant="outline"
                 className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"

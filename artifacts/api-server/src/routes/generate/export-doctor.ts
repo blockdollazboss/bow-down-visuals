@@ -43,6 +43,27 @@ function isAllowedClipUrl(url: string): boolean {
   return u.hostname.endsWith(".cloudfront.net") || u.hostname.endsWith(".runwayml.com");
 }
 
+/** Broader SSRF guard: permits any public HTTPS URL while blocking private/reserved
+ *  IP ranges and well-known cloud metadata endpoints.
+ *  Use as a fallback when isAllowedClipUrl() rejects an unfamiliar CDN host. */
+function isPublicHttpsUrl(url: string): boolean {
+  let u: URL;
+  try { u = new URL(url); } catch { return false; }
+  if (u.protocol !== "https:") return false;
+  const h = u.hostname;
+  // Loopback / localhost
+  if (h === "localhost" || h === "::1" || h === "[::1]") return false;
+  if (/^127\./.test(h)) return false;
+  // RFC-1918 private ranges
+  if (/^10\./.test(h)) return false;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
+  if (/^192\.168\./.test(h)) return false;
+  // Link-local / cloud metadata
+  if (/^169\.254\./.test(h)) return false;
+  if (h === "metadata.google.internal" || h === "metadata.azure.com") return false;
+  return true;
+}
+
 /** SSRF guard for audio: Supabase storage (shared stem guard) or Replit object
  *  storage. Does not modify the shared isAllowedStemUrl used by the real export. */
 function isAllowedAudioUrl(url: string): boolean {
@@ -1064,6 +1085,91 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
 });
 
 /* ── TEST 5: download ALL clips (every scene with a demoClipUrl) ── */
+/* ══════════════════════════════════════════════════════════════════════════
+   URL DOCTOR — lightweight HEAD-check for every timeline clip.
+   No full download; returns per-clip reachability + content-type.
+   Safe to call repeatedly without consuming server storage.
+══════════════════════════════════════════════════════════════════════════ */
+router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
+  try {
+    const { clips } = req.body as {
+      clips?: Array<{
+        sceneNumber?: number;
+        title?: string;
+        url?: string | null;
+        sourceType?: string;
+      }>;
+    };
+    if (!Array.isArray(clips) || clips.length === 0) {
+      res.status(400).json({ error: "No clips provided." });
+      return;
+    }
+
+    const results = await Promise.all(clips.map(async (c, i) => {
+      const sceneNumber = c.sceneNumber ?? i + 1;
+      const url = c.url ?? "";
+      const entry = {
+        sceneNumber,
+        title:              c.title ?? `Scene ${sceneNumber}`,
+        sourceType:         c.sourceType ?? "original",
+        url:                url.slice(0, 140),
+        host:               "",
+        reachable:          false,
+        httpStatus:         0,
+        contentType:        "",
+        isVideoContentType: false,
+        allowedByStaticList: false,
+        allowedByPublicHttps: false,
+        allowed:            false,
+        error:              null as string | null,
+      };
+
+      if (!url) { entry.error = "no URL"; return entry; }
+
+      let u: URL;
+      try { u = new URL(url); } catch { entry.error = "invalid URL"; return entry; }
+      entry.host = u.host;
+      entry.allowedByStaticList  = isAllowedClipUrl(url);
+      entry.allowedByPublicHttps = isPublicHttpsUrl(url);
+
+      // Must be at least a public HTTPS URL to proceed
+      if (!entry.allowedByPublicHttps) {
+        entry.error = "URL is not a public HTTPS source (private IP or non-HTTPS)";
+        return entry;
+      }
+
+      try {
+        const r = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(20_000) });
+        entry.httpStatus  = r.status;
+        entry.reachable   = r.ok;
+        entry.contentType = r.headers.get("content-type") ?? "";
+        const ct = entry.contentType.toLowerCase();
+        entry.isVideoContentType =
+          ct.startsWith("video/") ||
+          ct.startsWith("application/octet-stream") ||
+          ct.startsWith("binary/octet-stream") ||
+          ct === "";                                       // CDNs often omit content-type on HEAD
+        entry.allowed = entry.reachable && (entry.allowedByStaticList || entry.allowedByPublicHttps);
+        if (!r.ok) entry.error = `HTTP ${r.status}`;
+      } catch (e) {
+        entry.error = e instanceof Error ? e.message : String(e);
+      }
+
+      return entry;
+    }));
+
+    const total      = results.length;
+    const passCount  = results.filter(r => r.allowed).length;
+    const failCount  = total - passCount;
+    const allAllowed = failCount === 0 && total > 0;
+
+    res.json({ clips: results, total, passCount, failCount, allAllowed });
+  } catch (e) {
+    req.log.error({ err: e }, "EXPORT DOCTOR check-clip-urls error");
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
 router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
   try {
     const { projectId, clips } = req.body as {
@@ -1108,8 +1214,8 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
       try {
         const url = c.url;
         if (!url || !url.startsWith("http")) throw new Error("no demoClipUrl / master player source found for this scene");
-        if (!isAllowedClipUrl(url)) {
-          throw new Error("URL host is not an allowed media source (Supabase storage, Runway CDN, or Replit object storage over HTTPS)");
+        if (!isAllowedClipUrl(url) && !isPublicHttpsUrl(url)) {
+          throw new Error("URL is not a valid public HTTPS source (must use HTTPS from a public host — not a private IP or metadata endpoint)");
         }
 
         let target = url;
