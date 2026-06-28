@@ -316,6 +316,7 @@ export function LipSyncSection({
   /* ── Auto AI Lip Sync workflow state ── */
   const [autoAiMessage, setAutoAiMessage] = useState<string | null>(null);
   const [autoAiOk,      setAutoAiOk]      = useState<boolean | null>(null);
+  const fineTuneRef = useRef<HTMLDivElement | null>(null);
 
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1820,47 +1821,126 @@ export function LipSyncSection({
                   )}
 
                   {/* Completed result exists — do not resubmit */}
-                  {hasCompletedResult && (
-                    <div className="rounded-xl border border-green-500/30 bg-green-500/[0.05] px-3 py-3 space-y-2.5">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                        <p className="text-[12px] font-bold text-green-300">Completed lip sync result already found.</p>
+                  {hasCompletedResult && (() => {
+                    /* Derive button capabilities without requiring lipSyncJobId
+                       (jobId is cleared to null when applyToSelected() completes) */
+                    const resultUrl    = ce?.lipSyncUrl ?? null;
+                    const canPreview   = !!resultUrl;
+                    const canSave      = !!selectedScene && !!resultUrl;
+                    const canUse       = !!selectedScene && !!resultUrl;
+                    const disabledReason =
+                      !selectedScene ? "no scene selected"
+                      : !resultUrl   ? "result URL missing"
+                      : null;
+
+                    /* Inline save — does not require a jobId */
+                    function attachResult(withPlayer: boolean) {
+                      if (!selectedScene || !resultUrl) return;
+                      updateClipEdit(selectedScene.id, {
+                        lipSyncUrl:            resultUrl,
+                        lipSyncStatus:         "done",
+                        lipSyncProvider:       ce?.lipSyncProvider ?? "sync.so",
+                        lipSyncCreatedAt:      ce?.lipSyncCreatedAt ?? new Date().toISOString(),
+                        lipSyncError:          null,
+                        lipSyncTimingMismatch: false,
+                        useLipSync:            true,
+                        ...(withPlayer ? { replaceUrl: resultUrl } : {}),
+                      });
+                      setApplyError(null);
+                    }
+
+                    return (
+                      <div className="rounded-xl border border-green-500/30 bg-green-500/[0.05] px-3 py-3 space-y-2.5">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                          <p className="text-[12px] font-bold text-green-300">Completed lip sync result already found.</p>
+                        </div>
+                        <p className="text-[10px] text-green-400/70 leading-snug">
+                          Do not resubmit. Use the actions below, or scroll to Apply Lip Sync to submit a corrected job if needed.
+                        </p>
+
+                        {/* Action buttons */}
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Preview */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              disabled={!canPreview}
+                              onClick={() => resultUrl && setPreviewModalUrl(resultUrl)}
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Play className="h-3 w-3" /> Preview Result
+                            </button>
+                            {!canPreview && <p className="text-[9px] text-red-400/70 text-center">result URL missing</p>}
+                          </div>
+
+                          {/* Use in Player */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              disabled={!canUse}
+                              onClick={() => attachResult(true)}
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <CheckCircle2 className="h-3 w-3" /> Use in Player
+                            </button>
+                            {!canUse && <p className="text-[9px] text-red-400/70 text-center">{disabledReason}</p>}
+                          </div>
+
+                          {/* Save to Scene */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              disabled={!canSave}
+                              onClick={() => attachResult(false)}
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Save className="h-3 w-3" /> Save to Scene
+                            </button>
+                            {!canSave && <p className="text-[9px] text-red-400/70 text-center">{disabledReason}</p>}
+                          </div>
+
+                          {/* Adjust Timing */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => fineTuneRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                              className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
+                            >
+                              <Sliders className="h-3 w-3" /> Adjust Timing ↓
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Force Attach */}
+                        <button
+                          type="button"
+                          disabled={!canUse}
+                          onClick={() => attachResult(true)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/50 bg-primary/[0.10] text-primary text-[11px] font-bold hover:bg-primary/[0.18] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Force Attach Completed Result
+                        </button>
+                        {!canUse && (
+                          <p className="text-[9px] text-red-400/70 text-center -mt-1">{disabledReason}</p>
+                        )}
+
+                        {/* Debug panel */}
+                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 space-y-1">
+                          <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">
+                            Completed Result Button Debug
+                          </p>
+                          <StatusRow label="selected scene"      value={selectedScene ? `yes — Scene ${selectedScene.sceneNumber}` : "no"} ok={!!selectedScene} />
+                          <StatusRow label="result URL available" value={resultUrl ? "yes ✓" : "no — URL is null"} ok={!!resultUrl} />
+                          <StatusRow label="job completed"        value={ce?.lipSyncStatus === "done" ? "yes ✓" : `no — status: ${ce?.lipSyncStatus ?? "none"}`} ok={ce?.lipSyncStatus === "done"} />
+                          <StatusRow label="save button enabled"  value={canSave ? "yes" : `no — ${disabledReason}`} ok={canSave} />
+                          <StatusRow label="use in player enabled" value={canUse ? "yes" : `no — ${disabledReason}`} ok={canUse} />
+                          <StatusRow label="disabled reason"      value={disabledReason ?? "none — all enabled ✓"} ok={!disabledReason} />
+                        </div>
                       </div>
-                      <p className="text-[10px] text-green-400/70 leading-snug">
-                        Do not resubmit. Use the actions below, or scroll to Apply Lip Sync to submit a corrected job if needed.
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => ce?.lipSyncUrl && setPreviewModalUrl(ce.lipSyncUrl)}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
-                        >
-                          <Play className="h-3 w-3" /> Preview Result
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { if (ce?.lipSyncJobId && ce.lipSyncUrl) useResultInPlayer(ce.lipSyncJobId, ce.lipSyncUrl); }}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] transition-colors"
-                        >
-                          <CheckCircle2 className="h-3 w-3" /> Use in Player
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { if (ce?.lipSyncJobId && ce.lipSyncUrl) saveResultToScene(ce.lipSyncJobId, ce.lipSyncUrl); }}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
-                        >
-                          <Save className="h-3 w-3" /> Save to Scene
-                        </button>
-                        <button
-                          type="button"
-                          disabled
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/[0.06] text-white/25 text-[11px] font-semibold cursor-default"
-                        >
-                          <Sliders className="h-3 w-3" /> Adjust Timing ↓
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Processing job exists — check instead of resubmit */}
                   {!hasCompletedResult && hasProcessingJob && (
@@ -1900,7 +1980,7 @@ export function LipSyncSection({
 
                   {/* Auto Fine Tune — only when result exists */}
                   {hasCompletedResult && selectedScene && (
-                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-2">
+                    <div ref={fineTuneRef} className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-2">
                       <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
                         Auto Fine Tune Lip Sync
                       </p>
