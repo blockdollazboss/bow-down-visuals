@@ -570,7 +570,21 @@ export default function VideoEditor() {
     detectedAudioDuration ??
     null;
 
-  const previewScene = scenes.find((s) => s.id === previewSceneId) ?? null;
+  /* Scenes with lipSyncUrl swapped in for demoClipUrl when useLipSync is active.
+     This is the source-of-truth for all player components. */
+  const resolvedScenes = useMemo<SceneData[]>(
+    () =>
+      scenes.map((s) => {
+        const ce = settings.clips[s.id];
+        if (ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl) {
+          return { ...s, demoClipUrl: ce.lipSyncUrl };
+        }
+        return s;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scenes, settings.clips],
+  );
+  const previewScene = resolvedScenes.find((s) => s.id === previewSceneId) ?? null;
   const approvedCount = scenes.filter((s) => s.approved && sceneHasClip(s)).length;
 
   /* ── Static clip preview — drives liveVideoRef before timeline is started ──
@@ -747,7 +761,7 @@ export default function VideoEditor() {
             {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
             <MasterPreviewPlayer
               eng={previewEngineState}
-              scenes={scenes}
+              scenes={resolvedScenes}
               liveVideoRef={liveVideoRef}
               previewScene={previewScene}
               tab={tab}
@@ -871,7 +885,7 @@ export default function VideoEditor() {
             <div className="hidden">
               <TimelinePreviewPlayer
                 ref={timelinePlayerRef}
-                scenes={scenes}
+                scenes={resolvedScenes}
                 captionLines={settings.captions.lines}
                 audioUrl={previewAudioUrl}
                 initialSceneId={previewSceneId}

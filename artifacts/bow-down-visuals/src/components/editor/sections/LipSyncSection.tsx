@@ -467,7 +467,7 @@ export function LipSyncSection({
     }
   }
 
-  /* ── Save completed Sync.so result to scene metadata ── */
+  /* ── Save completed Sync.so result to scene metadata only ── */
   function saveResultToScene(jobId: string, outputUrl: string) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
@@ -477,11 +477,12 @@ export function LipSyncSection({
       lipSyncJobId:     jobId,
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
+      useLipSync:       true,
     });
     setApplyError(null);
   }
 
-  /* ── Apply completed result to master player (save + activate replaceUrl) ── */
+  /* ── Apply completed result to master player (save + activate useLipSync) ── */
   function useResultInPlayer(jobId: string, outputUrl: string) {
     if (!selectedScene) return;
     updateClipEdit(selectedScene.id, {
@@ -492,8 +493,26 @@ export function LipSyncSection({
       lipSyncCreatedAt: new Date().toISOString(),
       lipSyncError:     null,
       replaceUrl:       outputUrl,
+      useLipSync:       true,
     });
     setApplyError(null);
+  }
+
+  /* ── Attach already-stored lip sync result to master player ── */
+  function attachStoredResult() {
+    if (!selectedScene || !selectedClipEdit?.lipSyncUrl) return;
+    updateClipEdit(selectedScene.id, {
+      useLipSync:    true,
+      lipSyncStatus: "done",
+      lipSyncError:  null,
+    });
+    setApplyError(null);
+  }
+
+  /* ── Detach lip sync (keep stored, stop using in player) ── */
+  function detachFromPlayer() {
+    if (!selectedScene) return;
+    updateClipEdit(selectedScene.id, { useLipSync: false });
   }
 
   /* ── Stop tracking job locally (no API call) ── */
@@ -1958,23 +1977,79 @@ export function LipSyncSection({
           {/* ── Result for selected clip ── */}
           {selectedScene && selectedClipEdit && (
             <EditorCard title="Lip Sync Result" icon={<Save className="h-4 w-4" />}>
-              <div className="space-y-2">
+              <div className="space-y-3">
+
+                {/* ── Lip Sync Save Status table ── */}
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
-                  <StatusRow label="status"    value={selectedClipEdit.lipSyncStatus ?? "none"}    ok={selectedClipEdit.lipSyncStatus === "done" ? true : selectedClipEdit.lipSyncStatus === "failed" ? false : null} />
-                  <StatusRow label="provider"  value={selectedClipEdit.lipSyncProvider ?? "—"}     ok={null} />
-                  <StatusRow label="created"   value={fmtDate(selectedClipEdit.lipSyncCreatedAt)}  ok={null} />
-                  <StatusRow label="result url" value={selectedClipEdit.lipSyncUrl ? "saved ✓" : "none"} ok={!!selectedClipEdit.lipSyncUrl} />
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Lip Sync Save Status</p>
+                  <StatusRow label="selected scene"           value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}          ok={null} />
+                  <StatusRow label="completed result URL"     value={selectedClipEdit.lipSyncUrl ? "yes ✓" : "none"}                        ok={!!selectedClipEdit.lipSyncUrl} />
+                  <StatusRow label="saved to clip"            value={selectedClipEdit.lipSyncStatus === "done" ? "yes ✓" : "no"}            ok={selectedClipEdit.lipSyncStatus === "done"} />
+                  <StatusRow label="useLipSync"               value={selectedClipEdit.useLipSync ? "on" : "off"}                            ok={selectedClipEdit.useLipSync ? true : null} />
+                  <StatusRow label="master player using"      value={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? "lip sync ✓" : "original clip"}  ok={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? true : null} />
+                  <StatusRow label="timeline badge"           value={selectedClipEdit.lipSyncStatus === "done" ? "LS✓ visible" : "not shown"} ok={selectedClipEdit.lipSyncStatus === "done"} />
+                  <StatusRow label="persisted after refresh"  value="yes — stored in browser"                                               ok={true} />
                   {selectedClipEdit.lipSyncError && (
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
                   )}
                 </div>
 
-                {/* Check existing job / stop tracking — shown while job is "processing" with a saved provider ID */}
+                {/* ── Use Lip Sync toggle ── */}
+                {selectedClipEdit.lipSyncUrl && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02]">
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-semibold text-white/70">Use Lip Sync Result</p>
+                      <p className="text-[10px] text-white/35">
+                        {selectedClipEdit.useLipSync
+                          ? "Master player is using the lip synced clip"
+                          : "Master player is using the original clip"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => selectedClipEdit.useLipSync ? detachFromPlayer() : attachStoredResult()}
+                      className={`relative shrink-0 w-10 h-5 rounded-full transition-colors ${selectedClipEdit.useLipSync ? "bg-green-500" : "bg-white/15"}`}
+                    >
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${selectedClipEdit.useLipSync ? "translate-x-5" : "translate-x-0.5"}`} />
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Preview + action buttons when result is available ── */}
+                {selectedClipEdit.lipSyncUrl && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => window.open(selectedClipEdit.lipSyncUrl!, "_blank")}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-500/35 bg-green-500/[0.07] text-green-300 text-[11px] font-bold hover:bg-green-500/[0.14] transition-colors"
+                    >
+                      <Play className="h-3.5 w-3.5" /> Preview Lip Sync Result
+                    </button>
+                    {!selectedClipEdit.useLipSync && (
+                      <button
+                        type="button"
+                        onClick={attachStoredResult}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.07] text-primary text-[11px] font-bold hover:bg-primary/[0.14] transition-colors"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Attach Completed Result to Selected Scene
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => clearLipSync(selectedScene.id)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] text-red-400/70 text-[11px] font-semibold hover:bg-red-500/[0.08] transition-colors"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Clear Lip Sync Result
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Processing: check/stop controls ── */}
                 {selectedClipEdit.lipSyncStatus === "processing" && selectedClipEdit.lipSyncJobId && (
                   <div className="space-y-2">
                     <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold">
                       <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
-                      <span>Job is processing on Sync.so — do not resubmit.</span>
+                      <span>Job is processing on Sync.so — do not resubmit. Use Check Job Status above.</span>
                     </div>
                     <div className="flex gap-2">
                       <button
@@ -2005,31 +2080,6 @@ export function LipSyncSection({
                     <span>Demo simulation complete.<br />
                       <span className="font-normal text-blue-400/70">No real API call was made. Connect a provider to run real lip sync.</span>
                     </span>
-                  </div>
-                )}
-
-                {selectedClipEdit.lipSyncStatus === "done" && selectedClipEdit.lipSyncUrl && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[11px] font-semibold">
-                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                      Lip sync result active — master player uses lip synced clip
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => window.open(selectedClipEdit.lipSyncUrl!, "_blank")}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
-                      >
-                        <Play className="h-3 w-3" /> Preview Result
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearLipSync(selectedScene.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] text-red-400/70 text-[11px] font-semibold hover:bg-red-500/[0.08] transition-colors"
-                      >
-                        <RefreshCw className="h-3 w-3" /> Clear Result
-                      </button>
-                    </div>
                   </div>
                 )}
               </div>

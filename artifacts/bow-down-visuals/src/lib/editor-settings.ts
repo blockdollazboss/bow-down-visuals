@@ -511,6 +511,8 @@ export interface ClipEdit {
   lipSyncJobId: string | null;
   /** ISO timestamp when the job was submitted to the provider. */
   lipSyncSubmittedAt: string | null;
+  /** When true, master player uses lipSyncUrl instead of scene.demoClipUrl. */
+  useLipSync: boolean;
 }
 
 export interface CaptionSettings {
@@ -1016,6 +1018,7 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncError: null,
     lipSyncJobId: null,
     lipSyncSubmittedAt: null,
+    useLipSync: false,
   };
 }
 
