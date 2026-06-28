@@ -1641,24 +1641,63 @@ export function LipSyncSection({
                 );
               })()}
 
-              {/* Apply to selected */}
+              {/* ── Job safety controls — always visible above Apply ── */}
               {!confirmOpen && selectedScene && (
-                <button
-                  type="button"
-                  disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing"}
-                  onClick={() => { setApplyError(null); setConfirmOpen("single"); }}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                    demoMode
-                      ? "border-blue-500/30 bg-blue-500/[0.06] text-blue-400 hover:bg-blue-500/[0.12]"
-                      : "border-primary/40 bg-primary/[0.08] text-primary hover:bg-primary/[0.15]"
-                  }`}
-                  data-testid="btn-lip-sync-apply-selected"
-                >
-                  {selectedClipEdit?.lipSyncStatus === "processing"
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : demoMode ? <FlaskConical className="h-3.5 w-3.5" /> : <Mic2 className="h-3.5 w-3.5" />}
-                  {demoMode ? "Simulate" : "Apply to"} Scene {selectedScene.sceneNumber}
-                </button>
+                <div className="space-y-2 pt-1 border-t border-white/[0.06]">
+                  {/* Banner */}
+                  {selectedClipEdit?.lipSyncJobId ? (
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-amber-400 text-[11px] font-semibold">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>Existing Sync.so job found — check status instead of submitting again.</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.06] bg-white/[0.02] text-white/30 text-[10px] font-semibold">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      No existing job — safe to submit.
+                    </div>
+                  )}
+
+                  {/* Check + Stop row */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void checkExistingJob()}
+                      disabled={!selectedClipEdit?.lipSyncJobId || checkJobLoading}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {checkJobLoading
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                        : <><RefreshCw className="h-3.5 w-3.5" /> Check Job Status</>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stopTrackingJob(selectedScene.id)}
+                      disabled={!selectedClipEdit?.lipSyncJobId}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] text-red-400/70 text-[11px] font-semibold hover:bg-red-500/[0.08] disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <X className="h-3.5 w-3.5" /> Stop Tracking
+                    </button>
+                  </div>
+
+                  {/* Submit new job */}
+                  <button
+                    type="button"
+                    disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing"}
+                    onClick={() => { setApplyError(null); setConfirmOpen("single"); }}
+                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                      demoMode
+                        ? "border-blue-500/30 bg-blue-500/[0.06] text-blue-400 hover:bg-blue-500/[0.12]"
+                        : "border-primary/40 bg-primary/[0.08] text-primary hover:bg-primary/[0.15]"
+                    }`}
+                    data-testid="btn-lip-sync-apply-selected"
+                  >
+                    {selectedClipEdit?.lipSyncStatus === "processing"
+                      ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing — do not resubmit</>
+                      : demoMode
+                        ? <><FlaskConical className="h-3.5 w-3.5" /> Simulate Scene {selectedScene.sceneNumber}</>
+                        : <><Mic2 className="h-3.5 w-3.5" /> Submit New Lip Sync Job</>}
+                  </button>
+                </div>
               )}
 
               {/* Apply to all */}
