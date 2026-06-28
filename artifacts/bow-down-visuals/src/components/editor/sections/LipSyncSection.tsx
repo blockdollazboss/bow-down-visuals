@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
-  KeyRound, FlaskConical, ScanSearch, ShieldCheck,
+  KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy, ExternalLink,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -286,6 +286,13 @@ export function LipSyncSection({
 
   /* ── Check existing Sync.so job state ── */
   const [checkJobLoading, setCheckJobLoading]   = useState(false);
+  const [checkJobResult, setCheckJobResult]     = useState<{
+    jobId:         string;
+    rawStatus:     string;
+    outputUrl:     string | null;
+    providerError: string | null;
+    checkedAt:     string;
+  } | null>(null);
 
   /* ── Route test state ── */
   const [routeTest, setRouteTest] = useState<{
@@ -418,11 +425,12 @@ export function LipSyncSection({
   /* ── Check existing Sync.so job (no new submission) ── */
   async function checkExistingJob() {
     if (!selectedScene || !selectedClipEdit?.lipSyncJobId) return;
+    const jobId = selectedClipEdit.lipSyncJobId;
     setCheckJobLoading(true);
     setApplyError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch(`/api/lip-sync/check-provider-job/${selectedClipEdit.lipSyncJobId}`, {
+      const res = await fetch(`/api/lip-sync/check-provider-job/${jobId}`, {
         headers: { Authorization: `Bearer ${token ?? ""}` },
         signal:  AbortSignal.timeout(30_000),
       });
@@ -431,6 +439,16 @@ export function LipSyncSection({
         throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
       }
       const data = await res.json() as { status: string; outputUrl?: string; error?: string };
+
+      const result = {
+        jobId,
+        rawStatus:     data.status,
+        outputUrl:     data.outputUrl ?? null,
+        providerError: data.error ?? null,
+        checkedAt:     new Date().toISOString(),
+      };
+      setCheckJobResult(result);
+
       if (data.status === "completed" && data.outputUrl) {
         updateClipEdit(selectedScene.id, {
           lipSyncUrl:       data.outputUrl,
@@ -444,10 +462,10 @@ export function LipSyncSection({
           lipSyncStatus: "failed",
           lipSyncError:  data.error ?? "Sync.so job failed.",
         });
-        setApplyError(data.error ?? "Sync.so job failed.");
-      } else {
-        setApplyError(`Sync.so status: ${data.status}. Still processing — try again in a minute.`);
+        /* Do NOT setApplyError — shown in checkJobResult panel below */
       }
+      /* "processing" / "pending": leave status as-is, never mark failed.
+         Clear any stale error so the result panel is the only signal. */
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1662,6 +1680,92 @@ export function LipSyncSection({
                       No existing job — safe to submit.
                     </div>
                   )}
+
+                  {/* ── Check job result detail panel ── */}
+                  {(() => {
+                    const cjr = checkJobResult;
+                    if (!cjr || cjr.jobId !== selectedClipEdit?.lipSyncJobId) return null;
+                    const submittedAt  = selectedClipEdit?.lipSyncSubmittedAt ?? null;
+                    const submittedMs  = submittedAt ? new Date(submittedAt).getTime() : null;
+                    const checkedMs    = new Date(cjr.checkedAt).getTime();
+                    const elapsedMin   = submittedMs != null ? Math.round((checkedMs - submittedMs) / 60_000) : null;
+                    const isLongRun    = (elapsedMin ?? 0) > 10;
+                    const isProcessing = cjr.rawStatus === "processing" || cjr.rawStatus === "pending";
+                    const isCompleted  = cjr.rawStatus === "completed";
+                    const isFailed     = cjr.rawStatus === "failed";
+                    return (
+                      <div className={`rounded-xl border px-3 py-3 space-y-2.5 ${isCompleted ? "border-green-500/30 bg-green-500/[0.04]" : isFailed ? "border-red-500/30 bg-red-500/[0.04]" : "border-primary/20 bg-primary/[0.03]"}`}>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Last check result</p>
+
+                        {/* Status rows */}
+                        <div className="space-y-1.5">
+                          <StatusRow label="Sync.so job ID"    value={cjr.jobId}                                                     ok={null} />
+                          <StatusRow label="selected scene"    value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}  ok={null} />
+                          <StatusRow label="submitted"         value={fmtDate(submittedAt)}                                          ok={null} />
+                          <StatusRow label="processing time"   value={elapsedMin != null ? `${elapsedMin} min` : "—"}                ok={isLongRun && isProcessing ? false : null} />
+                          <StatusRow label="provider status"   value={cjr.rawStatus}                                                 ok={isCompleted ? true : isFailed ? false : null} />
+                          <StatusRow label="checked at"        value={fmtDate(cjr.checkedAt)}                                        ok={null} />
+                          {cjr.outputUrl   && <StatusRow label="result URL"     value="available ✓"     ok={true}  />}
+                          {cjr.providerError && <StatusRow label="provider error" value={cjr.providerError} ok={false} />}
+                        </div>
+
+                        {/* Long-running warning */}
+                        {isLongRun && isProcessing && (
+                          <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] text-amber-400 text-[10px] font-semibold leading-snug">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span>This Sync.so job is taking longer than expected.<br />
+                              <span className="font-normal">Do not resubmit yet. Check Sync.so dashboard for the job ID, or keep checking status.</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Failure notice */}
+                        {isFailed && (
+                          <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-red-500/25 bg-red-500/[0.06] text-red-400 text-[10px] font-semibold leading-snug">
+                            <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span>Provider returned failure{cjr.providerError ? `: ${cjr.providerError}` : "."}<br />
+                              <span className="font-normal text-red-400/70">Do not retry automatically — use Submit New Lip Sync Job after reviewing the details.</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Completed notice */}
+                        {isCompleted && (
+                          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-green-500/25 bg-green-500/[0.06] text-green-400 text-[10px] font-semibold">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            Result saved — see Lip Sync Result card below.
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { void navigator.clipboard.writeText(cjr.jobId); }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                          >
+                            <Copy className="h-3 w-3" /> Copy Sync.so Job ID
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => window.open("https://sync.so", "_blank")}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" /> Open Sync.so Dashboard
+                          </button>
+                          {isCompleted && cjr.outputUrl && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(cjr.outputUrl!, "_blank")}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[10px] font-semibold hover:bg-green-500/[0.12] transition-colors"
+                            >
+                              <Play className="h-3 w-3" /> Preview Lip Sync Result
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* ── Lip Sync Job Safety status ── */}
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
