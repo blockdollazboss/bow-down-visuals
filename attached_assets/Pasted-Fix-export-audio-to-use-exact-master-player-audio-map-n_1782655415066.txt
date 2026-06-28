@@ -1,0 +1,77 @@
+Fix export audio to use exact master player audio map, not just song start.
+
+Problem:
+The First 20s + Audio Test is still way off.
+
+The diagnostic says export audio starts at 0:00, but the result does not match the master player.
+
+This means Export Doctor is using the wrong audio mapping. It is probably taking the first 20 seconds of the song instead of using the exact audio sections that the master player plays under each clip.
+
+Do not change:
+- video-only export
+- lip sync result
+- lip sync offset
+- captions
+- effects
+- overlays
+- watermark
+- payments or credits
+
+Only fix:
+- export audio map
+- master player audio map
+- audio section timing
+- First 20s audio sync test
+
+Requirements:
+
+1. Export must read the exact audio timing map from the master player.
+
+For each timeline clip, get:
+- clipId
+- scene number
+- scene title
+- video timeline start
+- video timeline end
+- project audio start used by master player
+- project audio end used by master player
+- clip duration
+
+2. Do not assume audio starts at 0:00 unless the master player truly uses 0:00 for that clip.
+
+3. Add visible status:
+Master Player Audio Map:
+- scene
+- video start/end
+- audio start/end
+- duration
+- source of timing
+
+4. Export First 20s + Audio Test must use the master player audio map exactly.
+
+If the first video clip uses audio from later in the song, export must use that same later audio section.
+
+5. If the master player currently has no saved audio map, create and save one from the current preview playback/timeline.
+
+Add button:
+Capture Master Player Audio Map
+
+This should save the audio timing currently used by the master player.
+
+6. Add button:
+Export First 20s Master Audio Map Test
+
+This should export the first 20 seconds using the saved master player audio map.
+
+7. Show comparison:
+- master player audio start
+- export audio start
+- master player audio section
+- export audio section
+- matches: yes/no
+
+8. Do not run All 12 Clips export until:
+- First 20s Master Audio Map Test matches the master player
+
+Final goal:
+The exported audio must match exactly what I hear in the master player. Do not just trim the full song from 0:00 if the master player uses different audio sections under the clips.
