@@ -328,6 +328,10 @@ export function LipSyncSection({
   const selectedClipEdit: ClipEdit | null = selectedScene
     ? getClipEdit(settings, selectedScene.id)
     : null;
+  const selectedTiming = selectedScene ? parseSceneTiming(selectedScene, scenes) : null;
+  const selectedSceneTitle = selectedScene
+    ? (selectedScene.section || selectedScene.lyricLine || `Scene ${selectedScene.sceneNumber}`)
+    : "—";
 
   /* ── Derived: face detection (mock — based on whether clip URL exists) ── */
   const faceDetected    = !!selectedScene?.demoClipUrl;
@@ -1552,42 +1556,48 @@ export function LipSyncSection({
 
               {/* Confirm dialog */}
               {confirmOpen && (() => {
-                const timing = (confirmOpen === "single" && selectedScene)
-                  ? parseSceneTiming(selectedScene, scenes)
-                  : null;
+                const timing = confirmOpen === "single" ? selectedTiming : null;
                 const segmentDuration = timing?.durationSec ?? 0;
                 const safeToSubmit    = !timing || !providerConnected || demoMode || segmentDuration <= PROVIDER_LIMIT_SEC;
 
                 return (
-                  <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-3 py-3 space-y-2">
-                    <p className="text-[11px] text-white/70 font-semibold">
-                      {demoMode
-                        ? confirmOpen === "single"
-                          ? `Run Demo simulation on Scene ${selectedScene?.sceneNumber ?? "—"}?`
-                          : `Run Demo simulation on all ${clipsWithFaces.length} clips?`
-                        : confirmOpen === "single"
-                          ? `Apply lip sync to Scene ${selectedScene?.sceneNumber ?? "—"}?`
-                          : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
-                    </p>
+                  <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-3 py-3 space-y-3">
 
-                    {/* Submit Preview — single scene only, real mode */}
-                    {confirmOpen === "single" && selectedScene && !demoMode && timing && (
+                    {/* ── Warning header ── */}
+                    {!demoMode && confirmOpen === "single" ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                          <p className="text-[12px] font-bold text-amber-300">Paid job confirmation</p>
+                        </div>
+                        <p className="text-[11px] text-amber-400/80 leading-snug">
+                          This will submit a new paid Sync.so lip sync job and may use credits.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-white/70 font-semibold">
+                        {demoMode
+                          ? confirmOpen === "single"
+                            ? `Run Demo simulation on Scene ${selectedScene?.sceneNumber ?? "—"}?`
+                            : `Run Demo simulation on all ${clipsWithFaces.length} clips?`
+                          : `Apply lip sync to all ${clipsWithFaces.length} clips with faces?`}
+                      </p>
+                    )}
+
+                    {/* ── Job details — single scene only ── */}
+                    {confirmOpen === "single" && selectedScene && !demoMode && (
                       <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
                         <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest pb-0.5">
-                          Lip Sync Submit Preview
+                          Job details
                         </p>
-                        <StatusRow label="selected scene"      value={`Scene ${selectedScene.sceneNumber}`}                 ok={null} />
-                        <StatusRow label="scene start"         value={fmtSec(timing.startSec)}                              ok={null} />
-                        <StatusRow label="scene end"           value={`${fmtSec(timing.endSec)}${timing.hasExplicitEnd ? "" : " (estimated)"}`} ok={null} />
-                        <StatusRow label="audio segment"       value={`${timing.durationSec.toFixed(1)}s`}                  ok={safeToSubmit ? true : false} />
-                        <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                             ok={null} />
-                        <StatusRow label="safe to submit"      value={safeToSubmit ? "yes" : "no"}                                                                                       ok={safeToSubmit ? true : false} />
+                        <StatusRow label="scene"               value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`} ok={null} />
+                        <StatusRow label="clip duration"       value={timing ? `${timing.durationSec.toFixed(1)}s` : "—"} ok={timing ? (safeToSubmit ? true : false) : null} />
+                        <StatusRow label="audio source"        value={ls.audioSource === "vocals" ? "vocals only" : "full mix"} ok={null} />
+                        <StatusRow label="provider"            value="Sync.so"                                          ok={null} />
+                        <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                         ok={null} />
                         <div className="border-t border-white/[0.06] my-1" />
-                        <StatusRow label="existing job id"     value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 10)}…` : "none"}             ok={null} />
-                        <StatusRow label="job status"          value={selectedClipEdit?.lipSyncStatus ?? "none"}                                                                     ok={null} />
-                        <StatusRow label="last submitted"      value={fmtDate(selectedClipEdit?.lipSyncSubmittedAt ?? null)}                                                         ok={null} />
-                        <StatusRow label="will submit new job" value={!selectedClipEdit?.lipSyncJobId || selectedClipEdit.lipSyncStatus !== "processing" ? "yes — uses credits" : "no"} ok={null} />
-                        <StatusRow label="will check existing" value={!!selectedClipEdit?.lipSyncJobId && selectedClipEdit.lipSyncStatus === "processing" ? "yes" : "no"}            ok={null} />
+                        <StatusRow label="existing saved job"  value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 12)}…` : "none"} ok={selectedClipEdit?.lipSyncJobId ? false : null} />
+                        <StatusRow label="last submitted"      value={fmtDate(selectedClipEdit?.lipSyncSubmittedAt ?? null)} ok={null} />
                       </div>
                     )}
 
@@ -1595,22 +1605,18 @@ export function LipSyncSection({
                     {!safeToSubmit && (
                       <div className="flex items-start gap-1.5 text-[10px] text-red-400/90 font-semibold">
                         <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
-                        Selected scene audio is longer than your Sync Labs plan limit ({PROVIDER_LIMIT_SEC}s). Trim the scene or upgrade your plan.
+                        Audio segment is {segmentDuration.toFixed(1)}s — over the {PROVIDER_LIMIT_SEC}s plan limit. Trim this scene or upgrade your Sync.so plan.
                       </div>
                     )}
 
                     {demoMode ? (
                       <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
                         <FlaskConical className="h-3 w-3 shrink-0" />
-                        Demo mode — no real API call will be made. No credits charged.
+                        Demo mode — no real API call. No credits charged.
                       </div>
                     ) : !providerConnected ? (
-                      <p className="text-[10px] text-amber-400/80">
-                        ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
-                      </p>
-                    ) : safeToSubmit ? (
-                      <p className="text-[10px] text-amber-400/80 font-semibold">
-                        ⚡ This may use Sync.so credits. Submit lip sync job?
+                      <p className="text-[10px] text-red-400/80 font-semibold">
+                        ⚠ Provider not connected — add LIP_SYNC_API_KEY in Replit Secrets.
                       </p>
                     ) : null}
 
@@ -1623,18 +1629,18 @@ export function LipSyncSection({
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        disabled={!safeToSubmit}
-                        onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
-                        className="flex-1 py-1.5 rounded-lg bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={() => setConfirmOpen(null)}
+                        className="flex-1 py-2 rounded-lg border border-white/10 text-white/50 text-[11px] font-semibold hover:bg-white/[0.04] transition-colors"
                       >
-                        Submit Job
+                        Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={() => setConfirmOpen(null)}
-                        className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[11px] font-semibold hover:bg-white/[0.04] transition-colors"
+                        disabled={!safeToSubmit || !providerConnected}
+                        onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
+                        className="flex-1 py-2 rounded-lg bg-amber-500 text-black text-[11px] font-bold hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Cancel
+                        {demoMode ? "Run Simulation" : "Submit Paid Job"}
                       </button>
                     </div>
                   </div>
@@ -1656,6 +1662,17 @@ export function LipSyncSection({
                       No existing job — safe to submit.
                     </div>
                   )}
+
+                  {/* ── Lip Sync Job Safety status ── */}
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Lip Sync Job Safety</p>
+                    <StatusRow label="selected scene"          value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}                                               ok={null} />
+                    <StatusRow label="clip duration"           value={selectedTiming ? `${selectedTiming.durationSec.toFixed(1)}s` : "—"}                                         ok={null} />
+                    <StatusRow label="existing job id"         value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 12)}…` : "none"}           ok={selectedClipEdit?.lipSyncJobId ? false : true} />
+                    <StatusRow label="will submit new paid job" value={selectedClipEdit?.lipSyncStatus === "processing" ? "no — job already running" : "yes — uses credits"}      ok={selectedClipEdit?.lipSyncStatus === "processing" ? true : null} />
+                    <StatusRow label="job id saved after submit" value="yes — always saved immediately"                                                                            ok={true} />
+                    <StatusRow label="timeout will not resubmit" value="yes — stays processing, not failed"                                                                       ok={true} />
+                  </div>
 
                   {/* Check + Stop row */}
                   <div className="flex gap-2">
