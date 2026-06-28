@@ -213,6 +213,92 @@ async function normalizeMultiClip(
   await execFileAsync("ffmpeg", args, { timeout: 120_000 });
 }
 
+/** Like normalizeMultiClip but with a still-frame fallback when tpad produces
+ *  empty / missing output.
+ *
+ *  Strategy:
+ *   1. Run the standard tpad path.
+ *   2. If output is missing or < 1 KB: extract the last frame of the raw source,
+ *      then loop it for `timelineDur` seconds (freeze-frame the whole clip).
+ *   3. If frame extraction also fails: create a solid-black still as last resort.
+ *
+ *  Returns a debug object so callers can log or surface which method was used.
+ */
+async function normalizeMultiClipWithFallback(
+  input: string,
+  output: string,
+  trimStartSec = 0,
+  timelineDur: number | null = null,
+  rawFileDuration = 0,
+): Promise<{ method: "tpad" | "still-frame" | "failed"; normSize: number; normDuration: number; stderrTail: string }> {
+  // ── Attempt 1: standard tpad freeze-last-frame ──────────────────────────
+  try { await normalizeMultiClip(input, output, trimStartSec, timelineDur, rawFileDuration); } catch { /* will check output below */ }
+
+  if (existsSync(output) && statSync(output).size >= 1024) {
+    const probe = await probeMedia(output);
+    if (probe.hasVideo && probe.duration > 0.1) {
+      return { method: "tpad", normSize: statSync(output).size, normDuration: probe.duration, stderrTail: "" };
+    }
+  }
+
+  // ── Attempt 2: still-frame fallback ─────────────────────────────────────
+  const targetDur = timelineDur ?? Math.max(0, rawFileDuration - trimStartSec);
+  if (targetDur < 0.1) return { method: "failed", normSize: 0, normDuration: 0, stderrTail: "target duration is zero" };
+
+  const dir = path.dirname(output);
+  const base = path.basename(output, ".mp4");
+  const framePath = path.join(dir, `${base}-last-frame.jpg`);
+  let stderrTail = "";
+
+  // Try to grab the last frame; fall back to first frame; fall back to black.
+  const seekPos = rawFileDuration > 0.1 ? (rawFileDuration - 0.05).toFixed(3) : "0";
+  const frameVf = `scale=${MULTI_TARGET_W}:${MULTI_TARGET_H}:force_original_aspect_ratio=decrease,pad=${MULTI_TARGET_W}:${MULTI_TARGET_H}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
+
+  for (const attempt of [
+    ["-ss", seekPos, "-i", input, "-vframes", "1", "-vf", frameVf, "-y", framePath],
+    ["-i", input, "-vframes", "1", "-vf", frameVf, "-y", framePath],
+  ]) {
+    try { await execFileAsync("ffmpeg", attempt, { timeout: 30_000 }); } catch { /* try next */ }
+    if (existsSync(framePath) && statSync(framePath).size >= 100) break;
+  }
+
+  if (!existsSync(framePath) || statSync(framePath).size < 100) {
+    // Absolute last resort: solid-black 1080×1920 jpeg
+    try {
+      await execFileAsync("ffmpeg", [
+        "-f", "lavfi", "-i", `color=c=black:s=${MULTI_TARGET_W}x${MULTI_TARGET_H}:d=0.1:r=30`,
+        "-vframes", "1", "-y", framePath,
+      ], { timeout: 30_000 });
+    } catch { /* ignore */ }
+  }
+
+  if (!existsSync(framePath) || statSync(framePath).size < 100) {
+    return { method: "failed", normSize: 0, normDuration: 0, stderrTail: "could not extract any frame from source" };
+  }
+
+  // Build a still-frame looped video from the extracted frame.
+  try {
+    await execFileAsync("ffmpeg", [
+      "-loop", "1", "-i", framePath,
+      "-t", targetDur.toFixed(3),
+      "-vf", `fps=fps=${MULTI_TARGET_FPS}`,
+      "-c:v", "libx264", "-preset", "ultrafast", "-crf", "20",
+      "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+      "-an", "-movflags", "+faststart", "-y", output,
+    ], { timeout: 60_000 });
+  } catch (e) {
+    stderrTail = (e as { stderr?: string }).stderr?.slice(-400) ?? String(e);
+    return { method: "failed", normSize: 0, normDuration: 0, stderrTail };
+  }
+
+  if (!existsSync(output) || statSync(output).size < 1024) {
+    return { method: "failed", normSize: 0, normDuration: 0, stderrTail: "still-frame output is empty" };
+  }
+
+  const probe2 = await probeMedia(output);
+  return { method: "still-frame", normSize: statSync(output).size, normDuration: probe2.duration, stderrTail };
+}
+
 /** HARD STOP gate: every clip must be ffprobe-valid AND physically present. */
 function multiClipsBlocker(session: DoctorMultiSession): string | null {
   if (session.clips.length === 0) return "No clips in this session.";
@@ -250,11 +336,11 @@ async function normalizeClipsForDuration(
       logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip (${statSync(np).size} bytes)`);
     } else {
       logStep?.(`scene ${c.sceneNumber}: normalizing (trimStart=${trimStart.toFixed(2)}s, dur=${timelineDur?.toFixed(2) ?? "raw"}s, rawShorter=${c.rawShorterThanMaster})...`);
-      await normalizeMultiClip(c.localPath, np, trimStart, timelineDur, c.duration);
-      if (!existsSync(np) || statSync(np).size < 1024) {
-        throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
+      const fb = await normalizeMultiClipWithFallback(c.localPath, np, trimStart, timelineDur, c.duration);
+      if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
+        throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty. stderr: ${fb.stderrTail.slice(0, 200)}`);
       }
-      logStep?.(`scene ${c.sceneNumber}: normalized OK (${statSync(np).size} bytes)`);
+      logStep?.(`scene ${c.sceneNumber}: normalized OK via ${fb.method} (${fb.normSize} bytes, ${fb.normDuration.toFixed(2)}s)`);
     }
     normPaths.push(np);
     accumulated += clipDur;
@@ -265,16 +351,17 @@ async function normalizeClipsForDuration(
 
 /** Normalize all clips in scene order applying master player trims.
  *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player.
- *  Always re-normalizes (never reuses cached files) so full exports are always fresh. */
+ *  Always re-normalizes (never reuses cached files) so full exports are always fresh.
+ *  Uses the fallback (still-frame) path when tpad produces empty output. */
 async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]> {
   const normPaths: string[] = [];
   for (const c of session.clips) {
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
-    const trimStart  = c.trimStartSec  ?? 0;
+    const trimStart   = c.trimStartSec  ?? 0;
     const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
-    await normalizeMultiClip(c.localPath, np, trimStart, timelineDur, c.duration);
-    if (!existsSync(np) || statSync(np).size < 1024) {
-      throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
+    const fb = await normalizeMultiClipWithFallback(c.localPath, np, trimStart, timelineDur, c.duration);
+    if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
+      throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty. stderr: ${fb.stderrTail.slice(0, 200)}`);
     }
     normPaths.push(np);
   }
@@ -1486,15 +1573,15 @@ router.post("/export-doctor/repair-clip", requireAuth, async (req, res) => {
     const sourceAvailable = Math.max(0, clip.duration - clip.trimStartSec);
     clip.rawShorterThanMaster = sourceAvailable < clip.masterDuration - 0.05;
 
-    // Re-normalize immediately with freeze-last-frame padding if needed
+    // Re-normalize immediately — use the fallback path in case tpad fails on a short clip.
     req.log.info(
       { multiId, scene: clip.sceneNumber, oldDur: oldTimelineDuration.toFixed(2), newDur: clip.timelineDuration.toFixed(2), needsPad: clip.rawShorterThanMaster },
-      "EXPORT DOCTOR repair-clip: re-normalizing",
+      "EXPORT DOCTOR repair-clip: re-normalizing with fallback",
     );
-    await normalizeMultiClip(clip.localPath, normPath, clip.trimStartSec, clip.timelineDuration, clip.duration);
+    const repairFb = await normalizeMultiClipWithFallback(clip.localPath, normPath, clip.trimStartSec, clip.timelineDuration, clip.duration);
 
-    if (!existsSync(normPath) || statSync(normPath).size < 1024) {
-      res.status(500).json({ error: `Scene ${sceneNumber} failed to re-normalize after repair.` });
+    if (repairFb.method === "failed" || !existsSync(normPath) || statSync(normPath).size < 1024) {
+      res.status(500).json({ error: `Scene ${sceneNumber} failed to re-normalize after repair. ${repairFb.stderrTail.slice(0, 200)}` });
       return;
     }
 
@@ -1515,6 +1602,178 @@ router.post("/export-doctor/repair-clip", requireAuth, async (req, res) => {
       matchesMaster: Math.abs(probe.duration - clip.masterDuration) < 0.4,
       savedToExportTimeline: true,
       ffmpegTrimDuration: clip.timelineDuration,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ── Repair + Normalize: re-download source, clear cache, normalize with fallback ── */
+// Designed for clips like Scene 12 (short source, tpad may fail) where the caller
+// wants a full re-download + re-normalize cycle with comprehensive debug output.
+router.post("/export-doctor/repair-normalize", requireAuth, async (req, res) => {
+  try {
+    const { multiId, sceneNumber } = req.body as { multiId?: string; sceneNumber?: number };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "Session not found. Run Download All Clips first." });
+      return;
+    }
+    const clip = typeof sceneNumber === "number"
+      ? session.clips.find(c => c.sceneNumber === sceneNumber)
+      : null;
+    if (!clip) {
+      res.status(400).json({ error: `Scene ${sceneNumber} not found in this session.` });
+      return;
+    }
+
+    const targetDuration = clip.masterDuration > 0.1 ? clip.masterDuration : clip.timelineDuration;
+    const debug: Record<string, string | number | boolean | null> = {
+      sourceUrl: clip.sourceUrl,
+      localPath: clip.localPath,
+      targetDuration: parseFloat(targetDuration.toFixed(3)),
+      masterDuration: parseFloat(clip.masterDuration.toFixed(3)),
+    };
+
+    // ── Step 1: clear all stale cache ────────────────────────────────────────
+    const normPath  = path.join(session.folder, `norm-scene-${clip.sceneNumber}.mp4`);
+    const framePath = path.join(session.folder, `norm-scene-${clip.sceneNumber}-last-frame.jpg`);
+
+    let downloadCleared = false;
+    let normCleared     = false;
+
+    if (existsSync(clip.localPath)) {
+      try { rmSync(clip.localPath, { force: true }); downloadCleared = true; } catch { /* best-effort */ }
+    }
+    if (existsSync(normPath)) {
+      try { rmSync(normPath, { force: true }); normCleared = true; } catch { /* best-effort */ }
+    }
+    if (existsSync(framePath)) {
+      try { rmSync(framePath, { force: true }); } catch { /* best-effort */ }
+    }
+    debug["downloadCacheCleared"] = downloadCleared;
+    debug["normCacheCleared"]     = normCleared;
+
+    // ── Step 2: re-download source ────────────────────────────────────────────
+    const url = clip.sourceUrl;
+    if (!url?.startsWith("http")) {
+      res.status(400).json({ error: "No source URL on this clip. Re-run Download All Clips.", debug });
+      return;
+    }
+    if (!isAllowedClipUrl(url) && !isPublicHttpsUrl(url)) {
+      res.status(400).json({ error: "Source URL is not an allowed media source.", debug });
+      return;
+    }
+
+    let target = url;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+
+    let downloadStatus = 0;
+    let downloadError: string | null = null;
+    try {
+      const r = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+      downloadStatus = r.status;
+      if (!r.ok) throw new Error(`download failed (HTTP ${r.status})`);
+      const ws = createWriteStream(clip.localPath);
+      await pipeline(r.body as Parameters<typeof pipeline>[0], byteCap(MAX_CLIP_BYTES), ws);
+    } catch (e) {
+      downloadError = e instanceof Error ? e.message : String(e);
+    }
+
+    const srcExists = existsSync(clip.localPath);
+    const srcSize   = srcExists ? statSync(clip.localPath).size : 0;
+    debug["redownloadHttpStatus"] = downloadStatus;
+    debug["sourceFileExists"]     = srcExists;
+    debug["sourceFileSize"]       = srcSize;
+    debug["redownloadError"]      = downloadError;
+
+    if (!srcExists || srcSize < 1024) {
+      res.status(500).json({ error: downloadError ?? `Re-download produced no file (${srcSize} bytes).`, debug });
+      return;
+    }
+
+    // ── Step 3: probe re-downloaded source ───────────────────────────────────
+    const srcProbe = await probeMedia(clip.localPath);
+    debug["sourceDuration"] = parseFloat(srcProbe.duration.toFixed(3));
+    debug["sourceCodec"]    = srcProbe.codec;
+    debug["sourceHasVideo"] = srcProbe.hasVideo;
+    debug["sourceError"]    = srcProbe.error;
+
+    if (!srcProbe.hasVideo) {
+      res.status(400).json({ error: `Re-downloaded file has no video stream: ${srcProbe.error ?? "unknown"}`, debug });
+      return;
+    }
+
+    // Update session clip metadata from fresh probe
+    clip.duration      = srcProbe.duration;
+    clip.width         = srcProbe.width;
+    clip.height        = srcProbe.height;
+    clip.codec         = srcProbe.codec;
+    clip.fileExists    = true;
+    clip.fileSize      = srcSize;
+    clip.ffprobeValid  = true;
+    clip.error         = null;
+    if (targetDuration > 0.1) {
+      clip.timelineDuration = targetDuration;
+      const srcAvail = Math.max(0, srcProbe.duration - clip.trimStartSec);
+      clip.rawShorterThanMaster = srcAvail < targetDuration - 0.05;
+    }
+
+    // ── Step 4: normalize with fallback ──────────────────────────────────────
+    req.log.info(
+      { multiId, scene: clip.sceneNumber, targetDuration, srcDur: srcProbe.duration, rawShorter: clip.rawShorterThanMaster },
+      "EXPORT DOCTOR repair-normalize: normalizing with fallback",
+    );
+    const fb = await normalizeMultiClipWithFallback(
+      clip.localPath, normPath,
+      clip.trimStartSec, targetDuration > 0.1 ? targetDuration : null,
+      clip.duration,
+    );
+
+    debug["normMethod"]    = fb.method;
+    debug["normSize"]      = fb.normSize;
+    debug["normStderr"]    = fb.stderrTail.slice(0, 300);
+    debug["normFileExists"] = existsSync(normPath);
+
+    if (fb.method === "failed" || !existsSync(normPath) || fb.normSize < 1024) {
+      res.status(500).json({ error: `Normalize failed (method=${fb.method}). ${fb.stderrTail.slice(0, 200)}`, debug });
+      return;
+    }
+
+    // ── Step 5: validate output ───────────────────────────────────────────────
+    const normProbe  = await probeMedia(normPath);
+    const normSize   = statSync(normPath).size;
+    const durationOk = normProbe.duration > 0.1 && (targetDuration <= 0 || Math.abs(normProbe.duration - targetDuration) < 0.5);
+    const sizeOk     = normSize > 100 * 1024; // > 100 KB
+    const videoOk    = normProbe.hasVideo;
+
+    debug["normDuration"]  = parseFloat(normProbe.duration.toFixed(3));
+    debug["normSizeOk"]    = sizeOk;
+    debug["normVideoOk"]   = videoOk;
+    debug["normDurationOk"] = durationOk;
+
+    const repaired = sizeOk && videoOk && durationOk;
+    const readyForExport = repaired;
+
+    res.json({
+      sceneNumber: clip.sceneNumber,
+      repaired,
+      normalizedOutputValid: videoOk && sizeOk,
+      duration: parseFloat(normProbe.duration.toFixed(3)),
+      targetDuration: parseFloat(targetDuration.toFixed(3)),
+      readyForFirstTwentyExport: readyForExport,
+      normMethod: fb.method,
+      normFileSize: normSize,
+      rawShorterThanMaster: clip.rawShorterThanMaster,
+      downloadCacheCleared: downloadCleared,
+      normCacheCleared: normCleared,
+      redownloadHttpStatus: downloadStatus,
+      matchesMaster: durationOk,
+      lastError: repaired ? null : `method=${fb.method}, normDur=${normProbe.duration.toFixed(2)}s, normSize=${normSize}, videoOk=${videoOk}`,
+      debug,
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -1966,7 +2225,7 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
     req.log.info({ multiId, audioDuration }, "EXPORT SHORT TEST: audio OK");
 
     // ── Step: build per-clip timeline map ────────────────────────────────────
-    lastStep = "building clip timeline";
+    lastStep = "building clip timeline — only clips overlapping first testDuration seconds will be normalized";
     let cursor = 0;
     const clipTimeline = session.clips.map((c) => {
       const start = cursor;
@@ -1997,9 +2256,13 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
     lastStep = "normalizing clips";
     let normPaths: string[];
     try {
+      // Only normalize clips that actually overlap the first testDuration seconds.
+      // Using testDuration (not testDuration * 2) prevents normalizing Scene 12
+      // (which starts at ~24s) for a 20-second test — avoiding failures on short clips
+      // that are outside the test window.
       normPaths = await normalizeClipsForDuration(
         session,
-        testDuration * 2,
+        testDuration,
         (msg) => req.log.info({ multiId }, `EXPORT SHORT TEST normalize: ${msg}`),
       );
     } catch (e) {

@@ -1,0 +1,103 @@
+Fix Scene 12 normalize failure causing First 20s export to fail.
+
+Problem:
+First 20s + Audio Test failed.
+
+Error:
+Scene 12 failed to normalize — output missing or empty.
+
+Last step:
+normalizing clips
+
+Do not change:
+- audio start at 0:00
+- full project audio source
+- lip sync result
+- lip sync offset
+- scenes 1 through 11 that already normalize
+- captions
+- effects
+- overlays
+- watermark
+- payments
+
+Only fix:
+- Scene 12 normalize step
+- Scene 12 padding/freeze logic
+- empty output detection
+- fallback for short/corrupt final clip
+
+Requirements:
+
+1. Add Scene 12 normalize debug:
+- source URL
+- source local path
+- source file exists: yes/no
+- source file size
+- ffprobe duration
+- ffprobe video codec
+- target duration
+- normalize command
+- output path
+- output file exists: yes/no
+- output file size
+- output ffprobe duration
+- stderr
+
+2. If Scene 12 source is shorter than 2.0s, pad it safely to 2.0s.
+
+Use a reliable ffmpeg method:
+- trim input first
+- scale/format/fps normalize
+- freeze last frame to reach 2.0s
+- output valid mp4
+
+3. If tpad fails, use fallback:
+- create a 2.0s still-frame video from the last available frame of Scene 12
+- same resolution/fps as other clips
+- no audio inside the clip
+- valid mp4 output
+
+4. Do not let ffmpeg produce empty output.
+
+After normalize, check:
+- output exists
+- output file size greater than 100KB
+- ffprobe video stream exists
+- duration is close to 2.0s
+
+5. If Scene 12 source download is bad or empty, re-download Scene 12 before normalize.
+
+6. Clear Scene 12 stale cache before retry:
+- old downloaded source
+- old normalized output
+- old padded output
+- ffprobe cache
+
+7. Add button:
+Repair And Normalize Scene 12
+
+When clicked:
+- re-download Scene 12
+- clear cache
+- normalize Scene 12 to 2.0s
+- pad/freeze if needed
+- verify output
+- refresh timeline table
+
+8. Show visible result:
+Scene 12 Normalize Result:
+- repaired: yes/no
+- normalized output valid: yes/no
+- duration: 2.0s
+- ready for First 20s export: yes/no
+- last error
+
+9. First 20s + Audio Test should not include Scene 12 because Scene 12 starts at 24s, but the full precheck can still validate it. Make sure the precheck validates Scene 12 without breaking the First 20s render unless full export requires it.
+
+For First 20s test:
+- only render clips that overlap 0s-20s
+- do not normalize Scene 12 for the First 20s test unless running full all-clip validation
+
+10. Final goal:
+Scene 12 should normalize successfully to a valid 2.0s mp4, or the First 20s test should ignore Scene 12 because it is outside the first 20 seconds.

@@ -223,6 +223,23 @@ type RepairClipResult = {
   error?: string;
 };
 
+type RepairNormalizeResult = {
+  sceneNumber: number;
+  repaired: boolean;
+  normalizedOutputValid: boolean;
+  duration: number;
+  targetDuration: number;
+  readyForFirstTwentyExport: boolean;
+  normMethod: "tpad" | "still-frame" | "failed";
+  normFileSize: number;
+  rawShorterThanMaster: boolean;
+  downloadCacheCleared: boolean;
+  normCacheCleared: boolean;
+  redownloadHttpStatus: number;
+  matchesMaster: boolean;
+  lastError: string | null;
+};
+
 type DownloadAllResult = {
   multiId: string;
   total: number;
@@ -362,7 +379,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview" | `repair-${number}`
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview" | `repair-${number}` | `repair-normalize-${number}`
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -396,6 +413,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [lipSyncDownloadCalled, setLipSyncDownloadCalled] = useState(false);
   /** Per-scene repair results keyed by sceneNumber. */
   const [repairResults, setRepairResults] = useState<Record<number, RepairClipResult>>({});
+  /** Per-scene repair-and-normalize results (re-download + fallback) keyed by sceneNumber. */
+  const [repairNormResults, setRepairNormResults] = useState<Record<number, RepairNormalizeResult>>({});
   /** Result of the lightweight Check All Clip URLs (HEAD-only) doctor pass. */
   const [urlDoctorResult, setUrlDoctorResult] = useState<UrlDoctorResult | null>(null);
   /** Result of the full Audio Sync Diagnostic export. */
@@ -693,6 +712,36 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     } finally { setBusy(null); }
   }
 
+  async function repairNormalizeScene(sceneNumber: number) {
+    if (!multiId) return;
+    setBusy(`repair-normalize-${sceneNumber}`); setLastError(null);
+    try {
+      const res = await fetch("/api/export-doctor/repair-normalize", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ multiId, sceneNumber }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = await readJson<RepairNormalizeResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setRepairNormResults(prev => ({ ...prev, [sceneNumber]: data }));
+      // Update the downloadAllResult in-place so the comparison table refreshes
+      setDownloadAllResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          clips: prev.clips.map(c =>
+            c.sceneNumber === sceneNumber
+              ? { ...c, timelineDuration: data.targetDuration, rawShorterThanMaster: data.rawShorterThanMaster }
+              : c
+          ),
+        };
+      });
+      if (data.lastError) setLastError(data.lastError);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
   async function repairClip(sceneNumber: number) {
     if (!multiId) return;
     setBusy(`repair-${sceneNumber}`); setLastError(null);
@@ -726,7 +775,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   async function downloadAllClips() {
     setBusy("download-all"); setLastError(null);
     setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null); setExportAllEffectsResult(null); setExportAllOverlaysResult(null); setOverlayMatchResult(null);
-    setRepairResults({});
+    setRepairResults({}); setRepairNormResults({});
     try {
       const res = await fetch("/api/export-doctor/download-all", {
         method: "POST", headers: await authHeaders(),
@@ -2138,25 +2187,71 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                             ))}
                           </div>
 
-                          {/* Repair button */}
-                          <Button
-                            onClick={() => repairClip(c.sceneNumber)}
-                            disabled={busy !== null || !multiId}
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.05] text-amber-300 hover:bg-amber-500/[0.12] text-[10px] disabled:opacity-40"
-                          >
-                            {isRepairing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
-                            Repair Scene {c.sceneNumber} Duration
-                          </Button>
+                          {/* Repair buttons row */}
+                          {(() => {
+                            const isRepairingNorm = busy === `repair-normalize-${c.sceneNumber}`;
+                            const normR = repairNormResults[c.sceneNumber];
+                            return (
+                              <div className="space-y-1.5">
+                                {/* Primary: Repair And Normalize (re-download + fallback) */}
+                                <Button
+                                  onClick={() => repairNormalizeScene(c.sceneNumber)}
+                                  disabled={busy !== null || !multiId}
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full gap-2 border-orange-500/40 bg-orange-500/[0.07] text-orange-300 hover:bg-orange-500/[0.15] text-[10px] disabled:opacity-40"
+                                >
+                                  {isRepairingNorm ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
+                                  Repair And Normalize Scene {c.sceneNumber}
+                                </Button>
 
-                          {repairR && (
-                            <p className={`text-[9px] font-bold ${repairR.matchesMaster ? "text-green-400" : "text-red-400"}`}>
-                              {repairR.matchesMaster
-                                ? `✓ Scene ${c.sceneNumber} repaired — export: ${repairR.newExportDuration.toFixed(2)}s, normalized: ${repairR.normFileDuration.toFixed(2)}s`
-                                : `✗ Repair may have issues — expected ${repairR.masterDuration.toFixed(2)}s, got ${repairR.normFileDuration.toFixed(2)}s`}
-                            </p>
-                          )}
+                                {/* Secondary: quick re-normalize (no re-download) */}
+                                <Button
+                                  onClick={() => repairClip(c.sceneNumber)}
+                                  disabled={busy !== null || !multiId}
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.05] text-amber-300/70 hover:bg-amber-500/[0.12] text-[9px] disabled:opacity-40"
+                                >
+                                  {isRepairing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
+                                  Repair Scene {c.sceneNumber} Duration (keep existing download)
+                                </Button>
+
+                                {/* Repair-normalize result panel (8 fields per requirements) */}
+                                {normR && (
+                                  <div className={`rounded-lg border px-2.5 py-2 space-y-1 ${normR.repaired ? "border-green-500/25 bg-green-500/[0.04]" : "border-red-500/25 bg-red-500/[0.04]"}`}>
+                                    <p className={`text-[9px] font-black uppercase tracking-widest ${normR.repaired ? "text-green-400" : "text-red-400"}`}>
+                                      Scene {c.sceneNumber} Normalize Result
+                                    </p>
+                                    {([
+                                      ["repaired",                    normR.repaired ? "yes ✓" : "no ✗",              normR.repaired],
+                                      ["normalized output valid",     normR.normalizedOutputValid ? "yes ✓" : "no ✗", normR.normalizedOutputValid],
+                                      ["duration",                    `${normR.duration.toFixed(2)}s`,                 null],
+                                      ["method",                      normR.normMethod,                                 normR.normMethod !== "failed"],
+                                      ["ready for First 20s export",  normR.readyForFirstTwentyExport ? "yes ✓" : "no ✗", normR.readyForFirstTwentyExport],
+                                      ["source re-downloaded",        normR.downloadCacheCleared ? "yes" : "no (was missing)", null],
+                                      ["matches master",              normR.matchesMaster ? "yes ✓" : `no — got ${normR.duration.toFixed(2)}s, expected ${normR.targetDuration.toFixed(2)}s`, normR.matchesMaster],
+                                      ["last error",                  normR.lastError ?? "none", !normR.lastError],
+                                    ] as [string, string, boolean | null][]).map(([label, value, ok]) => (
+                                      <div key={label} className="flex items-start justify-between gap-2">
+                                        <span className="text-[8px] font-mono text-white/30 shrink-0">{label}</span>
+                                        <span className={`text-[8px] font-mono text-right break-all ${ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/50"}`}>{value}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Legacy repair result */}
+                                {repairR && !normR && (
+                                  <p className={`text-[9px] font-bold ${repairR.matchesMaster ? "text-green-400" : "text-red-400"}`}>
+                                    {repairR.matchesMaster
+                                      ? `✓ Scene ${c.sceneNumber} repaired — export: ${repairR.newExportDuration.toFixed(2)}s, normalized: ${repairR.normFileDuration.toFixed(2)}s`
+                                      : `✗ Repair may have issues — expected ${repairR.masterDuration.toFixed(2)}s, got ${repairR.normFileDuration.toFixed(2)}s`}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
