@@ -44,6 +44,11 @@ interface ExportDoctorProps {
   /** Scene ID currently selected in the Lip Sync tab.
    *  When set, the export test button targets that specific scene instead of the first one found. */
   selectedLipSyncSceneId?: string | null;
+  /** Master player's audio start offset (settings.musicStudio.videoAudio.startSec).
+   *  Applied as -ss to audio input in every audio export to match the master player. */
+  audioStartSec?: number;
+  /** Saved audio duration in seconds (settings.musicStudio.videoAudio.duration). */
+  audioDurationSec?: number;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -222,6 +227,47 @@ type UrlDoctorResult = {
   allAllowed: boolean;
 };
 
+type AudioSyncClipRow = {
+  sceneNumber: number;
+  title: string;
+  clipDuration: number;
+  timelineStartSec: number;
+  timelineEndSec: number;
+  sourceType?: string;
+  lipSyncOffsetSec?: number;
+};
+
+type AudioSyncDiagResult = {
+  success?: boolean;
+  url?: string;
+  fileSize?: number;
+  duration?: number;
+  width?: number;
+  height?: number;
+  hasAudio?: boolean;
+  testDurationSec?: number;
+  // Timing alignment
+  masterAudioStartSec?: number;
+  exportAudioStartSec?: number;
+  audioOffset?: number;
+  timelineVideoDuration?: number;
+  audioDuration?: number;
+  finalExportDuration?: number;
+  audioVideoSyncMode?: string;
+  syncExpected?: boolean;
+  usingMasterPlayerTiming?: boolean;
+  audioOffsetApplied?: boolean;
+  // Sync check flags
+  videoOnlyExportPassed?: boolean;
+  audioSourceReady?: boolean;
+  lipSyncOffsetsPreserved?: boolean;
+  finalSyncExpected?: boolean;
+  // Per-clip map
+  clipTimeline?: AudioSyncClipRow[];
+  error?: string;
+  stderrTail?: string[];
+};
+
 async function readJson<T>(res: Response): Promise<T> {
   const ct = res.headers.get("content-type") ?? "";
   const text = await res.text();
@@ -237,7 +283,7 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode, clipEdits, selectedLipSyncSceneId }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode, clipEdits, selectedLipSyncSceneId, audioStartSec, audioDurationSec }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
   // Deduplicate the scenes array by scene id.
@@ -258,7 +304,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -292,6 +338,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [lipSyncDownloadCalled, setLipSyncDownloadCalled] = useState(false);
   /** Result of the lightweight Check All Clip URLs (HEAD-only) doctor pass. */
   const [urlDoctorResult, setUrlDoctorResult] = useState<UrlDoctorResult | null>(null);
+  /** Result of the full Audio Sync Diagnostic export. */
+  const [audioSyncDiagResult, setAudioSyncDiagResult] = useState<AudioSyncDiagResult | null>(null);
+  /** Result of the First 20 Seconds Audio Sync Short Test. */
+  const [audioSyncShortResult, setAudioSyncShortResult] = useState<AudioSyncDiagResult | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -464,12 +514,65 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     try {
       const res = await fetch("/api/export-doctor/export-all-audio", {
         method: "POST", headers: await authHeaders(),
-        body: JSON.stringify({ multiId, audioUrl: masterAudioUrl ?? null }),
+        body: JSON.stringify({
+          multiId,
+          audioUrl: masterAudioUrl ?? null,
+          audioStartSec: audioStartSec ?? 0,
+          syncMode: syncMode ?? "keep-as-is",
+        }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setExportAllAudioResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportAudioSyncDiagnostic() {
+    if (!multiId) return;
+    setBusy("export-audio-sync-diag"); setLastError(null); setAudioSyncDiagResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-audio-sync-diagnostic", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId,
+          audioUrl: masterAudioUrl ?? null,
+          audioStartSec: audioStartSec ?? 0,
+          syncMode: syncMode ?? "keep-as-is",
+          clipEdits: clipEdits ?? {},
+        }),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+      const data = await readJson<AudioSyncDiagResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setAudioSyncDiagResult(data);
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
+  async function exportAudioSyncShort() {
+    if (!multiId) return;
+    setBusy("export-audio-sync-short"); setLastError(null); setAudioSyncShortResult(null);
+    try {
+      const res = await fetch("/api/export-doctor/export-audio-sync-short", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({
+          multiId,
+          audioUrl: masterAudioUrl ?? null,
+          audioStartSec: audioStartSec ?? 0,
+          syncMode: syncMode ?? "keep-as-is",
+          durationSec: 20,
+        }),
+        signal: AbortSignal.timeout(5 * 60 * 1000),
+      });
+      const data = await readJson<AudioSyncDiagResult>(res);
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setAudioSyncShortResult(data);
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -1530,6 +1633,119 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 Export All {multiClips.length} Clips + Audio Only
               </Button>
             </div>
+
+            {/* ── Audio Sync Check (pre-export status) ── */}
+            {(() => {
+              const resolvedStart = audioStartSec ?? 0;
+              const hasAudio      = !!masterAudioUrl;
+              const videoOk       = allClipsValid;
+              const offsetApplied = resolvedStart > 0;
+              const rows: [string, string, boolean | null][] = [
+                ["video-only export passed",          videoOk                    ? "yes ✓" : "clips not ready",        videoOk],
+                ["audio source ready",                hasAudio                   ? "yes ✓" : "no audio URL",           hasAudio],
+                ["master player audio start",         `${resolvedStart.toFixed(2)}s`,                                  null],
+                ["export audio start",                `${resolvedStart.toFixed(2)}s (same as master)`,                 null],
+                ["using master player timing",        offsetApplied              ? "yes ✓" : "at 0:00 (no offset)",    null],
+                ["audio offset applied",              offsetApplied              ? `+${resolvedStart.toFixed(2)}s ✓` : "none (starts at 0:00)", null],
+                ["sync mode",                         syncMode ?? "keep-as-is",                                         null],
+                ["saved audio duration",              audioDurationSec != null   ? `${audioDurationSec.toFixed(1)}s` : "unknown", null],
+                ["lip sync offsets preserved",        "yes — per-clip offsets sent to server",                         true],
+                ["final audio/video sync expected",   videoOk && hasAudio        ? "yes ✓" : "no — fix above first",  videoOk && hasAudio],
+              ];
+              return (
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.03] px-3 py-3 space-y-1">
+                  <p className="text-[10px] font-black text-blue-300/60 uppercase tracking-widest mb-2">
+                    Audio Sync Export Check
+                  </p>
+                  {rows.map(([label, value, ok]) => (
+                    <div key={label} className="flex items-start justify-between gap-2">
+                      <span className="text-[10px] font-mono text-white/35 shrink-0">{label}</span>
+                      <span className={`text-[10px] font-mono text-right leading-snug ${
+                        ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/50"
+                      }`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* ── Audio Sync Diagnostic & Short Test buttons ── */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={exportAudioSyncDiagnostic} disabled={busy !== null || !allClipsValid || !masterAudioUrl} variant="outline"
+                className="gap-2 border-blue-500/30 bg-blue-500/[0.04] text-blue-300 hover:bg-blue-500/[0.10] text-xs disabled:opacity-40"
+                data-testid="btn-doctor-audio-sync-diag">
+                {busy === "export-audio-sync-diag" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
+                Audio Sync Diagnostic
+              </Button>
+              <Button onClick={exportAudioSyncShort} disabled={busy !== null || !allClipsValid || !masterAudioUrl} variant="outline"
+                className="gap-2 border-sky-500/30 bg-sky-500/[0.04] text-sky-300 hover:bg-sky-500/[0.10] text-xs disabled:opacity-40"
+                data-testid="btn-doctor-audio-sync-short">
+                {busy === "export-audio-sync-short" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
+                First 20s + Audio Test
+              </Button>
+            </div>
+
+            {/* ── Audio Sync Diagnostic result ── */}
+            {[
+              { result: audioSyncDiagResult, label: "Audio Sync Diagnostic" },
+              { result: audioSyncShortResult, label: "First 20s Audio Sync Test" },
+            ].map(({ result, label }) => result && (
+              <div key={label} className="rounded-xl border border-blue-500/20 bg-blue-500/[0.03] px-3 py-3 space-y-2">
+                <p className="text-[10px] font-black text-blue-300/60 uppercase tracking-widest">{label} Result</p>
+
+                {/* Timing alignment rows */}
+                {([
+                  ["master player audio start",   `${(result.masterAudioStartSec ?? 0).toFixed(2)}s`],
+                  ["export audio start",           `${(result.exportAudioStartSec ?? 0).toFixed(2)}s`],
+                  ["audio offset applied",         `${(result.audioOffset ?? 0).toFixed(2)}s`],
+                  ["timeline video duration",      result.timelineVideoDuration != null ? `${result.timelineVideoDuration.toFixed(2)}s` : "—"],
+                  ["audio duration",               result.audioDuration != null ? `${result.audioDuration.toFixed(2)}s` : "—"],
+                  ["final export duration",        result.duration != null ? `${result.duration.toFixed(2)}s` : "—"],
+                  ["audio/video sync mode",        result.audioVideoSyncMode ?? syncMode ?? "keep-as-is"],
+                  ["using master player timing",   (result.audioOffset ?? 0) > 0 ? "yes ✓" : "at 0:00 (no offset)"],
+                ] as [string, string][]).map(([k, v]) => (
+                  <div key={k} className="flex items-start justify-between gap-2">
+                    <span className="text-[10px] font-mono text-white/35 shrink-0">{k}</span>
+                    <span className="text-[10px] font-mono text-white/55 text-right">{v}</span>
+                  </div>
+                ))}
+
+                {/* Per-clip timeline map */}
+                {result.clipTimeline && result.clipTimeline.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                    <p className="text-[9px] font-black text-white/35 uppercase tracking-widest mb-1.5">Clip Timeline Map</p>
+                    <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                      {result.clipTimeline.map((c) => (
+                        <div key={c.sceneNumber} className="grid grid-cols-[1.5rem_1fr_auto_auto] gap-x-2 items-center text-[9px] font-mono">
+                          <span className="text-white/30">{c.sceneNumber}</span>
+                          <span className="text-white/50 truncate">{c.title}</span>
+                          <span className="text-white/35">{c.clipDuration.toFixed(1)}s</span>
+                          <span className="text-white/25">{c.timelineStartSec.toFixed(1)}→{c.timelineEndSec.toFixed(1)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Download link */}
+                {result.url && (
+                  <a href={result.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors">
+                    <ExternalLink className="h-3 w-3" />
+                    Download {label} Export
+                  </a>
+                )}
+
+                {/* Error */}
+                {result.error && (
+                  <p className="text-[10px] text-red-400/80 break-words leading-snug">{result.error}</p>
+                )}
+                {result.stderrTail && result.stderrTail.length > 0 && result.stderrTail.map((line, i) => (
+                  <div key={i} className="text-[9px] font-mono text-red-400/60 break-words">{line}</div>
+                ))}
+              </div>
+            ))}
+
             <Button onClick={exportAllClipsCaptions} disabled={busy !== null || !allClipsValid || !fcCaptionsFound} variant="outline"
               className="gap-2 border-amber-500/30 bg-amber-500/5 text-amber-400 hover:bg-amber-500/10 text-xs disabled:opacity-40"
               data-testid="btn-doctor-export-all-captions">

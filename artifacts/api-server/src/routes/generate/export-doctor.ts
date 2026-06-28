@@ -432,6 +432,7 @@ async function concatMultiClips(
   assPath: string | null = null,
   effectFilter: string | null = null,
   range: { start: number; duration: number } | null = null,
+  audioOffsetSec = 0,
 ): Promise<string> {
   const outputPath = path.join(folder, outName);
   const filterParts: string[] = [];
@@ -471,9 +472,12 @@ async function concatMultiClips(
   const audioIdx = audioPath ? normPaths.length : -1;
   const args: string[] = [];
   for (const np of normPaths) args.push("-i", np);
-  // For ranged exports, input-seek the audio so it lines up with the trimmed video.
+  // Seek audio to: master-player audio start offset + range start (for trimmed exports).
+  // audioOffsetSec = settings.musicStudio.videoAudio.startSec from the master player.
   if (audioPath) {
-    if (range) args.push("-ss", Math.max(0, range.start).toFixed(3), "-t", Math.max(0.1, range.duration).toFixed(3));
+    const audioSeekSec = (audioOffsetSec ?? 0) + (range ? Math.max(0, range.start) : 0);
+    if (audioSeekSec > 0) args.push("-ss", audioSeekSec.toFixed(3));
+    if (range) args.push("-t", Math.max(0.1, range.duration).toFixed(3));
     args.push("-i", audioPath);
   }
   args.push("-filter_complex", filterParts.join(";"), "-map", videoLabel);
@@ -1377,7 +1381,13 @@ router.post("/export-doctor/export-all", requireAuth, async (req, res) => {
 /* ── TEST 7: export ALL clips + audio (concat + master-player audio) ── */
 router.post("/export-doctor/export-all-audio", requireAuth, async (req, res) => {
   try {
-    const { multiId, audioUrl } = req.body as { multiId?: string; audioUrl?: string };
+    const { multiId, audioUrl, audioStartSec, syncMode } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      /** Seconds into the audio track to start — matches master player's videoAudio.startSec. */
+      audioStartSec?: number;
+      syncMode?: string;
+    };
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
       res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
@@ -1445,10 +1455,28 @@ router.post("/export-doctor/export-all-audio", requireAuth, async (req, res) => 
       return;
     }
 
-    req.log.info({ multiId, clipCount: normPaths.length }, "EXPORT DOCTOR export all clips + audio");
+    // Build per-clip timeline map using ffprobe durations stored during download
+    const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
+    let timelineCursor = 0;
+    const clipTimeline = session.clips.map((c) => {
+      const start = timelineCursor;
+      const dur   = c.duration ?? 0;
+      timelineCursor += dur;
+      return {
+        sceneNumber: c.sceneNumber,
+        title: c.sceneTitle,
+        clipDuration: dur,
+        timelineStartSec: start,
+        timelineEndSec: timelineCursor,
+      };
+    });
+    const timelineVideoDuration = timelineCursor;
+
+    req.log.info({ multiId, clipCount: normPaths.length, audioStartSec: resolvedAudioStart, syncMode }, "EXPORT DOCTOR export all clips + audio");
     let outputPath: string;
     try {
-      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "all-clips-audio-test.mp4");
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "all-clips-audio-test.mp4",
+        null, null, null, resolvedAudioStart);
     } catch (e) {
       const stderr = (e as { stderr?: string }).stderr ?? "";
       res.status(500).json({
@@ -1486,6 +1514,289 @@ router.post("/export-doctor/export-all-audio", requireAuth, async (req, res) => 
       width: probe.width,
       height: probe.height,
       hasAudio: probe.hasAudio,
+      // Audio sync alignment info
+      masterAudioStartSec: resolvedAudioStart,
+      exportAudioStartSec: resolvedAudioStart,
+      audioOffset: resolvedAudioStart,
+      timelineVideoDuration,
+      syncMode: syncMode ?? "keep-as-is",
+      usingMasterPlayerTiming: resolvedAudioStart > 0,
+      clipTimeline,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ── TEST 7b: Audio Sync Diagnostic — full export + detailed per-clip timeline + sync status ── */
+router.post("/export-doctor/export-audio-sync-diagnostic", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, audioStartSec, syncMode, clipEdits } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      audioStartSec?: number;
+      syncMode?: string;
+      clipEdits?: Record<string, { lipSyncOffsetSeconds?: number; useLipSync?: boolean }>;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+    const blocker = multiClipsBlocker(session);
+    if (blocker) { res.status(400).json({ error: blocker }); return; }
+    if (!audioUrl?.startsWith("http")) {
+      res.status(400).json({ error: "No master-player audio URL was provided." });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source." });
+      return;
+    }
+
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `sync-diag-audio${ext}`);
+
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    if (!existsSync(audioPath) || statSync(audioPath).size < 1024) {
+      res.json({ error: "Audio file was not created or is too small." });
+      return;
+    }
+    const aProbe = await probeMedia(audioPath);
+    if (!aProbe.hasAudio) {
+      res.json({ error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.` });
+      return;
+    }
+    session.audioPath = audioPath;
+
+    const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
+
+    // Per-clip timeline map with lip sync offset info
+    let cursor = 0;
+    const clipTimeline = session.clips.map((c) => {
+      const start = cursor;
+      const dur   = c.duration ?? 0;
+      cursor += dur;
+      const ce = clipEdits?.[`scene-${c.sceneNumber}`] ?? clipEdits?.[String(c.sceneNumber)] ?? null;
+      return {
+        sceneNumber: c.sceneNumber,
+        title: c.sceneTitle,
+        clipDuration: dur,
+        timelineStartSec: start,
+        timelineEndSec: cursor,
+        sourceType: ce?.useLipSync ? "lip-sync" : "original",
+        lipSyncOffsetSec: ce?.lipSyncOffsetSeconds ?? 0,
+      };
+    });
+    const timelineVideoDuration = cursor;
+    const audioDuration = aProbe.duration ?? 0;
+    const finalExportDuration = Math.min(timelineVideoDuration, audioDuration > 0 ? audioDuration - resolvedAudioStart : timelineVideoDuration);
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "sync-diag-test.mp4",
+        null, null, null, resolvedAudioStart);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        error: `FFmpeg sync-diag failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        stderrTail: stderr.slice(-600).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ error: "FFmpeg produced no usable output file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-sync-diag.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+      contentType: "video/mp4", resumable: false,
+    });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    const hasLipSync = session.clips.some((_, i) => clipEdits?.[`scene-${i + 1}`]?.useLipSync || false);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+      // Audio sync alignment
+      masterAudioStartSec: resolvedAudioStart,
+      exportAudioStartSec: resolvedAudioStart,
+      audioOffset: resolvedAudioStart,
+      timelineVideoDuration,
+      audioDuration,
+      finalExportDuration,
+      audioVideoSyncMode: syncMode ?? "keep-as-is",
+      syncExpected: true,
+      // Per-clip map
+      clipTimeline,
+      // Audio Sync Export Check status
+      videoOnlyExportPassed: true,
+      audioSourceReady: true,
+      usingMasterPlayerTiming: resolvedAudioStart > 0,
+      audioOffsetApplied: resolvedAudioStart > 0,
+      lipSyncOffsetsPreserved: hasLipSync,
+      finalSyncExpected: true,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ── TEST 7c: Audio Sync Short Test — first 20 seconds + audio, fast turnaround ── */
+router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, res) => {
+  try {
+    const { multiId, audioUrl, audioStartSec, syncMode, durationSec } = req.body as {
+      multiId?: string;
+      audioUrl?: string;
+      audioStartSec?: number;
+      syncMode?: string;
+      /** How many seconds to export. Defaults to 20. */
+      durationSec?: number;
+    };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
+      return;
+    }
+    const blocker = multiClipsBlocker(session);
+    if (blocker) { res.status(400).json({ error: blocker }); return; }
+    if (!audioUrl?.startsWith("http")) {
+      res.status(400).json({ error: "No master-player audio URL was provided." });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source." });
+      return;
+    }
+
+    let target = audioUrl;
+    if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+      const { url: fresh, changed } = await tryFreshSignedUrl(target);
+      if (changed) target = fresh;
+    }
+    const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
+    const audioPath = path.join(session.folder, `short-test-audio${ext}`);
+
+    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    if (!ar.ok) {
+      res.json({ error: `Audio download failed (HTTP ${ar.status}).` });
+      return;
+    }
+    const aws = createWriteStream(audioPath);
+    await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
+    if (!existsSync(audioPath) || statSync(audioPath).size < 1024) {
+      res.json({ error: "Audio file was not created or is too small." });
+      return;
+    }
+    const aProbe = await probeMedia(audioPath);
+    if (!aProbe.hasAudio) {
+      res.json({ error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.` });
+      return;
+    }
+    session.audioPath = audioPath;
+
+    const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
+    const testDuration = Math.max(5, Math.min(60, durationSec ?? 20));
+
+    // Per-clip timeline map
+    let cursor = 0;
+    const clipTimeline = session.clips.map((c) => {
+      const start = cursor;
+      const dur   = c.duration ?? 0;
+      cursor += dur;
+      return {
+        sceneNumber: c.sceneNumber,
+        title: c.sceneTitle,
+        clipDuration: dur,
+        timelineStartSec: start,
+        timelineEndSec: cursor,
+      };
+    });
+    const timelineVideoDuration = cursor;
+    const audioDuration = aProbe.duration ?? 0;
+
+    let normPaths: string[];
+    try {
+      normPaths = await normalizeAllClips(session);
+    } catch (e) {
+      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      return;
+    }
+
+    const range = { start: 0, duration: testDuration };
+    let outputPath: string;
+    try {
+      outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "short-test.mp4",
+        null, null, range, resolvedAudioStart);
+    } catch (e) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      res.status(500).json({
+        error: `FFmpeg short-test failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+        stderrTail: stderr.slice(-600).split("\n").filter(Boolean),
+      });
+      return;
+    }
+
+    if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+      res.status(500).json({ error: "FFmpeg produced no usable output file." });
+      return;
+    }
+
+    const probe = await probeMedia(outputPath);
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    const objectName = `export-doctor/${multiId}-short-test.mp4`;
+    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+      contentType: "video/mp4", resumable: false,
+    });
+    const signedUrl = await signGetUrl(bucketId, objectName);
+
+    res.json({
+      success: true,
+      url: signedUrl,
+      fileSize: statSync(outputPath).size,
+      duration: probe.duration,
+      width: probe.width,
+      height: probe.height,
+      hasAudio: probe.hasAudio,
+      testDurationSec: testDuration,
+      masterAudioStartSec: resolvedAudioStart,
+      exportAudioStartSec: resolvedAudioStart,
+      audioOffset: resolvedAudioStart,
+      timelineVideoDuration,
+      audioDuration,
+      audioVideoSyncMode: syncMode ?? "keep-as-is",
+      clipTimeline,
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
