@@ -369,11 +369,27 @@ export function LipSyncSection({
   const [previewModalUrl, setPreviewModalUrl]   = useState<string | null>(null);
 
   /* ── Smart Lip Sync Doctor state ── */
-  const [doctorResult,      setDoctorResult]      = useState<DoctorResult | null>(null);
-  const [doctorAnalyzing,   setDoctorAnalyzing]   = useState(false);
-  const [exportTestRunning, setExportTestRunning] = useState<"scene" | "20s" | null>(null);
-  const [exportTestMsg,     setExportTestMsg]     = useState<string | null>(null);
-  const [autoFixApplied,    setAutoFixApplied]    = useState(false);
+  const [doctorResult,    setDoctorResult]    = useState<DoctorResult | null>(null);
+  const [doctorAnalyzing, setDoctorAnalyzing] = useState(false);
+  const [autoFixApplied,  setAutoFixApplied]  = useState(false);
+
+  /* ── Scene Only Test state ── */
+  const [sceneTestRunning, setSceneTestRunning] = useState(false);
+  const [sceneTestStep,    setSceneTestStep]    = useState<string | null>(null);
+  const [sceneTestResult,  setSceneTestResult]  = useState<{
+    resultUrl: string;
+    fileSize:  number;
+  } | null>(null);
+  const [sceneTestError,   setSceneTestError]   = useState<string | null>(null);
+  const [sceneTestDebug,   setSceneTestDebug]   = useState<{
+    routeCalled:    boolean;
+    ffmpegStarted:  boolean;
+    ffmpegFinished: boolean;
+    outputExists:   boolean;
+    outputBytes:    number;
+    resultUrl:      string | null;
+    lastError:      string | null;
+  } | null>(null);
 
   /* ── Auto AI Lip Sync workflow state ── */
   const [autoAiMessage, setAutoAiMessage] = useState<string | null>(null);
@@ -1243,24 +1259,108 @@ export function LipSyncSection({
     setDoctorResult(prev => prev ? { ...prev, exportFineTune: rec, totalExportOffset: rec + prev.previewOffset } : prev);
   }
 
-  async function handleExportTest(kind: "scene" | "20s") {
-    setExportTestRunning(kind);
-    setExportTestMsg(null);
-    await new Promise(r => setTimeout(r, 800));
-    const ce = selectedClipEdit;
+  async function handleSceneOnlyTest() {
+    const ce    = selectedClipEdit;
     const scene = selectedScene;
-    if (!ce || !scene) { setExportTestMsg("No clip selected."); setExportTestRunning(null); return; }
-    const totalOff = (ce.lipSyncAudioOffset ?? 0) + (ce.lipSyncOffsetSeconds ?? 0);
-    const clipUrl  = ce.useLipSync && ce.lipSyncUrl ? ce.lipSyncUrl : (scene.demoClipUrl ?? "—");
-    const params = [
-      `scene: ${scene.sceneNumber}`,
-      `clip: ${clipUrl.slice(0, 60)}…`,
-      `audio: ${effectiveAudioUrl ? effectiveAudioUrl.slice(0, 60) + "…" : "—"}`,
-      `totalOffset: ${totalOff >= 0 ? "+" : ""}${totalOff.toFixed(2)}s`,
-      kind === "20s" ? "duration: 20s" : `duration: ${(clipVideoDuration ?? 0).toFixed(2)}s`,
-    ].join("  |  ");
-    setExportTestMsg(`[${kind === "20s" ? "First 20s" : "Scene only"} test params] ${params}`);
-    setExportTestRunning(null);
+    if (!ce || !scene) { setSceneTestError("No scene selected."); return; }
+
+    const clipUrl = ce.useLipSync && ce.lipSyncUrl ? ce.lipSyncUrl : (scene.demoClipUrl ?? null);
+    if (!clipUrl) { setSceneTestError("No lip sync video URL found for this scene."); return; }
+    if (!effectiveAudioUrl) { setSceneTestError("No audio URL configured. Add audio to the project first."); return; }
+    if (!selectedTiming) { setSceneTestError("Scene timing unavailable — cannot trim audio section."); return; }
+
+    /* Export fine-tune offset applied to video (positive = delay, negative = advance) */
+    const videoOffsetSec = ce.lipSyncOffsetSeconds ?? 0;
+
+    setSceneTestRunning(true);
+    setSceneTestStep("preparing scene test…");
+    setSceneTestResult(null);
+    setSceneTestError(null);
+    setSceneTestDebug(null);
+
+    try {
+      const token = await getAccessToken();
+
+      /* ── 1. Enqueue the job ── */
+      const startRes = await fetch("/api/lip-sync/scene-test", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          clipUrl,
+          audioUrl:      effectiveAudioUrl,
+          sceneStartSec: selectedTiming.startSec,
+          sceneEndSec:   selectedTiming.endSec,
+          videoOffsetSec,
+        }),
+      });
+
+      if (!startRes.ok) {
+        const errBody = await startRes.json().catch(() => ({ error: `HTTP ${startRes.status}` })) as { error?: string };
+        throw new Error(errBody.error ?? `Scene test route returned HTTP ${startRes.status}`);
+      }
+
+      const { jobId } = (await startRes.json()) as { jobId: string };
+
+      /* ── 2. Poll until done or failed ── */
+      const POLL_INTERVAL_MS = 2_000;
+      const MAX_POLLS = 120; // 4 minutes max
+
+      const STEP_LABELS: Record<string, string> = {
+        preparing:                    "preparing scene test…",
+        "downloading lip sync video": "downloading lip sync video…",
+        "downloading audio":          "downloading audio…",
+        "rendering mp4":              "rendering mp4…",
+        "uploading result":           "uploading result…",
+        done:                         "done ✓",
+        failed:                       "failed",
+      };
+
+      for (let i = 0; i < MAX_POLLS; i++) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+
+        const pollRes  = await fetch(`/api/lip-sync/scene-test/${jobId}`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!pollRes.ok) throw new Error(`Poll failed: HTTP ${pollRes.status}`);
+
+        const job = (await pollRes.json()) as {
+          status:     string;
+          step?:      string;
+          resultUrl?: string;
+          fileSize?:  number;
+          error?:     string;
+          debug:      {
+            routeCalled:    boolean;
+            ffmpegStarted:  boolean;
+            ffmpegFinished: boolean;
+            outputExists:   boolean;
+            outputBytes:    number;
+            resultUrl:      string | null;
+            lastError:      string | null;
+          };
+        };
+
+        /* Update step label */
+        const stepLabel = STEP_LABELS[job.step ?? ""] ?? job.step ?? "running…";
+        setSceneTestStep(stepLabel);
+        if (job.debug) setSceneTestDebug(job.debug);
+
+        if (job.status === "done" && job.resultUrl) {
+          setSceneTestResult({ resultUrl: job.resultUrl, fileSize: job.fileSize ?? 0 });
+          setSceneTestStep("done ✓");
+          return;
+        }
+        if (job.status === "failed") {
+          throw new Error(job.error ?? "Scene test render failed");
+        }
+      }
+      throw new Error("Scene test timed out after 4 minutes.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSceneTestError(msg);
+    } finally {
+      setSceneTestRunning(false);
+    }
   }
 
   if (scenes.length === 0) return <EmptyScenes />;
@@ -3433,36 +3533,109 @@ export function LipSyncSection({
                     </div>
                   </div>
 
-                  {/* Export test buttons */}
-                  <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Export Test</p>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <button
-                        type="button"
-                        disabled={!canAdjust || exportTestRunning !== null}
-                        onClick={() => void handleExportTest("scene")}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {exportTestRunning === "scene"
-                          ? <><Loader2 className="h-3 w-3 animate-spin" /> Checking…</>
-                          : "Scene Only Test"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!canAdjust || exportTestRunning !== null}
-                        onClick={() => void handleExportTest("20s")}
-                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {exportTestRunning === "20s"
-                          ? <><Loader2 className="h-3 w-3 animate-spin" /> Checking…</>
-                          : "First 20s Test"}
-                      </button>
-                    </div>
-                    {exportTestMsg && (
-                      <pre className="text-[9px] text-white/40 font-mono whitespace-pre-wrap break-all leading-relaxed px-2 py-1.5 rounded-lg border border-white/[0.05] bg-white/[0.01]">
-                        {exportTestMsg}
-                      </pre>
+                  {/* ── Scene Only Test ── */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Scene Only Test</p>
+
+                    {/* Launch button */}
+                    <button
+                      type="button"
+                      disabled={!canAdjust || sceneTestRunning}
+                      onClick={() => void handleSceneOnlyTest()}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-[10px] font-bold hover:bg-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {sceneTestRunning
+                        ? <><Loader2 className="h-3 w-3 animate-spin" />{sceneTestStep ?? "running…"}</>
+                        : <><FlaskConical className="h-3 w-3" />Scene Only Test</>}
+                    </button>
+
+                    {/* Progress steps (while running) */}
+                    {sceneTestRunning && sceneTestStep && (() => {
+                      const STEPS = [
+                        "preparing scene test…",
+                        "downloading lip sync video…",
+                        "downloading audio…",
+                        "rendering mp4…",
+                        "uploading result…",
+                        "done ✓",
+                      ];
+                      const cur = STEPS.indexOf(sceneTestStep);
+                      return (
+                        <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2 space-y-1">
+                          {STEPS.slice(0, -1).map((s, i) => (
+                            <div key={s} className="flex items-center gap-1.5">
+                              {i < cur
+                                ? <CheckCircle2 className="h-2.5 w-2.5 text-emerald-400 shrink-0" />
+                                : i === cur
+                                  ? <Loader2 className="h-2.5 w-2.5 text-indigo-400 animate-spin shrink-0" />
+                                  : <div className="h-2.5 w-2.5 rounded-full border border-white/10 shrink-0" />}
+                              <span className={`text-[9px] ${i <= cur ? "text-white/60" : "text-white/20"}`}>{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Result: Play + Download buttons */}
+                    {sceneTestResult && (
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] px-3 py-2.5 space-y-2">
+                        <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">Scene Test Ready</p>
+                        <div className="flex gap-1.5">
+                          <a
+                            href={sceneTestResult.resultUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[9px] font-bold hover:bg-emerald-500/30 transition-colors"
+                          >
+                            <Play className="h-2.5 w-2.5" /> Play Test
+                          </a>
+                          <a
+                            href={sceneTestResult.resultUrl}
+                            download="scene-test.mp4"
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/10 text-white/50 text-[9px] font-bold hover:bg-white/[0.08] transition-colors"
+                          >
+                            Download
+                          </a>
+                        </div>
+                        <p className="text-[9px] text-white/30 font-mono break-all leading-relaxed">
+                          {sceneTestResult.resultUrl.slice(0, 90)}…
+                        </p>
+                        {sceneTestResult.fileSize > 0 && (
+                          <p className="text-[9px] text-white/25">{(sceneTestResult.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                        )}
+                      </div>
                     )}
+
+                    {/* Error */}
+                    {sceneTestError && (
+                      <div className="rounded-xl border border-red-500/20 bg-red-500/[0.05] px-3 py-2 space-y-1">
+                        <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest">Scene Test Failed</p>
+                        <p className="text-[9px] text-red-300/80 font-mono break-all leading-relaxed">{sceneTestError}</p>
+                      </div>
+                    )}
+
+                    {/* Debug panel */}
+                    {(sceneTestDebug || sceneTestResult || sceneTestError) && (() => {
+                      const d = sceneTestDebug;
+                      const rows: [string, string, boolean | null][] = [
+                        ["route called",     d?.routeCalled    ? "yes ✓" : "no ✗",       d?.routeCalled    ?? false],
+                        ["ffmpeg started",   d?.ffmpegStarted  ? "yes ✓" : "no ✗",       d?.ffmpegStarted  ?? false],
+                        ["ffmpeg finished",  d?.ffmpegFinished ? "yes ✓" : "no ✗",       d?.ffmpegFinished ?? false],
+                        ["output exists",    d?.outputExists   ? "yes ✓" : "no ✗",       d?.outputExists   ?? false],
+                        ["output size",      d?.outputBytes ? `${(d.outputBytes / 1024).toFixed(1)} KB` : "—", null],
+                        ["result URL",       (d?.resultUrl ?? sceneTestResult?.resultUrl) ? "set ✓" : "—", !!(d?.resultUrl ?? sceneTestResult?.resultUrl)],
+                        ["last error",       d?.lastError ?? sceneTestError ?? "none",    !(d?.lastError ?? sceneTestError)],
+                      ];
+                      return (
+                        <Collapsible title="Scene Only Test Result" defaultOpen={!!sceneTestError}>
+                          <div className="space-y-1 pt-1">
+                            {rows.map(([lbl, val, ok]) => (
+                              <StatusRow key={lbl} label={lbl} value={val} ok={ok} />
+                            ))}
+                          </div>
+                        </Collapsible>
+                      );
+                    })()}
                   </div>
 
                 </div>

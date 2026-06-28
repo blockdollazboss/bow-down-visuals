@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
+import { existsSync, statSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
@@ -772,5 +773,262 @@ router.post(
     }
   },
 );
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Scene-only test render — POST /lip-sync/scene-test
+   Downloads the lip-sync video + project audio, trims the audio to the
+   scene section, applies the video timing offset, muxes with FFmpeg, and
+   uploads the result to GCS.  Returns a jobId for polling.
+══════════════════════════════════════════════════════════════════════════ */
+
+interface SceneTestDebug {
+  routeCalled:    boolean;
+  ffmpegStarted:  boolean;
+  ffmpegFinished: boolean;
+  outputExists:   boolean;
+  outputBytes:    number;
+  resultUrl:      string | null;
+  lastError:      string | null;
+}
+
+interface SceneTestJob {
+  status:     "queued" | "running" | "done" | "failed";
+  step?:      string;
+  resultUrl?: string;
+  fileSize?:  number;
+  error?:     string;
+  debug:      SceneTestDebug;
+  createdAt:  string;
+  updatedAt:  string;
+}
+
+const sceneTestJobs = new Map<string, SceneTestJob>();
+
+setInterval(() => {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  for (const [id, job] of sceneTestJobs) {
+    if (new Date(job.createdAt).getTime() < cutoff) sceneTestJobs.delete(id);
+  }
+}, 30 * 60 * 1000).unref();
+
+async function processSceneTestJob(
+  jobId: string,
+  params: {
+    clipUrl:       string;
+    audioUrl:      string;
+    sceneStartSec: number;
+    sceneEndSec:   number;
+    videoOffsetSec: number;
+  },
+): Promise<void> {
+  const now    = () => new Date().toISOString();
+  const update = (patch: Partial<SceneTestJob>) => {
+    const j = sceneTestJobs.get(jobId);
+    if (j) sceneTestJobs.set(jobId, { ...j, ...patch, updatedAt: now() });
+  };
+  const dbg = (patch: Partial<SceneTestDebug>) => {
+    const j = sceneTestJobs.get(jobId);
+    if (j) sceneTestJobs.set(jobId, { ...j, debug: { ...j.debug, ...patch }, updatedAt: now() });
+  };
+
+  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-test-"));
+  try {
+    /* ── 1: Download lip sync clip ──────────────────────────────────────── */
+    update({ status: "running", step: "downloading lip sync video" });
+    const clipRes = await fetch(params.clipUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!clipRes.ok) throw new Error(`Clip download failed: HTTP ${clipRes.status}`);
+    const clipPath = join(tmpDir, "clip.mp4");
+    await writeFile(clipPath, Buffer.from(await clipRes.arrayBuffer()));
+
+    /* ── 2: Download project audio ──────────────────────────────────────── */
+    update({ step: "downloading audio" });
+    const audioRes = await fetch(params.audioUrl, { signal: AbortSignal.timeout(120_000) });
+    if (!audioRes.ok) throw new Error(`Audio download failed: HTTP ${audioRes.status}`);
+    const audioCt  = audioRes.headers.get("content-type") ?? "";
+    const audioExt = audioCt.includes("wav") ? "wav" : audioCt.includes("ogg") ? "ogg" : "mp3";
+    const audioPath = join(tmpDir, `audio.${audioExt}`);
+    await writeFile(audioPath, Buffer.from(await audioRes.arrayBuffer()));
+
+    /* ── 3: Build FFmpeg filter_complex ─────────────────────────────────── */
+    update({ step: "rendering mp4" });
+    dbg({ ffmpegStarted: true });
+
+    const sceneDur   = params.sceneEndSec - params.sceneStartSec;
+    const offset     = params.videoOffsetSec;
+    const outputPath = join(tmpDir, "scene-test.mp4");
+
+    const audioTrimFilter =
+      `atrim=start=${params.sceneStartSec.toFixed(3)}:end=${params.sceneEndSec.toFixed(3)},asetpts=PTS-STARTPTS`;
+
+    let filterComplex: string;
+    let videoMap: string;
+    const audioMap = "[ao]";
+
+    if (Math.abs(offset) < 0.02) {
+      /* No meaningful offset — use video as-is */
+      filterComplex = `[1:a]${audioTrimFilter}[ao]`;
+      videoMap      = "0:v";
+    } else if (offset > 0) {
+      /* Mouth too early → delay video with black padding at start */
+      filterComplex = [
+        `[0:v]tpad=start_duration=${offset.toFixed(3)}:color=black[vp]`,
+        `[1:a]${audioTrimFilter}[ao]`,
+      ].join(";");
+      videoMap = "[vp]";
+    } else {
+      /* Mouth too late → advance video by trimming its start */
+      const trimStart = (-offset).toFixed(3);
+      filterComplex = [
+        `[0:v]trim=start=${trimStart},setpts=PTS-STARTPTS[vt]`,
+        `[1:a]${audioTrimFilter}[ao]`,
+      ].join(";");
+      videoMap = "[vt]";
+    }
+
+    const ffmpegArgs = [
+      "-y",
+      "-i",  clipPath,
+      "-i",  audioPath,
+      "-filter_complex", filterComplex,
+      "-map", videoMap,
+      "-map", audioMap,
+      "-c:v", "libx264", "-preset", "ultrafast",
+      "-c:a", "aac",
+      "-t",   sceneDur.toFixed(3),
+      "-movflags", "+faststart",
+      outputPath,
+    ];
+
+    let ffmpegStderr = "";
+    try {
+      const result = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: 120_000 });
+      ffmpegStderr = result.stderr ?? "";
+    } catch (ffErr: unknown) {
+      ffmpegStderr = (ffErr as { stderr?: string }).stderr ?? "";
+      const errMsg = ffErr instanceof Error ? ffErr.message : String(ffErr);
+      const stderrTail = ffmpegStderr.split("\n").filter(Boolean).slice(-10).join("\n");
+      throw new Error(
+        `FFmpeg failed: ${errMsg.slice(0, 200)}` +
+        (stderrTail ? ` — ${stderrTail.slice(-300)}` : ""),
+      );
+    }
+    void ffmpegStderr; // log only in debug; keep route thin
+    dbg({ ffmpegFinished: true });
+
+    /* ── 4: Verify output ───────────────────────────────────────────────── */
+    const outputExists = existsSync(outputPath);
+    dbg({ outputExists });
+    if (!outputExists) throw new Error("FFmpeg produced no output file");
+    const outputBytes = statSync(outputPath).size;
+    dbg({ outputBytes });
+    if (outputBytes < 1024) throw new Error(`Output too small (${outputBytes} bytes) — FFmpeg may have failed silently`);
+
+    /* ── 5: Upload to GCS ───────────────────────────────────────────────── */
+    update({ step: "uploading result" });
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+
+    const objectName = `lip-sync-tests/${jobId}.mp4`;
+    const fileBuffer = readFileSync(outputPath);
+    const bucket     = objectStorageClient.bucket(bucketId);
+    await bucket.file(objectName).save(fileBuffer, { contentType: "video/mp4", resumable: false });
+
+    const signedUrl = await signGetUrl(bucketId, objectName);
+    dbg({ resultUrl: signedUrl });
+
+    update({ status: "done", step: "done", resultUrl: signedUrl, fileSize: outputBytes });
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    dbg({ lastError: errMsg });
+    update({ status: "failed", step: "failed", error: errMsg });
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   POST /lip-sync/scene-test
+   Enqueues a scene render job and returns { jobId } immediately.
+────────────────────────────────────────────────────────────────────────── */
+router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as {
+      clipUrl?:        unknown;
+      audioUrl?:       unknown;
+      sceneStartSec?:  unknown;
+      sceneEndSec?:    unknown;
+      videoOffsetSec?: unknown;
+    };
+
+    if (!body.clipUrl || typeof body.clipUrl !== "string") {
+      res.status(400).json({ error: "clipUrl is required", code: "missing_clip" });
+      return;
+    }
+    if (!body.audioUrl || typeof body.audioUrl !== "string") {
+      res.status(400).json({ error: "audioUrl is required", code: "missing_audio" });
+      return;
+    }
+    const sceneStartSec  = Number(body.sceneStartSec  ?? 0);
+    const sceneEndSec    = Number(body.sceneEndSec    ?? 0);
+    const videoOffsetSec = Number(body.videoOffsetSec ?? 0);
+
+    if (!Number.isFinite(sceneStartSec) || !Number.isFinite(sceneEndSec) || sceneEndSec <= sceneStartSec) {
+      res.status(400).json({ error: "Invalid scene timing: sceneEndSec must be > sceneStartSec", code: "invalid_timing" });
+      return;
+    }
+
+    const jobId = randomUUID();
+    const createdAt = new Date().toISOString();
+    const initJob: SceneTestJob = {
+      status: "queued",
+      step:   "preparing",
+      debug:  {
+        routeCalled:    true,
+        ffmpegStarted:  false,
+        ffmpegFinished: false,
+        outputExists:   false,
+        outputBytes:    0,
+        resultUrl:      null,
+        lastError:      null,
+      },
+      createdAt,
+      updatedAt: createdAt,
+    };
+    sceneTestJobs.set(jobId, initJob);
+
+    req.log.info(
+      { jobId, sceneStartSec, sceneEndSec, videoOffsetSec, clipUrl: body.clipUrl.slice(0, 80) },
+      "[scene-test] job queued",
+    );
+
+    void processSceneTestJob(jobId, {
+      clipUrl:       body.clipUrl,
+      audioUrl:      body.audioUrl,
+      sceneStartSec,
+      sceneEndSec,
+      videoOffsetSec,
+    });
+
+    res.json({ jobId, status: "queued" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Scene test failed";
+    req.log.error({ err }, "[scene-test] route error");
+    if (!res.headersSent) res.status(500).json({ error: msg });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/scene-test/:jobId
+   Polls the status of a scene test render job.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/scene-test/:jobId", requireAuth, (req, res) => {
+  const paramJobId = req.params["jobId"];
+  const job = sceneTestJobs.get(Array.isArray(paramJobId) ? (paramJobId[0] ?? "") : (paramJobId ?? ""));
+  if (!job) {
+    res.status(404).json({ error: "Scene test job not found", code: "not_found" });
+    return;
+  }
+  res.json(job);
+});
 
 export default router;
