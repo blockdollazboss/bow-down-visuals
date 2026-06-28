@@ -1,0 +1,97 @@
+Fix Export Scene 4 Lip Sync Test button not starting export.
+
+Problem:
+Export Doctor correctly shows:
+
+- selected scene: Scene 4 — Hook
+- lipSyncUrl exists: yes
+- useLipSync: yes
+- video source: lip sync
+- project audio: ready
+
+But when I click the export test button, it still shows:
+
+- export started: no
+- export finished: -
+- result url: -
+- export offset: -
+
+Also selected clipId shows blank:
+selected clipId: -
+
+Do not change:
+- lip sync result
+- lip sync timing
+- master player
+- Sync.so
+- captions
+- effects
+- overlays
+- watermark
+- payments
+
+Only fix:
+- Export Scene 4 Lip Sync Test button click handler
+- selected clipId mapping
+- export route call
+- visible export status
+
+Requirements:
+
+1. Make the button actually start the export.
+
+When I click:
+Export Scene 4 — Hook Lip Sync Offset Match Test
+
+Immediately set:
+export started: yes
+export status: running
+
+2. Fix selected clipId.
+
+If selected clipId is missing, resolve it from the selected timeline clip.
+
+Use this priority:
+- timeline clip id
+- clip.id
+- scene clip id
+- generated stable ID from sceneId + timelineIndex
+
+Do not leave selected clipId blank.
+
+3. Export the selected lip synced scene only.
+
+Use:
+- selected scene: Scene 4 — Hook
+- lipSyncUrl as video source
+- project audio segment for Scene 4
+- lipSyncOffsetSeconds = +0.50s
+- same timing as master player
+
+4. Export must use the same offset as master player.
+
+Show:
+- master player offset: +0.50s
+- export offset: +0.50s
+- offset applied once: yes
+- export matches master player: yes/no
+
+5. Do not use All 12 Clips Doctor for this test.
+
+6. Do not fail because of unrelated Scene 1 URL host errors.
+
+7. Add visible status under Lip Sync Export Check:
+
+- button clicked: yes/no
+- selected clipId resolved: yes/no
+- lip sync URL reachable: yes/no
+- export route called: yes/no
+- export started: yes/no
+- export finished: yes/no
+- result URL
+- last error
+
+8. If export fails, show the real error in this Lip Sync Export Check section.
+
+Final goal:
+Clicking Export Scene 4 — Hook Lip Sync Offset Match Test should actually start a one-scene export, use the saved lip sync video, apply the +0.50s offset once, and produce a result URL.
