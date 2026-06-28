@@ -1,0 +1,81 @@
+Fix First 20s export sync by matching master player clip durations exactly.
+
+Problem:
+First 20s + Audio Test downloads now, but the audio/video is still not synced.
+
+The song starts correctly from the beginning.
+The problem is video clip timing.
+Scene 1 is playing too long in export, so the video falls out of sync with audio.
+
+Do not change:
+- project audio start at 0:00
+- lip sync result
+- lip sync offset
+- captions
+- effects
+- overlays
+- watermark
+- payments
+
+Only fix:
+- export clip durations
+- master player vs export timeline map
+- First 20s + Audio Test sync
+
+Requirements:
+
+1. Add a visible side-by-side timing map:
+
+Master Player Timeline:
+- scene number
+- title
+- start time
+- end time
+- duration
+
+Export Timeline:
+- scene number
+- title
+- start time
+- end time
+- duration
+- duration source
+
+2. Add comparison:
+- Scene 1 master duration
+- Scene 1 export duration
+- matches: yes/no
+- all durations match master: yes/no
+
+3. Export must use the master player timeline durations exactly.
+
+Do not use raw video metadata duration if master player has saved duration/trim.
+
+Duration priority:
+- master player timeline clip duration
+- saved trimmed duration
+- saved timeline duration
+- explicit clip end - start
+- raw video duration only as last fallback
+
+4. If Scene 1 export duration is longer than master duration, trim Scene 1 video to master duration.
+
+5. First 20s + Audio Test must export:
+- video clips cut to master player durations
+- audio from song 0:00 to 20s
+- no stretched video
+- no raw full clip duration unless it matches master
+
+6. Add status:
+First 20s Sync Check:
+- audio starts at 0:00: yes/no
+- scene durations match master: yes/no
+- scene 1 trimmed correctly: yes/no
+- ffmpeg trim filters used: yes/no
+- result URL
+
+7. If durations do not match, block export and show:
+Export timeline does not match master player timeline.
+
+Final goal:
+The first 20s export should match exactly what the master player shows and hears. Audio already starts correctly; video clip durations must be trimmed to the master player timeline so Scene 1 does not run too long.

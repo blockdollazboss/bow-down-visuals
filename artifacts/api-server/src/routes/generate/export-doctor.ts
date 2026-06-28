@@ -110,8 +110,13 @@ interface DoctorClipFile {
   trimStartSec: number;
   /** Seconds trimmed from the end (from master player ClipEdit). */
   trimEndSec: number;
-  /** Effective clip duration after applying trims: duration - trimStart - trimEnd.
-   *  This is what the master player shows and what the export will use. */
+  /** Explicit master player clip duration from scene timestamps (sent by client).
+   *  When > 0, this is the authoritative duration the export must honour.
+   *  Priority: masterDuration > raw - trims (fallback). */
+  masterDuration: number;
+  /** Effective clip duration used in export.
+   *  = masterDuration (when provided) capped by raw - trimStart,
+   *  else raw - trimStart - trimEnd. */
   timelineDuration: number;
   width: number;
   height: number;
@@ -1243,6 +1248,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         trimStart?: number;
         /** Seconds to trim from the end (from master player ClipEdit.trimEnd). */
         trimEnd?: number;
+        /** Explicit master player clip duration from scene timestamps.
+         *  When > 0, overrides the computed raw - trimStart - trimEnd. */
+        masterDuration?: number;
       }>;
     };
     if (!Array.isArray(clips) || clips.length === 0) {
@@ -1264,8 +1272,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
     for (let idx = 0; idx < orderedClips.length; idx++) {
       const c = orderedClips[idx]!;
       const sceneNumber = c.sceneNumber ?? idx + 1;
-      const trimStart = Math.max(0, c.trimStart ?? 0);
-      const trimEnd   = Math.max(0, c.trimEnd   ?? 0);
+      const trimStart     = Math.max(0, c.trimStart ?? 0);
+      const trimEnd       = Math.max(0, c.trimEnd   ?? 0);
+      const masterDuration = Math.max(0, c.masterDuration ?? 0);
       const entry: DoctorClipFile = {
         sceneNumber,
         sceneTitle: c.title ?? `Scene ${sceneNumber}`,
@@ -1276,6 +1285,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         duration: 0,
         trimStartSec: trimStart,
         trimEndSec: trimEnd,
+        masterDuration,
         timelineDuration: 0, // filled after ffprobe
         width: 0,
         height: 0,
@@ -1329,9 +1339,22 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         if (!probe.hasVideo) throw new Error(`ffprobe found no video stream: ${probe.error ?? "unknown"}`);
         if (!probe.valid) throw new Error(`ffprobe invalid: ${probe.error ?? "unknown"}`);
         entry.ffprobeValid = true;
-        // Compute timeline duration = raw - trimStart - trimEnd; floor at 0.5s
+        // Duration priority:
+        //  1. masterDuration (from master player scene timestamps, sent by client)
+        //     capped by available raw video remaining after trimStart
+        //  2. raw - trimStart - trimEnd (fallback when no master duration)
         const totalTrim = entry.trimStartSec + entry.trimEndSec;
-        entry.timelineDuration = Math.max(0.5, probe.duration - totalTrim);
+        const computedFromRaw = Math.max(0.5, probe.duration - totalTrim);
+        if (entry.masterDuration > 0.1) {
+          const maxAvailable = Math.max(0.5, probe.duration - entry.trimStartSec);
+          entry.timelineDuration = Math.min(entry.masterDuration, maxAvailable);
+        } else {
+          entry.timelineDuration = computedFromRaw;
+        }
+        req.log.info(
+          { multiId, scene: entry.sceneNumber, rawDur: probe.duration.toFixed(2), masterDur: entry.masterDuration.toFixed(2), timelineDur: entry.timelineDuration.toFixed(2) },
+          `EXPORT DOCTOR clip ${entry.sceneNumber}: duration resolved (masterDur=${entry.masterDuration > 0 ? "yes" : "no"})`,
+        );
       } catch (e) {
         entry.error = e instanceof Error ? e.message : String(e);
         entry.ffprobeValid = false;
@@ -1372,7 +1395,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         duration: r.duration,
         trimStartSec: r.trimStartSec,
         trimEndSec: r.trimEndSec,
+        masterDuration: r.masterDuration,
         timelineDuration: r.timelineDuration,
+        durationSource: r.masterDuration > 0.1 ? "master-timestamp" : r.trimStartSec > 0 || r.trimEndSec > 0 ? "raw-trim" : "raw",
         width: r.width,
         height: r.height,
         codec: r.codec,
