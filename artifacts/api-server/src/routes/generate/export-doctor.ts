@@ -895,11 +895,15 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
 /* ── TEST 4: export Scene 1 + audio (3s) ──────────────── */
 router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
   try {
-    const { doctorId, audioUrl, audioStartSec, fullDuration } = req.body as {
+    const { doctorId, audioUrl, audioStartSec, clipVideoOffsetSec, fullDuration } = req.body as {
       doctorId?: string;
       audioUrl?: string;
       /** Seek into the project audio before mixing (seconds). Default 0. */
       audioStartSec?: number;
+      /** Matches the master player's clipVideoOffsetSec / lipSyncOffsetSeconds.
+       *  Positive → delay video start (video plays N seconds after audio begins).
+       *  Negative → skip ahead N seconds into the video (advance video). */
+      clipVideoOffsetSec?: number;
       /** When true, skip the default -t 3 limit and export the full clip. */
       fullDuration?: boolean;
     };
@@ -958,9 +962,24 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
     }
     session.audioPath = audioPath;
 
-    const safeAudioStartSec = typeof audioStartSec === "number" && audioStartSec > 0 ? audioStartSec : 0;
+    const safeAudioStartSec    = typeof audioStartSec    === "number" && audioStartSec    > 0 ? audioStartSec    : 0;
+    const safeClipVideoOffset  = typeof clipVideoOffsetSec === "number" ? clipVideoOffsetSec : 0;
+
+    /* Build per-input offset args that match the master player's loadClipWithOffset logic:
+       - Positive offset: video is delayed (audio starts, video plays N seconds later)
+         → -itsoffset N before the video input shifts the video stream forward in time.
+       - Negative offset: video is advanced (video seeks ahead |N| seconds)
+         → -ss |N| before the video input skips into the video. */
+    const videoInputArgs: string[] = [];
+    if (safeClipVideoOffset > 0) {
+      videoInputArgs.push("-itsoffset", safeClipVideoOffset.toFixed(3));
+    } else if (safeClipVideoOffset < 0) {
+      videoInputArgs.push("-ss", Math.abs(safeClipVideoOffset).toFixed(3));
+    }
+
     const outputPath = path.join(session.folder, "scene-1-audio-test.mp4");
     const args = [
+      ...videoInputArgs,
       "-i", session.videoPath,
       /* Audio seek: start at the scene's position in the project audio */
       ...(safeAudioStartSec > 0 ? ["-ss", String(safeAudioStartSec.toFixed(3))] : []),
@@ -986,7 +1005,7 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
       "-y", outputPath,
     ];
 
-    req.log.info({ doctorId, audioStartSec: safeAudioStartSec, fullDuration }, "EXPORT DOCTOR scene + audio export");
+    req.log.info({ doctorId, audioStartSec: safeAudioStartSec, clipVideoOffsetSec: safeClipVideoOffset, fullDuration }, "EXPORT DOCTOR scene + audio export");
     try {
       await execFileAsync("ffmpeg", args, { timeout: 120_000 });
     } catch (e) {

@@ -256,6 +256,12 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [lipSyncExportResult, setLipSyncExportResult] = useState<ExportResult | null>(null);
   /** Separate error state for the lip sync export test — does NOT bleed into the shared All-Clips lastError. */
   const [lipSyncLastError, setLipSyncLastError] = useState<string | null>(null);
+  /** Records exactly what was sent in the last lip sync export so the status panel can compare against current settings. */
+  const [lipSyncExportMeta, setLipSyncExportMeta] = useState<{
+    clipVideoOffsetSec: number;
+    usedLipSyncUrl: boolean;
+    sceneLabel: string;
+  } | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -577,12 +583,21 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
     if (!masterAudioUrl) { setLastError("No project audio available. Add audio in Music Mixer first."); return; }
 
+    /* Read the master-player offset — this is exactly what clipVideoOffsetSec
+       does in the player (positive = delay video, negative = advance video). */
+    const clipVideoOffsetSec = lipSyncCe.lipSyncOffsetSeconds ?? 0;
+
+    /* Determine scene label for the meta record */
+    const sceneIdx = uniqueScenes.indexOf(lipSyncScene);
+    const metaSceneLabel = `Scene ${sceneIdx + 1}${lipSyncScene.section ? ` — ${lipSyncScene.section}` : ""}`;
+
     setBusy("lip-sync-preview");
     setLipSyncLastError(null);
     setLipSyncExportResult(null);
+    setLipSyncExportMeta(null);
     try {
       /* Step 1: download the lip sync clip to the server.
-         isAllowedClipUrl on the server now permits *.sync.so domains. */
+         isAllowedClipUrl now permits *.sync.so domains. */
       const dlRes = await fetch("/api/export-doctor/download", {
         method: "POST", headers: await authHeaders(),
         body: JSON.stringify({ projectId, url: lipSyncUrl }),
@@ -594,23 +609,28 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         return;
       }
 
-      /* Step 2: export with project audio.
-         audioStartSec: parse rough scene start from the scene's timestamp string
-         so the audio is trimmed to the right portion of the project.
-         Format: "M:SS", "M:SS-M:SS", etc. — parse first M:SS group. */
+      /* Step 2: export with project audio + master-player timing.
+         audioStartSec: scene's start position in the project audio track.
+         clipVideoOffsetSec: mirrors the player's loadClipWithOffset behaviour.
+           +N → video plays N seconds after audio begins (video delayed)
+           -N → video skips N seconds ahead (video advanced) */
       const tsRaw = lipSyncScene.timestamp ?? "";
       const tsMatch = tsRaw.match(/(\d+):(\d+)/);
       const audioStartSec = tsMatch
         ? parseInt(tsMatch[1]!, 10) * 60 + parseInt(tsMatch[2]!, 10)
         : 0;
 
+      /* Record what we're about to send so the status panel can reflect it. */
+      setLipSyncExportMeta({ clipVideoOffsetSec, usedLipSyncUrl: true, sceneLabel: metaSceneLabel });
+
       const expRes = await fetch("/api/export-doctor/export-audio", {
         method: "POST", headers: await authHeaders(),
         body: JSON.stringify({
-          doctorId:     dlData.doctorId,
-          audioUrl:     masterAudioUrl,
+          doctorId:          dlData.doctorId,
+          audioUrl:          masterAudioUrl,
           audioStartSec,
-          fullDuration: true,   // export full clip, not just 3s
+          clipVideoOffsetSec,   // ← master-player timing applied here
+          fullDuration:      true,
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
@@ -995,6 +1015,35 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 ))}
               </div>
 
+              {/* Lip Sync Export Timing — compares what was exported vs. current master player settings */}
+              {(() => {
+                const currentOffset    = exportSceneCe?.lipSyncOffsetSeconds ?? 0;
+                const masterUsingLs    = !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl);
+                const exportedOffset   = lipSyncExportMeta?.clipVideoOffsetSec;
+                const exportedUrl      = lipSyncExportMeta?.usedLipSyncUrl ?? false;
+                const hasExported      = lipSyncExportMeta !== null;
+                /* "export matches master player" = exported with lip sync URL AND same offset as current setting */
+                const offsetMatches    = hasExported && exportedOffset === currentOffset;
+                const exportMatches    = hasExported && exportedUrl && offsetMatches && !!lipSyncExportResult?.success;
+                return (
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
+                    <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Lip Sync Export Timing</p>
+                    {([
+                      ["master player using lip sync",       masterUsingLs ? "yes ✓" : "no",                                                                          masterUsingLs],
+                      ["lipSyncUrl used in export",          !hasExported ? "—" : exportedUrl ? "yes ✓" : "no",                                                       !hasExported ? null : exportedUrl],
+                      ["lipSyncOffsetSeconds used in export",!hasExported ? "—" : "yes ✓",                                                                            !hasExported ? null : true],
+                      ["offset value",                       `${currentOffset >= 0 ? "+" : ""}${currentOffset.toFixed(2)}s${!hasExported ? "" : exportedOffset !== currentOffset ? ` (exported: ${(exportedOffset! >= 0 ? "+" : "")}${exportedOffset!.toFixed(2)}s)` : " ✓"}`, !hasExported ? null : offsetMatches],
+                      ["export matches master player",       !hasExported ? "—" : exportMatches ? "yes ✓" : "no — re-export",                                         !hasExported ? null : exportMatches],
+                    ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+                      <div key={label} className="flex items-start justify-between gap-2 text-[11px] font-mono">
+                        <span className="text-white/40 shrink-0">{label}</span>
+                        <span className={`font-bold text-right ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {!hasLipSync && (
                 <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.05] text-amber-400/70 text-[10px] mb-3">
                   <span className="shrink-0 mt-px">⚠</span>
@@ -1013,7 +1062,9 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 {busy === "lip-sync-preview"
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
                   : <><Stethoscope className="h-3.5 w-3.5" />
-                    {exportScene ? `Export Selected Lip Sync Scene Test` : "Export Lip Sync Test"}
+                    {exportScene
+                      ? `Export ${exportSceneLabel} Master-Match Lip Sync Test`
+                      : "Export Lip Sync Test"}
                   </>}
               </Button>
               {!masterAudioUrl && hasLipSync && (
