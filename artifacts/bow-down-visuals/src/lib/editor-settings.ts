@@ -506,6 +506,11 @@ export interface ClipEdit {
   lipSyncCreatedAt: string | null;
   /** Error message if lip sync failed. */
   lipSyncError: string | null;
+  /** Sync.so provider job ID — saved immediately after the job is accepted so status
+   *  can be checked even after a local timeout or server restart. */
+  lipSyncJobId: string | null;
+  /** ISO timestamp when the job was submitted to the provider. */
+  lipSyncSubmittedAt: string | null;
 }
 
 export interface CaptionSettings {
@@ -1009,6 +1014,8 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncProvider: null,
     lipSyncCreatedAt: null,
     lipSyncError: null,
+    lipSyncJobId: null,
+    lipSyncSubmittedAt: null,
   };
 }
 

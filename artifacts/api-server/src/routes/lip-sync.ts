@@ -118,7 +118,7 @@ async function syncLabsPoll(jobId: string, apiKey: string): Promise<string> {
       throw new Error(`Sync Labs job failed: ${job.error ?? "unknown error"}`);
     }
   }
-  throw new Error("Sync Labs job timed out after 6 minutes.");
+  throw new SyncLabsTimeoutError();
 }
 
 /* ── URL type detection ──────────────────────────────────────────────────── */
@@ -286,14 +286,27 @@ async function trimAndUploadAudioSegment(
    Jobs are pruned after 2 h; the server process is long-running so this
    is safe for a single-instance dev/prod deployment.                       */
 interface LipSyncJob {
-  status:      "queued" | "processing" | "done" | "failed";
-  url?:        string;
-  provider?:   string;
-  error?:      string;
-  code?:       string;
-  durationSec?: number;
-  createdAt:   string;
-  updatedAt:   string;
+  status:         "queued" | "processing" | "done" | "failed";
+  url?:           string;
+  provider?:      string;
+  error?:         string;
+  code?:          string;
+  durationSec?:   number;
+  /** Sync.so provider job ID — set immediately after the job is accepted,
+   *  before polling begins, so the client can save it and check later. */
+  syncLabsJobId?: string;
+  createdAt:      string;
+  updatedAt:      string;
+}
+
+/** Thrown by syncLabsPoll when the poll limit is exhausted without a terminal
+ *  result.  Caught separately so the job is kept as "processing" rather than
+ *  marked "failed" — the Sync.so job may still be running. */
+class SyncLabsTimeoutError extends Error {
+  constructor() {
+    super("Still processing on Sync.so. Check again in a few minutes.");
+    this.name = "SyncLabsTimeoutError";
+  }
 }
 
 interface LipSyncJobParams {
@@ -337,7 +350,11 @@ async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promi
     }
 
     if (PROVIDER_NAME === "sync") {
-      const syncId    = await syncLabsSubmit(params.clipUrl, segmentUrl, LIP_SYNC_API_KEY!);
+      const syncId = await syncLabsSubmit(params.clipUrl, segmentUrl, LIP_SYNC_API_KEY!);
+      /* Save the provider job ID immediately so the client can store it and
+         check the Sync.so job status later — even after a local timeout. */
+      update({ syncLabsJobId: syncId });
+
       const outputUrl = await syncLabsPoll(syncId, LIP_SYNC_API_KEY!);
       update({ status: "done", url: outputUrl, provider: "sync", durationSec });
       return;
@@ -347,11 +364,21 @@ async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promi
       `Provider "${PROVIDER_NAME}" is not wired. Set LIP_SYNC_PROVIDER=sync in Replit Secrets.`,
     );
   } catch (err) {
-    update({
-      status: "failed",
-      error:  err instanceof Error ? err.message : "Lip sync job failed",
-      code:   "provider_error",
-    });
+    if (err instanceof SyncLabsTimeoutError) {
+      /* Keep as "processing" — the Sync.so job may still be running.
+         The client can use the saved syncLabsJobId to check later. */
+      update({
+        status: "processing",
+        error:  err.message,
+        code:   "still_processing",
+      });
+    } else {
+      update({
+        status: "failed",
+        error:  err instanceof Error ? err.message : "Lip sync job failed",
+        code:   "provider_error",
+      });
+    }
   }
 }
 
@@ -488,6 +515,50 @@ router.get("/lip-sync/job/:id", requireAuth, (req, res) => {
     return;
   }
   res.json(job);
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /lip-sync/check-provider-job/:syncJobId
+   Directly check a Sync.so job by its provider ID.
+   Used by the client after a local timeout to see if Sync.so finished.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/check-provider-job/:syncJobId", requireAuth, async (req, res) => {
+  const syncJobId = String(req.params["syncJobId"] ?? "").trim();
+  if (!syncJobId) {
+    res.status(400).json({ error: "syncJobId is required", code: "missing_param" });
+    return;
+  }
+  if (!LIP_SYNC_API_KEY) {
+    res.status(503).json({ error: "Lip Sync API key not configured", code: "no_api_key" });
+    return;
+  }
+
+  try {
+    const pollRes = await fetch(`${SYNC_LABS_BASE}/generate/${syncJobId}`, {
+      headers: { "x-api-key": LIP_SYNC_API_KEY },
+      signal:  AbortSignal.timeout(30_000),
+    });
+    if (!pollRes.ok) {
+      const body = await pollRes.text().catch(() => "");
+      res.status(502).json({
+        error:  `Sync.so returned HTTP ${pollRes.status}`,
+        detail: body.slice(0, 300),
+        code:   "provider_error",
+      });
+      return;
+    }
+    const job = (await pollRes.json()) as SyncLabsJob;
+    res.json({
+      status:    job.status,          // "pending" | "processing" | "completed" | "failed"
+      outputUrl: job.outputUrl ?? null,
+      error:     job.error ?? null,
+    });
+  } catch (err) {
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Check failed",
+      code:  "network_error",
+    });
+  }
 });
 
 /* ──────────────────────────────────────────────────────────────────────────

@@ -284,6 +284,9 @@ export function LipSyncSection({
   const [healthCheck, setHealthCheck]           = useState<{ reachable: boolean; status: number; contentType: string; isJson: boolean } | null>(null);
   const [healthLoading, setHealthLoading]       = useState(false);
 
+  /* ── Check existing Sync.so job state ── */
+  const [checkJobLoading, setCheckJobLoading]   = useState(false);
+
   /* ── Route test state ── */
   const [routeTest, setRouteTest] = useState<{
     reachable:                  boolean;
@@ -408,10 +411,69 @@ export function LipSyncSection({
     }
   }
 
+  /* ── Check existing Sync.so job (no new submission) ── */
+  async function checkExistingJob() {
+    if (!selectedScene || !selectedClipEdit?.lipSyncJobId) return;
+    setCheckJobLoading(true);
+    setApplyError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/lip-sync/check-provider-job/${selectedClipEdit.lipSyncJobId}`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        signal:  AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
+      }
+      const data = await res.json() as { status: string; outputUrl?: string; error?: string };
+      if (data.status === "completed" && data.outputUrl) {
+        updateClipEdit(selectedScene.id, {
+          lipSyncUrl:       data.outputUrl,
+          lipSyncStatus:    "done",
+          lipSyncCreatedAt: new Date().toISOString(),
+          lipSyncError:     null,
+          replaceUrl:       data.outputUrl,
+        });
+      } else if (data.status === "failed") {
+        updateClipEdit(selectedScene.id, {
+          lipSyncStatus: "failed",
+          lipSyncError:  data.error ?? "Sync.so job failed.",
+        });
+        setApplyError(data.error ?? "Sync.so job failed.");
+      } else {
+        setApplyError(`Sync.so status: ${data.status}. Still processing — try again in a minute.`);
+      }
+    } catch (err) {
+      setApplyError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCheckJobLoading(false);
+    }
+  }
+
+  /* ── Stop tracking job locally (no API call) ── */
+  function stopTrackingJob(sceneId: string) {
+    updateClipEdit(sceneId, {
+      lipSyncJobId:       null,
+      lipSyncSubmittedAt: null,
+      lipSyncStatus:      null,
+      lipSyncError:       null,
+    });
+    setApplyError(null);
+  }
+
   /* ── Apply to selected ── */
   async function applyToSelected() {
     if (!selectedScene) return;
     if (!faceDetected)  { setApplyError("No clear face found for lip sync on this clip."); return; }
+
+    /* Guard: don't resubmit if a Sync.so job is already in flight */
+    const existingJobId = getClipEdit(settings, selectedScene.id).lipSyncJobId;
+    const existingStatus = getClipEdit(settings, selectedScene.id).lipSyncStatus;
+    if (existingJobId && existingStatus === "processing") {
+      setApplyError("Lip Sync job already processing. Checking status instead of submitting again.");
+      return;
+    }
 
     /* Demo mode — simulate processing, no real API call */
     if (demoMode) {
@@ -446,7 +508,12 @@ export function LipSyncSection({
     setApplyError(null);
     setApplyDebug(null);
     setConfirmOpen(null);
-    updateClipEdit(selectedScene.id, { lipSyncStatus: "processing", lipSyncError: null });
+    const sceneId = selectedScene.id;
+    updateClipEdit(sceneId, {
+      lipSyncStatus:      "processing",
+      lipSyncError:       null,
+      lipSyncSubmittedAt: new Date().toISOString(),
+    });
 
     try {
       const timing = parseSceneTiming(selectedScene, scenes);
@@ -460,21 +527,32 @@ export function LipSyncSection({
         preserveFaceIdentity: ls.preserveFaceIdentity,
         preserveArtistLook:   ls.preserveArtistLook,
         getAccessToken,
+        onSyncLabsJobAccepted: (syncLabsJobId) => {
+          /* Save provider job ID immediately — persists even if local polling times out */
+          updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+        },
       });
 
-      updateClipEdit(selectedScene.id, {
-        lipSyncUrl:       result.url,
-        lipSyncStatus:    "done",
-        lipSyncProvider:  result.provider,
-        lipSyncCreatedAt: new Date().toISOString(),
-        lipSyncError:     null,
-        replaceUrl:       result.url,
+      updateClipEdit(sceneId, {
+        lipSyncUrl:         result.url,
+        lipSyncStatus:      "done",
+        lipSyncProvider:    result.provider,
+        lipSyncCreatedAt:   new Date().toISOString(),
+        lipSyncError:       null,
+        lipSyncJobId:       null, // job finished — no need to keep tracking it
+        replaceUrl:         result.url,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      updateClipEdit(selectedScene.id, { lipSyncStatus: "failed", lipSyncError: msg });
-      setApplyError(msg);
-      setApplyDebug(err instanceof LipSyncNetworkError ? err.debug : null);
+      if (err instanceof StillProcessingError) {
+        /* Keep status as processing — Sync.so may still be running */
+        updateClipEdit(sceneId, { lipSyncError: msg });
+        setApplyError(msg);
+      } else {
+        updateClipEdit(sceneId, { lipSyncStatus: "failed", lipSyncError: msg });
+        setApplyError(msg);
+        setApplyDebug(err instanceof LipSyncNetworkError ? err.debug : null);
+      }
     }
   }
 
@@ -526,9 +604,14 @@ export function LipSyncSection({
       }
       const scene = eligible[i]!;
       setProcessState(p => p ? { ...p, current: i + 1 } : null);
-      updateClipEdit(scene.id, { lipSyncStatus: "processing", lipSyncError: null });
+      updateClipEdit(scene.id, {
+        lipSyncStatus:      "processing",
+        lipSyncError:       null,
+        lipSyncSubmittedAt: new Date().toISOString(),
+      });
 
       try {
+        const sid = scene.id;
         const sceneTiming = parseSceneTiming(scene, scenes);
         const result = await callLipSyncBackend({
           clipUrl:            scene.demoClipUrl!,
@@ -540,20 +623,29 @@ export function LipSyncSection({
           preserveFaceIdentity: ls.preserveFaceIdentity,
           preserveArtistLook:   ls.preserveArtistLook,
           getAccessToken,
+          onSyncLabsJobAccepted: (syncLabsJobId) => {
+            updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
+          },
         });
         updateClipEdit(scene.id, {
-          lipSyncUrl:       result.url,
-          lipSyncStatus:    "done",
-          lipSyncProvider:  result.provider,
-          lipSyncCreatedAt: new Date().toISOString(),
-          lipSyncError:     null,
-          replaceUrl:       result.url,
+          lipSyncUrl:         result.url,
+          lipSyncStatus:      "done",
+          lipSyncProvider:    result.provider,
+          lipSyncCreatedAt:   new Date().toISOString(),
+          lipSyncError:       null,
+          lipSyncJobId:       null,
+          replaceUrl:         result.url,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        updateClipEdit(scene.id, { lipSyncStatus: "failed", lipSyncError: msg });
-        setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: ${msg}` } : null);
-        if (err instanceof LipSyncNetworkError) setApplyDebug(err.debug);
+        if (err instanceof StillProcessingError) {
+          updateClipEdit(scene.id, { lipSyncError: msg });
+          setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: still processing` } : null);
+        } else {
+          updateClipEdit(scene.id, { lipSyncStatus: "failed", lipSyncError: msg });
+          setProcessState(p => p ? { ...p, lastError: `Scene ${scene.sceneNumber}: ${msg}` } : null);
+          if (err instanceof LipSyncNetworkError) setApplyDebug(err.debug);
+        }
       }
     }
 
@@ -682,11 +774,13 @@ export function LipSyncSection({
         ...settings.clips,
         [sceneId]: {
           ...existing,
-          lipSyncUrl:       null,
-          lipSyncStatus:    null,
-          lipSyncProvider:  null,
-          lipSyncCreatedAt: null,
-          lipSyncError:     null,
+          lipSyncUrl:         null,
+          lipSyncStatus:      null,
+          lipSyncProvider:    null,
+          lipSyncCreatedAt:   null,
+          lipSyncError:       null,
+          lipSyncJobId:       null,
+          lipSyncSubmittedAt: null,
           replaceUrl: existing.replaceUrl === existing.lipSyncUrl ? null : existing.replaceUrl,
         },
       },
@@ -1487,7 +1581,13 @@ export function LipSyncSection({
                         <StatusRow label="scene end"           value={`${fmtSec(timing.endSec)}${timing.hasExplicitEnd ? "" : " (estimated)"}`} ok={null} />
                         <StatusRow label="audio segment"       value={`${timing.durationSec.toFixed(1)}s`}                  ok={safeToSubmit ? true : false} />
                         <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                             ok={null} />
-                        <StatusRow label="safe to submit"      value={safeToSubmit ? "yes" : "no"}                          ok={safeToSubmit ? true : false} />
+                        <StatusRow label="safe to submit"      value={safeToSubmit ? "yes" : "no"}                                                                                       ok={safeToSubmit ? true : false} />
+                        <div className="border-t border-white/[0.06] my-1" />
+                        <StatusRow label="existing job id"     value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 10)}…` : "none"}             ok={null} />
+                        <StatusRow label="job status"          value={selectedClipEdit?.lipSyncStatus ?? "none"}                                                                     ok={null} />
+                        <StatusRow label="last submitted"      value={fmtDate(selectedClipEdit?.lipSyncSubmittedAt ?? null)}                                                         ok={null} />
+                        <StatusRow label="will submit new job" value={!selectedClipEdit?.lipSyncJobId || selectedClipEdit.lipSyncStatus !== "processing" ? "yes — uses credits" : "no"} ok={null} />
+                        <StatusRow label="will check existing" value={!!selectedClipEdit?.lipSyncJobId && selectedClipEdit.lipSyncStatus === "processing" ? "yes" : "no"}            ok={null} />
                       </div>
                     )}
 
@@ -1509,8 +1609,8 @@ export function LipSyncSection({
                         ⚠ Provider not connected — add <code className="bg-white/5 px-0.5 rounded">LIP_SYNC_API_KEY</code> in Replit Secrets.
                       </p>
                     ) : safeToSubmit ? (
-                      <p className="text-[10px] text-white/40">
-                        Only the scene audio segment will be sent to Sync Labs — not the full song.
+                      <p className="text-[10px] text-amber-400/80 font-semibold">
+                        ⚡ This may use Sync.so credits. Submit lip sync job?
                       </p>
                     ) : null}
 
@@ -1527,7 +1627,7 @@ export function LipSyncSection({
                         onClick={confirmOpen === "single" ? () => void applyToSelected() : () => void applyToAll()}
                         className="flex-1 py-1.5 rounded-lg bg-primary text-black text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Confirm
+                        Submit Job
                       </button>
                       <button
                         type="button"
@@ -1641,6 +1741,35 @@ export function LipSyncSection({
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
                   )}
                 </div>
+
+                {/* Check existing job / stop tracking — shown while job is "processing" with a saved provider ID */}
+                {selectedClipEdit.lipSyncStatus === "processing" && selectedClipEdit.lipSyncJobId && (
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-1.5 px-3 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold">
+                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin mt-0.5" />
+                      <span>Job is processing on Sync.so — do not resubmit.</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void checkExistingJob()}
+                        disabled={checkJobLoading}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] disabled:opacity-40 transition-colors"
+                      >
+                        {checkJobLoading
+                          ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                          : <><RefreshCw className="h-3.5 w-3.5" /> Check Job Status</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stopTrackingJob(selectedScene.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-500/20 bg-red-500/[0.04] text-red-400/70 text-[11px] font-semibold hover:bg-red-500/[0.08] transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" /> Stop Tracking
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Demo run result */}
                 {demoRunSet.has(selectedScene.id) && !selectedClipEdit.lipSyncUrl && (
@@ -1760,6 +1889,19 @@ interface LipSyncBackendRequest {
   preserveFaceIdentity: boolean;
   preserveArtistLook:   boolean;
   getAccessToken:       () => Promise<string | null>;
+  /** Called the first time the backend records the Sync.so provider job ID.
+   *  The client should immediately persist this to the clip so it survives
+   *  a local timeout or server restart. */
+  onSyncLabsJobAccepted?: (syncLabsJobId: string) => void;
+}
+
+/** Thrown when the backend poll exhausts but the Sync.so job is still running.
+ *  Keeps the clip as "processing" instead of marking it "failed". */
+class StillProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StillProcessingError";
+  }
 }
 
 interface LipSyncResult {
@@ -1826,6 +1968,8 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
      Check every 3 s. The Sync Labs processing + FFmpeg can take 2–8 minutes
      so we allow up to 8 minutes total before giving up.                    */
   const deadline = Date.now() + 480_000;
+  let syncLabsJobNotified = false;
+
   while (Date.now() < deadline) {
     await new Promise<void>(r => setTimeout(r, 3_000));
 
@@ -1840,11 +1984,19 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     }
 
     const job = await pollRes.json() as {
-      status:    string;
-      url?:      string;
-      provider?: string;
-      error?:    string;
+      status:         string;
+      url?:           string;
+      provider?:      string;
+      error?:         string;
+      code?:          string;
+      syncLabsJobId?: string;
     };
+
+    /* Notify caller the moment the Sync.so provider job ID becomes available */
+    if (job.syncLabsJobId && !syncLabsJobNotified) {
+      req.onSyncLabsJobAccepted?.(job.syncLabsJobId);
+      syncLabsJobNotified = true;
+    }
 
     if (job.status === "done") {
       if (!job.url) throw new Error("Lip sync job completed but returned no URL.");
@@ -1853,8 +2005,16 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     if (job.status === "failed") {
       throw new Error(job.error ?? "Lip sync job failed.");
     }
+    /* Backend polled Sync.so until its own limit — job may still be running */
+    if (job.status === "processing" && job.code === "still_processing") {
+      throw new StillProcessingError(
+        job.error ?? "Still processing on Sync.so. Check again in a few minutes.",
+      );
+    }
     /* "queued" | "processing" — keep polling */
   }
 
-  throw new Error("Lip sync job timed out after 8 minutes. Check Sync Labs billing and try again.");
+  throw new StillProcessingError(
+    "Sync.so is taking longer than 8 minutes. The job may still be running — use 'Check Job Status' to follow up.",
+  );
 }
