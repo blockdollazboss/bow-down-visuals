@@ -393,19 +393,29 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const multiId = downloadAllResult?.multiId ?? null;
   const allClipsValid = !!downloadAllResult?.allValid && downloadAllResult.total > 0;
 
-  // ── Audio timing source of truth ────────────────────────────────────────────
-  // The master player uses scene.timestamp ("M:SS") to know where in the song
-  // each clip plays — NOT videoAudio.startSec (which defaults to 0).
-  // effectiveAudioStartSec = first scene's timestamp in seconds; falls back to
-  // the saved startSec if it is explicitly non-zero.
-  const effectiveAudioStartSec = useMemo(() => {
-    if ((audioStartSec ?? 0) > 0) return audioStartSec!;
-    return parseTimestamp(uniqueScenes[0]?.timestamp) ?? 0;
-  }, [audioStartSec, uniqueScenes]);
+  // ── Export audio always starts at 0:00 ──────────────────────────────────────
+  // Full export = full project song from the beginning.
+  // Scene timestamps are the master *player* position (e.g. chorus at 0:45) and
+  // must NOT be used as an audio seek offset in the final export.
+  // Lip sync uses its own per-clip audio segment; that never flows into full export.
+  const exportAudioStartSec = 0;
 
-  // Per-clip audio map — the source of truth shown in the "Master Player Audio Map".
-  // Uses real ffprobe durations (from downloadAllResult) once clips are downloaded;
-  // falls back to 0-duration placeholders until then.
+  // Detect whether masterAudioUrl looks like a lip sync segment rather than the
+  // full project audio mix. Sync.so outputs live on api.sync.so / cdn.sync.so,
+  // and some internal paths contain "lip", "vocal", or "lipsync".
+  const masterAudioIsLipSync = useMemo(() => {
+    if (!masterAudioUrl) return false;
+    try {
+      const u = new URL(masterAudioUrl);
+      if (u.hostname.includes("sync.so")) return true;
+      const p = u.pathname.toLowerCase();
+      if (p.includes("lip") || p.includes("vocal") || p.includes("lipsync")) return true;
+    } catch { /* ignore */ }
+    return false;
+  }, [masterAudioUrl]);
+
+  // Per-clip audio map — shows scene timestamps for reference only.
+  // Audio column now reflects the export model (always starts at 0:00).
   const clipAudioMap = useMemo(() => {
     let videoCursor = 0;
     return uniqueScenes.map((s, i) => {
@@ -414,28 +424,21 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       const tsSeconds = parseTimestamp(s.timestamp ?? "");
       const videoStart = videoCursor;
       videoCursor += dur;
-      // Continuous-audio model: audio at this clip's video position =
-      // effectiveAudioStartSec + videoTimelineStart
-      const continuousAudioStart = effectiveAudioStartSec + videoStart;
-      // Delta between the scene's own timestamp and where continuous audio lands
-      const delta = tsSeconds !== null ? tsSeconds - continuousAudioStart : null;
+      // Export model: audio position in file = 0 + video timeline position
+      const exportAudioPos = videoStart; // always relative to 0:00
       return {
         sceneNumber:  i + 1,
         title:        s.section ? `Scene ${i + 1} · ${s.section}` : `Scene ${i + 1}`,
-        timestamp:    s.timestamp ?? null,
+        timestamp:    s.timestamp ?? null,  // master player reference only
         timestampSec: tsSeconds,
         videoStart,
         videoEnd:     videoCursor,
-        audioStart:   continuousAudioStart,
-        audioEnd:     continuousAudioStart + dur,
+        audioStart:   exportAudioPos,
+        audioEnd:     exportAudioPos + dur,
         clipDuration: dur,
-        source:       tsSeconds !== null ? `scene.timestamp (${s.timestamp})` : "inferred:continuous",
-        // null = no timestamp to compare; true = aligned within 0.5s
-        aligned:      delta !== null ? Math.abs(delta) < 0.5 : null,
-        deltaSeconds: delta,
       };
     });
-  }, [uniqueScenes, downloadAllResult, effectiveAudioStartSec]);
+  }, [uniqueScenes, downloadAllResult]);
 
   async function authHeaders() {
     const token = await getAccessToken();
@@ -576,7 +579,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         body: JSON.stringify({
           multiId,
           audioUrl: masterAudioUrl ?? null,
-          audioStartSec: effectiveAudioStartSec,
+          audioStartSec: 0,
           syncMode: syncMode ?? "keep-as-is",
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
@@ -599,7 +602,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         body: JSON.stringify({
           multiId,
           audioUrl: masterAudioUrl ?? null,
-          audioStartSec: effectiveAudioStartSec,
+          audioStartSec: 0,
           syncMode: syncMode ?? "keep-as-is",
           clipEdits: clipEdits ?? {},
         }),
@@ -623,7 +626,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         body: JSON.stringify({
           multiId,
           audioUrl: masterAudioUrl ?? null,
-          audioStartSec: effectiveAudioStartSec,
+          audioStartSec: 0,
           syncMode: syncMode ?? "keep-as-is",
           durationSec: 20,
         }),
@@ -1685,7 +1688,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 {busy === "export-all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
                 Export All {multiClips.length} Clips Only
               </Button>
-              <Button onClick={exportAllClipsAudio} disabled={busy !== null || !allClipsValid} variant="outline"
+              <Button onClick={exportAllClipsAudio} disabled={busy !== null || !allClipsValid || masterAudioIsLipSync} variant="outline"
                 className="gap-2 border-green-500/30 bg-green-500/5 text-green-400 hover:bg-green-500/10 text-xs disabled:opacity-40"
                 data-testid="btn-doctor-export-all-audio">
                 {busy === "export-all-audio" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Music2 className="h-3.5 w-3.5" />}
@@ -1693,29 +1696,32 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
               </Button>
             </div>
 
-            {/* ── Audio Sync Export Check ── */}
+            {/* ── Export Audio Source Status ── */}
             {(() => {
-              const hasAudio      = !!masterAudioUrl;
-              const videoOk       = allClipsValid;
-              const offsetApplied = effectiveAudioStartSec > 0;
-              const firstTs       = uniqueScenes[0]?.timestamp ?? null;
+              const hasAudio       = !!masterAudioUrl;
+              const videoOk        = allClipsValid;
+              const isLipSyncSrc   = masterAudioIsLipSync;
+              const isFullMix      = hasAudio && !isLipSyncSrc;
+              const audioLabel     = masterAudioUrl
+                ? (() => { try { return new URL(masterAudioUrl).hostname; } catch { return "unknown host"; } })()
+                : "(none)";
               const rows: [string, string, boolean | null][] = [
-                ["video-only export passed",        videoOk   ? "yes ✓" : "clips not ready",   videoOk],
-                ["audio source ready",              hasAudio  ? "yes ✓" : "no audio URL",       hasAudio],
-                ["first scene timestamp",           firstTs   ?? "(none — will start at 0:00)", null],
-                ["master player audio start",       `${fmtSec(effectiveAudioStartSec)} (${effectiveAudioStartSec.toFixed(2)}s)`, null],
-                ["export audio start",              `${fmtSec(effectiveAudioStartSec)} — matches master ✓`, null],
-                ["audio offset applied",            offsetApplied ? `+${effectiveAudioStartSec.toFixed(2)}s from scene.timestamp ✓` : "none (0:00 — no timestamp found)", null],
-                ["timing source",                   (audioStartSec ?? 0) > 0 ? "settings.musicStudio.videoAudio.startSec" : "scene[0].timestamp", null],
-                ["sync mode",                       syncMode ?? "keep-as-is", null],
-                ["saved audio duration",            audioDurationSec != null ? `${audioDurationSec.toFixed(1)}s` : "unknown", null],
-                ["lip sync offsets preserved",      "yes — per-clip offsets sent to server", true],
-                ["final audio/video sync expected", videoOk && hasAudio ? "yes ✓" : "no — fix above first", videoOk && hasAudio],
+                ["using full project audio",    isFullMix  ? "yes ✓" : hasAudio ? "no — see warning below" : "no audio", isFullMix ? true : hasAudio ? false : false],
+                ["using lip sync segment",      isLipSyncSrc ? "YES — wrong source ✗" : "no ✓", isLipSyncSrc ? false : true],
+                ["audio start time",            "0.00s — song beginning ✓", true],
+                ["audio source",                audioLabel, null],
+                ["audio starts at chorus",      "no — starts at 0:00 ✓", true],
+                ["saved audio duration",        audioDurationSec != null ? `${audioDurationSec.toFixed(1)}s` : "unknown", null],
+                ["sync mode",                   syncMode ?? "keep-as-is", null],
+                ["video-only export ready",     videoOk ? "yes ✓" : "clips not downloaded yet", videoOk],
+                ["export ready",                videoOk && isFullMix ? "yes ✓" : "no — fix above first", videoOk && isFullMix],
               ];
               return (
-                <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.03] px-3 py-3 space-y-1">
+                <div className={`rounded-xl border px-3 py-3 space-y-1 ${
+                  isLipSyncSrc ? "border-red-500/30 bg-red-500/[0.04]" : "border-blue-500/20 bg-blue-500/[0.03]"
+                }`}>
                   <p className="text-[10px] font-black text-blue-300/60 uppercase tracking-widest mb-2">
-                    Audio Sync Export Check
+                    Export Audio Source
                   </p>
                   {rows.map(([label, value, ok]) => (
                     <div key={label} className="flex items-start justify-between gap-2">
@@ -1725,11 +1731,34 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                       }`}>{value}</span>
                     </div>
                   ))}
+                  {isLipSyncSrc && (
+                    <div className="mt-2 pt-2 border-t border-red-500/20 rounded-lg bg-red-500/[0.06] px-2 py-2">
+                      <p className="text-[10px] font-bold text-red-400 leading-snug">
+                        ⚠ Wrong audio source selected — export is using a lip sync segment instead of full project audio.
+                        Go to Music Studio and reselect the full project mix.
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
-            {/* ── Master Player Audio Map — Capture + table ── */}
+            {/* ── Reset Export Audio To Song Start ── */}
+            <Button
+              onClick={() => {
+                setAudioSyncDiagResult(null);
+                setAudioSyncShortResult(null);
+                setLastError(null);
+              }}
+              variant="outline"
+              className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.04] text-amber-300 hover:bg-amber-500/[0.10] text-xs"
+              data-testid="btn-doctor-reset-audio-start"
+            >
+              <Music2 className="h-3.5 w-3.5" />
+              Reset Export Audio To Song Start
+            </Button>
+
+            {/* ── Clip Audio Map — Export model view ── */}
             <div className="space-y-2">
               <Button
                 onClick={() => setShowAudioMap((v) => !v)}
@@ -1738,101 +1767,108 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 data-testid="btn-doctor-capture-audio-map"
               >
                 <Music2 className="h-3.5 w-3.5" />
-                {showAudioMap ? "Hide" : "Capture"} Master Player Audio Map
+                {showAudioMap ? "Hide" : "Show"} Export Audio Map
               </Button>
 
               {showAudioMap && (
                 <div className="rounded-xl border border-indigo-500/20 overflow-hidden">
                   <div className="px-3 py-2 bg-indigo-500/[0.05] border-b border-indigo-500/[0.12]">
                     <p className="text-[10px] font-black text-indigo-300/70 uppercase tracking-widest">
-                      Master Player Audio Map
+                      Export Audio Map
                       <span className="ml-2 font-normal text-white/30 normal-case">
-                        — audio starts at {fmtSec(effectiveAudioStartSec)} in the song
-                        {(audioStartSec ?? 0) > 0 ? " (from saved startSec)" : " (from scene[0].timestamp)"}
+                        — audio starts at 0:00.0 (song beginning)
                       </span>
                     </p>
                   </div>
-                  {/* Header */}
-                  <div className="grid grid-cols-[1.5rem_1fr_3.5rem_4rem_4rem_3.5rem] gap-x-1.5 px-2 py-1.5 border-b border-white/[0.05] text-[9px] font-black text-white/25 uppercase tracking-widest">
-                    <span>#</span><span>Scene</span><span className="text-right">Dur</span>
-                    <span className="text-right">Vid start</span><span className="text-right">Audio start</span><span className="text-center">Src</span>
+                  <div className="grid grid-cols-[1.5rem_1fr_3.5rem_4.5rem_4.5rem] gap-x-1.5 px-2 py-1.5 border-b border-white/[0.05] text-[9px] font-black text-white/25 uppercase tracking-widest">
+                    <span>#</span><span>Scene</span>
+                    <span className="text-right">Dur</span>
+                    <span className="text-right">Vid pos</span>
+                    <span className="text-right">Audio pos</span>
                   </div>
                   <div className="divide-y divide-white/[0.03] max-h-64 overflow-y-auto">
                     {clipAudioMap.map((c) => (
                       <div key={c.sceneNumber}
-                        className={`grid grid-cols-[1.5rem_1fr_3.5rem_4rem_4rem_3.5rem] gap-x-1.5 px-2 py-1.5 items-center text-[9px] font-mono ${
-                          c.aligned === false ? "bg-orange-500/[0.04]" : ""
-                        }`}>
+                        className="grid grid-cols-[1.5rem_1fr_3.5rem_4.5rem_4.5rem] gap-x-1.5 px-2 py-1.5 items-center text-[9px] font-mono">
                         <span className="text-white/25">{c.sceneNumber}</span>
                         <span className="text-white/55 truncate">{c.title.replace(/^Scene \d+ · /, "")}</span>
-                        <span className="text-right text-white/40">{c.clipDuration > 0 ? `${c.clipDuration.toFixed(1)}s` : "—"}</span>
-                        <span className="text-right text-white/40">{c.clipDuration > 0 ? fmtSec(c.videoStart) : "—"}</span>
-                        <span className="text-right text-indigo-300/80 font-bold">
-                          {c.clipDuration > 0 ? fmtSec(c.audioStart) : c.timestamp ?? "—"}
+                        <span className="text-right text-white/40">
+                          {c.clipDuration > 0 ? `${c.clipDuration.toFixed(1)}s` : "—"}
                         </span>
-                        <span className={`text-center text-[8px] font-bold px-1 rounded ${
-                          c.timestampSec !== null ? "text-indigo-400" : "text-white/20"
-                        }`}>
-                          {c.timestampSec !== null ? "ts" : "~"}
+                        <span className="text-right text-white/40">
+                          {c.clipDuration > 0 ? fmtSec(c.videoStart) : "—"}
+                        </span>
+                        <span className="text-right text-indigo-300/80 font-bold">
+                          {c.clipDuration > 0 ? fmtSec(c.audioStart) : "—"}
                         </span>
                       </div>
                     ))}
                   </div>
                   {clipAudioMap.some(c => c.clipDuration === 0) && (
                     <p className="px-3 py-2 text-[9px] text-white/30 border-t border-white/[0.04]">
-                      Durations shown as — until "Download All Clips" completes.
+                      Durations fill in after "Download All Clips" completes.
                     </p>
                   )}
                 </div>
               )}
             </div>
 
+            {/* ── Audio Export Buttons — blocked if lip sync source detected ── */}
+            {masterAudioIsLipSync && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/[0.05] px-3 py-2">
+                <p className="text-[10px] font-bold text-red-400">
+                  Export blocked — wrong audio source detected (lip sync segment). Reselect the full project audio in Music Studio before exporting.
+                </p>
+              </div>
+            )}
+
             {/* ── Audio Sync Diagnostic & Short Test buttons ── */}
             <div className="grid grid-cols-2 gap-2">
-              <Button onClick={exportAudioSyncDiagnostic} disabled={busy !== null || !allClipsValid || !masterAudioUrl} variant="outline"
+              <Button onClick={exportAudioSyncDiagnostic}
+                disabled={busy !== null || !allClipsValid || !masterAudioUrl || masterAudioIsLipSync} variant="outline"
                 className="gap-2 border-blue-500/30 bg-blue-500/[0.04] text-blue-300 hover:bg-blue-500/[0.10] text-xs disabled:opacity-40"
                 data-testid="btn-doctor-audio-sync-diag">
                 {busy === "export-audio-sync-diag" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Stethoscope className="h-3.5 w-3.5" />}
                 Audio Sync Diagnostic
               </Button>
-              <Button onClick={exportAudioSyncShort} disabled={busy !== null || !allClipsValid || !masterAudioUrl} variant="outline"
+              <Button onClick={exportAudioSyncShort}
+                disabled={busy !== null || !allClipsValid || !masterAudioUrl || masterAudioIsLipSync} variant="outline"
                 className="gap-2 border-sky-500/30 bg-sky-500/[0.04] text-sky-300 hover:bg-sky-500/[0.10] text-xs disabled:opacity-40"
                 data-testid="btn-doctor-audio-sync-short">
                 {busy === "export-audio-sync-short" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Film className="h-3.5 w-3.5" />}
-                Export First 20s Master Audio Map Test
+                Export First 20s + Audio Test
               </Button>
             </div>
 
-            {/* ── Audio Sync Diagnostic / Short Test results ── */}
+            {/* ── Audio Diagnostic / Short Test results ── */}
             {[
               { result: audioSyncDiagResult, label: "Audio Sync Diagnostic" },
-              { result: audioSyncShortResult, label: "First 20s Master Audio Map Test" },
+              { result: audioSyncShortResult, label: "First 20s Audio Test" },
             ].map(({ result, label }) => result && (
               <div key={label} className="rounded-xl border border-blue-500/20 bg-blue-500/[0.03] px-3 py-3 space-y-2">
                 <p className="text-[10px] font-black text-blue-300/60 uppercase tracking-widest">{label} Result</p>
 
-                {/* Master vs export comparison */}
+                {/* Export start vs expected 0:00 comparison */}
                 {(() => {
-                  const masterStart  = effectiveAudioStartSec;
                   const exportStart  = result.exportAudioStartSec ?? result.audioOffset ?? 0;
-                  const match        = Math.abs(masterStart - exportStart) < 0.1;
+                  const match        = exportStart < 0.1;
                   return (
                     <div className={`grid grid-cols-2 gap-2 rounded-lg border px-2.5 py-2 text-[10px] font-mono ${
                       match ? "border-green-500/20 bg-green-500/[0.04]" : "border-red-500/20 bg-red-500/[0.04]"
                     }`}>
                       <div>
-                        <p className="text-[9px] text-white/30 mb-0.5">master player audio start</p>
-                        <p className="font-bold text-white/70">{fmtSec(masterStart)} ({masterStart.toFixed(2)}s)</p>
+                        <p className="text-[9px] text-white/30 mb-0.5">expected audio start</p>
+                        <p className="font-bold text-white/70">0:00.0 (0.00s)</p>
                       </div>
                       <div>
-                        <p className="text-[9px] text-white/30 mb-0.5">export audio start</p>
+                        <p className="text-[9px] text-white/30 mb-0.5">actual export audio start</p>
                         <p className={`font-bold ${match ? "text-green-400" : "text-red-400"}`}>
                           {fmtSec(exportStart)} ({exportStart.toFixed(2)}s)
                         </p>
                       </div>
                       <div className="col-span-2 pt-1 border-t border-white/[0.06]">
                         <span className={`font-bold text-[10px] ${match ? "text-green-400" : "text-red-400"}`}>
-                          matches: {match ? "yes ✓" : `no — delta ${(exportStart - masterStart).toFixed(2)}s`}
+                          starts at beginning: {match ? "yes ✓" : `no — offset is ${exportStart.toFixed(2)}s (should be 0.00s)`}
                         </span>
                       </div>
                     </div>
@@ -1853,7 +1889,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                   </div>
                 ))}
 
-                {/* Per-clip timeline map from server */}
+                {/* Per-clip timeline from server */}
                 {result.clipTimeline && result.clipTimeline.length > 0 && (
                   <div className="pt-2 border-t border-white/[0.06]">
                     <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">Server Clip Timeline</p>
@@ -1882,7 +1918,6 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                   </a>
                 )}
 
-                {/* Error */}
                 {result.error && (
                   <p className="text-[10px] text-red-400/80 break-words leading-snug">{result.error}</p>
                 )}
