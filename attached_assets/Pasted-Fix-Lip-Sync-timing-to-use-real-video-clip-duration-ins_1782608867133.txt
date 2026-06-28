@@ -1,0 +1,81 @@
+Fix Lip Sync timing to use real video clip duration instead of scene duration.
+
+Problem:
+Lip Sync timing validation shows:
+
+- scene duration: 2.00s
+- audio segment duration: 2.00s
+- clip video duration: 5.04s
+- difference: 3.04s
+- safe to submit: no
+
+The app is using the scene/script duration to cut audio, but the real generated video clip is 5.04 seconds.
+
+This makes lip sync too fast.
+
+Do not submit a new Sync.so job automatically.
+Do not change master player, captions, effects, overlays, watermark, export, or payments.
+
+Only fix Lip Sync audio segment timing.
+
+Requirements:
+
+1. For lip sync, use the real selected clip video duration as the target duration.
+
+Priority:
+- actual loaded video metadata duration
+- ffprobe/server video duration
+- clip.videoDuration
+- clip.duration
+- scene duration only as last fallback
+
+2. Audio segment duration should match real clip video duration.
+
+For this case:
+- clip video duration = 5.04s
+- extracted audio segment should be about 5.04s
+- not 2.00s
+
+3. Scene start time should still come from the timeline.
+
+Audio segment should be:
+timeline scene start time → scene start time + real clip video duration
+
+Example:
+If Scene 4 starts at 20.00s and video clip is 5.04s:
+cut audio from 20.00s to 25.04s
+
+4. Update timing validation display:
+
+Show:
+- timeline scene start
+- target duration source: real video metadata / ffprobe / fallback
+- target lip sync duration
+- audio segment duration
+- clip video duration
+- durations match: yes/no
+- safe to submit: yes/no
+
+5. Add button:
+
+Rebuild Audio Segment From Real Clip Duration
+
+This should recreate the lip sync audio segment using the real clip duration.
+
+6. Block paid submit until:
+
+- audio segment duration matches clip video duration within 0.25s
+- safe to submit: yes
+
+7. Keep offset controls, but offset should change start time, not shorten the segment.
+
+Offset example:
+If offset is +0.5s:
+audio starts 0.5s later, but still keeps 5.04s duration.
+
+8. Mark old completed job as timing mismatch.
+
+Do not overwrite old result until corrected job succeeds.
+
+Final goal:
+Lip Sync must cut the audio segment to the real video clip duration, not the scene/script duration. For Scene 4, it should create a 5.04-second audio segment to match the 5.04-second video clip before submitting to Sync.so.

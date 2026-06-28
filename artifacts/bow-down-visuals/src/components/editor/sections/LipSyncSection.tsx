@@ -308,6 +308,7 @@ export function LipSyncSection({
 
   /* ── Clip duration detection + audio-segment preview ── */
   const [clipVideoDuration, setClipVideoDuration] = useState<number | null>(null);
+  const [clipDurationReloadKey, setClipDurationReloadKey] = useState(0);
   const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
   const [showTimingValidation, setShowTimingValidation] = useState(false);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -344,10 +345,24 @@ export function LipSyncSection({
     : null;
   const audioOffset    = selectedClipEdit?.lipSyncAudioOffset ?? 0;
   const rawTiming      = selectedScene ? parseSceneTiming(selectedScene, scenes) : null;
-  /* Shift extraction window by user-controlled offset (both start and end move together) */
+
+  /* Target duration priority:
+     1. Actual loaded video metadata duration (most accurate)
+     2. Fallback: scene timestamp duration (last resort)                        */
+  const targetDuration = clipVideoDuration ?? rawTiming?.durationSec ?? 0;
+  const durationSource = clipVideoDuration != null ? "real video metadata" : "fallback (scene duration)";
+
+  /* Offset shifts only the START of the extraction window.
+     END = start + real clip duration (duration stays fixed regardless of offset). */
   const selectedTiming = rawTiming
-    ? { ...rawTiming, startSec: rawTiming.startSec + audioOffset, endSec: rawTiming.endSec + audioOffset }
+    ? {
+        ...rawTiming,
+        startSec:    rawTiming.startSec + audioOffset,
+        endSec:      rawTiming.startSec + audioOffset + targetDuration,
+        durationSec: targetDuration,
+      }
     : null;
+
   /* Timing validation */
   const audioSegmentDuration = selectedTiming?.durationSec ?? 0;
   const timingDiff  = clipVideoDuration != null ? Math.abs(audioSegmentDuration - clipVideoDuration) : null;
@@ -379,7 +394,7 @@ export function LipSyncSection({
     });
   }
 
-  /* ── Detect clip video duration when selected clip changes ── */
+  /* ── Detect clip video duration when selected clip changes or reload is forced ── */
   useEffect(() => {
     const url = selectedScene?.demoClipUrl;
     if (!url) { setClipVideoDuration(null); return; }
@@ -393,7 +408,7 @@ export function LipSyncSection({
     vid.src = url;
     return () => { vid.src = ""; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedScene?.demoClipUrl]);
+  }, [selectedScene?.demoClipUrl, clipDurationReloadKey]);
 
   /* ── Preview the exact audio segment that will be sent to Sync.so ── */
   function previewAudioSegment() {
@@ -424,6 +439,12 @@ export function LipSyncSection({
     updateClipEdit(selectedScene.id, {
       lipSyncAudioOffset: Math.round(offset * 10) / 10,
     });
+  }
+
+  /* ── Force re-detect clip video duration (in case first load failed / stale) ── */
+  function rebuildFromRealClipDuration() {
+    setClipVideoDuration(null);
+    setClipDurationReloadKey(k => k + 1);
   }
 
   /* ── Upload vocal stem ── */
@@ -1948,14 +1969,13 @@ export function LipSyncSection({
                   {selectedTiming && (
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
                       <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Lip Sync Audio Segment</p>
-                      <StatusRow label="selected scene"         value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`} ok={null} />
-                      <StatusRow label="scene start time"       value={fmtSec(selectedTiming.startSec)} ok={null} />
-                      <StatusRow label="scene end time"         value={fmtSec(selectedTiming.endSec)} ok={null} />
-                      <StatusRow label="scene duration"         value={`${selectedTiming.durationSec.toFixed(2)}s`} ok={null} />
-                      <StatusRow label="project audio"          value={audioReady ? "found ✓" : "none"} ok={audioReady} />
+                      <StatusRow label="timeline scene start"   value={rawTiming ? fmtSec(rawTiming.startSec) : "—"} ok={null} />
+                      <StatusRow label="target duration source" value={durationSource} ok={clipVideoDuration != null ? true : null} />
+                      <StatusRow label="target lip sync dur."   value={`${targetDuration.toFixed(2)}s`} ok={clipVideoDuration != null ? true : null} />
                       <StatusRow label="audio segment duration" value={`${audioSegmentDuration.toFixed(2)}s`} ok={null} />
-                      <StatusRow label="clip video duration"    value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s` : "detecting…"} ok={timingOk} />
+                      <StatusRow label="clip video duration"    value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s` : "detecting…"} ok={clipVideoDuration != null ? true : null} />
                       <StatusRow label="durations match"        value={timingOk === null ? "checking…" : timingOk ? `yes ✓ (diff ${(timingDiff ?? 0).toFixed(2)}s)` : `no — diff ${(timingDiff ?? 0).toFixed(2)}s`} ok={timingOk} />
+                      <StatusRow label="safe to submit"         value={timingOk === null ? "checking…" : timingOk ? "yes ✓" : "no — fix timing"} ok={timingOk} />
                     </div>
                   )}
 
@@ -2033,11 +2053,29 @@ export function LipSyncSection({
                   {showTimingValidation && selectedTiming && (
                     <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
                       <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Timing Validation</p>
+                      <StatusRow label="timeline scene start"  value={rawTiming ? fmtSec(rawTiming.startSec) : "—"} ok={null} />
+                      <StatusRow label="audio offset"          value={audioOffset !== 0 ? `${audioOffset >= 0 ? "+" : ""}${audioOffset.toFixed(1)}s` : "none"} ok={null} />
+                      <StatusRow label="audio starts at"       value={fmtSec(selectedTiming.startSec)} ok={null} />
+                      <StatusRow label="audio ends at"         value={fmtSec(selectedTiming.endSec)} ok={null} />
                       <StatusRow label="clip video duration"   value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(3)}s` : "detecting…"} ok={null} />
                       <StatusRow label="audio segment duration" value={`${audioSegmentDuration.toFixed(3)}s`} ok={null} />
                       <StatusRow label="difference"            value={timingDiff != null ? `${timingDiff.toFixed(3)}s` : "—"} ok={timingOk} />
-                      <StatusRow label="safe to submit"        value={timingOk === null ? "checking…" : timingOk ? "yes ✓" : `no — diff ≥ 0.25s, adjust offset`} ok={timingOk} />
+                      <StatusRow label="safe to submit"        value={timingOk === null ? "checking…" : timingOk ? "yes ✓" : `no — diff ≥ 0.25s`} ok={timingOk} />
                     </div>
+                  )}
+
+                  {/* ── Rebuild from real clip duration ── */}
+                  {selectedTiming && (
+                    <button
+                      type="button"
+                      onClick={rebuildFromRealClipDuration}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${clipVideoDuration === null && selectedScene?.demoClipUrl ? "animate-spin" : ""}`} />
+                      {clipVideoDuration !== null
+                        ? `Rebuild Audio Segment — using ${clipVideoDuration.toFixed(2)}s clip`
+                        : "Rebuild Audio Segment From Real Clip Duration"}
+                    </button>
                   )}
 
                   {/* ── Timing mismatch error — blocks submit ── */}
