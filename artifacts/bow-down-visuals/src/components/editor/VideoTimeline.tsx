@@ -502,7 +502,14 @@ export function VideoTimeline({
                           <ArrowRightLeft className="h-2 w-2 text-blue-400/60 shrink-0" />
                         )}
                         {clipEdits?.[scene.id]?.lipSyncStatus === "done" && (
-                          <span className="text-[7px] font-black text-green-400/80 bg-green-400/10 border border-green-400/20 rounded px-0.5 leading-tight shrink-0">LS✓</span>
+                          <span className="text-[7px] font-black text-green-400/80 bg-green-400/10 border border-green-400/20 rounded px-0.5 leading-tight shrink-0">
+                            {(() => {
+                              const off = clipEdits[scene.id]?.lipSyncOffsetSeconds ?? 0;
+                              if (off === 0) return "LS✓";
+                              const sign = off > 0 ? "+" : "";
+                              return `LS${sign}${off.toFixed(2)}s`;
+                            })()}
+                          </span>
                         )}
                         {clipEdits?.[scene.id]?.lipSyncStatus === "processing" && (
                           <span className="text-[7px] font-black text-primary/80 bg-primary/10 border border-primary/20 rounded px-0.5 leading-tight shrink-0">LS…</span>

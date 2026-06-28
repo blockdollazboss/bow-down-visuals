@@ -577,7 +577,11 @@ export default function VideoEditor() {
       scenes.map((s) => {
         const ce = settings.clips[s.id];
         if (ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl) {
-          return { ...s, demoClipUrl: ce.lipSyncUrl };
+          return {
+            ...s,
+            demoClipUrl: ce.lipSyncUrl,
+            clipVideoOffsetSec: ce.lipSyncOffsetSeconds ?? 0,
+          };
         }
         return s;
       }),

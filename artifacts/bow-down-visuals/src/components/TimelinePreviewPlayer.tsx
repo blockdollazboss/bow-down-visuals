@@ -191,6 +191,7 @@ function TimelinePreviewPlayer({
   const currentTimeRef = useRef(0);
   const totalDurRef   = useRef(totalDur);
   const intervalRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clipDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   playingRef.current    = playing;
   currentTimeRef.current = currentTime;
@@ -245,13 +246,7 @@ function TimelinePreviewPlayer({
 
     const scene = scenes[sceneIdx];
     if (scene?.demoClipUrl && videoRef.current) {
-      const v = videoRef.current;
-      // Always set src imperatively — required when using externalVideoRef
-      // because the external <video> element doesn't get a src via React props.
-      v.src = scene.demoClipUrl;
-      v.muted = true;
-      v.currentTime = 0;
-      v.play().catch((e: Error) => setLastError(`Clip ${sceneIdx + 1}: ${e.message}`));
+      loadClipWithOffset(scene, videoRef.current, `Clip ${sceneIdx + 1}`);
     }
 
     // Notify parent so it can trigger CSS transition.
@@ -274,6 +269,7 @@ function TimelinePreviewPlayer({
   useEffect(() => () => {
     audioRef.current?.pause();
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (clipDelayTimerRef.current) clearTimeout(clipDelayTimerRef.current);
   }, []);
 
   /* ─── Audio event handlers ────────────────────────────────── */
@@ -327,6 +323,42 @@ function TimelinePreviewPlayer({
     });
   }
 
+  /** Load a clip into the video element, applying clipVideoOffsetSec if present.
+   *  clipTimeInScene = how many seconds into the scene we already are (for seeks).
+   *  Positive offset → delay video start via setTimeout.
+   *  Negative offset → skip ahead in the video to advance it. */
+  function loadClipWithOffset(
+    scene: { demoClipUrl: string | null; clipVideoOffsetSec?: number },
+    v: HTMLVideoElement,
+    errorLabel: string,
+    clipTimeInScene = 0,
+  ) {
+    if (!scene.demoClipUrl) return;
+    const rawOffset = scene.clipVideoOffsetSec ?? 0;
+    v.src = scene.demoClipUrl;
+    v.muted = true;
+    if (clipDelayTimerRef.current) {
+      clearTimeout(clipDelayTimerRef.current);
+      clipDelayTimerRef.current = null;
+    }
+    if (rawOffset > 0 && clipTimeInScene === 0) {
+      // Positive offset at scene start: pause video, start playing after N ms
+      v.currentTime = 0;
+      v.pause();
+      const delayedSrc = scene.demoClipUrl;
+      clipDelayTimerRef.current = setTimeout(() => {
+        clipDelayTimerRef.current = null;
+        if (videoRef.current && videoRef.current.src === delayedSrc && playingRef.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      }, rawOffset * 1000);
+    } else {
+      // Negative offset or mid-scene seek: adjust currentTime directly
+      v.currentTime = Math.max(0, clipTimeInScene - rawOffset);
+      v.play().catch((e: Error) => setLastError(`${errorLabel}: ${e.message}`));
+    }
+  }
+
   function startTimeline() {
     setMode("timeline");
     setLastError(null);
@@ -342,11 +374,7 @@ function TimelinePreviewPlayer({
     // Start first scene's clip
     const firstScene = scenes[0];
     if (firstScene?.demoClipUrl && videoRef.current) {
-      const v = videoRef.current;
-      v.src = firstScene.demoClipUrl; // set src imperatively (required for externalVideoRef)
-      v.muted = true;
-      v.currentTime = 0;
-      v.play().catch((e: Error) => setLastError(`Clip 1: ${e.message}`));
+      loadClipWithOffset(firstScene, videoRef.current, "Clip 1");
     }
   }
 
@@ -372,11 +400,7 @@ function TimelinePreviewPlayer({
 
     const scene = scenes[idx];
     if (scene?.demoClipUrl && videoRef.current) {
-      const v = videoRef.current;
-      v.src = scene.demoClipUrl; // set src imperatively (required for externalVideoRef)
-      v.muted = true;
-      v.currentTime = 0;
-      v.play().catch((e: Error) => setLastError(`Clip: ${e.message}`));
+      loadClipWithOffset(scene, videoRef.current, "Clip");
     }
   }
 
@@ -429,11 +453,7 @@ function TimelinePreviewPlayer({
     const startIdx = sceneAt(start, offsets, durs);
     const scene = scenes[startIdx];
     if (scene?.demoClipUrl && videoRef.current) {
-      const v = videoRef.current;
-      v.src = scene.demoClipUrl;
-      v.muted = true;
-      v.currentTime = 0;
-      v.play().catch((e: Error) => setLastError(`Clip: ${e.message}`));
+      loadClipWithOffset(scene, videoRef.current, "Clip");
     }
   }
 
@@ -465,12 +485,9 @@ function TimelinePreviewPlayer({
       const idx = sceneAt(t, offsets, durs);
       const scene = scenes[idx];
       if (scene?.demoClipUrl && videoRef.current) {
-        const v = videoRef.current;
         const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
-        if (v.src !== scene.demoClipUrl) v.src = scene.demoClipUrl;
-        v.muted = true;
-        v.currentTime = clipOffset;
-        if (playing) v.play().catch(() => {});
+        loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
+        if (!playing) videoRef.current.pause();
       }
     },
     setVolume(vol: number) {

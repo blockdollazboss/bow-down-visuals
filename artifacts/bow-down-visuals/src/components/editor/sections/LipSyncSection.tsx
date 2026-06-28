@@ -2225,6 +2225,8 @@ export function LipSyncSection({
                   <StatusRow label="useLipSync"               value={selectedClipEdit.useLipSync ? "on" : "off"}                            ok={selectedClipEdit.useLipSync ? true : null} />
                   <StatusRow label="master player using"      value={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? "lip sync ✓" : "original clip"}  ok={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" ? true : null} />
                   <StatusRow label="timeline badge"           value={selectedClipEdit.lipSyncStatus === "done" ? "LS✓ visible" : "not shown"} ok={selectedClipEdit.lipSyncStatus === "done"} />
+                  <StatusRow label="current offset"           value={`${(selectedClipEdit.lipSyncOffsetSeconds ?? 0) >= 0 ? "+" : ""}${(selectedClipEdit.lipSyncOffsetSeconds ?? 0).toFixed(2)}s`} ok={null} />
+                  <StatusRow label="offset active"            value={selectedClipEdit.useLipSync && selectedClipEdit.lipSyncStatus === "done" && (selectedClipEdit.lipSyncOffsetSeconds ?? 0) !== 0 ? "yes ✓" : (selectedClipEdit.lipSyncOffsetSeconds ?? 0) !== 0 ? "saved, enable useLipSync" : "none (0.00s)"} ok={(selectedClipEdit.lipSyncOffsetSeconds ?? 0) !== 0 && selectedClipEdit.useLipSync ? true : null} />
                   <StatusRow label="persisted after refresh"  value="yes — stored in browser"                                               ok={true} />
                   {selectedClipEdit.lipSyncError && selectedClipEdit.lipSyncStatus !== "done" && (
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
@@ -2260,6 +2262,59 @@ export function LipSyncSection({
                     >
                       <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${selectedClipEdit.useLipSync ? "translate-x-5" : "translate-x-0.5"}`} />
                     </button>
+                  </div>
+                )}
+
+                {/* ── Lip Sync Playback Offset ── */}
+                {selectedClipEdit.lipSyncUrl && (
+                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] font-semibold text-white/70">Lip Sync Playback Offset</p>
+                        <p className="text-[10px] text-white/35">
+                          Nudge the video earlier or later without resubmitting
+                        </p>
+                      </div>
+                      <span className={`text-[13px] font-black tabular-nums shrink-0 ${(selectedClipEdit.lipSyncOffsetSeconds ?? 0) !== 0 ? "text-primary" : "text-white/30"}`}>
+                        {(selectedClipEdit.lipSyncOffsetSeconds ?? 0) >= 0 ? "+" : ""}
+                        {(selectedClipEdit.lipSyncOffsetSeconds ?? 0).toFixed(2)}s
+                      </span>
+                    </div>
+                    {/* Step buttons */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {([
+                        { label: "Earlier −0.10s", delta: -0.10 },
+                        { label: "Later +0.10s",   delta: +0.10 },
+                        { label: "Earlier −0.05s", delta: -0.05 },
+                        { label: "Later +0.05s",   delta: +0.05 },
+                      ] as const).map(({ label, delta }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => {
+                            const cur = selectedClipEdit.lipSyncOffsetSeconds ?? 0;
+                            const next = Math.round((cur + delta) * 100) / 100;
+                            updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
+                          }}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[10px] font-semibold hover:bg-white/[0.08] hover:text-white/80 transition-colors"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 })}
+                      disabled={(selectedClipEdit.lipSyncOffsetSeconds ?? 0) === 0}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-white/10 bg-white/[0.02] text-white/35 text-[10px] font-semibold hover:bg-white/[0.06] hover:text-white/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      Reset 0.00s
+                    </button>
+                    <p className="text-[9px] text-white/25 leading-relaxed">
+                      Later = lip sync video starts later (use when mouth moves too early).
+                      Earlier = video starts sooner (use when mouth moves too late).
+                      No new Sync.so job is needed.
+                    </p>
                   </div>
                 )}
 

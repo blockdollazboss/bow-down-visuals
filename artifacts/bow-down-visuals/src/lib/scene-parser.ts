@@ -17,6 +17,9 @@ export interface SceneData {
   /** generated_clips table row id — used for attachment tracking */
   clipId: string | null;
   runwayJobId: string | null;
+  /** Seconds to delay (+) or advance (-) the video relative to audio.
+   *  Set by resolvedScenes when useLipSync is active and lipSyncOffsetSeconds != 0. */
+  clipVideoOffsetSec?: number;
   /** Runway-specific generation metadata */
   provider: string | null;
   generationStatus: "pending" | "completed" | "failed" | null;

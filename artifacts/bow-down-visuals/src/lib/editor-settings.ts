@@ -519,6 +519,10 @@ export interface ClipEdit {
   /** Marks a completed result as having been generated with incorrect audio timing.
    *  Cleared automatically when a corrected job succeeds. */
   lipSyncTimingMismatch: boolean;
+  /** Seconds to delay (+) or advance (-) lip sync video playback relative to audio.
+   *  Positive = video starts later (fix mouth moving too early).
+   *  Negative = video starts earlier (fix mouth moving too late). */
+  lipSyncOffsetSeconds: number;
 }
 
 export interface CaptionSettings {
@@ -1027,6 +1031,7 @@ export function defaultClipEdit(): ClipEdit {
     useLipSync: false,
     lipSyncAudioOffset: 0,
     lipSyncTimingMismatch: false,
+    lipSyncOffsetSeconds: 0,
   };
 }
 
