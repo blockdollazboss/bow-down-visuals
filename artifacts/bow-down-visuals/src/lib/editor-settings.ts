@@ -513,6 +513,12 @@ export interface ClipEdit {
   lipSyncSubmittedAt: string | null;
   /** When true, master player uses lipSyncUrl instead of scene.demoClipUrl. */
   useLipSync: boolean;
+  /** Seconds to shift the audio extraction window forward (+) or backward (-).
+   *  Adjusts sceneStartSec/sceneEndSec sent to Sync.so for fine alignment. */
+  lipSyncAudioOffset: number;
+  /** Marks a completed result as having been generated with incorrect audio timing.
+   *  Cleared automatically when a corrected job succeeds. */
+  lipSyncTimingMismatch: boolean;
 }
 
 export interface CaptionSettings {
@@ -1019,6 +1025,8 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncJobId: null,
     lipSyncSubmittedAt: null,
     useLipSync: false,
+    lipSyncAudioOffset: 0,
+    lipSyncTimingMismatch: false,
   };
 }
 

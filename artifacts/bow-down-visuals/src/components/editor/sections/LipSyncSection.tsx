@@ -306,6 +306,13 @@ export function LipSyncSection({
   } | null>(null);
   const [routeTestLoading, setRouteTestLoading] = useState(false);
 
+  /* ── Clip duration detection + audio-segment preview ── */
+  const [clipVideoDuration, setClipVideoDuration] = useState<number | null>(null);
+  const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
+  const [showTimingValidation, setShowTimingValidation] = useState(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   /* ── Derived: audio source ── */
   const vocalExportUrl = ms.exports.find(r => r.kind === "acapella")?.url ?? null;
   const vocalStemUrl   =
@@ -335,7 +342,18 @@ export function LipSyncSection({
   const selectedClipEdit: ClipEdit | null = selectedScene
     ? getClipEdit(settings, selectedScene.id)
     : null;
-  const selectedTiming = selectedScene ? parseSceneTiming(selectedScene, scenes) : null;
+  const audioOffset    = selectedClipEdit?.lipSyncAudioOffset ?? 0;
+  const rawTiming      = selectedScene ? parseSceneTiming(selectedScene, scenes) : null;
+  /* Shift extraction window by user-controlled offset (both start and end move together) */
+  const selectedTiming = rawTiming
+    ? { ...rawTiming, startSec: rawTiming.startSec + audioOffset, endSec: rawTiming.endSec + audioOffset }
+    : null;
+  /* Timing validation */
+  const audioSegmentDuration = selectedTiming?.durationSec ?? 0;
+  const timingDiff  = clipVideoDuration != null ? Math.abs(audioSegmentDuration - clipVideoDuration) : null;
+  const timingOk    = timingDiff != null ? timingDiff < 0.25 : null;
+  /** True only when we are NOT in demo mode and the timing mismatch is confirmed */
+  const timingBlock = !demoMode && timingOk === false;
   const selectedSceneTitle = selectedScene
     ? (selectedScene.section || selectedScene.lyricLine || `Scene ${selectedScene.sceneNumber}`)
     : "—";
@@ -358,6 +376,53 @@ export function LipSyncSection({
         ...settings.clips,
         [sceneId]: { ...existing, ...patch },
       },
+    });
+  }
+
+  /* ── Detect clip video duration when selected clip changes ── */
+  useEffect(() => {
+    const url = selectedScene?.demoClipUrl;
+    if (!url) { setClipVideoDuration(null); return; }
+    const vid = document.createElement("video");
+    vid.preload = "metadata";
+    vid.crossOrigin = "anonymous";
+    vid.addEventListener("loadedmetadata", () => {
+      setClipVideoDuration(isFinite(vid.duration) ? vid.duration : null);
+    });
+    vid.addEventListener("error", () => setClipVideoDuration(null));
+    vid.src = url;
+    return () => { vid.src = ""; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedScene?.demoClipUrl]);
+
+  /* ── Preview the exact audio segment that will be sent to Sync.so ── */
+  function previewAudioSegment() {
+    if (!effectiveAudioUrl || !selectedTiming) return;
+    if (isPreviewingAudio) {
+      previewAudioRef.current?.pause();
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      setIsPreviewingAudio(false);
+      return;
+    }
+    const audio = new Audio(effectiveAudioUrl);
+    audio.crossOrigin = "anonymous";
+    audio.currentTime = Math.max(0, selectedTiming.startSec);
+    previewAudioRef.current = audio;
+    setIsPreviewingAudio(true);
+    void audio.play().catch(() => setIsPreviewingAudio(false));
+    const ms = Math.max(200, selectedTiming.durationSec * 1000);
+    previewTimerRef.current = setTimeout(() => {
+      audio.pause();
+      setIsPreviewingAudio(false);
+    }, ms);
+    audio.addEventListener("ended", () => setIsPreviewingAudio(false));
+  }
+
+  /* ── Adjust audio offset for the selected scene ── */
+  function setAudioOffset(offset: number) {
+    if (!selectedScene) return;
+    updateClipEdit(selectedScene.id, {
+      lipSyncAudioOffset: Math.round(offset * 10) / 10,
     });
   }
 
@@ -573,6 +638,10 @@ export function LipSyncSection({
     setApplyDebug(null);
     setConfirmOpen(null);
     const sceneId = selectedScene.id;
+    /* Flag any existing result as timing-mismatch — kept until corrected job succeeds */
+    if (getClipEdit(settings, sceneId).lipSyncUrl) {
+      updateClipEdit(sceneId, { lipSyncTimingMismatch: true });
+    }
     updateClipEdit(sceneId, {
       lipSyncStatus:      "processing",
       lipSyncError:       null,
@@ -580,7 +649,8 @@ export function LipSyncSection({
     });
 
     try {
-      const timing = parseSceneTiming(selectedScene, scenes);
+      /* Use offset-adjusted timing so Sync.so receives the correct audio window */
+      const timing = selectedTiming ?? parseSceneTiming(selectedScene, scenes);
       const result = await callLipSyncBackend({
         clipUrl:            selectedScene.demoClipUrl!,
         audioUrl:           effectiveAudioUrl!,
@@ -598,13 +668,15 @@ export function LipSyncSection({
       });
 
       updateClipEdit(sceneId, {
-        lipSyncUrl:         result.url,
-        lipSyncStatus:      "done",
-        lipSyncProvider:    result.provider,
-        lipSyncCreatedAt:   new Date().toISOString(),
-        lipSyncError:       null,
-        lipSyncJobId:       null, // job finished — no need to keep tracking it
-        replaceUrl:         result.url,
+        lipSyncUrl:             result.url,
+        lipSyncStatus:          "done",
+        lipSyncProvider:        result.provider,
+        lipSyncCreatedAt:       new Date().toISOString(),
+        lipSyncError:           null,
+        lipSyncJobId:           null,
+        replaceUrl:             result.url,
+        useLipSync:             true,
+        lipSyncTimingMismatch:  false,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -1618,7 +1690,13 @@ export function LipSyncSection({
               {confirmOpen && (() => {
                 const timing = confirmOpen === "single" ? selectedTiming : null;
                 const segmentDuration = timing?.durationSec ?? 0;
-                const safeToSubmit    = !timing || !providerConnected || demoMode || segmentDuration <= PROVIDER_LIMIT_SEC;
+                const safeToSubmit    =
+                  demoMode             ? true
+                  : !providerConnected ? true
+                  : !timing            ? true
+                  : segmentDuration > PROVIDER_LIMIT_SEC ? false
+                  : timingBlock        ? false
+                  : true;
 
                 return (
                   <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] px-3 py-3 space-y-3">
@@ -1651,7 +1729,12 @@ export function LipSyncSection({
                           Job details
                         </p>
                         <StatusRow label="scene"               value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`} ok={null} />
-                        <StatusRow label="clip duration"       value={timing ? `${timing.durationSec.toFixed(1)}s` : "—"} ok={timing ? (safeToSubmit ? true : false) : null} />
+                        <StatusRow label="audio start"         value={timing ? fmtSec(timing.startSec) : "—"} ok={null} />
+                        <StatusRow label="audio end"           value={timing ? fmtSec(timing.endSec) : "—"} ok={null} />
+                        <StatusRow label="audio offset"        value={audioOffset !== 0 ? `${audioOffset >= 0 ? "+" : ""}${audioOffset.toFixed(1)}s` : "none"} ok={null} />
+                        <StatusRow label="audio segment"       value={timing ? `${timing.durationSec.toFixed(2)}s` : "—"} ok={timing ? (safeToSubmit ? true : false) : null} />
+                        <StatusRow label="clip video duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s` : "—"} ok={null} />
+                        <StatusRow label="timing match"        value={timingOk === null ? "checking…" : timingOk ? "yes ✓ (<0.25s diff)" : `no — diff ${timingDiff!.toFixed(2)}s`} ok={timingOk} />
                         <StatusRow label="audio source"        value={ls.audioSource === "vocals" ? "vocals only" : "full mix"} ok={null} />
                         <StatusRow label="provider"            value="Sync.so"                                          ok={null} />
                         <StatusRow label="provider limit"      value={`${PROVIDER_LIMIT_SEC}s`}                         ok={null} />
@@ -1679,6 +1762,14 @@ export function LipSyncSection({
                         ⚠ Provider not connected — add LIP_SYNC_API_KEY in Replit Secrets.
                       </p>
                     ) : null}
+
+                    {/* Corrected-job note when an existing result exists */}
+                    {!demoMode && selectedClipEdit?.lipSyncUrl && confirmOpen === "single" && (
+                      <div className="text-[10px] text-amber-400/80 font-semibold leading-snug">
+                        ⚠ This will submit a new Sync.so job using the corrected scene audio segment.
+                        The existing result is kept until the corrected job succeeds.
+                      </div>
+                    )}
 
                     {!demoMode && usingFullMix && ls.audioSource === "vocals" && (
                       <p className="text-[10px] text-amber-400/70">
@@ -1853,6 +1944,113 @@ export function LipSyncSection({
                     );
                   })()}
 
+                  {/* ── Lip Sync Audio Segment status ── */}
+                  {selectedTiming && (
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Lip Sync Audio Segment</p>
+                      <StatusRow label="selected scene"         value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`} ok={null} />
+                      <StatusRow label="scene start time"       value={fmtSec(selectedTiming.startSec)} ok={null} />
+                      <StatusRow label="scene end time"         value={fmtSec(selectedTiming.endSec)} ok={null} />
+                      <StatusRow label="scene duration"         value={`${selectedTiming.durationSec.toFixed(2)}s`} ok={null} />
+                      <StatusRow label="project audio"          value={audioReady ? "found ✓" : "none"} ok={audioReady} />
+                      <StatusRow label="audio segment duration" value={`${audioSegmentDuration.toFixed(2)}s`} ok={null} />
+                      <StatusRow label="clip video duration"    value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s` : "detecting…"} ok={timingOk} />
+                      <StatusRow label="durations match"        value={timingOk === null ? "checking…" : timingOk ? `yes ✓ (diff ${(timingDiff ?? 0).toFixed(2)}s)` : `no — diff ${(timingDiff ?? 0).toFixed(2)}s`} ok={timingOk} />
+                    </div>
+                  )}
+
+                  {/* ── Audio segment offset controls ── */}
+                  {selectedTiming && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-white/35 uppercase tracking-widest">Audio Segment Offset</p>
+                        <p className="text-[10px] font-bold text-white/50">{audioOffset >= 0 ? "+" : ""}{audioOffset.toFixed(1)}s</p>
+                      </div>
+                      <div className="flex gap-1">
+                        {([-1.0, -0.5, 0, 0.5, 1.0] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setAudioOffset(v)}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                              audioOffset === v
+                                ? "bg-primary/20 border border-primary/50 text-primary"
+                                : "border border-white/10 text-white/40 hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            {v > 0 ? `+${v}s` : `${v}s`}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAudioOffset(audioOffset - 0.1)}
+                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/[0.05] transition-colors"
+                        >
+                          −0.1s
+                        </button>
+                        <p className="flex-[2] text-center text-[10px] text-white/30 font-semibold">Fine adjust</p>
+                        <button
+                          type="button"
+                          onClick={() => setAudioOffset(audioOffset + 0.1)}
+                          className="flex-1 py-1.5 rounded-lg border border-white/10 text-white/50 text-[10px] font-bold hover:bg-white/[0.05] transition-colors"
+                        >
+                          +0.1s
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Preview Audio Segment + Validate Timing buttons ── */}
+                  {selectedTiming && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={previewAudioSegment}
+                        disabled={!audioReady}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-[11px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                          isPreviewingAudio
+                            ? "border-amber-500/40 bg-amber-500/[0.08] text-amber-300"
+                            : "border-green-500/30 bg-green-500/[0.05] text-green-300 hover:bg-green-500/[0.10]"
+                        }`}
+                      >
+                        {isPreviewingAudio
+                          ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Stop Preview</>
+                          : <><Play className="h-3.5 w-3.5" /> Preview Audio Segment</>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowTimingValidation(v => !v)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[11px] font-semibold hover:bg-white/[0.05] transition-colors"
+                      >
+                        <ScanSearch className="h-3.5 w-3.5" /> Validate Timing
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Timing validation panel ── */}
+                  {showTimingValidation && selectedTiming && (
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Timing Validation</p>
+                      <StatusRow label="clip video duration"   value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(3)}s` : "detecting…"} ok={null} />
+                      <StatusRow label="audio segment duration" value={`${audioSegmentDuration.toFixed(3)}s`} ok={null} />
+                      <StatusRow label="difference"            value={timingDiff != null ? `${timingDiff.toFixed(3)}s` : "—"} ok={timingOk} />
+                      <StatusRow label="safe to submit"        value={timingOk === null ? "checking…" : timingOk ? "yes ✓" : `no — diff ≥ 0.25s, adjust offset`} ok={timingOk} />
+                    </div>
+                  )}
+
+                  {/* ── Timing mismatch error — blocks submit ── */}
+                  {timingBlock && (
+                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/[0.06] text-red-400 text-[11px] font-semibold">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                      <span>
+                        Audio segment ({audioSegmentDuration.toFixed(2)}s) does not match clip ({(clipVideoDuration ?? 0).toFixed(2)}s).
+                        Adjust the offset or fix the scene timestamp before submitting.
+                      </span>
+                    </div>
+                  )}
+
                   {/* ── Lip Sync Job Safety status ── */}
                   <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
                     <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">Lip Sync Job Safety</p>
@@ -1889,7 +2087,7 @@ export function LipSyncSection({
                   {/* Submit new job */}
                   <button
                     type="button"
-                    disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing"}
+                    disabled={!faceDetected || (!demoMode && !audioReady) || selectedClipEdit?.lipSyncStatus === "processing" || timingBlock}
                     onClick={() => { setApplyError(null); setConfirmOpen("single"); }}
                     className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-[11px] font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                       demoMode
@@ -1993,6 +2191,17 @@ export function LipSyncSection({
                     <StatusRow label="last error" value={selectedClipEdit.lipSyncError} ok={false} />
                   )}
                 </div>
+
+                {/* ── Timing mismatch warning on stored result ── */}
+                {selectedClipEdit.lipSyncTimingMismatch && selectedClipEdit.lipSyncUrl && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Lip Sync timing mismatch — this result used incorrect audio timing.
+                      Adjust the Audio Segment Offset and submit a corrected job.
+                    </span>
+                  </div>
+                )}
 
                 {/* ── Use Lip Sync toggle ── */}
                 {selectedClipEdit.lipSyncUrl && (
