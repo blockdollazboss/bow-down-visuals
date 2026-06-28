@@ -444,178 +444,6 @@ function ClipRepairPanel({
   );
 }
 
-/* ─── Studio Export Panel ────────────────────────────────────────────── */
-
-type StudioExportMode = "test20s" | "full";
-type StudioExportState = "idle" | "running" | "done" | "error";
-
-function StudioExportPanel({
-  lockedTimeline,
-  audioUrl,
-  projectId,
-  getAccessToken,
-}: {
-  lockedTimeline: LockedTimeline;
-  audioUrl: string | null;
-  projectId: string;
-  getAccessToken: () => Promise<string | null>;
-}) {
-  const [exportState, setExportState] = useState<StudioExportState>("idle");
-  const [activeMode, setActiveMode] = useState<StudioExportMode>("full");
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
-  const [progress, setProgress] = useState("idle");
-
-  async function runExport(mode: StudioExportMode) {
-    setActiveMode(mode);
-    setExportState("running");
-    setResultUrl(null);
-    setExportError(null);
-    const isTest = mode === "test20s";
-    setProgress(isTest ? "Preparing first 20s test render…" : "Preparing full video render…");
-
-    try {
-      const token = await getAccessToken();
-      const allClips = lockedTimeline.clips;
-      const clipsForExport = isTest
-        ? allClips.filter(c => c.url && c.startSec < 20)
-        : allClips.filter(c => c.url);
-
-      if (clipsForExport.length === 0) {
-        throw new Error("No valid clip URLs in locked timeline. Generate clips first, then lock again.");
-      }
-
-      setProgress(`Rendering ${clipsForExport.length} clip${clipsForExport.length !== 1 ? "s" : ""}${isTest ? " (first 20s)" : " (full video)"}…`);
-
-      const body: Record<string, unknown> = {
-        projectId,
-        clipUrls: clipsForExport.map(c => c.url!),
-        audioUrl: audioUrl ?? null,
-        audioSource: audioUrl ? "uploaded" : "none",
-        aspectRatio: "9:16",
-        ...(isTest ? { exportRangeStart: 0, exportRangeEnd: 20 } : {}),
-      };
-
-      const res = await fetch("/api/export-final-video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => String(res.status));
-        let msg = `Export failed (HTTP ${res.status})`;
-        try { const j = JSON.parse(txt) as { error?: string; message?: string }; msg = j.message ?? j.error ?? msg; } catch {}
-        throw new Error(msg);
-      }
-
-      const data = await res.json() as { finalVideoUrl?: string; url?: string };
-      const url = data.finalVideoUrl ?? data.url ?? null;
-      if (!url) throw new Error("Server returned no download URL — export may still be processing");
-
-      setResultUrl(url);
-      setExportState("done");
-      setProgress("done");
-    } catch (e) {
-      setExportError(e instanceof Error ? e.message : "Unknown export error");
-      setExportState("error");
-      setProgress("error");
-    }
-  }
-
-  const clipCount = lockedTimeline.clips.filter(c => c.url).length;
-  const test20sCount = lockedTimeline.clips.filter(c => c.url && c.startSec < 20).length;
-
-  return (
-    <div className="rounded-xl border border-green-500/25 bg-green-500/[0.03] overflow-hidden">
-      <div className="px-3 py-2.5 flex items-center gap-2 border-b border-green-500/[0.08]">
-        <Download className="h-3.5 w-3.5 text-green-400 shrink-0" />
-        <p className="text-[10px] font-black text-green-400 uppercase tracking-widest flex-1">
-          Studio Export — Ready to Render
-        </p>
-        <span className="text-[8px] text-white/20 font-mono">{lockedTimeline.id}</span>
-      </div>
-      <div className="px-3 py-3 space-y-3">
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button"
-            disabled={exportState === "running" || test20sCount === 0}
-            onClick={() => { void runExport("test20s"); }}
-            className={`rounded-lg border px-3 py-2.5 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-              ${exportState === "running" && activeMode === "test20s"
-                ? "border-amber-500/50 bg-amber-500/10"
-                : "border-amber-500/30 bg-amber-500/[0.05] hover:bg-amber-500/[0.10]"}`}>
-            <div className="flex items-center gap-1.5 mb-1">
-              {exportState === "running" && activeMode === "test20s"
-                ? <RefreshCw className="h-3 w-3 text-amber-400 animate-spin" />
-                : <Film className="h-3 w-3 text-amber-400" />}
-              <span className="text-[10px] font-bold text-amber-400">Export First 20s</span>
-            </div>
-            <p className="text-[8px] text-white/30">
-              {test20sCount} clip{test20sCount !== 1 ? "s" : ""} · quick test render
-            </p>
-          </button>
-
-          <button type="button"
-            disabled={exportState === "running" || clipCount === 0}
-            onClick={() => { void runExport("full"); }}
-            className={`rounded-lg border px-3 py-2.5 text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-              ${exportState === "running" && activeMode === "full"
-                ? "border-green-500/50 bg-green-500/10"
-                : "border-green-500/30 bg-green-500/[0.05] hover:bg-green-500/[0.10]"}`}>
-            <div className="flex items-center gap-1.5 mb-1">
-              {exportState === "running" && activeMode === "full"
-                ? <RefreshCw className="h-3 w-3 text-green-400 animate-spin" />
-                : <Download className="h-3 w-3 text-green-400" />}
-              <span className="text-[10px] font-bold text-green-400">Export Full Video</span>
-            </div>
-            <p className="text-[8px] text-white/30">
-              {clipCount} clip{clipCount !== 1 ? "s" : ""} · {audioUrl ? "with song audio" : "video only"}
-            </p>
-          </button>
-        </div>
-
-        {exportState === "running" && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-            <RefreshCw className="h-3 w-3 text-white/40 animate-spin shrink-0" />
-            <p className="text-[9px] text-white/50 font-mono">{progress}</p>
-          </div>
-        )}
-
-        {exportState === "done" && resultUrl && (
-          <a href={resultUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-green-500/30 bg-green-500/[0.08] text-green-400 hover:bg-green-500/[0.15] transition-colors">
-            <Download className="h-3.5 w-3.5 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold">
-                Download {activeMode === "test20s" ? "First 20s Test" : "Full Video"}
-              </p>
-              <p className="text-[8px] text-white/30 font-mono truncate mt-0.5">{resultUrl}</p>
-            </div>
-          </a>
-        )}
-
-        {exportState === "error" && exportError && (
-          <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-red-500/25 bg-red-500/[0.05]">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-[9px] text-red-400 font-mono leading-relaxed">{exportError}</p>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 text-[8px] font-mono text-white/20">
-          <span>{lockedTimeline.clipCount} clips locked</span>
-          <span>·</span>
-          <span>{audioUrl ? "✓ audio" : "no audio"}</span>
-          <span>·</span>
-          <span>9:16</span>
-          {exportState === "done" && (
-            <><span>·</span><span className="text-green-400/60">✓ exported</span></>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Props ─────────────────────────────────────────────────────────── */
 
 export interface StudioEditorSectionProps {
@@ -633,10 +461,6 @@ export interface StudioEditorSectionProps {
   onGoToMusic: () => void;
   /** Resolved audio URL (from previewAudioUrl in parent) — drives waveform visibility */
   audioUrl?: string | null;
-  /** Optional project ID — enables save-to-DB and real export from within this panel */
-  projectId?: string;
-  /** Optional auth token getter — required when projectId is set */
-  getAccessToken?: () => Promise<string | null>;
 }
 
 /* ─── Component ─────────────────────────────────────────────────────── */
@@ -655,8 +479,6 @@ export function StudioEditorSection({
   onGoToExport,
   onGoToMusic,
   audioUrl = null,
-  projectId,
-  getAccessToken,
 }: StudioEditorSectionProps) {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [lockedTimeline, setLockedTimeline] = useState<LockedTimeline | null>(null);
@@ -668,7 +490,6 @@ export function StudioEditorSection({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
-  const [saveToDbState, setSaveToDbState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const trimDragRef = useRef<{
@@ -821,30 +642,13 @@ export function StudioEditorSection({
         lipSyncOffsetSec: useLipSync ? (ce?.lipSyncOffsetSeconds ?? 0) : 0,
       };
     });
-    const tl: LockedTimeline = {
+    setLockedTimeline({
       id: genId(), version: 1, createdAt: new Date().toISOString(),
       audioDuration: audioDuration ?? null,
       clipCount: clips.length, audioStartsAt: 0, clips,
-    };
-    setLockedTimeline(tl);
+    });
     setValidating(false);
     setJsonOpen(true);
-
-    // Save locked timeline to DB if projectId is available
-    if (projectId && getAccessToken) {
-      setSaveToDbState("saving");
-      try {
-        const token = await getAccessToken();
-        const r = await fetch(`/api/projects/${projectId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-          body: JSON.stringify({ outputData: { lockedTimeline: tl } }),
-        });
-        setSaveToDbState(r.ok ? "saved" : "error");
-      } catch {
-        setSaveToDbState("error");
-      }
-    }
   }
 
   /* ── Copy JSON ── */
@@ -1112,18 +916,6 @@ export function StudioEditorSection({
                   <button type="button" onClick={() => setSelectedIdx(null)} className="text-[9px] text-white/25 hover:text-white/60 ml-1">✕</button>
                 </div>
               </div>
-              {/* Mini clip preview */}
-              {(() => {
-                const useLipSyncPreview = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);
-                const previewUrl = useLipSyncPreview ? ce!.lipSyncUrl! : selScene.demoClipUrl ?? null;
-                if (!previewUrl) return null;
-                return (
-                  <video key={previewUrl} src={previewUrl} controls muted playsInline
-                    className="w-full rounded-lg border border-white/[0.08] bg-black"
-                    style={{ maxHeight: 130 }} />
-                );
-              })()}
-
               <div className="grid grid-cols-3 gap-2 text-center text-[9px]">
                 {[["Source", `${clipDur.toFixed(1)}s`], ["Trimmed", `${effectiveDur.toFixed(1)}s`], ["In timeline", fmt(clipStart)]].map(([k, v]) => (
                   <div key={k} className="rounded-lg border border-white/[0.06] bg-white/[0.02] py-1.5">
@@ -1265,27 +1057,6 @@ export function StudioEditorSection({
               </details>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Studio Export Panel (shown once timeline is locked and projectId available) ── */}
-      {lockedTimeline && projectId && getAccessToken && (
-        <StudioExportPanel
-          lockedTimeline={lockedTimeline}
-          audioUrl={audioUrl}
-          projectId={projectId}
-          getAccessToken={getAccessToken}
-        />
-      )}
-
-      {/* ── Save to DB status (when export panel not shown) ── */}
-      {lockedTimeline && saveToDbState !== "idle" && !(projectId && getAccessToken) && (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[9px] font-mono ${
-          saveToDbState === "saved" ? "border-green-500/20 text-green-400/60" :
-          saveToDbState === "saving" ? "border-white/10 text-white/30" :
-          "border-red-500/20 text-red-400/60"
-        }`}>
-          <span>{saveToDbState === "saved" ? "✓ Timeline saved to project" : saveToDbState === "saving" ? "Saving…" : "✕ Save failed"}</span>
         </div>
       )}
 

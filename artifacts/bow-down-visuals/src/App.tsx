@@ -31,7 +31,6 @@ import Signup      from "@/pages/signup";
 import NotFound      from "@/pages/not-found";
 import CreditHistory from "@/pages/credit-history";
 import MyClips from "@/pages/my-clips";
-import StudioPage from "@/pages/studio";
 import Terms        from "@/pages/terms";
 import Privacy      from "@/pages/privacy";
 import RefundPolicy from "@/pages/refund-policy";
@@ -89,7 +88,6 @@ function AppShell() {
         <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
         <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
         <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
-        <Route path="/studio/:projectId"><ProtectedRoute><StudioPage /></ProtectedRoute></Route>
 
         <Route component={NotFound} />
       </Switch>
