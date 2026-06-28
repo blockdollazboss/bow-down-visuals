@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   FolderOpen, Trash2, Loader2, Music, Video, Film, Download,
   Image as ImageIcon, Mic2, Copy, Check, X, ArrowLeft, FileText, FileDown, BarChart2,
-  FileEdit, Play, ExternalLink, Clock, RefreshCcw, History,
+  FileEdit, Play, ExternalLink, Clock, RefreshCcw, History, Clapperboard,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
@@ -189,6 +189,15 @@ function ResultModal({
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
             {isVideoProject(project.project_type) && (
+              <Link href={`/studio/${project.id}`}>
+                <Button size="sm"
+                  className="font-bold gap-2 border border-violet-500/40 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25"
+                  data-testid={`btn-modal-open-studio-${project.id}`}>
+                  <Clapperboard className="h-4 w-4" /> Open Studio
+                </Button>
+              </Link>
+            )}
+            {isVideoProject(project.project_type) && (
               <OpenVideoEditorButton
                 projectId={project.id}
                 size="sm"
@@ -350,6 +359,15 @@ function ProjectCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {isVideoProject(project.project_type) && (
+              <Link href={`/studio/${project.id}`}>
+                <Button size="sm"
+                  className="font-bold gap-1.5 h-8 px-3 text-xs border border-violet-500/40 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25"
+                  data-testid={`btn-open-studio-card-${project.id}`}>
+                  <Clapperboard className="h-3.5 w-3.5" /> Studio
+                </Button>
+              </Link>
+            )}
             {isVideoProject(project.project_type) && (
               <OpenVideoEditorButton
                 projectId={project.id}
