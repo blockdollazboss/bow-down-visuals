@@ -41,8 +41,9 @@ import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
+import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -884,6 +885,7 @@ export default function VideoEditor() {
               <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
               <TabButton active={tab === "lip-sync"} onClick={() => setTab("lip-sync")} icon={<Mic2 className="h-4 w-4" />} label="Lip Sync" testId="tab-lip-sync" />
               <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
+              <TabButton active={tab === "studio"} onClick={() => setTab("studio")} icon={<Clapperboard className="h-4 w-4" />} label="Studio" testId="tab-studio" />
             </div>
 
             {/* ── Timeline tab — always in DOM so audio keeps playing across tab switches ── */}
@@ -1096,6 +1098,23 @@ export default function VideoEditor() {
                 onGoToEffects={() => setTab("effects")}
                 masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
                 projectDurationSec={previewEngineState?.audioDuration ?? 0}
+              />
+            )}
+
+            {tab === "studio" && (
+              <StudioEditorSection
+                scenes={scenes}
+                settings={settings}
+                setSettings={setSettings}
+                currentTime={previewEngineState?.currentTime ?? 0}
+                audioDuration={previewEngineState?.audioDuration ?? null}
+                isPlaying={previewEngineState?.isPlaying ?? false}
+                audioUrl={previewAudioUrl}
+                onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+                onRestart={() => timelinePlayerRef.current?.restart()}
+                onGoToExport={() => setTab("export")}
+                onGoToMusic={() => setTab("music")}
               />
             )}
 
