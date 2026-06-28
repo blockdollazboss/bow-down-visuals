@@ -87,26 +87,33 @@ type DoctorIssue =
   | "no-result";
 
 interface DoctorResult {
-  mode:                 "timing" | "export";
-  issue:                DoctorIssue;
-  label:                string;
-  fix:                  string;
-  confidence:           number;
-  recommendedOffset:    number | null;
-  previewOffset:        number;
-  exportFineTune:       number;
-  totalExportOffset:    number;
-  offsetAppliedOnce:    boolean;
-  offsetMissing:        boolean;
-  offsetReversed:       boolean;
-  offsetDoubleApplied:  boolean;
-  exportMatchesPreview: boolean;
-  audioSectionUsed:     string;
-  videoSourceUsed:      string | null;
-  lipSyncResultUrl:     string | null;
-  ffmpegOffsetFilter:   string;
-  analyzedAt:           string;
-  lastError:            string | null;
+  mode:                  "timing" | "export";
+  issue:                 DoctorIssue;
+  label:                 string;
+  fix:                   string;
+  confidence:            number;
+  recommendedOffset:     number | null;
+  previewOffset:         number;
+  exportFineTune:        number;
+  totalExportOffset:     number;
+  offsetAppliedOnce:     boolean;
+  offsetMissing:         boolean;
+  offsetReversed:        boolean;
+  offsetDoubleApplied:   boolean;
+  exportMatchesPreview:  boolean;
+  /** Correct: offset is applied to the lip sync video (delay/advance video). */
+  offsetAppliedToVideo:  boolean;
+  /** Should always be false — audio section must not be trimmed to shift sync. */
+  offsetAppliedToAudio:  boolean;
+  audioSectionUsed:      string;
+  /** Audio extraction filter (scene timing unchanged). */
+  audioFilter:           string;
+  /** Video delay/advance filter (tpad for positive, trim for negative). */
+  videoOffsetFilter:     string;
+  videoSourceUsed:       string | null;
+  lipSyncResultUrl:      string | null;
+  analyzedAt:            string;
+  lastError:             string | null;
 }
 
 /* ── Structured debug for non-JSON / network errors from the apply route ── */
@@ -1087,80 +1094,134 @@ export function LipSyncSection({
 
   function runDoctorAnalysis(mode: "timing" | "export"): DoctorResult {
     const ce = selectedClipEdit;
-    if (!selectedScene || !ce) {
-      return {
-        mode, issue: "no-result", label: "No clip selected",
-        fix: "Select a clip in the Scene Selector above.", confidence: 100,
-        recommendedOffset: null, previewOffset: 0, exportFineTune: 0,
-        totalExportOffset: 0, offsetAppliedOnce: false, offsetMissing: false,
-        offsetReversed: false, offsetDoubleApplied: false, exportMatchesPreview: true,
-        audioSectionUsed: "—", videoSourceUsed: null, lipSyncResultUrl: null,
-        ffmpegOffsetFilter: "—", analyzedAt: new Date().toLocaleTimeString(), lastError: null,
-      };
-    }
 
-    const previewOffset   = ce.lipSyncAudioOffset   ?? 0;
-    const exportFineTune  = ce.lipSyncOffsetSeconds  ?? 0;
-    const totalExportOffset = previewOffset + exportFineTune;
-    const ABS             = 0.07; // threshold for "significant"
+    /* ── Blank result for no-scene case ── */
+    const blank = (label: string, fix: string): DoctorResult => ({
+      mode, issue: "no-result", label, fix, confidence: 100,
+      recommendedOffset: null, previewOffset: 0, exportFineTune: 0,
+      totalExportOffset: 0, offsetAppliedOnce: false, offsetMissing: false,
+      offsetReversed: false, offsetDoubleApplied: false, exportMatchesPreview: true,
+      offsetAppliedToVideo: false, offsetAppliedToAudio: false,
+      audioSectionUsed: "—", audioFilter: "—", videoOffsetFilter: "—",
+      videoSourceUsed: null, lipSyncResultUrl: null,
+      analyzedAt: new Date().toLocaleTimeString(), lastError: null,
+    });
 
-    /* derived booleans */
+    if (!selectedScene || !ce) return blank("No clip selected", "Select a clip in the Scene Selector above.");
+    if (!ce.lipSyncUrl)        return blank("No lip sync result yet", "Run Auto AI Lip Sync first, then re-analyze.");
+
+    /* ── Offsets ── */
+    const previewOffset     = ce.lipSyncAudioOffset  ?? 0;   // shifts audio window sent to Sync.so
+    const exportFineTune    = ce.lipSyncOffsetSeconds ?? 0;  // delays/advances lip sync VIDEO in export
+    // totalExportOffset is the NET video delay that will be applied to the export.
+    // It is simply exportFineTune — previewOffset is a separate preview-only control.
+    const totalExportOffset = exportFineTune;
+    const ABS               = 0.07; // "significant" threshold
+
+    /* ── Export matches preview?
+       "Matches" means: the export video offset aligns with what was dialled in preview.
+       If previewOffset > 0, user delayed audio in preview → needs same delay on video in export.
+       If previewOffset === 0, export should also be 0 (or explicitly set by user).           ── */
+    const exportMatchesPreview = Math.abs(exportFineTune - previewOffset) < 0.06;
+
+    /* ── Structural flags ── */
+    const hasExportOffset      = Math.abs(totalExportOffset) > ABS;
+    const hasMismatch          = !exportMatchesPreview && (hasExportOffset || Math.abs(previewOffset) > ABS);
     const offsetMissing        = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune) < 0.03;
     const offsetReversed       = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune + previewOffset) < 0.06;
     const offsetDoubleApplied  = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune - 2 * previewOffset) < 0.06;
-    const exportMatchesPreview = Math.abs(totalExportOffset - previewOffset) < 0.06;
     const offsetAppliedOnce    = exportMatchesPreview && !offsetDoubleApplied && Math.abs(previewOffset) > ABS;
 
+    /* ── Correct semantics: offset is applied to the VIDEO (mouth delay), never to audio ── */
+    const offsetAppliedToVideo = hasExportOffset;          // video is delayed/advanced
+    const offsetAppliedToAudio = false;                    // audio section never shifts for sync
+
+    /* ── Human-readable helpers ── */
     const audioSectionUsed = selectedTiming
       ? `${fmtSec(selectedTiming.startSec)} → ${fmtSec(selectedTiming.endSec)} (${selectedTiming.durationSec.toFixed(2)}s)`
       : "—";
 
+    /* Audio filter: always the scene's fixed timing window (unchanged by mouth offset) */
+    const audioFilter = selectedTiming
+      ? `atrim=start=${selectedTiming.startSec.toFixed(3)}:end=${selectedTiming.endSec.toFixed(3)},asetpts=PTS-STARTPTS`
+      : "—";
+
+    /* Video offset filter: delay video (tpad) or advance video (trim+setpts).
+       Positive offset → mouth too early → add black padding at video start to delay mouth.
+       Negative offset → mouth too late  → trim the video start to advance mouth.           */
+    const videoOffsetFilter = !hasExportOffset
+      ? "no video offset (offset=0)"
+      : totalExportOffset > 0
+        ? `tpad=start_duration=${totalExportOffset.toFixed(3)}:color=black,trim=duration=<scene_dur>`
+        : `trim=start=${(-totalExportOffset).toFixed(3)},setpts=PTS-STARTPTS`;
+
     const fmtOff2 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
 
-    /* pick the dominant issue */
+    /* ── Diagnosis — highest-priority issue wins ─────────────────────────────
+       IMPORTANT: "perfect" must NEVER fire when exportMatchesPreview = false.  ── */
     let issue: DoctorIssue = "perfect";
-    let label  = "Perfect / no offset needed";
-    let fix    = "Timing looks correct — no changes required.";
+    let label  = "Perfect — timing verified";
+    let fix    = "Export offset matches preview. No changes required.";
     let conf   = 95;
     let recOff: number | null = null;
 
-    if (!ce.lipSyncUrl) {
-      issue = "no-result"; label = "No lip sync result yet";
-      fix = "Run Auto AI Lip Sync first, then re-analyze."; conf = 100;
+    if (hasMismatch && mode === "export") {
+      /* Export has an offset that doesn't align with what the preview confirmed */
+      if (totalExportOffset > ABS) {
+        issue = "export-mismatch";
+        label = "Export mismatch detected";
+        fix   = `Export will delay lip sync video by ${fmtOff2(totalExportOffset)} but preview offset is ${fmtOff2(previewOffset)}. Verify in preview first, then re-analyze.`;
+        conf  = 85;
+      } else if (totalExportOffset < -ABS) {
+        issue = "export-mismatch";
+        label = "Export mismatch detected";
+        fix   = `Export will advance lip sync video by ${fmtOff2(totalExportOffset)} but preview offset is ${fmtOff2(previewOffset)}. Verify in preview first, then re-analyze.`;
+        conf  = 85;
+      } else {
+        /* preview has offset but export is near zero */
+        issue = "offset-missing-in-export";
+        label = "Offset missing in export";
+        fix   = `Preview audio was shifted by ${fmtOff2(previewOffset)} but export fine-tune is 0. Apply ${fmtOff2(previewOffset)} to export.`;
+        conf  = 88; recOff = previewOffset;
+      }
     } else if (mode === "export" && offsetMissing) {
       issue = "offset-missing-in-export"; label = "Offset missing in export";
-      fix = `Apply preview offset (${fmtOff2(previewOffset)}) to export fine-tune.`; conf = 88; recOff = previewOffset;
+      fix   = `Apply preview offset (${fmtOff2(previewOffset)}) to export fine-tune.`; conf = 88; recOff = previewOffset;
     } else if (mode === "export" && offsetReversed) {
       issue = "offset-reversed-in-export"; label = "Offset reversed in export";
-      fix = `Flip export offset from ${fmtOff2(exportFineTune)} to ${fmtOff2(previewOffset)}.`; conf = 85; recOff = previewOffset;
+      fix   = `Flip export fine-tune from ${fmtOff2(exportFineTune)} to ${fmtOff2(previewOffset)}.`; conf = 85; recOff = previewOffset;
     } else if (mode === "export" && offsetDoubleApplied) {
       issue = "offset-double-applied"; label = "Offset double-applied";
-      fix = `Halve export offset to ${fmtOff2(previewOffset)}.`; conf = 80; recOff = previewOffset;
+      fix   = `Export fine-tune looks doubled. Halve it to ${fmtOff2(previewOffset)}.`; conf = 80; recOff = previewOffset;
     } else if (previewOffset > ABS) {
+      /* Mouth opened before audio in preview → delay the lip sync VIDEO */
       issue = "mouth-too-early"; label = "Mouth too early";
-      fix = `Delay lip sync by ${fmtOff2(previewOffset)} — increase export fine-tune.`; conf = 82; recOff = previewOffset;
+      fix   = `Delay lip sync video by ${fmtOff2(previewOffset)} (add black padding at video start; scene audio unchanged).`; conf = 82; recOff = previewOffset;
     } else if (previewOffset < -ABS) {
+      /* Mouth opened after audio in preview → advance the lip sync VIDEO */
       issue = "mouth-too-late"; label = "Mouth too late";
-      fix = `Advance lip sync by ${fmtOff2(previewOffset)} — decrease export fine-tune.`; conf = 82; recOff = previewOffset;
+      fix   = `Advance lip sync video by ${fmtOff2(-previewOffset)} (trim video start; scene audio unchanged).`; conf = 82; recOff = previewOffset;
     } else if (timingDiff != null && timingDiff > 0.4) {
       issue = "audio-starts-too-early"; label = "Audio section timing mismatch";
-      fix = "Adjust audio offset in Fine-tune Timing above until timing diff < 0.25s."; conf = 78;
+      fix   = "Adjust audio offset in Fine-tune Timing above until timing diff < 0.25s."; conf = 78;
     } else if (timingOk === false) {
       issue = "low-confidence"; label = "Timing borderline — verify manually";
-      fix = "Preview the lip sync result and make minor adjustments."; conf = 65;
+      fix   = "Preview the lip sync result and make small manual adjustments."; conf = 65;
+    } else if (!exportMatchesPreview) {
+      /* Catch-all — should not reach here, but guarantee no false "perfect" */
+      issue = "export-mismatch"; label = "Export mismatch detected";
+      fix   = "Export offset does not match preview. Re-analyze after adjusting."; conf = 70;
     }
-
-    const ffmpegOffsetFilter = totalExportOffset !== 0
-      ? `atrim=start=${Math.max(0, totalExportOffset).toFixed(3)}:end=<scene_end>`
-      : "no offset filter (offset=0)";
 
     return {
       mode, issue, label, fix, confidence: conf, recommendedOffset: recOff,
       previewOffset, exportFineTune, totalExportOffset,
       offsetAppliedOnce, offsetMissing, offsetReversed, offsetDoubleApplied, exportMatchesPreview,
-      audioSectionUsed, videoSourceUsed: selectedScene.demoClipUrl ?? null,
+      offsetAppliedToVideo, offsetAppliedToAudio,
+      audioSectionUsed, audioFilter, videoOffsetFilter,
+      videoSourceUsed: selectedScene.demoClipUrl ?? null,
       lipSyncResultUrl: ce.lipSyncUrl ?? null,
-      ffmpegOffsetFilter, analyzedAt: new Date().toLocaleTimeString(), lastError: null,
+      analyzedAt: new Date().toLocaleTimeString(), lastError: null,
     };
   }
 
@@ -3253,12 +3314,26 @@ export function LipSyncSection({
 
                       {/* Detail rows */}
                       <div className="space-y-1 pt-1 border-t border-white/[0.04]">
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest pt-0.5">Offset streams</p>
+                        <StatusRow label="offset applied to video"     value={doctorResult.offsetAppliedToVideo ? "yes ✓" : "no"} ok={doctorResult.offsetAppliedToVideo ? true : null} />
+                        <StatusRow label="offset applied to audio"     value={doctorResult.offsetAppliedToAudio ? "yes ⚠" : "no — correct"} ok={doctorResult.offsetAppliedToAudio ? false : true} />
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest pt-1">Export vs preview</p>
+                        <StatusRow label="export matches preview"      value={doctorResult.exportMatchesPreview ? "yes ✓" : "no ⚠"} ok={doctorResult.exportMatchesPreview} />
                         <StatusRow label="offset missing in export"    value={doctorResult.offsetMissing       ? "yes ⚠" : "no"}   ok={doctorResult.offsetMissing       ? false : true} />
                         <StatusRow label="offset reversed"             value={doctorResult.offsetReversed      ? "yes ⚠" : "no"}   ok={doctorResult.offsetReversed      ? false : true} />
                         <StatusRow label="offset double-applied"       value={doctorResult.offsetDoubleApplied ? "yes ⚠" : "no"}   ok={doctorResult.offsetDoubleApplied ? false : true} />
-                        <StatusRow label="export matches preview"      value={doctorResult.exportMatchesPreview ? "yes ✓" : "no"}  ok={doctorResult.exportMatchesPreview} />
-                        <StatusRow label="audio section used"          value={doctorResult.audioSectionUsed}                       ok={null} />
-                        <StatusRow label="ffmpeg offset filter"        value={doctorResult.ffmpegOffsetFilter}                     ok={null} />
+                        <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest pt-1">FFmpeg filters</p>
+                        <div className="space-y-0.5">
+                          <div className="flex items-start justify-between gap-2 text-[10px]">
+                            <span className="text-white/30 shrink-0">audio filter</span>
+                            <span className="text-white/55 font-mono text-right break-all">{doctorResult.audioFilter}</span>
+                          </div>
+                          <div className="flex items-start justify-between gap-2 text-[10px]">
+                            <span className="text-white/30 shrink-0">video offset</span>
+                            <span className="text-white/55 font-mono text-right break-all">{doctorResult.videoOffsetFilter}</span>
+                          </div>
+                        </div>
+                        <StatusRow label="audio section"               value={doctorResult.audioSectionUsed}                       ok={null} />
                         {doctorResult.recommendedOffset !== null && (
                           <StatusRow label="recommended export offset"  value={fmtOff2(doctorResult.recommendedOffset)}            ok={null} />
                         )}
