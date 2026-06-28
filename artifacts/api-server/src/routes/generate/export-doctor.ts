@@ -111,13 +111,15 @@ interface DoctorClipFile {
   /** Seconds trimmed from the end (from master player ClipEdit). */
   trimEndSec: number;
   /** Explicit master player clip duration from scene timestamps (sent by client).
-   *  When > 0, this is the authoritative duration the export must honour.
-   *  Priority: masterDuration > raw - trims (fallback). */
+   *  When > 0, this is the authoritative duration the export must honour. */
   masterDuration: number;
   /** Effective clip duration used in export.
-   *  = masterDuration (when provided) capped by raw - trimStart,
-   *  else raw - trimStart - trimEnd. */
+   *  = masterDuration (when provided and > 0), else raw - trimStart - trimEnd.
+   *  When rawShorterThanMaster is true, normalizeMultiClip pads with freeze-last-frame. */
   timelineDuration: number;
+  /** True when the raw source video is shorter than masterDuration.
+   *  normalizeMultiClip will pad with tpad (freeze-last-frame) to reach masterDuration. */
+  rawShorterThanMaster: boolean;
   width: number;
   height: number;
   codec: string;
@@ -159,14 +161,18 @@ const MULTI_TARGET_H = 1920;
 const MULTI_TARGET_FPS = 30;
 
 /** Normalize one clip to 1080x1920@30 so every clip is concat-compatible.
- *  @param trimStartSec  Seconds to skip from the start of the raw video (master player trimStart).
- *  @param timelineDur   Output duration in seconds after trimming (master player effective duration).
- *                       When null, the full remaining video is used (no end trim). */
+ *  @param trimStartSec    Seconds to skip from the start of the raw video (master player trimStart).
+ *  @param timelineDur     Output duration in seconds after trimming (master player effective duration).
+ *                         When null, the full remaining video is used (no end trim).
+ *  @param rawFileDuration ffprobe duration of the raw source file. When > 0 and the source is
+ *                         shorter than timelineDur, freeze-last-frame padding (tpad) is applied so
+ *                         the output always reaches the requested duration. */
 async function normalizeMultiClip(
   input: string,
   output: string,
   trimStartSec = 0,
   timelineDur: number | null = null,
+  rawFileDuration = 0,
 ): Promise<void> {
   const args: string[] = [];
   // Input seek: fast demuxer-level seek to the trim start point.
@@ -174,13 +180,27 @@ async function normalizeMultiClip(
   args.push("-i", input);
   // Output duration limit: stops at master player clip end point.
   if (timelineDur !== null && timelineDur > 0.05) args.push("-t", timelineDur.toFixed(3));
+
+  // Detect short-source condition: raw remaining < desired timeline duration.
+  // When true, append tpad=stop_mode=clone to freeze the last frame and fill the gap.
+  const sourceAvailable = rawFileDuration > 0 ? Math.max(0, rawFileDuration - trimStartSec) : 0;
+  const needsPad = timelineDur !== null && sourceAvailable > 0 && sourceAvailable < timelineDur - 0.05;
+  const padExtra = needsPad ? Math.max(0.05, timelineDur - sourceAvailable + 0.1) : 0;
+
+  const vfParts = [
+    `scale=${MULTI_TARGET_W}:${MULTI_TARGET_H}:force_original_aspect_ratio=decrease`,
+    `pad=${MULTI_TARGET_W}:${MULTI_TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
+    "setsar=1",
+    `fps=fps=${MULTI_TARGET_FPS}`,
+  ];
+  if (needsPad) {
+    // tpad stop_duration adds extra seconds of frozen last-frame after the source ends.
+    // A small overrun margin (+ 0.1s) ensures the -t limit cuts it cleanly.
+    vfParts.push(`tpad=stop_mode=clone:stop_duration=${padExtra.toFixed(3)}`);
+  }
+
   args.push(
-    "-vf", [
-      `scale=${MULTI_TARGET_W}:${MULTI_TARGET_H}:force_original_aspect_ratio=decrease`,
-      `pad=${MULTI_TARGET_W}:${MULTI_TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
-      "setsar=1",
-      `fps=fps=${MULTI_TARGET_FPS}`,
-    ].join(","),
+    "-vf", vfParts.join(","),
     "-c:v", "libx264",
     "-preset", "ultrafast",
     "-crf", "20",
@@ -211,7 +231,8 @@ function multiClipsBlocker(session: DoctorMultiSession): string | null {
 
 /** Normalize only the clips needed to cover `maxDurationSec` seconds.
  *  Reuses existing normalized files from a previous run on the same session to avoid
- *  redundant FFmpeg work (critical for short-test speed). */
+ *  redundant FFmpeg work (critical for short-test speed).
+ *  Passes rawFileDuration so tpad freeze-last-frame padding triggers when source < master. */
 async function normalizeClipsForDuration(
   session: DoctorMultiSession,
   maxDurationSec: number,
@@ -228,8 +249,8 @@ async function normalizeClipsForDuration(
     if (existsSync(np) && statSync(np).size >= 1024) {
       logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip (${statSync(np).size} bytes)`);
     } else {
-      logStep?.(`scene ${c.sceneNumber}: normalizing (trimStart=${trimStart.toFixed(2)}s, dur=${timelineDur?.toFixed(2) ?? "raw"}s)...`);
-      await normalizeMultiClip(c.localPath, np, trimStart, timelineDur);
+      logStep?.(`scene ${c.sceneNumber}: normalizing (trimStart=${trimStart.toFixed(2)}s, dur=${timelineDur?.toFixed(2) ?? "raw"}s, rawShorter=${c.rawShorterThanMaster})...`);
+      await normalizeMultiClip(c.localPath, np, trimStart, timelineDur, c.duration);
       if (!existsSync(np) || statSync(np).size < 1024) {
         throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
       }
@@ -243,14 +264,15 @@ async function normalizeClipsForDuration(
 }
 
 /** Normalize all clips in scene order applying master player trims.
- *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player. */
+ *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player.
+ *  Always re-normalizes (never reuses cached files) so full exports are always fresh. */
 async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]> {
   const normPaths: string[] = [];
   for (const c of session.clips) {
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
     const trimStart  = c.trimStartSec  ?? 0;
     const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
-    await normalizeMultiClip(c.localPath, np, trimStart, timelineDur);
+    await normalizeMultiClip(c.localPath, np, trimStart, timelineDur, c.duration);
     if (!existsSync(np) || statSync(np).size < 1024) {
       throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
     }
@@ -1287,6 +1309,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         trimEndSec: trimEnd,
         masterDuration,
         timelineDuration: 0, // filled after ffprobe
+        rawShorterThanMaster: false, // filled after ffprobe
         width: 0,
         height: 0,
         codec: "",
@@ -1341,19 +1364,29 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         entry.ffprobeValid = true;
         // Duration priority:
         //  1. masterDuration (from master player scene timestamps, sent by client)
-        //     capped by available raw video remaining after trimStart
+        //     — authoritative; if source is shorter, normalizeMultiClip will pad with tpad.
         //  2. raw - trimStart - trimEnd (fallback when no master duration)
         const totalTrim = entry.trimStartSec + entry.trimEndSec;
         const computedFromRaw = Math.max(0.5, probe.duration - totalTrim);
         if (entry.masterDuration > 0.1) {
-          const maxAvailable = Math.max(0.5, probe.duration - entry.trimStartSec);
-          entry.timelineDuration = Math.min(entry.masterDuration, maxAvailable);
+          // Do NOT cap at raw: if source is shorter than masterDuration,
+          // normalizeMultiClip will freeze-last-frame pad to fill the gap.
+          entry.timelineDuration = entry.masterDuration;
+          const sourceAvailable = Math.max(0, probe.duration - entry.trimStartSec);
+          entry.rawShorterThanMaster = sourceAvailable < entry.masterDuration - 0.05;
         } else {
           entry.timelineDuration = computedFromRaw;
+          entry.rawShorterThanMaster = false;
         }
         req.log.info(
-          { multiId, scene: entry.sceneNumber, rawDur: probe.duration.toFixed(2), masterDur: entry.masterDuration.toFixed(2), timelineDur: entry.timelineDuration.toFixed(2) },
-          `EXPORT DOCTOR clip ${entry.sceneNumber}: duration resolved (masterDur=${entry.masterDuration > 0 ? "yes" : "no"})`,
+          {
+            multiId, scene: entry.sceneNumber,
+            rawDur: probe.duration.toFixed(2),
+            masterDur: entry.masterDuration.toFixed(2),
+            timelineDur: entry.timelineDuration.toFixed(2),
+            rawShorterThanMaster: entry.rawShorterThanMaster,
+          },
+          `EXPORT DOCTOR clip ${entry.sceneNumber}: duration resolved (masterDur=${entry.masterDuration > 0 ? "yes" : "no"}, needsPad=${entry.rawShorterThanMaster})`,
         );
       } catch (e) {
         entry.error = e instanceof Error ? e.message : String(e);
@@ -1397,6 +1430,7 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         trimEndSec: r.trimEndSec,
         masterDuration: r.masterDuration,
         timelineDuration: r.timelineDuration,
+        rawShorterThanMaster: r.rawShorterThanMaster,
         durationSource: r.masterDuration > 0.1 ? "master-timestamp" : r.trimStartSec > 0 || r.trimEndSec > 0 ? "raw-trim" : "raw",
         width: r.width,
         height: r.height,
@@ -1406,6 +1440,81 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         contentType: r.contentType,
         error: r.error,
       })),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
+});
+
+/* ── Repair Clip: clear stale norm file, force timelineDuration = masterDuration, re-normalize with pad ── */
+router.post("/export-doctor/repair-clip", requireAuth, async (req, res) => {
+  try {
+    const { multiId, sceneNumber } = req.body as { multiId?: string; sceneNumber?: number };
+    const session = multiId ? multiSessions.get(multiId) : null;
+    if (!session) {
+      res.status(400).json({ error: "Session not found. Run Download All Clips first." });
+      return;
+    }
+    const clip = typeof sceneNumber === "number"
+      ? session.clips.find(c => c.sceneNumber === sceneNumber)
+      : null;
+    if (!clip) {
+      res.status(400).json({ error: `Scene ${sceneNumber} not found in this session.` });
+      return;
+    }
+    if (!clip.ffprobeValid || !existsSync(clip.localPath)) {
+      res.status(400).json({ error: `Scene ${sceneNumber} source video is not valid or missing. Re-download first.` });
+      return;
+    }
+    if (clip.masterDuration <= 0.1) {
+      res.status(400).json({ error: `Scene ${sceneNumber} has no master duration to repair to.` });
+      return;
+    }
+
+    // Clear stale normalized file so the next export re-creates it with the correct duration + padding.
+    const normPath = path.join(session.folder, `norm-scene-${clip.sceneNumber}.mp4`);
+    const cacheCleared = existsSync(normPath);
+    if (cacheCleared) {
+      try { rmSync(normPath, { force: true }); } catch { /* best-effort */ }
+    }
+
+    // Record old values for debug response
+    const oldTimelineDuration = clip.timelineDuration;
+
+    // Force timelineDuration = masterDuration (padding handles short source)
+    clip.timelineDuration = clip.masterDuration;
+    const sourceAvailable = Math.max(0, clip.duration - clip.trimStartSec);
+    clip.rawShorterThanMaster = sourceAvailable < clip.masterDuration - 0.05;
+
+    // Re-normalize immediately with freeze-last-frame padding if needed
+    req.log.info(
+      { multiId, scene: clip.sceneNumber, oldDur: oldTimelineDuration.toFixed(2), newDur: clip.timelineDuration.toFixed(2), needsPad: clip.rawShorterThanMaster },
+      "EXPORT DOCTOR repair-clip: re-normalizing",
+    );
+    await normalizeMultiClip(clip.localPath, normPath, clip.trimStartSec, clip.timelineDuration, clip.duration);
+
+    if (!existsSync(normPath) || statSync(normPath).size < 1024) {
+      res.status(500).json({ error: `Scene ${sceneNumber} failed to re-normalize after repair.` });
+      return;
+    }
+
+    // Probe the repaired normalized file to confirm actual output duration
+    const probe = await probeMedia(normPath);
+
+    res.json({
+      sceneNumber: clip.sceneNumber,
+      oldExportDuration: oldTimelineDuration,
+      newExportDuration: clip.timelineDuration,
+      masterDuration: clip.masterDuration,
+      rawDuration: clip.duration,
+      sourceAvailable,
+      rawShorterThanMaster: clip.rawShorterThanMaster,
+      cacheCleared,
+      normFileSize: statSync(normPath).size,
+      normFileDuration: probe.duration,
+      matchesMaster: Math.abs(probe.duration - clip.masterDuration) < 0.4,
+      savedToExportTimeline: true,
+      ffmpegTrimDuration: clip.timelineDuration,
     });
   } catch (e) {
     res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

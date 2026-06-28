@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import {
-  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers, Sparkles,
+  Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers, Sparkles, Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
@@ -193,6 +193,8 @@ type MultiClipRow = {
   masterDuration?: number;
   /** Effective export duration. = masterDuration (when sent) or raw - trimStart - trimEnd. */
   timelineDuration?: number;
+  /** True when raw source video is shorter than masterDuration — tpad freeze-last-frame will pad. */
+  rawShorterThanMaster?: boolean;
   /** How the export duration was resolved. */
   durationSource?: "master-timestamp" | "raw-trim" | "raw";
   width: number;
@@ -202,6 +204,23 @@ type MultiClipRow = {
   responseStatus: number;
   contentType: string;
   error: string | null;
+};
+
+type RepairClipResult = {
+  sceneNumber: number;
+  oldExportDuration: number;
+  newExportDuration: number;
+  masterDuration: number;
+  rawDuration: number;
+  sourceAvailable: number;
+  rawShorterThanMaster: boolean;
+  cacheCleared: boolean;
+  normFileSize: number;
+  normFileDuration: number;
+  matchesMaster: boolean;
+  savedToExportTimeline: boolean;
+  ffmpegTrimDuration: number;
+  error?: string;
 };
 
 type DownloadAllResult = {
@@ -343,7 +362,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
-    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview"
+    null | "url" | "download" | "export" | "export-audio" | "download-all" | "check-all-urls" | "export-all" | "export-all-audio" | "export-audio-sync-diag" | "export-audio-sync-short" | "export-all-captions" | "export-all-effects" | "effect-match-test" | "export-transitions" | "export-all-overlays" | "overlay-match-test" | "lip-sync-preview" | `repair-${number}`
   >(null);
   const [conflictMode, setConflictMode] = useState<"bw-only" | "gold-only" | "blend">("blend");
   const [effectMatchResult, setEffectMatchResult] = useState<ExportResult | null>(null);
@@ -375,6 +394,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [lipSyncButtonClicked, setLipSyncButtonClicked] = useState(false);
   /** True after the download route is called — shows "export route called: yes". */
   const [lipSyncDownloadCalled, setLipSyncDownloadCalled] = useState(false);
+  /** Per-scene repair results keyed by sceneNumber. */
+  const [repairResults, setRepairResults] = useState<Record<number, RepairClipResult>>({});
   /** Result of the lightweight Check All Clip URLs (HEAD-only) doctor pass. */
   const [urlDoctorResult, setUrlDoctorResult] = useState<UrlDoctorResult | null>(null);
   /** Result of the full Audio Sync Diagnostic export. */
@@ -672,9 +693,40 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     } finally { setBusy(null); }
   }
 
+  async function repairClip(sceneNumber: number) {
+    if (!multiId) return;
+    setBusy(`repair-${sceneNumber}`); setLastError(null);
+    try {
+      const res = await fetch("/api/export-doctor/repair-clip", {
+        method: "POST", headers: await authHeaders(),
+        body: JSON.stringify({ multiId, sceneNumber }),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
+      });
+      const data = await readJson<RepairClipResult>(res);
+      if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+      setRepairResults(prev => ({ ...prev, [sceneNumber]: data }));
+      // Update the downloadAllResult in-place so the comparison table refreshes
+      setDownloadAllResult(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          clips: prev.clips.map(c =>
+            c.sceneNumber === sceneNumber
+              ? { ...c, timelineDuration: data.newExportDuration, rawShorterThanMaster: data.rawShorterThanMaster }
+              : c
+          ),
+        };
+      });
+      if (data.error) setLastError(data.error);
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
+
   async function downloadAllClips() {
     setBusy("download-all"); setLastError(null);
     setDownloadAllResult(null); setExportAllResult(null); setExportAllAudioResult(null); setExportAllCaptionsResult(null); setExportAllEffectsResult(null); setExportAllOverlaysResult(null); setOverlayMatchResult(null);
+    setRepairResults({});
     try {
       const res = await fetch("/api/export-doctor/download-all", {
         method: "POST", headers: await authHeaders(),
@@ -2019,6 +2071,101 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                       </p>
                     </div>
                   )}
+                </div>
+              );
+            })()}
+
+            {/* ── Short Source Clips — raw video shorter than master duration ── */}
+            {(() => {
+              const shortClips = (downloadAllResult?.clips ?? []).filter(c => c.rawShorterThanMaster);
+              if (shortClips.length === 0) return null;
+              return (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.03] overflow-hidden">
+                  <div className="px-3 py-2 border-b border-amber-500/[0.12] bg-amber-500/[0.03]">
+                    <p className="text-[10px] font-black text-amber-400/80 uppercase tracking-widest">
+                      Short Source Clips — Freeze-Last-Frame Padding Active
+                    </p>
+                  </div>
+                  <div className="divide-y divide-white/[0.04]">
+                    {shortClips.map(c => {
+                      const masterC = clipAudioMap.find(m => m.sceneNumber === c.sceneNumber);
+                      const repairR = repairResults[c.sceneNumber];
+                      const isRepairing = busy === `repair-${c.sceneNumber}`;
+                      const exportDur = c.timelineDuration ?? 0;
+                      const masterDur = c.masterDuration ?? 0;
+                      const rawDur = c.duration ?? 0;
+                      const matched = masterDur > 0 && Math.abs(exportDur - masterDur) < 0.35;
+
+                      // 9-field debug panel (user requirement)
+                      const debugRows: [string, string, boolean | null][] = [
+                        ["master start",            masterC ? fmtSec(masterC.masterStart) : "—", null],
+                        ["master end",              masterC ? fmtSec(masterC.masterEnd)   : "—", null],
+                        ["master duration",         masterDur > 0 ? `${masterDur.toFixed(2)}s` : "—", null],
+                        ["old export duration",     repairR ? `${repairR.oldExportDuration.toFixed(2)}s` : `${rawDur.toFixed(2)}s (raw)`, null],
+                        ["new export duration",     repairR ? `${repairR.newExportDuration.toFixed(2)}s` : exportDur > 0 ? `${exportDur.toFixed(2)}s` : "—", repairR ? repairR.matchesMaster : null],
+                        ["cache cleared",           repairR ? (repairR.cacheCleared ? "yes ✓" : "no — was already clear") : "not repaired yet", repairR ? true : null],
+                        ["saved to export timeline", repairR ? (repairR.savedToExportTimeline ? "yes ✓" : "no") : "not repaired yet", repairR?.savedToExportTimeline ?? null],
+                        ["ffmpeg trim duration",    repairR ? `${repairR.ffmpegTrimDuration.toFixed(2)}s` : masterDur > 0 ? `${masterDur.toFixed(2)}s (planned)` : "—", null],
+                        ["matches master",          repairR ? (repairR.matchesMaster ? "yes ✓" : `no — got ${repairR.normFileDuration.toFixed(2)}s`) : matched ? "yes ✓ (auto)" : "pending repair", repairR ? repairR.matchesMaster : matched ? true : null],
+                      ];
+
+                      return (
+                        <div key={c.sceneNumber} className="px-3 py-2.5 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-[10px] font-bold text-amber-400">
+                                Scene {c.sceneNumber} source video is shorter than master duration
+                              </p>
+                              <p className="text-[9px] text-white/40 mt-0.5">
+                                raw: {rawDur.toFixed(2)}s · master: {masterDur.toFixed(2)}s · padding: {Math.max(0, masterDur - rawDur).toFixed(2)}s freeze-last-frame
+                              </p>
+                            </div>
+                            {matched && !repairR && (
+                              <span className="text-[9px] font-bold text-green-400 shrink-0">✓ auto-fixed</span>
+                            )}
+                          </div>
+
+                          {/* 9-field debug table */}
+                          <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2 py-2 space-y-1">
+                            <p className="text-[8px] font-black text-white/20 uppercase tracking-widest mb-1">
+                              Scene {c.sceneNumber} Debug
+                            </p>
+                            {debugRows.map(([label, value, ok]) => (
+                              <div key={label} className="flex items-start justify-between gap-2">
+                                <span className="text-[8px] font-mono text-white/25 shrink-0">{label}</span>
+                                <span className={`text-[8px] font-mono text-right ${ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/45"}`}>{value}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Repair button */}
+                          <Button
+                            onClick={() => repairClip(c.sceneNumber)}
+                            disabled={busy !== null || !multiId}
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2 border-amber-500/30 bg-amber-500/[0.05] text-amber-300 hover:bg-amber-500/[0.12] text-[10px] disabled:opacity-40"
+                          >
+                            {isRepairing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wrench className="h-3 w-3" />}
+                            Repair Scene {c.sceneNumber} Duration
+                          </Button>
+
+                          {repairR && (
+                            <p className={`text-[9px] font-bold ${repairR.matchesMaster ? "text-green-400" : "text-red-400"}`}>
+                              {repairR.matchesMaster
+                                ? `✓ Scene ${c.sceneNumber} repaired — export: ${repairR.newExportDuration.toFixed(2)}s, normalized: ${repairR.normFileDuration.toFixed(2)}s`
+                                : `✗ Repair may have issues — expected ${repairR.masterDuration.toFixed(2)}s, got ${repairR.normFileDuration.toFixed(2)}s`}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="px-3 py-1.5 border-t border-white/[0.04]">
+                    <p className="text-[8px] text-white/25">
+                      Freeze-last-frame pad is applied automatically during normalization. Repair button clears stale cache and re-normalizes now.
+                    </p>
+                  </div>
                 </div>
               );
             })()}
