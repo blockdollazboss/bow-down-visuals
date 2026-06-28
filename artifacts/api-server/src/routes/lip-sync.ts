@@ -778,46 +778,63 @@ router.post(
    Scene-only test render — POST /lip-sync/scene-test
    Downloads the lip-sync video + project audio, trims the audio to the
    scene section, applies the video timing offset, muxes with FFmpeg, and
-   uploads the result to GCS.  Returns a jobId for polling.
+   uploads the result to GCS (with fallback in-memory download route).
+   Returns a jobId for polling.
 ══════════════════════════════════════════════════════════════════════════ */
 
 interface SceneTestDebug {
-  routeCalled:    boolean;
-  ffmpegStarted:  boolean;
-  ffmpegFinished: boolean;
-  outputExists:   boolean;
-  outputBytes:    number;
-  resultUrl:      string | null;
-  lastError:      string | null;
+  routeCalled:          boolean;
+  ffmpegStarted:        boolean;
+  ffmpegFinished:       boolean;
+  outputExists:         boolean;
+  outputBytes:          number;
+  outputValid:          boolean | null;
+  uploadStarted:        boolean;
+  uploadFinished:       boolean;
+  signRequestStarted:   boolean;
+  signRequestFinished:  boolean;
+  signedUrlCreated:     boolean;
+  bucketName:           string | null;
+  objectPath:           string | null;
+  storageMethod:        "signed-url" | "fallback-download" | null;
+  resultUrl:            string | null;
+  lastStorageError:     string | null;
+  lastError:            string | null;
 }
 
 interface SceneTestJob {
-  status:     "queued" | "running" | "done" | "failed";
-  step?:      string;
-  resultUrl?: string;
-  fileSize?:  number;
-  error?:     string;
-  debug:      SceneTestDebug;
-  createdAt:  string;
-  updatedAt:  string;
+  status:         "queued" | "running" | "done" | "failed";
+  step?:          string;
+  resultUrl?:     string;
+  storageMethod?: "signed-url" | "fallback-download";
+  fileSize?:      number;
+  error?:         string;
+  renderSucceeded?: boolean;
+  debug:          SceneTestDebug;
+  createdAt:      string;
+  updatedAt:      string;
 }
 
-const sceneTestJobs = new Map<string, SceneTestJob>();
+const sceneTestJobs    = new Map<string, SceneTestJob>();
+const sceneTestBuffers = new Map<string, Buffer>();        // fallback in-memory download
 
 setInterval(() => {
   const cutoff = Date.now() - 2 * 60 * 60 * 1000;
   for (const [id, job] of sceneTestJobs) {
-    if (new Date(job.createdAt).getTime() < cutoff) sceneTestJobs.delete(id);
+    if (new Date(job.createdAt).getTime() < cutoff) {
+      sceneTestJobs.delete(id);
+      sceneTestBuffers.delete(id);
+    }
   }
 }, 30 * 60 * 1000).unref();
 
 async function processSceneTestJob(
   jobId: string,
   params: {
-    clipUrl:       string;
-    audioUrl:      string;
-    sceneStartSec: number;
-    sceneEndSec:   number;
+    clipUrl:        string;
+    audioUrl:       string;
+    sceneStartSec:  number;
+    sceneEndSec:    number;
     videoOffsetSec: number;
   },
 ): Promise<void> {
@@ -865,7 +882,6 @@ async function processSceneTestJob(
     const audioMap = "[ao]";
 
     if (Math.abs(offset) < 0.02) {
-      /* No meaningful offset — use video as-is */
       filterComplex = `[1:a]${audioTrimFilter}[ao]`;
       videoMap      = "0:v";
     } else if (offset > 0) {
@@ -912,31 +928,100 @@ async function processSceneTestJob(
         (stderrTail ? ` — ${stderrTail.slice(-300)}` : ""),
       );
     }
-    void ffmpegStderr; // log only in debug; keep route thin
+    void ffmpegStderr;
     dbg({ ffmpegFinished: true });
 
-    /* ── 4: Verify output ───────────────────────────────────────────────── */
+    /* ── 4: Verify output (size + ffprobe) ───────────────────────────────── */
     const outputExists = existsSync(outputPath);
     dbg({ outputExists });
     if (!outputExists) throw new Error("FFmpeg produced no output file");
+
     const outputBytes = statSync(outputPath).size;
     dbg({ outputBytes });
-    if (outputBytes < 1024) throw new Error(`Output too small (${outputBytes} bytes) — FFmpeg may have failed silently`);
+    const MIN_BYTES = 100 * 1024; // 100 KB
+    if (outputBytes < MIN_BYTES) {
+      throw new Error(`Output too small (${(outputBytes / 1024).toFixed(1)} KB < 100 KB) — FFmpeg may have failed silently`);
+    }
 
-    /* ── 5: Upload to GCS ───────────────────────────────────────────────── */
-    update({ step: "uploading result" });
-    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    /* ffprobe validation */
+    let outputValid: boolean | null = null;
+    try {
+      const probe = await execFileAsync("ffprobe", [
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=codec_type",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        outputPath,
+      ]);
+      outputValid = probe.stdout.trim().toLowerCase().includes("video");
+    } catch {
+      outputValid = false;
+    }
+    dbg({ outputValid });
+    if (outputValid === false) {
+      throw new Error("ffprobe found no video stream in output — render produced an invalid file");
+    }
 
-    const objectName = `lip-sync-tests/${jobId}.mp4`;
+    update({ renderSucceeded: true });
+
+    /* ── 5: Read file buffer (needed for both GCS upload and fallback) ───── */
     const fileBuffer = readFileSync(outputPath);
-    const bucket     = objectStorageClient.bucket(bucketId);
-    await bucket.file(objectName).save(fileBuffer, { contentType: "video/mp4", resumable: false });
 
-    const signedUrl = await signGetUrl(bucketId, objectName);
-    dbg({ resultUrl: signedUrl });
+    /* ── 6: Upload to GCS + sign URL (with fallback on failure) ─────────── */
+    update({ step: "uploading result" });
 
-    update({ status: "done", step: "done", resultUrl: signedUrl, fileSize: outputBytes });
+    const bucketId   = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"] ?? null;
+    const objectName = `lip-sync-tests/${jobId}.mp4`;
+    dbg({ bucketName: bucketId, objectPath: objectName });
+
+    let signedUrl:    string | null = null;
+    let storageError: string | null = null;
+
+    if (bucketId) {
+      try {
+        dbg({ uploadStarted: true });
+        const bucket = objectStorageClient.bucket(bucketId);
+        await bucket.file(objectName).save(fileBuffer, { contentType: "video/mp4", resumable: false });
+        dbg({ uploadFinished: true });
+
+        dbg({ signRequestStarted: true });
+        signedUrl = await signGetUrl(bucketId, objectName);
+        dbg({ signRequestFinished: true, signedUrlCreated: true, resultUrl: signedUrl });
+      } catch (storErr) {
+        storageError = storErr instanceof Error ? storErr.message : String(storErr);
+        dbg({ signRequestFinished: true, signedUrlCreated: false, lastStorageError: storageError });
+      }
+    } else {
+      storageError = "DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — using fallback download";
+    }
+
+    /* ── 7: Fallback — serve via in-memory download route ───────────────── */
+    if (!signedUrl) {
+      sceneTestBuffers.set(jobId, fileBuffer);
+      const fallbackUrl = `/api/lip-sync-tests/${jobId}/download`;
+      dbg({ storageMethod: "fallback-download", resultUrl: fallbackUrl });
+      update({
+        status:         "done",
+        step:           "done",
+        resultUrl:      fallbackUrl,
+        storageMethod:  "fallback-download",
+        fileSize:       outputBytes,
+        /* soft error — render succeeded, only signing failed */
+        error: storageError
+          ? `Render succeeded. Storage signing failed — using fallback download. (${storageError.slice(0, 200)})`
+          : undefined,
+      });
+      return;
+    }
+
+    dbg({ storageMethod: "signed-url" });
+    update({
+      status:        "done",
+      step:          "done",
+      resultUrl:     signedUrl,
+      storageMethod: "signed-url",
+      fileSize:      outputBytes,
+    });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     dbg({ lastError: errMsg });
@@ -945,6 +1030,27 @@ async function processSceneTestJob(
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /api/lip-sync-tests/:testId/download
+   Fallback download route — serves the rendered MP4 from memory when
+   Replit object-storage signing fails.  No auth required; the UUID testId
+   is unguessable and acts as the bearer token.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync-tests/:testId/download", (req, res) => {
+  const paramId = req.params["testId"];
+  const testId  = Array.isArray(paramId) ? (paramId[0] ?? "") : (paramId ?? "");
+  const buf     = sceneTestBuffers.get(testId);
+  if (!buf) {
+    res.status(404).json({ error: "Test file not found or expired", code: "not_found" });
+    return;
+  }
+  res.setHeader("Content-Type",        "video/mp4");
+  res.setHeader("Content-Length",      String(buf.length));
+  res.setHeader("Content-Disposition", `attachment; filename="scene-test-${testId.slice(0, 8)}.mp4"`);
+  res.setHeader("Cache-Control",       "private, max-age=7200");
+  res.end(buf);
+});
 
 /* ──────────────────────────────────────────────────────────────────────────
    POST /lip-sync/scene-test
@@ -977,19 +1083,29 @@ router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
       return;
     }
 
-    const jobId = randomUUID();
+    const jobId     = randomUUID();
     const createdAt = new Date().toISOString();
     const initJob: SceneTestJob = {
       status: "queued",
       step:   "preparing",
       debug:  {
-        routeCalled:    true,
-        ffmpegStarted:  false,
-        ffmpegFinished: false,
-        outputExists:   false,
-        outputBytes:    0,
-        resultUrl:      null,
-        lastError:      null,
+        routeCalled:         true,
+        ffmpegStarted:       false,
+        ffmpegFinished:      false,
+        outputExists:        false,
+        outputBytes:         0,
+        outputValid:         null,
+        uploadStarted:       false,
+        uploadFinished:      false,
+        signRequestStarted:  false,
+        signRequestFinished: false,
+        signedUrlCreated:    false,
+        bucketName:          null,
+        objectPath:          null,
+        storageMethod:       null,
+        resultUrl:           null,
+        lastStorageError:    null,
+        lastError:           null,
       },
       createdAt,
       updatedAt: createdAt,
