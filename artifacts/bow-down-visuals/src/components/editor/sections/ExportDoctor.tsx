@@ -254,6 +254,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [exportAllOverlaysResult, setExportAllOverlaysResult] = useState<ExportResult | null>(null);
   const [overlayMatchResult, setOverlayMatchResult] = useState<ExportResult | null>(null);
   const [lipSyncExportResult, setLipSyncExportResult] = useState<ExportResult | null>(null);
+  /** Separate error state for the lip sync export test — does NOT bleed into the shared All-Clips lastError. */
+  const [lipSyncLastError, setLipSyncLastError] = useState<string | null>(null);
 
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
@@ -575,9 +577,12 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
     if (!masterAudioUrl) { setLastError("No project audio available. Add audio in Music Mixer first."); return; }
 
-    setBusy("lip-sync-preview"); setLastError(null); setLipSyncExportResult(null);
+    setBusy("lip-sync-preview");
+    setLipSyncLastError(null);
+    setLipSyncExportResult(null);
     try {
-      /* Step 1: download the lip sync clip to the server */
+      /* Step 1: download the lip sync clip to the server.
+         isAllowedClipUrl on the server now permits *.sync.so domains. */
       const dlRes = await fetch("/api/export-doctor/download", {
         method: "POST", headers: await authHeaders(),
         body: JSON.stringify({ projectId, url: lipSyncUrl }),
@@ -585,14 +590,14 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       });
       const dlData = await readJson<DownloadResult>(dlRes);
       if (!dlRes.ok || !dlData.fileExists) {
-        setLastError(dlData.error ?? "Failed to download lip sync clip.");
+        setLipSyncLastError(dlData.error ?? "Download failed — lip sync clip could not be fetched.");
         return;
       }
 
       /* Step 2: export with project audio.
          audioStartSec: parse rough scene start from the scene's timestamp string
          so the audio is trimmed to the right portion of the project.
-         Format may be "0:12", "0:12-0:17", "12s", etc. — parse first number. */
+         Format: "M:SS", "M:SS-M:SS", etc. — parse first M:SS group. */
       const tsRaw = lipSyncScene.timestamp ?? "";
       const tsMatch = tsRaw.match(/(\d+):(\d+)/);
       const audioStartSec = tsMatch
@@ -611,10 +616,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       });
       const expData = await readJson<ExportResult>(expRes);
       setLipSyncExportResult(expData);
-      if (!expRes.ok) setLastError(expData.error ?? `HTTP ${expRes.status}`);
-      if (expData.error) setLastError(expData.error);
+      const exportErr = expData.error ?? (!expRes.ok ? `HTTP ${expRes.status}` : null);
+      if (exportErr) setLipSyncLastError(exportErr);
     } catch (e) {
-      setLastError(e instanceof Error ? e.message : String(e));
+      setLipSyncLastError(e instanceof Error ? e.message : String(e));
     } finally { setBusy(null); }
   }
 
@@ -976,10 +981,12 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                   ["lip sync clipId",           exportScene?.clipId ?? "—",                                                                         !!exportScene?.clipId],
                   ["useLipSync active",         exportSceneCe?.useLipSync ? "yes ✓" : "no",                                                        exportSceneCe?.useLipSync ?? null],
                   ["lipSyncUrl exists",         exportSceneCe?.lipSyncUrl ? "yes ✓" : "no",                                                        !!exportSceneCe?.lipSyncUrl],
-                  ["export source",             exportScene ? (exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl ? "lip sync ✓" : "original clip") : "—", exportScene ? !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl) : null],
+                  ["video source",              exportScene ? (exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl ? "lip sync ✓" : "original clip") : "—", exportScene ? !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl) : null],
                   ["project audio",             masterAudioUrl ? "ready ✓" : "missing",                                                            !!masterAudioUrl],
-                  ["export test status",        lipSyncExportResult ? (lipSyncExportResult.success ? "passed ✓" : "failed") : "not run",           lipSyncExportResult ? !!lipSyncExportResult.success : null],
+                  ["export started",            busy === "lip-sync-preview" ? "yes ✓" : lipSyncExportResult || lipSyncLastError ? "yes ✓" : "no",  busy === "lip-sync-preview" || !!lipSyncExportResult || !!lipSyncLastError],
+                  ["export finished",           busy === "lip-sync-preview" ? "running…" : lipSyncExportResult ? "yes ✓" : lipSyncLastError ? "failed" : "—", busy === "lip-sync-preview" ? null : lipSyncExportResult ? !!lipSyncExportResult.success : lipSyncLastError ? false : null],
                   ["result url",                lipSyncExportResult?.url ? "available ✓" : "—",                                                    !!lipSyncExportResult?.url],
+                  ["last error",                lipSyncLastError ?? "—",                                                                            lipSyncLastError ? false : null],
                 ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
                   <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
                     <span className="text-white/40">{label}</span>

@@ -30,14 +30,16 @@ function isReplitObjectStorageUrl(u: URL): boolean {
 }
 
 /** SSRF guard for Scene 1 video clips: https only, from Supabase storage, the
- *  Runway CDN, or Replit object storage (the host the master player plays from).
- *  Blocks internal/metadata/private hosts that don't match. */
+ *  Runway CDN, Sync.so lip-sync CDN, or Replit object storage (the host the master
+ *  player plays from). Blocks internal/metadata/private hosts that don't match. */
 function isAllowedClipUrl(url: string): boolean {
   let u: URL;
   try { u = new URL(url); } catch { return false; }
   if (u.protocol !== "https:") return false;
   if (SUPABASE_HOST && u.host === SUPABASE_HOST) return true;
   if (isReplitObjectStorageUrl(u)) return true;
+  // Sync.so lip-sync result CDN (api.sync.so, cdn.sync.so, storage.sync.so, etc.)
+  if (u.hostname === "sync.so" || u.hostname.endsWith(".sync.so")) return true;
   return u.hostname.endsWith(".cloudfront.net") || u.hostname.endsWith(".runwayml.com");
 }
 
