@@ -312,6 +312,11 @@ export function LipSyncSection({
   const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
   const [showTimingValidation, setShowTimingValidation] = useState(false);
   const [previewModalUrl, setPreviewModalUrl]   = useState<string | null>(null);
+
+  /* ── Auto AI Lip Sync workflow state ── */
+  const [autoAiMessage, setAutoAiMessage] = useState<string | null>(null);
+  const [autoAiOk,      setAutoAiOk]      = useState<boolean | null>(null);
+
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -811,6 +816,70 @@ export function LipSyncSection({
   }
 
   function cancelAll() { cancelRef.current = true; }
+
+  /* ── Auto AI Lip Sync — orchestrates all steps automatically ── */
+  function runAutoAi() {
+    setAutoAiMessage(null);
+    setAutoAiOk(null);
+
+    if (!selectedScene) {
+      setAutoAiMessage("No scene selected. Choose a scene with a video clip from the selector above.");
+      setAutoAiOk(false);
+      return;
+    }
+
+    const ce = getClipEdit(settings, selectedScene.id);
+
+    /* Guard: completed result already exists — do not resubmit */
+    if (ce.lipSyncStatus === "done" && ce.lipSyncUrl) {
+      setAutoAiMessage("Completed lip sync result already found. Use the actions below or submit a new job if you want to update.");
+      setAutoAiOk(true);
+      return;
+    }
+
+    /* Guard: processing job exists — check instead of resubmit */
+    if (ce.lipSyncJobId && ce.lipSyncStatus === "processing") {
+      setAutoAiMessage("Existing Sync.so job is processing. Checking status instead of submitting again…");
+      setAutoAiOk(null);
+      void checkExistingJob();
+      return;
+    }
+
+    /* Check provider */
+    if (!providerConnected) {
+      setAutoAiMessage("Sync.so not connected — add LIP_SYNC_API_KEY in Replit Secrets.");
+      setAutoAiOk(false);
+      return;
+    }
+
+    /* Check audio source */
+    if (!audioReady) {
+      setAutoAiMessage("No audio source available. Upload project audio or connect Music Mixer first.");
+      setAutoAiOk(false);
+      return;
+    }
+
+    /* Check clip */
+    if (!selectedScene.demoClipUrl) {
+      setAutoAiMessage("No video clip on this scene. Generate clips first in the Clips tab.");
+      setAutoAiOk(false);
+      return;
+    }
+
+    /* Auto-fix timing if mismatch detected */
+    if (timingBlock) {
+      rebuildFromRealClipDuration();
+      setAutoAiMessage("Timing mismatch auto-detected — audio segment rebuilt from real clip duration. Click Auto AI Lip Sync again once the clip duration reloads.");
+      setAutoAiOk(false);
+      return;
+    }
+
+    /* All checks passed — open the confirmation dialog */
+    setAutoAiMessage("All checks passed. Confirm the paid Sync.so job in the dialog below.");
+    setAutoAiOk(true);
+    setApplyError(null);
+    setConfirmOpen("single");
+  }
 
   /* ── Check lip sync inputs ── */
   async function checkInputs(overrideAudioUrl?: string, overrideClipUrl?: string): Promise<InputCheckResult | null> {
@@ -1697,7 +1766,201 @@ export function LipSyncSection({
             </EditorCard>
           )}
 
-          {/* ── Apply / Preview / Save ── */}
+          {/* ── Auto AI Lip Sync ── */}
+          <EditorCard title="Auto AI Lip Sync" icon={<Radio className="h-4 w-4" />}>
+            {(() => {
+              const ce = selectedClipEdit;
+              const hasCompletedResult = ce?.lipSyncStatus === "done" && !!ce.lipSyncUrl;
+              const hasProcessingJob   = !!ce?.lipSyncJobId && ce?.lipSyncStatus === "processing";
+              const isMasterActive     = !!ce?.useLipSync && ce?.lipSyncStatus === "done";
+              const clipOffset         = ce?.lipSyncOffsetSeconds ?? 0;
+              const providerStatusLabel =
+                hasCompletedResult  ? "done ✓"
+                : hasProcessingJob  ? "processing…"
+                : ce?.lipSyncStatus === "failed" ? "failed"
+                : "idle";
+
+              return (
+                <div className="space-y-3">
+
+                  {/* Status table */}
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest pb-0.5">
+                      Auto AI Lip Sync Status
+                    </p>
+                    <StatusRow label="selected scene"         value={selectedScene ? `Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}` : "none selected"}                                    ok={!!selectedScene} />
+                    <StatusRow label="detected clip duration" value={clipVideoDuration != null ? `${clipVideoDuration.toFixed(2)}s ✓` : selectedScene?.demoClipUrl ? "loading…" : "—"}                  ok={clipVideoDuration != null ? true : null} />
+                    <StatusRow label="detected audio segment" value={selectedTiming ? `${selectedTiming.durationSec.toFixed(2)}s  (${fmtSec(selectedTiming.startSec)} → ${fmtSec(selectedTiming.endSec)})` : "—"} ok={!!selectedTiming} />
+                    <StatusRow label="timing safe"            value={timingOk === null ? "checking…" : timingOk ? "yes ✓ (< 0.25s diff)" : `no — diff ${timingDiff!.toFixed(2)}s`}                    ok={timingOk} />
+                    <StatusRow label="provider"               value={providerConnected ? `${providerName ?? "Sync.so"} ✓` : "not connected"}                                                           ok={providerConnected} />
+                    <StatusRow label="audio source"           value={audioReady ? "ready ✓" : "none"}                                                                                                 ok={audioReady} />
+                    <StatusRow label="paid job confirmation"  value={!demoMode ? "required before submit" : "skipped (demo mode)"}                                                                     ok={null} />
+                    <StatusRow label="job submitted"          value={ce?.lipSyncSubmittedAt ? `yes — ${fmtDate(ce.lipSyncSubmittedAt)}` : "no"}                                                        ok={ce?.lipSyncSubmittedAt ? true : null} />
+                    <StatusRow label="job ID saved"           value={ce?.lipSyncJobId ? `yes — ${ce.lipSyncJobId.slice(0, 14)}…` : "no"}                                                               ok={ce?.lipSyncJobId ? true : null} />
+                    <StatusRow label="provider status"        value={providerStatusLabel}                                                                                                              ok={hasCompletedResult ? true : null} />
+                    <StatusRow label="result saved to scene"  value={hasCompletedResult ? "yes ✓" : "no"}                                                                                             ok={hasCompletedResult ? true : null} />
+                    <StatusRow label="master player using it" value={isMasterActive ? "yes ✓" : "no"}                                                                                                 ok={isMasterActive ? true : null} />
+                    <StatusRow label="timeline badge visible" value={hasCompletedResult ? "yes ✓" : "no"}                                                                                             ok={hasCompletedResult ? true : null} />
+                  </div>
+
+                  {/* Feedback from last Auto AI click */}
+                  {autoAiMessage && (
+                    <div className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border text-[11px] font-semibold ${
+                      autoAiOk === true  ? "border-green-500/30 bg-green-500/[0.06] text-green-300"
+                      : autoAiOk === false ? "border-red-500/30 bg-red-500/[0.06] text-red-400"
+                      : "border-amber-500/30 bg-amber-500/[0.06] text-amber-400"
+                    }`}>
+                      {autoAiOk === true
+                        ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        : autoAiOk === false
+                          ? <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          : <Loader2 className="h-3.5 w-3.5 shrink-0 mt-0.5 animate-spin" />}
+                      <span>{autoAiMessage}</span>
+                    </div>
+                  )}
+
+                  {/* Completed result exists — do not resubmit */}
+                  {hasCompletedResult && (
+                    <div className="rounded-xl border border-green-500/30 bg-green-500/[0.05] px-3 py-3 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                        <p className="text-[12px] font-bold text-green-300">Completed lip sync result already found.</p>
+                      </div>
+                      <p className="text-[10px] text-green-400/70 leading-snug">
+                        Do not resubmit. Use the actions below, or scroll to Apply Lip Sync to submit a corrected job if needed.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => ce?.lipSyncUrl && setPreviewModalUrl(ce.lipSyncUrl)}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
+                        >
+                          <Play className="h-3 w-3" /> Preview Result
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { if (ce?.lipSyncJobId && ce.lipSyncUrl) useResultInPlayer(ce.lipSyncJobId, ce.lipSyncUrl); }}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] transition-colors"
+                        >
+                          <CheckCircle2 className="h-3 w-3" /> Use in Player
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { if (ce?.lipSyncJobId && ce.lipSyncUrl) saveResultToScene(ce.lipSyncJobId, ce.lipSyncUrl); }}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white/70 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors"
+                        >
+                          <Save className="h-3 w-3" /> Save to Scene
+                        </button>
+                        <button
+                          type="button"
+                          disabled
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-white/[0.06] text-white/25 text-[11px] font-semibold cursor-default"
+                        >
+                          <Sliders className="h-3 w-3" /> Adjust Timing ↓
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Processing job exists — check instead of resubmit */}
+                  {!hasCompletedResult && hasProcessingJob && (
+                    <div className="rounded-xl border border-amber-500/35 bg-amber-500/[0.06] px-3 py-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 text-amber-400 animate-spin shrink-0" />
+                        <p className="text-[12px] font-bold text-amber-300">Existing Sync.so job processing.</p>
+                      </div>
+                      <p className="text-[10px] text-amber-400/70 leading-snug">
+                        Checking status instead of submitting again.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => void checkExistingJob()}
+                        disabled={checkJobLoading}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.08] text-amber-400 text-[11px] font-semibold hover:bg-amber-500/[0.14] disabled:opacity-50 transition-colors"
+                      >
+                        {checkJobLoading
+                          ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking…</>
+                          : <><RefreshCw className="h-3.5 w-3.5" /> Check Job Status</>}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Main Auto AI button */}
+                  {!hasCompletedResult && !hasProcessingJob && (
+                    <button
+                      type="button"
+                      onClick={runAutoAi}
+                      disabled={!selectedScene}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-black text-[12px] font-bold hover:opacity-90 active:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Radio className="h-4 w-4" />
+                      Auto AI Lip Sync Selected Scene
+                    </button>
+                  )}
+
+                  {/* Auto Fine Tune — only when result exists */}
+                  {hasCompletedResult && selectedScene && (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-2">
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                        Auto Fine Tune Lip Sync
+                      </p>
+                      <p className="text-[10px] text-white/40 leading-snug">
+                        Click <span className="text-white/60 font-semibold">Later +0.05s</span> if the mouth moves early (video is ahead of audio).
+                        Click <span className="text-white/60 font-semibold">Earlier −0.05s</span> if the mouth moves late.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => selectedScene && updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: Math.max(-2, +(clipOffset - 0.05).toFixed(2)) })}
+                          className="flex-1 py-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/70 text-[11px] font-semibold hover:bg-white/[0.06] transition-colors"
+                        >
+                          Earlier −0.05s
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => selectedScene && updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: Math.min(2, +(clipOffset + 0.05).toFixed(2)) })}
+                          className="flex-1 py-2 rounded-lg border border-primary/30 bg-primary/[0.06] text-primary text-[11px] font-semibold hover:bg-primary/[0.12] transition-colors"
+                        >
+                          Later +0.05s
+                        </button>
+                      </div>
+                      {clipOffset !== 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-white/40">
+                            Current offset:{" "}
+                            <span className="text-primary font-semibold">
+                              {clipOffset >= 0 ? "+" : ""}{clipOffset.toFixed(2)}s
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => selectedScene && updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 })}
+                            className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
+                          >
+                            Reset 0.00s
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Apply to All Clips — disabled until per-scene workflow proven */}
+                  <button
+                    type="button"
+                    disabled
+                    title="Apply to All Clips will be enabled once the selected-scene automation is fully reliable"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/[0.06] text-white/20 text-[11px] font-semibold cursor-not-allowed"
+                  >
+                    <SkipForward className="h-3.5 w-3.5" />
+                    Apply to All Clips (confirm selected scene first)
+                  </button>
+
+                </div>
+              );
+            })()}
+          </EditorCard>
+
+          {/* ── Apply / Preview / Save (manual controls) ── */}
           <EditorCard title="Apply Lip Sync" icon={<Mic2 className="h-4 w-4" />}>
             <div className="space-y-3">
 

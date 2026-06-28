@@ -1,0 +1,140 @@
+Turn Lip Sync into an Auto AI workflow.
+
+Problem:
+Lip Sync works, but it is too manual.
+
+The user should not have to manually:
+- rebuild audio segment
+- validate timing
+- check clip duration
+- check audio duration
+- save result to scene
+- use result in master player
+- guess timing offset
+
+This should be handled by Auto AI.
+
+Do not change:
+- working Sync.so connection
+- saved lip sync result
+- timing offset controls
+- master player
+- timeline
+- captions
+- watermark
+- effects
+- overlays
+- Export Doctor
+- payments or credits
+
+Only improve:
+- Auto AI Lip Sync workflow
+- automation
+- safety checks
+- clear user steps
+
+Requirements:
+
+1. Add one main button:
+
+Auto AI Lip Sync Selected Scene
+
+When clicked, it should automatically:
+
+Step 1:
+Detect selected scene.
+
+Step 2:
+Detect real video clip duration from metadata.
+
+Step 3:
+Find selected scene start time on timeline.
+
+Step 4:
+Extract the correct project audio segment:
+scene start time to scene start time + real video clip duration
+
+Step 5:
+Validate:
+- clip duration
+- audio segment duration
+- difference under 0.25s
+- audio playable
+- clip playable
+
+Step 6:
+If timing is not safe, fix it automatically by rebuilding the audio segment from real clip duration.
+
+Step 7:
+Show confirmation before paid Sync.so submit:
+This will submit 1 paid Sync.so lip sync job.
+
+Step 8:
+Submit to Sync.so only after confirmation.
+
+Step 9:
+Save Sync.so job ID immediately.
+
+Step 10:
+Poll/check job status.
+
+Step 11:
+When completed, save result to selected scene.
+
+Step 12:
+Turn on:
+clip.useLipSync = true
+
+Step 13:
+Update master player.
+
+Step 14:
+Show Lip Sync badge on timeline.
+
+2. Add automatic timing correction.
+
+If lip sync feels early/late, keep the manual offset buttons, but also add:
+
+Auto Fine Tune Lip Sync
+
+This should allow small offset suggestions:
+- Later +0.05s if mouth is early
+- Earlier -0.05s if mouth is late
+
+3. Add clear Auto AI status:
+
+Auto AI Lip Sync:
+- selected scene
+- detected clip duration
+- detected audio segment
+- timing safe: yes/no
+- paid job confirmation required: yes/no
+- job submitted: yes/no
+- job ID saved: yes/no
+- provider status
+- result saved to scene: yes/no
+- master player using result: yes/no
+- timeline badge visible: yes/no
+
+4. Do not resubmit if a completed job already exists.
+
+If completed result exists, show:
+Completed lip sync result already found.
+
+Then show buttons:
+- Preview Result
+- Use Result in Master Player
+- Save Result to Scene
+- Adjust Timing Offset
+
+5. Do not resubmit if a processing job exists.
+
+If job is processing, show:
+Existing Sync.so job processing. Checking status instead of submitting again.
+
+6. Add Apply to All Clips later, but keep it disabled for now unless each clip passes timing validation.
+
+Apply to All Clips should not run until selected scene automation is fully reliable.
+
+Final goal:
+Lip Sync should feel automatic. The user should click Auto AI Lip Sync Selected Scene, and the app handles duration detection, audio segment rebuild, validation, Sync.so job tracking, saving result, master player update, and timeline badge automatically.
