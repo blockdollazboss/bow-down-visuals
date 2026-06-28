@@ -1,0 +1,102 @@
+Fix Master Player vs Export Timeline duration bug.
+
+Problem:
+The timeline checker says export durations do not match master player, but the master player durations are wrong.
+
+Example shown:
+Scene 1 Outro master duration = 195.1s
+Scene 2 Outro master duration = 195.1s
+Scene 5 Hook master duration = 198.1s
+Scene 6 Verse 1 master duration = 201.1s
+
+These are not clip durations. They look like song/audio timestamps or absolute media positions being used as durations.
+
+Do not change:
+- audio source starting at 0:00
+- lip sync result
+- lip sync offset
+- video-only export
+- captions
+- effects
+- overlays
+- watermark
+- payments
+
+Only fix:
+- master player duration calculation
+- timeline comparison
+- rebuild export timeline
+- First 20s + Audio Test duration source
+
+Requirements:
+
+1. Master player clip duration must be calculated as:
+
+duration = clipEndTime - clipStartTime
+
+Do not use:
+- audio timestamp
+- song section timestamp
+- absolute song time
+- audioStart
+- media currentTime
+- timeline end timestamp by itself
+
+2. Show separate columns:
+
+Master Clip Start
+Master Clip End
+Master Clip Duration
+Audio Start
+Audio End
+
+3. Never compare export duration against audioStart or audioEnd.
+
+Compare only:
+export clip duration vs master clip duration
+
+4. If master clip duration is greater than 30 seconds for a short generated clip, flag it as invalid:
+Invalid master duration — probably using audio timestamp instead of clip duration.
+
+5. Fix Rebuild Export Timeline From Master Player.
+
+It must rebuild using:
+- clip start time
+- clip end time
+- clip duration = end - start
+- trim start
+- trim end
+- lip sync offset
+
+It must not rebuild using audio timestamp as duration.
+
+6. Expected examples:
+If Scene 1 starts at 0.0 and ends at 5.0, master duration should be 5.0s.
+If Scene 3 starts at 10.1 and ends at 14.1, master duration should be 4.0s.
+If Verse 1 section is 6.0s, master duration should be 6.0s.
+If Hook clip is 2.0s, master duration should be 2.0s.
+
+7. Add status:
+Master Duration Calculation:
+- using clip end - clip start: yes/no
+- using audio timestamp as duration: yes/no
+- invalid durations found: yes/no
+- all master durations realistic: yes/no
+
+8. Block rebuild if master durations are invalid.
+
+Show:
+Cannot rebuild export timeline because master duration source is invalid.
+
+9. After fixing, the timeline comparison should show realistic master durations like:
+4.0s, 5.0s, 6.0s, 2.0s
+not:
+195.1s, 198.1s, 201.1s
+
+10. Then First 20s + Audio Test should use:
+- video clips trimmed to corrected master clip durations
+- audio from 0:00 to 20s
+- no captions/effects/overlays
+
+Final goal:
+Fix the master player duration math first. The export is blocked because the app is comparing export clip durations to song timestamps instead of real clip durations.

@@ -294,11 +294,26 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-/** Parse scene timestamp "M:SS" or "MM:SS" → seconds. Returns null if unparseable. */
+/** Parse scene timestamp "M:SS" or "MM:SS" → seconds. Returns null if unparseable.
+ *  This gives the ABSOLUTE SONG POSITION — it is NOT a clip duration. */
 function parseTimestamp(ts: string | null | undefined): number | null {
   const m = (ts ?? "").match(/(\d+):(\d{2})/);
   if (!m) return null;
   return parseInt(m[1]!, 10) * 60 + parseInt(m[2]!, 10);
+}
+
+/** Replicates the master player's parseDur — parses "M:SS – M:SS" range format → duration (seconds).
+ *  Falls back to 5s default (same as the master player) when no range is found.
+ *  NOTE: single timestamps like "3:15" are NOT clip durations; they're song positions. */
+function parseMasterDur(ts: string | null | undefined): number {
+  if (!ts) return 5;
+  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+  if (m) {
+    const start = +m[1]! * 60 + +m[2]!;
+    const end   = +m[3]! * 60 + +m[4]!;
+    return end > start ? end - start : 5;
+  }
+  return 5;
 }
 
 function fmtSec(s: number): string {
@@ -394,25 +409,41 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const doctorId = downloadResult?.doctorId ?? null;
   const downloadOk = !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
 
-  // Per-clip master player duration — derived from scene timestamps.
-  // This is the authoritative duration the export must honour for each clip.
-  // Priority (per-clip): next_timestamp - this_timestamp → projectDurationSec - last_timestamp → 0 (unknown)
+  // Per-clip master player duration — replicates the master player's own parseDur + buildOffsets logic.
+  // Timestamp format "0:05 - 0:10" → 5s duration. Single timestamps like "3:15" are song positions,
+  // NOT clip durations. If all scenes use the 5s default and projectDurationSec is known, use even
+  // distribution (audioDuration / numScenes), exactly as the master player does.
   const masterDurations = useMemo(() => {
-    return uniqueScenes.map((s, i) => {
-      const thisTs = parseTimestamp(s.timestamp ?? "");
-      if (thisTs === null) return 0;
-      const nextScene = uniqueScenes[i + 1];
-      if (nextScene) {
-        const nextTs = parseTimestamp(nextScene.timestamp ?? "");
-        if (nextTs !== null && nextTs > thisTs) return nextTs - thisTs;
-      }
-      // Last clip (or no next timestamp): fill to project total
-      if (projectDurationSec != null && projectDurationSec > thisTs) {
-        return projectDurationSec - thisTs;
-      }
-      return 0;
-    });
+    const n = uniqueScenes.length;
+    if (n === 0) return [];
+    const rawDurs = uniqueScenes.map(s => parseMasterDur(s.timestamp));
+    const allDefault = rawDurs.every(d => d === 5);
+    if (allDefault && projectDurationSec != null && projectDurationSec > 0) {
+      // Even distribution — same fallback the master player uses
+      const evenDur = projectDurationSec / n;
+      return rawDurs.map(() => evenDur);
+    }
+    return rawDurs;
   }, [uniqueScenes, projectDurationSec]);
+
+  /** Cumulative clip start times on the master player video timeline. */
+  const masterOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let acc = 0;
+    for (const d of masterDurations) { offsets.push(acc); acc += d; }
+    return offsets;
+  }, [masterDurations]);
+
+  /** How clip durations were resolved — drives status panel and validity checks. */
+  const { masterDurSource, masterDurInvalid } = useMemo(() => {
+    const hasRange = uniqueScenes.some(s => /\d+:\d{2}\s*[-–]\s*\d+:\d{2}/.test(s.timestamp ?? ""));
+    if (hasRange) return { masterDurSource: "range-timestamp" as const, masterDurInvalid: false };
+    const allDefault5 = masterDurations.every(d => d === 5);
+    if (allDefault5) return { masterDurSource: "default-5s" as const, masterDurInvalid: false };
+    // Even distribution — invalid if individual durations are unrealistically large
+    const invalid = masterDurations.some(d => d > 30);
+    return { masterDurSource: "even-distribution" as const, masterDurInvalid: invalid };
+  }, [uniqueScenes, masterDurations]);
 
   // Every scene that has a usable clip URL is part of the multi-clip set.
   // Use POSITION index (i+1) as sceneNumber so the server receives clips numbered
@@ -483,24 +514,33 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       // Use trimmed timeline duration when available; fall back to raw ffprobe duration
       const dur = serverClip?.timelineDuration ?? serverClip?.duration ?? 0;
       const rawDur = serverClip?.duration ?? 0;
-      // masterDuration: prefer server echo-back, fall back to client-computed value
-      const masterDur = serverClip?.masterDuration ?? multiClips[i]?.masterDuration ?? 0;
-      const tsSeconds = parseTimestamp(s.timestamp ?? "");
-      const videoStart = videoCursor;
+      // masterDuration from master player logic (parseMasterDur + even-distribution)
+      // NOT from song timestamps — those are audio positions, not clip durations.
+      const masterDur    = masterDurations[i] ?? 0;
+      const masterStart  = masterOffsets[i]   ?? 0;
+      const masterEnd    = masterStart + masterDur;
+      // audioStart = absolute song position for this scene (parseTimestamp gives song position)
+      const audioStartTs = parseTimestamp(s.timestamp ?? "");
+      const videoStart   = videoCursor;
       videoCursor += dur;
       const hasTrim = (serverClip?.trimStartSec ?? 0) > 0 || (serverClip?.trimEndSec ?? 0) > 0;
       return {
         sceneNumber:   i + 1,
         title:         s.section ? `Scene ${i + 1} · ${s.section}` : `Scene ${i + 1}`,
         timestamp:     s.timestamp ?? null,
-        timestampSec:  tsSeconds,
+        timestampSec:  audioStartTs,
         videoStart,
         videoEnd:      videoCursor,
+        // Audio-timeline start/end (absolute song positions) — separate from video clip positions
         audioStart:    videoStart,
         audioEnd:      videoCursor,
+        audioSongStart: audioStartTs ?? 0,
         clipDuration:  dur,
         rawDuration:   rawDur,
+        // Master player video timeline positions (clip end − clip start)
         masterDuration: masterDur,
+        masterStart,
+        masterEnd,
         durationSource: serverClip?.durationSource ?? (masterDur > 0 ? "master-timestamp" : "raw"),
         trimStartSec:  serverClip?.trimStartSec ?? (multiClips[i]?.trimStart ?? 0),
         trimEndSec:    serverClip?.trimEndSec   ?? (multiClips[i]?.trimEnd   ?? 0),
@@ -1869,99 +1909,138 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
             {/* ── Master Player vs Export Timeline Map ── */}
             {(() => {
-              const hasAnyMaster = clipAudioMap.some(c => c.masterDuration > 0);
               const allMatch = clipAudioMap.every(c =>
                 c.masterDuration === 0 || c.clipDuration === 0 || Math.abs(c.clipDuration - c.masterDuration) < 0.35
               );
-              const hasMismatch = !allMatch && downloadAllResult !== null;
+              const hasMismatch = !allMatch && downloadAllResult !== null && !masterDurInvalid;
+              const borderColor = hasMismatch ? "border-red-500/30" : masterDurInvalid ? "border-amber-500/25" : "border-slate-500/20";
               return (
-                <div className={`rounded-xl border overflow-hidden ${hasMismatch ? "border-red-500/30" : "border-slate-500/20"}`}>
-                  <div className={`px-3 py-2 border-b ${hasMismatch ? "bg-red-500/[0.04] border-red-500/[0.12]" : "bg-slate-500/[0.04] border-slate-500/[0.10]"}`}>
+                <div className={`rounded-xl border overflow-hidden ${borderColor}`}>
+                  <div className={`px-3 py-2 border-b ${hasMismatch ? "bg-red-500/[0.04] border-red-500/[0.12]" : masterDurInvalid ? "bg-amber-500/[0.03] border-amber-500/[0.12]" : "bg-slate-500/[0.04] border-slate-500/[0.10]"}`}>
                     <p className="text-[10px] font-black text-slate-300/60 uppercase tracking-widest">
                       Master Player vs Export Timeline
-                      {hasMismatch && (
-                        <span className="ml-2 font-bold text-red-400 normal-case">⚠ Duration mismatch</span>
-                      )}
-                      {!hasMismatch && downloadAllResult && (
-                        <span className="ml-2 font-normal text-green-400/60 normal-case">✓ Synced</span>
-                      )}
-                      {!downloadAllResult && (
-                        <span className="ml-2 font-normal text-white/25 normal-case">— run Download All to see export durations</span>
-                      )}
+                      {hasMismatch && <span className="ml-2 font-bold text-red-400 normal-case">⚠ Duration mismatch</span>}
+                      {masterDurInvalid && <span className="ml-2 font-bold text-amber-400 normal-case">⚠ Invalid master durations — see status below</span>}
+                      {!hasMismatch && !masterDurInvalid && downloadAllResult && <span className="ml-2 font-normal text-green-400/60 normal-case">✓ Synced</span>}
+                      {!downloadAllResult && !masterDurInvalid && <span className="ml-2 font-normal text-white/25 normal-case">— Download All Clips to see export durations</span>}
                     </p>
                   </div>
-                  <div className="grid grid-cols-[1.5rem_1fr_4rem_4rem_4rem_3rem] gap-x-1 px-2 py-1.5 border-b border-white/[0.05] text-[9px] font-black text-white/20 uppercase tracking-widest">
+                  {/* Col: # | Scene | Clip Start | Clip End | Master Dur | Export Dur | Match */}
+                  <div className="grid grid-cols-[1.5rem_1fr_3.5rem_3.5rem_4rem_4rem_3rem] gap-x-1 px-2 py-1.5 border-b border-white/[0.05] text-[9px] font-black text-white/20 uppercase tracking-widest">
                     <span>#</span><span>Scene</span>
+                    <span className="text-right">Start</span>
+                    <span className="text-right">End</span>
                     <span className="text-right">Master</span>
-                    <span className="text-right">Raw</span>
                     <span className="text-right">Export</span>
-                    <span className="text-center">Match</span>
+                    <span className="text-center">≈?</span>
                   </div>
                   <div className="divide-y divide-white/[0.03] max-h-56 overflow-y-auto">
                     {clipAudioMap.map((c) => {
-                      const masterDur  = c.masterDuration;
-                      const exportDur  = c.clipDuration;
-                      const match = masterDur === 0 || exportDur === 0
-                        ? null  // can't evaluate yet
+                      const masterDur = c.masterDuration;
+                      const exportDur = c.clipDuration;
+                      const invalid   = masterDur > 30;
+                      const match = invalid || masterDur === 0 || exportDur === 0
+                        ? null
                         : Math.abs(exportDur - masterDur) < 0.35;
-                      const srcTag = c.durationSource === "master-timestamp" ? "ts" : c.durationSource === "raw-trim" ? "trim" : "raw";
                       return (
                         <div key={c.sceneNumber}
-                          className={`grid grid-cols-[1.5rem_1fr_4rem_4rem_4rem_3rem] gap-x-1 px-2 py-1.5 items-center text-[9px] font-mono ${
-                            match === false ? "bg-red-500/[0.04]" : match === true ? "bg-green-500/[0.02]" : ""
+                          className={`grid grid-cols-[1.5rem_1fr_3.5rem_3.5rem_4rem_4rem_3rem] gap-x-1 px-2 py-1.5 items-center text-[9px] font-mono ${
+                            invalid ? "bg-amber-500/[0.03]" : match === false ? "bg-red-500/[0.04]" : match === true ? "bg-green-500/[0.02]" : ""
                           }`}>
                           <span className="text-white/25">{c.sceneNumber}</span>
                           <span className="text-white/45 truncate">{c.title.replace(/^Scene \d+ · /, "")}</span>
-                          <span className={`text-right font-bold ${masterDur > 0 ? "text-sky-300" : "text-white/20"}`}>
+                          <span className="text-right text-white/30 text-[8px]">{fmtSec(c.masterStart)}</span>
+                          <span className="text-right text-white/30 text-[8px]">{fmtSec(c.masterEnd)}</span>
+                          <span className={`text-right font-bold ${invalid ? "text-amber-400" : masterDur > 0 ? "text-sky-300" : "text-white/20"}`}>
                             {masterDur > 0 ? `${masterDur.toFixed(1)}s` : "—"}
+                            {invalid && <span className="ml-0.5 text-[7px] text-amber-400/60">!</span>}
                           </span>
-                          <span className="text-right text-white/30">
-                            {c.rawDuration > 0 ? `${c.rawDuration.toFixed(1)}s` : "—"}
-                          </span>
-                          <span className={`text-right font-bold ${match === true ? "text-green-400" : match === false ? "text-red-400" : "text-white/40"}`}>
+                          <span className={`text-right font-bold ${match === true ? "text-green-400" : match === false ? "text-red-400" : "text-white/35"}`}>
                             {exportDur > 0 ? `${exportDur.toFixed(1)}s` : "—"}
-                            {exportDur > 0 && <span className="ml-0.5 text-white/20 text-[7px]">{srcTag}</span>}
                           </span>
                           <span className={`text-center font-bold ${match === true ? "text-green-400" : match === false ? "text-red-400" : "text-white/20"}`}>
-                            {match === true ? "✓" : match === false ? "✗" : "?"}
+                            {invalid ? "!" : match === true ? "✓" : match === false ? "✗" : "?"}
                           </span>
                         </div>
                       );
                     })}
                   </div>
-                  {/* Legend row */}
                   <div className="px-3 py-1.5 border-t border-white/[0.04] flex flex-wrap gap-x-3 gap-y-0.5">
-                    <span className="text-[8px] text-sky-300/60">Master = scene timestamps</span>
-                    <span className="text-[8px] text-white/25">Raw = ffprobe video length</span>
-                    <span className="text-[8px] text-white/25">ts = master-trimmed · trim = manual trim · raw = untouched</span>
+                    <span className="text-[8px] text-white/20">Start/End = master player video timeline</span>
+                    <span className="text-[8px] text-sky-300/50">Master = clip end−start ({masterDurSource})</span>
+                    <span className="text-[8px] text-white/20">Export fills in after Download All Clips</span>
+                    {masterDurInvalid && <span className="text-[8px] text-amber-400/70 font-bold">⚠ &gt;30s = invalid — fix scene timestamps</span>}
                   </div>
                   {hasMismatch && (
                     <div className="px-3 py-2 border-t border-red-500/20 bg-red-500/[0.04]">
                       <p className="text-[10px] font-bold text-red-400 leading-snug">
-                        ⚠ Export durations don&apos;t match master player timeline. Click &quot;Rebuild Export Timeline From Master Player&quot; above to fix, then re-run the First 20s test.
+                        ⚠ Export durations don&apos;t match master player. Rebuild Export Timeline and re-run the First 20s test.
                       </p>
                     </div>
                   )}
-                  {!hasMismatch && downloadAllResult && hasAnyMaster && (
+                  {!hasMismatch && !masterDurInvalid && downloadAllResult && (
                     <p className="px-3 py-1.5 text-[9px] text-green-400/60 border-t border-white/[0.04]">
                       ✓ All export clips match master player timeline durations.
-                    </p>
-                  )}
-                  {!downloadAllResult && (
-                    <p className="px-3 py-1.5 text-[9px] text-white/25 border-t border-white/[0.04]">
-                      {hasAnyMaster
-                        ? "Master durations computed from scene timestamps. Export column fills in after Download All Clips."
-                        : "No scene timestamps found — add timestamps to scenes to enable sync validation."}
                     </p>
                   )}
                 </div>
               );
             })()}
 
+            {/* ── Master Duration Calculation Status ── */}
+            {(() => {
+              const usingRange = masterDurSource === "range-timestamp";
+              const usingAudioTs = masterDurInvalid;
+              const hasInvalid = masterDurations.some(d => d > 30);
+              const allRealistic = masterDurations.length > 0 && masterDurations.every(d => d > 0 && d <= 30);
+              const rows: [string, string, boolean | null][] = [
+                ["using clip end − clip start",       usingRange   ? "yes ✓" : "no — using fallback", usingRange ? true : false],
+                ["using audio timestamp as duration",  usingAudioTs ? "yes ✗ — wrong source" : "no ✓", usingAudioTs ? false : true],
+                ["invalid durations found (>30s)",    hasInvalid   ? "yes ✗" : "no ✓", hasInvalid ? false : true],
+                ["all master durations realistic",    allRealistic ? "yes ✓" : masterDurations.length === 0 ? "unknown" : "no ✗", allRealistic ? true : masterDurations.length === 0 ? null : false],
+                ["duration source",                   masterDurSource, null],
+              ];
+              return (
+                <div className={`rounded-xl border px-3 py-2.5 space-y-1 ${masterDurInvalid ? "border-amber-500/25 bg-amber-500/[0.03]" : "border-slate-500/15 bg-slate-500/[0.02]"}`}>
+                  <p className="text-[9px] font-black text-slate-300/40 uppercase tracking-widest mb-1.5">
+                    Master Duration Calculation
+                  </p>
+                  {rows.map(([label, value, ok]) => (
+                    <div key={label} className="flex items-start justify-between gap-2">
+                      <span className="text-[9px] font-mono text-white/25 shrink-0">{label}</span>
+                      <span className={`text-[9px] font-mono text-right ${ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/40"}`}>{value}</span>
+                    </div>
+                  ))}
+                  {masterDurInvalid && (
+                    <div className="mt-2 pt-2 border-t border-amber-500/20 bg-amber-500/[0.05] rounded-lg px-2 py-1.5">
+                      <p className="text-[9px] font-bold text-amber-400 leading-snug">
+                        Invalid master duration — probably using audio timestamp instead of clip duration.
+                        Add range timestamps like &quot;0:05 - 0:10&quot; to scene descriptions to fix.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Rebuild blocker if master durations are invalid ── */}
+            {masterDurInvalid && (
+              <div className="rounded-xl border border-amber-500/35 bg-amber-500/[0.06] px-3 py-2.5">
+                <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">
+                  Cannot Rebuild Export Timeline
+                </p>
+                <p className="text-[10px] text-amber-300/80 leading-snug">
+                  Master duration source is invalid — durations are &gt;30s which means song timestamps
+                  are being used instead of real clip durations. Add range timestamps (&quot;0:05 - 0:10&quot; format)
+                  to each scene or ensure the project audio duration is set.
+                </p>
+              </div>
+            )}
+
             {/* ── Rebuild Export Timeline From Master Player ── */}
             <Button
               onClick={downloadAllClips}
-              disabled={busy !== null || multiClipsWithUrl.length === 0}
+              disabled={busy !== null || multiClipsWithUrl.length === 0 || masterDurInvalid}
               variant="outline"
               className="w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] text-violet-300 hover:bg-violet-500/[0.10] text-xs disabled:opacity-40"
               data-testid="btn-doctor-rebuild-timeline"
