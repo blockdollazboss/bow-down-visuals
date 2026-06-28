@@ -893,7 +893,14 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
 /* ── TEST 4: export Scene 1 + audio (3s) ──────────────── */
 router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
   try {
-    const { doctorId, audioUrl } = req.body as { doctorId?: string; audioUrl?: string };
+    const { doctorId, audioUrl, audioStartSec, fullDuration } = req.body as {
+      doctorId?: string;
+      audioUrl?: string;
+      /** Seek into the project audio before mixing (seconds). Default 0. */
+      audioStartSec?: number;
+      /** When true, skip the default -t 3 limit and export the full clip. */
+      fullDuration?: boolean;
+    };
     const session = doctorId ? sessions.get(doctorId) : null;
     if (!session) {
       res.status(400).json({ error: "No downloaded Scene 1 session found. Run 'Download Scene 1 Only' first." });
@@ -949,11 +956,15 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
     }
     session.audioPath = audioPath;
 
+    const safeAudioStartSec = typeof audioStartSec === "number" && audioStartSec > 0 ? audioStartSec : 0;
     const outputPath = path.join(session.folder, "scene-1-audio-test.mp4");
     const args = [
       "-i", session.videoPath,
+      /* Audio seek: start at the scene's position in the project audio */
+      ...(safeAudioStartSec > 0 ? ["-ss", String(safeAudioStartSec.toFixed(3))] : []),
       "-i", audioPath,
-      "-t", "3",
+      /* Duration limit: 3s for standard test; unlimited for full lip sync export */
+      ...(fullDuration ? [] : ["-t", "3"]),
       "-map", "0:v:0",
       "-map", "1:a:0",
       "-vf", [
@@ -973,7 +984,7 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
       "-y", outputPath,
     ];
 
-    req.log.info({ doctorId }, "EXPORT DOCTOR scene 1 + audio export (3s)");
+    req.log.info({ doctorId, audioStartSec: safeAudioStartSec, fullDuration }, "EXPORT DOCTOR scene + audio export");
     try {
       await execFileAsync("ffmpeg", args, { timeout: 120_000 });
     } catch (e) {
