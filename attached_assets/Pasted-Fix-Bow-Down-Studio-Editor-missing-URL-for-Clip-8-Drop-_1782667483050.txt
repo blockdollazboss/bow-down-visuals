@@ -1,0 +1,95 @@
+Fix Bow Down Studio Editor missing URL for Clip 8 Drop.
+
+Problem:
+Bow Down Studio Editor readiness says:
+All clips have URLs: 11/12
+Missing: #8 Drop
+Status: Not ready
+
+Clip 8 Drop has a warning icon on the timeline.
+
+Do not change:
+- audio master clock
+- song audio
+- timeline layout
+- clips 1-7
+- clips 9-12
+- captions
+- effects
+- overlays
+- watermark
+- payments
+- old Export Doctor
+
+Only fix:
+- Clip 8 Drop missing video URL
+- clip URL repair tools
+- readiness status
+
+Requirements:
+
+1. When a clip is missing a URL, clicking the clip should show:
+
+Clip URL Repair panel
+
+For Clip 8 Drop show:
+- clip number
+- section title
+- current video URL
+- source/original URL if available
+- generated asset URL if available
+- storage path if available
+- last generation job id if available
+- error reason
+
+2. Add button:
+Repair Clip 8 URL
+
+This should search the project data for any existing video URL for Clip 8:
+- clip.videoUrl
+- clip.url
+- clip.outputUrl
+- scene.videoUrl
+- scene.generatedVideoUrl
+- asset.url
+- generation.resultUrl
+- storage public URL
+
+If found, attach it to Clip 8 and save.
+
+3. Add button:
+Use Placeholder For Clip 8
+
+If no video URL is found, create a safe temporary placeholder video for Clip 8 with:
+- same duration as Clip 8 timeline section
+- black/dark Bow Down Visuals background
+- text: Drop
+- valid mp4 URL
+This is only to unblock timeline/export testing.
+
+4. Add button:
+Regenerate Clip 8 Drop
+
+This should start a new video generation job for Clip 8 Drop only.
+
+5. After any repair, update readiness:
+All clips have URLs: 12/12
+Timeline locked: ready to lock
+Status: Ready after Lock Timeline
+
+6. Lock Timeline should not silently fail if Clip 8 URL is missing.
+It should say:
+Missing video URL: Clip 8 Drop
+
+7. Add debug:
+Clip 8 URL Repair Result:
+- found existing URL: yes/no
+- attached URL: yes/no
+- placeholder created: yes/no
+- regenerate started: yes/no
+- saved to project: yes/no
+- all clips now valid: yes/no
+- last error
+
+Final goal:
+Clip 8 Drop needs a valid video URL so Bow Down Studio Editor can reach 12/12 clips and Lock Timeline can work.
