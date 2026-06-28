@@ -204,6 +204,39 @@ function multiClipsBlocker(session: DoctorMultiSession): string | null {
   return null;
 }
 
+/** Normalize only the clips needed to cover `maxDurationSec` seconds.
+ *  Reuses existing normalized files from a previous run on the same session to avoid
+ *  redundant FFmpeg work (critical for short-test speed). */
+async function normalizeClipsForDuration(
+  session: DoctorMultiSession,
+  maxDurationSec: number,
+  logStep?: (msg: string) => void,
+): Promise<string[]> {
+  const normPaths: string[] = [];
+  let accumulated = 0;
+  for (const c of session.clips) {
+    const trimStart   = c.trimStartSec  ?? 0;
+    const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
+    const clipDur     = timelineDur ?? c.duration;
+    const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
+
+    if (existsSync(np) && statSync(np).size >= 1024) {
+      logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip (${statSync(np).size} bytes)`);
+    } else {
+      logStep?.(`scene ${c.sceneNumber}: normalizing (trimStart=${trimStart.toFixed(2)}s, dur=${timelineDur?.toFixed(2) ?? "raw"}s)...`);
+      await normalizeMultiClip(c.localPath, np, trimStart, timelineDur);
+      if (!existsSync(np) || statSync(np).size < 1024) {
+        throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
+      }
+      logStep?.(`scene ${c.sceneNumber}: normalized OK (${statSync(np).size} bytes)`);
+    }
+    normPaths.push(np);
+    accumulated += clipDur;
+    if (accumulated >= maxDurationSec) break;
+  }
+  return normPaths;
+}
+
 /** Normalize all clips in scene order applying master player trims.
  *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player. */
 async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]> {
@@ -1723,61 +1756,83 @@ router.post("/export-doctor/export-audio-sync-diagnostic", requireAuth, async (r
 
 /* ── TEST 7c: Audio Sync Short Test — first 20 seconds + audio, fast turnaround ── */
 router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, res) => {
+  const routeStart = Date.now();
+  let lastStep = "received request";
   try {
     const { multiId, audioUrl, audioStartSec, syncMode, durationSec } = req.body as {
       multiId?: string;
       audioUrl?: string;
       audioStartSec?: number;
       syncMode?: string;
-      /** How many seconds to export. Defaults to 20. */
       durationSec?: number;
     };
+
+    req.log.info({ multiId, clipCount: undefined, audioUrl: audioUrl?.slice(0, 80) }, "EXPORT SHORT TEST: request received");
+
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
-      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first." });
-      return;
-    }
-    const blocker = multiClipsBlocker(session);
-    if (blocker) { res.status(400).json({ error: blocker }); return; }
-    if (!audioUrl?.startsWith("http")) {
-      res.status(400).json({ error: "No master-player audio URL was provided." });
-      return;
-    }
-    if (!isAllowedAudioUrl(audioUrl)) {
-      res.status(400).json({ error: "Audio URL host is not an allowed media source." });
+      res.status(400).json({ error: "No multi-clip session found. Run 'Download All Clips' first.", lastStep });
       return;
     }
 
+    req.log.info({ multiId, clipCount: session.clips.length }, "EXPORT SHORT TEST: session found");
+
+    const blocker = multiClipsBlocker(session);
+    if (blocker) { res.status(400).json({ error: blocker, lastStep }); return; }
+
+    if (!audioUrl?.startsWith("http")) {
+      res.status(400).json({ error: "No master-player audio URL was provided.", lastStep });
+      return;
+    }
+    if (!isAllowedAudioUrl(audioUrl)) {
+      res.status(400).json({ error: "Audio URL host is not an allowed media source.", lastStep });
+      return;
+    }
+
+    const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
+    const testDuration = Math.max(5, Math.min(60, durationSec ?? 20));
+
+    // ── Step: refresh signed audio URL ──────────────────────────────────────
+    lastStep = "refreshing audio URL";
     let target = audioUrl;
     if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
       const { url: fresh, changed } = await tryFreshSignedUrl(target);
       if (changed) target = fresh;
     }
+
+    // ── Step: download audio ─────────────────────────────────────────────────
+    lastStep = "downloading audio";
+    req.log.info({ multiId, testDuration, resolvedAudioStart }, "EXPORT SHORT TEST: downloading audio");
     const ext = target.includes(".mp3") ? ".mp3" : target.includes(".ogg") ? ".ogg" : target.includes(".wav") ? ".wav" : ".aac";
     const audioPath = path.join(session.folder, `short-test-audio${ext}`);
 
-    const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+    const ar = await fetch(target, { signal: AbortSignal.timeout(90_000) });
     if (!ar.ok) {
-      res.json({ error: `Audio download failed (HTTP ${ar.status}).` });
+      res.status(400).json({ error: `Audio download failed (HTTP ${ar.status}).`, lastStep });
       return;
     }
     const aws = createWriteStream(audioPath);
     await pipeline(ar.body as Parameters<typeof pipeline>[0], byteCap(MAX_AUDIO_BYTES), aws);
     if (!existsSync(audioPath) || statSync(audioPath).size < 1024) {
-      res.json({ error: "Audio file was not created or is too small." });
+      res.status(500).json({ error: "Audio file was not created or is too small.", lastStep });
       return;
     }
+
+    // ── Step: validate audio with ffprobe ────────────────────────────────────
+    lastStep = "validating audio with ffprobe";
+    req.log.info({ multiId, audioSize: statSync(audioPath).size }, "EXPORT SHORT TEST: probing audio");
     const aProbe = await probeMedia(audioPath);
     if (!aProbe.hasAudio) {
-      res.json({ error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.` });
+      res.status(400).json({ error: `Audio ffprobe found no audio stream: ${aProbe.error ?? "unknown"}.`, lastStep });
       return;
     }
     session.audioPath = audioPath;
 
-    const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
-    const testDuration = Math.max(5, Math.min(60, durationSec ?? 20));
+    const audioDuration = aProbe.duration ?? 0;
+    req.log.info({ multiId, audioDuration }, "EXPORT SHORT TEST: audio OK");
 
-    // Per-clip timeline map (uses master-player timeline durations)
+    // ── Step: build per-clip timeline map ────────────────────────────────────
+    lastStep = "building clip timeline";
     let cursor = 0;
     const clipTimeline = session.clips.map((c) => {
       const start = cursor;
@@ -1795,43 +1850,80 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
       };
     });
     const timelineVideoDuration = cursor;
-    const audioDuration = aProbe.duration ?? 0;
 
+    req.log.info(
+      { multiId, clipCount: session.clips.length, timelineVideoDuration, testDuration },
+      "EXPORT SHORT TEST: clip timeline built — normalizing only clips needed for testDuration",
+    );
+
+    // ── Step: normalize only the clips needed to fill testDuration ───────────
+    // We need enough clips to cover testDuration. Use 2× buffer so the concat
+    // trim has something to trim from (needed for short clips where one clip
+    // barely covers the test window).
+    lastStep = "normalizing clips";
     let normPaths: string[];
     try {
-      normPaths = await normalizeAllClips(session);
+      normPaths = await normalizeClipsForDuration(
+        session,
+        testDuration * 2,
+        (msg) => req.log.info({ multiId }, `EXPORT SHORT TEST normalize: ${msg}`),
+      );
     } catch (e) {
-      res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      req.log.error({ err: e, multiId, lastStep }, "EXPORT SHORT TEST: normalization failed");
+      res.status(500).json({ error: msg, lastStep });
       return;
     }
+    req.log.info({ multiId, normCount: normPaths.length, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: normalization done");
 
+    // ── Step: concat + trim to testDuration + mux audio ─────────────────────
+    lastStep = "running ffmpeg concat";
     const range = { start: 0, duration: testDuration };
     let outputPath: string;
     try {
+      req.log.info({ multiId, normCount: normPaths.length, testDuration, audioOffsetSec: resolvedAudioStart }, "EXPORT SHORT TEST: starting ffmpeg concat");
       outputPath = await concatMultiClips(session.folder, normPaths, audioPath, "short-test.mp4",
         null, null, range, resolvedAudioStart);
     } catch (e) {
       const stderr = (e as { stderr?: string }).stderr ?? "";
+      req.log.error({ err: e, multiId, stderrTail: stderr.slice(-400), lastStep }, "EXPORT SHORT TEST: ffmpeg concat failed");
       res.status(500).json({
         error: `FFmpeg short-test failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
         stderrTail: stderr.slice(-600).split("\n").filter(Boolean),
+        lastStep,
       });
       return;
     }
 
     if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
-      res.status(500).json({ error: "FFmpeg produced no usable output file." });
+      res.status(500).json({ error: "FFmpeg produced no usable output file.", lastStep });
       return;
     }
+    req.log.info({ multiId, outputSize: statSync(outputPath).size, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: ffmpeg done");
 
+    // ── Step: probe output ───────────────────────────────────────────────────
+    lastStep = "probing output";
     const probe = await probeMedia(outputPath);
+
+    // ── Step: upload to object storage ───────────────────────────────────────
+    lastStep = "uploading result";
     const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
     if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
     const objectName = `export-doctor/${multiId}-short-test.mp4`;
-    await objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
-      contentType: "video/mp4", resumable: false,
-    });
+    req.log.info({ multiId, objectName, fileSize: statSync(outputPath).size }, "EXPORT SHORT TEST: uploading");
+
+    await Promise.race([
+      objectStorageClient.bucket(bucketId).file(objectName).save(readFileSync(outputPath), {
+        contentType: "video/mp4", resumable: false,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Object storage upload timed out after 60s")), 60_000),
+      ),
+    ]);
+
+    lastStep = "generating signed URL";
     const signedUrl = await signGetUrl(bucketId, objectName);
+    req.log.info({ multiId, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: done");
 
     res.json({
       success: true,
@@ -1849,9 +1941,12 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
       audioDuration,
       audioVideoSyncMode: syncMode ?? "keep-as-is",
       clipTimeline,
+      elapsedMs: Date.now() - routeStart,
+      lastStep: "done",
     });
   } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    req.log.error({ err: e, lastStep, elapsed: Date.now() - routeStart }, "EXPORT SHORT TEST: unexpected error");
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e), lastStep });
   }
 });
 

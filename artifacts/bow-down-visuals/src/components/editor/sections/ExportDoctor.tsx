@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers, Sparkles,
 } from "lucide-react";
@@ -362,6 +362,28 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   const [audioSyncDiagResult, setAudioSyncDiagResult] = useState<AudioSyncDiagResult | null>(null);
   /** Result of the First 20 Seconds Audio Sync Short Test. */
   const [audioSyncShortResult, setAudioSyncShortResult] = useState<AudioSyncDiagResult | null>(null);
+  /** Live step label shown while the short test is running. */
+  const [shortTestStep, setShortTestStep] = useState<string | null>(null);
+  /** When the short test started (for elapsed time display). */
+  const [shortTestStartedAt, setShortTestStartedAt] = useState<number | null>(null);
+  /** Running elapsed seconds counter while short test is busy. */
+  const [shortTestElapsed, setShortTestElapsed] = useState(0);
+  /** Debug flags for the short test debug panel. */
+  const [shortTestDebug, setShortTestDebug] = useState<{
+    buttonClicked: boolean;
+    routeCalled: boolean;
+    ffmpegStarted: boolean;
+    ffmpegFinished: boolean;
+    resultUrl: string | null;
+    lastError: string | null;
+    clipDurationsLoaded: boolean;
+    audioReady: boolean;
+    lastStep: string | null;
+  }>({
+    buttonClicked: false, routeCalled: false, ffmpegStarted: false,
+    ffmpegFinished: false, resultUrl: null, lastError: null,
+    clipDurationsLoaded: false, audioReady: false, lastStep: null,
+  });
   /** Whether the Master Player Audio Map table is expanded/visible. */
   const [showAudioMap, setShowAudioMap] = useState(false);
 
@@ -455,6 +477,35 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
       };
     });
   }, [uniqueScenes, downloadAllResult, multiClips]);
+
+  // Elapsed timer + optimistic step labels while short test is in-flight
+  const SHORT_TEST_STEPS: [number, string][] = [
+    [0,   "preparing clips"],
+    [3,   "checking clip durations"],
+    [7,   "rebuilding export timeline"],
+    [12,  "downloading audio"],
+    [22,  "trimming audio from 0:00 to 20s"],
+    [28,  "normalizing clips"],
+    [55,  "running ffmpeg"],
+    [95,  "uploading result"],
+    [115, "generating signed URL"],
+  ];
+
+  useEffect(() => {
+    if (busy !== "export-audio-sync-short" || shortTestStartedAt === null) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - shortTestStartedAt) / 1000);
+      setShortTestElapsed(elapsed);
+      // Advance the optimistic step label
+      let step = SHORT_TEST_STEPS[0]![1];
+      for (const [t, label] of SHORT_TEST_STEPS) {
+        if (elapsed >= t) step = label;
+      }
+      setShortTestStep(step);
+    }, 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, shortTestStartedAt]);
 
   async function authHeaders() {
     const token = await getAccessToken();
@@ -635,26 +686,71 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
   async function exportAudioSyncShort() {
     if (!multiId) return;
+    const startedAt = Date.now();
+    setShortTestStartedAt(startedAt);
+    setShortTestElapsed(0);
+    setShortTestStep("preparing clips");
+    setShortTestDebug({
+      buttonClicked: true, routeCalled: false, ffmpegStarted: false,
+      ffmpegFinished: false, resultUrl: null, lastError: null,
+      clipDurationsLoaded: !!(downloadAllResult?.clips?.length),
+      audioReady: !!(masterAudioUrl && !masterAudioIsLipSync),
+      lastStep: "preparing clips",
+    });
     setBusy("export-audio-sync-short"); setLastError(null); setAudioSyncShortResult(null);
+
+    // 2-minute client timeout — must not spin forever
+    const CLIENT_TIMEOUT_MS = 2 * 60 * 1000;
+
     try {
-      const res = await fetch("/api/export-doctor/export-audio-sync-short", {
-        method: "POST", headers: await authHeaders(),
-        body: JSON.stringify({
-          multiId,
-          audioUrl: masterAudioUrl ?? null,
-          audioStartSec: 0,
-          syncMode: syncMode ?? "keep-as-is",
-          durationSec: 20,
-        }),
-        signal: AbortSignal.timeout(5 * 60 * 1000),
-      });
-      const data = await readJson<AudioSyncDiagResult>(res);
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setShortTestDebug(prev => ({ ...prev, routeCalled: true, lastStep: "calling export route" }));
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(new Error("Export test timed out after 2 minutes.")), CLIENT_TIMEOUT_MS);
+
+      let res: Response;
+      try {
+        res = await fetch("/api/export-doctor/export-audio-sync-short", {
+          method: "POST", headers: await authHeaders(),
+          body: JSON.stringify({
+            multiId,
+            audioUrl: masterAudioUrl ?? null,
+            audioStartSec: 0,
+            syncMode: syncMode ?? "keep-as-is",
+            durationSec: 20,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      setShortTestDebug(prev => ({ ...prev, ffmpegStarted: true, ffmpegFinished: true, lastStep: "processing response" }));
+      const data = await readJson<AudioSyncDiagResult & { lastStep?: string; elapsedMs?: number }>(res);
+
+      if (!res.ok) {
+        const errMsg = data.error ?? `HTTP ${res.status}`;
+        setShortTestDebug(prev => ({ ...prev, lastError: errMsg, lastStep: data.lastStep ?? "server error" }));
+        throw new Error(errMsg);
+      }
+
+      setShortTestDebug(prev => ({
+        ...prev,
+        resultUrl: data.url ?? null,
+        lastStep: data.lastStep ?? "done",
+        lastError: data.error ?? null,
+      }));
       setAudioSyncShortResult(data);
+      setShortTestStep("done");
       if (data.error) setLastError(data.error);
     } catch (e) {
-      setLastError(e instanceof Error ? e.message : String(e));
-    } finally { setBusy(null); }
+      const errMsg = e instanceof Error ? e.message : String(e);
+      setLastError(errMsg);
+      setShortTestDebug(prev => ({ ...prev, lastError: errMsg }));
+      setShortTestStep(null);
+    } finally {
+      setBusy(null);
+      setShortTestStartedAt(null);
+    }
   }
 
   async function exportAllClipsCaptions() {
@@ -1952,6 +2048,70 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 Export First 20s + Audio Test
               </Button>
             </div>
+
+            {/* ── Short Test live progress + timeout warning ── */}
+            {busy === "export-audio-sync-short" && (
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.03] px-3 py-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black text-sky-300/60 uppercase tracking-widest flex items-center gap-1.5">
+                    <Loader2 className="h-3 w-3 animate-spin text-sky-400" />
+                    Running
+                  </p>
+                  <span className="text-[10px] font-mono text-white/30">
+                    {shortTestElapsed}s elapsed
+                    {shortTestElapsed >= 90 && " · slow network?"}
+                  </span>
+                </div>
+                <p className="text-[10px] font-mono text-sky-200/70">
+                  step: <span className="text-sky-300">{shortTestStep ?? "preparing…"}</span>
+                </p>
+                <p className="text-[9px] text-white/25">
+                  started at: {shortTestStartedAt ? new Date(shortTestStartedAt).toLocaleTimeString() : "—"}
+                </p>
+                {shortTestElapsed >= 115 && (
+                  <p className="text-[10px] text-amber-400 font-bold pt-1">
+                    ⚠ Export taking longer than expected. If it doesn't finish soon, try refreshing the page and running again.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── Short Test timeout error ── */}
+            {!busy && shortTestDebug.buttonClicked && !shortTestDebug.resultUrl && shortTestDebug.lastError && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/[0.04] px-3 py-3 space-y-1">
+                <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">First 20s Export Failed</p>
+                <p className="text-[10px] font-mono text-red-300/80">{shortTestDebug.lastError}</p>
+                <p className="text-[9px] text-white/30 font-mono">last step: {shortTestDebug.lastStep ?? "—"}</p>
+              </div>
+            )}
+
+            {/* ── First 20s Export Debug panel ── */}
+            {shortTestDebug.buttonClicked && (
+              <div className="rounded-xl border border-slate-500/15 bg-slate-500/[0.02] px-3 py-2.5 space-y-0.5">
+                <p className="text-[9px] font-black text-slate-300/40 uppercase tracking-widest mb-1.5">
+                  First 20s Export Debug
+                </p>
+                {([
+                  ["button clicked",           shortTestDebug.buttonClicked    ? "yes ✓" : "no",   shortTestDebug.buttonClicked],
+                  ["export route called",      shortTestDebug.routeCalled      ? "yes ✓" : "no",   shortTestDebug.routeCalled],
+                  ["clip durations loaded",    shortTestDebug.clipDurationsLoaded ? "yes ✓" : "no — run Download All Clips first", shortTestDebug.clipDurationsLoaded],
+                  ["audio ready",              shortTestDebug.audioReady       ? "yes ✓" : "no — no audio URL or lip sync blocked", shortTestDebug.audioReady],
+                  ["ffmpeg started",           shortTestDebug.ffmpegStarted    ? "yes ✓" : busy === "export-audio-sync-short" ? "pending…" : "no", shortTestDebug.ffmpegStarted],
+                  ["ffmpeg finished",          shortTestDebug.ffmpegFinished   ? "yes ✓" : busy === "export-audio-sync-short" ? "pending…" : "no", shortTestDebug.ffmpegFinished],
+                  ["current step",             busy === "export-audio-sync-short" ? (shortTestStep ?? "preparing…") : (shortTestDebug.lastStep ?? "—"), null],
+                  ["elapsed time",             busy === "export-audio-sync-short" ? `${shortTestElapsed}s` : shortTestElapsed > 0 ? `${shortTestElapsed}s (finished)` : "—", null],
+                  ["result URL",               shortTestDebug.resultUrl ? "yes ✓" : "no", shortTestDebug.resultUrl ? true : false],
+                  ["last error",               shortTestDebug.lastError ?? "none", shortTestDebug.lastError ? false : null],
+                ] as [string, string, boolean | null][]).map(([label, value, ok]) => (
+                  <div key={label} className="flex items-start justify-between gap-2">
+                    <span className="text-[9px] font-mono text-white/25 shrink-0">{label}</span>
+                    <span className={`text-[9px] font-mono text-right leading-snug ${
+                      ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/40"
+                    }`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* ── Audio Diagnostic / Short Test results ── */}
             {[
