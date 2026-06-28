@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Stethoscope, Loader2, CheckCircle2, XCircle, Link2, Download, Film, Music2, ExternalLink, Layers, Sparkles,
 } from "lucide-react";
@@ -41,6 +41,9 @@ interface ExportDoctorProps {
   syncMode?: AudioVideoSyncMode | null;
   /** Per-clip edits keyed by scene id — used for lip sync export test. */
   clipEdits?: Record<string, import("@/lib/editor-settings").ClipEdit>;
+  /** Scene ID currently selected in the Lip Sync tab.
+   *  When set, the export test button targets that specific scene instead of the first one found. */
+  selectedLipSyncSceneId?: string | null;
 }
 
 /** Every candidate URL field the spec asks us to surface for Scene 1. */
@@ -210,11 +213,24 @@ function fmtBytes(n: number | null | undefined): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode, clipEdits }: ExportDoctorProps) {
+export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effects, overlays, overlayIntensity, watermarkText, watermarkType, watermarkPosition, watermarkSize, watermarkIncludeInExport, masterCurrentTimeSec, projectDurationSec, appliedTransitions, syncMode, clipEdits, selectedLipSyncSceneId }: ExportDoctorProps) {
   const { getAccessToken } = useAuth();
 
-  // Scene 1 = first scene that has a usable clip URL
-  const scene1 = scenes.find((s) => !!s.demoClipUrl?.startsWith("http")) ?? scenes[0] ?? null;
+  // Deduplicate the scenes array by scene id.
+  // The timeline can produce duplicate entries (same id appearing twice) if the
+  // parent re-merges or the saved data contains repeated clip rows.
+  // First occurrence wins; order is preserved.
+  const { uniqueScenes, duplicateCount } = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: SceneData[] = [];
+    for (const s of scenes) {
+      if (!seen.has(s.id)) { seen.add(s.id); unique.push(s); }
+    }
+    return { uniqueScenes: unique, duplicateCount: scenes.length - unique.length };
+  }, [scenes]);
+
+  // Scene 1 = first scene that has a usable clip URL (from deduplicated list)
+  const scene1 = uniqueScenes.find((s) => !!s.demoClipUrl?.startsWith("http")) ?? uniqueScenes[0] ?? null;
   const scene1Url = scene1?.demoClipUrl ?? "";
 
   const [busy, setBusy] = useState<
@@ -249,7 +265,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   // Source priority per clip:
   //   1. clip.lipSyncUrl  — when useLipSync=true and lipSyncUrl is set
   //   2. scene.demoClipUrl — original generated clip (fallback)
-  const multiClips = scenes.map((s, i) => {
+  const multiClips = uniqueScenes.map((s, i) => {
     const ce = clipEdits?.[s.id];
     const useLipSyncUrl = !!(ce?.useLipSync && ce.lipSyncUrl);
     const exportUrl = useLipSyncUrl ? ce!.lipSyncUrl! : s.demoClipUrl ?? null;
@@ -265,10 +281,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   });
 
   // Detect whether the user has reordered relative to the original generated sequence.
-  const isReordered = scenes.some((s, i) => (s.sceneNumber ?? i + 1) !== i + 1);
+  const isReordered = uniqueScenes.some((s, i) => (s.sceneNumber ?? i + 1) !== i + 1);
   const orderSourceLabel = isReordered ? "saved timeline order" : "original generated order";
   // Show original scene numbers listed in their current (possibly dragged) positions.
-  const orderDisplay = scenes.map((s, i) => s.sceneNumber ?? i + 1).join(", ");
+  const orderDisplay = uniqueScenes.map((s, i) => s.sceneNumber ?? i + 1).join(", ");
   const multiClipsWithUrl = multiClips.filter((c) => !!c.url?.startsWith("http"));
   const multiId = downloadAllResult?.multiId ?? null;
   const allClipsValid = !!downloadAllResult?.allValid && downloadAllResult.total > 0;
@@ -539,17 +555,21 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
   }
 
   async function exportLipSyncPreview() {
-    /* Find the first scene with useLipSync=true and a saved result URL.
+    /* Prefer the scene currently selected in the Lip Sync tab; fall back to
+       the first scene that has useLipSync=true + a saved result URL.
        Does NOT require multiId — uses the single-clip download→export-audio flow. */
-    const lipSyncIdx = scenes.findIndex(s => {
-      const ce = clipEdits?.[s.id];
-      return !!(ce?.useLipSync && ce.lipSyncUrl);
-    });
+    let lipSyncIdx = selectedLipSyncSceneId
+      ? uniqueScenes.findIndex(s => s.id === selectedLipSyncSceneId && !!(clipEdits?.[s.id]?.useLipSync && clipEdits?.[s.id]?.lipSyncUrl))
+      : -1;
+    // Fallback: first scene with useLipSync + lipSyncUrl
+    if (lipSyncIdx === -1) {
+      lipSyncIdx = uniqueScenes.findIndex(s => !!(clipEdits?.[s.id]?.useLipSync && clipEdits?.[s.id]?.lipSyncUrl));
+    }
     if (lipSyncIdx === -1) {
       setLastError("No lip synced clips with useLipSync=true. Enable lip sync in the Lip Sync tab first.");
       return;
     }
-    const lipSyncScene  = scenes[lipSyncIdx]!;
+    const lipSyncScene  = uniqueScenes[lipSyncIdx]!;
     const lipSyncCe     = clipEdits![lipSyncScene.id]!;
     const lipSyncUrl    = lipSyncCe.lipSyncUrl!;
 
@@ -894,24 +914,36 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
 
         {/* ════════ LIP SYNC EXPORT TEST ════════ */}
         {(() => {
-          /* All scenes with a completed result */
-          const lipSyncScenes = scenes.filter(s => {
+          /* All deduplicated scenes that have useLipSync=true + a saved URL */
+          const lipSyncScenes = uniqueScenes.filter(s => {
             const ce = clipEdits?.[s.id];
             return !!(ce?.useLipSync && ce.lipSyncUrl);
           });
           const hasLipSync = lipSyncScenes.length > 0;
 
-          /* Which scene will be exported (first with useLipSync=true) */
-          const exportScene   = lipSyncScenes[0] ?? null;
-          const exportSceneCe = exportScene ? clipEdits?.[exportScene.id] : null;
-          const exportScenePos = exportScene ? scenes.indexOf(exportScene) + 1 : null;
+          /* Which scene will be exported:
+             1. The scene selected in the Lip Sync tab (selectedLipSyncSceneId), if it has a result
+             2. Otherwise the first scene with useLipSync=true + lipSyncUrl */
+          const exportScene = (() => {
+            if (selectedLipSyncSceneId) {
+              const sel = lipSyncScenes.find(s => s.id === selectedLipSyncSceneId);
+              if (sel) return sel;
+            }
+            return lipSyncScenes[0] ?? null;
+          })();
+          const exportSceneCe  = exportScene ? clipEdits?.[exportScene.id] : null;
+          const exportScenePos = exportScene ? uniqueScenes.indexOf(exportScene) + 1 : null;
+          const exportSceneLabel = exportScene
+            ? `Scene ${exportScenePos}${exportScene.section ? ` — ${exportScene.section}` : ""}`
+            : "—";
 
-          /* Per-scene clip source summary for all scenes */
-          const lipSyncSummaryRows = scenes.map((s, i) => {
+          /* Per-scene clip source summary for all deduplicated scenes */
+          const lipSyncSummaryRows = uniqueScenes.map((s, i) => {
             const ce = clipEdits?.[s.id];
             const active = !!(ce?.useLipSync && ce.lipSyncUrl);
+            const isSel = s.id === selectedLipSyncSceneId;
             return {
-              label:  `Scene ${i + 1}${s.section ? ` · ${s.section}` : ""}`,
+              label:  `Scene ${i + 1}${s.section ? ` · ${s.section}` : ""}${isSel ? " ◀ selected" : ""}`,
               source: active ? "lip sync ✓" : "original clip",
               ok:     active as boolean | null,
             };
@@ -939,18 +971,19 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
                 <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Lip Sync Export Check</p>
                 {([
-                  ["lip synced clips found",       hasLipSync ? "yes ✓" : "no",                                       hasLipSync],
-                  ["export scene",                 exportScene ? `Scene ${exportScenePos}` : "—",                      !!exportScene],
-                  ["useLipSync active",            exportSceneCe?.useLipSync ? "yes ✓" : "no",                        exportSceneCe?.useLipSync ?? null],
-                  ["lipSyncUrl exists",            exportSceneCe?.lipSyncUrl ? "yes ✓" : "no",                        !!exportSceneCe?.lipSyncUrl],
-                  ["export source",                exportScene ? (exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl ? "lip sync ✓" : "original clip") : "—", exportScene ? !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl) : null],
-                  ["project audio",                masterAudioUrl ? "ready ✓" : "missing",                            !!masterAudioUrl],
-                  ["export test status",           lipSyncExportResult ? (lipSyncExportResult.success ? "passed ✓" : "failed") : "not run", lipSyncExportResult ? !!lipSyncExportResult.success : null],
-                  ["result url",                   lipSyncExportResult?.url ? "available ✓" : "—",                    !!lipSyncExportResult?.url],
+                  ["lip synced clips found",    hasLipSync ? "yes ✓" : "no",                                                                       hasLipSync],
+                  ["selected lip sync scene",   exportSceneLabel,                                                                                   !!exportScene],
+                  ["lip sync clipId",           exportScene?.clipId ?? "—",                                                                         !!exportScene?.clipId],
+                  ["useLipSync active",         exportSceneCe?.useLipSync ? "yes ✓" : "no",                                                        exportSceneCe?.useLipSync ?? null],
+                  ["lipSyncUrl exists",         exportSceneCe?.lipSyncUrl ? "yes ✓" : "no",                                                        !!exportSceneCe?.lipSyncUrl],
+                  ["export source",             exportScene ? (exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl ? "lip sync ✓" : "original clip") : "—", exportScene ? !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl) : null],
+                  ["project audio",             masterAudioUrl ? "ready ✓" : "missing",                                                            !!masterAudioUrl],
+                  ["export test status",        lipSyncExportResult ? (lipSyncExportResult.success ? "passed ✓" : "failed") : "not run",           lipSyncExportResult ? !!lipSyncExportResult.success : null],
+                  ["result url",                lipSyncExportResult?.url ? "available ✓" : "—",                                                    !!lipSyncExportResult?.url],
                 ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
                   <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
                     <span className="text-white/40">{label}</span>
-                    <span className={`font-bold ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+                    <span className={`font-bold truncate max-w-[55%] text-right ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
                   </div>
                 ))}
               </div>
@@ -962,7 +995,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 </div>
               )}
 
-              {/* Button — does NOT require multiId */}
+              {/* Button — does NOT require multiId; targets the selected lip sync scene */}
               <Button
                 onClick={exportLipSyncPreview}
                 disabled={busy !== null || !hasLipSync || !masterAudioUrl}
@@ -973,7 +1006,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 {busy === "lip-sync-preview"
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
                   : <><Stethoscope className="h-3.5 w-3.5" />
-                    {exportScene ? `Export Scene ${exportScenePos} Lip Sync Test` : "Export Lip Sync Test"}
+                    {exportScene ? `Export Selected Lip Sync Scene Test` : "Export Lip Sync Test"}
                   </>}
               </Button>
               {!masterAudioUrl && hasLipSync && (
@@ -1007,7 +1040,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
           </div>
 
           {/* ── Export order status ── */}
-          {scenes.length === 0 ? (
+          {uniqueScenes.length === 0 ? (
             <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] text-amber-400 text-[11px] font-semibold mb-3">
               <span className="shrink-0 mt-px">⚠</span>
               Saved timeline order missing. Using original order.
@@ -1015,12 +1048,19 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
           ) : (
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5 mb-3">
               <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">Export Order</p>
-              <div className="flex items-center justify-between gap-2 text-[11px] font-mono">
-                <span className="text-white/40">order source</span>
-                <span className={`font-bold ${isReordered ? "text-primary" : "text-white/50"}`}>{orderSourceLabel}</span>
-              </div>
+              {([
+                ["order source",          orderSourceLabel,                                             isReordered],
+                ["total clips",           `${uniqueScenes.length}`,                                     uniqueScenes.length > 0],
+                ["duplicate clips found", duplicateCount > 0 ? `yes — ${duplicateCount} removed` : "no", duplicateCount === 0],
+                ["duplicate clips removed", `${duplicateCount}`,                                         duplicateCount === 0],
+              ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+                <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                  <span className="text-white/40">{label}</span>
+                  <span className={`font-bold ${ok === null ? "text-white/25" : ok ? "text-green-400" : "text-amber-400"}`}>{val}</span>
+                </div>
+              ))}
               <div className="flex items-start justify-between gap-2 text-[11px] font-mono">
-                <span className="text-white/40 shrink-0">scene order</span>
+                <span className="text-white/40 shrink-0">final scene order</span>
                 <span className="font-bold text-white/70 text-right break-words leading-snug">{orderDisplay}</span>
               </div>
               <div className="flex items-center justify-between gap-2 text-[11px] font-mono">

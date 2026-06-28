@@ -867,6 +867,7 @@ export function ExportSection({
         }))}
         syncMode={settings.musicStudio.videoAudio.syncMode}
         clipEdits={settings.clips}
+        selectedLipSyncSceneId={settings.lipSync.selectedSceneId}
       />
     </div>
   );
