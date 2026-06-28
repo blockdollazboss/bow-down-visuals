@@ -965,15 +965,30 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
     const safeAudioStartSec    = typeof audioStartSec    === "number" && audioStartSec    > 0 ? audioStartSec    : 0;
     const safeClipVideoOffset  = typeof clipVideoOffsetSec === "number" ? clipVideoOffsetSec : 0;
 
-    /* Build per-input offset args that match the master player's loadClipWithOffset logic:
-       - Positive offset: video is delayed (audio starts, video plays N seconds later)
-         → -itsoffset N before the video input shifts the video stream forward in time.
-       - Negative offset: video is advanced (video seeks ahead |N| seconds)
-         → -ss |N| before the video input skips into the video. */
+    /* Apply the master-player lip sync offset to the export.
+       The player's loadClipWithOffset semantics:
+         +N (positive) → video plays N seconds LATER than audio (mouth is late)
+         -N (negative) → video plays N seconds EARLIER than audio (mouth is early,
+                          achieved by seeking |N| seconds into the video)
+
+       We avoid -itsoffset (unreliable across FFmpeg versions) and instead:
+         +N → shift the audio start point back by N seconds so audio leads video by N
+              (equivalent: video appears N seconds late relative to audio, not reversed)
+         -N → seek |N| seconds into the video so video content is |N| seconds ahead of audio
+
+       Neither case applies the offset twice — the video input is not touched for +N,
+       and the audio start is not touched for -N. */
     const videoInputArgs: string[] = [];
+    // effectiveAudioStartSec starts at the scene's position; may be adjusted for +offset
+    let effectiveAudioStartSec = safeAudioStartSec;
+
     if (safeClipVideoOffset > 0) {
-      videoInputArgs.push("-itsoffset", safeClipVideoOffset.toFixed(3));
+      // Positive offset: audio must lead video by N seconds.
+      // Pull audio start back by N so audio has a N-second head start over video.
+      effectiveAudioStartSec = Math.max(0, safeAudioStartSec - safeClipVideoOffset);
     } else if (safeClipVideoOffset < 0) {
+      // Negative offset: video must lead audio by |N| seconds.
+      // Skip |N| seconds into the video so it's |N| seconds ahead at output time 0.
       videoInputArgs.push("-ss", Math.abs(safeClipVideoOffset).toFixed(3));
     }
 
@@ -981,8 +996,8 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
     const args = [
       ...videoInputArgs,
       "-i", session.videoPath,
-      /* Audio seek: start at the scene's position in the project audio */
-      ...(safeAudioStartSec > 0 ? ["-ss", String(safeAudioStartSec.toFixed(3))] : []),
+      /* Audio seek: scene position in project audio (adjusted for lip sync offset) */
+      ...(effectiveAudioStartSec > 0 ? ["-ss", String(effectiveAudioStartSec.toFixed(3))] : []),
       "-i", audioPath,
       /* Duration limit: 3s for standard test; unlimited for full lip sync export */
       ...(fullDuration ? [] : ["-t", "3"]),
@@ -1005,7 +1020,7 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
       "-y", outputPath,
     ];
 
-    req.log.info({ doctorId, audioStartSec: safeAudioStartSec, clipVideoOffsetSec: safeClipVideoOffset, fullDuration }, "EXPORT DOCTOR scene + audio export");
+    req.log.info({ doctorId, audioStartSec: safeAudioStartSec, effectiveAudioStartSec, clipVideoOffsetSec: safeClipVideoOffset, fullDuration }, "EXPORT DOCTOR scene + audio export");
     try {
       await execFileAsync("ffmpeg", args, { timeout: 120_000 });
     } catch (e) {

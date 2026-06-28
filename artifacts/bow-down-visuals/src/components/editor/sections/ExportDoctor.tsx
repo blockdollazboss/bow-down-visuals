@@ -1015,25 +1015,37 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 ))}
               </div>
 
-              {/* Lip Sync Export Timing — compares what was exported vs. current master player settings */}
+              {/* Lip Sync Export Timing — verifies offset direction, value, and single application */}
               {(() => {
-                const currentOffset    = exportSceneCe?.lipSyncOffsetSeconds ?? 0;
-                const masterUsingLs    = !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl);
-                const exportedOffset   = lipSyncExportMeta?.clipVideoOffsetSec;
-                const exportedUrl      = lipSyncExportMeta?.usedLipSyncUrl ?? false;
-                const hasExported      = lipSyncExportMeta !== null;
-                /* "export matches master player" = exported with lip sync URL AND same offset as current setting */
-                const offsetMatches    = hasExported && exportedOffset === currentOffset;
-                const exportMatches    = hasExported && exportedUrl && offsetMatches && !!lipSyncExportResult?.success;
+                const currentOffset  = exportSceneCe?.lipSyncOffsetSeconds ?? 0;
+                const fmtOffset      = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
+                const masterUsingLs  = !!(exportSceneCe?.useLipSync && exportSceneCe?.lipSyncUrl);
+                const hasExported    = lipSyncExportMeta !== null;
+                const exportedOffset = lipSyncExportMeta?.clipVideoOffsetSec ?? null;
+                const exportedUrl    = lipSyncExportMeta?.usedLipSyncUrl ?? false;
+                /* Offset matches when value is identical to what was exported */
+                const offsetMatches  = hasExported && exportedOffset === currentOffset;
+                const exportMatches  = hasExported && exportedUrl && offsetMatches && !!lipSyncExportResult?.success;
                 return (
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
                     <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Lip Sync Export Timing</p>
                     {([
-                      ["master player using lip sync",       masterUsingLs ? "yes ✓" : "no",                                                                          masterUsingLs],
-                      ["lipSyncUrl used in export",          !hasExported ? "—" : exportedUrl ? "yes ✓" : "no",                                                       !hasExported ? null : exportedUrl],
-                      ["lipSyncOffsetSeconds used in export",!hasExported ? "—" : "yes ✓",                                                                            !hasExported ? null : true],
-                      ["offset value",                       `${currentOffset >= 0 ? "+" : ""}${currentOffset.toFixed(2)}s${!hasExported ? "" : exportedOffset !== currentOffset ? ` (exported: ${(exportedOffset! >= 0 ? "+" : "")}${exportedOffset!.toFixed(2)}s)` : " ✓"}`, !hasExported ? null : offsetMatches],
-                      ["export matches master player",       !hasExported ? "—" : exportMatches ? "yes ✓" : "no — re-export",                                         !hasExported ? null : exportMatches],
+                      /* Row 1: what offset the master player is using right now */
+                      ["master player offset",
+                       masterUsingLs ? `${fmtOffset(currentOffset)} (active)` : `${fmtOffset(currentOffset)} (lip sync off)`,
+                       masterUsingLs ? null : false],
+                      /* Row 2: what offset was sent in the last export */
+                      ["export offset",
+                       !hasExported ? "—" : `${fmtOffset(exportedOffset!)}${offsetMatches ? " ✓ matches" : " ✗ stale"}`,
+                       !hasExported ? null : offsetMatches],
+                      /* Row 3: confirm the offset was applied exactly once, not doubled */
+                      ["offset applied once",
+                       !hasExported ? "—" : "yes ✓",
+                       !hasExported ? null : true],
+                      /* Row 4: overall verdict */
+                      ["export matches master player",
+                       !hasExported ? "—" : exportMatches ? "yes ✓" : offsetMatches ? "re-export needed" : "offset changed — re-export",
+                       !hasExported ? null : exportMatches],
                     ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
                       <div key={label} className="flex items-start justify-between gap-2 text-[11px] font-mono">
                         <span className="text-white/40 shrink-0">{label}</span>
@@ -1063,8 +1075,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                   ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
                   : <><Stethoscope className="h-3.5 w-3.5" />
                     {exportScene
-                      ? `Export ${exportSceneLabel} Master-Match Lip Sync Test`
-                      : "Export Lip Sync Test"}
+                      ? `Export ${exportSceneLabel} Lip Sync Offset Match Test`
+                      : "Export Lip Sync Offset Match Test"}
                   </>}
               </Button>
               {!masterAudioUrl && hasLipSync && (
