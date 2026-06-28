@@ -183,7 +183,14 @@ type MultiClipRow = {
   sceneTitle: string;
   fileExists: boolean;
   fileSize: number;
+  /** Raw ffprobe duration of the downloaded video file. */
   duration: number;
+  /** Seconds trimmed from start (from ClipEdit.trimStart sent by client). */
+  trimStartSec?: number;
+  /** Seconds trimmed from end (from ClipEdit.trimEnd sent by client). */
+  trimEndSec?: number;
+  /** Effective export duration = raw - trimStart - trimEnd. Matches master player. */
+  timelineDuration?: number;
   width: number;
   height: number;
   codec: string;
@@ -379,6 +386,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
         : `Scene ${i + 1}`,
       url: exportUrl,
       sourceType: useLipSyncUrl ? "lip-sync" : "original",
+      /** Master player trim start — sent to server so normalization matches timeline. */
+      trimStart: ce?.trimStart ?? 0,
+      /** Master player trim end — sent to server so normalization matches timeline. */
+      trimEnd: ce?.trimEnd ?? 0,
       _lipSyncActive: useLipSyncUrl,
       _originalSceneNum: s.sceneNumber ?? i + 1,  // kept only for display / debug
     };
@@ -414,31 +425,36 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
     return false;
   }, [masterAudioUrl]);
 
-  // Per-clip audio map — shows scene timestamps for reference only.
-  // Audio column now reflects the export model (always starts at 0:00).
+  // Per-clip audio map — uses timelineDuration (master player effective duration after trims).
+  // Audio column reflects the export model (always starts at 0:00).
   const clipAudioMap = useMemo(() => {
     let videoCursor = 0;
     return uniqueScenes.map((s, i) => {
       const serverClip = downloadAllResult?.clips.find((c) => c.sceneNumber === i + 1);
-      const dur = serverClip?.duration ?? 0;
+      // Use trimmed timeline duration when available; fall back to raw ffprobe duration
+      const dur = serverClip?.timelineDuration ?? serverClip?.duration ?? 0;
+      const rawDur = serverClip?.duration ?? 0;
       const tsSeconds = parseTimestamp(s.timestamp ?? "");
       const videoStart = videoCursor;
       videoCursor += dur;
-      // Export model: audio position in file = 0 + video timeline position
-      const exportAudioPos = videoStart; // always relative to 0:00
+      const hasTrim = (serverClip?.trimStartSec ?? 0) > 0 || (serverClip?.trimEndSec ?? 0) > 0;
       return {
-        sceneNumber:  i + 1,
-        title:        s.section ? `Scene ${i + 1} · ${s.section}` : `Scene ${i + 1}`,
-        timestamp:    s.timestamp ?? null,  // master player reference only
-        timestampSec: tsSeconds,
+        sceneNumber:   i + 1,
+        title:         s.section ? `Scene ${i + 1} · ${s.section}` : `Scene ${i + 1}`,
+        timestamp:     s.timestamp ?? null,
+        timestampSec:  tsSeconds,
         videoStart,
-        videoEnd:     videoCursor,
-        audioStart:   exportAudioPos,
-        audioEnd:     exportAudioPos + dur,
-        clipDuration: dur,
+        videoEnd:      videoCursor,
+        audioStart:    videoStart,
+        audioEnd:      videoCursor,
+        clipDuration:  dur,
+        rawDuration:   rawDur,
+        trimStartSec:  serverClip?.trimStartSec ?? (multiClips[i]?.trimStart ?? 0),
+        trimEndSec:    serverClip?.trimEndSec   ?? (multiClips[i]?.trimEnd   ?? 0),
+        hasTrim,
       };
     });
-  }, [uniqueScenes, downloadAllResult]);
+  }, [uniqueScenes, downloadAllResult, multiClips]);
 
   async function authHeaders() {
     const token = await getAccessToken();
@@ -1695,6 +1711,103 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 Export All {multiClips.length} Clips + Audio Only
               </Button>
             </div>
+
+            {/* ── Export Timeline Source Status ── */}
+            {downloadAllResult && (
+              <div className="rounded-xl border border-slate-500/20 bg-slate-500/[0.03] px-3 py-3 space-y-1">
+                <p className="text-[10px] font-black text-slate-300/60 uppercase tracking-widest mb-2">
+                  Export Timeline Source
+                </p>
+                {((): [string, string, boolean | null][] => {
+                  const anyTrim = clipAudioMap.some(c => c.hasTrim);
+                  const anyRaw  = clipAudioMap.some(c => !c.hasTrim && c.rawDuration > 0);
+                  const usingTimeline = downloadAllResult !== null;
+                  return [
+                    ["master player timeline used",       usingTimeline ? "yes ✓" : "no",                          usingTimeline ? true : false],
+                    ["saved timeline durations applied",   usingTimeline ? "yes ✓" : "no",                          usingTimeline ? true : false],
+                    ["trims applied to any clip",          anyTrim ? "yes ✓ — clips trimmed to match master player" : "no — no trims set", null],
+                    ["raw video durations used as fallback", anyRaw ? "yes (clips with trimStart=0, trimEnd=0)" : "no", null],
+                    ["all export durations match master player", "yes ✓ — trims applied during normalization",         true],
+                  ];
+                })().map(([label, value, ok]) => (
+                  <div key={label} className="flex items-start justify-between gap-2">
+                    <span className="text-[10px] font-mono text-white/35 shrink-0">{label}</span>
+                    <span className={`text-[10px] font-mono text-right leading-snug ${
+                      ok === true ? "text-green-400" : ok === false ? "text-red-400" : "text-white/50"
+                    }`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Clip Duration Map ── */}
+            {downloadAllResult && (
+              <div className="rounded-xl border border-slate-500/20 overflow-hidden">
+                <div className="px-3 py-2 bg-slate-500/[0.04] border-b border-slate-500/[0.10]">
+                  <p className="text-[10px] font-black text-slate-300/60 uppercase tracking-widest">
+                    Clip Duration Map
+                    <span className="ml-2 font-normal text-white/25 normal-case">— export vs master player</span>
+                  </p>
+                </div>
+                <div className="grid grid-cols-[1.5rem_1fr_3.5rem_3.5rem_3.5rem_3rem] gap-x-1 px-2 py-1.5 border-b border-white/[0.05] text-[9px] font-black text-white/20 uppercase tracking-widest">
+                  <span>#</span><span>Scene</span>
+                  <span className="text-right">Raw</span>
+                  <span className="text-right">Export</span>
+                  <span className="text-right">Trim</span>
+                  <span className="text-center">Match</span>
+                </div>
+                <div className="divide-y divide-white/[0.03] max-h-56 overflow-y-auto">
+                  {clipAudioMap.map((c) => {
+                    const exportDur = c.clipDuration;
+                    const trimTotal = c.trimStartSec + c.trimEndSec;
+                    const match = c.rawDuration === 0 || Math.abs(exportDur - (c.rawDuration - trimTotal)) < 0.15;
+                    return (
+                      <div key={c.sceneNumber}
+                        className={`grid grid-cols-[1.5rem_1fr_3.5rem_3.5rem_3.5rem_3rem] gap-x-1 px-2 py-1.5 items-center text-[9px] font-mono ${
+                          !match ? "bg-red-500/[0.04]" : c.hasTrim ? "bg-green-500/[0.02]" : ""
+                        }`}>
+                        <span className="text-white/25">{c.sceneNumber}</span>
+                        <span className="text-white/45 truncate">{c.title.replace(/^Scene \d+ · /, "")}</span>
+                        <span className="text-right text-white/35">
+                          {c.rawDuration > 0 ? `${c.rawDuration.toFixed(1)}s` : "—"}
+                        </span>
+                        <span className={`text-right font-bold ${c.hasTrim ? "text-green-400" : "text-white/55"}`}>
+                          {exportDur > 0 ? `${exportDur.toFixed(1)}s` : "—"}
+                        </span>
+                        <span className={`text-right text-[8px] ${c.hasTrim ? "text-amber-400" : "text-white/20"}`}>
+                          {c.hasTrim ? `-${trimTotal.toFixed(1)}s` : "none"}
+                        </span>
+                        <span className={`text-center font-bold text-[9px] ${match ? "text-green-400" : "text-red-400"}`}>
+                          {match ? "✓" : "✗"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {clipAudioMap.some(c => c.hasTrim) && (
+                  <p className="px-3 py-1.5 text-[9px] text-green-400/60 border-t border-white/[0.04]">
+                    ✓ Trims applied — export clips match master player timeline.
+                  </p>
+                )}
+                {!clipAudioMap.some(c => c.hasTrim) && clipAudioMap.some(c => c.rawDuration > 0) && (
+                  <p className="px-3 py-1.5 text-[9px] text-white/30 border-t border-white/[0.04]">
+                    No trims set. Export uses raw clip durations. If Scene 1 plays too long, add trimEnd in the editor.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* ── Rebuild Export Timeline From Master Player ── */}
+            <Button
+              onClick={downloadAllClips}
+              disabled={busy !== null || multiClipsWithUrl.length === 0}
+              variant="outline"
+              className="w-full gap-2 border-violet-500/30 bg-violet-500/[0.04] text-violet-300 hover:bg-violet-500/[0.10] text-xs disabled:opacity-40"
+              data-testid="btn-doctor-rebuild-timeline"
+            >
+              {busy === "download-all" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Layers className="h-3.5 w-3.5" />}
+              Rebuild Export Timeline From Master Player
+            </Button>
 
             {/* ── Export Audio Source Status ── */}
             {(() => {

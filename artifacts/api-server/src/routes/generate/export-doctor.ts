@@ -104,7 +104,15 @@ interface DoctorClipFile {
   localPath: string;
   fileExists: boolean;
   fileSize: number;
+  /** Raw duration from ffprobe — the full video file length. */
   duration: number;
+  /** Seconds trimmed from the start (from master player ClipEdit). */
+  trimStartSec: number;
+  /** Seconds trimmed from the end (from master player ClipEdit). */
+  trimEndSec: number;
+  /** Effective clip duration after applying trims: duration - trimStart - trimEnd.
+   *  This is what the master player shows and what the export will use. */
+  timelineDuration: number;
   width: number;
   height: number;
   codec: string;
@@ -145,10 +153,23 @@ const MULTI_TARGET_W = 1080;
 const MULTI_TARGET_H = 1920;
 const MULTI_TARGET_FPS = 30;
 
-/** Normalize one clip to 1080x1920@30 so every clip is concat-compatible. */
-async function normalizeMultiClip(input: string, output: string): Promise<void> {
-  const args = [
-    "-i", input,
+/** Normalize one clip to 1080x1920@30 so every clip is concat-compatible.
+ *  @param trimStartSec  Seconds to skip from the start of the raw video (master player trimStart).
+ *  @param timelineDur   Output duration in seconds after trimming (master player effective duration).
+ *                       When null, the full remaining video is used (no end trim). */
+async function normalizeMultiClip(
+  input: string,
+  output: string,
+  trimStartSec = 0,
+  timelineDur: number | null = null,
+): Promise<void> {
+  const args: string[] = [];
+  // Input seek: fast demuxer-level seek to the trim start point.
+  if (trimStartSec > 0.01) args.push("-ss", trimStartSec.toFixed(3));
+  args.push("-i", input);
+  // Output duration limit: stops at master player clip end point.
+  if (timelineDur !== null && timelineDur > 0.05) args.push("-t", timelineDur.toFixed(3));
+  args.push(
     "-vf", [
       `scale=${MULTI_TARGET_W}:${MULTI_TARGET_H}:force_original_aspect_ratio=decrease`,
       `pad=${MULTI_TARGET_W}:${MULTI_TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
@@ -163,7 +184,7 @@ async function normalizeMultiClip(input: string, output: string): Promise<void> 
     "-an",
     "-movflags", "+faststart",
     "-y", output,
-  ];
+  );
   await execFileAsync("ffmpeg", args, { timeout: 120_000 });
 }
 
@@ -183,12 +204,15 @@ function multiClipsBlocker(session: DoctorMultiSession): string | null {
   return null;
 }
 
-/** Normalize all clips in scene order; throws with the failing scene number. */
+/** Normalize all clips in scene order applying master player trims.
+ *  Uses each clip's trimStartSec + timelineDuration so the export matches the master player. */
 async function normalizeAllClips(session: DoctorMultiSession): Promise<string[]> {
   const normPaths: string[] = [];
   for (const c of session.clips) {
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
-    await normalizeMultiClip(c.localPath, np);
+    const trimStart  = c.trimStartSec  ?? 0;
+    const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
+    await normalizeMultiClip(c.localPath, np, trimStart, timelineDur);
     if (!existsSync(np) || statSync(np).size < 1024) {
       throw new Error(`Scene ${c.sceneNumber} failed to normalize — output missing or empty.`);
     }
@@ -1178,7 +1202,15 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
   try {
     const { projectId, clips } = req.body as {
       projectId?: string;
-      clips?: Array<{ sceneNumber?: number; title?: string; url?: string | null }>;
+      clips?: Array<{
+        sceneNumber?: number;
+        title?: string;
+        url?: string | null;
+        /** Seconds to trim from the start (from master player ClipEdit.trimStart). */
+        trimStart?: number;
+        /** Seconds to trim from the end (from master player ClipEdit.trimEnd). */
+        trimEnd?: number;
+      }>;
     };
     if (!Array.isArray(clips) || clips.length === 0) {
       res.status(400).json({ error: "No scenes were provided. Each scene needs a demoClipUrl / master player source." });
@@ -1199,6 +1231,8 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
     for (let idx = 0; idx < orderedClips.length; idx++) {
       const c = orderedClips[idx]!;
       const sceneNumber = c.sceneNumber ?? idx + 1;
+      const trimStart = Math.max(0, c.trimStart ?? 0);
+      const trimEnd   = Math.max(0, c.trimEnd   ?? 0);
       const entry: DoctorClipFile = {
         sceneNumber,
         sceneTitle: c.title ?? `Scene ${sceneNumber}`,
@@ -1207,6 +1241,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         fileExists: false,
         fileSize: 0,
         duration: 0,
+        trimStartSec: trimStart,
+        trimEndSec: trimEnd,
+        timelineDuration: 0, // filled after ffprobe
         width: 0,
         height: 0,
         codec: "",
@@ -1259,6 +1296,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         if (!probe.hasVideo) throw new Error(`ffprobe found no video stream: ${probe.error ?? "unknown"}`);
         if (!probe.valid) throw new Error(`ffprobe invalid: ${probe.error ?? "unknown"}`);
         entry.ffprobeValid = true;
+        // Compute timeline duration = raw - trimStart - trimEnd; floor at 0.5s
+        const totalTrim = entry.trimStartSec + entry.trimEndSec;
+        entry.timelineDuration = Math.max(0.5, probe.duration - totalTrim);
       } catch (e) {
         entry.error = e instanceof Error ? e.message : String(e);
         entry.ffprobeValid = false;
@@ -1297,6 +1337,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
         fileExists: r.fileExists,
         fileSize: r.fileSize,
         duration: r.duration,
+        trimStartSec: r.trimStartSec,
+        trimEndSec: r.trimEndSec,
+        timelineDuration: r.timelineDuration,
         width: r.width,
         height: r.height,
         codec: r.codec,
@@ -1455,17 +1498,20 @@ router.post("/export-doctor/export-all-audio", requireAuth, async (req, res) => 
       return;
     }
 
-    // Build per-clip timeline map using ffprobe durations stored during download
+    // Build per-clip timeline map using master-player timeline durations (post-trim)
     const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
     let timelineCursor = 0;
     const clipTimeline = session.clips.map((c) => {
       const start = timelineCursor;
-      const dur   = c.duration ?? 0;
+      const dur   = c.timelineDuration > 0 ? c.timelineDuration : c.duration;
       timelineCursor += dur;
       return {
         sceneNumber: c.sceneNumber,
         title: c.sceneTitle,
         clipDuration: dur,
+        rawDuration: c.duration,
+        trimStartSec: c.trimStartSec,
+        trimEndSec: c.trimEndSec,
         timelineStartSec: start,
         timelineEndSec: timelineCursor,
       };
@@ -1582,17 +1628,20 @@ router.post("/export-doctor/export-audio-sync-diagnostic", requireAuth, async (r
 
     const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
 
-    // Per-clip timeline map with lip sync offset info
+    // Per-clip timeline map with lip sync offset info (uses master-player timeline durations)
     let cursor = 0;
     const clipTimeline = session.clips.map((c) => {
       const start = cursor;
-      const dur   = c.duration ?? 0;
+      const dur   = c.timelineDuration > 0 ? c.timelineDuration : c.duration;
       cursor += dur;
       const ce = clipEdits?.[`scene-${c.sceneNumber}`] ?? clipEdits?.[String(c.sceneNumber)] ?? null;
       return {
         sceneNumber: c.sceneNumber,
         title: c.sceneTitle,
         clipDuration: dur,
+        rawDuration: c.duration,
+        trimStartSec: c.trimStartSec,
+        trimEndSec: c.trimEndSec,
         timelineStartSec: start,
         timelineEndSec: cursor,
         sourceType: ce?.useLipSync ? "lip-sync" : "original",
@@ -1728,16 +1777,19 @@ router.post("/export-doctor/export-audio-sync-short", requireAuth, async (req, r
     const resolvedAudioStart = Math.max(0, audioStartSec ?? 0);
     const testDuration = Math.max(5, Math.min(60, durationSec ?? 20));
 
-    // Per-clip timeline map
+    // Per-clip timeline map (uses master-player timeline durations)
     let cursor = 0;
     const clipTimeline = session.clips.map((c) => {
       const start = cursor;
-      const dur   = c.duration ?? 0;
+      const dur   = c.timelineDuration > 0 ? c.timelineDuration : c.duration;
       cursor += dur;
       return {
         sceneNumber: c.sceneNumber,
         title: c.sceneTitle,
         clipDuration: dur,
+        rawDuration: c.duration,
+        trimStartSec: c.trimStartSec,
+        trimEndSec: c.trimEndSec,
         timelineStartSec: start,
         timelineEndSec: cursor,
       };
