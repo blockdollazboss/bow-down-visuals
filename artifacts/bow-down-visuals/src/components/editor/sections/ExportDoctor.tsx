@@ -587,9 +587,8 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
        does in the player (positive = delay video, negative = advance video). */
     const clipVideoOffsetSec = lipSyncCe.lipSyncOffsetSeconds ?? 0;
 
-    /* Determine scene label for the meta record */
-    const sceneIdx = uniqueScenes.indexOf(lipSyncScene);
-    const metaSceneLabel = `Scene ${sceneIdx + 1}${lipSyncScene.section ? ` — ${lipSyncScene.section}` : ""}`;
+    /* Determine scene label for the meta record — use sceneNumber, NOT position in uniqueScenes. */
+    const metaSceneLabel = `Scene ${lipSyncScene.sceneNumber}${lipSyncScene.section ? ` — ${lipSyncScene.section}` : ""}`;
 
     setBusy("lip-sync-preview");
     setLipSyncLastError(null);
@@ -957,18 +956,21 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
             return lipSyncScenes[0] ?? null;
           })();
           const exportSceneCe  = exportScene ? clipEdits?.[exportScene.id] : null;
-          const exportScenePos = exportScene ? uniqueScenes.indexOf(exportScene) + 1 : null;
+          /* Use scene.sceneNumber — NOT uniqueScenes.indexOf() — so Scene 4 stays Scene 4. */
           const exportSceneLabel = exportScene
-            ? `Scene ${exportScenePos}${exportScene.section ? ` — ${exportScene.section}` : ""}`
+            ? `Scene ${exportScene.sceneNumber}${exportScene.section ? ` — ${exportScene.section}` : ""}`
             : "—";
+          /* Mismatch: Lip Sync tab selected a scene, but Export Doctor had to fall back to another. */
+          const sceneMismatch = !!selectedLipSyncSceneId && !!exportScene && exportScene.id !== selectedLipSyncSceneId;
+          const fmtOff = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
 
-          /* Per-scene clip source summary for all deduplicated scenes */
-          const lipSyncSummaryRows = uniqueScenes.map((s, i) => {
+          /* Per-scene clip source summary — use s.sceneNumber, not loop index */
+          const lipSyncSummaryRows = uniqueScenes.map((s) => {
             const ce = clipEdits?.[s.id];
             const active = !!(ce?.useLipSync && ce.lipSyncUrl);
             const isSel = s.id === selectedLipSyncSceneId;
             return {
-              label:  `Scene ${i + 1}${s.section ? ` · ${s.section}` : ""}${isSel ? " ◀ selected" : ""}`,
+              label:  `Scene ${s.sceneNumber}${s.section ? ` · ${s.section}` : ""}${isSel ? " ◀ selected" : ""}`,
               source: active ? "lip sync ✓" : "original clip",
               ok:     active as boolean | null,
             };
@@ -992,7 +994,36 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 ))}
               </div>
 
-              {/* Export check status */}
+              {/* ── Lip Sync Export Selection (identity check) ── */}
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
+                <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Lip Sync Export Selection</p>
+                {([
+                  ["selected scene label",   exportSceneLabel,                                                               !!exportScene],
+                  ["selected scene number",  exportScene ? String(exportScene.sceneNumber) : "—",                           !!exportScene],
+                  ["selected clipId",        exportScene?.clipId ?? "—",                                                    !!exportScene?.clipId],
+                  ["selected sceneId",       exportScene ? exportScene.id.slice(0, 14) + "…" : "—",                        !!exportScene],
+                  ["timeline index",         exportScene ? String(scenes.findIndex(s => s.id === exportScene.id) + 1) : "—", !!exportScene],
+                  ["lipSyncUrl exists",      exportSceneCe?.lipSyncUrl ? "yes ✓" : "no",                                   !!exportSceneCe?.lipSyncUrl],
+                  ["useLipSync",             exportSceneCe?.useLipSync ? "yes ✓" : "no",                                   exportSceneCe?.useLipSync ?? false],
+                  ["master player offset",   fmtOff(exportSceneCe?.lipSyncOffsetSeconds ?? 0),                             null],
+                  ["export offset",          lipSyncExportMeta ? fmtOff(lipSyncExportMeta.clipVideoOffsetSec) : "—",       null],
+                ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+                  <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                    <span className="text-white/40">{label}</span>
+                    <span className={`font-bold truncate max-w-[55%] text-right ${ok === null ? "text-white/60" : ok ? "text-green-400" : "text-red-400"}`}>{val}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Mismatch warning ── */}
+              {sceneMismatch && (
+                <div className="flex items-start gap-2 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/[0.07] text-red-400 text-[10px] font-semibold mb-3">
+                  <span className="shrink-0 mt-px">✗</span>
+                  Selected scene mismatch — do not export yet. The Lip Sync tab selected a different scene than what Export Doctor can find with useLipSync=true.
+                </div>
+              )}
+
+              {/* ── Export check status ── */}
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-1.5 mb-3">
                 <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Lip Sync Export Check</p>
                 {([
@@ -1063,10 +1094,10 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                 </div>
               )}
 
-              {/* Button — does NOT require multiId; targets the selected lip sync scene */}
+              {/* Button — targets the selected lip sync scene; blocked on mismatch */}
               <Button
                 onClick={exportLipSyncPreview}
-                disabled={busy !== null || !hasLipSync || !masterAudioUrl}
+                disabled={busy !== null || !hasLipSync || !masterAudioUrl || sceneMismatch}
                 variant="outline"
                 className="w-full gap-2 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10 text-xs disabled:opacity-40"
                 data-testid="btn-doctor-lip-sync-preview"
@@ -1076,7 +1107,7 @@ export function ExportDoctor({ scenes, projectId, masterAudioUrl, captions, effe
                   : <><Stethoscope className="h-3.5 w-3.5" />
                     {exportScene
                       ? `Export ${exportSceneLabel} Lip Sync Offset Match Test`
-                      : "Export Lip Sync Offset Match Test"}
+                      : "Export Selected Lip Sync Scene Offset Match Test"}
                   </>}
               </Button>
               {!masterAudioUrl && hasLipSync && (
