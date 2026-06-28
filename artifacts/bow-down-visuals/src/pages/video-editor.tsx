@@ -1106,6 +1106,7 @@ export default function VideoEditor() {
                 scenes={scenes}
                 settings={settings}
                 setSettings={setSettings}
+                setScenes={setScenes}
                 currentTime={previewEngineState?.currentTime ?? 0}
                 audioDuration={previewEngineState?.audioDuration ?? null}
                 isPlaying={previewEngineState?.isPlaying ?? false}
