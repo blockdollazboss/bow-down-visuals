@@ -105,6 +105,11 @@ interface AccountCheckResult {
 /** Sync Labs plan limit in seconds (kept in sync with backend PROVIDER_LIMIT_SEC) */
 const PROVIDER_LIMIT_SEC = 20;
 
+/** Preset offsets for the Auto AI Lip Sync Timing calibrator (seconds).
+ *  Mouth Early → step toward +0.25  /  Mouth Late → step toward −0.25. */
+const AUTO_FIX_OFFSETS: number[] =
+  [-0.25, -0.20, -0.15, -0.10, -0.05, 0.00, 0.05, 0.10, 0.15, 0.20, 0.25];
+
 /** Parse "M:SS" or "MM:SS" → total seconds */
 function parseTimePart(s: string): number {
   const parts = s.trim().split(":").map(Number);
@@ -316,6 +321,11 @@ export function LipSyncSection({
   /* ── Auto AI Lip Sync workflow state ── */
   const [autoAiMessage, setAutoAiMessage] = useState<string | null>(null);
   const [autoAiOk,      setAutoAiOk]      = useState<boolean | null>(null);
+  /* ── Auto AI Lip Sync Timing calibration ── */
+  const [autoFixActive, setAutoFixActive] = useState(false);
+  /** Index into AUTO_FIX_OFFSETS for the currently-testing preset (default 5 = 0.00s). */
+  const [autoFixIdx,    setAutoFixIdx]    = useState(5);
+  const [timingLocked,  setTimingLocked]  = useState(false);
   const fineTuneRef = useRef<HTMLDivElement | null>(null);
 
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2660,6 +2670,189 @@ export function LipSyncSection({
                     </p>
                   </div>
                 )}
+
+                {/* ══════════════════════════════════════════════════════
+                    AUTO AI LIP SYNC TIMING
+                    Placed directly between the offset controls and the
+                    preview button so it's immediately visible.
+                ════════════════════════════════════════════════════════ */}
+                {selectedClipEdit.lipSyncUrl && (() => {
+                  const curOffset  = selectedClipEdit.lipSyncOffsetSeconds ?? 0;
+                  const testOffset = AUTO_FIX_OFFSETS[autoFixIdx] ?? 0;
+                  const fmtOff     = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
+                  const masterUsingOffset =
+                    !!selectedClipEdit.useLipSync && curOffset !== 0;
+                  return (
+                    <div className="rounded-xl border border-violet-500/30 bg-violet-500/[0.04] px-3 py-3 space-y-3">
+
+                      {/* ── Header ── */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Sliders className="h-3.5 w-3.5 text-violet-400" />
+                          <p className="text-[11px] font-black text-white/85 uppercase tracking-widest">
+                            Auto AI Lip Sync Timing
+                          </p>
+                        </div>
+                        {timingLocked && (
+                          <span className="text-[9px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                            locked ✓
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ── Safety note ── */}
+                      <p className="text-[9px] text-violet-300/60 leading-relaxed rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5">
+                        Fixes playback timing only · No new Sync.so credits will be used
+                      </p>
+
+                      {/* ── Status rows ── */}
+                      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 space-y-1.5">
+                        <p className="text-[9px] font-bold text-white/25 uppercase tracking-widest pb-0.5">
+                          Auto Lip Sync Timing
+                        </p>
+                        {([
+                          ["selected scene",
+                           selectedScene?.section ?? selectedScene?.clipId ?? "—", null],
+                          ["current offset",          fmtOff(curOffset),   null],
+                          ["testing offset",          autoFixActive ? fmtOff(testOffset) : "—", autoFixActive ? null : null],
+                          ["saved offset",            fmtOff(curOffset),   null],
+                          ["master player using offset",
+                           selectedClipEdit.useLipSync
+                             ? curOffset !== 0 ? "yes ✓" : "active (0.00s)"
+                             : "no",
+                           selectedClipEdit.useLipSync ? null : false],
+                          ["export using same offset", "yes — via Export Doctor", true],
+                          ["no Sync.so job submitted", "yes ✓",              true],
+                        ] as [string, string, boolean | null][]).map(([label, val, ok]) => (
+                          <div key={label} className="flex items-center justify-between gap-2 text-[11px] font-mono">
+                            <span className="text-white/40">{label}</span>
+                            <span className={`font-bold text-right ${ok === null ? "text-white/60" : ok ? "text-green-400" : "text-amber-400"}`}>{val}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* ── Active testing indicator ── */}
+                      {autoFixActive && (
+                        <div className="rounded-lg bg-violet-500/[0.10] border border-violet-500/25 px-3 py-2 text-center">
+                          <p className="text-[10px] font-bold text-violet-300">
+                            Testing offset {fmtOff(testOffset)}
+                          </p>
+                          <p className="text-[9px] text-violet-300/60 mt-0.5">
+                            Play the master player, then click Mouth Early, Mouth Late, or Looks Correct
+                          </p>
+                        </div>
+                      )}
+
+                      {/* ── Button 1: Auto Fix ── */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          /* Start from the preset closest to the current saved offset */
+                          const cur = selectedClipEdit.lipSyncOffsetSeconds ?? 0;
+                          const closestIdx = AUTO_FIX_OFFSETS.reduce(
+                            (best, v, i) =>
+                              Math.abs(v - cur) < Math.abs((AUTO_FIX_OFFSETS[best] ?? 0) - cur)
+                                ? i : best,
+                            5,
+                          );
+                          setAutoFixIdx(closestIdx);
+                          setAutoFixActive(true);
+                          setTimingLocked(false);
+                          /* Apply the starting preset so the master player reflects it */
+                          if (selectedScene) {
+                            updateClipEdit(selectedScene.id, {
+                              lipSyncOffsetSeconds: AUTO_FIX_OFFSETS[closestIdx] ?? 0,
+                            });
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-violet-500/40 bg-violet-500/[0.08] text-violet-300 text-[11px] font-bold hover:bg-violet-500/[0.16] transition-colors"
+                      >
+                        <Sliders className="h-3.5 w-3.5" />
+                        {autoFixActive ? "Restart Auto Fix" : "Auto Fix Lip Sync Timing"}
+                      </button>
+
+                      {/* ── Buttons 2-4: Guided response ── */}
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {/* Mouth Early: mouth opens before audio → try later offset (+) */}
+                        <button
+                          type="button"
+                          disabled={!autoFixActive || autoFixIdx >= AUTO_FIX_OFFSETS.length - 1}
+                          onClick={() => {
+                            const next = Math.min(AUTO_FIX_OFFSETS.length - 1, autoFixIdx + 1);
+                            setAutoFixIdx(next);
+                            if (selectedScene) {
+                              updateClipEdit(selectedScene.id, {
+                                lipSyncOffsetSeconds: AUTO_FIX_OFFSETS[next] ?? 0,
+                              });
+                            }
+                          }}
+                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          Mouth Early
+                        </button>
+                        {/* Mouth Late: mouth opens after audio → try earlier offset (−) */}
+                        <button
+                          type="button"
+                          disabled={!autoFixActive || autoFixIdx <= 0}
+                          onClick={() => {
+                            const next = Math.max(0, autoFixIdx - 1);
+                            setAutoFixIdx(next);
+                            if (selectedScene) {
+                              updateClipEdit(selectedScene.id, {
+                                lipSyncOffsetSeconds: AUTO_FIX_OFFSETS[next] ?? 0,
+                              });
+                            }
+                          }}
+                          className="flex items-center justify-center py-2 rounded-xl border border-amber-500/25 bg-amber-500/[0.05] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.12] hover:text-amber-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          Mouth Late
+                        </button>
+                        {/* Looks Correct: save current testing offset */}
+                        <button
+                          type="button"
+                          disabled={!autoFixActive}
+                          onClick={() => {
+                            setAutoFixActive(false);
+                            setTimingLocked(true);
+                          }}
+                          className="flex items-center justify-center py-2 rounded-xl border border-green-500/30 bg-green-500/[0.05] text-green-400/80 text-[10px] font-semibold hover:bg-green-500/[0.12] hover:text-green-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          Looks Correct
+                        </button>
+                      </div>
+
+                      {/* ── Buttons 5-6: Lock and Reset ── */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          disabled={timingLocked}
+                          onClick={() => {
+                            setAutoFixActive(false);
+                            setTimingLocked(true);
+                          }}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-green-500/35 bg-green-500/[0.06] text-green-400 text-[10px] font-bold hover:bg-green-500/[0.14] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <ShieldCheck className="h-3 w-3" /> Lock This Timing
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAutoFixActive(false);
+                            setTimingLocked(false);
+                            setAutoFixIdx(5); // back to 0.00s
+                            if (selectedScene) {
+                              updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 });
+                            }
+                          }}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-bold hover:bg-white/[0.08] hover:text-white/70 transition-colors"
+                        >
+                          <RefreshCw className="h-3 w-3" /> Reset Timing
+                        </button>
+                      </div>
+
+                    </div>
+                  );
+                })()}
 
                 {/* ── Preview + action buttons when result is available ── */}
                 {selectedClipEdit.lipSyncUrl && (
