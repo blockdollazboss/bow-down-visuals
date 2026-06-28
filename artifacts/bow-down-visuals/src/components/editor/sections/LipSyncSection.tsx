@@ -439,6 +439,7 @@ export function LipSyncSection({
         throw new Error(`Check failed: HTTP ${res.status} — ${body.slice(0, 200)}`);
       }
       const data = await res.json() as { status: string; outputUrl?: string; error?: string };
+      const normalStatus = data.status.toLowerCase();
 
       const result = {
         jobId,
@@ -448,29 +449,51 @@ export function LipSyncSection({
         checkedAt:     new Date().toISOString(),
       };
       setCheckJobResult(result);
+      setApplyError(null); // clear any stale error — result panel is the authoritative signal
 
-      if (data.status === "completed" && data.outputUrl) {
-        updateClipEdit(selectedScene.id, {
-          lipSyncUrl:       data.outputUrl,
-          lipSyncStatus:    "done",
-          lipSyncCreatedAt: new Date().toISOString(),
-          lipSyncError:     null,
-          replaceUrl:       data.outputUrl,
-        });
-      } else if (data.status === "failed") {
+      if (normalStatus === "failed") {
         updateClipEdit(selectedScene.id, {
           lipSyncStatus: "failed",
           lipSyncError:  data.error ?? "Sync.so job failed.",
         });
-        /* Do NOT setApplyError — shown in checkJobResult panel below */
+        /* Do NOT setApplyError — shown in checkJobResult panel */
       }
-      /* "processing" / "pending": leave status as-is, never mark failed.
-         Clear any stale error so the result panel is the only signal. */
+      /* "completed": do NOT auto-save — user chooses via buttons in the panel.
+         "processing" / "pending": leave status as-is, never mark failed. */
     } catch (err) {
       setApplyError(err instanceof Error ? err.message : String(err));
     } finally {
       setCheckJobLoading(false);
     }
+  }
+
+  /* ── Save completed Sync.so result to scene metadata ── */
+  function saveResultToScene(jobId: string, outputUrl: string) {
+    if (!selectedScene) return;
+    updateClipEdit(selectedScene.id, {
+      lipSyncUrl:       outputUrl,
+      lipSyncStatus:    "done",
+      lipSyncProvider:  "sync.so",
+      lipSyncJobId:     jobId,
+      lipSyncCreatedAt: new Date().toISOString(),
+      lipSyncError:     null,
+    });
+    setApplyError(null);
+  }
+
+  /* ── Apply completed result to master player (save + activate replaceUrl) ── */
+  function useResultInPlayer(jobId: string, outputUrl: string) {
+    if (!selectedScene) return;
+    updateClipEdit(selectedScene.id, {
+      lipSyncUrl:       outputUrl,
+      lipSyncStatus:    "done",
+      lipSyncProvider:  "sync.so",
+      lipSyncJobId:     jobId,
+      lipSyncCreatedAt: new Date().toISOString(),
+      lipSyncError:     null,
+      replaceUrl:       outputUrl,
+    });
+    setApplyError(null);
   }
 
   /* ── Stop tracking job locally (no API call) ── */
@@ -1689,13 +1712,27 @@ export function LipSyncSection({
                     const submittedMs  = submittedAt ? new Date(submittedAt).getTime() : null;
                     const checkedMs    = new Date(cjr.checkedAt).getTime();
                     const elapsedMin   = submittedMs != null ? Math.round((checkedMs - submittedMs) / 60_000) : null;
+                    const normalStatus = cjr.rawStatus.toLowerCase();
                     const isLongRun    = (elapsedMin ?? 0) > 10;
-                    const isProcessing = cjr.rawStatus === "processing" || cjr.rawStatus === "pending";
-                    const isCompleted  = cjr.rawStatus === "completed";
-                    const isFailed     = cjr.rawStatus === "failed";
+                    const isProcessing = normalStatus === "processing" || normalStatus === "pending";
+                    const isCompleted  = normalStatus === "completed";
+                    const isFailed     = normalStatus === "failed";
+                    const isSaved      = !!cjr.outputUrl && selectedClipEdit?.lipSyncUrl === cjr.outputUrl;
+                    const isInPlayer   = !!cjr.outputUrl && selectedClipEdit?.replaceUrl  === cjr.outputUrl;
                     return (
-                      <div className={`rounded-xl border px-3 py-3 space-y-2.5 ${isCompleted ? "border-green-500/30 bg-green-500/[0.04]" : isFailed ? "border-red-500/30 bg-red-500/[0.04]" : "border-primary/20 bg-primary/[0.03]"}`}>
-                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Last check result</p>
+                      <div className={`rounded-xl border px-3 py-3 space-y-2.5 ${isCompleted ? "border-green-500/35 bg-green-500/[0.05]" : isFailed ? "border-red-500/30 bg-red-500/[0.04]" : "border-primary/20 bg-primary/[0.03]"}`}>
+
+                        {/* ── Completed headline ── */}
+                        {isCompleted && (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                            <p className="text-[12px] font-bold text-green-300">Lip Sync Result Ready</p>
+                          </div>
+                        )}
+
+                        {!isCompleted && (
+                          <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Last check result</p>
+                        )}
 
                         {/* Status rows */}
                         <div className="space-y-1.5">
@@ -1705,9 +1742,56 @@ export function LipSyncSection({
                           <StatusRow label="processing time"   value={elapsedMin != null ? `${elapsedMin} min` : "—"}                ok={isLongRun && isProcessing ? false : null} />
                           <StatusRow label="provider status"   value={cjr.rawStatus}                                                 ok={isCompleted ? true : isFailed ? false : null} />
                           <StatusRow label="checked at"        value={fmtDate(cjr.checkedAt)}                                        ok={null} />
-                          {cjr.outputUrl   && <StatusRow label="result URL"     value="available ✓"     ok={true}  />}
+                          {isCompleted && (
+                            <>
+                              <StatusRow label="result URL available" value="yes"                ok={true} />
+                              <StatusRow label="saved to scene"       value={isSaved    ? "yes" : "no"} ok={isSaved    ? true : false} />
+                              <StatusRow label="master player using"  value={isInPlayer ? "yes" : "no"} ok={isInPlayer ? true : false} />
+                            </>
+                          )}
                           {cjr.providerError && <StatusRow label="provider error" value={cjr.providerError} ok={false} />}
                         </div>
+
+                        {/* ── Completed: not attached yet warning ── */}
+                        {isCompleted && cjr.outputUrl && !isSaved && (
+                          <div className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] text-amber-400 text-[10px] font-semibold leading-snug">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span>Completed result found but not attached yet.<br />
+                              <span className="font-normal">Use the buttons below to save it or activate it in the master player.</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {/* ── Completed: 3 main action buttons ── */}
+                        {isCompleted && cjr.outputUrl && (
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => window.open(cjr.outputUrl!, "_blank")}
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-green-500/40 bg-green-500/[0.08] text-green-300 text-[11px] font-bold hover:bg-green-500/[0.15] transition-colors"
+                            >
+                              <Play className="h-3.5 w-3.5" /> Preview Lip Sync Result
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => useResultInPlayer(cjr.jobId, cjr.outputUrl!)}
+                              disabled={isInPlayer}
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.08] text-primary text-[11px] font-bold hover:bg-primary/[0.15] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              {isInPlayer ? "Master Player Using Lip Sync ✓" : "Use Result in Master Player"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => saveResultToScene(cjr.jobId, cjr.outputUrl!)}
+                              disabled={isSaved}
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-white/60 text-[11px] font-semibold hover:bg-white/[0.08] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Save className="h-3.5 w-3.5" />
+                              {isSaved ? "Result Saved to Scene ✓" : "Save Result to Scene"}
+                            </button>
+                          </div>
+                        )}
 
                         {/* Long-running warning */}
                         {isLongRun && isProcessing && (
@@ -1729,39 +1813,22 @@ export function LipSyncSection({
                           </div>
                         )}
 
-                        {/* Completed notice */}
-                        {isCompleted && (
-                          <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-green-500/25 bg-green-500/[0.06] text-green-400 text-[10px] font-semibold">
-                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                            Result saved — see Lip Sync Result card below.
-                          </div>
-                        )}
-
-                        {/* Action buttons */}
-                        <div className="flex flex-wrap gap-2">
+                        {/* Utility buttons: always available */}
+                        <div className="flex flex-wrap gap-2 pt-1 border-t border-white/[0.05]">
                           <button
                             type="button"
                             onClick={() => { void navigator.clipboard.writeText(cjr.jobId); }}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
                           >
                             <Copy className="h-3 w-3" /> Copy Sync.so Job ID
                           </button>
                           <button
                             type="button"
                             onClick={() => window.open("https://sync.so", "_blank")}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] text-white/40 text-[10px] font-semibold hover:bg-white/[0.07] transition-colors"
                           >
                             <ExternalLink className="h-3 w-3" /> Open Sync.so Dashboard
                           </button>
-                          {isCompleted && cjr.outputUrl && (
-                            <button
-                              type="button"
-                              onClick={() => window.open(cjr.outputUrl!, "_blank")}
-                              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-green-500/30 bg-green-500/[0.06] text-green-400 text-[10px] font-semibold hover:bg-green-500/[0.12] transition-colors"
-                            >
-                              <Play className="h-3 w-3" /> Preview Lip Sync Result
-                            </button>
-                          )}
                         </div>
                       </div>
                     );
