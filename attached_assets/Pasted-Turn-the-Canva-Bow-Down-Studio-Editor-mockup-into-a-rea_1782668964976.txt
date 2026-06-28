@@ -1,0 +1,131 @@
+Turn the Canva Bow Down Studio Editor mockup into a real working website feature.
+
+Problem:
+The Bow Down Studio Editor screen looks good, but it behaves like a demo/mockup.
+I cannot click Export.
+I do not hear audio.
+I do not see real video playback.
+It looks like the design was drawn from Canva instead of connected to the real app data and backend.
+
+Do not just recreate the visual design.
+Make it functional.
+
+Do not change:
+- payments
+- credits
+- Stripe
+- Supabase auth
+- old Export Doctor
+- existing generated clips
+- existing project audio
+- existing project data
+
+Only fix/build:
+- real Bow Down Studio Editor page
+- real audio playback
+- real video playback
+- real timeline data
+- real export button
+- real export routes
+
+Requirements:
+
+1. Connect Studio Editor to the real current project.
+
+Load from database/project state:
+- project id
+- song audio URL
+- generated clips
+- clip video URLs
+- section names
+- section start/end times
+- clip durations
+- trims
+- lip sync video URL if any
+- locked timeline if already created
+
+2. The player must be real.
+
+When I click Play:
+- song audio plays
+- correct video clip displays
+- timeline playhead moves
+- timecode updates
+- current section changes
+- audio is the master clock
+- video follows audio time
+
+3. The timeline must be real.
+
+Show 12 clips from actual project data.
+Each clip must show:
+- title
+- start time
+- end time
+- video URL ready/missing
+- trim controls
+- current active state
+
+4. Clip preview must be real.
+
+When I click a clip:
+- inspector opens
+- video preview can show that clip
+- trim start/end changes affect timeline data
+- save trim changes to project/locked timeline
+
+5. Lock Timeline must be real.
+
+When clicked:
+- validate song audio exists
+- validate all 12 clip URLs exist
+- validate all timeline start/end times exist
+- save locked timeline JSON to database
+- show locked timeline id
+- enable Export
+
+6. Export button must be real.
+
+When clicked, open menu:
+- Export First 20s Test
+- Export Full Video
+
+7. Export First 20s Test must call a real backend route.
+
+It should:
+- use locked timeline JSON
+- use clips that overlap first 20 seconds
+- use full song audio from 0:00 to 20s
+- normalize/trim/pad video clips to timeline durations
+- render mp4 with ffmpeg
+- upload result
+- return download URL
+
+8. Export Full Video must call a real backend route.
+
+It should:
+- use locked timeline JSON
+- use all clips
+- add full song audio from 0:00
+- trim audio to video length
+- export final mp4
+- return download URL
+
+9. Add real readiness/debug panel:
+
+Studio Editor Connection Debug:
+- real project loaded: yes/no
+- project id
+- audio URL loaded: yes/no
+- audio can play: yes/no
+- clips loaded from database: yes/no
+- clip URLs valid count
+- locked timeline exists: yes/no
+- export route exists: yes/no
+- export button click handler attached: yes/no
+- last error
+
+10. If this page is currently only a Canva/static design, replace static demo state with real React state and real backend connections.
+
+Final goal:
+Bow Down Studio Editor should be a real working page on my website, not a Canva/demo mockup. I need to hear audio, see video playback, lock the timeline, and export a real video.
