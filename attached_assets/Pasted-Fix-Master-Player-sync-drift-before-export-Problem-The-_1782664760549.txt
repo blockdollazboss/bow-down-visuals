@@ -1,0 +1,143 @@
+Fix Master Player sync drift before export.
+
+Problem:
+The master player is not consistently in sync.
+Sometimes the audio/video is synced, sometimes it is not.
+That means the preview player itself is drifting, so export cannot be trusted yet.
+
+Do not change:
+- payments
+- credits
+- captions
+- effects
+- overlays
+- watermark
+- Sync.so
+- existing clips
+- existing project audio
+- existing video-only export
+
+Only fix:
+- master player audio/video sync
+- master player clock/timeline control
+- preview playback stability
+- locked timeline playback
+
+Core issue:
+The master player must not let video clips and audio run on separate independent clocks.
+
+Main rule:
+Use the song audio element as the single master clock.
+
+Requirements:
+
+1. The project audio must be the master clock.
+
+Every frame of video should be selected based on:
+
+currentAudioTime
+
+Do not let each video clip free-run independently without checking the audio clock.
+
+2. Build a deterministic timeline playback system.
+
+For each clip:
+- timelineStart
+- timelineEnd
+- duration
+- videoUrl
+- trimStart
+- trimEnd
+- lipSyncOffset if needed
+
+At any audio time, calculate:
+- active clip
+- local video time = currentAudioTime - clip.timelineStart + trimStart
+- corrected lip sync video time if lipSyncOffset exists
+
+3. On play:
+- start audio
+- start active video
+- seek active video to correct local time
+- keep checking sync
+
+4. Add drift correction.
+
+Every 250ms check:
+- expected video local time
+- actual video currentTime
+- drift = actual - expected
+
+If drift is greater than 0.08s:
+- seek video back to expected local time
+
+If drift is small:
+- leave it alone to avoid jitter
+
+5. On scene/clip change:
+- pause old video
+- load next video
+- seek next video to correct local time
+- play next video only after it can play
+- keep audio as the master clock
+
+6. Add visible Master Sync Debug panel:
+
+Master Player Sync:
+- audio current time
+- active scene
+- active clip index
+- expected video time
+- actual video time
+- drift amount
+- correction applied: yes/no
+- lip sync offset
+- audio is master clock: yes/no
+- video free-running: yes/no
+
+7. Add button:
+Reset Master Player Sync
+
+When clicked:
+- pause playback
+- seek audio to 0:00
+- seek active video to 0:00
+- clear drift state
+- restart from locked timeline
+
+8. Add button:
+Lock Master Timeline
+
+This should save the exact timeline used by the master player:
+- clip order
+- clip starts
+- clip ends
+- clip durations
+- trims
+- lip sync offsets
+
+9. Master player must use the locked timeline after it is created.
+
+Show:
+Master Player Source:
+- using locked timeline: yes/no
+- timeline id
+- clip count
+- audio starts at 0:00 yes/no
+
+10. Export Engine V2 should not run until master player is stable.
+
+Add status:
+Master Player Stable:
+- audio is master clock: yes/no
+- drift under 0.08s: yes/no
+- no missing clips: yes/no
+- locked timeline ready: yes/no
+
+11. Do not rely on React render timing for sync.
+Do not rely on setTimeout to guess clip timing.
+Do not let video determine the master timeline.
+The audio clock controls everything.
+
+Final goal:
+The master player must play the same way every time. Audio starts at 0:00, video clips follow the audio clock, and drift is corrected live. Once master player sync is stable, Export Engine V2 can use the same locked timeline for final export.
