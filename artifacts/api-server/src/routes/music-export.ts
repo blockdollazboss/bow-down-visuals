@@ -9,6 +9,7 @@ import {
   type AudioExportType,
   type AudioExportKind,
   type ExportStemInput,
+  type MasterBusSettings,
 } from "../lib/audioExport";
 
 const router = Router();
@@ -34,11 +35,40 @@ interface RawStem {
   durationSec?: unknown;
 }
 
+interface RawMasterSettings {
+  volume?: unknown;
+  compression?: unknown;
+  stereoWidth?: unknown;
+  bassBoost?: unknown;
+  eqTone?: unknown;
+  loudnessTarget?: unknown;
+  limiter?: unknown;
+  fadeIn?: unknown;
+  fadeOut?: unknown;
+}
+
+function parseMasterSettings(raw: unknown): MasterBusSettings | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as RawMasterSettings;
+  return {
+    volume:        Number.isFinite(Number(r.volume))      ? Number(r.volume)      : 100,
+    compression:   Number.isFinite(Number(r.compression)) ? Number(r.compression) : 0,
+    stereoWidth:   Number.isFinite(Number(r.stereoWidth)) ? Number(r.stereoWidth) : 50,
+    bassBoost:     Number.isFinite(Number(r.bassBoost))   ? Number(r.bassBoost)   : 0,
+    eqTone:        typeof r.eqTone === "string"           ? r.eqTone              : "neutral",
+    loudnessTarget: typeof r.loudnessTarget === "string"  ? r.loudnessTarget      : "streaming",
+    limiter:       r.limiter !== false,
+    fadeIn:        !!r.fadeIn,
+    fadeOut:       !!r.fadeOut,
+  };
+}
+
 router.post("/music/export", requireAuth, async (req, res) => {
-  const { exportType, stems, masterVolume } = (req.body ?? {}) as {
+  const { exportType, stems, masterVolume, masterSettings } = (req.body ?? {}) as {
     exportType?: string;
     stems?: RawStem[];
     masterVolume?: unknown;
+    masterSettings?: unknown;
   };
 
   const mapping = TYPE_MAP[exportType as AudioExportType];
@@ -99,10 +129,12 @@ router.post("/music/export", requireAuth, async (req, res) => {
 
   try {
     const mv = Number.isFinite(Number(masterVolume)) ? Number(masterVolume) : 100;
+    const parsedMaster = parseMasterSettings(masterSettings);
     const { buffer, contentType, ext } = await runMixExport({
       stems: selected,
       masterVolume: mv,
       format: mapping.format,
+      masterSettings: parsedMaster,
     });
 
     const sb = req.userSupabase!;

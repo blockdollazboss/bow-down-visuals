@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Loader2, Check, SlidersHorizontal, ListMusic, Info, Wand2 } from "lucide-react";
+import { Sparkles, Loader2, Check, SlidersHorizontal, ListMusic, Info, Wand2, Download, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +9,9 @@ import {
   applyAiMixToStems,
   type EditorSettings, type AiMixOptions, type AiMixPlan, type MixPresetId,
   type Intensity, type ReverbAmount, type AutotuneStyle, type LoudnessTarget,
+  type AudioExportRecord,
 } from "@/lib/editor-settings";
+import { requestAudioExport, buildExportRecord, AUDIO_EXPORT_BUTTONS } from "@/lib/audio-export";
 import { EditorCard, Field, Segmented, Collapsible } from "@/components/editor/controls";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -27,8 +29,11 @@ const autotuneOpts = AUTOTUNE_STYLES.map((a) => ({ value: a as AutotuneStyle, la
 export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoMixProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [generating, setGenerating]     = useState(false);
-  const [outOfCredits, setOutOfCredits] = useState(false);
+  const [generating, setGenerating]       = useState(false);
+  const [outOfCredits, setOutOfCredits]   = useState(false);
+  const [rendering, setRendering]         = useState(false);
+  const [renderError, setRenderError]     = useState<string | null>(null);
+  const [renderResult, setRenderResult]   = useState<AudioExportRecord | null>(null);
 
   const ms = settings.musicStudio;
   const opts = ms.aiMix;
@@ -52,6 +57,57 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         ? `Preview volumes & pan set on your stems (${locked} locked stem${locked > 1 ? "s" : ""} kept). Switched to Manual Studio to preview.`
         : "Preview volumes & pan set on your stems. Switched to Manual Studio so you can preview the mix.",
     });
+  }
+
+  async function handleRenderMix() {
+    if (ms.stems.length === 0) {
+      toast({ title: "No stems to render", description: "Upload stems in Manual Studio first.", variant: "destructive" });
+      return;
+    }
+    setRendering(true);
+    setRenderError(null);
+    setRenderResult(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to render audio.");
+      /* Apply AI mix settings to stems for this render */
+      const aiStems = applyAiMixToStems(ms.stems, opts);
+      const btn = AUDIO_EXPORT_BUTTONS.find((b) => b.id === "full-mp3")!;
+      const resp = await requestAudioExport(token, {
+        exportType: btn.id,
+        masterVolume: ms.master.volume,
+        masterSettings: {
+          volume:         ms.master.volume,
+          compression:    ms.master.compression,
+          stereoWidth:    ms.master.stereoWidth,
+          bassBoost:      ms.master.bassBoost,
+          eqTone:         ms.master.eqTone,
+          loudnessTarget: ms.master.loudnessTarget,
+          limiter:        ms.master.limiter,
+          fadeIn:         ms.master.fadeIn,
+          fadeOut:        ms.master.fadeOut,
+        },
+        stems: aiStems.map((s) => ({
+          id: s.id, name: s.name, type: s.type, url: s.url,
+          volume: s.volume, muted: s.muted,
+          trimStart: s.trimStart, trimEnd: s.trimEnd,
+          ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
+        })),
+      });
+      const record = buildExportRecord(
+        { ...btn, label: "AI Mix Render — Full MP3" },
+        resp,
+        { masterVolume: ms.master.volume, stems: aiStems.map((s) => ({ name: s.name, volume: s.volume, muted: s.muted })) },
+      );
+      /* Save to exports list + persist result */
+      onChange({ ...settings, musicStudio: { ...ms, exports: [record, ...ms.exports].slice(0, 25) } });
+      setRenderResult(record);
+      toast({ title: "Mix Rendered", description: "Your AI mix is ready to preview and download." });
+    } catch (e) {
+      setRenderError(e instanceof Error ? e.message : "Render failed. Please try again.");
+    } finally {
+      setRendering(false);
+    }
   }
 
   async function handleGenerate() {
@@ -193,17 +249,65 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
               <InfoTile label="Export" value={plan.exportRecommendation} />
             </div>
             {plan.notes && <p className="text-[11px] text-white/40 leading-relaxed">{plan.notes}</p>}
-            <Button
-              onClick={handleApplyMix}
-              className="w-full h-11 text-sm font-black bg-primary text-black hover:bg-primary/90"
-              data-testid="btn-apply-ai-mix"
-            >
-              <Wand2 className="h-4 w-4 mr-2" /> Apply AI Mix Settings
-            </Button>
-            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
-              <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                Apply sets suggested preview volume &amp; pan on your stems so you can hear the balance in the browser. Final studio-quality rendering/export comes in the next phase.
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button
+                onClick={handleApplyMix}
+                variant="outline"
+                className="h-11 text-sm font-bold border-white/12 bg-white/[0.03] hover:bg-white/[0.06] text-white/85"
+                data-testid="btn-apply-ai-mix"
+              >
+                <Wand2 className="h-4 w-4 mr-2" /> Apply to Stems
+              </Button>
+              <Button
+                onClick={handleRenderMix}
+                disabled={rendering || ms.stems.length === 0}
+                className="h-11 text-sm font-black bg-primary text-black hover:bg-primary/90"
+                data-testid="btn-render-ai-mix"
+              >
+                {rendering
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Rendering…</>
+                  : <><Download className="h-4 w-4 mr-2" /> Render Mix MP3</>}
+              </Button>
+            </div>
+
+            {rendering && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/[0.06] border border-primary/20">
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <p className="text-xs font-bold text-primary">Rendering your AI mix…</p>
+              </div>
+            )}
+
+            {renderError && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/25">
+                <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-red-200/90 leading-relaxed">{renderError}</p>
+              </div>
+            )}
+
+            {renderResult && !rendering && (
+              <div className="space-y-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <p className="text-xs font-black text-emerald-300">AI Mix Rendered</p>
+                  <span className="text-[10px] text-white/40 ml-auto">Full MP3 · {new Date(renderResult.createdAt).toLocaleTimeString()}</span>
+                </div>
+                <audio controls src={renderResult.url} className="w-full" />
+                <a
+                  href={renderResult.url}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 h-10 w-full rounded-lg bg-primary text-black text-sm font-black hover:bg-primary/90 transition-colors"
+                >
+                  <Download className="h-4 w-4" /> Download AI Mix
+                </a>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+              <Info className="h-3.5 w-3.5 text-white/40 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-white/50 leading-relaxed">
+                <span className="font-semibold text-white/70">Apply to Stems</span> — sets preview volumes &amp; pan so you can hear the balance live. <span className="font-semibold text-white/70">Render Mix MP3</span> — runs the full render with your Mastering settings and produces a downloadable file.
               </p>
             </div>
           </div>

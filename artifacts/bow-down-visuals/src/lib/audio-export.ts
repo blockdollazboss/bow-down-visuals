@@ -28,10 +28,24 @@ export interface ExportStemPayload {
   durationSec?: number;
 }
 
+export interface MasterBusPayload {
+  volume: number;
+  compression: number;
+  stereoWidth: number;
+  bassBoost: number;
+  eqTone: string;
+  loudnessTarget: string;
+  limiter: boolean;
+  fadeIn: boolean;
+  fadeOut: boolean;
+}
+
 export interface AudioExportRequest {
   exportType: AudioExportType;
   stems: ExportStemPayload[];
   masterVolume: number;
+  /** Full master bus settings — compression, EQ, bass boost, stereo width, loudness, fades. */
+  masterSettings?: MasterBusPayload;
 }
 
 export interface AudioExportResponse {

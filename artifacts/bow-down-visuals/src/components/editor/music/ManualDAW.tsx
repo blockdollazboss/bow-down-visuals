@@ -68,6 +68,17 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
       const resp = await requestAudioExport(token, {
         exportType: btn.id,
         masterVolume: ms.master.volume,
+        masterSettings: {
+          volume:         ms.master.volume,
+          compression:    ms.master.compression,
+          stereoWidth:    ms.master.stereoWidth,
+          bassBoost:      ms.master.bassBoost,
+          eqTone:         ms.master.eqTone,
+          loudnessTarget: ms.master.loudnessTarget,
+          limiter:        ms.master.limiter,
+          fadeIn:         ms.master.fadeIn,
+          fadeOut:        ms.master.fadeOut,
+        },
         stems: ms.stems.map((s) => ({
           id: s.id,
           name: s.name,
@@ -232,10 +243,10 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
                 </div>
               )}
 
-              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/[0.06] border border-amber-500/15">
-                <Info className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-200/80 leading-relaxed">
-                  This is the first version of audio export. Advanced mastering comes later.
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10">
+                <Info className="h-3.5 w-3.5 text-white/40 shrink-0 mt-0.5" />
+                <p className="text-[11px] text-white/50 leading-relaxed">
+                  Renders your stems with your Mastering settings — compression, EQ, bass boost, stereo width, loudness target, and fades.
                 </p>
               </div>
             </div>

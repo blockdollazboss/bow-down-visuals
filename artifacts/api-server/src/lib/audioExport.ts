@@ -152,16 +152,98 @@ export interface MixResult {
   ext: "mp3" | "wav";
 }
 
+/** Full master-bus settings sent from the client. */
+export interface MasterBusSettings {
+  /** 0–100 overall output gain. */
+  volume: number;
+  /** 0–100 bus compression amount (0 = bypass). */
+  compression: number;
+  /** 0–100 stereo width (50 = unchanged, 0 = mono, 100 = max wide). */
+  stereoWidth: number;
+  /** 0–100 low-end boost (0 = none). */
+  bassBoost: number;
+  /** EQ colour: "warm" | "neutral" | "bright" */
+  eqTone: string;
+  /** Integrated loudness target: "demo" | "streaming" | "loud" */
+  loudnessTarget: string;
+  /** Hard limiter on the master bus. */
+  limiter: boolean;
+  /** 1.5 s fade-in applied to the rendered output. */
+  fadeIn: boolean;
+  /** 1.5 s fade-out applied to the rendered output (reverse trick — no duration needed). */
+  fadeOut: boolean;
+}
+
+/**
+ * Build a comma-separated FFmpeg audio filter chain for the master bus.
+ * Input comes from either the single stem label or the amix output [mix].
+ */
+function buildMasterBusChain(s: MasterBusSettings): string {
+  const parts: string[] = [];
+
+  /* Master volume */
+  const vol = clampGain(s.volume / 100);
+  parts.push(`volume=${vol.toFixed(3)}`);
+
+  /* Bus compression (skip at 0) */
+  if (s.compression > 0) {
+    const ratio  = (1 + (s.compression / 100) * 9).toFixed(1);  // 1.0–10.0
+    const thresh = (0.5 - (s.compression / 100) * 0.3).toFixed(2); // 0.50–0.20
+    parts.push(`acompressor=threshold=${thresh}:ratio=${ratio}:attack=5:release=100:knee=3`);
+  }
+
+  /* EQ tone */
+  if (s.eqTone === "warm") {
+    parts.push("equalizer=f=120:t=o:w=1:g=3", "equalizer=f=8000:t=o:w=1:g=-2");
+  } else if (s.eqTone === "bright") {
+    parts.push("equalizer=f=8000:t=o:w=1:g=3", "equalizer=f=120:t=o:w=1:g=-2");
+  }
+
+  /* Bass boost */
+  if (s.bassBoost > 0) {
+    const gain = ((s.bassBoost / 100) * 10).toFixed(1); // 0–10 dB
+    parts.push(`bass=g=${gain}`);
+  }
+
+  /* Stereo width — skip at 50 (factor 1.00 = unchanged) */
+  if (s.stereoWidth !== 50) {
+    const m = (s.stereoWidth / 50).toFixed(2); // 0.00–2.00, 1.00 = neutral
+    parts.push(`extrastereo=m=${m}`);
+  }
+
+  /* Loudness normalisation */
+  const lufs = s.loudnessTarget === "demo" ? -14 : s.loudnessTarget === "loud" ? -6 : -9;
+  parts.push(`loudnorm=I=${lufs}:TP=-1:LRA=11`);
+
+  /* Hard limiter */
+  if (s.limiter !== false) {
+    parts.push("alimiter=limit=0.95:attack=5:release=50");
+  }
+
+  /* Fade in */
+  if (s.fadeIn) {
+    parts.push("afade=t=in:st=0:d=1.5");
+  }
+
+  /* Fade out — reverse → fade-in → re-reverse works without knowing duration */
+  if (s.fadeOut) {
+    parts.push("areverse", "afade=t=in:st=0:d=1.5", "areverse");
+  }
+
+  return parts.join(",");
+}
+
 /**
  * Download the given stems, mix them with FFmpeg honoring per-stem volume +
- * trim and the master volume, and return the rendered audio as a buffer.
+ * trim and the master bus settings, and return the rendered audio as a buffer.
  */
 export async function runMixExport(opts: {
   stems: ExportStemInput[];
   masterVolume: number;
   format: "mp3" | "wav";
+  masterSettings?: MasterBusSettings;
 }): Promise<MixResult> {
-  const { stems, masterVolume, format } = opts;
+  const { stems, masterVolume, format, masterSettings } = opts;
   const work = await mkdtemp(join(tmpdir(), "bdv-export-"));
   try {
     const inputs: string[] = [];
@@ -171,7 +253,7 @@ export async function runMixExport(opts: {
       inputs.push(dest);
     }
 
-    const master = clampGain(masterVolume / 100);
+    /* Per-stem processing */
     const filterParts: string[] = [];
     const labels: string[] = [];
     stems.forEach((s, i) => {
@@ -192,15 +274,20 @@ export async function runMixExport(opts: {
       labels.push(`[a${i}]`);
     });
 
+    /* Master bus chain */
+    const masterChain = masterSettings
+      ? buildMasterBusChain(masterSettings)
+      : `volume=${clampGain(masterVolume / 100).toFixed(3)},alimiter=limit=0.95`;
+
     let filter: string;
     if (labels.length === 1) {
-      filter = `${filterParts[0]};${labels[0]}volume=${master.toFixed(3)},alimiter=limit=0.95[out]`;
+      filter = `${filterParts[0]};${labels[0]}${masterChain}[out]`;
     } else {
       filter =
         filterParts.join(";") +
         ";" +
         `${labels.join("")}amix=inputs=${labels.length}:duration=longest:normalize=0[mix];` +
-        `[mix]volume=${master.toFixed(3)},alimiter=limit=0.95[out]`;
+        `[mix]${masterChain}[out]`;
     }
 
     const out = join(work, `mix.${format}`);
