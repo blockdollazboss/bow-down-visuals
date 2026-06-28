@@ -1082,6 +1082,7 @@ export default function VideoEditor() {
                 setSettings={setSettings}
                 audioUrl={audioUrl}
                 masterAudioUrl={previewAudioUrl}
+                projectId={projectId}
               />
             )}
 

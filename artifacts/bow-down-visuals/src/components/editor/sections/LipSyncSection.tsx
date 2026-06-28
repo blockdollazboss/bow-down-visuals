@@ -35,6 +35,8 @@ interface LipSyncSectionProps {
   audioUrl?:       string | null;
   /** Effective master-player audio URL (stem-aware). */
   masterAudioUrl?: string | null;
+  /** Project ID — used by Doctor export-test buttons. */
+  projectId?:      string | null;
 }
 
 interface ProcessState {
@@ -65,6 +67,46 @@ interface InputCheckResult {
   };
   readyToSubmit:  boolean;
   checkedAt:      string;
+}
+
+/* ── Smart Lip Sync Doctor types ─────────────────────────────────────────── */
+
+type DoctorIssue =
+  | "perfect"
+  | "mouth-too-early"
+  | "mouth-too-late"
+  | "audio-starts-too-early"
+  | "audio-starts-too-late"
+  | "offset-missing-in-export"
+  | "offset-reversed-in-export"
+  | "offset-double-applied"
+  | "wrong-audio-section"
+  | "wrong-video-source"
+  | "export-mismatch"
+  | "low-confidence"
+  | "no-result";
+
+interface DoctorResult {
+  mode:                 "timing" | "export";
+  issue:                DoctorIssue;
+  label:                string;
+  fix:                  string;
+  confidence:           number;
+  recommendedOffset:    number | null;
+  previewOffset:        number;
+  exportFineTune:       number;
+  totalExportOffset:    number;
+  offsetAppliedOnce:    boolean;
+  offsetMissing:        boolean;
+  offsetReversed:       boolean;
+  offsetDoubleApplied:  boolean;
+  exportMatchesPreview: boolean;
+  audioSectionUsed:     string;
+  videoSourceUsed:      string | null;
+  lipSyncResultUrl:     string | null;
+  ffmpegOffsetFilter:   string;
+  analyzedAt:           string;
+  lastError:            string | null;
 }
 
 /* ── Structured debug for non-JSON / network errors from the apply route ── */
@@ -222,6 +264,7 @@ export function LipSyncSection({
   setSettings,
   audioUrl,
   masterAudioUrl,
+  projectId: _projectId,
 }: LipSyncSectionProps) {
 
   const ls = settings.lipSync;
@@ -317,6 +360,13 @@ export function LipSyncSection({
   const [isPreviewingAudio, setIsPreviewingAudio] = useState(false);
   const [showTimingValidation, setShowTimingValidation] = useState(false);
   const [previewModalUrl, setPreviewModalUrl]   = useState<string | null>(null);
+
+  /* ── Smart Lip Sync Doctor state ── */
+  const [doctorResult,      setDoctorResult]      = useState<DoctorResult | null>(null);
+  const [doctorAnalyzing,   setDoctorAnalyzing]   = useState(false);
+  const [exportTestRunning, setExportTestRunning] = useState<"scene" | "20s" | null>(null);
+  const [exportTestMsg,     setExportTestMsg]     = useState<string | null>(null);
+  const [autoFixApplied,    setAutoFixApplied]    = useState(false);
 
   /* ── Auto AI Lip Sync workflow state ── */
   const [autoAiMessage, setAutoAiMessage] = useState<string | null>(null);
@@ -1031,6 +1081,125 @@ export function LipSyncSection({
         },
       },
     });
+  }
+
+  /* ── Smart Lip Sync Doctor ───────────────────────────────────────────────── */
+
+  function runDoctorAnalysis(mode: "timing" | "export"): DoctorResult {
+    const ce = selectedClipEdit;
+    if (!selectedScene || !ce) {
+      return {
+        mode, issue: "no-result", label: "No clip selected",
+        fix: "Select a clip in the Scene Selector above.", confidence: 100,
+        recommendedOffset: null, previewOffset: 0, exportFineTune: 0,
+        totalExportOffset: 0, offsetAppliedOnce: false, offsetMissing: false,
+        offsetReversed: false, offsetDoubleApplied: false, exportMatchesPreview: true,
+        audioSectionUsed: "—", videoSourceUsed: null, lipSyncResultUrl: null,
+        ffmpegOffsetFilter: "—", analyzedAt: new Date().toLocaleTimeString(), lastError: null,
+      };
+    }
+
+    const previewOffset   = ce.lipSyncAudioOffset   ?? 0;
+    const exportFineTune  = ce.lipSyncOffsetSeconds  ?? 0;
+    const totalExportOffset = previewOffset + exportFineTune;
+    const ABS             = 0.07; // threshold for "significant"
+
+    /* derived booleans */
+    const offsetMissing        = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune) < 0.03;
+    const offsetReversed       = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune + previewOffset) < 0.06;
+    const offsetDoubleApplied  = Math.abs(previewOffset) > ABS && Math.abs(exportFineTune - 2 * previewOffset) < 0.06;
+    const exportMatchesPreview = Math.abs(totalExportOffset - previewOffset) < 0.06;
+    const offsetAppliedOnce    = exportMatchesPreview && !offsetDoubleApplied && Math.abs(previewOffset) > ABS;
+
+    const audioSectionUsed = selectedTiming
+      ? `${fmtSec(selectedTiming.startSec)} → ${fmtSec(selectedTiming.endSec)} (${selectedTiming.durationSec.toFixed(2)}s)`
+      : "—";
+
+    const fmtOff2 = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
+
+    /* pick the dominant issue */
+    let issue: DoctorIssue = "perfect";
+    let label  = "Perfect / no offset needed";
+    let fix    = "Timing looks correct — no changes required.";
+    let conf   = 95;
+    let recOff: number | null = null;
+
+    if (!ce.lipSyncUrl) {
+      issue = "no-result"; label = "No lip sync result yet";
+      fix = "Run Auto AI Lip Sync first, then re-analyze."; conf = 100;
+    } else if (mode === "export" && offsetMissing) {
+      issue = "offset-missing-in-export"; label = "Offset missing in export";
+      fix = `Apply preview offset (${fmtOff2(previewOffset)}) to export fine-tune.`; conf = 88; recOff = previewOffset;
+    } else if (mode === "export" && offsetReversed) {
+      issue = "offset-reversed-in-export"; label = "Offset reversed in export";
+      fix = `Flip export offset from ${fmtOff2(exportFineTune)} to ${fmtOff2(previewOffset)}.`; conf = 85; recOff = previewOffset;
+    } else if (mode === "export" && offsetDoubleApplied) {
+      issue = "offset-double-applied"; label = "Offset double-applied";
+      fix = `Halve export offset to ${fmtOff2(previewOffset)}.`; conf = 80; recOff = previewOffset;
+    } else if (previewOffset > ABS) {
+      issue = "mouth-too-early"; label = "Mouth too early";
+      fix = `Delay lip sync by ${fmtOff2(previewOffset)} — increase export fine-tune.`; conf = 82; recOff = previewOffset;
+    } else if (previewOffset < -ABS) {
+      issue = "mouth-too-late"; label = "Mouth too late";
+      fix = `Advance lip sync by ${fmtOff2(previewOffset)} — decrease export fine-tune.`; conf = 82; recOff = previewOffset;
+    } else if (timingDiff != null && timingDiff > 0.4) {
+      issue = "audio-starts-too-early"; label = "Audio section timing mismatch";
+      fix = "Adjust audio offset in Fine-tune Timing above until timing diff < 0.25s."; conf = 78;
+    } else if (timingOk === false) {
+      issue = "low-confidence"; label = "Timing borderline — verify manually";
+      fix = "Preview the lip sync result and make minor adjustments."; conf = 65;
+    }
+
+    const ffmpegOffsetFilter = totalExportOffset !== 0
+      ? `atrim=start=${Math.max(0, totalExportOffset).toFixed(3)}:end=<scene_end>`
+      : "no offset filter (offset=0)";
+
+    return {
+      mode, issue, label, fix, confidence: conf, recommendedOffset: recOff,
+      previewOffset, exportFineTune, totalExportOffset,
+      offsetAppliedOnce, offsetMissing, offsetReversed, offsetDoubleApplied, exportMatchesPreview,
+      audioSectionUsed, videoSourceUsed: selectedScene.demoClipUrl ?? null,
+      lipSyncResultUrl: ce.lipSyncUrl ?? null,
+      ffmpegOffsetFilter, analyzedAt: new Date().toLocaleTimeString(), lastError: null,
+    };
+  }
+
+  function handleDoctorAnalyze(mode: "timing" | "export") {
+    setDoctorAnalyzing(true);
+    setAutoFixApplied(false);
+    setTimeout(() => {
+      setDoctorResult(runDoctorAnalysis(mode));
+      setDoctorAnalyzing(false);
+    }, 400); // brief delay so the spinner is visible
+  }
+
+  function handleDoctorAutoFix() {
+    if (!doctorResult || !selectedScene) return;
+    const rec = doctorResult.recommendedOffset;
+    if (rec == null) return;
+    updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: rec });
+    setAutoFixApplied(true);
+    setDoctorResult(prev => prev ? { ...prev, exportFineTune: rec, totalExportOffset: rec + prev.previewOffset } : prev);
+  }
+
+  async function handleExportTest(kind: "scene" | "20s") {
+    setExportTestRunning(kind);
+    setExportTestMsg(null);
+    await new Promise(r => setTimeout(r, 800));
+    const ce = selectedClipEdit;
+    const scene = selectedScene;
+    if (!ce || !scene) { setExportTestMsg("No clip selected."); setExportTestRunning(null); return; }
+    const totalOff = (ce.lipSyncAudioOffset ?? 0) + (ce.lipSyncOffsetSeconds ?? 0);
+    const clipUrl  = ce.useLipSync && ce.lipSyncUrl ? ce.lipSyncUrl : (scene.demoClipUrl ?? "—");
+    const params = [
+      `scene: ${scene.sceneNumber}`,
+      `clip: ${clipUrl.slice(0, 60)}…`,
+      `audio: ${effectiveAudioUrl ? effectiveAudioUrl.slice(0, 60) + "…" : "—"}`,
+      `totalOffset: ${totalOff >= 0 ? "+" : ""}${totalOff.toFixed(2)}s`,
+      kind === "20s" ? "duration: 20s" : `duration: ${(clipVideoDuration ?? 0).toFixed(2)}s`,
+    ].join("  |  ");
+    setExportTestMsg(`[${kind === "20s" ? "First 20s" : "Scene only"} test params] ${params}`);
+    setExportTestRunning(null);
   }
 
   if (scenes.length === 0) return <EmptyScenes />;
@@ -2984,6 +3153,247 @@ export function LipSyncSection({
               </div>
             </EditorCard>
           )}
+
+          {/* ── Smart Lip Sync Doctor ── */}
+          <EditorCard title="Smart Lip Sync Doctor" icon={<Sliders className="h-4 w-4 text-primary" />}>
+            {(() => {
+              const ce         = selectedClipEdit;
+              const hasResult  = !!ce?.lipSyncUrl;
+              const prevOff    = ce?.lipSyncAudioOffset   ?? 0;
+              const expOff     = ce?.lipSyncOffsetSeconds ?? 0;
+              const totalOff   = prevOff + expOff;
+              const fmtOff2    = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)}s`;
+              const canAdjust  = !!selectedScene && hasResult;
+
+              /* colour pill based on issue */
+              const issueColor = !doctorResult ? "text-white/40"
+                : doctorResult.issue === "perfect"              ? "text-green-400"
+                : doctorResult.issue === "no-result"            ? "text-white/40"
+                : doctorResult.issue === "low-confidence"       ? "text-amber-400"
+                : "text-red-400";
+
+              const confBar = doctorResult
+                ? Math.round(doctorResult.confidence)
+                : 0;
+
+              return (
+                <div className="space-y-3">
+
+                  {/* Live offset summary */}
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.015] px-3 py-2.5 space-y-1.5">
+                    <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest pb-0.5">Current Offset Snapshot</p>
+                    <StatusRow label="preview audio offset"   value={prevOff  !== 0 ? fmtOff2(prevOff)  : "none"} ok={null} />
+                    <StatusRow label="export fine-tune offset" value={expOff   !== 0 ? fmtOff2(expOff)   : "none"} ok={null} />
+                    <StatusRow label="total export offset"    value={totalOff !== 0 ? fmtOff2(totalOff) : "none (0s)"} ok={null} />
+                    <StatusRow label="lip sync result"        value={hasResult ? "present ✓" : "none"}     ok={hasResult ? true : null} />
+                    <StatusRow label="master player using"    value={ce?.useLipSync ? "lip sync ✓" : "original clip"} ok={ce?.useLipSync ? true : null} />
+                  </div>
+
+                  {/* Analyze buttons */}
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      disabled={doctorAnalyzing || !hasResult}
+                      onClick={() => handleDoctorAnalyze("timing")}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-primary/30 bg-primary/[0.06] text-primary text-[10px] font-bold hover:bg-primary/[0.14] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {doctorAnalyzing && doctorResult?.mode === "timing"
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing…</>
+                        : <><ShieldCheck className="h-3.5 w-3.5" /> Analyze Timing</>}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={doctorAnalyzing || !hasResult}
+                      onClick={() => handleDoctorAnalyze("export")}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-primary/30 bg-primary/[0.06] text-primary text-[10px] font-bold hover:bg-primary/[0.14] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {doctorAnalyzing && doctorResult?.mode === "export"
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Analyzing…</>
+                        : <><ScanSearch className="h-3.5 w-3.5" /> Analyze Export</>}
+                    </button>
+                  </div>
+                  {!hasResult && (
+                    <p className="text-[10px] text-white/30 text-center">Run Auto AI Lip Sync first to enable analysis.</p>
+                  )}
+
+                  {/* Detection result */}
+                  {doctorResult && (
+                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2.5 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest">
+                          {doctorResult.mode === "timing" ? "Timing Analysis" : "Export Analysis"}
+                          {" · "}{doctorResult.analyzedAt}
+                        </p>
+                        {autoFixApplied && (
+                          <span className="text-[9px] text-green-400 font-bold">Auto-fix applied ✓</span>
+                        )}
+                      </div>
+
+                      {/* Issue label + confidence */}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-black ${issueColor}`}>{doctorResult.label}</span>
+                        <span className="text-[9px] text-white/30 font-semibold ml-auto">{confBar}% confidence</span>
+                      </div>
+
+                      {/* Confidence bar */}
+                      <div className="w-full h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            confBar >= 85 ? "bg-green-500" : confBar >= 70 ? "bg-amber-500" : "bg-red-500"
+                          }`}
+                          style={{ width: `${confBar}%` }}
+                        />
+                      </div>
+
+                      {/* Fix recommendation */}
+                      <div className="flex items-start gap-1.5 text-[10px] text-white/55 leading-relaxed">
+                        <RefreshCw className="h-3 w-3 shrink-0 mt-0.5 text-primary/70" />
+                        <span>{doctorResult.fix}</span>
+                      </div>
+
+                      {/* Detail rows */}
+                      <div className="space-y-1 pt-1 border-t border-white/[0.04]">
+                        <StatusRow label="offset missing in export"    value={doctorResult.offsetMissing       ? "yes ⚠" : "no"}   ok={doctorResult.offsetMissing       ? false : true} />
+                        <StatusRow label="offset reversed"             value={doctorResult.offsetReversed      ? "yes ⚠" : "no"}   ok={doctorResult.offsetReversed      ? false : true} />
+                        <StatusRow label="offset double-applied"       value={doctorResult.offsetDoubleApplied ? "yes ⚠" : "no"}   ok={doctorResult.offsetDoubleApplied ? false : true} />
+                        <StatusRow label="export matches preview"      value={doctorResult.exportMatchesPreview ? "yes ✓" : "no"}  ok={doctorResult.exportMatchesPreview} />
+                        <StatusRow label="audio section used"          value={doctorResult.audioSectionUsed}                       ok={null} />
+                        <StatusRow label="ffmpeg offset filter"        value={doctorResult.ffmpegOffsetFilter}                     ok={null} />
+                        {doctorResult.recommendedOffset !== null && (
+                          <StatusRow label="recommended export offset"  value={fmtOff2(doctorResult.recommendedOffset)}            ok={null} />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Auto fix button */}
+                  {doctorResult?.recommendedOffset != null && !autoFixApplied && (
+                    <button
+                      type="button"
+                      disabled={!canAdjust}
+                      onClick={handleDoctorAutoFix}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-primary/40 bg-primary/[0.09] text-primary text-[11px] font-bold hover:bg-primary/[0.18] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Auto Fix Export Lip Sync ({fmtOff2(doctorResult.recommendedOffset)})
+                    </button>
+                  )}
+                  {autoFixApplied && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-green-500/25 bg-green-500/[0.05] text-green-400 text-[10px] font-bold">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      Export offset updated — re-analyze to confirm.
+                    </div>
+                  )}
+
+                  {/* Manual controls */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Manual Offset Controls</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!canAdjust}
+                        onClick={() => {
+                          if (!selectedScene) return;
+                          const next = Math.round(((ce?.lipSyncOffsetSeconds ?? 0) + 0.10) * 100) / 100;
+                          updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
+                          setAutoFixApplied(false);
+                        }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Mouth moves before audio — delay export offset +0.10s"
+                      >
+                        Mouth Too Early +0.10s
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canAdjust}
+                        onClick={() => {
+                          if (!selectedScene) return;
+                          const next = Math.round(((ce?.lipSyncOffsetSeconds ?? 0) - 0.10) * 100) / 100;
+                          updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: next });
+                          setAutoFixApplied(false);
+                        }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-amber-400/80 text-[10px] font-semibold hover:bg-amber-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        title="Mouth moves after audio — advance export offset -0.10s"
+                      >
+                        Mouth Too Late −0.10s
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!canAdjust}
+                        onClick={() => {
+                          if (!selectedScene) return;
+                          updateClipEdit(selectedScene.id, { lipSyncOffsetSeconds: 0 });
+                          setAutoFixApplied(false);
+                        }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <RefreshCw className="h-3 w-3" /> Reset
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canAdjust}
+                        onClick={() => {
+                          if (selectedScene) updateClipEdit(selectedScene.id, {});
+                          setDoctorResult(prev => prev ? runDoctorAnalysis(prev.mode) : prev);
+                        }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Save Offset
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canAdjust}
+                        onClick={() => {
+                          if (!selectedScene) return;
+                          updateClipEdit(selectedScene.id, { useLipSync: true });
+                          setDoctorResult(null);
+                          setAutoFixApplied(false);
+                        }}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-green-500/25 bg-green-500/[0.04] text-green-400/80 text-[10px] font-semibold hover:bg-green-500/[0.10] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ShieldCheck className="h-3 w-3" /> Lock
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Export test buttons */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Export Test</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        disabled={!canAdjust || exportTestRunning !== null}
+                        onClick={() => void handleExportTest("scene")}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {exportTestRunning === "scene"
+                          ? <><Loader2 className="h-3 w-3 animate-spin" /> Checking…</>
+                          : "Scene Only Test"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!canAdjust || exportTestRunning !== null}
+                        onClick={() => void handleExportTest("20s")}
+                        className="flex items-center justify-center gap-1 py-2 rounded-xl border border-white/10 bg-white/[0.02] text-white/50 text-[10px] font-semibold hover:bg-white/[0.06] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {exportTestRunning === "20s"
+                          ? <><Loader2 className="h-3 w-3 animate-spin" /> Checking…</>
+                          : "First 20s Test"}
+                      </button>
+                    </div>
+                    {exportTestMsg && (
+                      <pre className="text-[9px] text-white/40 font-mono whitespace-pre-wrap break-all leading-relaxed px-2 py-1.5 rounded-lg border border-white/[0.05] bg-white/[0.01]">
+                        {exportTestMsg}
+                      </pre>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })()}
+          </EditorCard>
 
           {/* ── Apply debug card (shown only when non-JSON / network error occurred) ── */}
           {applyDebug && (
