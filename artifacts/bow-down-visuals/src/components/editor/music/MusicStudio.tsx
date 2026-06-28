@@ -112,7 +112,7 @@ export function MusicStudio({
           </div>
           <div className="flex-1 text-left">
             <p className="text-sm font-black text-primary tracking-wide">Bow Down AI Guide</p>
-            <p className="text-[11px] text-white/40">Music Mixer — step-by-step setup</p>
+            <p className="text-[11px] text-white/40">Music Studio — step-by-step setup</p>
           </div>
           {guideOpen
             ? <ChevronUp className="h-4 w-4 text-primary/50 shrink-0" />

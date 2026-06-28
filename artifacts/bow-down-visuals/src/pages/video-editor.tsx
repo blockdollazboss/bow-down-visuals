@@ -40,6 +40,7 @@ import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
+import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 
 type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync";
 
@@ -876,7 +877,8 @@ export default function VideoEditor() {
             {/* Tab nav */}
             <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-6">
               <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
-              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Mixer" testId="tab-music" />
+              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
+              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
               <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
               <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
               <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
@@ -900,6 +902,17 @@ export default function VideoEditor() {
                 onSceneChange={handleSceneChange}
               />
             </div>
+
+            {tab === "timeline" && (
+              <TimelineSection
+                scenes={scenes}
+                settings={settings}
+                setSettings={setSettings}
+                onPreviewTransition={handlePreviewTransition}
+                onGoToClips={() => setTab("clips")}
+                onGoToEffects={() => setTab("effects")}
+              />
+            )}
 
             {tab === "clips" && (
                   <div className="space-y-6">
