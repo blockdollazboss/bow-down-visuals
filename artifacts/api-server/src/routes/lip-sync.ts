@@ -17,19 +17,23 @@ const execFileAsync = promisify(execFile);
 /* ── Server-side secrets (never sent to the browser) ── */
 /* Key resolution: prefer LIP_SYNC_API_KEY; fall back to SYNC_LABS_API_KEY so
    the app works whichever variable name the user added in Replit Secrets.    */
-const _LIP_SYNC_API_KEY_RAW  = process.env["LIP_SYNC_API_KEY"];
+const _LIP_SYNC_API_KEY_RAW = process.env["LIP_SYNC_API_KEY"];
 const _SYNC_LABS_API_KEY_RAW = process.env["SYNC_LABS_API_KEY"];
-const LIP_SYNC_API_KEY  = _LIP_SYNC_API_KEY_RAW ?? _SYNC_LABS_API_KEY_RAW;
-const ACTIVE_KEY_VAR: string | null =
-  _LIP_SYNC_API_KEY_RAW  ? "LIP_SYNC_API_KEY"  :
-  _SYNC_LABS_API_KEY_RAW ? "SYNC_LABS_API_KEY" : null;
+const LIP_SYNC_API_KEY = _LIP_SYNC_API_KEY_RAW ?? _SYNC_LABS_API_KEY_RAW;
+const ACTIVE_KEY_VAR: string | null = _LIP_SYNC_API_KEY_RAW
+  ? "LIP_SYNC_API_KEY"
+  : _SYNC_LABS_API_KEY_RAW
+    ? "SYNC_LABS_API_KEY"
+    : null;
 const MULTIPLE_KEYS_FOUND = !!(_LIP_SYNC_API_KEY_RAW && _SYNC_LABS_API_KEY_RAW);
-const LIP_SYNC_PROVIDER = (process.env["LIP_SYNC_PROVIDER"] ?? "").toLowerCase().trim();
-const SERVER_KEY_FOUND  = !!(LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length > 0);
-const PROVIDER_NAME     = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "sync" : null);
+const LIP_SYNC_PROVIDER = (process.env["LIP_SYNC_PROVIDER"] ?? "")
+  .toLowerCase()
+  .trim();
+const SERVER_KEY_FOUND = !!(LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length > 0);
+const PROVIDER_NAME = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "sync" : null);
 
 const STEM_BUCKET = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-const SIDECAR     = "http://127.0.0.1:1106";
+const SIDECAR = "http://127.0.0.1:1106";
 
 /** Sync Labs plan limit in seconds */
 const PROVIDER_LIMIT_SEC = 20;
@@ -38,10 +42,10 @@ const PROVIDER_LIMIT_SEC = 20;
 const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
 
 /* ── Sync Labs ────────────────────────────────────────────────────────────── */
-const SYNC_LABS_BASE        = "https://api.sync.so/v2";
-const SYNC_LABS_MODEL       = "sync-1.9.0-beta";
+const SYNC_LABS_BASE = "https://api.sync.so/v2";
+const SYNC_LABS_MODEL = "sync-1.9.0-beta";
 const SYNC_POLL_INTERVAL_MS = 5_000;
-const SYNC_MAX_POLLS        = 72; // 72 × 5s = 6 minutes max
+const SYNC_MAX_POLLS = 72; // 72 × 5s = 6 minutes max
 
 interface SyncLabsJob {
   id: string;
@@ -69,7 +73,11 @@ function buildSyncLabsPayload(clipUrl: string, audioUrl: string) {
   };
 }
 
-async function syncLabsSubmit(clipUrl: string, audioUrl: string, apiKey: string): Promise<string> {
+async function syncLabsSubmit(
+  clipUrl: string,
+  audioUrl: string,
+  apiKey: string,
+): Promise<string> {
   const payload = buildSyncLabsPayload(clipUrl, audioUrl);
 
   // Log the sanitized payload (keys only — no API key, no full URLs in prod)
@@ -79,7 +87,10 @@ async function syncLabsSubmit(clipUrl: string, audioUrl: string, apiKey: string)
   ];
   // logger available via req.log in routes; use console here (non-route context)
   console.info("[lip-sync] Sync Labs payload keys:", payloadKeys.join(", "));
-  console.info("[lip-sync] Removed fields:", SYNC_LABS_REMOVED_FIELDS.join(", "));
+  console.info(
+    "[lip-sync] Removed fields:",
+    SYNC_LABS_REMOVED_FIELDS.join(", "),
+  );
 
   const res = await fetch(`${SYNC_LABS_BASE}/generate`, {
     method: "POST",
@@ -108,11 +119,14 @@ async function syncLabsPoll(jobId: string, apiKey: string): Promise<string> {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`Sync Labs poll failed: HTTP ${res.status} — ${body.slice(0, 300)}`);
+      throw new Error(
+        `Sync Labs poll failed: HTTP ${res.status} — ${body.slice(0, 300)}`,
+      );
     }
     const job = (await res.json()) as SyncLabsJob;
     if (job.status === "completed") {
-      if (!job.outputUrl) throw new Error("Sync Labs job completed but returned no outputUrl.");
+      if (!job.outputUrl)
+        throw new Error("Sync Labs job completed but returned no outputUrl.");
       return job.outputUrl;
     }
     if (job.status === "failed") {
@@ -123,31 +137,43 @@ async function syncLabsPoll(jobId: string, apiKey: string): Promise<string> {
 }
 
 /* ── URL type detection ──────────────────────────────────────────────────── */
-type UrlType = "public-https" | "supabase" | "replit-storage" | "blob" | "unknown";
+type UrlType =
+  | "public-https"
+  | "supabase"
+  | "replit-storage"
+  | "blob"
+  | "unknown";
 
 function detectUrlType(url: string): UrlType {
   if (!url) return "unknown";
-  if (url.startsWith("blob:"))   return "blob";
-  if (!url.startsWith("http"))   return "unknown";
+  if (url.startsWith("blob:")) return "blob";
+  if (!url.startsWith("http")) return "unknown";
   const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
   if (supabaseUrl && url.startsWith(supabaseUrl)) return "supabase";
   if (
     url.includes("storage.googleapis.com") ||
     url.includes("replit-objstore") ||
     url.includes("127.0.0.1:1106")
-  ) return "replit-storage";
+  )
+    return "replit-storage";
   return "public-https";
 }
 
 /** HEAD-check a URL, return { ok, status, contentType, error } */
-async function probeUrl(url: string, timeoutMs = 15_000): Promise<{
+async function probeUrl(
+  url: string,
+  timeoutMs = 15_000,
+): Promise<{
   ok: boolean;
   status: number;
   contentType: string | null;
   error: string | null;
 }> {
   try {
-    const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     return {
       ok: res.ok,
       status: res.status,
@@ -155,7 +181,12 @@ async function probeUrl(url: string, timeoutMs = 15_000): Promise<{
       error: res.ok ? null : `HTTP ${res.status}`,
     };
   } catch (err) {
-    return { ok: false, status: 0, contentType: null, error: err instanceof Error ? err.message : String(err) };
+    return {
+      ok: false,
+      status: 0,
+      contentType: null,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -168,13 +199,22 @@ async function ensureSupabaseBucket(): Promise<void> {
     fileSizeLimit: 50 * 1024 * 1024,
   });
   // Ignore "already exists" — any other error propagates
-  if (error && !error.message?.toLowerCase().includes("already exist") && error.message !== "Duplicate") {
+  if (
+    error &&
+    !error.message?.toLowerCase().includes("already exist") &&
+    error.message !== "Duplicate"
+  ) {
     // Non-fatal: bucket might exist under a different error wording
   }
 }
 
-async function uploadAudioToSupabase(buffer: Buffer, objectName: string): Promise<string> {
-  await ensureSupabaseBucket().catch(() => {/* ignore — bucket likely exists */});
+async function uploadAudioToSupabase(
+  buffer: Buffer,
+  objectName: string,
+): Promise<string> {
+  await ensureSupabaseBucket().catch(() => {
+    /* ignore — bucket likely exists */
+  });
   const supabase = getSupabaseAdmin();
 
   const { error: upErr } = await supabase.storage
@@ -184,7 +224,7 @@ async function uploadAudioToSupabase(buffer: Buffer, objectName: string): Promis
   if (upErr) {
     throw new Error(
       `Supabase audio upload failed: ${upErr.message}` +
-      ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
+        ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
     );
   }
 
@@ -195,7 +235,7 @@ async function uploadAudioToSupabase(buffer: Buffer, objectName: string): Promis
   if (signErr || !signData?.signedUrl) {
     throw new Error(
       `Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}` +
-      ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
+        ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
     );
   }
 
@@ -203,20 +243,30 @@ async function uploadAudioToSupabase(buffer: Buffer, objectName: string): Promis
 }
 
 /* ── Replit object storage signed URL (kept for vocal stems) ─────────────── */
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+async function signGetUrl(
+  bucketName: string,
+  objectName: string,
+): Promise<string> {
+  const expiresAt = new Date(
+    Date.now() + 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
+    body: JSON.stringify({
+      bucket_name: bucketName,
+      object_name: objectName,
+      method: "GET",
+      expires_at: expiresAt,
+    }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(
       `Object storage signing failed: HTTP ${res.status}` +
-      ` — bucket: ${bucketName}, path: ${objectName}` +
-      (body ? ` — ${body.slice(0, 200)}` : ""),
+        ` — bucket: ${bucketName}, path: ${objectName}` +
+        (body ? ` — ${body.slice(0, 200)}` : ""),
     );
   }
   const { signed_url } = (await res.json()) as { signed_url: string };
@@ -232,16 +282,18 @@ async function trimAndUploadAudioSegment(
   const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-"));
   try {
     /* 1. Download source audio — prefer direct fetch (works for signed HTTPS URLs) */
-    const dlRes = await fetch(audioUrl, { signal: AbortSignal.timeout(120_000) });
+    const dlRes = await fetch(audioUrl, {
+      signal: AbortSignal.timeout(120_000),
+    });
     if (!dlRes.ok) {
       throw new Error(
         `Audio download failed: HTTP ${dlRes.status}` +
-        ` (url type: ${detectUrlType(audioUrl)})`,
+          ` (url type: ${detectUrlType(audioUrl)})`,
       );
     }
-    const ct  = dlRes.headers.get("content-type") ?? "";
+    const ct = dlRes.headers.get("content-type") ?? "";
     const ext = ct.includes("wav") ? "wav" : ct.includes("ogg") ? "ogg" : "mp3";
-    const inputPath  = join(tmpDir, `input.${ext}`);
+    const inputPath = join(tmpDir, `input.${ext}`);
     const outputPath = join(tmpDir, "segment.mp3");
     await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
 
@@ -249,29 +301,40 @@ async function trimAndUploadAudioSegment(
     let ffmpegStderr = "";
     await execFileAsync("ffmpeg", [
       "-y",
-      "-i",   inputPath,
-      "-ss",  String(startSec),
-      "-to",  String(endSec),
-      "-c:a", "libmp3lame",
-      "-q:a", "2",
+      "-i",
+      inputPath,
+      "-ss",
+      String(startSec),
+      "-to",
+      String(endSec),
+      "-c:a",
+      "libmp3lame",
+      "-q:a",
+      "2",
       outputPath,
     ]).catch((err: Error & { stderr?: string }) => {
       ffmpegStderr = (err as unknown as { stderr?: string }).stderr ?? "";
-      throw new Error(`FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`);
+      throw new Error(
+        `FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`,
+      );
     });
 
     /* 3. Verify actual duration */
     const { stdout } = await execFileAsync("ffprobe", [
-      "-v", "error",
-      "-show_entries", "format=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
       outputPath,
     ]);
     const durationSec = parseFloat(stdout.trim());
-    if (isNaN(durationSec)) throw new Error("Could not determine trimmed audio duration.");
+    if (isNaN(durationSec))
+      throw new Error("Could not determine trimmed audio duration.");
 
     /* 4. Upload trimmed segment to Supabase storage → signed URL */
-    const buffer     = await readFile(outputPath);
+    const buffer = await readFile(outputPath);
     const objectName = `segments/${randomUUID()}.mp3`;
     const segmentUrl = await uploadAudioToSupabase(buffer, objectName);
 
@@ -287,17 +350,17 @@ async function trimAndUploadAudioSegment(
    Jobs are pruned after 2 h; the server process is long-running so this
    is safe for a single-instance dev/prod deployment.                       */
 interface LipSyncJob {
-  status:         "queued" | "processing" | "done" | "failed";
-  url?:           string;
-  provider?:      string;
-  error?:         string;
-  code?:          string;
-  durationSec?:   number;
+  status: "queued" | "processing" | "done" | "failed";
+  url?: string;
+  provider?: string;
+  error?: string;
+  code?: string;
+  durationSec?: number;
   /** Sync.so provider job ID — set immediately after the job is accepted,
    *  before polling begins, so the client can save it and check later. */
   syncLabsJobId?: string;
-  createdAt:      string;
-  updatedAt:      string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Thrown by syncLabsPoll when the poll limit is exhausted without a terminal
@@ -311,23 +374,29 @@ class SyncLabsTimeoutError extends Error {
 }
 
 interface LipSyncJobParams {
-  clipUrl:       string;
-  audioUrl:      string;
+  clipUrl: string;
+  audioUrl: string;
   sceneStartSec: number;
-  sceneEndSec:   number;
+  sceneEndSec: number;
 }
 
 const lipSyncJobs = new Map<string, LipSyncJob>();
 
-setInterval(() => {
-  const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
-  for (const [id, job] of lipSyncJobs) {
-    if (new Date(job.createdAt).getTime() < cutoffMs) lipSyncJobs.delete(id);
-  }
-}, 30 * 60 * 1000).unref();
+setInterval(
+  () => {
+    const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
+    for (const [id, job] of lipSyncJobs) {
+      if (new Date(job.createdAt).getTime() < cutoffMs) lipSyncJobs.delete(id);
+    }
+  },
+  30 * 60 * 1000,
+).unref();
 
-async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promise<void> {
-  const now    = () => new Date().toISOString();
+async function processLipSyncJob(
+  jobId: string,
+  params: LipSyncJobParams,
+): Promise<void> {
+  const now = () => new Date().toISOString();
   const update = (patch: Partial<LipSyncJob>) => {
     const j = lipSyncJobs.get(jobId);
     if (j) lipSyncJobs.set(jobId, { ...j, ...patch, updatedAt: now() });
@@ -337,21 +406,27 @@ async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promi
     update({ status: "processing" });
 
     const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(
-      params.audioUrl, params.sceneStartSec, params.sceneEndSec,
+      params.audioUrl,
+      params.sceneStartSec,
+      params.sceneEndSec,
     );
 
     if (durationSec > PROVIDER_LIMIT_SEC) {
       update({
         status: "failed",
-        error:  `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
-        code:   "segment_too_long",
+        error: `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
+        code: "segment_too_long",
         durationSec,
       });
       return;
     }
 
     if (PROVIDER_NAME === "sync") {
-      const syncId = await syncLabsSubmit(params.clipUrl, segmentUrl, LIP_SYNC_API_KEY!);
+      const syncId = await syncLabsSubmit(
+        params.clipUrl,
+        segmentUrl,
+        LIP_SYNC_API_KEY!,
+      );
       /* Save the provider job ID immediately so the client can store it and
          check the Sync.so job status later — even after a local timeout. */
       update({ syncLabsJobId: syncId });
@@ -370,14 +445,14 @@ async function processLipSyncJob(jobId: string, params: LipSyncJobParams): Promi
          The client can use the saved syncLabsJobId to check later. */
       update({
         status: "processing",
-        error:  err.message,
-        code:   "still_processing",
+        error: err.message,
+        code: "still_processing",
       });
     } else {
       update({
         status: "failed",
-        error:  err instanceof Error ? err.message : "Lip sync job failed",
-        code:   "provider_error",
+        error: err instanceof Error ? err.message : "Lip sync job failed",
+        code: "provider_error",
       });
     }
   }
@@ -403,13 +478,13 @@ router.get("/lip-sync/status", (_req, res) => {
         : null;
 
   res.json({
-    connected:          SERVER_KEY_FOUND,
-    providerName:       PROVIDER_NAME ?? null,
-    serverKeyFound:     SERVER_KEY_FOUND,
+    connected: SERVER_KEY_FOUND,
+    providerName: PROVIDER_NAME ?? null,
+    serverKeyFound: SERVER_KEY_FOUND,
     frontendKeyExposed: false,
-    mode:               SERVER_KEY_FOUND ? "real" : "mock",
+    mode: SERVER_KEY_FOUND ? "real" : "mock",
     missingKeyMessage,
-    providerLimitSec:   PROVIDER_LIMIT_SEC,
+    providerLimitSec: PROVIDER_LIMIT_SEC,
   });
 });
 
@@ -428,16 +503,17 @@ router.get("/lip-sync/account-check", async (_req, res) => {
 
   if (!LIP_SYNC_API_KEY) {
     res.json({
-      keyPresent:                false,
-      activeKeyVar:              null,
-      activeKeyLast4:            null,
-      multipleKeysFound:         MULTIPLE_KEYS_FOUND,
+      keyPresent: false,
+      activeKeyVar: null,
+      activeKeyLast4: null,
+      multipleKeysFound: MULTIPLE_KEYS_FOUND,
       providerEndpointConfigured: true,
-      accountStatusAvailable:    false,
-      billingBlocked:            null,
-      httpStatus:                null,
-      lastError:                 "No Sync Labs API key found. Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets.",
-      message:                   "No API key configured.",
+      accountStatusAvailable: false,
+      billingBlocked: null,
+      httpStatus: null,
+      lastError:
+        "No Sync Labs API key found. Add LIP_SYNC_API_KEY or SYNC_LABS_API_KEY in Replit Secrets.",
+      message: "No API key configured.",
     });
     return;
   }
@@ -483,7 +559,8 @@ router.get("/lip-sync/account-check", async (_req, res) => {
       lastError = `HTTP ${r.status} — ${body.slice(0, 200)}`;
     }
   } catch (err) {
-    lastError = err instanceof Error ? err.message : "Network error contacting Sync Labs";
+    lastError =
+      err instanceof Error ? err.message : "Network error contacting Sync Labs";
   }
 
   const message = MULTIPLE_KEYS_FOUND
@@ -491,10 +568,10 @@ router.get("/lip-sync/account-check", async (_req, res) => {
     : `Using ${ACTIVE_KEY_VAR} ending in ${activeKeyLast4}`;
 
   res.json({
-    keyPresent:                 true,
-    activeKeyVar:               ACTIVE_KEY_VAR,
+    keyPresent: true,
+    activeKeyVar: ACTIVE_KEY_VAR,
     activeKeyLast4,
-    multipleKeysFound:          MULTIPLE_KEYS_FOUND,
+    multipleKeysFound: MULTIPLE_KEYS_FOUND,
     providerEndpointConfigured: true,
     accountStatusAvailable,
     billingBlocked,
@@ -512,7 +589,9 @@ router.get("/lip-sync/account-check", async (_req, res) => {
 router.get("/lip-sync/job/:id", requireAuth, (req, res) => {
   const job = lipSyncJobs.get(String(req.params["id"] ?? ""));
   if (!job) {
-    res.status(404).json({ error: "Job not found or expired", code: "job_not_found" });
+    res
+      .status(404)
+      .json({ error: "Job not found or expired", code: "job_not_found" });
     return;
   }
   res.json(job);
@@ -523,44 +602,52 @@ router.get("/lip-sync/job/:id", requireAuth, (req, res) => {
    Directly check a Sync.so job by its provider ID.
    Used by the client after a local timeout to see if Sync.so finished.
 ────────────────────────────────────────────────────────────────────────── */
-router.get("/lip-sync/check-provider-job/:syncJobId", requireAuth, async (req, res) => {
-  const syncJobId = String(req.params["syncJobId"] ?? "").trim();
-  if (!syncJobId) {
-    res.status(400).json({ error: "syncJobId is required", code: "missing_param" });
-    return;
-  }
-  if (!LIP_SYNC_API_KEY) {
-    res.status(503).json({ error: "Lip Sync API key not configured", code: "no_api_key" });
-    return;
-  }
-
-  try {
-    const pollRes = await fetch(`${SYNC_LABS_BASE}/generate/${syncJobId}`, {
-      headers: { "x-api-key": LIP_SYNC_API_KEY },
-      signal:  AbortSignal.timeout(30_000),
-    });
-    if (!pollRes.ok) {
-      const body = await pollRes.text().catch(() => "");
-      res.status(502).json({
-        error:  `Sync.so returned HTTP ${pollRes.status}`,
-        detail: body.slice(0, 300),
-        code:   "provider_error",
-      });
+router.get(
+  "/lip-sync/check-provider-job/:syncJobId",
+  requireAuth,
+  async (req, res) => {
+    const syncJobId = String(req.params["syncJobId"] ?? "").trim();
+    if (!syncJobId) {
+      res
+        .status(400)
+        .json({ error: "syncJobId is required", code: "missing_param" });
       return;
     }
-    const job = (await pollRes.json()) as SyncLabsJob;
-    res.json({
-      status:    job.status,          // "pending" | "processing" | "completed" | "failed"
-      outputUrl: job.outputUrl ?? null,
-      error:     job.error ?? null,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: err instanceof Error ? err.message : "Check failed",
-      code:  "network_error",
-    });
-  }
-});
+    if (!LIP_SYNC_API_KEY) {
+      res
+        .status(503)
+        .json({ error: "Lip Sync API key not configured", code: "no_api_key" });
+      return;
+    }
+
+    try {
+      const pollRes = await fetch(`${SYNC_LABS_BASE}/generate/${syncJobId}`, {
+        headers: { "x-api-key": LIP_SYNC_API_KEY },
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!pollRes.ok) {
+        const body = await pollRes.text().catch(() => "");
+        res.status(502).json({
+          error: `Sync.so returned HTTP ${pollRes.status}`,
+          detail: body.slice(0, 300),
+          code: "provider_error",
+        });
+        return;
+      }
+      const job = (await pollRes.json()) as SyncLabsJob;
+      res.json({
+        status: job.status, // "pending" | "processing" | "completed" | "failed"
+        outputUrl: job.outputUrl ?? null,
+        error: job.error ?? null,
+      });
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : "Check failed",
+        code: "network_error",
+      });
+    }
+  },
+);
 
 /* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/check-inputs
@@ -568,12 +655,34 @@ router.get("/lip-sync/check-provider-job/:syncJobId", requireAuth, async (req, r
    Never exposes secrets; never requires auth (read-only probe).
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/check-inputs", async (req, res) => {
-  const { audioUrl, clipUrl } = req.query as { audioUrl?: string; clipUrl?: string };
+  const { audioUrl, clipUrl } = req.query as {
+    audioUrl?: string;
+    clipUrl?: string;
+  };
 
   async function checkUrl(url: string | undefined, label: string) {
-    if (!url) return { found: false, sourceType: "unknown" as UrlType, probe: null, error: `No ${label} URL provided` };
-    if (url.startsWith("blob:")) return { found: false, sourceType: "blob" as UrlType, probe: null, error: "Blob URL cannot be accessed server-side — use a permanent storage URL" };
-    if (!url.startsWith("http")) return { found: false, sourceType: "unknown" as UrlType, probe: null, error: "URL must start with https://" };
+    if (!url)
+      return {
+        found: false,
+        sourceType: "unknown" as UrlType,
+        probe: null,
+        error: `No ${label} URL provided`,
+      };
+    if (url.startsWith("blob:"))
+      return {
+        found: false,
+        sourceType: "blob" as UrlType,
+        probe: null,
+        error:
+          "Blob URL cannot be accessed server-side — use a permanent storage URL",
+      };
+    if (!url.startsWith("http"))
+      return {
+        found: false,
+        sourceType: "unknown" as UrlType,
+        probe: null,
+        error: "URL must start with https://",
+      };
 
     const sourceType = detectUrlType(url);
     const probe = await probeUrl(url);
@@ -590,28 +699,27 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
     checkUrl(clipUrl, "clip"),
   ]);
 
-  const readyToSubmit =
-    audio.found && clip.found && SERVER_KEY_FOUND;
+  const readyToSubmit = audio.found && clip.found && SERVER_KEY_FOUND;
 
   /* Payload validation:
      removedFields = fields that WERE in the payload and have been stripped out.
      payloadValid  = true because the sanitized payload no longer contains them. */
   const sanitizedPayloadKeys = ["model", "input[video]", "input[audio]"];
-  const removedFields        = [...SYNC_LABS_REMOVED_FIELDS]; // informational: what was removed
-  const payloadValid         = true; // always valid after fix — removed fields are gone
+  const removedFields = [...SYNC_LABS_REMOVED_FIELDS]; // informational: what was removed
+  const payloadValid = true; // always valid after fix — removed fields are gone
 
   res.json({
     audio: { url: audioUrl ?? null, ...audio },
-    clip:  { url: clipUrl  ?? null, ...clip },
+    clip: { url: clipUrl ?? null, ...clip },
     provider: {
-      connected:      SERVER_KEY_FOUND,
-      providerName:   PROVIDER_NAME ?? null,
+      connected: SERVER_KEY_FOUND,
+      providerName: PROVIDER_NAME ?? null,
     },
     payload: {
-      sanitizedKeys:   sanitizedPayloadKeys,
+      sanitizedKeys: sanitizedPayloadKeys,
       removedFields,
       payloadValid,
-      sanitizedReady:  readyToSubmit,
+      sanitizedReady: readyToSubmit,
     },
     readyToSubmit,
   });
@@ -635,49 +743,75 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       preserveFaceIdentity,
       preserveArtistLook,
     } = (req.body ?? {}) as {
-      clipUrl?:              string;
-      audioUrl?:             string;
-      sceneStartSec?:        number;
-      sceneEndSec?:          number;
-      audioSourceType?:      string;
-      strength?:             string;
+      clipUrl?: string;
+      audioUrl?: string;
+      sceneStartSec?: number;
+      sceneEndSec?: number;
+      audioSourceType?: string;
+      strength?: string;
       preserveFaceIdentity?: boolean;
-      preserveArtistLook?:  boolean;
+      preserveArtistLook?: boolean;
     };
 
-    void audioSourceType; void strength; void preserveFaceIdentity; void preserveArtistLook;
+    void audioSourceType;
+    void strength;
+    void preserveFaceIdentity;
+    void preserveArtistLook;
 
     /* ── Validate inputs ── */
-    if (!clipUrl || typeof clipUrl !== "string" || !clipUrl.startsWith("http")) {
-      res.status(400).json({ error: "clipUrl is required and must be an HTTP URL.", code: "invalid_clip_url" });
+    if (
+      !clipUrl ||
+      typeof clipUrl !== "string" ||
+      !clipUrl.startsWith("http")
+    ) {
+      res
+        .status(400)
+        .json({
+          error: "clipUrl is required and must be an HTTP URL.",
+          code: "invalid_clip_url",
+        });
       return;
     }
     if (!audioUrl || typeof audioUrl !== "string") {
-      res.status(400).json({ error: "audioUrl is required.", code: "invalid_audio_url" });
+      res
+        .status(400)
+        .json({ error: "audioUrl is required.", code: "invalid_audio_url" });
       return;
     }
     if (audioUrl.startsWith("blob:")) {
       res.status(400).json({
-        error: "Audio URL is a temporary browser blob URL (blob:…). Upload the audio file to permanent storage first.",
+        error:
+          "Audio URL is a temporary browser blob URL (blob:…). Upload the audio file to permanent storage first.",
         code: "blob_url_not_supported",
       });
       return;
     }
     if (!audioUrl.startsWith("http")) {
-      res.status(400).json({ error: `Audio URL must start with https:// (got: ${audioUrl.slice(0, 30)})`, code: "invalid_audio_url" });
+      res
+        .status(400)
+        .json({
+          error: `Audio URL must start with https:// (got: ${audioUrl.slice(0, 30)})`,
+          code: "invalid_audio_url",
+        });
       return;
     }
-    if (typeof sceneStartSec !== "number" || typeof sceneEndSec !== "number" || sceneEndSec <= sceneStartSec) {
+    if (
+      typeof sceneStartSec !== "number" ||
+      typeof sceneEndSec !== "number" ||
+      sceneEndSec <= sceneStartSec
+    ) {
       res.status(400).json({
-        error: "sceneStartSec and sceneEndSec are required; sceneEndSec must be greater than sceneStartSec.",
+        error:
+          "sceneStartSec and sceneEndSec are required; sceneEndSec must be greater than sceneStartSec.",
         code: "invalid_timing",
       });
       return;
     }
     if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
-      const msg = PROVIDER_NAME === "sync"
-        ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-        : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
+      const msg =
+        PROVIDER_NAME === "sync"
+          ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
+          : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
       res.status(503).json({ error: msg, code: "provider_not_connected" });
       return;
     }
@@ -707,13 +841,28 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
        the HTTP response is sent. The client polls GET /api/lip-sync/job/:id
        every few seconds until status becomes "done" or "failed".           */
     const jobId = randomUUID();
-    const now   = new Date().toISOString();
-    lipSyncJobs.set(jobId, { status: "queued", createdAt: now, updatedAt: now });
+    const now = new Date().toISOString();
+    lipSyncJobs.set(jobId, {
+      status: "queued",
+      createdAt: now,
+      updatedAt: now,
+    });
 
-    void processLipSyncJob(jobId, { clipUrl, audioUrl, sceneStartSec, sceneEndSec });
+    void processLipSyncJob(jobId, {
+      clipUrl,
+      audioUrl,
+      sceneStartSec,
+      sceneEndSec,
+    });
 
     req.log.info(
-      { jobId, clipUrl: clipUrl.slice(0, 80), sceneStartSec, sceneEndSec, provider: PROVIDER_NAME },
+      {
+        jobId,
+        clipUrl: clipUrl.slice(0, 80),
+        sceneStartSec,
+        sceneEndSec,
+        provider: PROVIDER_NAME,
+      },
       "[lip-sync] job queued — returning immediately",
     );
 
@@ -738,33 +887,60 @@ router.post(
     try {
       const buffer = req.body as Buffer;
       if (!Buffer.isBuffer(buffer) || buffer.length < 100) {
-        res.status(400).json({ error: "No valid audio data received.", code: "empty_file" });
+        res
+          .status(400)
+          .json({ error: "No valid audio data received.", code: "empty_file" });
         return;
       }
       if (!STEM_BUCKET) {
-        res.status(500).json({ error: "Object storage not configured.", code: "no_bucket" });
+        res
+          .status(500)
+          .json({ error: "Object storage not configured.", code: "no_bucket" });
         return;
       }
 
       const ct = (req.headers["content-type"] ?? "audio/mpeg").toLowerCase();
-      const ext = ct.includes("wav") ? "wav" : ct.includes("ogg") ? "ogg" : ct.includes("aac") ? "aac" : "mp3";
+      const ext = ct.includes("wav")
+        ? "wav"
+        : ct.includes("ogg")
+          ? "ogg"
+          : ct.includes("aac")
+            ? "aac"
+            : "mp3";
       const contentType =
-        ext === "wav" ? "audio/wav" : ext === "ogg" ? "audio/ogg" : ext === "aac" ? "audio/aac" : "audio/mpeg";
+        ext === "wav"
+          ? "audio/wav"
+          : ext === "ogg"
+            ? "audio/ogg"
+            : ext === "aac"
+              ? "audio/aac"
+              : "audio/mpeg";
 
       const objectName = `vocal-stems/${req.userId}/${randomUUID()}.${ext}`;
       const bucket = objectStorageClient.bucket(STEM_BUCKET);
-      await bucket.file(objectName).save(buffer, { contentType, resumable: false });
+      await bucket
+        .file(objectName)
+        .save(buffer, { contentType, resumable: false });
 
       // Try Replit sidecar first; fall back to Supabase if it fails
       let url: string;
       try {
         url = await signGetUrl(STEM_BUCKET, objectName);
       } catch (signErr) {
-        req.log.warn({ err: signErr, objectName }, "[lip-sync] Replit sidecar signing failed for vocal stem — trying Supabase");
-        url = await uploadAudioToSupabase(buffer, `vocal-stems/${req.userId}/${randomUUID()}.${ext}`);
+        req.log.warn(
+          { err: signErr, objectName },
+          "[lip-sync] Replit sidecar signing failed for vocal stem — trying Supabase",
+        );
+        url = await uploadAudioToSupabase(
+          buffer,
+          `vocal-stems/${req.userId}/${randomUUID()}.${ext}`,
+        );
       }
 
-      req.log.info({ objectName, bytes: buffer.length }, "[lip-sync] vocal stem uploaded");
+      req.log.info(
+        { objectName, bytes: buffer.length },
+        "[lip-sync] vocal stem uploaded",
+      );
       res.json({ url, ext, bytes: buffer.length });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload failed";
@@ -783,86 +959,104 @@ router.post(
 ══════════════════════════════════════════════════════════════════════════ */
 
 interface SceneTestDebug {
-  routeCalled:          boolean;
-  ffmpegStarted:        boolean;
-  ffmpegFinished:       boolean;
-  outputExists:         boolean;
-  outputBytes:          number;
-  outputValid:          boolean | null;
-  uploadStarted:        boolean;
-  uploadFinished:       boolean;
-  signRequestStarted:   boolean;
-  signRequestFinished:  boolean;
-  signedUrlCreated:     boolean;
-  bucketName:           string | null;
-  objectPath:           string | null;
-  storageMethod:        "signed-url" | "fallback-download" | null;
-  resultUrl:            string | null;
-  lastStorageError:     string | null;
-  lastError:            string | null;
+  routeCalled: boolean;
+  ffmpegStarted: boolean;
+  ffmpegFinished: boolean;
+  outputExists: boolean;
+  outputBytes: number;
+  outputValid: boolean | null;
+  uploadStarted: boolean;
+  uploadFinished: boolean;
+  signRequestStarted: boolean;
+  signRequestFinished: boolean;
+  signedUrlCreated: boolean;
+  bucketName: string | null;
+  objectPath: string | null;
+  storageMethod: "signed-url" | "fallback-download" | null;
+  resultUrl: string | null;
+  lastStorageError: string | null;
+  lastError: string | null;
 }
 
 interface SceneTestJob {
-  status:         "queued" | "running" | "done" | "failed";
-  step?:          string;
-  resultUrl?:     string;
+  status: "queued" | "running" | "done" | "failed";
+  step?: string;
+  resultUrl?: string;
   storageMethod?: "signed-url" | "fallback-download";
-  fileSize?:      number;
-  error?:         string;
+  fileSize?: number;
+  error?: string;
   renderSucceeded?: boolean;
-  debug:          SceneTestDebug;
-  createdAt:      string;
-  updatedAt:      string;
+  debug: SceneTestDebug;
+  createdAt: string;
+  updatedAt: string;
 }
 
-const sceneTestJobs    = new Map<string, SceneTestJob>();
-const sceneTestBuffers = new Map<string, Buffer>();        // fallback in-memory download
+const sceneTestJobs = new Map<string, SceneTestJob>();
+const sceneTestBuffers = new Map<string, Buffer>(); // fallback in-memory download
 
-setInterval(() => {
-  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
-  for (const [id, job] of sceneTestJobs) {
-    if (new Date(job.createdAt).getTime() < cutoff) {
-      sceneTestJobs.delete(id);
-      sceneTestBuffers.delete(id);
+setInterval(
+  () => {
+    const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+    for (const [id, job] of sceneTestJobs) {
+      if (new Date(job.createdAt).getTime() < cutoff) {
+        sceneTestJobs.delete(id);
+        sceneTestBuffers.delete(id);
+      }
     }
-  }
-}, 30 * 60 * 1000).unref();
+  },
+  30 * 60 * 1000,
+).unref();
 
 async function processSceneTestJob(
   jobId: string,
   params: {
-    clipUrl:        string;
-    audioUrl:       string;
-    sceneStartSec:  number;
-    sceneEndSec:    number;
+    clipUrl: string;
+    audioUrl: string;
+    sceneStartSec: number;
+    sceneEndSec: number;
     videoOffsetSec: number;
   },
 ): Promise<void> {
-  const now    = () => new Date().toISOString();
+  const now = () => new Date().toISOString();
   const update = (patch: Partial<SceneTestJob>) => {
     const j = sceneTestJobs.get(jobId);
     if (j) sceneTestJobs.set(jobId, { ...j, ...patch, updatedAt: now() });
   };
   const dbg = (patch: Partial<SceneTestDebug>) => {
     const j = sceneTestJobs.get(jobId);
-    if (j) sceneTestJobs.set(jobId, { ...j, debug: { ...j.debug, ...patch }, updatedAt: now() });
+    if (j)
+      sceneTestJobs.set(jobId, {
+        ...j,
+        debug: { ...j.debug, ...patch },
+        updatedAt: now(),
+      });
   };
 
   const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-test-"));
   try {
     /* ── 1: Download lip sync clip ──────────────────────────────────────── */
     update({ status: "running", step: "downloading lip sync video" });
-    const clipRes = await fetch(params.clipUrl, { signal: AbortSignal.timeout(120_000) });
-    if (!clipRes.ok) throw new Error(`Clip download failed: HTTP ${clipRes.status}`);
+    const clipRes = await fetch(params.clipUrl, {
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!clipRes.ok)
+      throw new Error(`Clip download failed: HTTP ${clipRes.status}`);
     const clipPath = join(tmpDir, "clip.mp4");
     await writeFile(clipPath, Buffer.from(await clipRes.arrayBuffer()));
 
     /* ── 2: Download project audio ──────────────────────────────────────── */
     update({ step: "downloading audio" });
-    const audioRes = await fetch(params.audioUrl, { signal: AbortSignal.timeout(120_000) });
-    if (!audioRes.ok) throw new Error(`Audio download failed: HTTP ${audioRes.status}`);
-    const audioCt  = audioRes.headers.get("content-type") ?? "";
-    const audioExt = audioCt.includes("wav") ? "wav" : audioCt.includes("ogg") ? "ogg" : "mp3";
+    const audioRes = await fetch(params.audioUrl, {
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!audioRes.ok)
+      throw new Error(`Audio download failed: HTTP ${audioRes.status}`);
+    const audioCt = audioRes.headers.get("content-type") ?? "";
+    const audioExt = audioCt.includes("wav")
+      ? "wav"
+      : audioCt.includes("ogg")
+        ? "ogg"
+        : "mp3";
     const audioPath = join(tmpDir, `audio.${audioExt}`);
     await writeFile(audioPath, Buffer.from(await audioRes.arrayBuffer()));
 
@@ -870,12 +1064,11 @@ async function processSceneTestJob(
     update({ step: "rendering mp4" });
     dbg({ ffmpegStarted: true });
 
-    const sceneDur   = params.sceneEndSec - params.sceneStartSec;
-    const offset     = params.videoOffsetSec;
+    const sceneDur = params.sceneEndSec - params.sceneStartSec;
+    const offset = params.videoOffsetSec;
     const outputPath = join(tmpDir, "scene-test.mp4");
 
-    const audioTrimFilter =
-      `atrim=start=${params.sceneStartSec.toFixed(3)}:end=${params.sceneEndSec.toFixed(3)},asetpts=PTS-STARTPTS`;
+    const audioTrimFilter = `atrim=start=${params.sceneStartSec.toFixed(3)}:end=${params.sceneEndSec.toFixed(3)},asetpts=PTS-STARTPTS`;
 
     let filterComplex: string;
     let videoMap: string;
@@ -883,7 +1076,7 @@ async function processSceneTestJob(
 
     if (Math.abs(offset) < 0.02) {
       filterComplex = `[1:a]${audioTrimFilter}[ao]`;
-      videoMap      = "0:v";
+      videoMap = "0:v";
     } else if (offset > 0) {
       /* Mouth too early → delay video with black padding at start */
       filterComplex = [
@@ -903,29 +1096,46 @@ async function processSceneTestJob(
 
     const ffmpegArgs = [
       "-y",
-      "-i",  clipPath,
-      "-i",  audioPath,
-      "-filter_complex", filterComplex,
-      "-map", videoMap,
-      "-map", audioMap,
-      "-c:v", "libx264", "-preset", "ultrafast",
-      "-c:a", "aac",
-      "-t",   sceneDur.toFixed(3),
-      "-movflags", "+faststart",
+      "-i",
+      clipPath,
+      "-i",
+      audioPath,
+      "-filter_complex",
+      filterComplex,
+      "-map",
+      videoMap,
+      "-map",
+      audioMap,
+      "-c:v",
+      "libx264",
+      "-preset",
+      "ultrafast",
+      "-c:a",
+      "aac",
+      "-t",
+      sceneDur.toFixed(3),
+      "-movflags",
+      "+faststart",
       outputPath,
     ];
 
     let ffmpegStderr = "";
     try {
-      const result = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: 120_000 });
+      const result = await execFileAsync("ffmpeg", ffmpegArgs, {
+        timeout: 120_000,
+      });
       ffmpegStderr = result.stderr ?? "";
     } catch (ffErr: unknown) {
       ffmpegStderr = (ffErr as { stderr?: string }).stderr ?? "";
       const errMsg = ffErr instanceof Error ? ffErr.message : String(ffErr);
-      const stderrTail = ffmpegStderr.split("\n").filter(Boolean).slice(-10).join("\n");
+      const stderrTail = ffmpegStderr
+        .split("\n")
+        .filter(Boolean)
+        .slice(-10)
+        .join("\n");
       throw new Error(
         `FFmpeg failed: ${errMsg.slice(0, 200)}` +
-        (stderrTail ? ` — ${stderrTail.slice(-300)}` : ""),
+          (stderrTail ? ` — ${stderrTail.slice(-300)}` : ""),
       );
     }
     void ffmpegStderr;
@@ -940,17 +1150,23 @@ async function processSceneTestJob(
     dbg({ outputBytes });
     const MIN_BYTES = 100 * 1024; // 100 KB
     if (outputBytes < MIN_BYTES) {
-      throw new Error(`Output too small (${(outputBytes / 1024).toFixed(1)} KB < 100 KB) — FFmpeg may have failed silently`);
+      throw new Error(
+        `Output too small (${(outputBytes / 1024).toFixed(1)} KB < 100 KB) — FFmpeg may have failed silently`,
+      );
     }
 
     /* ffprobe validation */
     let outputValid: boolean | null = null;
     try {
       const probe = await execFileAsync("ffprobe", [
-        "-v", "error",
-        "-select_streams", "v:0",
-        "-show_entries", "stream=codec_type",
-        "-of", "default=noprint_wrappers=1:nokey=1",
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_type",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
         outputPath,
       ]);
       outputValid = probe.stdout.trim().toLowerCase().includes("video");
@@ -959,7 +1175,9 @@ async function processSceneTestJob(
     }
     dbg({ outputValid });
     if (outputValid === false) {
-      throw new Error("ffprobe found no video stream in output — render produced an invalid file");
+      throw new Error(
+        "ffprobe found no video stream in output — render produced an invalid file",
+      );
     }
 
     update({ renderSucceeded: true });
@@ -970,29 +1188,44 @@ async function processSceneTestJob(
     /* ── 6: Upload to GCS + sign URL (with fallback on failure) ─────────── */
     update({ step: "uploading result" });
 
-    const bucketId   = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"] ?? null;
+    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"] ?? null;
     const objectName = `lip-sync-tests/${jobId}.mp4`;
     dbg({ bucketName: bucketId, objectPath: objectName });
 
-    let signedUrl:    string | null = null;
+    let signedUrl: string | null = null;
     let storageError: string | null = null;
 
     if (bucketId) {
       try {
         dbg({ uploadStarted: true });
         const bucket = objectStorageClient.bucket(bucketId);
-        await bucket.file(objectName).save(fileBuffer, { contentType: "video/mp4", resumable: false });
+        await bucket
+          .file(objectName)
+          .save(fileBuffer, { contentType: "video/mp4", resumable: false });
         dbg({ uploadFinished: true });
 
         dbg({ signRequestStarted: true });
         signedUrl = await signGetUrl(bucketId, objectName);
-        dbg({ signRequestFinished: true, signedUrlCreated: true, resultUrl: signedUrl });
+        dbg({
+          signRequestFinished: true,
+          signedUrlCreated: true,
+          resultUrl: signedUrl,
+        });
       } catch (storErr) {
-        storageError = storErr instanceof Error ? storErr.message : String(storErr);
-        dbg({ signRequestFinished: true, signedUrlCreated: false, lastStorageError: storageError });
+        storageError =
+          storErr instanceof Error ? storErr.message : String(storErr);
+        dbg({
+          signRequestFinished: true,
+          signedUrlCreated: false,
+          lastStorageError: storageError,
+        });
+
+        // Replit object storage signing can fail even when the render worked.
+        // Do not fail the Scene Only Test; use backend fallback download route.
       }
     } else {
-      storageError = "DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — using fallback download";
+      storageError =
+        "DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — using fallback download";
     }
 
     /* ── 7: Fallback — serve via in-memory download route ───────────────── */
@@ -1001,11 +1234,11 @@ async function processSceneTestJob(
       const fallbackUrl = `/api/lip-sync-tests/${jobId}/download`;
       dbg({ storageMethod: "fallback-download", resultUrl: fallbackUrl });
       update({
-        status:         "done",
-        step:           "done",
-        resultUrl:      fallbackUrl,
-        storageMethod:  "fallback-download",
-        fileSize:       outputBytes,
+        status: "done",
+        step: "done",
+        resultUrl: fallbackUrl,
+        storageMethod: "fallback-download",
+        fileSize: outputBytes,
         /* soft error — render succeeded, only signing failed */
         error: storageError
           ? `Render succeeded. Storage signing failed — using fallback download. (${storageError.slice(0, 200)})`
@@ -1016,11 +1249,11 @@ async function processSceneTestJob(
 
     dbg({ storageMethod: "signed-url" });
     update({
-      status:        "done",
-      step:          "done",
-      resultUrl:     signedUrl,
+      status: "done",
+      step: "done",
+      resultUrl: signedUrl,
       storageMethod: "signed-url",
-      fileSize:      outputBytes,
+      fileSize: outputBytes,
     });
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -1039,16 +1272,21 @@ async function processSceneTestJob(
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync-tests/:testId/download", (req, res) => {
   const paramId = req.params["testId"];
-  const testId  = Array.isArray(paramId) ? (paramId[0] ?? "") : (paramId ?? "");
-  const buf     = sceneTestBuffers.get(testId);
+  const testId = Array.isArray(paramId) ? (paramId[0] ?? "") : (paramId ?? "");
+  const buf = sceneTestBuffers.get(testId);
   if (!buf) {
-    res.status(404).json({ error: "Test file not found or expired", code: "not_found" });
+    res
+      .status(404)
+      .json({ error: "Test file not found or expired", code: "not_found" });
     return;
   }
-  res.setHeader("Content-Type",        "video/mp4");
-  res.setHeader("Content-Length",      String(buf.length));
-  res.setHeader("Content-Disposition", `attachment; filename="scene-test-${testId.slice(0, 8)}.mp4"`);
-  res.setHeader("Cache-Control",       "private, max-age=7200");
+  res.setHeader("Content-Type", "video/mp4");
+  res.setHeader("Content-Length", String(buf.length));
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="scene-test-${testId.slice(0, 8)}.mp4"`,
+  );
+  res.setHeader("Cache-Control", "private, max-age=7200");
   res.end(buf);
 });
 
@@ -1059,53 +1297,66 @@ router.get("/lip-sync-tests/:testId/download", (req, res) => {
 router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
   try {
     const body = (req.body ?? {}) as {
-      clipUrl?:        unknown;
-      audioUrl?:       unknown;
-      sceneStartSec?:  unknown;
-      sceneEndSec?:    unknown;
+      clipUrl?: unknown;
+      audioUrl?: unknown;
+      sceneStartSec?: unknown;
+      sceneEndSec?: unknown;
       videoOffsetSec?: unknown;
     };
 
     if (!body.clipUrl || typeof body.clipUrl !== "string") {
-      res.status(400).json({ error: "clipUrl is required", code: "missing_clip" });
+      res
+        .status(400)
+        .json({ error: "clipUrl is required", code: "missing_clip" });
       return;
     }
     if (!body.audioUrl || typeof body.audioUrl !== "string") {
-      res.status(400).json({ error: "audioUrl is required", code: "missing_audio" });
+      res
+        .status(400)
+        .json({ error: "audioUrl is required", code: "missing_audio" });
       return;
     }
-    const sceneStartSec  = Number(body.sceneStartSec  ?? 0);
-    const sceneEndSec    = Number(body.sceneEndSec    ?? 0);
+    const sceneStartSec = Number(body.sceneStartSec ?? 0);
+    const sceneEndSec = Number(body.sceneEndSec ?? 0);
     const videoOffsetSec = Number(body.videoOffsetSec ?? 0);
 
-    if (!Number.isFinite(sceneStartSec) || !Number.isFinite(sceneEndSec) || sceneEndSec <= sceneStartSec) {
-      res.status(400).json({ error: "Invalid scene timing: sceneEndSec must be > sceneStartSec", code: "invalid_timing" });
+    if (
+      !Number.isFinite(sceneStartSec) ||
+      !Number.isFinite(sceneEndSec) ||
+      sceneEndSec <= sceneStartSec
+    ) {
+      res
+        .status(400)
+        .json({
+          error: "Invalid scene timing: sceneEndSec must be > sceneStartSec",
+          code: "invalid_timing",
+        });
       return;
     }
 
-    const jobId     = randomUUID();
+    const jobId = randomUUID();
     const createdAt = new Date().toISOString();
     const initJob: SceneTestJob = {
       status: "queued",
-      step:   "preparing",
-      debug:  {
-        routeCalled:         true,
-        ffmpegStarted:       false,
-        ffmpegFinished:      false,
-        outputExists:        false,
-        outputBytes:         0,
-        outputValid:         null,
-        uploadStarted:       false,
-        uploadFinished:      false,
-        signRequestStarted:  false,
+      step: "preparing",
+      debug: {
+        routeCalled: true,
+        ffmpegStarted: false,
+        ffmpegFinished: false,
+        outputExists: false,
+        outputBytes: 0,
+        outputValid: null,
+        uploadStarted: false,
+        uploadFinished: false,
+        signRequestStarted: false,
         signRequestFinished: false,
-        signedUrlCreated:    false,
-        bucketName:          null,
-        objectPath:          null,
-        storageMethod:       null,
-        resultUrl:           null,
-        lastStorageError:    null,
-        lastError:           null,
+        signedUrlCreated: false,
+        bucketName: null,
+        objectPath: null,
+        storageMethod: null,
+        resultUrl: null,
+        lastStorageError: null,
+        lastError: null,
       },
       createdAt,
       updatedAt: createdAt,
@@ -1113,13 +1364,19 @@ router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
     sceneTestJobs.set(jobId, initJob);
 
     req.log.info(
-      { jobId, sceneStartSec, sceneEndSec, videoOffsetSec, clipUrl: body.clipUrl.slice(0, 80) },
+      {
+        jobId,
+        sceneStartSec,
+        sceneEndSec,
+        videoOffsetSec,
+        clipUrl: body.clipUrl.slice(0, 80),
+      },
       "[scene-test] job queued",
     );
 
     void processSceneTestJob(jobId, {
-      clipUrl:       body.clipUrl,
-      audioUrl:      body.audioUrl,
+      clipUrl: body.clipUrl,
+      audioUrl: body.audioUrl,
       sceneStartSec,
       sceneEndSec,
       videoOffsetSec,
@@ -1139,9 +1396,13 @@ router.post("/lip-sync/scene-test", requireAuth, async (req, res) => {
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/scene-test/:jobId", requireAuth, (req, res) => {
   const paramJobId = req.params["jobId"];
-  const job = sceneTestJobs.get(Array.isArray(paramJobId) ? (paramJobId[0] ?? "") : (paramJobId ?? ""));
+  const job = sceneTestJobs.get(
+    Array.isArray(paramJobId) ? (paramJobId[0] ?? "") : (paramJobId ?? ""),
+  );
   if (!job) {
-    res.status(404).json({ error: "Scene test job not found", code: "not_found" });
+    res
+      .status(404)
+      .json({ error: "Scene test job not found", code: "not_found" });
     return;
   }
   res.json(job);
