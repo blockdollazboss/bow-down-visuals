@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { db, contactMessagesTable } from "@workspace/db";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 
@@ -28,13 +28,11 @@ router.post("/contact", publicApiLimiter, async (req, res) => {
   const { name, email, message } = parsed.data;
 
   try {
-    const { error } = await getSupabaseAdmin().from("contact_messages").insert({
+    await db.insert(contactMessagesTable).values({
       name: name.trim(),
       email: email.trim().toLowerCase(),
       message: message.trim(),
     });
-
-    if (error) throw error;
 
     res.json({ success: true });
   } catch (err: unknown) {
