@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { AnimatedLogo } from "@/components/AnimatedLogo";
 
 /* ─────────────────── Shared pointer rig (module singleton) ─────────────────── */
 
@@ -533,71 +532,81 @@ export function HeroBackdropCanvas() {
 }
 
 /* ─────────────────── Bowing shark logo ─────────────────── */
-/* The shark-king physically bows with the mouse: cursor up = standing tall,
-   cursor down = deep bow. Pivots at the waist (transform-origin near base)
-   with spring physics so it has weight, plus a ground shadow that spreads
-   as he bows. Idle = slow ceremonial bow so it stays alive like video. */
+/* The shark-king video scrubs with the mouse: he stands in position and the
+   bow in the footage tracks the cursor — mouse up = standing tall, mouse
+   down = deep bow (t 0 → 2.8s, the bow-down segment of the clip). The video
+   is blended with `screen` so its black background turns transparent and he
+   floats over the hero backdrop. A ground shadow spreads as he bows. */
+
+const BOW_END = 2.8; // seconds — deepest frame of the bow in hero-shark.webm
 
 export function HeroLogo3D() {
-  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const glowRef = useRef<HTMLDivElement | null>(null);
   const shadowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap || typeof window === "undefined") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    attachRig();
+    const video = videoRef.current;
+    const section = sectionRef.current;
+    if (!video || !section || typeof window === "undefined") return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    let target = 0; // desired bow progress: 0 = standing … 1 = full bow
+    let current = 0; // smoothed progress
     let raf = 0;
-    let bow = 0;
-    let vel = 0;
-    const loop = () => {
-      const now = performance.now();
-      const t = now / 1000;
-      // Mouse height -> bow depth. Top of screen: standing tall. Bottom: deep bow.
-      let target = Math.min(1, Math.max(0, (rig.y - 0.15) / 0.6));
-      // Idle: slow ceremonial bow so it still feels alive like video.
-      if (rigIdle(now)) {
-        target = 0.5 - 0.5 * Math.cos(t * 0.45);
-      }
-      // Spring toward target — weighty and physical, slight overshoot.
-      vel += (target - bow) * 0.075;
-      vel *= 0.82;
-      bow += vel;
-      const b = Math.min(1.15, Math.max(-0.1, bow));
-      const nx = rig.x - 0.5;
 
-      const rotX = -5 + b * 46; // -5deg upright … ~41deg deep bow
-      const rotY = nx * 12; // slight turn toward the cursor
-      const dipY = b * 34; // body dips as it bows
-      const scale = 1 + b * 0.05; // comes toward the viewer
-      wrap.style.transform =
-        `perspective(1100px) rotateX(${rotX.toFixed(2)}deg) ` +
-        `rotateY(${rotY.toFixed(2)}deg) ` +
-        `translate3d(${(nx * 18).toFixed(1)}px, ${dipY.toFixed(1)}px, 0) ` +
-        `scale(${scale.toFixed(4)})`;
-
-      const shadow = shadowRef.current;
-      if (shadow) {
-        const s = 1 + Math.max(0, b) * 0.4;
-        shadow.style.transform = `translateX(-50%) scaleX(${s.toFixed(3)})`;
-        shadow.style.opacity = (0.28 + Math.max(0, b) * 0.35).toFixed(3);
-      }
-      const glow = glowRef.current;
-      if (glow) {
-        glow.style.opacity = (0.8 + Math.max(0, b) * 0.2).toFixed(3);
-      }
-      const r = wrap.getBoundingClientRect();
-      rig.logoCX = r.left + r.width / 2;
-      rig.logoCY = r.top + r.height / 2;
-      raf = requestAnimationFrame(loop);
+    const setTargetFromClientY = (clientY: number) => {
+      const r = section.getBoundingClientRect();
+      const p = (clientY - r.top) / Math.max(1, r.height);
+      target = Math.min(1, Math.max(0, p));
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    const onPointerMove = (e: PointerEvent) => setTargetFromClientY(e.clientY);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+
+    const settle = () => {
+      video.pause();
+      try {
+        video.currentTime = 0;
+      } catch {
+        /* metadata not ready — the loop below will catch up */
+      }
+    };
+    if (video.readyState >= 1) settle();
+    else video.addEventListener("loadedmetadata", settle, { once: true });
+
+    if (!reduce) {
+      const loop = () => {
+        // Ease toward the pointer so the bow feels weighty, not jittery.
+        current += (target - current) * 0.14;
+        if (Math.abs(target - current) < 0.0005) current = target;
+        const want = current * BOW_END;
+        if (video.readyState >= 1 && Math.abs(video.currentTime - want) > 1 / 30) {
+          try {
+            video.currentTime = want;
+          } catch {
+            /* ignore transient seek errors */
+          }
+        }
+        const shadow = shadowRef.current;
+        if (shadow) {
+          const s = 1 + current * 0.45;
+          shadow.style.transform = `translateX(-50%) scaleX(${s.toFixed(3)})`;
+          shadow.style.opacity = (0.3 + current * 0.35).toFixed(3);
+        }
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    }
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("pointermove", onPointerMove);
+    };
   }, []);
 
   return (
-    <div className="relative flex justify-center">
+    <div ref={sectionRef} className="relative flex justify-center">
       <div
         ref={glowRef}
         aria-hidden="true"
@@ -612,12 +621,26 @@ export function HeroLogo3D() {
             "radial-gradient(circle, rgba(255,186,66,0.30) 0%, rgba(212,160,23,0.12) 45%, transparent 70%)",
         }}
       />
-      <div
-        ref={wrapRef}
-        className="relative will-change-transform"
-        style={{ transformStyle: "preserve-3d", transformOrigin: "50% 84%" }}
-      >
-                {/* Shark-king hero video — bows in the footage and follows the             cursor via the 3D pointer rig above. */}         <video           ref={(v) => {             if (v) v.muted = true;           }}           className="w-[480px] max-w-full h-auto"           src={`${import.meta.env.BASE_URL}hero-shark.webm`}           poster={`${import.meta.env.BASE_URL}hero-shark-poster.jpg`}           autoPlay           muted           loop           playsInline           preload="auto"           disablePictureInPicture           aria-label="Bow Down Visuals shark king bowing"           draggable={false}         />
+      {/* Plain wrapper (no 3D transform): he stands in position. Kept free of
+          stacking-context tricks so the video's screen blend reaches the
+          hero backdrop behind it. */}
+      <div className="relative">
+        {/* Shark-king hero video — the bow in the footage scrubs with the
+            mouse. `screen` blend drops the black background so he floats
+            over the hero backdrop. */}
+        <video
+          ref={videoRef}
+          className="w-[480px] max-w-full h-auto"
+          style={{ mixBlendMode: "screen" }}
+          src={`${import.meta.env.BASE_URL}hero-shark.webm`}
+          poster={`${import.meta.env.BASE_URL}hero-shark-poster.jpg`}
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          aria-label="Bow Down Visuals shark king bowing"
+          draggable={false}
+        />
       </div>
       {/* Ground shadow — spreads and darkens as he bows */}
       <div
