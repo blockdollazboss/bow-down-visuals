@@ -17,7 +17,11 @@ interface Rig {
   y: number;
   px: number;
   py: number;
-  lastMove: number;
+  /* Idle tracking — based on actual pointer POSITION, not event timestamps,
+     so stray/no-op pointermove events can't stall the idle timer. */
+  stableX: number;
+  stableY: number;
+  stableAt: number;
   logoCX: number;
   logoCY: number;
   shocks: Shock[];
@@ -31,19 +35,37 @@ const rig: Rig = {
   y: 0.42,
   px: -9999,
   py: -9999,
-  lastMove: 0,
+  stableX: -9999,
+  stableY: -9999,
+  stableAt: 0,
   logoCX: -9999,
   logoCY: -9999,
   shocks: [],
   attached: false,
 };
 
+/*
+ * True when the pointer has genuinely stayed put (>4s without moving
+ * more than a few px of noise). Immune to duplicate pointermove events
+ * that carry the same coordinates.
+ */
+function rigIdle(now: number): boolean {
+  if (Math.abs(rig.px - rig.stableX) > 3 || Math.abs(rig.py - rig.stableY) > 3) {
+    rig.stableX = rig.px;
+    rig.stableY = rig.py;
+    rig.stableAt = now;
+  }
+  return now - rig.stableAt > 4000;
+}
+
 function attachRig() {
   if (rig.attached || typeof window === "undefined") return;
   rig.attached = true;
   rig.px = window.innerWidth / 2;
   rig.py = window.innerHeight * 0.3;
-  rig.lastMove = performance.now();
+  rig.stableX = rig.px;
+  rig.stableY = rig.py;
+  rig.stableAt = performance.now();
   window.addEventListener(
     "pointermove",
     (e) => {
@@ -51,7 +73,6 @@ function attachRig() {
       rig.ty = Math.min(1, Math.max(0, e.clientY / window.innerHeight));
       rig.px = e.clientX;
       rig.py = e.clientY;
-      rig.lastMove = performance.now();
     },
     { passive: true }
   );
@@ -60,7 +81,8 @@ function attachRig() {
     (e) => {
       rig.shocks.push({ x: e.clientX, y: e.clientY, t0: performance.now() });
       if (rig.shocks.length > 6) rig.shocks.shift();
-      rig.lastMove = performance.now();
+      // A click counts as activity even if the cursor didn't move.
+      rig.stableAt = performance.now();
     },
     { passive: true }
   );
@@ -479,7 +501,7 @@ export function HeroBackdropCanvas() {
         const k = 0.065;
         rig.x += (rig.tx - rig.x) * k;
         rig.y += (rig.ty - rig.y) * k;
-        if (now - rig.lastMove > 3500) {
+        if (rigIdle(now)) {
           rig.tx = 0.5 + Math.sin(t * 0.4) * 0.16;
           rig.ty = 0.4 + Math.cos(t * 0.31) * 0.1;
         }
@@ -535,7 +557,7 @@ export function HeroLogo3D() {
       // Mouse height -> bow depth. Top of screen: standing tall. Bottom: deep bow.
       let target = Math.min(1, Math.max(0, (rig.y - 0.15) / 0.6));
       // Idle: slow ceremonial bow so it still feels alive like video.
-      if (now - rig.lastMove > 4000) {
+      if (rigIdle(now)) {
         target = 0.5 - 0.5 * Math.cos(t * 0.45);
       }
       // Spring toward target — weighty and physical, slight overshoot.
