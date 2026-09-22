@@ -4,9 +4,14 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
-// Dev-only credit top-up. Protected by requireAuth (needs valid Supabase JWT).
-// Button only renders in the browser when import.meta.env.DEV is true.
+// Dev-only credit top-up. Hard-gated to development: in production this route
+// does not exist, so authenticated users cannot mint free credits.
 router.post("/dev/add-credits", requireAuth, async (req, res) => {
+  if (process.env["NODE_ENV"] !== "development") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   const supabase = req.userSupabase!;
 
   const { data: profile, error: fetchError } = await supabase
