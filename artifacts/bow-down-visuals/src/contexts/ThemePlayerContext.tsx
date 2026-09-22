@@ -20,13 +20,33 @@ interface ThemePlayerCtx {
 
 const Ctx = createContext<ThemePlayerCtx | null>(null);
 
+/*
+ * Public-area routes — the "home screen": landing page, login/signup,
+ * pricing, waitlist, and the other marketing pages. The theme song plays
+ * continuously across all of these. Anything else (the logged-in app:
+ * dashboard, creators, editors…) stops it.
+ * Keep in sync with the public <Route>s in App.tsx.
+ */
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/signup",
+  "/pricing",
+  "/waitlist",
+  "/beta-access",
+  "/contact",
+  "/terms",
+  "/privacy",
+  "/refund-policy",
+]);
+
 export function ThemePlayerProvider({ children }: { children: ReactNode }) {
   /*
-   * Route awareness — autoplay is a home-screen-only feature.
+   * Route awareness — the theme song is a public-area feature.
    * (Provider must live inside the wouter Router for useLocation to work.)
    */
   const [pathname] = useLocation();
-  const isHome = pathname === "/" || pathname === "";
+  const isPublicArea = PUBLIC_PATHS.has(pathname);
 
   const audioRef       = useRef<HTMLAudioElement | null>(null);
   const [status,  setStatus]  = useState<Status>("probing");
@@ -44,30 +64,28 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
   const pausedByMedia  = useRef(false);
 
   /*
-   * Home-screen autoplay flags.
-   * isHomeRef       = fresh route read for handlers/effects.
-   * autoPausedByNav = we paused because the user left the home screen.
-   * userStartedRef  = user explicitly pressed play — their intent wins on any route.
+   * Public-area autoplay flags.
+   * isPublicAreaRef = fresh route read for handlers/effects.
+   * autoPausedByNav = we paused because the user entered the logged-in app.
    */
-  const isHomeRef       = useRef(isHome);
+  const isPublicAreaRef = useRef(isPublicArea);
   const autoPausedByNav = useRef(false);
-  const userStartedRef  = useRef(false);
   const volumeRef       = useRef(volume);
 
-  useEffect(() => { isHomeRef.current = isHome; }, [isHome]);
+  useEffect(() => { isPublicAreaRef.current = isPublicArea; }, [isPublicArea]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
 
   /*
-   * Shared autoplay attempt. Only ever fires on the home screen,
+   * Shared autoplay attempt. Only ever fires in the public area,
    * never when the user paused, never while another media owns the audio.
    */
   const tryAutoplay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (!isHomeRef.current) return;     // home screen only
-    if (manuallyPaused.current) return; // user said no
-    if (pausedByMedia.current) return;  // another media owns the audio
-    if (!audio.paused) return;          // already playing
+    if (!isPublicAreaRef.current) return; // public area only
+    if (manuallyPaused.current) return;   // user said no
+    if (pausedByMedia.current) return;    // another media owns the audio
+    if (!audio.paused) return;            // already playing
     audio.muted  = false;
     audio.volume = volumeRef.current;
     audio.play()
@@ -75,7 +93,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       .catch(() => { /* blocked — the unlock listener below stays armed */ });
   }, []);
 
-  /* ── Boot: create audio, attempt unmuted autoplay (home screen only) ── */
+  /* ── Boot: create audio, attempt unmuted autoplay (public area only) ── */
   useEffect(() => {
     const audio = new Audio(AUDIO_SRC);
     audio.loop    = true;
@@ -94,15 +112,15 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
 
     /*
      * Browser blocked autoplay: the moment the user clicks/taps/keys,
-     * start playing unmuted — but ONLY on the home screen. The listener
-     * stays armed on other routes, so arriving home later still auto-plays.
-     * Never falls back to muted.
+     * start playing unmuted — but ONLY in the public area. The listener
+     * stays armed on other routes, so arriving at a public page later
+     * still auto-plays. Never falls back to muted.
      */
     const unlock = () => {
       const a = audioRef.current;
       if (!a) { removeUnlock(); return; }
       if (manuallyPaused.current) { removeUnlock(); return; } // user already said no
-      if (!isHomeRef.current) return;   // not on home — stay armed
+      if (!isPublicAreaRef.current) return; // not public — stay armed
       if (!a.paused) { removeUnlock(); return; }
       if (pausedByMedia.current) return;
       a.muted  = false;
@@ -121,7 +139,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
         setStatus("ready");
 
         /* Attempt 1: unmuted autoplay (works after any prior user gesture).
-           tryAutoplay no-ops anywhere but the home screen. */
+           tryAutoplay no-ops anywhere but the public area. */
         tryAutoplay();
       })
       .catch(() => setStatus("missing"));
@@ -133,11 +151,11 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [tryAutoplay]);
 
-  /* ── Home-screen-only autoplay: pause when leaving home, resume on return ── */
+  /* ── Public-area autoplay: stop when entering the logged-in app, resume on return ── */
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || status !== "ready") return;
-    if (isHome) {
+    if (isPublicArea) {
       if (manuallyPaused.current) return; // respect the user's pause
       /* Clear a stale media-duck if nothing is actually playing anymore. */
       const stillPlaying = Array.from(
@@ -145,15 +163,15 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       ).some((el) => el !== audio && !el.paused && !el.ended);
       if (!stillPlaying) pausedByMedia.current = false;
       autoPausedByNav.current = false;
-      /* Resumes after a nav-away pause, or fresh autoplay arriving home. */
+      /* Resumes after an app-visit pause, or fresh autoplay arriving in the public area. */
       tryAutoplay();
-    } else if (!audio.paused && !userStartedRef.current) {
-      /* Left home: pause automatic playback. User-started playback keeps going. */
+    } else if (!audio.paused) {
+      /* Entered the logged-in app to start creating: stop the theme song, full stop. */
       autoPausedByNav.current = true;
       audio.pause();
       setPlaying(false);
     }
-  }, [isHome, status, tryAutoplay]);
+  }, [isPublicArea, status, tryAutoplay]);
 
   /* ── Detect other media playing on the page ── */
   useEffect(() => {
@@ -251,7 +269,6 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     } else {
       manuallyPaused.current = false;
       autoPausedByNav.current = false;
-      userStartedRef.current = true; // explicit user intent — plays on any route
       audio.muted  = manuallyMuted.current;
       audio.volume = volume;
       audio.play().catch(() => {});
@@ -268,7 +285,6 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     setMuted(next);
     /* Unmuting should also ensure playback starts if paused */
     if (!next && !playing && !manuallyPaused.current) {
-      userStartedRef.current = true; // explicit user intent
       audio.play().catch(() => {});
       setPlaying(true);
     }
