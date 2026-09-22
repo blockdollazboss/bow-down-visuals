@@ -2,10 +2,9 @@ import { useState, useRef, forwardRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { HeroBackdropCanvas, HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
   Music,
@@ -233,7 +232,6 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
-  const logoTilt = useTiltOnHover<HTMLDivElement>({ track: true });
   return (
     <section className="relative min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center text-center px-5 py-16 overflow-hidden">
       {/* Background glow effects */}
@@ -269,11 +267,12 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         }}
       />
 
+      {/* Cinematic motion backdrop — embers, god rays, light sweeps */}
+      <HeroBackdropCanvas />
+
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
-        {/* Hero Logo — tilts toward the cursor on desktop */}
-        <div ref={logoTilt} className="flex justify-center will-change-transform">
-          <AnimatedLogo className="w-[480px] max-w-full h-auto" />
-        </div>
+        {/* Hero Logo — cinematic 3D mouse-tracked motion */}
+        <HeroLogo3D />
 
         {/* Beta badge */}
         <Link href="/beta-access">
