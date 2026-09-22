@@ -13,6 +13,7 @@ ARG VITE_SUPABASE_URL=""
 ARG VITE_SUPABASE_ANON_KEY=""
 ARG VITE_LIP_SYNC_API_KEY=""
 ARG PORT="8080"
+ARG BASE_PATH="/"
 
 COPY . .
 
@@ -20,6 +21,7 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
     VITE_LIP_SYNC_API_KEY=$VITE_LIP_SYNC_API_KEY \
     PORT=$PORT
+    BASE_PATH=$BASE_PATH
 
 # typecheck + build every workspace package (frontend + api-server)
 RUN pnpm install --frozen-lockfile && pnpm run build
