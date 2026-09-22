@@ -886,7 +886,7 @@ export type MasterPlayerSnapPosition =
   | "bottom-right" | "bottom-right-quarter" | "bottom-center" | "bottom-left-quarter" | "bottom-left"
   | "left-center";
 
-/** The master player has no docked/inline mode — it is always a floating overlay. */
+/** The master player is locked in — docked inline in the editor's center column, never a floating overlay. These snap positions are kept for settings compatibility only. */
 export const MASTER_PLAYER_DEFAULT_WIDTH = 260;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
 export const MASTER_PLAYER_MAX_WIDTH = 480;

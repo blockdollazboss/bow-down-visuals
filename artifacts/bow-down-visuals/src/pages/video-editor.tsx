@@ -7,7 +7,7 @@ import {
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug, Mic2,
-  Move, Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle,
+  Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -27,7 +27,6 @@ import {
   formatDimensions,
   FORMAT_PRESET_LABELS,
   VIDEO_FORMATS,
-  MASTER_PLAYER_SNAP_POSITIONS,
   MASTER_PLAYER_MIN_WIDTH,
   MASTER_PLAYER_MAX_WIDTH,
   MASTER_PLAYER_DEFAULT_WIDTH,
@@ -35,7 +34,6 @@ import {
   type EditorSettings,
   type VideoFormat,
   type FitMode,
-  type MasterPlayerSnapPosition,
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { OverlayLayer } from "@/components/OverlayLayer";
@@ -1507,6 +1505,7 @@ const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
 const FLOAT_PLAYER_MARGIN = 16;
 const MINIMIZED_CHIP_WIDTH = 96;
 
+/** Docked-player aspect ratio from the project's export format. */
 function floatPlayerAspect(fmt: VideoFormat): number {
   switch (fmt) {
     case "16:9": return 16 / 9;
@@ -1515,56 +1514,6 @@ function floatPlayerAspect(fmt: VideoFormat): number {
     case "9:16":
     default: return 9 / 16;
   }
-}
-
-/** Pixel rect (top/left) for a given snap anchor, given the floating box's fixed size.
- *  `bottomSafeArea` (e.g. the TimelineDock's height) is subtracted from bottom-anchored
- *  positions so the floating box clears other fixed bottom chrome instead of overlapping it.
- *  `topSafeArea` (the sticky top nav bar's height) is added to top-anchored positions so the
- *  floating box always renders fully below the header instead of overlapping/hiding behind it.
- *  Every returned `top` — including the vertically-centered anchors — is clamped to the
- *  [topSafeArea, bottomSafeArea] band so the player can NEVER render under the top toolbar or
- *  over the timeline dock, regardless of anchor or aspect ratio. Callers are responsible for
- *  keeping `h` at or below the available band height (see `floatWidth` sizing in
- *  MasterPreviewPlayer) — this function only positions the box, it cannot shrink it. */
-function getSnapAnchorRect(pos: MasterPlayerSnapPosition, w: number, h: number, bottomSafeArea = 0, topSafeArea = 0): { top: number; left: number } {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 720;
-  const m = FLOAT_PLAYER_MARGIN;
-  const minTop = m + topSafeArea;
-  const maxTop = Math.max(minTop, vh - h - m - bottomSafeArea);
-  const midX = (vw - w) / 2;
-  const midY = Math.min(maxTop, Math.max(minTop, (vh - h) / 2));
-  const quarterLeft = vw * 0.25 - w / 2;
-  const quarterRight = vw * 0.75 - w / 2;
-  const top = minTop;
-  const bottom = maxTop;
-  switch (pos) {
-    case "top-left": return { top, left: m };
-    case "top-left-quarter": return { top, left: quarterLeft };
-    case "top-center": return { top, left: midX };
-    case "top-right-quarter": return { top, left: quarterRight };
-    case "top-right": return { top, left: vw - w - m };
-    case "right-center": return { top: midY, left: vw - w - m };
-    case "bottom-right": return { top: bottom, left: vw - w - m };
-    case "bottom-right-quarter": return { top: bottom, left: quarterRight };
-    case "bottom-center": return { top: bottom, left: midX };
-    case "bottom-left-quarter": return { top: bottom, left: quarterLeft };
-    case "bottom-left": return { top: bottom, left: m };
-    case "left-center": return { top: midY, left: m };
-  }
-}
-
-/** Finds the nearest of the 12 fixed snap anchors to a given (top, left) position. */
-function findNearestSnapPosition(pos: { top: number; left: number }, w: number, h: number, bottomSafeArea = 0, topSafeArea = 0): MasterPlayerSnapPosition {
-  let best: MasterPlayerSnapPosition = MASTER_PLAYER_SNAP_POSITIONS[0]!;
-  let bestDist = Infinity;
-  for (const candidate of MASTER_PLAYER_SNAP_POSITIONS) {
-    const rect = getSnapAnchorRect(candidate, w, h, bottomSafeArea, topSafeArea);
-    const dist = (rect.top - pos.top) ** 2 + (rect.left - pos.left) ** 2;
-    if (dist < bestDist) { bestDist = dist; best = candidate; }
-  }
-  return best;
 }
 
 /** Short badge label shown on the Fit Mode button. */
@@ -1631,27 +1580,20 @@ function MasterPreviewPlayer({
   const [pipError,           setPipError          ] = useState<string | null>(null);
   const blurVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  /* ── Master player: always floating (no docked/inline mode), draggable, snaps to
-   *    nearest of 12 anchors on release. Fullscreen replaces the floating chrome
-   *    entirely; minimize/hide are independent presentation states on top of it. ── */
-  const isFloating = !isFullscreen;
+  /* ── Master player: LOCKED IN — docked inline in the center column, never a
+   *    floating overlay. Fullscreen replaces the docked player entirely;
+   *    minimize/hide are independent presentation states on top of it. ── */
   const isMinimized = !!settings.masterPlayerMinimized && !isFullscreen;
   const isHidden = !!settings.masterPlayerHidden && !isFullscreen;
   const aspect = floatPlayerAspect((settings.export.format ?? "9:16") as VideoFormat);
-
-  const [isDraggingFloat, setIsDraggingFloat] = useState(false);
-  const [floatDragPos, setFloatDragPos] = useState<{ top: number; left: number } | null>(null);
-  const floatDragOffsetRef = useRef({ dx: 0, dy: 0 });
 
   const [isResizingFloat, setIsResizingFloat] = useState(false);
   const [resizeWidth, setResizeWidth] = useState<number | null>(null);
   const resizeStartRef = useRef({ startX: 0, startWidth: 0 });
 
-  /* ── Recompute the floating anchor whenever the browser window itself is resized.
-   *    getSnapAnchorRect() reads window.innerWidth/innerHeight at render time, so without
-   *    this listener a viewport resize (e.g. rotating a device, resizing the browser)
-   *    would leave the master player positioned against stale viewport dimensions —
-   *    on a short viewport that can make it overlap the bottom TimelineDock. ── */
+  /* ── Recompute the docked player's size whenever the browser window itself is
+   *    resized, so the height clamp against the available viewport band stays fresh
+   *    (e.g. rotating a device or resizing the browser). ── */
   const [, forceViewportRecalc] = useState(0);
   useEffect(() => {
     const onResize = () => forceViewportRecalc((n) => n + 1);
@@ -1689,44 +1631,10 @@ function MasterPreviewPlayer({
     setSettings({ ...settings, masterPlayerHidden: !settings.masterPlayerHidden });
   };
 
-  const handleFloatDragStart = (e: React.PointerEvent) => {
-    if (!isFloating || isHidden) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    floatDragOffsetRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-    setFloatDragPos({ top: rect.top, left: rect.left });
-    setIsDraggingFloat(true);
-  };
-
-  useEffect(() => {
-    if (!isDraggingFloat) return;
-    const onMove = (e: PointerEvent) => {
-      const left = Math.min(Math.max(e.clientX - floatDragOffsetRef.current.dx, 0), window.innerWidth - floatWidth);
-      const top = Math.min(Math.max(e.clientY - floatDragOffsetRef.current.dy, 0), window.innerHeight - (floatHeight + chromeHeight));
-      setFloatDragPos({ top, left });
-    };
-    const onUp = () => {
-      setIsDraggingFloat(false);
-      setFloatDragPos((pos) => {
-        if (pos) {
-          const nearest = findNearestSnapPosition(pos, floatWidth, floatHeight + chromeHeight, dockHeight, headerHeight);
-          setSettings({ ...settings, masterPlayerSnapPosition: nearest });
-        }
-        return null;
-      });
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [isDraggingFloat, floatWidth, floatHeight, chromeHeight, settings, setSettings, dockHeight, headerHeight]);
-
-  /* ── Resize: drag the bottom-right handle to grow/shrink the floating player,
+  /* ── Resize: drag the bottom-right handle to grow/shrink the docked player,
    *    the aspect ratio is always locked to the project's export format. ── */
   const handleResizeStart = (e: React.PointerEvent) => {
-    if (!isFloating || isMinimized || isHidden) return;
+    if (isFullscreen || isMinimized || isHidden) return;
     e.stopPropagation();
     resizeStartRef.current = { startX: e.clientX, startWidth: savedWidth };
     setResizeWidth(savedWidth);
@@ -1761,20 +1669,19 @@ function MasterPreviewPlayer({
    * floatHeight would force the flex layout to steal space from — and can collapse to
    * zero — the video canvas to make room for the header/controls. */
   const floatTotalHeight = floatHeight + chromeHeight;
-  const floatAnchorRect = getSnapAnchorRect(settings.masterPlayerSnapPosition, floatWidth, floatTotalHeight, dockHeight, headerHeight);
-  const floatStyle: React.CSSProperties | undefined = isFloating
-    ? {
-        position: "fixed",
-        top: isHidden ? -9999 : (floatDragPos ? floatDragPos.top : floatAnchorRect.top),
-        left: isHidden ? -9999 : (floatDragPos ? floatDragPos.left : floatAnchorRect.left),
-        width: floatWidth,
-        height: floatTotalHeight,
-        zIndex: 60,
-        transition: (floatDragPos || isResizingFloat || isHidden) ? "none" : "top 0.2s ease, left 0.2s ease, width 0.15s ease, height 0.15s ease",
-        pointerEvents: isHidden ? "none" : undefined,
-        visibility: isHidden ? "hidden" : "visible",
-      }
-    : undefined;
+  /* Locked in: the player lives in the normal page flow inside the center column —
+   * no fixed positioning, no floating over the top bar or rail. When hidden we keep
+   * the (empty) container mounted with display:none so the video element persists. */
+  const floatStyle: React.CSSProperties | undefined = isFullscreen
+    ? undefined
+    : isHidden
+      ? { display: "none" }
+      : {
+          width: floatWidth,
+          maxWidth: "100%",
+          marginLeft: "auto",
+          marginRight: "auto",
+        };
 
   /* ── Controls auto-hide (fullscreen only) ── */
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -1854,7 +1761,7 @@ function MasterPreviewPlayer({
     if (headerEl) ro.observe(headerEl);
     if (footerEl) ro.observe(footerEl);
     return () => ro.disconnect();
-  }, [isFloating, isMinimized, isFullscreen, autoPiP, pipError]);
+  }, [isMinimized, isFullscreen, autoPiP, pipError]);
   /* Return-to-browser tracking */
   const [wasPlayingBeforePiP,setWasPlayingBeforePiP] = useState(false);
   const [lastKnownTime,      setLastKnownTime     ] = useState(0);
@@ -2268,15 +2175,15 @@ function MasterPreviewPlayer({
 
   return (
     <>
-      {/* Persistent affordance to bring the player back once it's been hidden off-screen. */}
-      {isHidden && (
+      {/* Persistent affordance to bring the player back once it's been hidden.
+          Rendered in-flow where the docked player normally sits. */}
+      {isHidden && !isFullscreen && (
         <button
           type="button"
           onClick={toggleHidden}
           data-testid="master-player-show-tab"
           title="Show master player"
-          style={{ position: "fixed", top: floatAnchorRect.top, left: floatAnchorRect.left, zIndex: 61 }}
-          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
+          className="mx-auto flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
         >
           <Eye className="h-3.5 w-3.5" />
           <span className="text-[9px] font-bold uppercase tracking-wider">Show Player</span>
@@ -2285,22 +2192,21 @@ function MasterPreviewPlayer({
     <div
       ref={containerRef}
       onMouseMove={showControls}
-      className={`overflow-hidden ${isFloating ? "" : "mb-6"} ${
+      className={`overflow-hidden relative mb-6 ${
         isFullscreen
           ? "bg-black flex flex-col"
-          : `rounded-2xl border shadow-2xl flex flex-col ${isDraggingFloat ? "border-primary/60 cursor-grabbing" : "border-white/[0.15] bg-black"}`
+          : `rounded-2xl border shadow-2xl flex flex-col ${isResizingFloat ? "border-primary/60" : "border-white/[0.15] bg-black"}`
       }`}
       style={floatStyle}
     >
-      {isFloating && (
+      {!isFullscreen && (
         <div
           ref={chromeHeaderRef}
-          onPointerDown={handleFloatDragStart}
-          className="flex items-center justify-between px-2 py-1 bg-black/80 border-b border-white/[0.1] cursor-grab active:cursor-grabbing select-none shrink-0"
-          title="Drag to reposition — release to snap"
+          className="flex items-center justify-between px-2 py-1 bg-black/80 border-b border-white/[0.1] select-none shrink-0"
+          title="Master Player"
         >
           <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 uppercase tracking-wider">
-            <Move className="h-3 w-3" /> {!isMinimized && "Master Player"}
+            {!isMinimized && "Master Player"}
           </span>
           <span className="flex items-center gap-0.5">
             <button
@@ -2789,7 +2695,7 @@ function MasterPreviewPlayer({
       </div>
 
       {/* ── Resize handle — drag to grow/shrink; aspect ratio stays locked to export format ── */}
-      {isFloating && !isMinimized && !isHidden && (
+      {!isFullscreen && !isMinimized && !isHidden && (
         <div
           onPointerDown={handleResizeStart}
           data-testid="master-player-resize-handle"
