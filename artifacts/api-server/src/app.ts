@@ -1,6 +1,9 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
@@ -39,6 +42,33 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+/* ── Serve the frontend SPA (single-service deployment) ───────────────────
+   The Vite build outputs to artifacts/bow-down-visuals/dist/public.
+   When present, serve it statically and fall back to index.html for
+   non-API routes so client-side routing works. /api/* is never intercepted,
+   so API 404s stay JSON. */
+const serverDir = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist =
+  process.env["FRONTEND_DIST"] ??
+  path.resolve(serverDir, "../../bow-down-visuals/dist/public");
+
+if (fs.existsSync(path.join(frontendDist, "index.html"))) {
+  app.use(express.static(frontendDist));
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+      if (err) {
+        next(err);
+      }
+    });
+  });
+  logger.info({ frontendDist }, "Serving frontend static files");
+} else {
+  logger.warn({ frontendDist }, "Frontend dist not found — serving API only");
+}
 
 /* ── 404 handler — always JSON, never HTML ── */
 app.use((_req: Request, res: Response) => {
