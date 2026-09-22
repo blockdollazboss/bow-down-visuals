@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import { Image as ImageIcon, ArrowLeft, Loader2, ChevronRight } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
@@ -30,9 +30,9 @@ const PLATFORMS  = ["YouTube","Spotify","Apple Music","SoundCloud","All Platform
 const ART_STYLES = ["Photo-Realistic","Illustrated","Minimalist","Bold Graphic","Vintage","Futuristic","Cinematic Dark","Street Art","Anime","3D Render"];
 const MOODS      = ["Luxury","Dark","Emotional","Street","Romantic","Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly"];
 
-const selectClass   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] transition-colors appearance-none cursor-pointer";
-const inputClass    = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
-const textareaClass = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none";
+const selectClass   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
+const inputClass    = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
+const textareaClass = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
 
 function StyledSelect({ name, placeholder, options, value, onChange }: {
   name: string; placeholder: string; options: string[]; value: string; onChange: (v: string) => void;
@@ -119,13 +119,13 @@ export default function Thumbnail() {
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
         </Link>
         <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <ImageIcon className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <ImageIcon className="h-5 w-5 text-primary" />
             </div>
-            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">up to 3 credits</Badge>
+            <MarketingBadge variant="muted">up to 3 credits</MarketingBadge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">Thumbnail Maker</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">Thumbnail Maker</h1>
           <p className="text-white/50 text-lg max-w-2xl">Generate a real, ready-to-use AI thumbnail image plus cover art concepts and prompts for your release.</p>
           <div className="flex flex-wrap gap-2 mt-5">
             {["AI-Generated Thumbnail Image","3 Thumbnail Concepts","Color Direction","Typography Notes","Background Prompts","Text Overlay Copy","Midjourney Prompts","Cover Art Notes"].map((t) => (

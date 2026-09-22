@@ -7,6 +7,7 @@ import {
   ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -75,9 +76,9 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
       `}>
         {accent && (
           <div className="absolute -top-3 left-5">
-            <span className="inline-flex items-center gap-1 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full shadow-lg">
+            <MarketingBadge variant="popular">
               <Star className="h-2.5 w-2.5" /> Most Popular
-            </span>
+            </MarketingBadge>
           </div>
         )}
         <div className={`h-11 w-11 rounded-xl flex items-center justify-center mb-4 shrink-0 transition-colors ${
@@ -85,7 +86,7 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
         }`}>
           <Icon className={`h-5 w-5 ${accent ? "text-black" : "text-primary"}`} />
         </div>
-        <h3 className="text-base font-black text-white tracking-tight mb-1.5 leading-tight">{title}</h3>
+        <h3 className="text-base font-semibold text-white tracking-tight mb-1.5 leading-tight">{title}</h3>
         <p className="text-sm text-white/40 leading-relaxed flex-1">{description}</p>
         <div className={`mt-5 inline-flex items-center gap-2 text-sm font-bold transition-colors ${
           accent ? "text-yellow-300 group-hover:text-yellow-200" : "text-primary/80 group-hover:text-primary"
@@ -233,8 +234,7 @@ export default function Dashboard() {
   const recentProjects = projects.slice(0, 5);
 
   function handleOpen(id: string) {
-    void id;
-    window.location.href = `/my-projects`;
+    window.location.href = `/video-editor?project=${id}`;
   }
 
   /* ── Checklist step completion ── */
@@ -262,12 +262,12 @@ export default function Dashboard() {
     {
       label: "Open the video editor",
       done: false,
-      href: "/my-projects",
+      href: "/video-editor",
     },
     {
       label: "Export or save your video",
       done: false,
-      href: "/my-projects",
+      href: "/video-editor",
     },
   ];
   const checklistDoneCount = checklistSteps.filter((s) => s.done).length;
@@ -305,7 +305,7 @@ export default function Dashboard() {
         {/* ── 1. WELCOME HEADER ── */}
         <div>
           <p className="text-xs font-bold tracking-[0.2em] text-primary/55 uppercase mb-2">Creator Studio</p>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-tight mb-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight leading-tight mb-1">
             <span className="text-white/90">Welcome back, </span>
             <span className="gold-text-shine">{name}</span>
           </h1>
@@ -319,51 +319,22 @@ export default function Dashboard() {
           const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
           const hasConsistency = !!(activeArtist.consistency_prompt || activeArtist.reference_image_url);
           return (
-            <div style={{
-              borderRadius: 18,
-              border: "1px solid rgba(201,168,76,0.28)",
-              background: "linear-gradient(90deg, rgba(201,168,76,0.06) 0%, rgba(0,0,0,0) 60%)",
-              padding: "12px 16px",
-              display: "flex", alignItems: "center", gap: 14,
-              position: "relative", overflow: "hidden",
-              boxShadow: "0 0 24px rgba(201,168,76,0.06), inset 0 1px 0 rgba(201,168,76,0.1)",
-            }}>
-              <div style={{
-                position: "absolute", left: 0, top: 0, bottom: 0, width: 2.5,
-                background: "linear-gradient(to bottom, #C9A84C, rgba(201,168,76,0))",
-                borderRadius: "2px 0 0 2px",
-              }} />
-              <div style={{
-                width: 56, height: 56, borderRadius: 16, flexShrink: 0,
-                background: "linear-gradient(135deg, rgba(201,168,76,0.2) 0%, rgba(201,168,76,0.06) 100%)",
-                border: "1.5px solid rgba(201,168,76,0.4)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 0 18px rgba(201,168,76,0.25)",
-                position: "relative", overflow: "hidden",
-                fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 900, color: "#C9A84C",
-              }}>
+            <div className="rounded-[18px] border border-[rgba(201,168,76,0.28)] bg-[linear-gradient(90deg,rgba(201,168,76,0.06)_0%,rgba(0,0,0,0)_60%)] px-4 py-3 flex items-center gap-3.5 relative overflow-hidden shadow-[0_0_24px_rgba(201,168,76,0.06),inset_0_1px_0_rgba(201,168,76,0.1)]">
+              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[linear-gradient(to_bottom,#C9A84C,rgba(201,168,76,0))] rounded-l-[2px]" />
+              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black text-[#C9A84C] bg-[linear-gradient(135deg,rgba(201,168,76,0.2)_0%,rgba(201,168,76,0.06)_100%)] border-[1.5px] border-[rgba(201,168,76,0.4)] shadow-[0_0_18px_rgba(201,168,76,0.25)]">
                 {activeArtist.reference_image_url ? (
-                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top center" }} />
+                  <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover object-[top_center]" />
                 ) : initials}
-                <div style={{
-                  position: "absolute", bottom: -1, right: -1,
-                  width: 9, height: 9, borderRadius: "50%",
-                  background: "#C9A84C", border: "1.5px solid #080808",
-                  boxShadow: "0 0 6px #C9A84C",
-                }} />
+                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full bg-[#C9A84C] border-[1.5px] border-[#080808] shadow-[0_0_6px_#C9A84C]" />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <p style={{ fontSize: 13, fontWeight: 900, color: "#fff", letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[13px] font-black text-white tracking-[0.02em] truncate">
                     {activeArtist.artist_name}
                   </p>
-                  <span style={{
-                    fontSize: 7.5, fontWeight: 900, color: "#C9A84C",
-                    background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.3)",
-                    borderRadius: 4, padding: "1px 5px", letterSpacing: "0.12em", flexShrink: 0,
-                  }}>ACTIVE</span>
+                  <MarketingBadge variant="muted" className="text-[8px] px-1.5 py-0.5 tracking-[0.12em] shrink-0">ACTIVE</MarketingBadge>
                 </div>
-                <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <p className="text-[10.5px] text-white/35 mt-0.5 truncate">
                   {[activeArtist.artist_type, activeArtist.genre].filter(Boolean).join(" · ")}
                   {hasConsistency ? " · 🔒 Locked" : ""}
                 </p>
@@ -371,35 +342,18 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setLocation("/choose-artist")}
-                style={{
-                  height: 30, borderRadius: 9,
-                  border: "1px solid rgba(201,168,76,0.3)",
-                  background: "rgba(201,168,76,0.08)",
-                  color: "#C9A84C", fontSize: 10.5, fontWeight: 800,
-                  cursor: "pointer", padding: "0 12px", flexShrink: 0,
-                  letterSpacing: "0.04em", whiteSpace: "nowrap",
-                }}
+                className="h-[30px] rounded-[9px] border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)] text-[#C9A84C] text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap hover:bg-[rgba(201,168,76,0.16)] transition-colors"
               >Change →</button>
             </div>
           );
         })() : (
-          <div style={{
-            borderRadius: 18,
-            border: "1px solid rgba(255,255,255,0.06)",
-            background: "rgba(255,255,255,0.02)",
-            padding: "12px 16px",
-            display: "flex", alignItems: "center", gap: 14,
-          }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 13, flexShrink: 0,
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
+          <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 flex items-center gap-3.5">
+            <div className="h-11 w-11 rounded-[13px] shrink-0 bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
               <User className="h-5 w-5 text-white/20" />
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.16em", textTransform: "uppercase" }}>Active Artist</p>
-              <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.35)", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-white/30 tracking-[0.16em] uppercase">Active Artist</p>
+              <p className="text-[12.5px] text-white/35 mt-0.5 flex items-center gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 text-white/20 shrink-0" />
                 No artist selected — choose one for consistent AI style
               </p>
@@ -407,13 +361,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setLocation("/choose-artist")}
-              style={{
-                height: 30, borderRadius: 9,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.5)", fontSize: 10.5, fontWeight: 700,
-                cursor: "pointer", padding: "0 12px", flexShrink: 0,
-              }}
+              className="h-[30px] rounded-[9px] border border-white/[0.12] bg-white/[0.04] text-white/50 text-[10.5px] font-bold cursor-pointer px-3 shrink-0 whitespace-nowrap hover:bg-white/[0.08] hover:text-white/70 transition-colors"
             >Choose Artist</button>
           </div>
         )}
@@ -566,7 +514,7 @@ export default function Dashboard() {
           {checklistOpen && (
             <div className="border-t border-white/[0.06] px-6 py-4 space-y-2.5">
               {checklistSteps.map(({ label, done, href }, i) => (
-                <Link key={label} href={done ? "#" : href}>
+                <Link key={label} href={href}>
                   <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
                     done
                       ? "border-primary/20 bg-primary/[0.05] opacity-60 cursor-default"

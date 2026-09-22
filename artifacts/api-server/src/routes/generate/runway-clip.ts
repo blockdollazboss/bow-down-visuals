@@ -7,12 +7,15 @@ import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
-import { objectStorageClient } from "../../lib/objectStorage";
+import {
+  uploadMediaToSupabaseStorage,
+  refreshSupabaseStorageUrl,
+  parseSupabaseStorageRef,
+} from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 
 const router = Router();
-const SIDECAR = "http://127.0.0.1:1106";
 const CREDIT_COST = 5;
 
 /**
@@ -37,24 +40,6 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
   if (!res.ok) throw new Error(`Download failed (${res.status}): ${url.slice(0, 80)}`);
   const ws = createWriteStream(dest);
   await pipeline(res.body as Parameters<typeof pipeline>[0], ws);
-}
-
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucketName,
-      object_name: objectName,
-      method: "GET",
-      expires_at: expiresAt,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
-  const { signed_url } = (await res.json()) as { signed_url: string };
-  return signed_url;
 }
 
 function cleanup(f: string) {
@@ -84,16 +69,14 @@ function describeRunwayFailure(failureCode: string | null, rawFailure: string | 
 }
 
 /**
- * Grabs the last frame of a previously-generated clip and re-uploads it as a
- * signed-URL JPEG so it can be used as Runway's `promptImage` for the next
+ * Grabs the last frame of a previously-generated clip and uploads it to
+ * Supabase Storage so it can be used as Runway's `promptImage` for the next
  * scene — chaining wardrobe/lighting/pose across scenes instead of resetting
- * to the static vault photo every time. Best-effort: any failure (download,
- * ffmpeg, upload) returns null so callers can fall back to the vault photo.
+ * to the static vault photo every time. Returns a short-lived signed HTTPS
+ * URL (Runway requires a public HTTPS URL) or null on any failure so callers
+ * can fall back to the vault photo.
  */
 async function extractLastFrameUrl(clipUrl: string): Promise<string | null> {
-  const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-  if (!bucketId) return null;
-
   const tmpVideo = path.join(os.tmpdir(), `chain-src-${randomUUID()}.mp4`);
   const tmpFrame = path.join(os.tmpdir(), `chain-frame-${randomUUID()}.jpg`);
 
@@ -121,9 +104,10 @@ async function extractLastFrameUrl(clipUrl: string): Promise<string | null> {
     });
 
     const objectName = `chain-frames/${randomUUID()}.jpg`;
-    const bucket = objectStorageClient.bucket(bucketId);
-    await bucket.file(objectName).save(readFileSync(tmpFrame), { contentType: "image/jpeg", resumable: false });
-    return await signGetUrl(bucketId, objectName);
+    const storageRef = await uploadMediaToSupabaseStorage(objectName, readFileSync(tmpFrame), "image/jpeg");
+    /* Runway needs a plain HTTPS URL — mint one (consumed immediately as promptImage). */
+    const signed = await refreshSupabaseStorageUrl(storageRef);
+    return signed.startsWith("http") ? signed : null;
   } catch {
     return null;
   } finally {
@@ -167,7 +151,14 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
      Priority: 1) last frame of the previous scene's clip (continuity chain),
      2) the Artist Vault reference photo, 3) text-only (no image reference).
      Runway's image-to-video flow requires a public HTTPS URL. ─────────────── */
-  const prevClip = previousClipUrl?.trim();
+  let prevClip = previousClipUrl?.trim();
+  /* The frontend may send a stable storage ref (supabase://…) instead of a
+     signed URL — mint a fetchable HTTPS URL first so scene chaining keeps
+     working regardless of which form arrives. */
+  if (prevClip && !/^https:\/\//i.test(prevClip) && parseSupabaseStorageRef(prevClip)) {
+    const resolved = await refreshSupabaseStorageUrl(prevClip);
+    prevClip = resolved.startsWith("http") ? resolved : undefined;
+  }
   const hasPrevClip = !!prevClip && /^https:\/\//i.test(prevClip);
 
   let refImage: string | undefined;
@@ -385,32 +376,27 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
         req.log.info({ taskId }, "[runway-clip] SUCCEEDED poll after charge already processed — skipping duplicate");
       }
 
-      /* ── Re-upload to GCS so the signed URL never expires ── */
-      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-      if (!bucketId) {
-        req.log.warn("[runway-clip] DEFAULT_OBJECT_STORAGE_BUCKET_ID not set — returning raw Runway URL");
-        res.json({ status: "succeeded", url: runwayUrl });
-        return;
-      }
-
+      /* ── Upload to Supabase Storage and persist the STABLE STORAGE REF ──
+         Short-lived signed URLs are minted per-read (GET handlers), so
+         playback never rots the way 7-day GCS signatures did. The frontend
+         gets a playable preview URL right now plus `storageRef` to persist;
+         POST /api/generated-clips also normalizes server-side, so even if
+         the client saves the preview URL, the DB still ends up with the ref. */
       const tmpFile = path.join(os.tmpdir(), `runway-${randomUUID()}.mp4`);
       try {
         req.log.info({ taskId }, "[runway-clip] downloading clip from Runway");
         await downloadToFile(runwayUrl, tmpFile);
 
         const objectName = `clips/${randomUUID()}.mp4`;
-        const bucket = objectStorageClient.bucket(bucketId);
-        const gcsFile = bucket.file(objectName);
+        req.log.info({ objectName }, "[runway-clip] uploading clip to Supabase Storage");
+        const storageRef = await uploadMediaToSupabaseStorage(objectName, readFileSync(tmpFile), "video/mp4");
 
-        req.log.info({ objectName }, "[runway-clip] uploading clip to GCS");
-        await gcsFile.save(readFileSync(tmpFile), { contentType: "video/mp4", resumable: false });
+        const previewUrl = await refreshSupabaseStorageUrl(storageRef);
+        req.log.info({ objectName, taskId }, "[runway-clip] clip saved to Supabase Storage — returning storage ref + preview URL");
 
-        const signedUrl = await signGetUrl(bucketId, objectName);
-        req.log.info({ objectName, taskId }, "[runway-clip] clip saved to GCS — returning signed URL");
-
-        res.json({ status: "succeeded", url: signedUrl, objectPath: objectName });
+        res.json({ status: "succeeded", url: previewUrl, storageRef, objectPath: storageRef });
       } catch (uploadErr: unknown) {
-        req.log.error({ err: uploadErr }, "[runway-clip] GCS upload failed — returning raw Runway URL as fallback");
+        req.log.error({ err: uploadErr }, "[runway-clip] Supabase upload failed — returning raw Runway URL as fallback");
         res.json({ status: "succeeded", url: runwayUrl });
       } finally {
         cleanup(tmpFile);

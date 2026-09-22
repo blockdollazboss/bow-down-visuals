@@ -5,52 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
-
-const NAV_LINKS = [
-  { label: "Home",     href: "/" },
-  { label: "Pricing",  href: "/pricing" },
-  { label: "Waitlist", href: "/waitlist" },
-];
-
-function NavBar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="cursor-pointer shrink-0">
-          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
-        </Link>
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors">{l.label}</Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2.5">
-          <Link href="/login" className="hidden md:inline-flex items-center px-4 py-1.5 rounded-full text-sm font-semibold bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 transition-colors">
-            Sign In
-          </Link>
-          <button
-            className="flex md:hidden items-center justify-center h-8 w-8 rounded-lg text-white/60 hover:text-white transition-colors"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            {menuOpen ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-            ) : (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
-            )}
-          </button>
-        </div>
-      </div>
-      {menuOpen && (
-        <div className="md:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)} className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors">{l.label}</Link>
-          ))}
-        </div>
-      )}
-    </header>
-  );
-}
+import { MarketingNav } from "@/components/MarketingNav";
 
 export default function Contact() {
   const [name, setName]       = useState("");
@@ -58,19 +13,35 @@ export default function Contact() {
   const [message, setMessage] = useState("");
   const [sent, setSent]       = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), message: message.trim() }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setLoading(false);
+        return;
+      }
       setSent(true);
-    }, 900);
+    } catch {
+      setError("Connection error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <NavBar />
+      <MarketingNav />
 
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-20">
         <div className="w-full max-w-lg">
@@ -149,6 +120,12 @@ export default function Contact() {
                     className="bg-background border-white/[0.1] text-white placeholder:text-white/25 focus-visible:ring-primary/40 focus-visible:border-primary/50 resize-none"
                   />
                 </div>
+
+                {error && (
+                  <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/5">
+                    <p className="text-red-400 text-sm">{error}</p>
+                  </div>
+                )}
 
                 <Button
                   type="submit"

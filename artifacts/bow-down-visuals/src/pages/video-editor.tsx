@@ -337,16 +337,11 @@ export default function VideoEditor() {
   }
 
   async function rebuildScenesFromPlan() {
-    console.log("[Rebuild] Rebuild Scenes button clicked");
-    console.log("[Rebuild] Project id:", project?.id ?? "none");
-    console.log("[Rebuild] Saved project content:", rawResult ? `found (${rawResult.length} chars)` : "MISSING");
-
     // Show rebuilding state FIRST so the UI responds immediately
     setRebuildStatus("rebuilding");
     setRebuildError(null);
 
     if (!rawResult) {
-      console.log("[Rebuild] No saved plan found — cannot rebuild");
       setRebuildStatus("error");
       setRebuildError("No saved plan found for this project.");
       return;
@@ -355,19 +350,13 @@ export default function VideoEditor() {
     try {
       // Try the breakdown section first; fall back to the full result
       let breakdown = extractBreakdownContent(rawResult);
-      if (breakdown) {
-        console.log("[Rebuild] Scene breakdown found:", `${breakdown.length} chars`);
-      } else {
-        console.log("[Rebuild] Scene breakdown not found in header — using full plan text as fallback");
+      if (!breakdown) {
         breakdown = rawResult;
       }
 
-      const { scenes: parsed, mode: parseMode } = parseScenesWithMode(breakdown);
-      console.log("[Rebuild] Parser mode used:", parseMode);
-      console.log("[Rebuild] Number of scenes parsed:", parsed.length);
+      const { scenes: parsed } = parseScenesWithMode(breakdown);
 
       if (parsed.length === 0) {
-        console.log("[Rebuild] No scenes could be parsed");
         setRebuildStatus("error");
         setRebuildError("Could not find scene breakdown in saved project. The saved plan must contain Timestamp or AI Video Prompt fields for each scene.");
         return;
@@ -381,7 +370,6 @@ export default function VideoEditor() {
 
       // ── Hard save immediately (do not rely only on the debounced autosave) ──
       if (project) {
-        console.log("[Rebuild] Save started — sending", parsed.length, "scenes to Supabase");
         try {
           const token = await getAccessToken();
           const patchRes = await fetch(`/api/projects/${project.id}`, {
@@ -390,29 +378,22 @@ export default function VideoEditor() {
             body: JSON.stringify({ scenes: parsed }),
           });
           if (patchRes.ok) {
-            console.log("[Rebuild] Save success");
             setSaveState("saved");
 
-            // Verify: re-fetch the project and confirm the scenes are there
+            // Verify: re-fetch the project and confirm the scenes are there (best-effort)
             try {
               const verifyToken = await getAccessToken();
               const verifyRes = await fetch(`/api/projects/${project.id}`, {
                 headers: { Authorization: `Bearer ${verifyToken ?? ""}` },
               });
               if (verifyRes.ok) {
-                const { project: fresh } = (await verifyRes.json()) as { project: LoadedProject };
-                const savedCount = fresh.output_data?.scenes?.length ?? 0;
-                console.log("[Rebuild] Reload scenes count:", savedCount);
-                if (savedCount === 0) {
-                  console.log("[Rebuild] WARNING — verify returned 0 scenes even though save reported ok");
-                }
+                await verifyRes.json();
               }
-            } catch (verErr) {
-              console.log("[Rebuild] Could not verify save:", verErr);
+            } catch {
+              // verification is best-effort; ignore failures
             }
           } else {
             const errText = await patchRes.text().catch(() => String(patchRes.status));
-            console.log("[Rebuild] Save failed:", patchRes.status, errText);
             toast({
               title: "Scenes rebuilt but save failed",
               description: `Scenes are visible now but may not survive a refresh. Error: ${patchRes.status} — ${errText.slice(0, 120)}`,
@@ -421,7 +402,6 @@ export default function VideoEditor() {
           }
         } catch (saveErr) {
           const msg = saveErr instanceof Error ? saveErr.message : String(saveErr);
-          console.log("[Rebuild] Save error:", msg);
           toast({
             title: "Scenes rebuilt but save failed",
             description: `Scenes are visible now but may not survive a refresh. ${msg}`,
@@ -433,7 +413,6 @@ export default function VideoEditor() {
       toast({ title: `${parsed.length} scenes rebuilt and saved`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      console.log("[Rebuild] Unexpected error:", msg);
       setRebuildStatus("error");
       setRebuildError(`Could not parse scenes: ${msg}`);
       toast({ title: "Could not parse scenes", description: msg, variant: "destructive" });
@@ -770,7 +749,7 @@ export default function VideoEditor() {
                   <Clapperboard className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black text-white tracking-tight">Video Editor</h1>
+                  <h1 className="text-2xl font-bold text-white tracking-tight">Video Editor</h1>
                   <p className="text-sm text-white/40">{project?.title || "Untitled project"}</p>
                 </div>
               </div>

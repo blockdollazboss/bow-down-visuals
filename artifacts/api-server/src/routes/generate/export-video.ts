@@ -12,6 +12,7 @@ import { recordCreditUsage } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { fileURLToPath } from "url";
 
@@ -19,7 +20,7 @@ const execFileAsync = promisify(execFile);
 const router = Router();
 const SIDECAR = "http://127.0.0.1:1106";
 
-const IS_DEV = process.env["NODE_ENV"] !== "production";
+const IS_DEV = process.env["NODE_ENV"] === "development";
 
 /**
  * Resolve the workspace root regardless of the process's current working
@@ -1708,9 +1709,20 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     /* ── Deduct credits + record usage on export success ── */
     if (!IS_DEV) {
-      const creditsAfter = currentCredits - EXPORT_CREDIT_COST;
-      /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-      await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      // Atomic single-statement deduction — race-safe (no read-modify-write).
+      let creditsAfter: number;
+      try {
+        creditsAfter = await deductCredits(req.userId!, EXPORT_CREDIT_COST);
+      } catch (deductErr) {
+        if (deductErr instanceof OutOfCreditsError) {
+          res.status(402).json({
+            error: "out_of_credits",
+            message: "Not enough credits. Please buy more credits to continue.",
+          });
+          return;
+        }
+        throw deductErr;
+      }
       recordCreditUsage({ userId: req.userId!, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
       req.log.info({ userId: req.userId, creditsAfter }, "[export] credits deducted");
     }

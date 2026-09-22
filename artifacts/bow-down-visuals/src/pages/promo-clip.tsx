@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Film, ArrowLeft, Loader2, ChevronRight, ChevronDown, ChevronUp,
   FolderOpen, Music, Video, Mic2, Image as ImageIcon, Wand2,
@@ -115,9 +115,9 @@ function getClips(project: Project): SceneData[] {
 
 /* ─────────────────────────── STYLE TOKENS ─────────────────────────── */
 
-const inputClass    = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
-const textareaClass = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none";
-const selectClass   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] transition-colors appearance-none cursor-pointer";
+const inputClass    = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
+const textareaClass = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
+const selectClass   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
 
 /* ─────────────────────────── SUB-COMPONENTS ─────────────────────────── */
 
@@ -382,15 +382,13 @@ export default function PromoClip() {
 
         {/* Page header */}
         <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Film className="h-5 w-5 text-black" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Film className="h-5 w-5 text-primary" />
             </div>
-            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">
-              1 credit
-            </Badge>
+            <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Promo Clips
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
@@ -625,9 +623,9 @@ export default function PromoClip() {
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="text-sm font-bold text-white/60 uppercase tracking-wider">Clips for Promo Timeline</span>
-                    <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[10px]">
+                    <MarketingBadge variant="free" className="text-[10px]">
                       {projectClips.length} available
-                    </Badge>
+                    </MarketingBadge>
                   </div>
                   {clipsOpen ? <ChevronUp className="h-4 w-4 text-white/25" /> : <ChevronDown className="h-4 w-4 text-white/25" />}
                 </button>

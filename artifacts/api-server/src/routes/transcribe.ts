@@ -1,10 +1,10 @@
 import { Router } from "express";
-import OpenAI, { toFile } from "openai";
+import { getOpenAI } from "../lib/ai-clients";
+import { toFile } from "openai";
 import multer from "multer";
 import { requireAuth } from "../middlewares/require-auth";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 /** Whisper's hard file-size limit */
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
@@ -32,7 +32,7 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
       req.file.originalname || "audio.mp3",
       { type: req.file.mimetype },
     );
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await getOpenAI().audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
     });
@@ -127,7 +127,7 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
     // sung vocals (melisma, held notes, word stretching) accurately. Word
     // timestamps let the client align each caption line to the actual words
     // being sung rather than the whole segment they fall within.
-    const transcription = (await openai.audio.transcriptions.create({
+    const transcription = (await getOpenAI().audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       response_format: "verbose_json",

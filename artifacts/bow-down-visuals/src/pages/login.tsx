@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSupabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,11 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -43,6 +49,27 @@ export default function Login() {
       setLoading(false);
     } else {
       setLocation("/choose-artist");
+    }
+  }
+
+  async function onResetSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const email = resetEmail.trim();
+    if (!email) return;
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const client = getSupabase();
+      const { error } = await client.auth.resetPasswordForEmail(email);
+      if (error) {
+        setResetError(error.message);
+      } else {
+        setResetSent(true);
+      }
+    } catch (err) {
+      setResetError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -90,6 +117,57 @@ export default function Login() {
               </Button>
             </form>
           </Form>
+
+          {resetMode ? (
+            resetSent ? (
+              <div className="mt-6 p-4 rounded-xl border border-primary/25 bg-primary/5 text-center">
+                <p className="text-sm text-white/80 font-medium">Check your email for a reset link.</p>
+                <button
+                  type="button"
+                  onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
+                  className="mt-2 text-sm text-primary hover:underline font-medium"
+                >
+                  Back to sign in
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={onResetSubmit} className="mt-6 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1.5">Email</p>
+                  <Input
+                    data-testid="input-reset-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={resetEmail}
+                    onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
+                  />
+                </div>
+                {resetError && (
+                  <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                    {resetError}
+                  </div>
+                )}
+                <Button data-testid="btn-reset-password" type="submit" size="lg" className="w-full gold-glow" disabled={resetLoading}>
+                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending reset link...</> : "Send Reset Link"}
+                </Button>
+                <p className="text-center text-sm">
+                  <button type="button" onClick={() => setResetMode(false)} className="text-muted-foreground hover:text-white hover:underline font-medium">
+                    Back to sign in
+                  </button>
+                </p>
+              </form>
+            )
+          ) : (
+            <p className="mt-6 text-center text-sm">
+              <button
+                type="button"
+                onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
+                className="text-primary hover:underline font-medium"
+              >
+                Forgot password?
+              </button>
+            </p>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}

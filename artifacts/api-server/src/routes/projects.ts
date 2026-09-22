@@ -4,7 +4,7 @@ import { z } from "zod";
 import { markGenerationHistorySaved, markGenerationHistoryRefunded, recordCreditUsage } from "../lib/payment-record";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { refreshSignedGcsUrlsDeep } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
@@ -94,11 +94,11 @@ router.get("/projects", requireAuth, async (req, res) => {
     return;
   }
 
-  /* Stored signed clip/export URLs expire after 7 days — re-sign fresh ones for playback. */
+  /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
   const refreshedProjects = await Promise.all(
     (projects ?? []).map(async (project) => ({
       ...project,
-      output_data: await refreshSignedGcsUrlsDeep(project.output_data),
+      output_data: await refreshSupabaseStorageUrlsDeep(project.output_data),
     })),
   );
 
@@ -120,8 +120,8 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
     return;
   }
 
-  /* Stored signed clip/export URLs expire after 7 days — re-sign fresh ones for playback. */
-  project.output_data = await refreshSignedGcsUrlsDeep(project.output_data);
+  /* Stored clip URLs may be storage refs — re-sign fresh on every read; legacy URLs pass through. */
+  project.output_data = await refreshSupabaseStorageUrlsDeep(project.output_data);
 
   res.json({ project });
 });
@@ -217,6 +217,11 @@ router.patch("/projects/:projectId/scene-clip", requireAuth, async (req, res) =>
     res.status(400).json({ error: "clipUrl is required (or provide a valid clipId)" });
     return;
   }
+
+  /* Persist the stable storage ref when the URL points at our Supabase
+     bucket (e.g. the 1-day preview URL from the generate poll) — readers
+     re-sign fresh URLs from it on every read. */
+  resolvedClipUrl = normalizeToStorageRef(resolvedClipUrl) ?? resolvedClipUrl;
 
   /* ── Fetch project ── */
   const { data: existing, error: fetchErr } = await req.userSupabase!

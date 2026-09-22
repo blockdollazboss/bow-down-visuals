@@ -8,6 +8,7 @@ import {
   getObjectAclPolicy,
   setObjectAclPolicy,
 } from "./objectAcl";
+import { getSupabaseAdmin } from "./supabase-admin";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
@@ -316,4 +317,209 @@ async function signObjectURL({
 
   const { signed_url: signedURL } = (await response.json()) as { signed_url: string };
   return signedURL;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Supabase Storage media helpers (2026-09-22 migration)
+   ──────────────────────────────────────────────────────────────────────────
+   Clip storage moved from Replit-owned GCS (signed via the Replit sidecar,
+   which doesn't exist on Render) to Supabase Storage.
+
+   CORE RULE: persist STABLE STORAGE REFS, never signed URLs. A storage ref
+   looks like `supabase://generated-clips/clips/<uuid>.mp4`. Readers mint a
+   fresh short-lived signed URL from the ref on every read
+   (refreshSupabaseStorageUrl / refreshSupabaseStorageUrlsDeep).
+
+   Detection:
+   - starts with `supabase://generated-clips/` → our storage ref → re-sign.
+   - a signed URL under this project's `generated-clips` bucket (minted by an
+     earlier read) → parse the object path out and re-sign.
+   - starts with `https://storage.googleapis.com/` → legacy GCS URL → left
+     as-is (legacy no-op; unplayable if the 7-day signature expired).
+   - anything else (public Supabase URLs, Runway CDN URLs, …) → as-is.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** Private Supabase Storage bucket for server-generated media (Runway clips, thumbnails, chain frames). */
+export const SUPABASE_CLIPS_BUCKET = "generated-clips";
+
+/** Stable storage-ref URI scheme persisted in the DB for Supabase-hosted media. */
+export const SUPABASE_STORAGE_REF_PREFIX = `supabase://${SUPABASE_CLIPS_BUCKET}/`;
+
+/** Signed-URL TTL minted at read time (1 day). */
+export const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
+
+const LEGACY_GCS_URL_PREFIX = "https://storage.googleapis.com/";
+
+/** Idempotent bucket ensure — private bucket, mirrors the lip-sync.ts pattern. */
+export async function ensureSupabaseClipsBucket(): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { error } = await supabase.storage.createBucket(SUPABASE_CLIPS_BUCKET, {
+    public: false,
+    fileSizeLimit: 100 * 1024 * 1024, // 100 MB — generated clips are a few MB
+  });
+  if (error) {
+    const msg = (error.message ?? "").toLowerCase();
+    if (msg.includes("already exist") || msg.includes("duplicate")) return;
+    throw new Error(
+      `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Upload a buffer to the private `generated-clips` bucket. Returns the
+ * STABLE STORAGE REF (`supabase://generated-clips/<objectName>`) — persist
+ * this, never a signed URL.
+ */
+export async function uploadMediaToSupabaseStorage(
+  objectName: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  const supabase = getSupabaseAdmin();
+  try {
+    await ensureSupabaseClipsBucket();
+  } catch {
+    /* Non-fatal — the bucket may already exist under different error wording;
+       the upload below surfaces real failures. */
+  }
+  const { error: upErr } = await supabase.storage
+    .from(SUPABASE_CLIPS_BUCKET)
+    .upload(objectName, buffer, { contentType, upsert: false });
+  if (upErr) {
+    throw new Error(
+      `Supabase storage upload failed: ${upErr.message}` +
+        ` (bucket: ${SUPABASE_CLIPS_BUCKET}, path: ${objectName})`,
+    );
+  }
+  return `${SUPABASE_STORAGE_REF_PREFIX}${objectName}`;
+}
+
+/**
+ * Extract the object path from a stored value when it refers to our
+ * `generated-clips` bucket — either a `supabase://generated-clips/<path>`
+ * storage ref or a previously-minted signed URL under this project's
+ * bucket. Returns null for legacy GCS URLs and everything else.
+ */
+export function parseSupabaseStorageRef(value: string): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  if (value.startsWith(SUPABASE_STORAGE_REF_PREFIX)) {
+    const p = value.slice(SUPABASE_STORAGE_REF_PREFIX.length);
+    return p.length > 0 ? p : null;
+  }
+  const supabaseUrl = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  if (supabaseUrl) {
+    const signPrefix = `${supabaseUrl}/storage/v1/object/sign/${SUPABASE_CLIPS_BUCKET}/`;
+    if (value.startsWith(signPrefix)) {
+      const rest = value.slice(signPrefix.length).split("?")[0] ?? "";
+      const p = decodeURIComponent(rest);
+      return p.length > 0 ? p : null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Normalize a media value to the stable storage-ref form when it points at
+ * our `generated-clips` bucket. Use at WRITE time before persisting.
+ * Legacy GCS URLs and unrelated URLs pass through unchanged.
+ */
+export function normalizeToStorageRef(
+  value: string | null | undefined,
+): string | null {
+  if (value == null) return null;
+  const objectPath = parseSupabaseStorageRef(value);
+  if (!objectPath) return value;
+  return `${SUPABASE_STORAGE_REF_PREFIX}${objectPath}`;
+}
+
+/**
+ * Mint a fresh 1-day signed URL for a stored value. Storage refs (and our
+ * own older signed URLs) are re-signed; legacy GCS URLs and everything else
+ * pass through unchanged so callers never see a hard failure.
+ */
+export async function refreshSupabaseStorageUrl(value: string): Promise<string> {
+  const objectPath = parseSupabaseStorageRef(value);
+  if (!objectPath) return value; // legacy GCS / public / unrelated → as-is
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.storage
+      .from(SUPABASE_CLIPS_BUCKET)
+      .createSignedUrl(objectPath, SUPABASE_SIGNED_URL_TTL_SEC);
+    if (error || !data?.signedUrl) return value;
+    return data.signedUrl;
+  } catch {
+    return value;
+  }
+}
+
+/** True when the string is a legacy Replit-owned GCS URL. */
+export function isLegacyGcsUrl(value: string): boolean {
+  return typeof value === "string" && value.startsWith(LEGACY_GCS_URL_PREFIX);
+}
+
+/**
+ * Best-effort expiry check for legacy GCS signed URLs. Handles both the
+ * `Expires=<epoch>` style and the V4 `X-Goog-Expires`+`X-Goog-Date` style.
+ * Returns true only when the URL is provably expired — unparseable URLs
+ * return false (conservative: leave as-is).
+ */
+function isExpiredGcsSignedUrl(url: string): boolean {
+  try {
+    const q = new URL(url).searchParams;
+    const expiresParam = q.get("Expires");
+    if (expiresParam) {
+      const epoch = Number(expiresParam);
+      if (!Number.isFinite(epoch)) return false;
+      return epoch * 1000 < Date.now();
+    }
+    const googExpires = q.get("X-Goog-Expires");
+    const googDate = q.get("X-Goog-Date");
+    if (googExpires && googDate) {
+      const secs = Number(googExpires);
+      const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(googDate);
+      if (!m || !Number.isFinite(secs)) return false;
+      const issued = Date.UTC(
+        Number(m[1]), Number(m[2]) - 1, Number(m[3]),
+        Number(m[4]), Number(m[5]), Number(m[6]),
+      );
+      return issued + secs * 1000 < Date.now();
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Walks an arbitrary JSON-ish value and mints fresh signed URLs for any
+ * string stored as a Supabase storage ref. Legacy GCS URLs that are
+ * provably expired become null so the frontend shows "unavailable /
+ * regenerate" instead of a broken player (null media URLs are a normal,
+ * handled state in the video editor). Everything else passes through.
+ */
+export async function refreshSupabaseStorageUrlsDeep<T>(value: T): Promise<T> {
+  if (typeof value === "string") {
+    if (parseSupabaseStorageRef(value)) {
+      return (await refreshSupabaseStorageUrl(value)) as unknown as T;
+    }
+    if (isLegacyGcsUrl(value) && isExpiredGcsSignedUrl(value)) {
+      return null as unknown as T;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return (await Promise.all(
+      value.map((v) => refreshSupabaseStorageUrlsDeep(v)),
+    )) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(
+      Object.entries(value as Record<string, unknown>).map(
+        async ([k, v]) => [k, await refreshSupabaseStorageUrlsDeep(v)] as const,
+      ),
+    );
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
 }

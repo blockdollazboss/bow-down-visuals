@@ -23,3 +23,4 @@ export * from "./artist-vaults";
 export * from "./generated-clips";
 export * from "./project-drafts";
 export * from "./generation-history";
+export * from "./contact-messages";

@@ -106,63 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
-    const anonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
-
     try {
-      const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-        method: "POST",
-        headers: {
-          apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const client = getSupabase();
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        return {
-          error:
-            data.msg ||
-            data.message ||
-            data.error_description ||
-            data.error ||
-            "Login failed",
-        };
+      if (error) {
+        return { error: error.message || "Login failed" };
       }
-
-      const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
-      const storageKey = `sb-${projectRef}-auth-token`;
-      const expiresAt = Math.floor(Date.now() / 1000) + Number(data.expires_in || 3600);
-
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          ...data,
-          expires_at: data.expires_at || expiresAt,
-        })
-      );
 
       if (data.user) {
         setUser(data.user);
-
-        try {
-          const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.user.id}&select=*`, {
-            headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${data.access_token}`,
-            },
-          });
-
-          if (profileRes.ok) {
-            const profiles = await profileRes.json();
-            setProfile(profiles?.[0] ?? null);
-          }
-        } catch {
-          setProfile(null);
-        }
+        await fetchProfile(client, data.user.id);
       }
 
       return { error: null };

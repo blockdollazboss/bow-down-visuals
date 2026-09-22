@@ -11,6 +11,7 @@ import {
   Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { MarketingBadge } from "@/components/MarketingBadge";
 
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -115,7 +116,7 @@ function FieldWrapper({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-const inputCls = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
+const inputCls = "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
 const textCls  = "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/20 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none";
 const selCls   = "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 transition-colors appearance-none cursor-pointer";
 
@@ -824,15 +825,18 @@ export default function SongAndVideo() {
 
         {/* Page header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
-              <Mic2 className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Mic2 className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">Make Song + Video</h1>
-              <p className="text-white/35 text-sm">Complete AI song + music video workflow · 2 credits</p>
-            </div>
+            <MarketingBadge variant="muted">2 credits</MarketingBadge>
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+            Make Song + Video
+          </h1>
+          <p className="text-white/50 text-base md:text-lg max-w-2xl">
+            Complete AI song + music video workflow — lyrics, visuals, and promo in one pass.
+          </p>
         </div>
 
         {/* Stepper */}

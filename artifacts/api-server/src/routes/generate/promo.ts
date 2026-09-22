@@ -1,11 +1,10 @@
 import { Router } from "express";
-import OpenAI from "openai";
+import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 1;
 
@@ -143,7 +142,7 @@ Write a detailed timing breakdown for a 30-second promo clip. Break it down seco
 Write a specific description of the perfect thumbnail or cover frame for this promo content. Include: exact composition, color palette, what the artist is doing, text overlay (font style and positioning), background/setting, and the overall visual mood. Make it detailed enough to recreate exactly.`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -153,10 +152,20 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
-    const creditsAfter = currentCredits - CREDIT_COST;
-
-    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    // Atomic single-statement deduction — race-safe (no read-modify-write).
+    let creditsAfter: number;
+    try {
+      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+    } catch (deductErr) {
+      if (deductErr instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+        });
+        return;
+      }
+      throw deductErr;
+    }
     recordCreditUsage({ userId: req.userId!, action: "Promo Clips", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {

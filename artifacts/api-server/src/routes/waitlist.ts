@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { createClient } from "@supabase/supabase-js";
+import { publicApiLimiter } from "../lib/rate-limit";
 
 const router = Router();
 
 const SUPABASE_URL = process.env["SUPABASE_URL"] ?? "";
 const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? "";
 
-router.post("/waitlist", async (req, res) => {
+router.post("/waitlist", publicApiLimiter, async (req, res) => {
   const { name, email, creatorName, artistType, wantToCreate, socialHandle, message } = req.body as Record<string, string>;
 
   if (!name || !email) {

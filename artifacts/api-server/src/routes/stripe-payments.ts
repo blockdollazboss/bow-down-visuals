@@ -2,6 +2,7 @@ import { Router } from "express";
 import Stripe from "stripe";
 import { requireAuth } from "../middlewares/require-auth";
 import { logger } from "../lib/logger";
+import { publicApiLimiter } from "../lib/rate-limit";
 import { addCreditsToProfile } from "../lib/supabase-admin";
 import { isPaymentAlreadyRecorded, recordStripePayment, getPaymentHistory } from "../lib/payment-record";
 
@@ -33,8 +34,10 @@ function getBaseUrl(req?: import("express").Request): string {
   return "http://localhost";
 }
 
-/* ── GET /api/stripe-status ── diagnostic, no auth ── */
-router.get("/stripe-status", async (_req, res) => {
+/* ── GET /api/stripe-status ── diagnostic, authenticated ──
+   Requires auth: every hit triggers a live Stripe API call, so leaving it
+   open is a quota-burn vector. Rate-limited as well. */
+router.get("/stripe-status", requireAuth, publicApiLimiter, async (_req, res) => {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
   const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
   const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];

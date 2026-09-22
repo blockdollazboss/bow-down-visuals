@@ -1,9 +1,11 @@
 import { useState, useRef, forwardRef } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { MarketingNav } from "@/components/MarketingNav";
+import { MarketingBadge } from "@/components/MarketingBadge";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
   Music,
@@ -14,8 +16,6 @@ import {
   Archive,
   ChevronDown,
   ChevronRight,
-  Menu,
-  X,
   Zap,
   CheckCircle2,
   Sparkles,
@@ -29,15 +29,6 @@ import {
 } from "lucide-react";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
-
-const NAV_LINKS = [
-  { label: "How It Works", href: "#how-it-works" },
-  { label: "Tools", href: "#tools" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Beta Access", href: "/beta-access" },
-  { label: "Contact", href: "/contact" },
-];
 
 const STEPS = [
   {
@@ -241,114 +232,10 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
-function Navbar() {
-  const [open, setOpen] = useState(false);
-  const [, navigate] = useLocation();
-
-  function scrollTo(href: string) {
-    setOpen(false);
-    if (href.startsWith("/")) {
-      navigate(href);
-    } else {
-      document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
-    }
-  }
-
-  return (
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 border-b border-yellow-600/20 bg-black/85 backdrop-blur-xl"
-      style={{ boxShadow: "0 1px 0 0 rgba(212,160,23,0.12)" }}
-    >
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="cursor-pointer shrink-0">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-static.png`}
-            alt="Bow Down Visuals"
-            className="h-14 w-auto"
-          />
-        </Link>
-
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((l) => (
-            <button
-              key={l.label}
-              onClick={() => scrollTo(l.href)}
-              className="text-sm font-medium text-white/60 hover:text-white transition-colors cursor-pointer"
-            >
-              {l.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Desktop CTAs */}
-        <div className="hidden md:flex items-center gap-3">
-          {/* Theme song mini-player */}
-
-          <Link href="/waitlist">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white/60 hover:text-white"
-            >
-              Join Waitlist
-            </Button>
-          </Link>
-          <Link href="/dashboard">
-            <Button size="sm" className="gold-glow font-semibold px-5">
-              Start Creating
-            </Button>
-          </Link>
-        </div>
-
-        {/* Mobile toggle */}
-        <button
-          className="md:hidden text-white/70 hover:text-white p-1"
-          onClick={() => setOpen(!open)}
-          aria-label="Toggle menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
-      </div>
-
-      {/* Mobile menu */}
-      {open && (
-        <div className="md:hidden border-t border-white/5 bg-black/95 px-5 py-4 space-y-3">
-          {NAV_LINKS.map((l) => (
-            <button
-              key={l.label}
-              onClick={() => scrollTo(l.href)}
-              className="block w-full text-left text-sm font-medium text-white/70 hover:text-white py-2 transition-colors"
-            >
-              {l.label}
-            </button>
-          ))}
-          <div className="pt-3 space-y-2 border-t border-white/5">
-            <Link href="/waitlist" onClick={() => setOpen(false)}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full border-white/10"
-              >
-                Join Waitlist
-              </Button>
-            </Link>
-            <Link href="/dashboard">
-              <Button size="sm" className="w-full gold-glow font-semibold">
-                Start Creating
-              </Button>
-            </Link>
-          </div>
-        </div>
-      )}
-    </nav>
-  );
-}
-
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
+  const logoTilt = useTiltOnHover<HTMLDivElement>();
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-5 pt-16 overflow-hidden">
+    <section className="relative min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center text-center px-5 py-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
         <div
@@ -383,8 +270,8 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       />
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
-        {/* Hero Logo */}
-        <div className="flex justify-center">
+        {/* Hero Logo — tilts toward the cursor on desktop */}
+        <div ref={logoTilt} className="flex justify-center will-change-transform">
           <AnimatedLogo className="w-[480px] max-w-full h-auto" />
         </div>
 
@@ -465,16 +352,13 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
 function HowItWorks() {
   return (
-    <section id="how-it-works" className="scroll-mt-20 py-28 px-5 relative">
+    <section id="how-it-works" className="scroll-mt-20 py-20 md:py-28 px-5 relative">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             How It Works
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             From idea to release in minutes
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
@@ -498,7 +382,7 @@ function HowItWorks() {
               <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 mt-4 group-hover:bg-primary/20 transition-colors">
                 <step.icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3">
+              <h3 className="text-xl font-semibold text-white mb-3">
                 {step.title}
               </h3>
               <p className="text-white/50 leading-relaxed text-sm">
@@ -514,16 +398,13 @@ function HowItWorks() {
 
 function WhatYouCanMake() {
   return (
-    <section className="py-24 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
+    <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             What You Can Make
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             Everything your release needs
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
@@ -552,16 +433,13 @@ function WhatYouCanMake() {
 
 function BuiltForCreators() {
   return (
-    <section className="py-28 px-5">
+    <section className="py-20 md:py-28 px-5">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             Built For
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             Built for music creators
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
@@ -579,7 +457,7 @@ function BuiltForCreators() {
               <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <creator.icon className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="font-bold text-white text-lg mb-2">
+              <h3 className="font-semibold text-white text-lg mb-2">
                 {creator.title}
               </h3>
               <p className="text-white/50 text-sm leading-relaxed">
@@ -597,17 +475,14 @@ function FeaturedTools() {
   return (
     <section
       id="tools"
-      className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent"
+      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent"
     >
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             Featured Tools
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             The complete creator toolkit
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
@@ -622,15 +497,15 @@ function FeaturedTools() {
               key={tool.title}
               className={`relative group flex flex-col p-7 rounded-2xl border transition-all duration-300 ${
                 tool.featured
-                  ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(147,51,234,0.15)]"
+                  ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
                   : "bg-white/[0.02] border-white/[0.06] hover:border-primary/30 hover:bg-primary/5"
               } ${tool.comingSoon ? "opacity-60" : ""}`}
             >
               {tool.featured && (
                 <div className="absolute -top-3 left-6">
-                  <Badge className="bg-primary text-white border-0 text-xs font-bold tracking-wide">
-                    ⭐ MOST POPULAR
-                  </Badge>
+                  <MarketingBadge variant="popular">
+                    <Star className="h-2.5 w-2.5" /> Most Popular
+                  </MarketingBadge>
                 </div>
               )}
 
@@ -648,20 +523,17 @@ function FeaturedTools() {
 
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-2 gap-2">
-                  <h3 className="font-bold text-white text-xl leading-tight">
+                  <h3 className="font-semibold text-white text-lg leading-tight">
                     {tool.title}
                   </h3>
                   {tool.comingSoon ? (
-                    <Badge
-                      variant="outline"
-                      className="border-white/15 text-white/40 text-xs shrink-0 flex items-center gap-1"
-                    >
+                    <MarketingBadge variant="soon" className="shrink-0">
                       <Lock className="h-2.5 w-2.5" /> Soon
-                    </Badge>
+                    </MarketingBadge>
                   ) : (
-                    <span className="text-xs text-primary/70 font-semibold bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
+                    <MarketingBadge variant="muted" className="shrink-0">
                       {tool.cost}
-                    </span>
+                    </MarketingBadge>
                   )}
                 </div>
                 <p className="text-white/50 text-sm leading-relaxed">
@@ -688,16 +560,13 @@ function FeaturedTools() {
 
 function PricingSection() {
   return (
-    <section id="pricing" className="scroll-mt-20 py-28 px-5">
+    <section id="pricing" className="scroll-mt-20 py-20 md:py-28 px-5">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             Credit Packs
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             Simple, creator-first pricing
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
@@ -768,17 +637,14 @@ function FAQSection() {
   return (
     <section
       id="faq"
-      className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent"
+      className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent"
     >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
-          >
+          <MarketingBadge variant="kicker">
             FAQ
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             Frequently asked questions
           </h2>
         </div>
@@ -823,29 +689,42 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) return;
+    setError("");
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setError(data.message ?? data.error ?? "Something went wrong. Try again.");
+        setLoading(false);
+        return;
+      }
       setSubmitted(true);
+    } catch {
+      setError("Connection error. Please try again.");
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   }
 
   return (
-    <section ref={ref} id="waitlist" className="scroll-mt-20 py-28 px-5">
+    <section ref={ref} id="waitlist" className="scroll-mt-20 py-20 md:py-28 px-5">
       <div className="max-w-2xl mx-auto text-center space-y-8">
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
-          <Badge
-            variant="outline"
-            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs mb-6"
-          >
+          <MarketingBadge variant="kicker" className="mb-6">
             Early Access
-          </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-4">
             Be first in line.
           </h2>
           <p className="text-white/50 text-lg max-w-md mx-auto">
@@ -857,7 +736,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         {submitted ? (
           <div className="p-8 rounded-2xl border border-primary/30 bg-primary/10">
             <div className="text-4xl mb-3">🎤</div>
-            <h3 className="text-xl font-bold text-white mb-2">
+            <h3 className="text-xl font-semibold text-white mb-2">
               You're on the list.
             </h3>
             <p className="text-white/60 text-sm">
@@ -879,9 +758,9 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               type="email"
               placeholder="your@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
               required
-              className="h-12 flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/50"
+              className="h-12 flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25"
             />
             <Button
               type="submit"
@@ -892,6 +771,12 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               {loading ? "Joining..." : "Join Waitlist"}
             </Button>
           </form>
+        )}
+
+        {error && !submitted && (
+          <div className="max-w-md mx-auto p-3 rounded-xl border border-red-500/20 bg-red-500/5">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
         )}
 
         <p className="text-white/25 text-xs">
@@ -916,7 +801,7 @@ export default function Home() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
-      <Navbar />
+      <MarketingNav />
       <HeroSection onWaitlist={scrollToWaitlist} />
       <HowItWorks />
       <WhatYouCanMake />

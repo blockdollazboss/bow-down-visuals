@@ -1,10 +1,9 @@
 import { Router } from "express";
-import OpenAI from "openai";
+import { getOpenAI } from "../lib/ai-clients";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const Schema = z.object({
   lyrics: z.string().min(10),
@@ -49,7 +48,7 @@ ${lyrics}
 Return ONLY valid JSON. No markdown, no code blocks, no explanation.`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {

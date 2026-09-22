@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -15,6 +16,9 @@ const schema = z.object({
   email: z.string().email("Enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
+  agreeToTerms: z.boolean().refine((v) => v === true, {
+    message: "You must agree to the Terms and Privacy Policy",
+  }),
 }).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -29,7 +33,7 @@ export default function Signup() {
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { displayName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { displayName: "", email: "", password: "", confirmPassword: "", agreeToTerms: false },
   });
 
   async function onSubmit(values: z.infer<typeof schema>) {
@@ -119,6 +123,34 @@ export default function Signup() {
                   {error}
                 </div>
               )}
+
+              <FormField control={form.control} name="agreeToTerms" render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-start gap-3">
+                    <FormControl>
+                      <Checkbox
+                        data-testid="input-terms"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="mt-0.5"
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-normal text-muted-foreground cursor-pointer">
+                        I agree to the{" "}
+                        <Link href="/terms" className="text-primary hover:underline font-medium">
+                          Terms
+                        </Link>{" "}
+                        and{" "}
+                        <Link href="/privacy" className="text-primary hover:underline font-medium">
+                          Privacy Policy
+                        </Link>
+                      </FormLabel>
+                      <FormMessage />
+                    </div>
+                  </div>
+                </FormItem>
+              )} />
 
               <Button data-testid="btn-signup" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : "Create Free Account"}

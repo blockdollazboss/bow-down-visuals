@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import { Music, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
@@ -60,10 +60,10 @@ function FieldWrapper({ label, hint, children }: { label: string; hint?: string;
 }
 
 const inputClass =
-  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
+  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
 
 const selectClass =
-  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] transition-colors appearance-none cursor-pointer";
+  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
 
 function StyledSelect({
   name,
@@ -180,15 +180,13 @@ export default function MakeSong() {
 
         {/* Page header */}
         <div className="mb-10">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <Music className="h-5 w-5 text-white" />
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Music className="h-5 w-5 text-primary" />
             </div>
-            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">
-              1 credit
-            </Badge>
+            <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Song
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
@@ -298,7 +296,7 @@ export default function MakeSong() {
               <Textarea
                 {...register("specialInstructions")}
                 placeholder="Any extra details — references, specific themes, things to avoid, cultural notes..."
-                className="min-h-[100px] bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none"
+                className="min-h-[100px] bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none"
               />
             </FieldWrapper>
 

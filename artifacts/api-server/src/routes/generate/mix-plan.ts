@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 
 const router = Router();
 
@@ -153,7 +153,7 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
 
   /* ── Credit check — only charge when real AI runs ── */
   const currentCredits = req.userCredits ?? 0;
-  const isDev = process.env["NODE_ENV"] !== "production";
+  const isDev = process.env["NODE_ENV"] === "development";
   const openai = getOpenAI();
 
   /* If no OpenAI key, serve fallback for free */
@@ -241,9 +241,19 @@ Rules:
 
     /* ── Deduct credits + record usage on success ── */
     if (!isDev) {
-      const creditsAfter = currentCredits - CREDIT_COST;
-      /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-      await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      // Atomic single-statement deduction — race-safe (no read-modify-write).
+      try {
+        await deductCredits(req.userId!, CREDIT_COST);
+      } catch (deductErr) {
+        if (deductErr instanceof OutOfCreditsError) {
+          res.status(402).json({
+            error: "out_of_credits",
+            message: "Not enough credits. Please buy more credits to continue.",
+          });
+          return;
+        }
+        throw deductErr;
+      }
       recordCreditUsage({ userId: req.userId!, action: "Music Mixer AI Mix Plan", creditsUsed: CREDIT_COST }).catch(() => {});
     }
 

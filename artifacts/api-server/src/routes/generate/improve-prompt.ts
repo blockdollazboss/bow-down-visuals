@@ -1,9 +1,9 @@
 import { Router } from "express";
 import OpenAI from "openai";
+import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 interface VaultInput {
   artistType?: string | null;
@@ -112,7 +112,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   }
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },

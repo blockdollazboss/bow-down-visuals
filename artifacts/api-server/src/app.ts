@@ -59,7 +59,11 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
     if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {
       return next();
     }
-    res.sendFile(path.join(frontendDist, "index.html"), (err) => {
+    /* Unknown client-side route — serve index.html with 404 so crawlers and
+       HTTP clients see "not found" while the client router still renders the
+       app (e.g. a 404 page) in the browser. Prerendered routes are served by
+       express.static with 200 and never reach this handler. */
+    res.status(404).sendFile(path.join(frontendDist, "index.html"), (err) => {
       if (err) {
         next(err);
       }
@@ -82,10 +86,29 @@ app.use((_req: Request, res: Response) => {
    error-handling middleware. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const msg = err instanceof Error ? err.message : "Internal server error";
+  const isProd = process.env["NODE_ENV"] === "production";
+  const status = (err as { status?: number } | null)?.status;
+  const type = (err as { type?: string } | null)?.type;
+
+  /* Malformed JSON bodies arrive here as a body-parser SyntaxError — surface
+     a clean 400 instead of the default 500. */
+  const isJsonParseError =
+    (err instanceof SyntaxError && status === 400) ||
+    (status === 400 && type === "entity.parse.failed");
+  if (isJsonParseError) {
+    logger.warn({ err }, "[app] malformed JSON body");
+    if (!res.headersSent) {
+      res.status(400).json({ error: "Invalid JSON" });
+    }
+    return;
+  }
+
   logger.error({ err }, "[app] unhandled route error");
   if (!res.headersSent) {
-    res.status(500).json({ error: msg });
+    /* Never echo raw error text to clients in production — info disclosure. */
+    res.status(500).json({
+      error: isProd ? "Internal server error" : (err instanceof Error ? err.message : "Internal server error"),
+    });
   }
 });
 

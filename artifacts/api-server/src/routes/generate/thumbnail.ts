@@ -1,14 +1,14 @@
 import { Router } from "express";
+import { getOpenAI } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
-import OpenAI, { toFile } from "openai";
+import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordThumbnailHistory } from "../../lib/payment-record";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { objectStorageClient, refreshSignedGcsUrl } from "../../lib/objectStorage";
+import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, normalizeToStorageRef } from "../../lib/objectStorage";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 /** Text (concept + prompts) generation cost, charged whenever the AI text call succeeds. */
 const TEXT_CREDIT_COST = 1;
@@ -165,11 +165,6 @@ async function generateThumbnailImage(
     ? `${mainImagePrompt}\n\nDo not include: ${negativePrompt}`
     : mainImagePrompt;
 
-  const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-  if (!bucketId) {
-    return { url: null, error: "Image storage is not configured on the server." };
-  }
-
   try {
     const size = platform === "Spotify" || platform === "Apple Music" ? "1024x1024" : "1536x1024";
     const referenceBuffer = referenceImageUrl ? await fetchReferenceImageBuffer(referenceImageUrl) : null;
@@ -181,7 +176,7 @@ async function generateThumbnailImage(
       const lockedPrompt =
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change ` +
         `their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
-      const editResp = await openai.images.edit({
+      const editResp = await getOpenAI().images.edit({
         model: "gpt-image-1",
         image: referenceFile,
         prompt: lockedPrompt,
@@ -194,7 +189,7 @@ async function generateThumbnailImage(
         { mode: "text-to-image", hadReferenceUrl: Boolean(referenceImageUrl) },
         "[generate-thumbnail] no usable reference photo, falling back to text-to-image",
       );
-      const imageResp = await openai.images.generate({
+      const imageResp = await getOpenAI().images.generate({
         model: "gpt-image-1",
         prompt: imagePrompt.slice(0, 4000),
         size,
@@ -207,10 +202,10 @@ async function generateThumbnailImage(
       return { url: null, error: "Image generation returned no image data." };
     }
     const buffer = Buffer.from(b64, "base64");
+    /* Persist the stable storage ref; mint a short-lived URL for immediate display. */
     const objectName = `thumbnails/${randomUUID()}.png`;
-    const bucket = objectStorageClient.bucket(bucketId);
-    await bucket.file(objectName).save(buffer, { contentType: "image/png", resumable: false });
-    const url = await refreshSignedGcsUrl(`https://storage.googleapis.com/${bucketId}/${objectName}`);
+    const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
+    const url = await refreshSupabaseStorageUrl(storageRef);
     return { url, error: null };
   } catch (err: unknown) {
     return { url: null, error: err instanceof Error ? err.message : "Image generation failed." };
@@ -276,7 +271,7 @@ Write a comprehensive negative prompt — everything to exclude from the image g
 Write 5 alternate thumbnail concepts. For each: a short concept description and a full ready-to-paste AI image prompt. Number them clearly (Alternate 1 through Alternate 5).`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -300,11 +295,14 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
     await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
     recordCreditUsage({ userId: req.userId!, action: "Thumbnail Maker", creditsUsed }).catch(() => {});
     if (thumbnailImageUrl) {
+      /* Store the stable storage ref in history (not the short-lived signed
+         URL) — the history reader mints a fresh URL on every read. */
+      const storedThumbnailRef = normalizeToStorageRef(thumbnailImageUrl) ?? thumbnailImageUrl;
       void recordThumbnailHistory({
         userId:       req.userId!,
         prompt,
         content,
-        thumbnailUrl: thumbnailImageUrl,
+        thumbnailUrl: storedThumbnailRef,
         artistName,
         songTitle,
         creditsUsed,

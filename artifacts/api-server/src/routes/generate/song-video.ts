@@ -1,11 +1,10 @@
 import { Router } from "express";
-import OpenAI from "openai";
+import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 
 const router = Router();
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
 const CREDIT_COST = 3;
 
@@ -231,7 +230,7 @@ Master exclusion list for all AI generations.
 5 ready-to-post captions — mix of hype, story, and CTA.`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -253,10 +252,21 @@ Master exclusion list for all AI generations.
       creditsUsed:    CREDIT_COST,
     });
 
-    // Step 2: Deduct credits only after history is confirmed saved
-    const creditsAfter = currentCredits - CREDIT_COST;
-    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    // Step 2: Deduct credits only after history is confirmed saved.
+    // Atomic single-statement deduction — race-safe (no read-modify-write).
+    let creditsAfter: number;
+    try {
+      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+    } catch (deductErr) {
+      if (deductErr instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+        });
+        return;
+      }
+      throw deductErr;
+    }
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});

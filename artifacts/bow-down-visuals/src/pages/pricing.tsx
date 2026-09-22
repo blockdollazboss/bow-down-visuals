@@ -2,65 +2,14 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { MarketingNav } from "@/components/MarketingNav";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Zap, HelpCircle, ChevronDown, ArrowRight,
-  Sparkles, AlertCircle, CreditCard, Lock, Menu, X, Loader2,
+  Sparkles, AlertCircle, CreditCard, Lock, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
-
-/* ─── nav ─── */
-
-const NAV_LINKS = [
-  { label: "Home",        href: "/" },
-  { label: "Tools",       href: "/dashboard" },
-  { label: "Beta Access", href: "/beta-access" },
-];
-
-function NavBar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="cursor-pointer shrink-0">
-          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
-        </Link>
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href}
-              className="px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/beta-access">
-            <Button size="sm" className="gold-glow hidden sm:flex gap-2 font-semibold">
-              <Sparkles className="h-3.5 w-3.5" /> Join Beta
-            </Button>
-          </Link>
-          <button onClick={() => setMenuOpen(!menuOpen)} className="flex md:hidden items-center justify-center h-8 w-8 text-white/60 hover:text-white">
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-      {menuOpen && (
-        <div className="md:hidden border-t border-white/[0.06] bg-black/95 px-5 py-4 space-y-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
-              className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors">
-              {l.label}
-            </Link>
-          ))}
-          <div className="pt-2">
-            <Link href="/beta-access"><Button className="gold-glow w-full gap-2 mt-1"><Sparkles className="h-3.5 w-3.5" /> Join Beta</Button></Link>
-          </div>
-        </div>
-      )}
-    </header>
-  );
-}
 
 /* ─── data ─── */
 
@@ -74,7 +23,6 @@ const PLANS = [
     featured: false,
     badge: null,
     features: [
-      "25 credits monthly",
       "Make songs",
       "Make music video plans",
       "Promo clip packs",
@@ -91,7 +39,6 @@ const PLANS = [
     featured: true,
     badge: "Most Popular",
     features: [
-      "100 credits monthly",
       "Everything in Starter",
       "Music video clip generation",
       "Artist Profiles",
@@ -109,7 +56,6 @@ const PLANS = [
     featured: false,
     badge: null,
     features: [
-      "250 credits monthly",
       "Everything in Creator",
       "More video clip generations",
       "Advanced promo packs",
@@ -126,7 +72,6 @@ const PLANS = [
     featured: false,
     badge: null,
     features: [
-      "600 credits monthly",
       "Everything in Pro Artist",
       "More saved projects",
       "Higher usage limits",
@@ -298,7 +243,7 @@ export default function Pricing() {
     <div className="min-h-screen bg-black text-white">
       <JsonLd data={PRICING_JSON_LD} />
       <JsonLd data={PRICING_FAQ_JSON_LD} />
-      <NavBar />
+      <MarketingNav />
 
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -344,9 +289,9 @@ export default function Pricing() {
 
         {/* ── HERO ── */}
         <section className="max-w-3xl mx-auto px-5 md:px-8 pt-16 pb-12 text-center">
-          <Badge className="mb-5 bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-widest px-4 py-1.5">
+          <MarketingBadge variant="kicker" className="mb-5 px-4 py-1.5">
             Pricing
-          </Badge>
+          </MarketingBadge>
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
             Choose Your<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
@@ -373,15 +318,15 @@ export default function Pricing() {
                 {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] font-black tracking-widest uppercase px-3 py-1 rounded-full shadow-lg">
+                    <MarketingBadge variant="popular">
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
-                    </span>
+                    </MarketingBadge>
                   </div>
                 )}
 
                 {/* Plan header */}
                 <div className="mb-5 mt-1">
-                  <h2 className="text-lg font-black text-white mb-0.5">{plan.name}</h2>
+                  <h2 className="text-lg font-semibold text-white mb-0.5">{plan.name}</h2>
                   <p className="text-xs text-white/35 font-medium mb-4">Best for: {plan.bestFor}</p>
 
                   <div className="flex items-baseline gap-1 mb-2">
@@ -431,9 +376,9 @@ export default function Pricing() {
         </section>
 
         {/* ── TEST CREDIT PACKS ── */}
-        <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
+        <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-6">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Test Credit Packs</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Test Credit Packs</h2>
             <p className="text-white/40 text-lg">Need extra credits without a subscription? Top up anytime.</p>
           </div>
 
@@ -458,10 +403,10 @@ export default function Pricing() {
         </section>
 
         {/* ── FAQ ── */}
-        <section className="max-w-3xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
+        <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="flex items-center gap-3 mb-8 justify-center">
             <HelpCircle className="h-5 w-5 text-primary" />
-            <h2 className="text-3xl md:text-4xl font-black text-white">Frequently Asked Questions</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Frequently Asked Questions</h2>
           </div>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 md:px-8">
             {FAQ.map((item) => <FaqItem key={item.q} q={item.q} a={item.a} />)}
@@ -469,8 +414,8 @@ export default function Pricing() {
         </section>
 
         {/* ── BOTTOM CTA ── */}
-        <section className="max-w-3xl mx-auto px-5 md:px-8 py-16 text-center border-t border-white/[0.05]">
-          <h2 className="text-4xl font-black text-white mb-4">Get in early.</h2>
+        <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 text-center border-t border-white/[0.05]">
+          <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">Get in early.</h2>
           <p className="text-white/45 text-lg mb-8">
             Beta members lock in the founding rate and get 100 bonus credits on launch day.
           </p>

@@ -4,57 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { MarketingNav } from "@/components/MarketingNav";
+import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
-  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Menu, X, Headphones,
+  Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones,
 } from "lucide-react";
-
-/* ─── nav ─── */
-
-const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Tools", href: "/dashboard" },
-  { label: "Pricing", href: "/pricing" },
-];
-
-function NavBar() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-        <Link href="/" className="cursor-pointer shrink-0">
-          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
-        </Link>
-        <nav className="hidden md:flex items-center gap-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors">{l.label}</Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 hidden sm:flex gap-2 font-semibold">
-              Sign In
-            </Button>
-          </Link>
-          <button className="flex md:hidden items-center justify-center h-8 w-8 text-white/60 hover:text-white" onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-      </div>
-      {menuOpen && (
-        <div className="md:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
-          {NAV_LINKS.map((l) => (
-            <Link key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
-              className="flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors">
-              {l.label}
-            </Link>
-          ))}
-        </div>
-      )}
-    </header>
-  );
-}
 
 /* ─── data ─── */
 
@@ -90,8 +45,8 @@ const PERKS = [
   { icon: Music, title: "Feature Voting",    body: "Your feedback shapes what we build. Beta members vote on upcoming tools." },
 ];
 
-const inputClass = "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
-const selectClass = "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 transition-colors";
+const inputClass = "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 rounded-xl text-sm";
+const selectClass = "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 transition-colors";
 
 /* ─── types ─── */
 
@@ -156,7 +111,7 @@ export default function BetaAccess() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <NavBar />
+      <MarketingNav />
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -168,9 +123,9 @@ export default function BetaAccess() {
 
         {/* ── HERO ── */}
         <section className="max-w-4xl mx-auto px-5 md:px-8 pt-20 pb-10 text-center">
-          <Badge className="mb-6 bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-widest px-4 py-1.5">
+          <MarketingBadge variant="kicker" className="mb-6 px-4 py-1.5">
             ✦ Beta Access Open — Limited Spots
-          </Badge>
+          </MarketingBadge>
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-white tracking-tight mb-6 leading-[0.92]">
             Join the Bow Down<br />
             <span className="text-primary">Visuals Beta</span>
@@ -197,7 +152,7 @@ export default function BetaAccess() {
           {submitted ? (
             <div className="rounded-2xl border border-primary/25 bg-primary/5 p-10 text-center">
               <CheckCircle2 className="h-14 w-14 text-primary mx-auto mb-5" />
-              <h3 className="text-2xl font-black text-white mb-3">You're in.</h3>
+              <h3 className="text-2xl font-semibold text-white mb-3">You're in.</h3>
               <p className="text-white/55 text-base mb-6 max-w-sm mx-auto leading-relaxed">
                 You're on the Bow Down Visuals beta list. We'll contact you when early access opens.
               </p>
@@ -221,7 +176,7 @@ export default function BetaAccess() {
             </div>
           ) : (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-7 md:p-9">
-              <h2 className="text-xl font-black text-white mb-1">Tell us about yourself</h2>
+              <h2 className="text-xl font-semibold text-white mb-1">Tell us about yourself</h2>
               <p className="text-sm text-white/35 mb-6">We use this to shape early access and build what creators actually need.</p>
 
               <form onSubmit={handleSubmit} className="space-y-5">
@@ -311,7 +266,7 @@ export default function BetaAccess() {
                     onChange={(e) => update("message", e.target.value)}
                     placeholder="Tell us what you're working on, or what you want us to build first..."
                     rows={3}
-                    className="bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm resize-none"
+                    className="bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/25 rounded-xl text-sm resize-none"
                   />
                 </div>
 
@@ -340,9 +295,9 @@ export default function BetaAccess() {
         </section>
 
         {/* ── TOOLS PREVIEW ── */}
-        <section className="max-w-5xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
+        <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Everything you need to create and promote</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Everything you need to create and promote</h2>
             <p className="text-white/40 text-lg">Professional tools built specifically for independent artists and creators.</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -352,8 +307,14 @@ export default function BetaAccess() {
                   <tool.icon className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white leading-snug">{tool.label}</p>
-                  {tool.badge && <Badge className="mt-1 bg-primary/10 text-primary border-primary/20 text-[10px]">{tool.badge}</Badge>}
+                  <p className="text-sm font-semibold text-white leading-snug">{tool.label}</p>
+                  {tool.badge === "Most Popular" ? (
+                    <MarketingBadge variant="popular" className="mt-1.5 text-[10px]">Most Popular</MarketingBadge>
+                  ) : tool.badge === "Beta" ? (
+                    <MarketingBadge variant="soon" className="mt-1.5 text-[10px]">Beta</MarketingBadge>
+                  ) : tool.badge === "Free" ? (
+                    <MarketingBadge variant="free" className="mt-1.5 text-[10px]">Free</MarketingBadge>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -361,9 +322,9 @@ export default function BetaAccess() {
         </section>
 
         {/* ── PERKS ── */}
-        <section className="max-w-5xl mx-auto px-5 md:px-8 py-16 border-t border-white/[0.05]">
+        <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-10">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Why join the beta?</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Why join the beta?</h2>
             <p className="text-white/40 text-lg">Beta members get exclusive perks not available after public launch.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -372,7 +333,7 @@ export default function BetaAccess() {
                 <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4">
                   <p.icon className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">{p.title}</h3>
+                <h3 className="text-base font-semibold text-white mb-2">{p.title}</h3>
                 <p className="text-sm text-white/50 leading-relaxed">{p.body}</p>
               </div>
             ))}

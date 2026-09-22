@@ -521,9 +521,10 @@ router.get("/lip-sync/status", (_req, res) => {
 /* ──────────────────────────────────────────────────────────────────────────
    GET /lip-sync/account-check
    Returns key inventory + billing status from Sync Labs.
+   Requires auth — the key's last-4 and billing status are not public info.
    Never exposes full API key — only last 4 chars and env var name.
 ────────────────────────────────────────────────────────────────────────── */
-router.get("/lip-sync/account-check", async (_req, res) => {
+router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
   const activeKeyLast4 =
     LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length >= 4
       ? LIP_SYNC_API_KEY.slice(-4)

@@ -18,7 +18,7 @@ const LEGAL = [
 
 export function SiteFooter() {
   return (
-    <footer className="bg-black border-t border-white/[0.06] py-14 px-5">
+    <footer className="bg-black border-t border-white/[0.06] py-12 px-5">
       <JsonLd data={ORGANIZATION_JSON_LD} />
       <JsonLd data={WEBSITE_JSON_LD} />
       <div className="max-w-6xl mx-auto">
@@ -28,17 +28,16 @@ export function SiteFooter() {
 
           {/* Brand */}
           <div>
-            <Link href="/" className="cursor-pointer inline-block">
+            <Link href="/" className="cursor-pointer inline-block" aria-label="Bow Down Visuals — home">
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.png`}
                 alt="Bow Down Visuals"
-                className="h-24 w-auto"
+                className="h-14 w-auto"
               />
             </Link>
-            <p className="text-white/60 text-sm font-semibold mt-2">Bow Down Visuals</p>
-            <p className="text-white/35 text-xs mt-2 max-w-xs leading-relaxed">
-              Bow Down Visuals sells digital AI creator credits for lyrics, music video plans,
-              video prompts, captions, thumbnails, promo clips, and related digital creator tools.
+            <p className="text-white/35 text-xs mt-4 max-w-xs leading-relaxed">
+              AI creator credits for lyrics, music video plans, video prompts,
+              captions, thumbnails, promo clips, and more.
             </p>
             <a
               href="mailto:support@bowdownvisuals.com"
@@ -50,13 +49,13 @@ export function SiteFooter() {
           </div>
 
           {/* Navigate */}
-          <nav className="flex flex-col gap-2.5">
+          <nav className="flex flex-col gap-2.5" aria-label="Footer">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
             {NAVIGATE.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors"
+                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
               >
                 {l.label}
               </Link>
@@ -64,13 +63,13 @@ export function SiteFooter() {
           </nav>
 
           {/* Legal */}
-          <nav className="flex flex-col gap-2.5">
+          <nav className="flex flex-col gap-2.5" aria-label="Legal">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Legal</p>
             {LEGAL.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="text-sm text-white/45 hover:text-white transition-colors"
+                className="text-sm text-white/45 hover:text-white transition-colors w-fit"
               >
                 {l.label}
               </Link>

@@ -5,7 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { recordRunwayClipHistory, recordCreditUsage } from "../lib/payment-record";
 import { chargedTasks } from "./generate/runway-clip";
-import { refreshSignedGcsUrl } from "../lib/objectStorage";
+import { refreshSupabaseStorageUrl, normalizeToStorageRef } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
@@ -19,7 +19,9 @@ const SaveClipSchema = z.object({
   prompt:       z.string().optional().nullable(),
   finalPrompt:  z.string().optional().nullable(),
   runwayJobId:  z.string().optional().nullable(),
-  videoUrl:     z.string().url(),
+  /* Accepts a stable Supabase storage ref (supabase://generated-clips/…)
+     or any playable URL — legacy GCS signed URLs included. */
+  videoUrl:     z.string().min(1),
   thumbnailUrl: z.string().optional().nullable(),
   status:       z.string().optional().default("completed"),
 });
@@ -33,6 +35,14 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
+  /* Persist stable storage refs, never short-lived signed URLs — even if
+     the client posts the 1-day preview URL from the generate poll response,
+     the DB ends up with the ref and readers mint fresh URLs per read. */
+  const storedVideoUrl = normalizeToStorageRef(d.videoUrl) ?? d.videoUrl;
+  const storedThumbnailUrl = d.thumbnailUrl
+    ? (normalizeToStorageRef(d.thumbnailUrl) ?? d.thumbnailUrl)
+    : null;
+
   try {
     const [clip] = await db
       .insert(generatedClipsTable)
@@ -44,8 +54,8 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
         prompt:        d.prompt ?? null,
         final_prompt:  d.finalPrompt ?? null,
         runway_job_id: d.runwayJobId ?? null,
-        video_url:     d.videoUrl,
-        thumbnail_url: d.thumbnailUrl ?? null,
+        video_url:     storedVideoUrl,
+        thumbnail_url: storedThumbnailUrl,
         status:        d.status ?? "completed",
       })
       .returning({ id: generatedClipsTable.id });
@@ -63,8 +73,8 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
       projectId:    d.projectId ?? null,
       sceneId:      d.sceneId ?? null,
       prompt:       d.finalPrompt ?? d.prompt ?? null,
-      videoUrl:     d.videoUrl,
-      thumbnailUrl: d.thumbnailUrl ?? null,
+      videoUrl:     storedVideoUrl,
+      thumbnailUrl: storedThumbnailUrl,
       creditsUsed:  RUNWAY_CREDIT_COST,
       title:        d.title ?? null,
     }).catch(() => {});
@@ -141,12 +151,13 @@ router.get("/generated-clips", requireAuth, async (req, res) => {
       .orderBy(desc(generatedClipsTable.created_at))
       .limit(200);
 
-    /* Stored signed URLs expire after 7 days — re-sign fresh ones for playback. */
+    /* Stored values are stable storage refs (or legacy URLs) — mint a fresh
+       signed URL per read so playback never expires. */
     const refreshedClips = await Promise.all(
       clips.map(async (clip) => ({
         ...clip,
-        video_url: clip.video_url ? await refreshSignedGcsUrl(clip.video_url) : clip.video_url,
-        thumbnail_url: clip.thumbnail_url ? await refreshSignedGcsUrl(clip.thumbnail_url) : clip.thumbnail_url,
+        video_url: clip.video_url ? await refreshSupabaseStorageUrl(clip.video_url) : clip.video_url,
+        thumbnail_url: clip.thumbnail_url ? await refreshSupabaseStorageUrl(clip.thumbnail_url) : clip.thumbnail_url,
       })),
     );
 

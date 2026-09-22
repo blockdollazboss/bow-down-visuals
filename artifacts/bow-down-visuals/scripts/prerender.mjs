@@ -108,7 +108,7 @@ async function main() {
 }
 
 function canonicalHref(routePath) {
-  const site = process.env.SITE_URL ?? "https://www.bowdownvisuals.com";
+  const site = process.env.SITE_URL ?? "https://bowdownvisuals.com";
   return routePath === "/" ? site + "/" : `${site}${routePath}`;
 }
 
