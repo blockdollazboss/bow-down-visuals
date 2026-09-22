@@ -469,10 +469,25 @@ export default function VideoEditor() {
         return;
       }
       const synced = json.synced ?? 0;
-      if (synced === 0) {
+      /* TEMPORARY (2026-09-22): apply recovered scenes even when sync attaches nothing */
+      const recovered = (json as { recovered?: number }).recovered ?? 0;
+      if (json.scenes && json.scenes.length > 0 && (synced > 0 || recovered > 0)) {
+        scenesRef.current = json.scenes;
+        setScenes(json.scenes);
+      }
+      if (synced === 0 && recovered === 0) {
         setSyncState("done");
         setSyncMsg(json.message ?? "No new clips to attach.");
         toast({ title: "Nothing to sync", description: json.message ?? "All scenes already have clips or no matching clips were found." });
+        return;
+      }
+      if (recovered > 0 && synced === 0) {
+        setSyncState("done");
+        setSyncMsg(json.message ?? `Recovered ${recovered} clip${recovered !== 1 ? "s" : ""}.`);
+        toast({
+          title: `${recovered} clip${recovered !== 1 ? "s" : ""} recovered!`,
+          description: "Your clips were restored from storage and should now play.",
+        });
         return;
       }
       /* Update local scenes state from the server response */
