@@ -510,11 +510,16 @@ export function HeroBackdropCanvas() {
   );
 }
 
-/* ─────────────────── 3D mouse-tracked logo ─────────────────── */
+/* ─────────────────── Bowing shark logo ─────────────────── */
+/* The shark-king physically bows with the mouse: cursor up = standing tall,
+   cursor down = deep bow. Pivots at the waist (transform-origin near base)
+   with spring physics so it has weight, plus a ground shadow that spreads
+   as he bows. Idle = slow ceremonial bow so it stays alive like video. */
 
 export function HeroLogo3D() {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const glowRef = useRef<HTMLDivElement | null>(null);
+  const shadowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -522,26 +527,43 @@ export function HeroLogo3D() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     attachRig();
     let raf = 0;
+    let bow = 0;
+    let vel = 0;
     const loop = () => {
-      const t = performance.now() / 1000;
+      const now = performance.now();
+      const t = now / 1000;
+      // Mouse height -> bow depth. Top of screen: standing tall. Bottom: deep bow.
+      let target = Math.min(1, Math.max(0, (rig.y - 0.15) / 0.6));
+      // Idle: slow ceremonial bow so it still feels alive like video.
+      if (now - rig.lastMove > 4000) {
+        target = 0.5 - 0.5 * Math.cos(t * 0.45);
+      }
+      // Spring toward target — weighty and physical, slight overshoot.
+      vel += (target - bow) * 0.075;
+      vel *= 0.82;
+      bow += vel;
+      const b = Math.min(1.15, Math.max(-0.1, bow));
       const nx = rig.x - 0.5;
-      const ny = rig.y - 0.5;
-      const rY = nx * 18;
-      const rX = -ny * 14;
-      const shX = nx * 34;
-      const shY = ny * 26;
-      const flY = Math.sin(t * 0.85) * 7;
-      const br = 1 + Math.sin(t * 1.35) * 0.008;
+
+      const rotX = -5 + b * 46; // -5deg upright … ~41deg deep bow
+      const rotY = nx * 12; // slight turn toward the cursor
+      const dipY = b * 34; // body dips as it bows
+      const scale = 1 + b * 0.05; // comes toward the viewer
       wrap.style.transform =
-        `perspective(1150px) rotateX(${rX.toFixed(2)}deg) ` +
-        `rotateY(${rY.toFixed(2)}deg) ` +
-        `translate3d(${shX.toFixed(1)}px, ${(flY + shY).toFixed(1)}px, 0) ` +
-        `scale(${br.toFixed(4)})`;
+        `perspective(1100px) rotateX(${rotX.toFixed(2)}deg) ` +
+        `rotateY(${rotY.toFixed(2)}deg) ` +
+        `translate3d(${(nx * 18).toFixed(1)}px, ${dipY.toFixed(1)}px, 0) ` +
+        `scale(${scale.toFixed(4)})`;
+
+      const shadow = shadowRef.current;
+      if (shadow) {
+        const s = 1 + Math.max(0, b) * 0.4;
+        shadow.style.transform = `translateX(-50%) scaleX(${s.toFixed(3)})`;
+        shadow.style.opacity = (0.28 + Math.max(0, b) * 0.35).toFixed(3);
+      }
       const glow = glowRef.current;
       if (glow) {
-        glow.style.transform =
-          `translate(calc(-50% + ${(nx * 110).toFixed(1)}px), ` +
-          `calc(-50% + ${(ny * 80).toFixed(1)}px))`;
+        glow.style.opacity = (0.8 + Math.max(0, b) * 0.2).toFixed(3);
       }
       const r = wrap.getBoundingClientRect();
       rig.logoCX = r.left + r.width / 2;
@@ -571,10 +593,17 @@ export function HeroLogo3D() {
       <div
         ref={wrapRef}
         className="relative will-change-transform"
-        style={{ transformStyle: "preserve-3d" }}
+        style={{ transformStyle: "preserve-3d", transformOrigin: "50% 84%" }}
       >
         <AnimatedLogo className="w-[480px] max-w-full h-auto" />
       </div>
+      {/* Ground shadow — spreads and darkens as he bows */}
+      <div
+        ref={shadowRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 bottom-[4px] h-[30px] w-[60%] rounded-[100%] bg-black blur-[16px]"
+        style={{ transform: "translateX(-50%)", opacity: 0.28 }}
+      />
     </div>
   );
 }
