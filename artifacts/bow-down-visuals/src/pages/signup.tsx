@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const schema = z.object({
   displayName: z.string().min(2, "Enter your artist or display name"),
@@ -25,6 +26,8 @@ const schema = z.object({
 });
 
 export default function Signup() {
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   const { signUp } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +73,7 @@ export default function Signup() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="w-[320px] max-w-full h-auto" />
+            <img ref={logoTilt} src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="w-[320px] max-w-full h-auto" />
           </div>
           <p className="mt-1 text-muted-foreground">Create your free creator account</p>
         </div>

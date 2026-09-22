@@ -1,10 +1,14 @@
 import { Link } from "wouter";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 function PolicyNav() {
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
       <div className="max-w-4xl mx-auto px-5 h-14 flex items-center justify-between">
-        <Link href="/" className="cursor-pointer">
+        <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg">
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-10 w-auto" />
         </Link>
         <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">Contact / Support</Link>

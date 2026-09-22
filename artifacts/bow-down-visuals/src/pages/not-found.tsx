@@ -1,8 +1,11 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, FolderOpen } from "lucide-react";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 export default function NotFound() {
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-black text-white px-5">
       {/* Ambient gold glow */}
@@ -12,6 +15,7 @@ export default function NotFound() {
 
       <div className="relative z-10 text-center max-w-md mx-auto">
         <img
+          ref={logoTilt}
           src={`${import.meta.env.BASE_URL}logo-static.png`}
           alt="Bow Down Visuals"
           className="h-24 w-auto mx-auto mb-8"

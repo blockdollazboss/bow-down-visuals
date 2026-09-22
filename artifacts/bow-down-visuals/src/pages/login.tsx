@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +28,8 @@ export default function Login() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLSpanElement>({ maxDeg: 8, maxShift: 6 });
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -78,7 +81,9 @@ export default function Login() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">
-            <AnimatedLogo className="w-[320px] max-w-full h-auto" />
+            <span ref={logoTilt} className="inline-block rounded-lg">
+              <AnimatedLogo className="w-[320px] max-w-full h-auto" />
+            </span>
           </div>
           <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
         </div>
