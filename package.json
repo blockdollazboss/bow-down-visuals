@@ -19,14 +19,5 @@
   },
   "dependencies": {
     "stripe": "^22.2.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "core-js",
-      "esbuild",
-      "msw",
-      "unrs-resolver"
-    ]
   }
 }
