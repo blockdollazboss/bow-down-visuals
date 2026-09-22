@@ -77,7 +77,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
         email: user.email ?? "",
         display_name: (user.user_metadata as Record<string, unknown>)?.display_name ?? null,
         plan: "free",
-        credits: 10,
+        credits: 3,
       })
       .select("credits")
       .single();
@@ -86,7 +86,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       console.log(`[requireAuth] insert newProfile=${!!newProfile} insertError=${insertError?.message ?? "none"}`);
     }
 
-    req.userCredits = newProfile?.credits ?? 10;
+    req.userCredits = newProfile?.credits ?? 3;
   }
 
   next();
