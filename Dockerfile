@@ -20,7 +20,7 @@ COPY . .
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
     VITE_LIP_SYNC_API_KEY=$VITE_LIP_SYNC_API_KEY \
-    PORT=$PORT
+    PORT=$PORT \
     BASE_PATH=$BASE_PATH
 
 # typecheck + build every workspace package (frontend + api-server)
