@@ -30,4 +30,9 @@ ENV NODE_ENV=production
 
 EXPOSE 8080
 
-CMD ["node", "--enable-source-maps", "artifacts/api-server/dist/index.mjs"]
+# Sync the Postgres schema on every boot before starting the server.
+# drizzle-kit push is idempotent (only applies diffs); --force skips the
+# interactive confirmation so the container never hangs waiting for input.
+# The `;` (not `&&`) guarantees the server still starts if the push hits a
+# transient DB hiccup — the failure will be visible in the logs.
+CMD ["sh", "-c", "pnpm --filter @workspace/db push-force; exec node --enable-source-maps artifacts/api-server/dist/index.mjs"]
