@@ -75,11 +75,15 @@ export async function recoverExpiredClipsViaReplit(
   projectId: string,
   scenes: SceneLike[],
 ): Promise<SceneLike[]> {
+  /* Scenes that need a clip: no demoClipUrl, or an expired legacy GCS URL.
+     (The UI shows "No clip" when demoClipUrl is missing — those still need
+     recovery via Replit scene-ID matching.) */
   const needsRecovery = scenes.filter(
     (s) =>
-      typeof s["demoClipUrl"] === "string" &&
-      isLegacyGcsUrl(s["demoClipUrl"] as string) &&
-      isExpiredGcsUrl(s["demoClipUrl"] as string),
+      typeof s["demoClipUrl"] !== "string" ||
+      !s["demoClipUrl"] ||
+      (isLegacyGcsUrl(s["demoClipUrl"] as string) &&
+        isExpiredGcsUrl(s["demoClipUrl"] as string)),
   );
   if (needsRecovery.length === 0) return scenes;
 
@@ -102,30 +106,45 @@ export async function recoverExpiredClipsViaReplit(
     return scenes;
   }
 
-  /* Index Replit scenes by GCS object path for matching. */
+  /* Index Replit scenes by GCS object path AND by scene ID for matching. */
   const freshByObjectPath = new Map<string, string>();
+  const freshBySceneId = new Map<string, string>();
   for (const rs of replitScenes) {
     const url = rs["demoClipUrl"];
     if (typeof url !== "string" || !isLegacyGcsUrl(url)) continue;
     const objPath = gcsObjectPath(url);
     if (objPath) freshByObjectPath.set(objPath, url);
+    const sid = rs["id"];
+    if (typeof sid === "string" && sid) freshBySceneId.set(sid, url);
   }
-  if (freshByObjectPath.size === 0) return scenes;
+  if (freshByObjectPath.size === 0 && freshBySceneId.size === 0) return scenes;
 
   /* ── 2-4. Download each recoverable clip, upload to Supabase, rewrite ref ── */
   const updated = await Promise.all(
     scenes.map(async (scene) => {
       const oldUrl = scene["demoClipUrl"];
-      if (
-        typeof oldUrl !== "string" ||
-        !isLegacyGcsUrl(oldUrl) ||
-        !isExpiredGcsUrl(oldUrl)
-      ) {
-        return scene;
+      const hasExpiredUrl =
+        typeof oldUrl === "string" &&
+        isLegacyGcsUrl(oldUrl) &&
+        isExpiredGcsUrl(oldUrl);
+      const needsClip =
+        typeof oldUrl !== "string" || !oldUrl || hasExpiredUrl;
+      if (!needsClip) return scene;
+
+      /* Try object-path match first (for scenes with expired URLs),
+         then scene-ID match (for scenes with no clip at all). */
+      let freshUrl: string | undefined;
+      if (hasExpiredUrl) {
+        const objPath = gcsObjectPath(oldUrl as string);
+        freshUrl = objPath ? freshByObjectPath.get(objPath) : undefined;
       }
-      const objPath = gcsObjectPath(oldUrl);
-      const freshUrl = objPath ? freshByObjectPath.get(objPath) : undefined;
-      if (!objPath || !freshUrl) return scene;
+      if (!freshUrl) {
+        const sid = scene["id"];
+        if (typeof sid === "string" && sid) {
+          freshUrl = freshBySceneId.get(sid);
+        }
+      }
+      if (!freshUrl) return scene;
 
       try {
         const dlRes = await fetch(freshUrl, {
@@ -135,6 +154,7 @@ export async function recoverExpiredClipsViaReplit(
         const buf = Buffer.from(await dlRes.arrayBuffer());
         if (buf.length === 0 || buf.length > 200 * 1024 * 1024) return scene;
 
+        const objPath = gcsObjectPath(freshUrl) ?? `clip-${Date.now()}.mp4`;
         const objectName = `recovered/${projectId}/${objPath}`;
         const storageRef = await uploadMediaToSupabaseStorage(
           objectName,
