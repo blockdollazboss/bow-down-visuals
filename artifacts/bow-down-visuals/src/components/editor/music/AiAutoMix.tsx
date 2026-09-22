@@ -89,8 +89,9 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
         },
         stems: aiStems.map((s) => ({
           id: s.id, name: s.name, type: s.type, url: s.url,
-          volume: s.volume, muted: s.muted,
+          volume: s.volume, muted: s.muted, solo: s.solo, pan: s.pan,
           trimStart: s.trimStart, trimEnd: s.trimEnd,
+          effects: s.effects,
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       });
@@ -102,7 +103,11 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
       /* Save to exports list + persist result */
       onChange({ ...settings, musicStudio: { ...ms, exports: [record, ...ms.exports].slice(0, 25) } });
       setRenderResult(record);
-      toast({ title: "Mix Rendered", description: "Your AI mix is ready to preview and download." });
+      if (resp.warnings && resp.warnings.length > 0) {
+        toast({ title: "Mix Rendered (with a note)", description: resp.warnings[0] });
+      } else {
+        toast({ title: "Mix Rendered", description: "Your AI mix is ready to preview and download." });
+      }
     } catch (e) {
       setRenderError(e instanceof Error ? e.message : "Render failed. Please try again.");
     } finally {

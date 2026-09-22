@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Camera, Clock, MapPin, Zap, Film, Loader2,
-  Sparkles, Video, CheckCircle2, AlertCircle, X,
+  Sparkles, Video, CheckCircle2, AlertCircle, AlertTriangle, X,
   ChevronDown, ChevronUp, RotateCcw,
   ArrowUp, ArrowDown, Trash2, Plus, Save, Eye,
   ShieldCheck,
@@ -10,8 +10,11 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { SceneData } from "@/lib/scene-parser";
+import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 /* ─── Section color badges ──────────────────────────────────── */
 const SECTION_COLORS: Record<string, string> = {
@@ -33,8 +36,43 @@ function sectionColor(section: string): string {
   return "bg-white/10 text-white/60 border-white/20";
 }
 
-/* ─── Build artist consistency prefix for Runway prompt ────── */
+/* Does the vault have a usable HTTPS reference photo for image-to-video? */
+function hasReferencePhoto(vault: ArtistVault): boolean {
+  const url = vault.reference_image_url?.trim();
+  return !!url && /^https:\/\//i.test(url);
+}
+
+/** Details captured for an "Improve Prompt" failure so the badge can explain what happened. */
+interface ImproveFailure {
+  message: string;
+  errorType: ImprovePromptErrorType;
+}
+
+/** Short label + color treatment per failure type, so users can tell at a glance whether retrying will help. */
+const IMPROVE_FAILURE_STYLE: Record<ImprovePromptErrorType, { label: string; className: string }> = {
+  rate_limit:     { label: "Rate Limited",   className: "text-amber-400" },
+  content_policy: { label: "Content Policy", className: "text-orange-400" },
+  invalid_prompt: { label: "Invalid Prompt", className: "text-red-400" },
+  server_error:   { label: "Server Error",   className: "text-red-400" },
+  unknown:        { label: "Improve Failed", className: "text-red-400" },
+};
+
+/* ─── Build artist consistency prefix for Runway prompt ──────
+   When a reference photo will be sent to Runway (image-to-video), the photo
+   anchors the artist's face/look, so we use a short identity note and let the
+   scene description dominate (gen4.5 image-to-video caps promptText at ~1000
+   chars). Without a photo we fall back to the full text-only consistency block. */
 function buildConsistencyPrefix(vault: ArtistVault): string {
+  if (hasReferencePhoto(vault)) {
+    const parts: string[] = [
+      `SAME ARTIST AS REFERENCE PHOTO: ${vault.artist_name}. Keep the exact same face, skin tone, hairstyle and identity from the reference image. Do NOT create a new person.`,
+    ];
+    if (vault.clothing_style)      parts.push(`Clothing: ${vault.clothing_style}`);
+    if (vault.do_not_change_rules) parts.push(`Do Not Change: ${vault.do_not_change_rules}`);
+    parts.push("---");
+    return parts.join("\n");
+  }
+
   const parts: string[] = [
     `CHARACTER CONSISTENCY — ACTIVE ARTIST: ${vault.artist_name}`,
     `Use ${vault.artist_name} as the main character. Do NOT create a random new person.`,
@@ -49,11 +87,13 @@ function buildConsistencyPrefix(vault: ArtistVault): string {
   if (vault.brand_colors)        parts.push(`Brand Colors: ${vault.brand_colors}`);
   if (vault.consistency_prompt)  parts.push(`Consistency Guide: ${vault.consistency_prompt}`);
   if (vault.do_not_change_rules) parts.push(`⛔ Do Not Change: ${vault.do_not_change_rules}`);
-  if (vault.reference_image_url) {
-    parts.push(`Reference Image: ${vault.reference_image_url} — use this as the visual identity anchor.`);
-  }
   parts.push("---");
   return parts.join("\n");
+}
+
+/* Does the given URL look like a usable, already-generated clip we can chain from? */
+function hasUsableClip(url: string | null | undefined): boolean {
+  return !!url && /^https:\/\//i.test(url);
 }
 
 /* ─── Inline Runway clip generator ─────────────────────────── */
@@ -64,9 +104,14 @@ export interface RunwayGeneratorProps {
   projectId?: string | null;
   /** Increment to auto-trigger generation (skips confirm) for "Create All" */
   createAllTrigger?: number;
+  /** Final clip URL of the immediately-preceding scene, if it has one.
+   *  When present, its last frame is used as the image reference so wardrobe/
+   *  lighting/pose flow naturally between scenes instead of resetting to the
+   *  static vault photo. */
+  previousClipUrl?: string | null;
 }
 
-export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger }: RunwayGeneratorProps) {
+export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger, previousClipUrl }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
@@ -77,6 +122,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [showConfirm, setShowConfirm]   = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
+  const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
+    scene.referenceSource ?? null,
+  );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const onUpdateRef = useRef(onUpdate);
@@ -98,7 +146,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
   /* Build the final prompt that will actually be sent to Runway */
   function buildFinalPrompt(): string {
-    const basePrompt = scene.aiVideoPrompt.trim() ||
+    const basePrompt = (scene.aiVideoPrompt ?? "").trim() ||
       [scene.action, scene.location, scene.cameraMovement, scene.lighting, scene.mood]
         .filter(Boolean).join(", ") ||
       "cinematic music video scene, dramatic lighting, luxury aesthetic";
@@ -142,7 +190,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     }
   }
 
-  function startPolling(id: string, finalPrompt: string) {
+  function startPolling(id: string, finalPrompt: string, usedReferenceSource: "previous_scene" | "vault_photo" | "none") {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
@@ -163,6 +211,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             generationStatus: "completed",
             promptUsed: finalPrompt,
             generatedAt: new Date().toISOString(),
+            referenceSource: usedReferenceSource,
           });
           toast({ title: "Runway clip ready!", description: "Your clip has been generated and saved." });
         } else if (data.status === "failed" || data.status === "cancelled") {
@@ -184,11 +233,17 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
   async function startGeneration() {
     const finalPrompt = buildFinalPrompt();
+    const chaining = hasUsableClip(previousClipUrl);
 
     setIsGenerating(true);
     setError(null);
     setProgress(null);
     setShowConfirm(false);
+    /* Optimistic guess for the "generating…" badge — server confirms/corrects
+       via the response's referenceSource once the extraction actually runs. */
+    setReferenceSource(
+      chaining ? "previous_scene" : artistVault && hasReferencePhoto(artistVault) ? "vault_photo" : "none",
+    );
 
     try {
       const token = await getAccessToken();
@@ -199,12 +254,19 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           promptText: finalPrompt,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
+          referenceImageUrl:
+            artistVault && hasReferencePhoto(artistVault)
+              ? artistVault.reference_image_url
+              : null,
+          previousClipUrl: chaining ? previousClipUrl : null,
         }),
       });
-      const data = await res.json() as { taskId?: string; error?: string };
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      const resolvedSource = data.referenceSource ?? "none";
+      setReferenceSource(resolvedSource);
       setTaskId(data.taskId);
-      startPolling(data.taskId, finalPrompt);
+      startPolling(data.taskId, finalPrompt, resolvedSource);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to start Runway generation";
       setIsGenerating(false);
@@ -231,23 +293,34 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       provider: null,
       promptUsed: null,
       generatedAt: null,
+      referenceSource: null,
     });
+    setReferenceSource(null);
   }
 
   const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
   const finalPromptPreview = buildFinalPrompt();
   const hasArtist = !!artistVault;
+  const willChain = hasUsableClip(previousClipUrl);
+
+  /* Human-readable label for whichever reference the last/next generation used or will use. */
+  function referenceLabel(source: "previous_scene" | "vault_photo" | "none" | null): string | null {
+    if (source === "previous_scene") return "Chained from previous scene's final frame";
+    if (source === "vault_photo") return "Artist Vault photo reference";
+    return null;
+  }
 
   /* Generating state */
   if (isGenerating) {
+    const label = referenceLabel(referenceSource);
     return (
       <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-primary/25 bg-primary/5">
         <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold text-primary/90">Generating Runway clip…</p>
-          {hasArtist && (
-            <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" /> Artist consistency applied to prompt
+          {label && (
+            <p className="text-[10px] text-primary/60 mt-0.5 flex items-center gap-1" data-testid="text-reference-source">
+              <ShieldCheck className="h-3 w-3" /> {label}
             </p>
           )}
           <p className="text-[11px] text-white/30 mt-0.5">Usually takes 30–90 seconds</p>
@@ -299,6 +372,14 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <span className="flex items-center gap-1.5 text-[10px] font-bold text-green-400 uppercase tracking-widest">
             <CheckCircle2 className="h-3 w-3" /> Clip Ready — {scene.provider ?? "Runway"}
           </span>
+          {referenceLabel(scene.referenceSource ?? referenceSource) && (
+            <span
+              className="flex items-center gap-1 text-[9px] font-semibold text-primary/60"
+              data-testid="text-reference-source"
+            >
+              <ShieldCheck className="h-2.5 w-2.5" /> {referenceLabel(scene.referenceSource ?? referenceSource)}
+            </span>
+          )}
           {showConfirm ? (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-white/40">Remove clip?</span>
@@ -333,9 +414,21 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   /* Idle — show generate button + final prompt preview */
   return (
     <div className="space-y-3">
-      {/* Artist consistency badge */}
-      {hasArtist && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20">
+      {/* Reference/consistency badge — scene-chain takes priority over the vault photo */}
+      {willChain ? (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20" data-testid="text-reference-source">
+          <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
+              Chained From Previous Scene
+            </p>
+            <p className="text-[10px] text-white/40 leading-snug">
+              The final frame of the previous scene's clip will anchor this generation so wardrobe, lighting, and pose flow naturally between scenes.
+            </p>
+          </div>
+        </div>
+      ) : hasArtist && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20" data-testid="text-reference-source">
           <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold text-primary uppercase tracking-wider">
@@ -343,9 +436,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             </p>
             <p className="text-[10px] text-white/40 leading-snug">
               {artistVault!.artist_name} will be used as the main character.
-              {artistVault!.reference_image_url
-                ? " Reference image included in prompt."
-                : " Text-only character consistency applied. Image reference video support coming soon."}
+              {hasReferencePhoto(artistVault!)
+                ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
+                : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
             </p>
           </div>
         </div>
@@ -408,9 +501,15 @@ interface SceneCardProps {
   videoStyle?: string;
   platform?: string;
   projectId?: string | null;
+  /** Driven by "Improve All Prompts" — shows progress on this card during a bulk run. */
+  externalImproving?: boolean;
+  /** Details of why the last bulk "Improve All Prompts" run failed to improve this scene, if it did. */
+  improveFailure?: ImproveFailure | null;
+  /** Final clip URL of the immediately-preceding scene, used to chain continuity. */
+  previousClipUrl?: string | null;
 }
 
-function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, projectId }: SceneCardProps) {
+function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, projectId, externalImproving, improveFailure, previousClipUrl }: SceneCardProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
@@ -438,58 +537,31 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
 
   async function handleImprovePrompt() {
     setShowPrompt(true);
-    if (!aiPrompt.trim()) {
+    const seed = aiPrompt.trim() || sceneSeedPrompt(scene);
+    if (!seed) {
       toast({ title: "Enter a prompt first", description: "Type an AI Video Prompt before improving it.", variant: "destructive" });
       return;
     }
     setImproving(true);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/improve-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
-        body: JSON.stringify({
-          prompt: aiPrompt,
-          sceneContext: {
-            section: scene.section,
-            lyricLine: scene.lyricLine,
-            action: scene.action,
-            location: scene.location,
-            cameraMovement: scene.cameraMovement,
-            lighting: scene.lighting,
-            mood: scene.mood,
-          },
-          videoStyle,
-          platform,
-          artistVault: artistVault
-            ? {
-                artistType:        artistVault.artist_type,
-                artistDescription: artistVault.personality,
-                visualStyle:       artistVault.visual_style,
-                hair:              artistVault.hair,
-                tattoos:           artistVault.tattoos,
-                jewelry:           artistVault.jewelry,
-                clothingStyle:     artistVault.clothing_style,
-                brandColors:       artistVault.brand_colors,
-                doNotChangeRules:  artistVault.do_not_change_rules,
-                consistencyPrompt: artistVault.consistency_prompt,
-                referenceImageUrl: artistVault.reference_image_url,
-              }
-            : null,
-        }),
+      const improvedPrompt = await requestImprovedPrompt({
+        token, prompt: seed, scene,
+        artistVault: artistVault ? vaultToPayload(artistVault) : null,
+        videoStyle, platform,
       });
-      if (!res.ok) throw new Error("Improve prompt API error");
-      const { improvedPrompt } = await res.json() as { improvedPrompt: string };
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
       toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
-    } catch {
-      toast({ title: "Could not improve prompt", variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof ImprovePromptError ? err.message : "Something went wrong. Please try again.";
+      toast({ title: "Could not improve prompt", description: message, variant: "destructive" });
     } finally {
       setImproving(false);
     }
   }
 
+  const busy = improving || !!externalImproving;
   const hasClip = !!scene.demoClipUrl && scene.demoClipUrl.startsWith("http");
   const summary =
     scene.lyricLine || scene.action || scene.location || `Scene ${index + 1}`;
@@ -497,7 +569,11 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
   return (
     <div
       className={`rounded-2xl border bg-white/[0.025] overflow-hidden transition-colors ${
-        scene.approved ? "border-primary/40" : "border-white/10 hover:border-white/20"
+        scene.approved
+          ? "border-primary/40"
+          : improveFailure
+            ? "border-red-500/40"
+            : "border-white/10 hover:border-white/20"
       }`}
       data-testid={`scene-card-${index}`}
     >
@@ -535,6 +611,33 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               <CheckCircle2 className="h-3 w-3" /> Clip Ready
             </span>
           )}
+          {improveFailure && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={`flex items-center gap-1 text-[10px] font-bold cursor-help ${IMPROVE_FAILURE_STYLE[improveFailure.errorType].className}`}
+                    data-testid={`badge-improve-failed-${index}`}
+                  >
+                    <AlertCircle className="h-3 w-3" /> {IMPROVE_FAILURE_STYLE[improveFailure.errorType].label}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs" data-testid={`tooltip-improve-failed-${index}`}>
+                  {improveFailure.message}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {!improveFailure && !busy && isWeakPrompt(scene) && (
+            <button
+              onClick={handleImprovePrompt}
+              className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors"
+              title="This scene's AI Video Prompt is short or generic — click to improve it"
+              data-testid={`badge-weak-prompt-${index}`}
+            >
+              <AlertTriangle className="h-3 w-3" /> Weak Prompt
+            </button>
+          )}
           {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed((c) => !c)}
@@ -561,11 +664,11 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               size="sm"
               variant="outline"
               onClick={handleImprovePrompt}
-              disabled={improving}
+              disabled={busy}
               className="h-8 text-xs gap-1.5 border-primary/20 bg-primary/5 text-primary/80 hover:bg-primary/15 hover:text-primary font-bold"
               data-testid={`btn-improve-prompt-${index}`}
             >
-              {improving
+              {busy
                 ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Improving…</>
                 : <><Sparkles className="h-3.5 w-3.5" /> Improve Prompt for Artist</>}
             </Button>
@@ -687,6 +790,7 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
               onUpdate={(patch) => handleUpdate(patch)}
               artistVault={artistVault}
               projectId={projectId}
+              previousClipUrl={previousClipUrl}
             />
           </div>
 
@@ -723,9 +827,25 @@ export function SceneStudio({
   scenes, onScenesChange, artistVault, videoStyle, platform,
   manageable = false, onSave, saving = false, projectId,
 }: SceneStudioProps) {
+  const { getAccessToken } = useAuth();
+  const { toast } = useToast();
+  const [improvingIds, setImprovingIds] = useState<Set<string>>(new Set());
+  const [improveAllTotal, setImproveAllTotal] = useState(0);
+  const improveAllActive = improveAllTotal > 0;
+  /** Scene ID → failure detail from the most recent "Improve All Prompts" / "Retry Failed" run. */
+  const [failedReasons, setFailedReasons] = useState<Map<string, ImproveFailure>>(new Map());
+
   const handleUpdate = useCallback(
     (id: string, patch: Partial<SceneData>) => {
       onScenesChange(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+      if (patch.aiVideoPrompt !== undefined) {
+        setFailedReasons((prev) => {
+          if (!prev.has(id)) return prev;
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+        });
+      }
     },
     [scenes, onScenesChange],
   );
@@ -759,6 +879,105 @@ export function SceneStudio({
     onScenesChange([...scenes, newScene]);
   }, [scenes, onScenesChange]);
 
+  const runImprovePrompts = useCallback(
+    async (targets: SceneData[], opts?: { isRetry?: boolean }) => {
+      if (improveAllActive || targets.length === 0) return;
+
+      setImproveAllTotal(targets.length);
+      setImprovingIds(new Set(targets.map((s) => s.id)));
+
+      let working = [...scenes];
+      let ok = 0;
+      const newlyFailed = new Map<string, ImproveFailure>();
+      try {
+        const token = await getAccessToken();
+
+        await Promise.allSettled(
+          targets.map(async (scene) => {
+            try {
+              const improved = await requestImprovedPrompt({
+                token, prompt: sceneSeedPrompt(scene), scene,
+                artistVault: artistVault ? vaultToPayload(artistVault) : null,
+                videoStyle, platform,
+              });
+              working = working.map((s) => (s.id === scene.id ? { ...s, aiVideoPrompt: improved } : s));
+              onScenesChange(working);
+              ok++;
+            } catch (err) {
+              newlyFailed.set(scene.id, {
+                message: err instanceof ImprovePromptError ? err.message : "Something went wrong. Please try again.",
+                errorType: err instanceof ImprovePromptError ? err.errorType : "unknown",
+              });
+            } finally {
+              setImprovingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(scene.id);
+                return next;
+              });
+            }
+          }),
+        );
+
+        setFailedReasons((prev) => {
+          const next = new Map(prev);
+          for (const t of targets) next.delete(t.id);
+          for (const [id, reason] of newlyFailed) next.set(id, reason);
+          return next;
+        });
+
+        const fail = newlyFailed.size;
+        toast({
+          title: fail === 0 ? "All prompts improved!" : `Improved ${ok} of ${targets.length} scenes`,
+          description:
+            fail === 0
+              ? `Enhanced ${ok} scene${ok !== 1 ? "s" : ""} for Runway.`
+              : `${fail} scene${fail !== 1 ? "s" : ""} could not be improved — hover a scene's badge for details, or use "Retry Failed".`,
+          variant: fail === 0 ? undefined : "destructive",
+        });
+      } catch (err) {
+        const reason: ImproveFailure = {
+          message: err instanceof ImprovePromptError ? err.message : "Something went wrong starting the batch. Please try again.",
+          errorType: err instanceof ImprovePromptError ? err.errorType : "unknown",
+        };
+        setFailedReasons((prev) => {
+          const next = new Map(prev);
+          for (const t of targets) next.set(t.id, reason);
+          return next;
+        });
+        toast({
+          title: opts?.isRetry ? "Could not retry prompts" : "Could not improve prompts",
+          description: reason.message,
+          variant: "destructive",
+        });
+      } finally {
+        setImproveAllTotal(0);
+        setImprovingIds(new Set());
+      }
+    },
+    [scenes, artistVault, videoStyle, platform, getAccessToken, onScenesChange, toast, improveAllActive],
+  );
+
+  const handleImproveAllPrompts = useCallback(() => {
+    const targets = scenes.filter((s) => sceneSeedPrompt(s).length > 0);
+    if (targets.length === 0) {
+      toast({
+        title: "Nothing to improve",
+        description: "Add some scene details or prompts first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setFailedReasons(new Map());
+    void runImprovePrompts(targets);
+  }, [scenes, toast, runImprovePrompts]);
+
+  const failedScenes = scenes.filter((s) => failedReasons.has(s.id));
+
+  const handleRetryFailed = useCallback(() => {
+    if (failedScenes.length === 0) return;
+    void runImprovePrompts(failedScenes, { isRetry: true });
+  }, [failedScenes, runImprovePrompts]);
+
   if (scenes.length === 0 && !manageable) return null;
 
   const clipsReady = scenes.filter((s) => s.generationStatus === "completed").length;
@@ -781,25 +1000,54 @@ export function SceneStudio({
             </p>
           </div>
         </div>
-        {manageable && (
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm" variant="outline" onClick={addScene}
-              className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white gap-1.5 h-9"
-              data-testid="btn-add-scene"
-            >
-              <Plus className="h-4 w-4" /> Add Scene
-            </Button>
-            {onSave && (
+        {(scenes.length > 0 || manageable) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {scenes.length > 0 && (
               <Button
-                size="sm" onClick={onSave} disabled={saving}
-                className="gold-glow font-bold gap-1.5 h-9"
-                data-testid="btn-save-scenes"
+                size="sm" variant="outline"
+                onClick={handleImproveAllPrompts}
+                disabled={improveAllActive}
+                className="border-primary/20 bg-primary/5 text-primary/80 hover:bg-primary/15 hover:text-primary font-bold gap-1.5 h-9"
+                data-testid="btn-improve-all-prompts"
               >
-                {saving
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
-                  : <><Save className="h-4 w-4" /> Save</>}
+                {improveAllActive
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Improving {improveAllTotal - improvingIds.size}/{improveAllTotal}…</>
+                  : <><Sparkles className="h-4 w-4" /> Improve All Prompts</>}
               </Button>
+            )}
+            {failedScenes.length > 0 && (
+              <Button
+                size="sm" variant="outline"
+                onClick={handleRetryFailed}
+                disabled={improveAllActive}
+                className="border-red-500/30 bg-red-500/5 text-red-400 hover:bg-red-500/15 hover:text-red-300 font-bold gap-1.5 h-9"
+                data-testid="btn-retry-failed-prompts"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Retry Failed ({failedScenes.length})
+              </Button>
+            )}
+            {manageable && (
+              <>
+                <Button
+                  size="sm" variant="outline" onClick={addScene}
+                  className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white gap-1.5 h-9"
+                  data-testid="btn-add-scene"
+                >
+                  <Plus className="h-4 w-4" /> Add Scene
+                </Button>
+                {onSave && (
+                  <Button
+                    size="sm" onClick={onSave} disabled={saving}
+                    className="gold-glow font-bold gap-1.5 h-9"
+                    data-testid="btn-save-scenes"
+                  >
+                    {saving
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                      : <><Save className="h-4 w-4" /> Save</>}
+                  </Button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -842,6 +1090,9 @@ export function SceneStudio({
               videoStyle={videoStyle}
               platform={platform}
               projectId={projectId}
+              externalImproving={improvingIds.has(scene.id)}
+              improveFailure={failedReasons.get(scene.id) ?? null}
+              previousClipUrl={getPreviousClipUrl(scenes, i)}
             />
           </div>
         ))}

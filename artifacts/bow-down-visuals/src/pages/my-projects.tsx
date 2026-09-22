@@ -16,6 +16,7 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
+import { deriveProjectContext } from "@/lib/prompt-improve";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -111,6 +112,10 @@ function ResultModal({
     (project.input_data?.["audioUrl"] as string | undefined) ??
     (project.input_data?.["audio_url"] as string | undefined) ??
     null;
+
+  const { videoStyle, platform, artistVault: artistVaultPayload } = deriveProjectContext(
+    project.input_data,
+  );
 
   const existingExport: ExportRecord | null =
     project.output_data?.final_video_url
@@ -263,6 +268,9 @@ function ResultModal({
               onSaveSuccess={() => onScenesSaved?.(modalScenes)}
               existingExport={existingExport}
               onExportComplete={onExportComplete}
+              artistVault={artistVaultPayload}
+              videoStyle={videoStyle}
+              platform={platform}
             />
           </div>
         )}
@@ -802,7 +810,7 @@ export default function MyProjects() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {projects.map((project) => (
                 <ProjectCard key={project.id} project={project} onDelete={handleDeleteProject} onOpen={setOpenProject} />
               ))}
@@ -923,10 +931,13 @@ export default function MyProjects() {
                 {history.length} generation{history.length !== 1 ? "s" : ""} logged — newest first.
               </p>
               {history.map((row) => {
-                const isClip = row.generation_type === "runway_video_clip";
+                const isClip = row.generation_type === "runway_video_clip" || row.generation_type === "lip_sync_clip";
+                const isThumbnail = row.generation_type === "thumbnail";
                 const typeLabel =
                   row.action_label ??
                   (row.generation_type === "runway_video_clip"    ? "Runway Video Clip"    :
+                   row.generation_type === "lip_sync_clip"        ? "Lip Sync Clip"        :
+                   row.generation_type === "thumbnail"            ? "Thumbnail"            :
                    row.generation_type === "lyrics"               ? "Lyrics"               :
                    row.generation_type === "video_plan"           ? "Video Plan"           :
                    row.generation_type === "scene_prompt"         ? "Scene Prompt"         :
@@ -955,6 +966,17 @@ export default function MyProjects() {
                           controls
                           playsInline
                           preload="metadata"
+                          className="w-full max-h-56 object-contain"
+                        />
+                      </div>
+                    )}
+
+                    {/* Thumbnail image preview */}
+                    {isThumbnail && row.thumbnail_url && (
+                      <div className="rounded-lg overflow-hidden bg-black border border-white/[0.06]">
+                        <img
+                          src={row.thumbnail_url}
+                          alt={typeLabel}
                           className="w-full max-h-56 object-contain"
                         />
                       </div>

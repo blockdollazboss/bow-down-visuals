@@ -31,10 +31,12 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 ## Product
 
 _Describe the high-level user-facing capabilities of this app once they exist._
-
+[credentials redacted — rotate this password in Supabase]
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- For e2e/manual testing, reuse a single existing test account (same email/password) instead of creating a new email/password per test run.- Persistent QA test account (Supabase, email-confirmed, 500 credits): [credentials redacted — rotate this password in Supabase]. Use this for all future e2e tests instead of creating new accounts. Clean up any test projects/data created under it after each test run, but do not delete the account itself.
+- Persistent QA test account (Supabase, email-confirmed, 500 credits): [credentials redacted — rotate this password in Supabase]. Use this for all future e2e tests instead of creating new accounts. Clean up any test *projects*/data created under it after each test run, but do not delete the account itself.
+- For real (non-mocked) Runway clip generation smoke tests on the QA account, project `827d6f8b-98b3-4bb3-a075-50a2c687f3a7` ("QA Chain Test 1783354402234") is a small 2-scene project good for cheap end-to-end verification (2 clips = 10 credits). When browser-based `runTest()` waits are unreliable for multi-minute real generation, drive the flow directly via API (`/api/generate-runway-clip` submit+poll, `/api/generated-clips` save, `/api/projects/:id/scene-clip` attach, `PATCH /api/projects/:id` to set `approved`) using the QA account's Supabase access token instead.
 
 ## Gotchas
 

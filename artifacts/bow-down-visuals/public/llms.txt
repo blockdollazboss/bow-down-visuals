@@ -1,0 +1,11 @@
+# Bow Down Visuals
+
+> AI-powered creative studio for music artists, producers, directors, and labels. Generate song lyrics, music video treatments, promo content, and thumbnails in seconds.
+
+## Public Pages
+
+- [Home](/): Overview of Bow Down Visuals, how it works, available tools, and pricing.
+- [Pricing](/pricing): Credit packs and pricing for AI generation tools.
+- [Waitlist](/waitlist): Join the waitlist for early access to Pro and Label plans.
+- [Beta Access](/beta-access): Request access to the current beta program.
+- [Contact](/contact): Contact and support information.

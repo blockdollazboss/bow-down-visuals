@@ -13,20 +13,21 @@ declare global {
   }
 }
 
-const SUPABASE_URL = process.env["SUPABASE_URL"] ?? "";
-const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? "";
+const SUPABASE_URL = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "";
+const SUPABASE_ANON_KEY = process.env["SUPABASE_ANON_KEY"] ?? process.env["VITE_SUPABASE_ANON_KEY"] ?? "";
 
 // Creates a Supabase client with the user's session active — mirrors exactly
 // how the frontend SDK operates after signIn, which is required for the
 // sb_publishable_* key format to reach PostgREST correctly.
 export async function createSessionSupabase(accessToken: string): Promise<SupabaseClient> {
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  // Use the verified browser JWT as the Authorization header for PostgREST.
+  // Do not call auth.setSession() here: the API only receives an access token,
+  // not a real refresh token, and fake refresh tokens can cause random auth
+  // failures. This still lets Supabase RLS see auth.uid() correctly.
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
-  // setSession registers the JWT as the active session; subsequent table
-  // queries use it the same way the browser SDK does.
-  await client.auth.setSession({ access_token: accessToken, refresh_token: accessToken });
-  return client;
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {

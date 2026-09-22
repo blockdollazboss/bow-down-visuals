@@ -3,7 +3,7 @@ import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
   Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
   GripVertical, ChevronsUp, ChevronsDown, Undo2, Plus, Scissors, Upload,
-  ChevronDown, Check, X, Clock, Zap,
+  ChevronDown, ChevronUp, Check, X, Clock, Zap,
 } from "lucide-react";
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
@@ -20,6 +20,7 @@ import { InlineRunwayGenerator } from "@/components/SceneStudio";
 import { Collapsible, Field } from "@/components/editor/controls";
 import { IconBtn } from "@/components/editor/sections/shared";
 import type { SceneData } from "@/lib/scene-parser";
+import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,7 +124,15 @@ export function ClipGeneratorSection({
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /* "Create All" runs scenes sequentially so each later scene can chain from
+     the previous scene's freshly-generated last frame. `createAllQueue` holds
+     the remaining scene ids to generate (queue[0] is the active one); an
+     effect watches `scenes` for the active scene to finish (succeed or fail)
+     and then advances to the next id. */
+  const [createAllQueue, setCreateAllQueue] = useState<string[]>([]);
+  const [createAllTotal, setCreateAllTotal] = useState(0);
   const [createAllTrigger, setCreateAllTrigger] = useState(0);
+  const activeCreateAllId = createAllQueue[0] ?? null;
   const [enhancing, setEnhancing] = useState(false);
   const [enhanceProgress, setEnhanceProgress] = useState<{ done: number; total: number } | null>(null);
   const [enhancedIds, setEnhancedIds] = useState<Set<string>>(new Set());
@@ -135,6 +144,7 @@ export function ClipGeneratorSection({
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [insertMode, setInsertMode] = useState<InsertMode>("end");
   const [showInsertMenu, setShowInsertMenu] = useState(false);
+  const [showMoreClipControls, setShowMoreClipControls] = useState(false);
 
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -190,6 +200,28 @@ export function ClipGeneratorSection({
     }
     return;
   }, [uploadStatus]);
+
+  /* Advance the "Create All" queue once the active scene finishes (success
+     or failure) so the next scene starts and can chain from a real clip. */
+  useEffect(() => {
+    if (createAllQueue.length === 0) return;
+    const activeId = createAllQueue[0]!;
+    const activeScene = scenes.find((s) => s.id === activeId);
+    const isDone = !activeScene || sceneHasClip(activeScene) || activeScene.generationStatus === "failed";
+    if (!isDone) return;
+    const rest = createAllQueue.slice(1);
+    setCreateAllQueue(rest);
+    if (rest.length > 0) setCreateAllTrigger((n) => n + 1);
+    else setCreateAllTotal(0);
+  }, [scenes, createAllQueue]);
+
+  function startCreateAll() {
+    const ids = scenesWithoutClip.map((s) => s.id);
+    if (ids.length === 0) return;
+    setCreateAllQueue(ids);
+    setCreateAllTotal(ids.length);
+    setCreateAllTrigger((n) => n + 1);
+  }
 
   useEffect(() => {
     if (showInsertMenu) {
@@ -634,7 +666,18 @@ export function ClipGeneratorSection({
 
       {/* ── Timeline editing toolbar ── */}
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 space-y-3">
-        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Timeline Controls</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Timeline Controls</p>
+          <button
+            type="button"
+            onClick={() => setShowMoreClipControls((v) => !v)}
+            className="flex items-center gap-1 text-[10px] font-bold text-white/35 hover:text-white/60 transition-colors"
+            data-testid="btn-more-clip-options"
+          >
+            {showMoreClipControls ? "Hide options" : "More options"}
+            {showMoreClipControls ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        </div>
 
         {/* Add Clip row */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -686,109 +729,127 @@ export function ClipGeneratorSection({
             )}
           </div>
 
-          {/* Upload Clip */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadStatus === "uploading"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50"
-            title="Upload a local video file"
-          >
-            {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-            Upload Clip
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={handleUploadClip}
-          />
-
-          {/* Split at playhead */}
-          <button
-            type="button"
-            onClick={splitAtPlayhead}
-            disabled={!canSplit}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-            title={canSplit ? `Split scene ${activeSceneIdx + 1} at playhead (${playheadTimeSec.toFixed(1)}s)` : "Load audio first to enable split"}
-          >
-            <Scissors className="h-3.5 w-3.5" />
-            Split at ▶
-          </button>
-
-          {/* Create All */}
-          {scenesWithoutClip.length > 0 && (
+          {/* Create All — runs sequentially so each scene can chain from the one before it */}
+          {(scenesWithoutClip.length > 0 || createAllQueue.length > 0) && (
             <Button
               size="sm"
-              onClick={() => setCreateAllTrigger((n) => n + 1)}
-              className="gap-2 bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 font-bold text-xs h-8"
+              onClick={startCreateAll}
+              disabled={createAllQueue.length > 0}
+              className="gap-2 bg-primary/15 border border-primary/40 text-primary hover:bg-primary/25 font-bold text-xs h-8 disabled:opacity-70"
               variant="outline"
               data-testid="btn-create-all-clips"
             >
-              <Video className="h-3.5 w-3.5" />
-              Create All ({scenesWithoutClip.length})
+              {createAllQueue.length > 0 ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span data-testid="text-create-all-progress">
+                    Generating {createAllTotal - createAllQueue.length + 1} of {createAllTotal}…
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Video className="h-3.5 w-3.5" />
+                  Create All ({scenesWithoutClip.length})
+                </>
+              )}
             </Button>
           )}
         </div>
 
-        {/* Selected scene indicator */}
-        {selectedSceneId && (() => {
-          const selIdx = scenes.findIndex((s) => s.id === selectedSceneId);
-          const selScene = scenes[selIdx];
-          if (!selScene) return null;
-          return (
-            <div className="flex items-center gap-2 text-[10px] text-white/40">
-              <div className="h-1 w-1 rounded-full bg-primary/60" />
-              <span>
-                Selected: <span className="text-white/60 font-semibold">Scene {selIdx + 1} — {selScene.section || "New Clip"}</span>
-                {" "}— inserts will go <span className="text-primary/80 font-semibold">{INSERT_MODE_LABELS[insertMode]}</span>
-              </span>
+        {showMoreClipControls && (
+          <div className="space-y-3 pt-1 border-t border-white/[0.06]">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Upload Clip */}
               <button
                 type="button"
-                onClick={() => setSelectedSceneId(null)}
-                className="ml-auto text-white/30 hover:text-white/60 transition-colors"
-                title="Clear selection"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadStatus === "uploading"}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50"
+                title="Upload a local video file"
               >
-                <X className="h-3 w-3" />
+                {uploadStatus === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                Upload Clip
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handleUploadClip}
+              />
+
+              {/* Split at playhead */}
+              <button
+                type="button"
+                onClick={splitAtPlayhead}
+                disabled={!canSplit}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                title={canSplit ? `Split scene ${activeSceneIdx + 1} at playhead (${playheadTimeSec.toFixed(1)}s)` : "Load audio first to enable split"}
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                Split at ▶
               </button>
             </div>
-          );
-        })()}
 
-        {/* Playhead / split info */}
-        {canSplit && (
-          <div className="flex items-center gap-2 text-[10px] text-white/30">
-            <Clock className="h-3 w-3 shrink-0" />
-            <span>
-              Playhead: <span className="text-white/50">{playheadTimeSec.toFixed(2)}s</span>
-              {activeSceneIdx >= 0 && (
-                <> · Active scene: <span className="text-white/50">Scene {activeSceneIdx + 1}</span></>
-              )}
-            </span>
+            {/* Selected scene indicator */}
+            {selectedSceneId && (() => {
+              const selIdx = scenes.findIndex((s) => s.id === selectedSceneId);
+              const selScene = scenes[selIdx];
+              if (!selScene) return null;
+              return (
+                <div className="flex items-center gap-2 text-[10px] text-white/40">
+                  <div className="h-1 w-1 rounded-full bg-primary/60" />
+                  <span>
+                    Selected: <span className="text-white/60 font-semibold">Scene {selIdx + 1} — {selScene.section || "New Clip"}</span>
+                    {" "}— inserts will go <span className="text-primary/80 font-semibold">{INSERT_MODE_LABELS[insertMode]}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSceneId(null)}
+                    className="ml-auto text-white/30 hover:text-white/60 transition-colors"
+                    title="Clear selection"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              );
+            })()}
+
+            {/* Playhead / split info */}
+            {canSplit && (
+              <div className="flex items-center gap-2 text-[10px] text-white/30">
+                <Clock className="h-3 w-3 shrink-0" />
+                <span>
+                  Playhead: <span className="text-white/50">{playheadTimeSec.toFixed(2)}s</span>
+                  {activeSceneIdx >= 0 && (
+                    <> · Active scene: <span className="text-white/50">Scene {activeSceneIdx + 1}</span></>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* Debug status (collapsed) */}
+            <details className="group">
+              <summary className="text-[9px] font-bold text-white/20 uppercase tracking-widest cursor-pointer list-none hover:text-white/40 transition-colors">
+                ▸ Debug
+              </summary>
+              <div className="pt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                {([
+                  ["grid cols",    "1 / 2 / 3"],
+                  ["clip count",   String(scenes.length)],
+                  ["no clip",      String(scenes.filter((s) => !sceneHasClip(s)).length)],
+                  ["selected",     selectedSceneId ? `Scene ${scenes.findIndex((s) => s.id === selectedSceneId) + 1}` : "none"],
+                  ["drag reorder", "yes ✓"],
+                ] as [string, string][]).map(([k, v]) => (
+                  <span key={k} className="flex items-center gap-1">
+                    <span className="text-[8px] font-mono text-white/20">{k}</span>
+                    <span className={`text-[8px] font-bold ${v.includes("✓") ? "text-green-400/50" : v === "none" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
+                  </span>
+                ))}
+              </div>
+            </details>
           </div>
         )}
-
-        {/* Debug status (collapsed) */}
-        <details className="group">
-          <summary className="text-[9px] font-bold text-white/20 uppercase tracking-widest cursor-pointer list-none hover:text-white/40 transition-colors">
-            ▸ Debug
-          </summary>
-          <div className="pt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
-            {([
-              ["grid cols",    "1 / 2 / 3"],
-              ["clip count",   String(scenes.length)],
-              ["no clip",      String(scenes.filter((s) => !sceneHasClip(s)).length)],
-              ["selected",     selectedSceneId ? `Scene ${scenes.findIndex((s) => s.id === selectedSceneId) + 1}` : "none"],
-              ["drag reorder", "yes ✓"],
-            ] as [string, string][]).map(([k, v]) => (
-              <span key={k} className="flex items-center gap-1">
-                <span className="text-[8px] font-mono text-white/20">{k}</span>
-                <span className={`text-[8px] font-bold ${v.includes("✓") ? "text-green-400/50" : v === "none" ? "text-white/20" : "text-[#C9A84C]/50"}`}>{v}</span>
-              </span>
-            ))}
-          </div>
-        </details>
       </div>
 
       {/* ── Scene count ── */}
@@ -832,10 +893,11 @@ export function ClipGeneratorSection({
                     onRemove={remove}
                     onPreview={onPreview}
                     previewSceneId={previewSceneId}
-                    createAllTrigger={createAllTrigger}
+                    createAllTrigger={scene.id === activeCreateAllId ? createAllTrigger : 0}
                     isEnhanced={enhancedIds.has(scene.id)}
                     dragHandleProps={dragHandleProps}
                     isDragging={isDragging}
+                    previousClipUrl={getPreviousClipUrl(scenes, i)}
                   />
                 )}
               </SortableSceneCard>
@@ -890,6 +952,7 @@ interface SceneClipCardProps {
   isEnhanced?: boolean;
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
   isDragging?: boolean;
+  previousClipUrl?: string | null;
 }
 
 function SceneClipCard({
@@ -915,13 +978,14 @@ function SceneClipCard({
   isEnhanced,
   dragHandleProps,
   isDragging,
+  previousClipUrl,
 }: SceneClipCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const hasClip        = sceneHasClip(scene);
   const edit           = getClipEdit(settings, scene.id);
   const isPreviewing   = previewSceneId === scene.id;
-  const hasConsistency = scene.aiVideoPrompt.startsWith(CONSISTENCY_MARKER);
+  const hasConsistency = (scene.aiVideoPrompt ?? "").startsWith(CONSISTENCY_MARKER);
 
   return (
     <div
@@ -1111,6 +1175,7 @@ function SceneClipCard({
               artistVault={artistVault}
               projectId={projectId}
               createAllTrigger={createAllTrigger}
+              previousClipUrl={previousClipUrl}
             />
           </div>
 

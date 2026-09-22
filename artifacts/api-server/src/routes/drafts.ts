@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, projectDraftsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
+import { refreshSignedGcsUrlsDeep } from "../lib/objectStorage";
 
 const router = Router();
 
@@ -67,7 +68,15 @@ router.get("/drafts", requireAuth, async (req, res) => {
       )
       .orderBy(desc(projectDraftsTable.updated_at));
 
-    res.json({ drafts: rows });
+    /* Stored signed clip URLs expire after 7 days — re-sign fresh ones for playback. */
+    const refreshedRows = await Promise.all(
+      rows.map(async (row) => ({
+        ...row,
+        draft_data: await refreshSignedGcsUrlsDeep(row.draft_data),
+      })),
+    );
+
+    res.json({ drafts: refreshedRows });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch drafts";
     res.status(500).json({ error: msg });
@@ -91,6 +100,10 @@ router.get("/drafts/:id", requireAuth, async (req, res) => {
       .limit(1);
 
     if (!row) { res.status(404).json({ error: "Draft not found" }); return; }
+
+    /* Stored signed clip URLs expire after 7 days — re-sign fresh ones for playback. */
+    row.draft_data = await refreshSignedGcsUrlsDeep(row.draft_data);
+
     res.json({ draft: row });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch draft";

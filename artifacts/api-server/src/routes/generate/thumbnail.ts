@@ -1,12 +1,21 @@
 import { Router } from "express";
-import OpenAI from "openai";
+import { randomUUID } from "crypto";
+import OpenAI, { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage } from "../../lib/payment-record";
+import { recordCreditUsage, recordThumbnailHistory } from "../../lib/payment-record";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { objectStorageClient, refreshSignedGcsUrl } from "../../lib/objectStorage";
+import { isAllowedStemUrl } from "../../lib/audioExport";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
 
-const CREDIT_COST = 1;
+/** Text (concept + prompts) generation cost, charged whenever the AI text call succeeds. */
+const TEXT_CREDIT_COST = 1;
+/** Extra cost for actually rendering the AI thumbnail image, charged only if the image succeeds. */
+const IMAGE_CREDIT_COST = 2;
+/** Total credits required up-front to attempt a full generation (text + image). */
+const CREDIT_COST = TEXT_CREDIT_COST + IMAGE_CREDIT_COST;
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 
@@ -34,36 +43,178 @@ Do not copy real artists' exact lyrics, songs, videos, or celebrity likenesses.
 Do not include copyrighted logos unless the user says they own them.
 Do not mention copyrighted brands unless the user specifically provides them.`;
 
-type VaultData = Record<string, string | null | undefined>;
+/**
+ * Matches the canonical camelCase Artist Vault payload shape sent by the client
+ * (see `vaultToPayload` in `artifacts/bow-down-visuals/src/lib/prompt-improve.ts`,
+ * also used by `/api/improve-prompt`). Keeping the field names identical here is
+ * what makes "character lock" actually work — a prior mismatched key set here
+ * silently meant this route never read the vault at all.
+ */
+interface VaultInput {
+  artistType?: string | null;
+  artistDescription?: string | null;
+  visualStyle?: string | null;
+  hair?: string | null;
+  tattoos?: string | null;
+  jewelry?: string | null;
+  clothingStyle?: string | null;
+  brandColors?: string | null;
+  doNotChangeRules?: string | null;
+  consistencyPrompt?: string | null;
+  referenceImageUrl?: string | null;
+}
 
-function buildVaultContext(vault: VaultData | null | undefined): string {
+function buildVaultContext(vault: VaultInput | null | undefined): string {
   if (!vault) return "";
   const lines: string[] = [
     "",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "ARTIST VAULT — BRAND STYLE RULES",
-    "Apply ALL of the following to every section of your output.",
-    "This artist's outputs must match their established brand identity.",
+    "ARTIST VAULT — CHARACTER LOCK & BRAND STYLE RULES",
+    "This artist must look and feel IDENTICAL across every generation.",
+    "Apply ALL of the following to every section of your output, especially the MAIN IMAGE PROMPT.",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
   ];
-  if (vault["artistType"]) lines.push(`Artist Type: ${vault["artistType"]}`);
-  if (vault["artistDescription"]) lines.push(`Artist Description: ${vault["artistDescription"]}`);
-  if (vault["visualStyle"]) lines.push(`Visual Style: ${vault["visualStyle"]}`);
-  if (vault["hair"]) lines.push(`Hair: ${vault["hair"]}`);
-  if (vault["tattoos"]) lines.push(`Tattoos: ${vault["tattoos"]}`);
-  if (vault["jewelry"]) lines.push(`Jewelry: ${vault["jewelry"]}`);
-  if (vault["clothingStyle"]) lines.push(`Clothing Style: ${vault["clothingStyle"]}`);
-  if (vault["brandColors"]) lines.push(`Brand Colors: ${vault["brandColors"]}`);
-  if (vault["logoDescription"]) lines.push(`Logo Description: ${vault["logoDescription"]}`);
-  if (vault["imageReferenceNotes"]) lines.push(`Image Reference Notes: ${vault["imageReferenceNotes"]}`);
-  if (vault["doNotChangeRules"]) {
-    lines.push("", `⛔ DO NOT CHANGE RULES — NEVER VIOLATE THESE:\n${vault["doNotChangeRules"]}`);
+  if (vault.artistType) lines.push(`Artist Type: ${vault.artistType}`);
+  if (vault.artistDescription) lines.push(`Artist Description / Personality: ${vault.artistDescription}`);
+  if (vault.visualStyle) lines.push(`Visual Style: ${vault.visualStyle}`);
+  if (vault.hair) lines.push(`Hair: ${vault.hair}`);
+  if (vault.tattoos) lines.push(`Tattoos: ${vault.tattoos}`);
+  if (vault.jewelry) lines.push(`Jewelry: ${vault.jewelry}`);
+  if (vault.clothingStyle) lines.push(`Clothing Style / Wardrobe: ${vault.clothingStyle}`);
+  if (vault.brandColors) lines.push(`Brand Colors: ${vault.brandColors}`);
+  if (vault.consistencyPrompt) lines.push(`Saved Consistency Prompt: ${vault.consistencyPrompt}`);
+  if (vault.referenceImageUrl) {
+    lines.push(
+      "A reference photo of this exact artist is available and will be used directly as the base image for the " +
+      "MAIN IMAGE PROMPT generation — describe the scene/setting/wardrobe/lighting around them, but do not " +
+      "invent a different face, body type, or skin tone than the artist's actual appearance.",
+    );
   }
-  if (vault["specialStyleRules"]) {
-    lines.push("", `✅ SPECIAL STYLE RULES — ALWAYS APPLY THESE:\n${vault["specialStyleRules"]}`);
+  if (vault.doNotChangeRules) {
+    lines.push("", `⛔ DO NOT CHANGE RULES — NEVER VIOLATE THESE:\n${vault.doNotChangeRules}`);
   }
   return lines.join("\n");
+}
+
+/** Pulls the body text of a single "## HEADER" section out of the AI's markdown output. */
+function extractSection(content: string, headerRegex: RegExp): string | null {
+  const lines = content.split("\n");
+  let capturing = false;
+  const collected: string[] = [];
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      if (capturing) break;
+      capturing = headerRegex.test(line);
+      continue;
+    }
+    if (capturing) collected.push(line);
+  }
+  const text = collected.join("\n").trim();
+  return text.length > 0 ? text : null;
+}
+
+/** Hard cap on downloaded reference-photo size, mirroring the SSRF/DoS guard used for stem downloads. */
+const MAX_REFERENCE_IMAGE_BYTES = 15 * 1024 * 1024;
+
+/**
+ * Downloads the artist's reference photo for use as the base image in an
+ * OpenAI image *edit* call (character lock). Only fetches from our own
+ * Supabase storage host (SSRF guard) and enforces a size cap. Returns null
+ * on any failure — the caller falls back to plain text-to-image.
+ */
+async function fetchReferenceImageBuffer(url: string): Promise<Buffer | null> {
+  if (!isAllowedStemUrl(url)) return null;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok || !resp.body) return null;
+    const contentLength = resp.headers.get("content-length");
+    if (contentLength && Number(contentLength) > MAX_REFERENCE_IMAGE_BYTES) return null;
+    const arrayBuffer = await resp.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_REFERENCE_IMAGE_BYTES) return null;
+    return Buffer.from(arrayBuffer);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Actually renders the AI thumbnail image (not just a prompt) using the
+ * "MAIN IMAGE PROMPT" / "NEGATIVE PROMPT" sections of the text output, then
+ * uploads it to object storage so it survives across sessions. Returns null
+ * (with a reason) instead of throwing so a failed image never blocks the
+ * text package the user already paid for.
+ *
+ * When the artist's vault has a `referenceImageUrl`, this uses OpenAI's image
+ * *edit* endpoint with that photo as the base image ("character lock") instead
+ * of pure text-to-image, so the artist's actual face/appearance carries over
+ * into every thumbnail rather than being re-imagined from a text description.
+ */
+async function generateThumbnailImage(
+  content: string,
+  platform: string | undefined,
+  referenceImageUrl: string | null | undefined,
+  log?: { info: (obj: Record<string, unknown>, msg: string) => void },
+): Promise<{ url: string | null; error: string | null }> {
+  const mainImagePrompt = extractSection(content, /main image prompt/i);
+  if (!mainImagePrompt) {
+    return { url: null, error: "Could not find an image prompt in the generated package." };
+  }
+  const negativePrompt = extractSection(content, /negative prompt/i);
+  const imagePrompt = negativePrompt
+    ? `${mainImagePrompt}\n\nDo not include: ${negativePrompt}`
+    : mainImagePrompt;
+
+  const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+  if (!bucketId) {
+    return { url: null, error: "Image storage is not configured on the server." };
+  }
+
+  try {
+    const size = platform === "Spotify" || platform === "Apple Music" ? "1024x1024" : "1536x1024";
+    const referenceBuffer = referenceImageUrl ? await fetchReferenceImageBuffer(referenceImageUrl) : null;
+
+    let b64: string | undefined;
+    if (referenceBuffer) {
+      log?.info({ mode: "image-edit-character-lock" }, "[generate-thumbnail] using reference photo for character lock");
+      const referenceFile = await toFile(referenceBuffer, "artist-reference.png", { type: "image/png" });
+      const lockedPrompt =
+        `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change ` +
+        `their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
+      const editResp = await openai.images.edit({
+        model: "gpt-image-1",
+        image: referenceFile,
+        prompt: lockedPrompt,
+        size,
+        n: 1,
+      });
+      b64 = editResp.data?.[0]?.b64_json;
+    } else {
+      log?.info(
+        { mode: "text-to-image", hadReferenceUrl: Boolean(referenceImageUrl) },
+        "[generate-thumbnail] no usable reference photo, falling back to text-to-image",
+      );
+      const imageResp = await openai.images.generate({
+        model: "gpt-image-1",
+        prompt: imagePrompt.slice(0, 4000),
+        size,
+        n: 1,
+      });
+      b64 = imageResp.data?.[0]?.b64_json;
+    }
+
+    if (!b64) {
+      return { url: null, error: "Image generation returned no image data." };
+    }
+    const buffer = Buffer.from(b64, "base64");
+    const objectName = `thumbnails/${randomUUID()}.png`;
+    const bucket = objectStorageClient.bucket(bucketId);
+    await bucket.file(objectName).save(buffer, { contentType: "image/png", resumable: false });
+    const url = await refreshSignedGcsUrl(`https://storage.googleapis.com/${bucketId}/${objectName}`);
+    return { url, error: null };
+  } catch (err: unknown) {
+    return { url: null, error: err instanceof Error ? err.message : "Image generation failed." };
+  }
 }
 
 router.post("/generate-thumbnail", requireAuth, async (req, res) => {
@@ -71,15 +222,11 @@ router.post("/generate-thumbnail", requireAuth, async (req, res) => {
     artistName, songTitle, platform, artStyle, colorTheme, mood, featuredText, specialRequests,
   } = req.body as Record<string, string>;
 
-  const artistVault = req.body.artistVault as VaultData | null | undefined;
+  const artistVault = req.body.artistVault as VaultInput | null | undefined;
 
   const currentCredits = req.userCredits ?? 0;
-
-  if (process.env["NODE_ENV"] === "development") {
-    console.log(`[generate-thumbnail] userId=${req.userId} credits=${currentCredits} required=${CREDIT_COST}`);
-  }
-
   const isDev = process.env["NODE_ENV"] === "development";
+  req.log.info({ userId: req.userId, currentCredits, required: CREDIT_COST }, "[generate-thumbnail] request received");
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
@@ -139,16 +286,43 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
-    const creditsAfter = currentCredits - CREDIT_COST;
 
-    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
-    recordCreditUsage({ userId: req.userId!, action: "Thumbnail Maker", creditsUsed: CREDIT_COST }).catch(() => {});
+    const { url: thumbnailImageUrl, error: imageError } = await generateThumbnailImage(
+      content,
+      platform,
+      artistVault?.referenceImageUrl,
+      req.log,
+    );
+    const creditsUsed = TEXT_CREDIT_COST + (thumbnailImageUrl ? IMAGE_CREDIT_COST : 0);
+    const creditsAfter = currentCredits - creditsUsed;
 
-    if (process.env["NODE_ENV"] === "development") {
-      console.log(`[generate-thumbnail] success userId=${req.userId} creditsAfter=${creditsAfter}`);
+    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    recordCreditUsage({ userId: req.userId!, action: "Thumbnail Maker", creditsUsed }).catch(() => {});
+    if (thumbnailImageUrl) {
+      void recordThumbnailHistory({
+        userId:       req.userId!,
+        prompt,
+        content,
+        thumbnailUrl: thumbnailImageUrl,
+        artistName,
+        songTitle,
+        creditsUsed,
+      });
     }
 
-    res.json({ result: content, creditsRemaining: creditsAfter });
+    req.log.info(
+      { userId: req.userId, creditsAfter, imageGenerated: Boolean(thumbnailImageUrl), imageError },
+      "[generate-thumbnail] success",
+    );
+
+    res.json({
+      result: content,
+      thumbnailImageUrl,
+      imageError: thumbnailImageUrl ? null : imageError,
+      creditsUsed,
+      creditsRemaining: creditsAfter,
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Generation failed";
     res.status(500).json({ error: message });

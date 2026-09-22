@@ -25,38 +25,32 @@ import {
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import type { CaptionLine } from "@/lib/editor-settings";
+import { computeSceneTimings, computeManualTimings, type ManualPlacementEdit } from "@/lib/scene-timing";
 
 /* ─── helpers ─────────────────────────────────────────────────── */
-
-function parseDur(ts: string | null | undefined): number {
-  if (!ts) return 5;
-  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
-  if (m) {
-    const s = +m[1] * 60 + +m[2];
-    const e = +m[3] * 60 + +m[4];
-    return e > s ? e - s : 5;
-  }
-  return 5;
-}
 
 function fmt(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 }
 
-function buildOffsets(durs: number[]): number[] {
-  const out: number[] = [];
-  let acc = 0;
-  for (const d of durs) { out.push(acc); acc += d; }
-  return out;
-}
-
-/** Return index of the active scene for time t using cumulative offsets + durations. */
-function sceneAt(t: number, offsets: number[], durs: number[]): number {
+/** Return index of the active scene for time t using cumulative offsets. */
+function sceneAt(t: number, offsets: number[]): number {
   for (let i = offsets.length - 1; i >= 0; i--) {
     if (t >= offsets[i]) return i;
   }
   return 0;
+}
+
+/** Manual-layout scene lookup — returns -1 when t falls in a gap (before the
+ *  first clip, between two clips, or after the last clip), so the caller can
+ *  freeze the last rendered frame instead of restarting a clip early/late. */
+function sceneAtManual(t: number, timings: { startSec: number; endSec: number }[], order: number[]): number {
+  for (const idx of order) {
+    const timing = timings[idx];
+    if (timing && t >= timing.startSec && t < timing.endSec) return idx;
+  }
+  return -1;
 }
 
 /* ─── component ───────────────────────────────────────────────── */
@@ -110,6 +104,16 @@ export interface TimelinePreviewPlayerProps {
   outgoingVideoRef?: RefObject<HTMLVideoElement | null>;
   /** Fired after a scene switch while playing. Receives (oldSceneIdx, newSceneIdx). */
   onSceneChange?: (oldIdx: number, newIdx: number) => void;
+  /** "manual" enables freeform clip placement (gaps/overlaps) via clipEdits[id].manualStartSec. Defaults to "auto". */
+  timelineLayout?: "auto" | "manual";
+  /** Per-scene edits keyed by scene id — only manualStartSec is read here. */
+  clipEdits?: Record<string, ManualPlacementEdit | undefined>;
+  /** Crop/trim window applied to the song — playback is clamped to [startSec, endSec]. */
+  songCrop?: { enabled: boolean; startSec: number; endSec: number };
+  /** Seconds into the audio track playback should begin — mirrors settings.musicStudio.videoAudio.startSec
+   *  and the same offset the exporter applies via `-ss` before the audio input. Timeline time 0 maps to
+   *  this point in the underlying track, so preview matches the exported video. */
+  audioOffsetSec?: number;
 }
 
 export const TimelinePreviewPlayer = forwardRef<TimelinePlayerHandle, TimelinePreviewPlayerProps>(
@@ -123,6 +127,10 @@ function TimelinePreviewPlayer({
   externalVideoRef,
   outgoingVideoRef,
   onSceneChange,
+  timelineLayout = "auto",
+  clipEdits,
+  songCrop,
+  audioOffsetSec = 0,
 }: TimelinePreviewPlayerProps, ref) {
 
   /* ── Core state ── */
@@ -139,24 +147,44 @@ function TimelinePreviewPlayer({
   const [mode,          setMode         ] = useState<"timeline" | "scene">("timeline");
 
   /* ── Scene timing ─────────────────────────────────────────────
-     If every scene has the 5-second default duration (meaning no
-     real timestamps were set) AND we know the audio duration, we
-     distribute the audio duration evenly across all scenes.      */
-  const rawDurs  = scenes.map(s => parseDur(s.timestamp));
-  const allDefaultDurs = rawDurs.length > 0 && rawDurs.every(d => d === 5);
+     computeSceneTimings is the SHARED source of truth (also used by
+     LipSyncSection) — if every scene has the 5-second default duration
+     (meaning no real timestamps were set) AND we know the audio duration,
+     it distributes the audio duration evenly across all scenes.      */
+  const isManual = timelineLayout === "manual";
+  const manualResult = isManual ? computeManualTimings(scenes, audioDuration, clipEdits ?? {}) : null;
+  const sceneTimings = isManual ? manualResult!.timings : computeSceneTimings(scenes, audioDuration);
+  const offsets  = sceneTimings.map(t => t.startSec);
+  const durs     = sceneTimings.map(t => t.durationSec);
+  const totalDur = isManual
+    ? Math.max(audioDuration ?? 0, sceneTimings.reduce((m, t) => Math.max(m, t.endSec), 0))
+    : durs.reduce((a, b) => a + b, 0);
 
-  const durs: number[] = (allDefaultDurs && audioDuration != null && audioDuration > 0)
-    ? scenes.map(() => audioDuration / scenes.length)
-    : rawDurs;
+  /* ── Song crop: playback is clamped to [cropStart, cropEnd] when enabled ── */
+  const cropEnabled = !!songCrop?.enabled;
+  const cropStart = cropEnabled ? songCrop!.startSec : 0;
+  const cropEnd = cropEnabled
+    ? (songCrop!.endSec > songCrop!.startSec ? songCrop!.endSec : (audioDuration ?? totalDur))
+    : (audioDuration ?? totalDur);
 
-  const offsets  = buildOffsets(durs);
-  const totalDur = durs.reduce((a, b) => a + b, 0);
+  /* ── Audio start offset: timeline time 0 maps to `audioOffsetSec` into the
+     underlying track (mirrors the exporter's `-ss` seek). Convert between
+     "timeline time" (what scenes/captions are keyed to) and "track time"
+     (what the <audio> element's currentTime holds). ── */
+  const toTrackTime = useCallback(
+    (timelineT: number) => Math.max(0, timelineT) + audioOffsetSec,
+    [audioOffsetSec],
+  );
+  const toTimelineTime = useCallback(
+    (trackT: number) => Math.max(0, trackT - audioOffsetSec),
+    [audioOffsetSec],
+  );
 
   /* ── Derived from currentTime (no extra state) ── */
   const sceneIdx    = mode === "timeline"
-    ? sceneAt(currentTime, offsets, durs)
+    ? (isManual ? sceneAtManual(currentTime, sceneTimings, manualResult!.order) : sceneAt(currentTime, offsets))
     : Math.max(0, scenes.findIndex(s => s.id === initialSceneId));
-  const currentScene = scenes[sceneIdx];
+  const currentScene = sceneIdx >= 0 ? scenes[sceneIdx] : undefined;
   const hasClip      = !!currentScene?.demoClipUrl;
   const activeLine   = captionLines.find(
     l => l.startSec <= currentTime && currentTime < l.endSec,
@@ -244,13 +272,19 @@ function TimelinePreviewPlayer({
       og.play().catch(() => { /* silent — outgoing video is decorative */ });
     }
 
-    const scene = scenes[sceneIdx];
-    if (scene?.demoClipUrl && videoRef.current) {
-      loadClipWithOffset(scene, videoRef.current, `Clip ${sceneIdx + 1}`);
+    // sceneIdx === -1 means we've entered a gap (manual layout only) — freeze
+    // the last rendered frame instead of restarting/advancing the clip.
+    if (sceneIdx === -1) {
+      videoRef.current?.pause();
+    } else {
+      const scene = scenes[sceneIdx];
+      if (scene?.demoClipUrl && videoRef.current) {
+        loadClipWithOffset(scene, videoRef.current, `Clip ${sceneIdx + 1}`);
+      }
     }
 
     // Notify parent so it can trigger CSS transition.
-    if (prevIdx >= 0) {
+    if (prevIdx >= 0 && sceneIdx >= 0) {
       onSceneChange?.(prevIdx, sceneIdx);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,7 +310,16 @@ function TimelinePreviewPlayer({
 
   /** This is the master clock tick — fires ~4× per second while audio plays */
   function onTimeUpdate() {
-    const t = audioRef.current?.currentTime ?? 0;
+    let t = toTimelineTime(audioRef.current?.currentTime ?? audioOffsetSec);
+    // Song crop: stop playback the instant we reach the crop end.
+    if (cropEnabled && t >= cropEnd) {
+      t = cropEnd;
+      if (audioRef.current) audioRef.current.currentTime = toTrackTime(cropEnd);
+      audioRef.current?.pause();
+      videoRef.current?.pause();
+      setPlaying(false);
+      setAudioPlaying(false);
+    }
     setCurrentTime(t);
     currentTimeRef.current = t;
   }
@@ -288,7 +331,9 @@ function TimelinePreviewPlayer({
 
   function onLoadedMetadata() {
     const dur = audioRef.current?.duration;
-    if (dur && isFinite(dur)) setAudioDuration(dur);
+    // audioDuration represents how much track is usable from timeline t=0 —
+    // mirrors the exporter, which seeks past audioOffsetSec via `-ss` before decoding.
+    if (dur && isFinite(dur)) setAudioDuration(Math.max(0, dur - audioOffsetSec));
     setAudioReady(true);
   }
 
@@ -307,7 +352,7 @@ function TimelinePreviewPlayer({
   function doAudioPlay(fromTime = 0): void {
     const audio = audioRef.current;
     if (!audio || !audioUrl) return;
-    audio.currentTime = fromTime;
+    audio.currentTime = toTrackTime(fromTime);
     const p = audio.play();
     p.then(() => {
       setAudioPlaying(true);
@@ -360,21 +405,26 @@ function TimelinePreviewPlayer({
   }
 
   function startTimeline() {
+    const start = cropEnabled ? cropStart : 0;
     setMode("timeline");
     setLastError(null);
     setNeedsUserTap(false);
-    setCurrentTime(0);
-    currentTimeRef.current = 0;
+    setCurrentTime(start);
+    currentTimeRef.current = start;
     setPlaying(true);
     prevSceneIdxRef.current = -999; // force video effect to fire for scene 0
 
-    doAudioPlay(0);
+    doAudioPlay(start);
 
     // If no audio, interval handles the clock (via the useEffect above)
-    // Start first scene's clip
-    const firstScene = scenes[0];
+    // Start the scene active at the crop/timeline start.
+    const startIdx = isManual
+      ? sceneAtManual(start, sceneTimings, manualResult!.order)
+      : sceneAt(start, offsets);
+    const firstScene = startIdx >= 0 ? scenes[startIdx] : undefined;
     if (firstScene?.demoClipUrl && videoRef.current) {
-      loadClipWithOffset(firstScene, videoRef.current, "Clip 1");
+      const clipOffset = Math.max(0, start - (offsets[startIdx] ?? 0));
+      loadClipWithOffset(firstScene, videoRef.current, "Clip 1", clipOffset);
     }
   }
 
@@ -421,13 +471,13 @@ function TimelinePreviewPlayer({
   }
 
   function jumpToScene(i: number) {
-    const newTime = offsets[i] ?? 0;
+    const newTime = clampToCrop(offsets[i] ?? 0);
     setCurrentTime(newTime);
     currentTimeRef.current = newTime;
     setMode("timeline");
     prevSceneIdxRef.current = -999;
     if (playing) doAudioPlay(newTime);
-    else if (audioRef.current) audioRef.current.currentTime = newTime;
+    else if (audioRef.current) audioRef.current.currentTime = toTrackTime(newTime);
   }
 
   function toggleFullscreen() {
@@ -436,10 +486,16 @@ function TimelinePreviewPlayer({
     else void containerRef.current.requestFullscreen();
   }
 
+  /** Clamp a target seek time to the active song-crop window, when enabled. */
+  function clampToCrop(t: number): number {
+    if (!cropEnabled) return Math.max(0, t);
+    return Math.max(cropStart, Math.min(t, cropEnd));
+  }
+
   /** Seek ~1s before a scene boundary and play so its transition renders. */
   function previewTransition(sceneIndex: number) {
     const boundary = offsets[sceneIndex] ?? 0;
-    const start = Math.max(0, boundary - 1);
+    const start = clampToCrop(Math.max(0, boundary - 1));
     setMode("timeline");
     setLastError(null);
     setNeedsUserTap(false);
@@ -450,10 +506,11 @@ function TimelinePreviewPlayer({
     prevSceneIdxRef.current = -999;
     doAudioPlay(start);
 
-    const startIdx = sceneAt(start, offsets, durs);
-    const scene = scenes[startIdx];
+    const startIdx = isManual ? sceneAtManual(start, sceneTimings, manualResult!.order) : sceneAt(start, offsets);
+    const scene = startIdx >= 0 ? scenes[startIdx] : undefined;
     if (scene?.demoClipUrl && videoRef.current) {
-      loadClipWithOffset(scene, videoRef.current, "Clip");
+      const clipOffset = Math.max(0, start - (offsets[startIdx] ?? 0));
+      loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
     }
   }
 
@@ -471,7 +528,7 @@ function TimelinePreviewPlayer({
     restart: startTimeline,
     previewTransition,
     seekTo(sec: number) {
-      const t = Math.max(0, Math.min(sec, totalDurRef.current));
+      const t = clampToCrop(Math.max(0, Math.min(sec, totalDurRef.current)));
       setCurrentTime(t);
       currentTimeRef.current = t;
       setMode("timeline");
@@ -479,15 +536,17 @@ function TimelinePreviewPlayer({
       if (playing) {
         doAudioPlay(t);
       } else if (audioRef.current) {
-        audioRef.current.currentTime = t;
+        audioRef.current.currentTime = toTrackTime(t);
       }
       // Seek video to correct clip position
-      const idx = sceneAt(t, offsets, durs);
-      const scene = scenes[idx];
+      const idx = isManual ? sceneAtManual(t, sceneTimings, manualResult!.order) : sceneAt(t, offsets);
+      const scene = idx >= 0 ? scenes[idx] : undefined;
       if (scene?.demoClipUrl && videoRef.current) {
         const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
         loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
         if (!playing) videoRef.current.pause();
+      } else if (videoRef.current) {
+        videoRef.current.pause();
       }
     },
     setVolume(vol: number) {
@@ -865,7 +924,7 @@ function TimelinePreviewPlayer({
               <DR label="audio playing"       v={audioPlaying ? "YES" : "no"} hi={audioPlaying} />
               <DR label="audio currentTime"   v={`${currentTime.toFixed(2)}s`} hi={playing} />
               <DR label="audio duration"      v={audioDuration != null ? `${audioDuration.toFixed(2)}s` : "unknown"} />
-              <DR label="scene timing"        v={allDefaultDurs && audioDuration != null ? "evenly distributed" : "from timestamps"} />
+              <DR label="scene timing"        v={sceneTimings.length > 0 && sceneTimings.every(t => !t.hasExplicitEnd) && audioDuration != null ? "evenly distributed" : "from timestamps"} />
               <DR label="scenes loaded"       v={String(scenes.length)} />
               <DR label="active scene index"  v={String(sceneIdx)} />
               <DR label="active scene title"  v={currentScene?.section || "—"} />

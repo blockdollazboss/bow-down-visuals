@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { useForm } from "react-hook-form";
@@ -17,7 +17,7 @@ const schema = z.object({
 });
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +26,13 @@ export default function Login() {
     resolver: zodResolver(schema),
     defaultValues: { email: "", password: "" },
   });
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      setLocation("/choose-artist");
+    }
+  }, [authLoading, user, setLocation]);
+
 
   async function onSubmit(values: z.infer<typeof schema>) {
     setLoading(true);

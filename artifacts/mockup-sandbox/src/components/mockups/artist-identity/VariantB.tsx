@@ -63,7 +63,7 @@ function DashboardStrip({ artist, compact }: { artist: { name: string; type: str
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <p style={{ fontSize: compact ? 10.5 : 13, fontWeight: 900, color: "#fff", truncate: "true", letterSpacing: "0.02em" }}>
+          <p style={{ fontSize: compact ? 10.5 : 13, fontWeight: 900, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.02em" }}>
             {artist.name}
           </p>
           <span style={{

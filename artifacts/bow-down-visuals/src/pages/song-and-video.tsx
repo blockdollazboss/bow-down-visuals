@@ -25,6 +25,7 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
+import { vaultToPayload } from "@/lib/prompt-improve";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
 
@@ -1145,6 +1146,9 @@ export default function SongAndVideo() {
               onScenesChange={setScenes}
               audioUrl={audioUrl}
               projectId={savedProjectId}
+              artistVault={loadedVault ? vaultToPayload(loadedVault) : null}
+              videoStyle={watched.videoStyle}
+              platform={watched.platform}
             />
 
             {/* ── NEXT ACTIONS ── */}

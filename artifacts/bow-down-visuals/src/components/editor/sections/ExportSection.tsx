@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
-import { FinalVideoExport } from "@/components/FinalVideoExport";
+import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
 import type { SceneData } from "@/lib/scene-parser";
 import {
@@ -17,6 +17,12 @@ import {
 } from "@/lib/editor-settings";
 import { EditorCard, Field, Chip, Segmented } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  hasRenderedVideoAudioExport,
+  resolveVideoAudio,
+  VIDEO_AUDIO_SOURCE_LABELS,
+} from "@/lib/resolve-video-audio-url";
+import type { DirectAudioExportStatus } from "@/lib/audio-export";
 
 interface ExportSectionProps {
   scenes: SceneData[];
@@ -30,12 +36,18 @@ interface ExportSectionProps {
   /** The exact URL currently playing in the master player. */
   masterAudioUrl?: string | null;
   onGoToMusicStudio?: () => void;
+  /** Render the selected missing mix through Music Studio's existing export path. */
+  onRenderMissingMix?: () => void;
+  canRenderMissingMix?: boolean;
+  directRenderStatus?: DirectAudioExportStatus;
   /** Jump to the Effects tab to open Auto AI Edit. */
   onGoToEffects?: () => void;
   /** Master player current playhead time, for "Set From Playhead". */
   masterCurrentTimeSec?: number;
   /** Total project duration in seconds (from audio). */
   projectDurationSec?: number;
+  /** Simple mode: hide advanced export controls (range, watermark, debug, audio options). */
+  isSimple?: boolean;
 }
 
 /* ── Export range helpers ──────────────────────────────── */
@@ -186,46 +198,19 @@ const RESOLUTION_OPTIONS: { value: ExportResolution; label: string }[] = [
   { value: "720p", label: "720p" },
   { value: "1080p", label: "1080p" },
 ];
-
-/* ── Resolve audio URL from source + exports ──────────── */
-function resolveAudioUrl(
-  source: VideoAudioSource,
-  uploadedUrl: string | null,
-  exports: AudioExportRecord[],
-): string | null {
-  switch (source) {
-    case "uploaded": return uploadedUrl;
-    case "none": return null;
-    case "full-mix": {
-      const mp3 = exports.find((r) => r.kind === "full" && r.format === "mp3");
-      return mp3?.url ?? exports.find((r) => r.kind === "full")?.url ?? null;
-    }
-    case "instrumental":
-      return exports.find((r) => r.kind === "instrumental")?.url ?? null;
-    case "acapella":
-      return exports.find((r) => r.kind === "acapella")?.url ?? null;
-  }
-}
-
-/* ── Check availability per source ──────────────────────  */
 function isSourceAvailable(
   source: VideoAudioSource,
   uploadedUrl: string | null,
   exports: AudioExportRecord[],
 ): boolean {
-  switch (source) {
-    case "none": return true;
-    case "uploaded": return !!uploadedUrl;
-    case "full-mix": return exports.some((r) => r.kind === "full");
-    case "instrumental": return exports.some((r) => r.kind === "instrumental");
-    case "acapella": return exports.some((r) => r.kind === "acapella");
-  }
+  if (source === "uploaded") return !!uploadedUrl;
+  return hasRenderedVideoAudioExport(exports, source);
 }
 
 /* ── Component ─────────────────────────────────────────── */
 export function ExportSection({
   scenes, settings, setSettings, projectId, audioUrl, rawProjectAudioUrl, masterAudioUrl, onGoToMusicStudio, onGoToEffects,
-  masterCurrentTimeSec = 0, projectDurationSec = 0,
+  onRenderMissingMix, canRenderMissingMix = false, directRenderStatus, masterCurrentTimeSec = 0, projectDurationSec = 0, isSimple = false,
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
@@ -285,10 +270,11 @@ export function ExportSection({
     }
   }
 
-  const resolvedAudioUrl = useMemo(
-    () => resolveAudioUrl(va.source, audioUrl, ms.exports),
+  const audioResolution = useMemo(
+    () => resolveVideoAudio(ms, audioUrl),
     [va.source, audioUrl, ms.exports],
   );
+  const resolvedAudioUrl = audioResolution.url;
 
   /* Probe resolved URL whenever it changes */
   useEffect(() => {
@@ -320,6 +306,7 @@ export function ExportSection({
 
   const selectedOption = AUDIO_SOURCE_OPTIONS.find((o) => o.value === va.source)!;
   const isAvailable = isSourceAvailable(va.source, audioUrl, ms.exports);
+  const selectedMixMissing = audioResolution.missingExport && va.source !== "uploaded" && va.source !== "none";
 
   const audioSourceLabel = selectedOption?.label ?? "";
   const aspectRatio = settings.export.format;
@@ -331,6 +318,9 @@ export function ExportSection({
   // Local input state for custom start/end (string so user can type freely)
   const [customStartInput, setCustomStartInput] = useState(() => fmtTimecode(exportRange.customStartSec));
   const [customEndInput,   setCustomEndInput  ] = useState(() => fmtTimecode(exportRange.customEndSec));
+
+  // Local input state for the audio start offset (string so user can type freely)
+  const [startSecInput, setStartSecInput] = useState(() => fmtTimecode(ms.videoAudio.startSec ?? 0));
 
   const projectDur = projectDurationSec > 0 ? projectDurationSec : 60;
   const resolved   = resolveRange(rangeMode, exportRange.customStartSec, exportRange.customEndSec, projectDur);
@@ -423,19 +413,49 @@ export function ExportSection({
             })}
           </div>
 
-          {/* Not available warning */}
-          {!isAvailable && va.source !== "none" && (
+           {/* Not available / fallback warning */}
+           {(!isAvailable && va.source !== "none") && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
               <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-amber-300">Audio source not available</p>
+                 <p className="text-xs font-semibold text-amber-300">
+                   {selectedMixMissing ? "Selected audio mix is not rendered" : "Audio source not available"}
+                 </p>
                 <p className="text-xs text-amber-200/60 mt-0.5 leading-relaxed">
-                  {va.source === "uploaded" && !rawProjectAudioUrl && !audioUrl
+                   {selectedMixMissing
+                     ? `${VIDEO_AUDIO_SOURCE_LABELS[va.source]} is selected, but no matching render exists. Preview and export will use ${
+                         audioResolution.fallbackSource === "project-audio"
+                           ? "the uploaded song"
+                           : audioResolution.fallbackSource === "first-stem"
+                           ? "the first uploaded stem"
+                           : "no audio"
+                       } instead.`
+                     : va.source === "uploaded" && !rawProjectAudioUrl && !audioUrl
                     ? "No audio saved to this project yet — no project.video_audio_url found."
                     : va.source === "uploaded"
                     ? "Audio URL found but could not be resolved. Check Export Audio Debug below."
                     : `No ${selectedOption?.label.toLowerCase() ?? "export"} found. Go to Music Studio to export audio first.`}
-                  {va.source !== "uploaded" && onGoToMusicStudio && (
+                    {selectedMixMissing && (onRenderMissingMix || onGoToMusicStudio) && (
+                     <>
+                       {" "}
+                       <button
+                         type="button"
+                         onClick={canRenderMissingMix ? onRenderMissingMix : onGoToMusicStudio}
+                         disabled={directRenderStatus?.status === "rendering"}
+                         data-testid="btn-render-missing-mix"
+                         className="inline-flex items-center gap-1 underline text-amber-300 hover:text-amber-200 transition-colors disabled:opacity-60"
+                       >
+                         {directRenderStatus?.status === "rendering" ? (
+                           <><Loader2 className="h-3 w-3 animate-spin no-underline" /> Rendering…</>
+                         ) : canRenderMissingMix ? (
+                           "Render mix now →"
+                         ) : (
+                           "Open Music Studio →"
+                         )}
+                       </button>
+                     </>
+                   )}
+                   {!selectedMixMissing && va.source !== "uploaded" && onGoToMusicStudio && (
                     <>
                       {" "}
                       <button type="button" onClick={onGoToMusicStudio} className="underline text-amber-300 hover:text-amber-200 transition-colors">
@@ -451,7 +471,7 @@ export function ExportSection({
       </EditorCard>
 
       {/* ── Audio Options ── */}
-      {va.source !== "none" && (
+      {!isSimple && va.source !== "none" && (
         <EditorCard
           title="Audio Options"
           subtitle="Fade and loop settings for the selected audio"
@@ -459,16 +479,16 @@ export function ExportSection({
         >
           <div className="flex flex-wrap gap-2">
             <Chip
-              active={va.fadeIn}
-              onClick={() => setVideoAudio({ fadeIn: !va.fadeIn })}
+              active={va.fadeIn > 0}
+              onClick={() => setVideoAudio({ fadeIn: va.fadeIn > 0 ? 0 : 2 })}
             >
-              Fade audio in
+              Fade audio in{va.fadeIn > 0 ? ` (${va.fadeIn.toFixed(1)}s)` : ""}
             </Chip>
             <Chip
-              active={va.fadeOut}
-              onClick={() => setVideoAudio({ fadeOut: !va.fadeOut })}
+              active={va.fadeOut > 0}
+              onClick={() => setVideoAudio({ fadeOut: va.fadeOut > 0 ? 0 : 2 })}
             >
-              Fade audio out
+              Fade audio out{va.fadeOut > 0 ? ` (${va.fadeOut.toFixed(1)}s)` : ""}
             </Chip>
             <Chip
               active={va.loopAudio}
@@ -477,6 +497,64 @@ export function ExportSection({
               Loop if shorter than video
             </Chip>
           </div>
+          <p className="text-[10px] text-white/25 mt-2">
+            Drag the fade handles on the Studio timeline for precise fade durations.
+          </p>
+
+          {/* Song start point — nudges where in the track playback begins */}
+          <div className="mt-4 pt-3 border-t border-white/[0.06] space-y-2">
+            <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">
+              Song start point
+            </label>
+            <p className="text-[10px] text-white/25">
+              Skip ahead into the track before it plays under the video — great for skipping a silent intro or landing the hook right on scene 1.
+            </p>
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={startSecInput}
+                onChange={(e) => setStartSecInput(e.target.value)}
+                onBlur={() => {
+                  const v = Math.max(0, parseSec(startSecInput));
+                  setVideoAudio({ startSec: v });
+                  setStartSecInput(fmtTimecode(v));
+                }}
+                placeholder="00:00.000"
+                className="flex-1 bg-white/[0.04] border border-white/10 rounded-lg px-3 py-1.5 text-xs font-mono text-white/80 focus:outline-none focus:border-primary/40 focus:bg-white/[0.07]"
+              />
+              <button
+                type="button"
+                title="Set start from playhead"
+                onClick={() => {
+                  const v = Math.max(0, masterCurrentTimeSec);
+                  setVideoAudio({ startSec: v });
+                  setStartSecInput(fmtTimecode(v));
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold transition-colors shrink-0"
+              >
+                <Crosshair className="h-3 w-3" /> Set From Playhead
+              </button>
+              {va.startSec > 0 && (
+                <button
+                  type="button"
+                  title="Reset to 0:00"
+                  onClick={() => {
+                    setVideoAudio({ startSec: 0 });
+                    setStartSecInput(fmtTimecode(0));
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-white/50 text-[10px] font-bold transition-colors shrink-0"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            {va.startSec > 0 && (
+              <p className="text-[11px] text-cyan-300/80 leading-relaxed">
+                Playback (preview + export) will begin {fmtTimecode(va.startSec)} into the track.
+              </p>
+            )}
+          </div>
+
           {va.loopAudio && (
             <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
               If the audio is shorter than the video, it will repeat seamlessly until the video ends.
@@ -508,17 +586,20 @@ export function ExportSection({
               })()}
             </span>
           </div>
-          <Field label="Resolution">
-            <Segmented
-              value={settings.export.resolution}
-              options={RESOLUTION_OPTIONS}
-              onChange={(v) => setExport({ resolution: v })}
-            />
-          </Field>
+          {!isSimple && (
+            <Field label="Resolution">
+              <Segmented
+                value={settings.export.resolution}
+                options={RESOLUTION_OPTIONS}
+                onChange={(v) => setExport({ resolution: v })}
+              />
+            </Field>
+          )}
         </div>
       </EditorCard>
 
       {/* ── Export Options ── */}
+      {!isSimple && (
       <EditorCard
         title="Watermark"
         subtitle="Burned into the bottom-right corner of the exported video"
@@ -605,15 +686,19 @@ export function ExportSection({
           )}
         </div>
       </EditorCard>
+      )}
 
       {/* ── Caption Export ── */}
+      {!isSimple && (
       <CaptionExportCard
         mode={(settings.export.captionExportMode as CaptionExportMode) ?? "burn"}
         hasCaptions={settings.captions.enabled && settings.captions.lines.length > 0}
         onChange={(m) => setExport({ captionExportMode: m })}
       />
+      )}
 
       {/* ── Export Audio Debug ── */}
+      {!isSimple && (
       <EditorCard title="Export Audio Debug" subtitle="Live diagnostic — shows the same audio the master player uses">
         <div className="space-y-1">
           {([
@@ -646,8 +731,10 @@ export function ExportSection({
           )}
         </div>
       </EditorCard>
+      )}
 
       {/* ── Export Range ── */}
+      {!isSimple && (
       <EditorCard
         title="Export Range"
         subtitle="Choose which part of the video to export"
@@ -815,6 +902,7 @@ export function ExportSection({
           </div>
         </div>
       </EditorCard>
+      )}
 
       {/* ── Final Video Export ── */}
       <FinalVideoExport
@@ -824,11 +912,16 @@ export function ExportSection({
         masterAudioUrl={masterAudioUrl ?? null}
         audioSource={va.source}
         audioSourceLabel={audioSourceLabel}
-        fadeAudioIn={va.fadeIn}
-        fadeAudioOut={va.fadeOut}
+        fadeAudioInSec={va.fadeIn}
+        fadeAudioOutSec={va.fadeOut}
         loopAudio={va.loopAudio}
+        audioStartSec={va.startSec ?? 0}
+        matchVideoLength={va.matchVideoLength}
         addWatermark={settings.export.watermark}
         customWatermarkUrl={settings.export.customWatermarkUrl}
+        watermarkPosition={settings.watermarkPosition ?? "bottom-right"}
+        watermarkSize={settings.watermarkSize ?? "medium"}
+        watermarkMargin={settings.watermarkMargin ?? 16}
         aspectRatio={aspectRatio}
         resolution={settings.export.resolution}
         captions={settings.captions}
@@ -837,15 +930,34 @@ export function ExportSection({
         exportRangeStart={isFullExport ? null : rangeValid ? resolved.startSec : null}
         exportRangeEnd={isFullExport ? null : rangeValid ? resolved.endSec : null}
         exportRangeLabel={isFullExport ? undefined : `${fmtTimecode(resolved.startSec)} → ${fmtTimecode(Math.min(resolved.endSec, projectDur))}`}
-        clipTransitions={scenes.filter((s) => !!s.demoClipUrl).map((s) => {
+        rangeInvalid={!isFullExport && !rangeValid}
+        rangeInvalidReason={
+          !isFullExport && !rangeValid
+            ? !startValid
+              ? "Custom export range start time cannot be below zero."
+              : resolved.endSec <= resolved.startSec
+              ? "Custom export range end time must be after the start time. Fix it in Export Range above, or use \"Set From Playhead\"."
+              : "Custom export range end time exceeds the project duration. Adjust it in Export Range above."
+            : undefined
+        }
+        clipTransitions={scenes.filter(isExportSelected).map((s) => {
           const clip = getClipEdit(settings, s.id);
           if (!clip.transition || clip.transition === "Cut") return null;
           return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
         })}
         overlayItems={settings.overlayItems}
+        timelineLayout={settings.timelineLayout}
+        clipEdits={settings.clips}
+        audioDurationSec={settings.musicStudio.videoAudio.duration}
+        songCrop={settings.musicStudio.songCrop}
+        effects={settings.effects}
+        overlays={settings.overlays}
+        overlayIntensity={settings.overlayIntensity}
+        fitMode={settings.export.fitMode ?? "fill"}
       />
 
       {/* ── Export Doctor (single-clip diagnostics) ── */}
+      {!isSimple && (
       <ExportDoctor
         scenes={scenes}
         projectId={projectId}
@@ -871,6 +983,7 @@ export function ExportSection({
         audioStartSec={settings.musicStudio.videoAudio.startSec ?? 0}
         audioDurationSec={settings.musicStudio.videoAudio.duration}
       />
+      )}
     </div>
   );
 }

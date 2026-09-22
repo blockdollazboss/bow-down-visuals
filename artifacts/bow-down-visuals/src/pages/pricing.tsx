@@ -8,6 +8,7 @@ import {
   Sparkles, AlertCircle, CreditCard, Lock, Menu, X, Loader2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 
 /* ─── nav ─── */
 
@@ -168,6 +169,30 @@ const FAQ = [
   },
 ];
 
+const PRICING_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Bow Down Visuals",
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Web",
+  description:
+    "AI-powered creative studio for music creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
+  offers: {
+    "@type": "OfferCatalog",
+    name: "Bow Down Visuals Plans",
+    itemListElement: PLANS.map((plan) => ({
+      "@type": "Offer",
+      name: plan.name,
+      price: String(plan.price),
+      priceCurrency: "USD",
+      description: plan.features.join(", "),
+      category: plan.bestFor,
+    })),
+  },
+};
+
+const PRICING_FAQ_JSON_LD = buildFaqJsonLd(FAQ.map((f) => ({ q: f.q, a: f.a })));
+
 /* ─── credit pack card ─── */
 
 function CreditPackCard({ pack }: { pack: { credits: string; price: string; packKey: string } }) {
@@ -271,6 +296,8 @@ export default function Pricing() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <JsonLd data={PRICING_JSON_LD} />
+      <JsonLd data={PRICING_FAQ_JSON_LD} />
       <NavBar />
 
       {/* Ambient glow */}

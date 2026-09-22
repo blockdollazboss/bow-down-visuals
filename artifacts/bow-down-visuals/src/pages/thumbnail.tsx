@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { vaultToPayload } from "@/lib/prompt-improve";
 
 interface FormValues {
   artistName: string;
@@ -51,6 +52,9 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 export default function Thumbnail() {
   const { getAccessToken, refreshProfile } = useAuth();
   const [rawResult, setRawResult] = useState<string | null>(null);
+  const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [creditsUsed, setCreditsUsed] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -70,11 +74,13 @@ export default function Thumbnail() {
   async function onSubmit(values: FormValues) {
     setLoading(true);
     setRawResult(null);
+    setThumbnailImageUrl(null);
+    setImageError(null);
     setError(null);
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-thumbnail", {
+      const { rawResult, creditsRemaining, creditsUsed: used, thumbnailImageUrl: imageUrl, imageError: imgErr } = await callGenerateApi("/api/generate-thumbnail", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         platform: values.platform,
@@ -83,9 +89,12 @@ export default function Thumbnail() {
         mood: values.mood,
         featuredText: values.featuredText,
         requests: values.specialRequests,
-        artistVault: loadedVault,
+        artistVault: loadedVault ? vaultToPayload(loadedVault) : null,
       }, token);
       setRawResult(rawResult);
+      setThumbnailImageUrl(imageUrl ?? null);
+      setImageError(imgErr ?? null);
+      if (used !== undefined) setCreditsUsed(used);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
         document.getElementById("thumb-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -114,12 +123,12 @@ export default function Thumbnail() {
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
               <ImageIcon className="h-5 w-5 text-white" />
             </div>
-            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">1 credit</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/25 text-xs font-bold tracking-wide">up to 3 credits</Badge>
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">Thumbnail Maker</h1>
-          <p className="text-white/50 text-lg max-w-2xl">Generate cover art concepts, thumbnail directions, and AI image prompts for your release.</p>
+          <p className="text-white/50 text-lg max-w-2xl">Generate a real, ready-to-use AI thumbnail image plus cover art concepts and prompts for your release.</p>
           <div className="flex flex-wrap gap-2 mt-5">
-            {["3 Thumbnail Concepts","Color Direction","Typography Notes","Background Prompts","Text Overlay Copy","Midjourney Prompts","Cover Art Notes"].map((t) => (
+            {["AI-Generated Thumbnail Image","3 Thumbnail Concepts","Color Direction","Typography Notes","Background Prompts","Text Overlay Copy","Midjourney Prompts","Cover Art Notes"].map((t) => (
               <span key={t} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/50 px-3 py-1 rounded-full">{t}</span>
             ))}
           </div>
@@ -171,7 +180,7 @@ export default function Thumbnail() {
               <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
                 {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your pack...</> : <><ImageIcon className="h-5 w-5" /> Generate Thumbnail Pack</>}
               </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>
+              <p className="text-white/25 text-xs mt-3">Uses 1 credit for the concept pack, plus 2 more if the AI thumbnail image renders successfully (3 total)</p>
             </div>
           </form>
         </div>
@@ -186,9 +195,31 @@ export default function Thumbnail() {
 
         {rawResult && (
           <div id="thumb-result">
+            {thumbnailImageUrl ? (
+              <div className="mb-6 rounded-2xl border border-primary/25 bg-primary/[0.04] p-5">
+                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">Your AI-Generated Thumbnail</p>
+                <img
+                  src={thumbnailImageUrl}
+                  alt="AI-generated thumbnail"
+                  className="w-full rounded-xl border border-white/10"
+                  data-testid="img-generated-thumbnail"
+                />
+                <div className="flex justify-end mt-3">
+                  <a href={thumbnailImageUrl} download="thumbnail.png" target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10">
+                      Download Image
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            ) : imageError && (
+              <div className="mb-6 p-4 rounded-xl border border-yellow-500/20 bg-yellow-500/5">
+                <p className="text-yellow-400 text-sm font-medium">Couldn't render the AI thumbnail image ({imageError}). Your prompt pack below is ready to use.</p>
+              </div>
+            )}
             <GenerationResult
               result={rawResult}
-              onReset={() => { setRawResult(null); setError(null); setOutOfCredits(false); }}
+              onReset={() => { setRawResult(null); setThumbnailImageUrl(null); setImageError(null); setError(null); setOutOfCredits(false); }}
               saveMetadata={{
                 projectType: "Thumbnail Maker",
                 artistName: watched.artistName,
@@ -196,7 +227,8 @@ export default function Thumbnail() {
                 genre: "",
                 mood: watched.mood,
                 inputData: watched as unknown as Record<string, unknown>,
-                creditsUsed: 1,
+                creditsUsed,
+                thumbnailImageUrl,
               }}
             />
           </div>

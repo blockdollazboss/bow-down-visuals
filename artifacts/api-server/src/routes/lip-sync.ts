@@ -10,6 +10,7 @@ import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
 import { objectStorageClient } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { recordLipSyncHistory } from "../lib/payment-record";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -297,38 +298,54 @@ async function trimAndUploadAudioSegment(
     const outputPath = join(tmpDir, "segment.mp3");
     await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
 
-    /* 2. Trim with FFmpeg */
+    /* 2. Trim with FFmpeg
+       IMPORTANT: `timeout` is required here — without it a stalled/hung ffmpeg
+       process (e.g. on a corrupt or unusual input) blocks this await forever,
+       which leaves the job permanently "processing" with no syncLabsJobId to
+       check, and the client's Check-Job-Status button stays disabled with no
+       way to recover except abandoning the job. */
     let ffmpegStderr = "";
-    await execFileAsync("ffmpeg", [
-      "-y",
-      "-i",
-      inputPath,
-      "-ss",
-      String(startSec),
-      "-to",
-      String(endSec),
-      "-c:a",
-      "libmp3lame",
-      "-q:a",
-      "2",
-      outputPath,
-    ]).catch((err: Error & { stderr?: string }) => {
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y",
+        "-i",
+        inputPath,
+        "-ss",
+        String(startSec),
+        "-to",
+        String(endSec),
+        "-c:a",
+        "libmp3lame",
+        "-q:a",
+        "2",
+        outputPath,
+      ],
+      { timeout: 60_000 },
+    ).catch((err: Error & { stderr?: string; killed?: boolean }) => {
       ffmpegStderr = (err as unknown as { stderr?: string }).stderr ?? "";
+      const timedOut = err.killed || /ETIMEDOUT|signal/i.test(err.message);
       throw new Error(
-        `FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`,
+        timedOut
+          ? "FFmpeg trim timed out after 60s — the source audio may be malformed or unreachable mid-stream."
+          : `FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`,
       );
     });
 
     /* 3. Verify actual duration */
-    const { stdout } = await execFileAsync("ffprobe", [
-      "-v",
-      "error",
-      "-show_entries",
-      "format=duration",
-      "-of",
-      "default=noprint_wrappers=1:nokey=1",
-      outputPath,
-    ]);
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        outputPath,
+      ],
+      { timeout: 15_000 },
+    );
     const durationSec = parseFloat(stdout.trim());
     if (isNaN(durationSec))
       throw new Error("Could not determine trimmed audio duration.");
@@ -378,6 +395,10 @@ interface LipSyncJobParams {
   audioUrl: string;
   sceneStartSec: number;
   sceneEndSec: number;
+  /** Who requested this job — used to record a generation_history row on success. */
+  userId?: string | null;
+  projectId?: string | null;
+  sceneId?: string | null;
 }
 
 const lipSyncJobs = new Map<string, LipSyncJob>();
@@ -433,6 +454,15 @@ async function processLipSyncJob(
 
       const outputUrl = await syncLabsPoll(syncId, LIP_SYNC_API_KEY!);
       update({ status: "done", url: outputUrl, provider: "sync", durationSec });
+      if (params.userId) {
+        void recordLipSyncHistory({
+          userId:      params.userId,
+          projectId:   params.projectId,
+          sceneId:     params.sceneId,
+          videoUrl:    outputUrl,
+          creditsUsed: 0,
+        });
+      }
       return;
     }
 
@@ -742,6 +772,8 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       strength,
       preserveFaceIdentity,
       preserveArtistLook,
+      projectId,
+      sceneId,
     } = (req.body ?? {}) as {
       clipUrl?: string;
       audioUrl?: string;
@@ -751,6 +783,8 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       strength?: string;
       preserveFaceIdentity?: boolean;
       preserveArtistLook?: boolean;
+      projectId?: string;
+      sceneId?: string;
     };
 
     void audioSourceType;
@@ -853,6 +887,9 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       audioUrl,
       sceneStartSec,
       sceneEndSec,
+      userId: req.userId,
+      projectId: projectId ?? null,
+      sceneId: sceneId ?? null,
     });
 
     req.log.info(

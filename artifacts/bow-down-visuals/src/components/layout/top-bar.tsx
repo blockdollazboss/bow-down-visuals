@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown, HelpCircle,
+  Zap, FolderOpen, LogOut, Menu, X, User, Plus, Loader2, ChevronDown, HelpCircle, Wand2, SlidersHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -16,12 +17,68 @@ const NAV_LINKS = [
   { label: "Pricing",           href: "/pricing" },
 ];
 
-export function TopBar() {
+interface TopBarProps {
+  /** Reports the header's current rendered height (px) so other fixed/floating UI
+   *  (e.g. the master preview player) can avoid rendering underneath it. */
+  onHeightChange?: (height: number) => void;
+}
+
+/** Compact Simple / Advanced mode switch shared by the desktop and mobile nav. */
+function ModeToggle({ compact = false }: { compact?: boolean }) {
+  const { mode, setMode } = useUserMode();
+  return (
+    <div
+      className={`inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5 ${compact ? "w-full" : ""}`}
+      role="tablist"
+      aria-label="Simple or Advanced mode"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === "simple"}
+        onClick={() => setMode("simple")}
+        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${compact ? "flex-1" : ""} ${
+          mode === "simple" ? "bg-primary text-black" : "text-white/45 hover:text-white"
+        }`}
+        title="Simple mode — one-click AI-driven creation"
+      >
+        <Wand2 className="h-3.5 w-3.5" /> Simple
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === "advanced"}
+        onClick={() => setMode("advanced")}
+        className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${compact ? "flex-1" : ""} ${
+          mode === "advanced" ? "bg-primary text-black" : "text-white/45 hover:text-white"
+        }`}
+        title="Advanced mode — full manual controls"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced
+      </button>
+    </div>
+  );
+}
+
+export function TopBar({ onHeightChange }: TopBarProps = {}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [location, setLocation] = useLocation();
   const [addingCredits, setAddingCredits] = useState(false);
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  /* ── Report the header's rendered height whenever it changes (e.g. the mobile
+   *    menu opening/closing grows the header), mirroring TimelineDock's onHeightChange. ── */
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || !onHeightChange) return;
+    const report = () => onHeightChange(el.getBoundingClientRect().height);
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onHeightChange, menuOpen]);
 
   async function handleSignOut() {
     setUserMenuOpen(false);
@@ -45,7 +102,7 @@ export function TopBar() {
   const displayName = profile?.display_name ?? user?.email?.split("@")[0] ?? "Account";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
+    <header ref={headerRef} className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
 
         {/* Logo */}
@@ -72,6 +129,13 @@ export function TopBar() {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+
+          {/* Simple / Advanced mode toggle */}
+          {user && (
+            <div className="hidden md:block">
+              <ModeToggle />
+            </div>
+          )}
 
           {/* Theme song mini-player */}
 
@@ -183,6 +247,11 @@ export function TopBar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div className="lg:hidden border-t border-white/[0.06] bg-black/95 backdrop-blur-xl px-5 py-4 space-y-1">
+          {user && (
+            <div className="pb-3 mb-2 border-b border-white/[0.05]">
+              <ModeToggle compact />
+            </div>
+          )}
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}

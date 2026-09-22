@@ -27,6 +27,7 @@ import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
+import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -210,6 +211,9 @@ export default function MakeVideo() {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [generatingScenesFromAudio, setGeneratingScenesFromAudio] = useState(false);
+  const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -276,6 +280,30 @@ export default function MakeVideo() {
       setAnalyzeError("Analysis failed. You can still generate without it.");
     } finally {
       setAnalyzing(false);
+    }
+  }
+
+  /* ── Generate scenes directly from the uploaded song (skips the text-plan step) ── */
+  async function handleGenerateScenesFromAudio() {
+    if (!audioUrl) return;
+    setGeneratingScenesFromAudio(true);
+    setAudioSceneError(null);
+    try {
+      const { songStructure: structure, scenes: newScenes } = await runAudioSceneFlow({
+        lyrics: watched.lyrics,
+        audioUrl,
+        audioFile,
+        songStructure,
+        getAccessToken,
+      });
+      setSongStructure(structure);
+      setScenes(newScenes);
+      setStep(5);
+      setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
+    } catch (err) {
+      setAudioSceneError(err instanceof Error ? err.message : "Could not generate scenes from this song.");
+    } finally {
+      setGeneratingScenesFromAudio(false);
     }
   }
 
@@ -942,6 +970,7 @@ export default function MakeVideo() {
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
                   onFileUrl={setAudioUrl}
+                  onFile={setAudioFile}
                 />
                 {audioUrl && <ReferenceAudioPlayer url={audioUrl} label="Your Song" />}
               </FieldWrapper>
@@ -976,6 +1005,31 @@ export default function MakeVideo() {
               </FieldWrapper>
 
               {songStructure && <SongSectionAnalysis analysis={songStructure} />}
+
+              {audioUrl && watched.lyrics.length > 10 && (
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary shrink-0" /> Skip the text plan
+                    </p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      Generate a timed scene list straight from this song's beat and structure — no AI text breakdown needed.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateScenesFromAudio}
+                    disabled={generatingScenesFromAudio}
+                    data-testid="btn-generate-scenes-from-audio"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
+                  >
+                    {generatingScenesFromAudio
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating scenes...</>
+                      : <><Clapperboard className="h-4 w-4" /> Generate Scenes From Song</>}
+                  </button>
+                  {audioSceneError && <p className="text-xs text-red-400/80 basis-full">{audioSceneError}</p>}
+                </div>
+              )}
             </div>
           )}
 

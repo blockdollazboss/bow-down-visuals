@@ -239,7 +239,7 @@ export function ClipsSection({
                 const edit = getClipEdit(settings, scene.id);
                 const hasClip = sceneHasClip(scene);
                 const isPreviewing = previewSceneId === scene.id;
-                const hasConsistency = scene.aiVideoPrompt.startsWith(CONSISTENCY_MARKER);
+                const hasConsistency = (scene.aiVideoPrompt ?? "").startsWith(CONSISTENCY_MARKER);
 
                 return (
                   <SortableClipRow

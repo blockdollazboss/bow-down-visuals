@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { Mail } from "lucide-react";
+import { JsonLd, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from "@/components/seo/json-ld";
 
 const NAVIGATE = [
   { label: "Home",        href: "/" },
@@ -18,6 +19,8 @@ const LEGAL = [
 export function SiteFooter() {
   return (
     <footer className="bg-black border-t border-white/[0.06] py-14 px-5">
+      <JsonLd data={ORGANIZATION_JSON_LD} />
+      <JsonLd data={WEBSITE_JSON_LD} />
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}

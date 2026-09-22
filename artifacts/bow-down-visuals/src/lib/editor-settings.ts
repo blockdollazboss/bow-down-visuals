@@ -488,6 +488,13 @@ export interface ClipEdit {
   transition: string;
   /** Duration of the transition in seconds. */
   transitionDuration: number;
+  /**
+   * Explicit absolute timeline position (seconds, relative to the cropped
+   * song origin) when `EditorSettings.timelineLayout === "manual"`.
+   * null = not manually placed yet — falls back to the auto cumulative
+   * back-to-back position. Ignored entirely in "auto" layout mode.
+   */
+  manualStartSec: number | null;
   /** Visual effect applied to this clip. */
   effect: string;
   /** Optional replacement clip URL override (edit-plan only). */
@@ -869,6 +876,39 @@ export type VideoAudioSource = "uploaded" | "full-mix" | "instrumental" | "acape
  * auto-fit     — clips are evenly distributed across the entire audio duration.
  * fade-audio   — clips unchanged; audio fades out when the last clip ends.
  */
+/**
+ * The 12 fixed screen anchors the floating master player can snap to:
+ * 4 corners, 4 edge midpoints, and 4 edge quarter points.
+ */
+export type MasterPlayerSnapPosition =
+  | "top-left" | "top-left-quarter" | "top-center" | "top-right-quarter" | "top-right"
+  | "right-center"
+  | "bottom-right" | "bottom-right-quarter" | "bottom-center" | "bottom-left-quarter" | "bottom-left"
+  | "left-center";
+
+/** The master player has no docked/inline mode — it is always a floating overlay. */
+export const MASTER_PLAYER_DEFAULT_WIDTH = 260;
+export const MASTER_PLAYER_MIN_WIDTH = 180;
+export const MASTER_PLAYER_MAX_WIDTH = 480;
+/** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
+ *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
+ *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
+ *  grows the effective width for landscape-ish formats so the player stays visually noticeable. */
+export const MASTER_PLAYER_MIN_HEIGHT = 220;
+
+/** Default/min/max px height of the resizable TimelineDock body (ruler + waveform + clip track).
+ *  DEFAULT matches the dock's original fixed content height so existing projects look unchanged. */
+export const TIMELINE_DOCK_DEFAULT_HEIGHT = 128;
+export const TIMELINE_DOCK_MIN_HEIGHT = 100;
+export const TIMELINE_DOCK_MAX_HEIGHT = 400;
+
+export const MASTER_PLAYER_SNAP_POSITIONS: MasterPlayerSnapPosition[] = [
+  "top-left", "top-left-quarter", "top-center", "top-right-quarter", "top-right",
+  "right-center",
+  "bottom-right", "bottom-right-quarter", "bottom-center", "bottom-left-quarter", "bottom-left",
+  "left-center",
+];
+
 export type AudioVideoSyncMode =
   | "keep-as-is"
   | "trim-audio"
@@ -881,8 +921,10 @@ export interface VideoAudioSync {
   /** Which audio plays under the video clips. */
   source: VideoAudioSource;
   startSec: number;
-  fadeIn: boolean;
-  fadeOut: boolean;
+  /** Fade-in duration in seconds. 0 = no fade. Set by dragging the fade handle on the Studio timeline. */
+  fadeIn: number;
+  /** Fade-out duration in seconds. 0 = no fade. Set by dragging the fade handle on the Studio timeline. */
+  fadeOut: number;
   /** Loop audio if it is shorter than the total video duration. */
   loopAudio: boolean;
   /** Trim/loop the audio to match the video length. */
@@ -899,6 +941,14 @@ export interface VideoAudioSync {
    * Defaults to "keep-as-is" (no automatic stretching).
    */
   syncMode: AudioVideoSyncMode;
+}
+
+/** Trims the uploaded song to a sub-window; the timeline re-baselines to this window. */
+export interface SongCropSettings {
+  enabled: boolean;
+  startSec: number;
+  /** 0 = uncropped end (resolved against the real audio duration at usage time). */
+  endSec: number;
 }
 
 export type AudioExportKind = "full" | "instrumental" | "acapella";
@@ -928,6 +978,8 @@ export interface MusicStudioSettings {
   aiMixPlan: AiMixPlan | null;
   master: MasterSettings;
   videoAudio: VideoAudioSync;
+  /** Crop/trim window applied to the uploaded song before it hits the timeline. */
+  songCrop: SongCropSettings;
   /** Chosen audio export deliverables, see AUDIO_EXPORT_FORMATS. */
   exportSelections: string[];
   /** Rendered audio exports (Audio Export Beta), newest first. */
@@ -948,6 +1000,25 @@ export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
 
 export interface EditorSettings {
   mode: "auto" | "manual";
+  /**
+   * Timeline placement mode: "auto" (default) keeps clips back-to-back in
+   * scene order, cumulatively. "manual" lets each clip be freely dragged to
+   * any point on the timeline via ClipEdit.manualStartSec.
+   */
+  timelineLayout: "auto" | "manual";
+  /** Last snapped position of the floating master player — one of 12 fixed screen anchors. There is no docked/inline mode; the player always floats. */
+  masterPlayerSnapPosition: MasterPlayerSnapPosition;
+  /** Current width (px) of the floating master player; height is derived from the export aspect ratio. */
+  masterPlayerSize: number;
+  /** Whether the floating master player is collapsed to a small chip at its snap position. */
+  masterPlayerMinimized: boolean;
+  /** Whether the floating master player is moved fully off-screen (still mounted, playback continues). */
+  masterPlayerHidden: boolean;
+  /** Whether the bottom Timeline Dock is collapsed/hidden to reclaim screen space. */
+  timelineDockHidden: boolean;
+  /** User-resizable px height of the Timeline Dock's body (ruler + waveform + clip track), set by
+   *  dragging the handle on the dock's top edge. Clamped to TIMELINE_DOCK_MIN/MAX_HEIGHT. */
+  timelineDockHeight: number;
   autoEdit: AutoEditOptions;
   autoEditPlan: AutoEditPlan | null;
   /** Per-clip edits keyed by scene id. */
@@ -1032,6 +1103,7 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncAudioOffset: 0,
     lipSyncTimingMismatch: false,
     lipSyncOffsetSeconds: 0,
+    manualStartSec: null,
   };
 }
 
@@ -1050,6 +1122,13 @@ export function defaultLipSyncSettings(): LipSyncSettings {
 export function defaultEditorSettings(): EditorSettings {
   return {
     mode: "auto",
+    timelineLayout: "auto",
+    masterPlayerSnapPosition: "bottom-left",
+    masterPlayerSize: MASTER_PLAYER_DEFAULT_WIDTH,
+    masterPlayerMinimized: false,
+    masterPlayerHidden: false,
+    timelineDockHidden: false,
+    timelineDockHeight: TIMELINE_DOCK_DEFAULT_HEIGHT,
     autoEdit: {
       preset: "drill",
       format: "9:16",
@@ -1193,12 +1272,13 @@ export function defaultMusicStudioSettings(): MusicStudioSettings {
     videoAudio: {
       source: "uploaded",
       startSec: 0,
-      fadeIn: true,
-      fadeOut: true,
+      fadeIn: 2,
+      fadeOut: 2,
       loopAudio: false,
       matchVideoLength: true,
       syncMode: "keep-as-is",
     },
+    songCrop: { enabled: false, startSec: 0, endSec: 0 },
     exportSelections: [],
     exports: [],
   };
@@ -1323,6 +1403,14 @@ function normalizeVideoAudioSource(raw: unknown): VideoAudioSource {
   return "uploaded";
 }
 
+/** Backward-compat: legacy fadeIn/fadeOut were booleans (true = 2s default fade). */
+function normalizeFadeDuration(raw: unknown, fallback: number): number {
+  if (typeof raw === "number" && isFinite(raw) && raw >= 0) return raw;
+  if (raw === true) return 2;
+  if (raw === false) return 0;
+  return fallback;
+}
+
 function normalizeMusicMode(raw: unknown): MusicStudioSettings["mode"] {
   if (raw === "auto" || raw === "manual" || raw === "lipsync") return raw;
   return "auto";
@@ -1346,6 +1434,12 @@ export function normalizeMusicStudio(
       ...base.videoAudio,
       ...storedVideoAudio,
       source: normalizeVideoAudioSource((storedVideoAudio as Partial<VideoAudioSync>).source),
+      fadeIn: normalizeFadeDuration((storedVideoAudio as { fadeIn?: unknown }).fadeIn, base.videoAudio.fadeIn),
+      fadeOut: normalizeFadeDuration((storedVideoAudio as { fadeOut?: unknown }).fadeOut, base.videoAudio.fadeOut),
+    },
+    songCrop: {
+      ...base.songCrop,
+      ...(stored.songCrop ?? {}),
     },
     exportSelections: Array.isArray(stored.exportSelections) ? stored.exportSelections : [],
     exports: Array.isArray(stored.exports) ? stored.exports : [],
@@ -1361,6 +1455,21 @@ export function normalizeEditorSettings(
   return {
     ...base,
     ...stored,
+    timelineLayout: stored.timelineLayout === "manual" ? "manual" : "auto",
+    /* No more docked mode — every project (including old ones with masterPlayerFloating: false)
+       now opens with the player floating, snapped to its saved (or default) corner. */
+    masterPlayerSnapPosition: MASTER_PLAYER_SNAP_POSITIONS.includes(stored.masterPlayerSnapPosition as MasterPlayerSnapPosition)
+      ? (stored.masterPlayerSnapPosition as MasterPlayerSnapPosition)
+      : "bottom-left",
+    masterPlayerSize: typeof stored.masterPlayerSize === "number" && isFinite(stored.masterPlayerSize)
+      ? Math.min(MASTER_PLAYER_MAX_WIDTH, Math.max(MASTER_PLAYER_MIN_WIDTH, stored.masterPlayerSize))
+      : MASTER_PLAYER_DEFAULT_WIDTH,
+    masterPlayerMinimized: typeof stored.masterPlayerMinimized === "boolean" ? stored.masterPlayerMinimized : false,
+    masterPlayerHidden: typeof stored.masterPlayerHidden === "boolean" ? stored.masterPlayerHidden : false,
+    timelineDockHidden: typeof stored.timelineDockHidden === "boolean" ? stored.timelineDockHidden : false,
+    timelineDockHeight: typeof stored.timelineDockHeight === "number" && isFinite(stored.timelineDockHeight)
+      ? Math.min(TIMELINE_DOCK_MAX_HEIGHT, Math.max(TIMELINE_DOCK_MIN_HEIGHT, stored.timelineDockHeight))
+      : TIMELINE_DOCK_DEFAULT_HEIGHT,
     autoEdit: { ...base.autoEdit, ...(stored.autoEdit ?? {}) },
     autoEditPlan: stored.autoEditPlan ?? null,
     clips: stored.clips ?? {},

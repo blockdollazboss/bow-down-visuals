@@ -25,6 +25,9 @@ export interface SceneData {
   generationStatus: "pending" | "completed" | "failed" | null;
   promptUsed: string | null;
   generatedAt: string | null;
+  /** Which image anchored this clip's generation: the previous scene's final
+   *  frame (continuity chain), the Artist Vault photo, or no image reference. */
+  referenceSource?: "previous_scene" | "vault_photo" | "none" | null;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */

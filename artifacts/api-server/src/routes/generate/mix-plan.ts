@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
 import { recordCreditUsage } from "../../lib/payment-record";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 
 const router = Router();
 
@@ -241,7 +242,8 @@ Rules:
     /* ── Deduct credits + record usage on success ── */
     if (!isDev) {
       const creditsAfter = currentCredits - CREDIT_COST;
-      await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+      await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
       recordCreditUsage({ userId: req.userId!, action: "Music Mixer AI Mix Plan", creditsUsed: CREDIT_COST }).catch(() => {});
     }
 

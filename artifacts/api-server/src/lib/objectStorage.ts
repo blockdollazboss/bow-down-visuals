@@ -227,6 +227,58 @@ function parseObjectPath(path: string): {
   };
 }
 
+const GCS_SIGNED_URL_PREFIX = "https://storage.googleapis.com/";
+
+/**
+ * Signed GCS URLs (used for Runway clips, final exports, etc.) expire after a
+ * maximum of 7 days (the ceiling for signing via the Replit sidecar's
+ * credential exchange). Persisting them verbatim in the DB means anything
+ * older than a week silently 403s in the player. This re-signs a stored URL
+ * with a fresh 7-day expiry on every read. Non-GCS URLs (or URLs that fail to
+ * parse/sign) are returned unchanged so callers never see a hard failure.
+ */
+export async function refreshSignedGcsUrl(url: string): Promise<string> {
+  if (typeof url !== "string" || !url.startsWith(GCS_SIGNED_URL_PREFIX)) {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    const { bucketName, objectName } = parseObjectPath(parsed.pathname);
+    return await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 7 * 24 * 60 * 60,
+    });
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Walks an arbitrary JSON-ish value (objects/arrays/primitives) and refreshes
+ * any string that looks like a stored GCS signed URL. Used to keep scene
+ * data (demoClipUrl, thumbnailUrl, finalVideoUrl, etc.) playable no matter
+ * how deeply nested the field is or what it's named.
+ */
+export async function refreshSignedGcsUrlsDeep<T>(value: T): Promise<T> {
+  if (typeof value === "string") {
+    return (await refreshSignedGcsUrl(value)) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return (await Promise.all(value.map((v) => refreshSignedGcsUrlsDeep(v)))) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const entries = await Promise.all(
+      Object.entries(value as Record<string, unknown>).map(
+        async ([k, v]) => [k, await refreshSignedGcsUrlsDeep(v)] as const,
+      ),
+    );
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
+
 async function signObjectURL({
   bucketName,
   objectName,

@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import {
   Mic2, Video, Film, Archive, FolderOpen, Headphones,
   ArrowRight, Zap, AlertCircle, User, RefreshCw,
-  ChevronRight, ChevronDown, Star, CheckCircle2,
+  ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -139,6 +140,7 @@ function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: 
 export default function Dashboard() {
   const { profile, user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
+  const { setMode, isSimple } = useUserMode();
   const [, setLocation] = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [vaultCount, setVaultCount] = useState<number | null>(null);
@@ -416,11 +418,52 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ── 3. CREATOR CARDS ── */}
+        {/* ── 3. CREATE ── */}
+        {isSimple ? (
+          <section>
+            <div className="relative overflow-hidden rounded-3xl border border-primary/30 bg-gradient-to-br from-primary/[0.14] via-primary/[0.05] to-transparent p-8 md:p-10 shadow-[0_0_40px_rgba(218,165,32,0.10)]">
+              <div className="max-w-xl">
+                <span className="inline-flex items-center gap-1.5 bg-primary text-black text-[10px] font-black tracking-widest uppercase px-2.5 py-1 rounded-full mb-4">
+                  <Sparkles className="h-3 w-3" /> Simple Mode
+                </span>
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight mb-2">
+                  Upload a song or paste an idea — we'll do the rest
+                </h2>
+                <p className="text-white/45 text-sm md:text-base font-medium mb-6">
+                  One click. AI picks the genre, mood, format, and editing style, generates your scenes,
+                  and drops you straight into a ready-to-export video.
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href="/create">
+                    <Button size="lg" className="gold-glow font-black gap-2">
+                      <Sparkles className="h-4 w-4" /> Create with AI
+                    </Button>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setMode("advanced")}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" /> Switch to Advanced for full manual controls
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
         <section>
-          <div className="mb-6">
-            <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
-            <p className="text-sm text-white/35 mt-1">Pick a workflow below to get started.</p>
+          <div className="mb-6 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
+              <p className="text-sm text-white/35 mt-1">Pick a workflow below to get started.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMode("simple")}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-primary/70 hover:text-primary transition-colors shrink-0"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Try Simple Mode
+            </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <CreatorCard
@@ -468,6 +511,7 @@ export default function Dashboard() {
             />
           </div>
         </section>
+        )}
 
         {/* ── 4. RECENT PROJECTS ── */}
         <section>

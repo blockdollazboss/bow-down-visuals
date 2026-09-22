@@ -4,6 +4,8 @@ import { z } from "zod";
 import { markGenerationHistorySaved, markGenerationHistoryRefunded, recordCreditUsage } from "../lib/payment-record";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
+import { refreshSignedGcsUrlsDeep } from "../lib/objectStorage";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
@@ -56,7 +58,8 @@ router.post("/projects", requireAuth, async (req, res) => {
           const { data: freshProfile } = await req.userSupabase!
             .from("profiles").select("credits").eq("id", req.userId!).single();
           const currentCredits = (freshProfile?.credits as number | null) ?? 0;
-          await req.userSupabase!.from("profiles")
+          /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+          await getSupabaseAdmin().from("profiles")
             .update({ credits: currentCredits + refundedAmount })
             .eq("id", req.userId!);
           recordCreditUsage({
@@ -91,7 +94,15 @@ router.get("/projects", requireAuth, async (req, res) => {
     return;
   }
 
-  res.json({ projects: projects ?? [] });
+  /* Stored signed clip/export URLs expire after 7 days — re-sign fresh ones for playback. */
+  const refreshedProjects = await Promise.all(
+    (projects ?? []).map(async (project) => ({
+      ...project,
+      output_data: await refreshSignedGcsUrlsDeep(project.output_data),
+    })),
+  );
+
+  res.json({ projects: refreshedProjects });
 });
 
 router.get("/projects/:id", requireAuth, async (req, res) => {
@@ -108,6 +119,9 @@ router.get("/projects/:id", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Project not found" });
     return;
   }
+
+  /* Stored signed clip/export URLs expire after 7 days — re-sign fresh ones for playback. */
+  project.output_data = await refreshSignedGcsUrlsDeep(project.output_data);
 
   res.json({ project });
 });
@@ -135,39 +149,22 @@ router.patch("/projects/:id", requireAuth, async (req, res) => {
     ...(body.scenes !== undefined ? { scenes: body.scenes } : {}),
   };
 
-  const { error: delErr } = await req.userSupabase!
+  /* Update output_data in place. Previously this did a delete-then-insert, which could
+   * permanently lose the project if the insert failed (or if two saves raced) between the
+   * delete and the re-insert — a plain UPDATE is atomic and can never drop the row.
+   *
+   * NOTE: the projects table's RLS UPDATE policy is broken/missing (updates via the
+   * user-scoped client silently no-op with 0 rows affected, no error). Ownership was
+   * already verified above via the RLS-protected SELECT, so it's safe to use the
+   * service-role client here — we still scope by both id and user_id explicitly. */
+  const { error: updErr } = await getSupabaseAdmin()
     .from("projects")
-    .delete()
+    .update({ output_data: updatedOutputData })
     .eq("id", id)
     .eq("user_id", req.userId);
 
-  if (delErr) {
-    res.status(500).json({ error: delErr.message });
-    return;
-  }
-
-  const { error: insErr } = await req.userSupabase!
-    .from("projects")
-    .insert({
-      id:           existing.id,
-      user_id:      existing.user_id,
-      project_type: existing.project_type,
-      title:        existing.title,
-      artist_name:  existing.artist_name,
-      song_title:   existing.song_title,
-      genre:        existing.genre,
-      mood:         existing.mood,
-      style:        existing.style ?? null,
-      platform:     existing.platform ?? null,
-      input_data:   existing.input_data,
-      output_data:  updatedOutputData,
-      credits_used: existing.credits_used,
-      created_at:   existing.created_at,
-    });
-
-  if (insErr) {
-    await req.userSupabase!.from("projects").insert(existing);
-    res.status(500).json({ error: insErr.message });
+  if (updErr) {
+    res.status(500).json({ error: updErr.message });
     return;
   }
 

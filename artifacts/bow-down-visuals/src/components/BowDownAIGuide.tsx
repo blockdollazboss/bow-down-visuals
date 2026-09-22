@@ -16,7 +16,9 @@ type SnapPt = "TL" | "TC" | "TR" | "RC" | "BR" | "BC" | "BL" | "LC";
 const ALL_SNAPS: SnapPt[] = ["TL", "TC", "TR", "RC", "BR", "BC", "BL", "LC"];
 
 function snapPos(pt: SnapPt, w: number, h: number) {
-  const vw = window.innerWidth, vh = window.innerHeight, m = SNAP_M;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const m = SNAP_M;
   const cx = Math.round((vw - w) / 2), cy = Math.round((vh - h) / 2);
   const map: Record<SnapPt, { x: number; y: number }> = {
     TL: { x: m,          y: m          },
@@ -33,7 +35,7 @@ function snapPos(pt: SnapPt, w: number, h: number) {
 
 function nearestSnap(x: number, y: number, w: number, h: number): SnapPt {
   const cx = x + w / 2, cy = y + h / 2;
-  let best: SnapPt = "BR", bestD = Infinity;
+  let best: SnapPt = "TL", bestD = Infinity;
   for (const pt of ALL_SNAPS) {
     const a = snapPos(pt, w, h);
     const d = (cx - a.x - w / 2) ** 2 + (cy - a.y - h / 2) ** 2;
@@ -83,7 +85,7 @@ function savedSnap(): SnapPt {
     const v = localStorage.getItem("bdv-guide-snap") as SnapPt | null;
     if (v && (ALL_SNAPS as string[]).includes(v)) return v;
   } catch { /* noop */ }
-  return "BR";
+  return "TL";
 }
 function saveSnap(pt: SnapPt) {
   try { localStorage.setItem("bdv-guide-snap", pt); } catch { /* noop */ }

@@ -9,6 +9,7 @@ import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
   Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Mail, Menu, X,
 } from "lucide-react";
+import { JsonLd } from "@/components/seo/json-ld";
 
 /* ─── nav ─── */
 
@@ -79,6 +80,19 @@ const TOOLS = [
   { label: "Artist Vault",       icon: Archive,   badge: "Free" },
 ];
 
+const WAITLIST_CONTACT_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Bow Down Visuals",
+  url: "https://www.bowdownvisuals.com",
+  email: "support@bowdownvisuals.com",
+  contactPoint: {
+    "@type": "ContactPoint",
+    email: "support@bowdownvisuals.com",
+    contactType: "customer support",
+  },
+};
+
 const inputClass = "h-11 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
 const selectClass = "h-11 w-full bg-white/[0.05] border border-white/[0.10] text-white rounded-xl px-3 text-sm appearance-none cursor-pointer focus:outline-none focus:border-primary/50 transition-colors";
 
@@ -143,6 +157,7 @@ export default function Waitlist() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      <JsonLd data={WAITLIST_CONTACT_JSON_LD} />
       <NavBar />
 
       {/* Background glow */}

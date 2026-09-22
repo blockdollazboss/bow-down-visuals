@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
   KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy, ExternalLink,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
+import { getSceneTiming, computeManualTimings, type SceneTiming } from "@/lib/scene-timing";
 import {
   getClipEdit,
   sceneHasClip,
@@ -30,11 +31,14 @@ interface ProviderStatus {
 interface LipSyncSectionProps {
   scenes:      SceneData[];
   settings:    EditorSettings;
-  setSettings: (s: EditorSettings) => void;
+  setSettings: Dispatch<SetStateAction<EditorSettings>>;
   /** Raw project audio URL (from project.input_data.audioUrl). */
   audioUrl?:       string | null;
   /** Effective master-player audio URL (stem-aware). */
   masterAudioUrl?: string | null;
+  /** Master player's known song duration in seconds — REQUIRED to keep scene
+   *  timing identical to the master timeline (even-distribution fallback). */
+  audioDuration?:  number | null;
   /** Project ID — used by Doctor export-test buttons. */
   projectId?:      string | null;
 }
@@ -159,14 +163,6 @@ const PROVIDER_LIMIT_SEC = 20;
 const AUTO_FIX_OFFSETS: number[] =
   [-0.25, -0.20, -0.15, -0.10, -0.05, 0.00, 0.05, 0.10, 0.15, 0.20, 0.25];
 
-/** Parse "M:SS" or "MM:SS" → total seconds */
-function parseTimePart(s: string): number {
-  const parts = s.trim().split(":").map(Number);
-  if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-  if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
-  return 0;
-}
-
 /** Format seconds as "M:SS" */
 function fmtSec(s: number): string {
   const m = Math.floor(s / 60);
@@ -174,40 +170,34 @@ function fmtSec(s: number): string {
   return `${m}:${String(ss).padStart(2, "0")}`;
 }
 
-interface SceneTiming {
-  startSec:    number;
-  endSec:      number;
-  durationSec: number;
-  hasExplicitEnd: boolean;
-}
-
 /**
- * Parse a scene's timestamp string into start/end seconds.
- * Handles "M:SS-M:SS", "M:SS", etc.
- * Falls back to the next scene's start (or start + 8s) when end is not explicit.
+ * Scene timing — delegates to the SHARED `computeSceneTimings`/`computeManualTimings`
+ * utils (also used by the master player's TimelinePreviewPlayer) so the audio
+ * segment extracted for lip sync always matches the scene's actual position on
+ * the master timeline. A scene's start is the cumulative offset of all prior
+ * scenes' durations, NOT its own raw timestamp text — see scene-timing.ts
+ * for why that distinction matters.
+ *
+ * When the timeline is in "manual" (Freeform) layout, scenes can be dragged to
+ * arbitrary positions (gaps/overlaps allowed) via `ClipEdit.manualStartSec` —
+ * the sequential `computeSceneTimings` result no longer reflects where a scene
+ * actually sits, so we must mirror TimelinePreviewPlayer and use
+ * `computeManualTimings` instead, or the extracted/previewed audio segment
+ * silently drifts from what the timeline waveform shows.
  */
-function parseSceneTiming(scene: SceneData, allScenes: SceneData[]): SceneTiming {
-  const ts    = scene.timestamp ?? "";
-  const parts = ts.split("-").map((p) => p.trim()).filter(Boolean);
-  const startSec = parts[0] ? parseTimePart(parts[0]) : 0;
-  let endSec: number;
-  let hasExplicitEnd = false;
-
-  if (parts[1]) {
-    endSec = parseTimePart(parts[1]);
-    hasExplicitEnd = true;
-  } else {
-    const next = allScenes.find((s) => s.sceneNumber === scene.sceneNumber + 1);
-    if (next) {
-      const np = (next.timestamp ?? "").split("-").map((p) => p.trim()).filter(Boolean);
-      endSec = np[0] ? parseTimePart(np[0]) : startSec + 8;
-    } else {
-      endSec = startSec + 8;
-    }
+function parseSceneTiming(
+  scene: SceneData,
+  allScenes: SceneData[],
+  audioDuration: number | null,
+  timelineLayout: "auto" | "manual",
+  clipEdits: Record<string, { manualStartSec: number | null } | undefined>,
+): SceneTiming {
+  if (timelineLayout === "manual") {
+    const idx = allScenes.findIndex((s) => s.id === scene.id);
+    const { timings } = computeManualTimings(allScenes, audioDuration, clipEdits);
+    return timings[idx >= 0 ? idx : 0] ?? { startSec: 0, endSec: 5, durationSec: 5, hasExplicitEnd: false };
   }
-
-  const durationSec = Math.max(0, endSec - startSec);
-  return { startSec, endSec, durationSec, hasExplicitEnd };
+  return getSceneTiming(scene, allScenes, audioDuration);
 }
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
@@ -271,7 +261,8 @@ export function LipSyncSection({
   setSettings,
   audioUrl,
   masterAudioUrl,
-  projectId: _projectId,
+  audioDuration = null,
+  projectId,
 }: LipSyncSectionProps) {
 
   const ls = settings.lipSync;
@@ -442,7 +433,30 @@ export function LipSyncSection({
     ? getClipEdit(settings, selectedScene.id)
     : null;
   const audioOffset    = selectedClipEdit?.lipSyncAudioOffset ?? 0;
-  const rawTiming      = selectedScene ? parseSceneTiming(selectedScene, scenes) : null;
+  /* Global "timeline time 0 → track time" offset — mirrors TimelinePreviewPlayer's
+     toTrackTime, which shifts every scene's position by the video's audio start
+     offset before reading from the underlying track. Without this, the segment
+     extracted here drifts from what actually plays during that scene on the
+     master timeline whenever the user has set a nonzero audio start offset. */
+  const globalAudioOffsetSec = ms.videoAudio?.startSec ?? 0;
+
+  /* ── Song crop: clamp a "timeline time" into [cropStart, cropEnd], mirroring
+     TimelinePreviewPlayer's clampToCrop. Crop bounds live in the same timeline-time
+     coordinate space as scene timings (see FinalVideoExport's export-range
+     intersection), so this must run BEFORE the audioOffset conversion below. */
+  const cropEnabled = !!ms.songCrop?.enabled;
+  const cropStart   = cropEnabled ? ms.songCrop!.startSec : 0;
+  const cropEnd     = cropEnabled
+    ? (ms.songCrop!.endSec > ms.songCrop!.startSec ? ms.songCrop!.endSec : (audioDuration ?? Infinity))
+    : (audioDuration ?? Infinity);
+  function clampToSongCrop(timelineSec: number): number {
+    if (!cropEnabled) return Math.max(0, timelineSec);
+    return Math.max(cropStart, Math.min(timelineSec, cropEnd));
+  }
+
+  const rawTiming      = selectedScene
+    ? parseSceneTiming(selectedScene, scenes, audioDuration, settings.timelineLayout, settings.clips)
+    : null;
 
   /* Target duration priority:
      1. Actual loaded video metadata duration (most accurate)
@@ -451,14 +465,20 @@ export function LipSyncSection({
   const durationSource = clipVideoDuration != null ? "real video metadata" : "fallback (scene duration)";
 
   /* Offset shifts only the START of the extraction window.
-     END = start + real clip duration (duration stays fixed regardless of offset). */
+     END = start + real clip duration (duration stays fixed regardless of offset).
+     `globalAudioOffsetSec` converts the scene's timeline-relative start into the
+     underlying track's absolute time, and `audioOffset` is the per-scene fine
+     adjust on top of that. */
   const selectedTiming = rawTiming
-    ? {
-        ...rawTiming,
-        startSec:    rawTiming.startSec + audioOffset,
-        endSec:      rawTiming.startSec + audioOffset + targetDuration,
-        durationSec: targetDuration,
-      }
+    ? (() => {
+        const clampedStart = clampToSongCrop(rawTiming.startSec);
+        return {
+          ...rawTiming,
+          startSec:    clampedStart + globalAudioOffsetSec + audioOffset,
+          endSec:      clampedStart + globalAudioOffsetSec + audioOffset + targetDuration,
+          durationSec: targetDuration,
+        };
+      })()
     : null;
 
   /* Timing validation */
@@ -478,17 +498,29 @@ export function LipSyncSection({
 
   /* ── Helpers ── */
   function updateLipSync(patch: Partial<typeof ls>) {
-    setSettings({ ...settings, lipSync: { ...ls, ...patch } });
+    setSettings((prev) => ({ ...prev, lipSync: { ...prev.lipSync, ...patch } }));
   }
 
+  /**
+   * Uses the functional setState form so concurrent/sequential calls made
+   * from a single long-running async flow (e.g. lip-sync job submission +
+   * polling) always merge onto the LATEST settings snapshot instead of a
+   * stale one captured when the async function started. Reading from the
+   * `settings` closure here previously caused later updates (e.g. attaching
+   * lipSyncJobId once Sync.so accepted the job) to silently clobber earlier
+   * ones (e.g. lipSyncStatus: "processing"), leaving jobs stuck showing
+   * "Processing" forever with no job id ever recorded.
+   */
   function updateClipEdit(sceneId: string, patch: Partial<ClipEdit>) {
-    const existing = getClipEdit(settings, sceneId);
-    setSettings({
-      ...settings,
-      clips: {
-        ...settings.clips,
-        [sceneId]: { ...existing, ...patch },
-      },
+    setSettings((prev) => {
+      const existing = getClipEdit(prev, sceneId);
+      return {
+        ...prev,
+        clips: {
+          ...prev.clips,
+          [sceneId]: { ...existing, ...patch },
+        },
+      };
     });
   }
 
@@ -768,8 +800,17 @@ export function LipSyncSection({
     });
 
     try {
-      /* Use offset-adjusted timing so Sync.so receives the correct audio window */
-      const timing = selectedTiming ?? parseSceneTiming(selectedScene, scenes);
+      /* Use offset-adjusted, crop-clamped timing so Sync.so receives the correct audio window */
+      const timing = selectedTiming ?? (() => {
+        const raw = parseSceneTiming(selectedScene, scenes, audioDuration, settings.timelineLayout, settings.clips);
+        const clampedStart = clampToSongCrop(raw.startSec);
+        const dur = clipVideoDuration ?? raw.durationSec;
+        return {
+          ...raw,
+          startSec: clampedStart + globalAudioOffsetSec + audioOffset,
+          endSec:   clampedStart + globalAudioOffsetSec + audioOffset + dur,
+        };
+      })();
       const result = await callLipSyncBackend({
         clipUrl:            selectedScene.demoClipUrl!,
         audioUrl:           effectiveAudioUrl!,
@@ -779,6 +820,8 @@ export function LipSyncSection({
         strength:           ls.strength,
         preserveFaceIdentity: ls.preserveFaceIdentity,
         preserveArtistLook:   ls.preserveArtistLook,
+        projectId:          projectId ?? null,
+        sceneId,
         getAccessToken,
         onSyncLabsJobAccepted: (syncLabsJobId) => {
           /* Save provider job ID immediately — persists even if local polling times out */
@@ -867,7 +910,15 @@ export function LipSyncSection({
 
       try {
         const sid = scene.id;
-        const sceneTiming = parseSceneTiming(scene, scenes);
+        const rawSceneTiming = parseSceneTiming(scene, scenes, audioDuration, settings.timelineLayout, settings.clips);
+        const perSceneOffset = getClipEdit(settings, sid).lipSyncAudioOffset ?? 0;
+        const clampedStart = clampToSongCrop(rawSceneTiming.startSec);
+        const clampedEnd   = clampToSongCrop(rawSceneTiming.endSec);
+        const sceneTiming = {
+          ...rawSceneTiming,
+          startSec: clampedStart + globalAudioOffsetSec + perSceneOffset,
+          endSec:   clampedEnd   + globalAudioOffsetSec + perSceneOffset,
+        };
         const result = await callLipSyncBackend({
           clipUrl:            scene.demoClipUrl!,
           audioUrl:           effectiveAudioUrl!,
@@ -877,6 +928,8 @@ export function LipSyncSection({
           strength:           ls.strength,
           preserveFaceIdentity: ls.preserveFaceIdentity,
           preserveArtistLook:   ls.preserveArtistLook,
+          projectId:          projectId ?? null,
+          sceneId:            sid,
           getAccessToken,
           onSyncLabsJobAccepted: (syncLabsJobId) => {
             updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
@@ -1086,23 +1139,25 @@ export function LipSyncSection({
 
   /* ── Clear result ── */
   function clearLipSync(sceneId: string) {
-    const existing = getClipEdit(settings, sceneId);
-    setSettings({
-      ...settings,
-      clips: {
-        ...settings.clips,
-        [sceneId]: {
-          ...existing,
-          lipSyncUrl:         null,
-          lipSyncStatus:      null,
-          lipSyncProvider:    null,
-          lipSyncCreatedAt:   null,
-          lipSyncError:       null,
-          lipSyncJobId:       null,
-          lipSyncSubmittedAt: null,
-          replaceUrl: existing.replaceUrl === existing.lipSyncUrl ? null : existing.replaceUrl,
+    setSettings((prev) => {
+      const existing = getClipEdit(prev, sceneId);
+      return {
+        ...prev,
+        clips: {
+          ...prev.clips,
+          [sceneId]: {
+            ...existing,
+            lipSyncUrl:         null,
+            lipSyncStatus:      null,
+            lipSyncProvider:    null,
+            lipSyncCreatedAt:   null,
+            lipSyncError:       null,
+            lipSyncJobId:       null,
+            lipSyncSubmittedAt: null,
+            replaceUrl: existing.replaceUrl === existing.lipSyncUrl ? null : existing.replaceUrl,
+          },
         },
-      },
+      };
     });
   }
 
@@ -3798,6 +3853,9 @@ interface LipSyncBackendRequest {
   strength:             LipSyncStrength;
   preserveFaceIdentity: boolean;
   preserveArtistLook:   boolean;
+  /** Passed through so the server can record this clip in generation history. */
+  projectId?:           string | null;
+  sceneId?:             string | null;
   getAccessToken:       () => Promise<string | null>;
   /** Called the first time the backend records the Sync.so provider job ID.
    *  The client should immediately persist this to the clip so it survives
@@ -3841,6 +3899,8 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
       strength:             req.strength,
       preserveFaceIdentity: req.preserveFaceIdentity,
       preserveArtistLook:   req.preserveArtistLook,
+      projectId:            req.projectId ?? undefined,
+      sceneId:              req.sceneId ?? undefined,
     }),
     signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
   });

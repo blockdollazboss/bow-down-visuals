@@ -18,14 +18,15 @@
  *   • Debug panel with all readiness signals
  */
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState } from "react";
 import {
-  Play, Pause, SkipBack, Lock, Download, ZoomIn, ZoomOut,
-  Film, ChevronDown, ChevronUp, Copy, Check,
-  AlertCircle, Music2, AlertTriangle, RefreshCw,
+  Lock, Download,
+  ChevronDown, ChevronUp, Copy, Check,
+  AlertCircle, AlertTriangle, RefreshCw,
   Wrench, Sparkles, ImageOff,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
+import { computeSceneTimings, parseRawSceneDuration } from "@/lib/scene-timing";
 import type { EditorSettings } from "@/lib/editor-settings";
 import { defaultClipEdit } from "@/lib/editor-settings";
 import { Button } from "@/components/ui/button";
@@ -86,17 +87,6 @@ type RepairResult = {
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
-function parseDur(ts: string | null | undefined): number {
-  if (!ts) return 5;
-  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
-  if (m) {
-    const s = +m[1]! * 60 + +m[2]!;
-    const e = +m[3]! * 60 + +m[4]!;
-    return e > s ? e - s : 5;
-  }
-  return 5;
-}
-
 function fmt(s: number): string {
   if (!isFinite(s) || s < 0) s = 0;
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -117,76 +107,6 @@ const CLIP_COLORS = [
   "#b91c1c", "#0e7490",
 ];
 
-/* ─── Fake Waveform ─────────────────────────────────────────────────── */
-
-function FakeWaveform({ height = 40, progress = 0 }: { height?: number; progress?: number }) {
-  const segments = 240;
-  const points = useMemo(() => Array.from({ length: segments }, (_, i) => {
-    const t = i / segments;
-    const h =
-      0.25 * Math.abs(Math.sin(t * 13.1 + 0.4)) +
-      0.35 * Math.abs(Math.sin(t * 27.8 + 2.1)) +
-      0.25 * Math.abs(Math.sin(t * 53.2 + 5.7)) +
-      0.15 * Math.abs(Math.sin(t * 91.0 + 8.3));
-    return Math.min(1, Math.max(0.08, h));
-  }), []);
-
-  const W = 1000;
-  const barW = W / segments;
-  const played = Math.min(W, progress * W);
-
-  return (
-    <svg width="100%" height={height} viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none">
-      <defs>
-        <clipPath id="wf-played">
-          <rect x={0} y={0} width={played} height={height} />
-        </clipPath>
-        <clipPath id="wf-unplayed">
-          <rect x={played} y={0} width={W - played} height={height} />
-        </clipPath>
-      </defs>
-      {points.map((h, i) => {
-        const x = i * barW;
-        const barH = h * height;
-        const y = (height - barH) / 2;
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={Math.max(1, barW - 0.8)} height={barH}
-              fill="rgba(201,168,76,0.85)" clipPath="url(#wf-played)" />
-            <rect x={x} y={y} width={Math.max(1, barW - 0.8)} height={barH}
-              fill="rgba(201,168,76,0.22)" clipPath="url(#wf-unplayed)" />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-/* ─── Time Ruler ────────────────────────────────────────────────────── */
-
-function TimeRuler({ totalDur, currentTime }: { totalDur: number; currentTime: number }) {
-  if (totalDur <= 0) return null;
-  const step = totalDur <= 60 ? 5 : totalDur <= 180 ? 15 : totalDur <= 360 ? 30 : 60;
-  const ticks: number[] = [];
-  for (let t = 0; t <= totalDur + 0.01; t += step) ticks.push(Math.round(t));
-
-  return (
-    <div className="relative h-6 border-b border-white/[0.05] select-none bg-white/[0.01]">
-      {ticks.map((t) => {
-        const pct = (t / totalDur) * 100;
-        return (
-          <div key={t} className="absolute top-0 flex flex-col items-center pointer-events-none"
-            style={{ left: `${pct}%`, transform: "translateX(-50%)" }}>
-            <div className="h-2 w-px bg-white/15 mt-0.5" />
-            <span className="text-[8px] font-mono text-white/25">{fmt(t)}</span>
-          </div>
-        );
-      })}
-      <div className="absolute top-0 bottom-0 w-px bg-primary/70 pointer-events-none"
-        style={{ left: `${totalDur > 0 ? (currentTime / totalDur) * 100 : 0}%` }} />
-    </div>
-  );
-}
 
 /* ─── Per-Clip Validation Row ────────────────────────────────────────── */
 
@@ -305,7 +225,7 @@ function ClipRepairPanel({
           res.lastError = `No URL found in scene data. Fields checked: videoUrl, url, outputUrl, resultUrl, generatedVideoUrl, clipUrl, assetUrl, mediaUrl`;
         }
       } else if (action === "placeholder") {
-        const dur = parseDur(scene.timestamp);
+        const dur = parseRawSceneDuration(scene.timestamp).durationSec;
         const ph = `https://storage.bowdownvisuals.com/placeholders/${scene.section?.toLowerCase().replace(/\s+/g, "-") ?? "scene"}-${dur}s-placeholder.mp4`;
         res.placeholderCreated = true;
         res.attachedUrl = true;
@@ -391,7 +311,7 @@ function ClipRepairPanel({
           <div>
             <p className="text-[11px] font-bold">Use Placeholder for Clip {clipNum}</p>
             <p className="text-[8px] text-white/35">
-              Creates a {parseDur(scene.timestamp)}s dark Bow Down Visuals placeholder · text: {scene.section ?? "Scene"} · for testing only
+              Creates a {parseRawSceneDuration(scene.timestamp).durationSec}s dark Bow Down Visuals placeholder · text: {scene.section ?? "Scene"} · for testing only
             </p>
           </div>
         </button>
@@ -461,6 +381,10 @@ export interface StudioEditorSectionProps {
   onGoToMusic: () => void;
   /** Resolved audio URL (from previewAudioUrl in parent) — drives waveform visibility */
   audioUrl?: string | null;
+  /** Selected clip index — lifted to the parent so the persistent TimelineDock and this
+   *  section's inspector panel stay in sync. */
+  selectedIdx: number | null;
+  setSelectedIdx: (i: number | null) => void;
 }
 
 /* ─── Component ─────────────────────────────────────────────────────── */
@@ -479,40 +403,27 @@ export function StudioEditorSection({
   onGoToExport,
   onGoToMusic,
   audioUrl = null,
+  selectedIdx,
+  setSelectedIdx,
 }: StudioEditorSectionProps) {
-  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [lockedTimeline, setLockedTimeline] = useState<LockedTimeline | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [zoom, setZoom] = useState(1);
   const [validating, setValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<ClipValidation[] | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
 
-  const timelineRef = useRef<HTMLDivElement | null>(null);
-  const trimDragRef = useRef<{
-    side: "start" | "end";
-    sceneId: string;
-    sceneIdx: number;
-    startX: number;
-    startVal: number;
-    clipDur: number;
-  } | null>(null);
-
-  /* ── Compute clip positions from timestamps ── */
-  const rawDurs = scenes.map(s => parseDur(s.timestamp));
-  const allDefault = rawDurs.length > 0 && rawDurs.every(d => d === 5);
-  const durs: number[] = (allDefault && audioDuration != null && audioDuration > 0)
-    ? scenes.map(() => audioDuration / scenes.length)
-    : rawDurs;
+  /* ── Compute clip positions from timestamps ──
+     Uses the SHARED computeSceneTimings (also used by the master player and
+     Lip Sync) so this editor's scene positions always match what actually
+     plays in the main timeline. */
+  const sceneTimings = computeSceneTimings(scenes, audioDuration);
+  const durs = sceneTimings.map(t => t.durationSec);
+  const offsets = sceneTimings.map(t => t.startSec);
 
   const totalDur = audioDuration ?? durs.reduce((a, b) => a + b, 0);
-
-  const offsets: number[] = [];
-  let acc = 0;
-  for (const d of durs) { offsets.push(acc); acc += d; }
 
   const clipEdits = settings.clips ?? {};
 
@@ -530,55 +441,6 @@ export function StudioEditorSection({
       return useLipSync || s.demoClipUrl ? null : `#${i + 1} ${s.section || `Scene ${i + 1}`}`;
     })
     .filter(Boolean) as string[];
-
-  /* ── Click-to-seek ── */
-  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = timelineRef.current;
-    if (!el || totalDur <= 0) return;
-    const rect = el.getBoundingClientRect();
-    onSeek(Math.max(0, Math.min(totalDur, ((e.clientX - rect.left) / rect.width) * totalDur)));
-  }, [totalDur, onSeek]);
-
-  /* ── Trim drag ── */
-  const startTrimDrag = useCallback((
-    e: React.PointerEvent,
-    side: "start" | "end",
-    sceneId: string,
-    sceneIdx: number,
-    clipDur: number,
-  ) => {
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const ce = clipEdits[sceneId];
-    trimDragRef.current = {
-      side, sceneId, sceneIdx,
-      startX: e.clientX,
-      startVal: side === "start" ? (ce?.trimStart ?? 0) : (ce?.trimEnd ?? 0),
-      clipDur,
-    };
-  }, [clipEdits]);
-
-  const onTrimPointerMove = useCallback((e: React.PointerEvent) => {
-    const drag = trimDragRef.current;
-    if (!drag) return;
-    const el = timelineRef.current;
-    if (!el || totalDur <= 0) return;
-    const pxPerSec = (el.getBoundingClientRect().width * zoom) / totalDur;
-    const deltaTime = (e.clientX - drag.startX) / pxPerSec;
-    const maxTrim = drag.clipDur * 0.45;
-    const raw = drag.side === "start" ? drag.startVal + deltaTime : drag.startVal - deltaTime;
-    const newVal = Math.round(Math.max(0, Math.min(maxTrim, raw)) * 10) / 10;
-    const ce = clipEdits[drag.sceneId] ?? { trimStart: 0, trimEnd: 0 };
-    setSettings({
-      ...settings,
-      clips: {
-        ...clipEdits,
-        [drag.sceneId]: { ...ce, [drag.side === "start" ? "trimStart" : "trimEnd"]: newVal },
-      },
-    });
-  }, [clipEdits, settings, setSettings, totalDur, zoom]);
-
-  const onTrimPointerUp = useCallback(() => { trimDragRef.current = null; }, []);
 
   /* ── Lock Timeline — async with per-clip validation ── */
   async function validateAndLock() {
@@ -679,7 +541,7 @@ export function StudioEditorSection({
 
   /* ── Render ── */
   return (
-    <div className="space-y-4" onPointerMove={onTrimPointerMove} onPointerUp={onTrimPointerUp}>
+    <div className="space-y-4">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -739,144 +601,9 @@ export function StudioEditorSection({
         </div>
       )}
 
-      {/* ── Transport ── */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.07] bg-white/[0.02]">
-        <button type="button" onClick={onRestart}
-          className="p-1.5 rounded-lg text-white/40 hover:text-white/90 hover:bg-white/[0.05] transition-colors"
-          title="Restart from 0:00">
-          <SkipBack className="h-3.5 w-3.5" />
-        </button>
-        <button type="button" onClick={onTogglePlay}
-          className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/20 border border-primary/40 text-primary hover:bg-primary/30 transition-colors">
-          {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5 ml-0.5" />}
-        </button>
-        <span className="font-mono text-xs text-white/50">
-          {fmt(currentTime)} / {audioDuration ? fmt(audioDuration) : "--:--"}
-        </span>
-        <div className="flex-1 h-1 bg-white/[0.08] rounded-full overflow-hidden">
-          <div className="h-full bg-primary/60 rounded-full transition-none"
-            style={{ width: totalDur > 0 ? `${Math.min(100, (currentTime / totalDur) * 100)}%` : "0%" }} />
-        </div>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setZoom(z => Math.max(1, z - 0.5))} disabled={zoom <= 1}
-            className="p-1 rounded text-white/25 hover:text-white/70 hover:bg-white/[0.04] disabled:opacity-20 transition-colors">
-            <ZoomOut className="h-3 w-3" />
-          </button>
-          <span className="text-[9px] font-mono text-white/35 w-7 text-center">{zoom}×</span>
-          <button type="button" onClick={() => setZoom(z => Math.min(8, z + 0.5))} disabled={zoom >= 8}
-            className="p-1 rounded text-white/25 hover:text-white/70 hover:bg-white/[0.04] disabled:opacity-20 transition-colors">
-            <ZoomIn className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-
-      {/* ── Timeline ── */}
-      <div className="rounded-xl border border-white/[0.08] bg-[#090909] overflow-hidden">
-        <div className="overflow-x-auto scrollbar-none">
-          <div style={{ width: `${zoom * 100}%`, minWidth: "100%" }}>
-            <TimeRuler totalDur={totalDur} currentTime={currentTime} />
-            <div ref={timelineRef} className="relative h-10 cursor-crosshair" onClick={handleTimelineClick} title="Click to seek">
-              {audioUrl
-                ? <FakeWaveform height={40} progress={totalDur > 0 ? currentTime / totalDur : 0} />
-                : (
-                  <div className="w-full h-full flex items-center justify-center gap-2 bg-white/[0.01]">
-                    <Music2 className="h-3 w-3 text-amber-400/40" />
-                    <span className="text-[9px] text-amber-400/40">Add a song to see the waveform</span>
-                  </div>
-                )}
-              {totalDur > 0 && (
-                <div className="absolute top-0 bottom-0 w-px bg-primary pointer-events-none z-10"
-                  style={{ left: `${(currentTime / totalDur) * 100}%` }}>
-                  <div className="absolute -top-0 -translate-x-1/2 w-2 h-2 bg-primary rounded-full" />
-                </div>
-              )}
-            </div>
-
-            {/* Clip track */}
-            <div className="relative bg-black/40 cursor-crosshair" style={{ height: 80 }} onClick={handleTimelineClick}>
-              {scenes.length === 0 && (
-                <div className="absolute inset-0 flex items-center justify-center gap-2 text-white/15">
-                  <Film className="h-4 w-4" />
-                  <span className="text-[10px]">Generate clips to see them here</span>
-                </div>
-              )}
-
-              {scenes.map((scene, i) => {
-                const ce = clipEdits[scene.id];
-                const trimStart = ce?.trimStart ?? 0;
-                const trimEnd = ce?.trimEnd ?? 0;
-                const clipDur = durs[i] ?? 5;
-                const clipStart = offsets[i] ?? 0;
-                const leftPct = totalDur > 0 ? (clipStart / totalDur) * 100 : 0;
-                const widthPct = totalDur > 0 ? (clipDur / totalDur) * 100 : 8;
-                const color = CLIP_COLORS[i % CLIP_COLORS.length]!;
-                const isSelected = selectedIdx === i;
-                const isActive = currentTime >= clipStart && currentTime < clipStart + clipDur;
-                const useLipSync = !!(ce?.useLipSync && ce.lipSyncStatus === "done" && ce.lipSyncUrl);
-                const hasClip = useLipSync || !!scene.demoClipUrl;
-
-                return (
-                  <div key={scene.id}
-                    className="absolute top-1.5 bottom-1.5 rounded flex items-center overflow-hidden select-none"
-                    style={{
-                      left: `${leftPct}%`, width: `calc(${widthPct}% - 2px)`,
-                      background: !hasClip ? "rgba(251,191,36,0.18)" : isSelected ? `${color}bb` : isActive ? `${color}88` : `${color}44`,
-                      border: `1px solid ${!hasClip ? "rgba(251,191,36,0.5)" : isSelected ? color : isActive ? `${color}88` : `${color}33`}`,
-                      boxShadow: isSelected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : undefined,
-                      cursor: "pointer",
-                    }}
-                    onClick={(e) => { e.stopPropagation(); setSelectedIdx(isSelected ? null : i); }}>
-                    {trimStart > 0 && clipDur > 0 && (
-                      <div className="absolute left-0 top-0 bottom-0 pointer-events-none"
-                        style={{ width: `${Math.min(48, (trimStart / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderRight: "1px dashed rgba(255,255,255,0.25)" }} />
-                    )}
-                    {trimEnd > 0 && clipDur > 0 && (
-                      <div className="absolute right-0 top-0 bottom-0 pointer-events-none"
-                        style={{ width: `${Math.min(48, (trimEnd / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderLeft: "1px dashed rgba(255,255,255,0.25)" }} />
-                    )}
-                    <div className="px-1.5 z-10 min-w-0 flex-1 overflow-hidden">
-                      <p className="text-[8px] font-bold text-white truncate leading-tight">
-                        {i + 1}. {scene.section || `Scene ${i + 1}`}
-                      </p>
-                      <p className="text-[7px] text-white/40 font-mono">{fmt(clipStart)}–{fmt(clipStart + clipDur)}</p>
-                    </div>
-                    {!hasClip && <span className="text-[9px] text-amber-400 mr-1 shrink-0">⚠</span>}
-                    {useLipSync && <span className="text-[6px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
-                    {isSelected && (
-                      <>
-                        <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20
-                          flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
-                          onPointerDown={(e) => startTrimDrag(e, "start", scene.id, i, clipDur)}
-                          onClick={(e) => e.stopPropagation()}>
-                          <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
-                        </div>
-                        <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20
-                          flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
-                          onPointerDown={(e) => startTrimDrag(e, "end", scene.id, i, clipDur)}
-                          onClick={(e) => e.stopPropagation()}>
-                          <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-
-              {totalDur > 0 && (
-                <div className="absolute top-0 bottom-0 w-px bg-primary/70 pointer-events-none z-30"
-                  style={{ left: `${(currentTime / totalDur) * 100}%` }} />
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="px-3 py-1.5 border-t border-white/[0.04] flex items-center gap-2">
-          <span className="text-[8px] text-white/20">Click timeline to seek · Click ⚠ clip to repair URL · Drag handles to trim</span>
-          {selectedIdx !== null && (
-            <button type="button" className="text-[8px] text-white/30 hover:text-white/60 ml-auto"
-              onClick={() => setSelectedIdx(null)}>Deselect</button>
-          )}
-        </div>
-      </div>
+      <p className="text-[9px] text-white/25 -mt-1">
+        Transport, waveform, and clip track now live in the persistent timeline dock at the bottom of the screen.
+      </p>
 
       {/* ── Selected clip: repair panel or inspector ── */}
       {selectedIdx !== null && selScene && (

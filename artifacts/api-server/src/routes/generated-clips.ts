@@ -5,6 +5,8 @@ import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { recordRunwayClipHistory, recordCreditUsage } from "../lib/payment-record";
 import { chargedTasks } from "./generate/runway-clip";
+import { refreshSignedGcsUrl } from "../lib/objectStorage";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
@@ -90,7 +92,8 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
         const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
         const refundedCredits = freshCredits + charge.credits;
 
-        const { error: refundErr } = await req.userSupabase!
+        /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+        const { error: refundErr } = await getSupabaseAdmin()
           .from("profiles")
           .update({ credits: refundedCredits })
           .eq("id", req.userId!);
@@ -138,7 +141,16 @@ router.get("/generated-clips", requireAuth, async (req, res) => {
       .orderBy(desc(generatedClipsTable.created_at))
       .limit(200);
 
-    res.json({ clips });
+    /* Stored signed URLs expire after 7 days — re-sign fresh ones for playback. */
+    const refreshedClips = await Promise.all(
+      clips.map(async (clip) => ({
+        ...clip,
+        video_url: clip.video_url ? await refreshSignedGcsUrl(clip.video_url) : clip.video_url,
+        thumbnail_url: clip.thumbnail_url ? await refreshSignedGcsUrl(clip.thumbnail_url) : clip.thumbnail_url,
+      })),
+    );
+
+    res.json({ clips: refreshedClips });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to fetch clips";
     res.status(500).json({ error: msg });

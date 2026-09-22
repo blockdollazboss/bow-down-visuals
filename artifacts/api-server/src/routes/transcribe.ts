@@ -117,18 +117,27 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
       text: string;
       duration?: number;
       segments?: Array<{ id: number; start: number; end: number; text: string }>;
+      words?: Array<{ word: string; start: number; end: number }>;
       language?: string;
     };
 
+    // Requesting word-level granularity (in addition to segment-level) gives
+    // much finer-grained timestamps than segment boundaries alone — segments
+    // can span several seconds/several words, which is too coarse to track
+    // sung vocals (melisma, held notes, word stretching) accurately. Word
+    // timestamps let the client align each caption line to the actual words
+    // being sung rather than the whole segment they fall within.
     const transcription = (await openai.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       response_format: "verbose_json",
+      timestamp_granularities: ["word", "segment"],
     })) as unknown as VerboseTranscription;
 
     res.json({
       transcript: transcription.text,
       segments: transcription.segments ?? null,
+      words: transcription.words ?? null,
       duration: transcription.duration ?? null,
       language: transcription.language ?? null,
     });

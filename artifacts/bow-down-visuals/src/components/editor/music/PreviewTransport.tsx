@@ -1,5 +1,6 @@
-import { Play, Pause, Square, Loader2, Radio, AlertTriangle } from "lucide-react";
+import { Play, Pause, Square, Loader2, Radio, AlertTriangle, Sparkles, AlertCircle } from "lucide-react";
 import type { MixPreview } from "@/components/editor/music/useMixPreview";
+import type { PreviewRenderResult } from "@/lib/audio-export";
 
 function formatTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds));
@@ -8,8 +9,25 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function PreviewTransport({ preview }: { preview: MixPreview }) {
-  const { playState, loading, position, duration, errors, hasStems } = preview;
+interface PreviewTransportProps {
+  preview: MixPreview;
+  /** Trigger a short (5-20s) real server-side FFmpeg render of the current mix. */
+  onRenderTruePreview: () => void;
+  rendering: boolean;
+  renderedPreview: PreviewRenderResult | null;
+  renderError: string | null;
+  hasStems: boolean;
+}
+
+export function PreviewTransport({
+  preview,
+  onRenderTruePreview,
+  rendering,
+  renderedPreview,
+  renderError,
+  hasStems,
+}: PreviewTransportProps) {
+  const { playState, loading, position, duration, errors } = preview;
   const isPlaying = playState === "playing";
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
   const busy = loading && !isPlaying;
@@ -70,6 +88,49 @@ export function PreviewTransport({ preview }: { preview: MixPreview }) {
           </p>
         </div>
       )}
+
+      <div className="pt-2 border-t border-white/[0.06] space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold text-white/85">Hear the True Render</p>
+            <p className="text-[11px] text-white/40 leading-relaxed">
+              Renders a real 12s clip through the actual export pipeline (incl. real pitch correction) — the exact audio you'd get in a full export.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onRenderTruePreview}
+            disabled={!hasStems || rendering}
+            data-testid="btn-render-true-preview"
+            className="h-10 px-4 shrink-0 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 text-primary text-xs font-black hover:bg-primary/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {rendering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            {rendering ? "Rendering…" : "Render True Preview"}
+          </button>
+        </div>
+
+        {renderError && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/25" data-testid="true-preview-error">
+            <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-red-200/90 leading-relaxed">{renderError}</p>
+          </div>
+        )}
+
+        {renderedPreview && !rendering && (
+          <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/[0.05] p-2.5" data-testid="true-preview-result">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-[10px] font-black uppercase tracking-wide text-primary">
+                True Render
+              </span>
+              <span className="text-[10px] text-white/40">{renderedPreview.seconds}s clip of the actual export audio</span>
+            </div>
+            <audio controls src={renderedPreview.url} className="w-full" data-testid="true-preview-audio" />
+            {renderedPreview.warnings.length > 0 && (
+              <p className="text-[10px] text-amber-300/80 leading-relaxed">{renderedPreview.warnings[0]}</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

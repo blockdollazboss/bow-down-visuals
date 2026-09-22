@@ -19,7 +19,10 @@ export interface GenerateResult {
   rawResult: string;
   sections: Record<string, string>;
   creditsRemaining?: number;
+  creditsUsed?: number;
   genHistoryId?: string | null;
+  thumbnailImageUrl?: string | null;
+  imageError?: string | null;
 }
 
 export async function callGenerateApi(
@@ -42,11 +45,21 @@ export async function callGenerateApi(
     throw new Error(errObj.error ?? errObj.message ?? "Generation failed");
   }
 
-  const data = (await res.json()) as { result: string; creditsRemaining?: number; genHistoryId?: string | null };
+  const data = (await res.json()) as {
+    result: string;
+    creditsRemaining?: number;
+    creditsUsed?: number;
+    genHistoryId?: string | null;
+    thumbnailImageUrl?: string | null;
+    imageError?: string | null;
+  };
   return {
-    rawResult:        data.result,
-    sections:         parseMarkdownSections(data.result),
-    creditsRemaining: data.creditsRemaining,
-    genHistoryId:     data.genHistoryId ?? null,
+    rawResult:         data.result,
+    sections:          parseMarkdownSections(data.result),
+    creditsRemaining:  data.creditsRemaining,
+    creditsUsed:       data.creditsUsed,
+    genHistoryId:      data.genHistoryId ?? null,
+    thumbnailImageUrl: data.thumbnailImageUrl ?? null,
+    imageError:        data.imageError ?? null,
   };
 }

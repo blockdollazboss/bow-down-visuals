@@ -43,7 +43,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   };
 
   if (!prompt?.trim()) {
-    res.status(400).json({ error: "prompt is required" });
+    res.status(400).json({ error: "prompt is required", errorType: "invalid_prompt" });
     return;
   }
 
@@ -111,18 +111,70 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
     );
   }
 
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userParts.join("\n\n") },
-    ],
-    max_tokens: 500,
-    temperature: 0.7,
-  });
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userParts.join("\n\n") },
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
+    });
 
-  const improvedPrompt = completion.choices[0]?.message?.content?.trim() || prompt;
-  res.json({ improvedPrompt });
+    const improvedPrompt = completion.choices[0]?.message?.content?.trim() || prompt;
+    res.json({ improvedPrompt });
+  } catch (err) {
+    const { status, errorType, message } = classifyImprovePromptError(err);
+    req.log.error({ err, errorType }, "improve-prompt: OpenAI request failed");
+    res.status(status).json({ error: message, errorType });
+  }
 });
+
+/**
+ * Turns an OpenAI SDK error into a user-facing status/errorType/message triple so the client
+ * can distinguish "retrying will help" (rate limit) from "retrying won't help" (content policy,
+ * bad request) from "unknown, maybe try again" (server error).
+ */
+function classifyImprovePromptError(
+  err: unknown,
+): { status: number; errorType: "rate_limit" | "content_policy" | "invalid_prompt" | "server_error"; message: string } {
+  if (err instanceof OpenAI.APIError) {
+    const status = err.status ?? 500;
+    const code = typeof err.code === "string" ? err.code : "";
+    const type = typeof err.type === "string" ? err.type : "";
+
+    if (status === 429) {
+      return {
+        status: 429,
+        errorType: "rate_limit",
+        message: "Rate limited by the AI provider — please wait a moment and try again.",
+      };
+    }
+    if (
+      code === "content_policy_violation" ||
+      type === "content_policy_violation" ||
+      /content policy|safety system/i.test(err.message)
+    ) {
+      return {
+        status: 400,
+        errorType: "content_policy",
+        message: "The prompt was flagged by the AI provider's content policy — try rewording it.",
+      };
+    }
+    if (status >= 400 && status < 500) {
+      return {
+        status,
+        errorType: "invalid_prompt",
+        message: err.message || "The AI provider rejected this prompt as invalid.",
+      };
+    }
+  }
+  return {
+    status: 502,
+    errorType: "server_error",
+    message: "The AI provider is temporarily unavailable. Please try again shortly.",
+  };
+}
 
 export default router;

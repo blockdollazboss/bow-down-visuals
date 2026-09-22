@@ -85,6 +85,7 @@ function generateHookLines(hookText: string, songDuration?: number): CaptionLine
 /* ── AI Sync: fuzzy caption-to-transcript matching ─────────────────────── */
 
 type WhisperSegment = { id: number; start: number; end: number; text: string };
+type WhisperWord = { word: string; start: number; end: number };
 
 interface AiSyncDetails {
   audioFound: boolean;
@@ -98,6 +99,179 @@ function normalizeForMatch(s: string): string[] {
   return s.toLowerCase().replace(/[^\w\s]/g, " ").split(/\s+/).filter(Boolean);
 }
 
+/* ── Word-level alignment ──────────────────────────────────────────────
+ * Whisper is tuned for speech, so segment boundaries (which can span many
+ * seconds / many words) are too coarse for sung vocals — melisma, held
+ * notes, and word stretching all get lost when a whole caption line is
+ * pinned to one segment's start/end. Word-level timestamps let each caption
+ * line be aligned to the actual words being sung, not the segment they
+ * happen to fall inside.
+ */
+
+interface WordToken {
+  token: string;
+  start: number;
+  end: number;
+}
+
+/** Flatten Whisper words into normalized match tokens, each carrying its
+ *  parent word's timing (a word can split into >1 token, e.g. contractions). */
+function buildWordTokens(words: WhisperWord[]): WordToken[] {
+  const tokens: WordToken[] = [];
+  for (const w of words) {
+    for (const t of normalizeForMatch(w.word)) {
+      tokens.push({ token: t, start: w.start, end: w.end });
+    }
+  }
+  return tokens;
+}
+
+/** Find the best in-order (not necessarily contiguous) alignment of
+ *  `targetTokens` starting at or after each candidate index >= searchFrom.
+ *  Allows skipped/misheard words (common in sung vocals) while still
+ *  requiring matched words to appear in order. */
+function matchLineToTokens(
+  targetTokens: string[],
+  tokens: WordToken[],
+  searchFrom: number,
+): { score: number; startIdx: number; endIdx: number } | null {
+  if (targetTokens.length === 0 || tokens.length === 0) return null;
+  const lookahead = Math.max(targetTokens.length * 4, 20);
+  // Cap how far forward we search for a starting point so very long songs
+  // stay fast; a line should never need to look more than ~120 words ahead.
+  const searchLimit = Math.min(tokens.length, searchFrom + 120);
+
+  let best: { score: number; startIdx: number; endIdx: number } | null = null;
+  for (let i = searchFrom; i < searchLimit; i++) {
+    let ti = 0;
+    let firstMatchIdx = -1;
+    let lastMatchIdx = -1;
+    let matches = 0;
+    // How many consecutive stream tokens have failed to match the current
+    // target word. If a word is completely misheard/omitted by Whisper
+    // (common with sung vocals), give up waiting on it after a couple of
+    // misses rather than letting it block every word after it in the line.
+    let staleCount = 0;
+    const windowEnd = Math.min(tokens.length, i + lookahead);
+    for (let j = i; j < windowEnd && ti < targetTokens.length; j++) {
+      if (tokens[j]!.token === targetTokens[ti]) {
+        matches++;
+        if (firstMatchIdx === -1) firstMatchIdx = j;
+        lastMatchIdx = j;
+        ti++;
+        staleCount = 0;
+      } else {
+        staleCount++;
+        if (staleCount > 1) {
+          ti++;
+          staleCount = 0;
+          j--; // re-check this same stream token against the next target word
+        }
+      }
+    }
+    if (matches === 0 || firstMatchIdx === -1) continue;
+    const score = matches / targetTokens.length;
+    if (!best || score > best.score) {
+      best = { score, startIdx: firstMatchIdx, endIdx: lastMatchIdx };
+      if (score === 1) break;
+    }
+  }
+  return best;
+}
+
+/** Fill in timings for lines that didn't confidently match, by spreading
+ *  them evenly across the gap between their surrounding matched lines. */
+function interpolateUnmatched(
+  results: Array<{ line: CaptionLine; matched: boolean }>,
+  fallbackEnd: number,
+): void {
+  let i = 0;
+  while (i < results.length) {
+    if (!results[i]!.matched) {
+      const prevEnd = results.slice(0, i).reverse().find((r) => r.matched)?.line.endSec ?? 0;
+      let j = i;
+      while (j < results.length && !results[j]!.matched) j++;
+      const nextStart = results[j]?.line.startSec ?? fallbackEnd;
+      const gapCount = j - i;
+      const slotDur = Math.max(0.5, (nextStart - prevEnd) / Math.max(gapCount, 1));
+      let cursor = prevEnd;
+      for (let k = i; k < j; k++) {
+        const start = parseFloat(cursor.toFixed(2));
+        cursor += slotDur;
+        const end = parseFloat(Math.min(cursor, nextStart).toFixed(2));
+        results[k]!.line = { ...results[k]!.line, startSec: start, endSec: end };
+      }
+      i = j;
+    } else {
+      i++;
+    }
+  }
+}
+
+/** Match captions directly against word-level timestamps — much finer
+ *  granularity than segment matching, so lines land on the exact words
+ *  actually sung instead of the whole segment they occur in. */
+function matchCaptionsToWords(
+  lines: CaptionLine[],
+  words: WhisperWord[],
+): { syncedLines: CaptionLine[]; matchedCount: number; needsReviewCount: number } {
+  const tokens = buildWordTokens(words);
+  let cursor = 0;
+
+  const results: Array<{ line: CaptionLine; matched: boolean }> = lines.map((line) => {
+    const targetTokens = normalizeForMatch(line.text);
+    const searchFrom = Math.max(0, cursor - 3);
+    const match = matchLineToTokens(targetTokens, tokens, searchFrom);
+    const score = match?.score ?? 0;
+
+    const confidence: CaptionLine["confidence"] =
+      score >= 0.75 ? "high"
+      : score >= 0.5 ? "medium"
+      : score >= 0.3 ? "low"
+      : "needs-review";
+
+    const matched = !!match && score >= 0.3;
+    if (matched && match) {
+      cursor = match.endIdx + 1;
+      return {
+        line: {
+          ...line,
+          startSec: parseFloat(tokens[match.startIdx]!.start.toFixed(2)),
+          endSec: parseFloat(tokens[match.endIdx]!.end.toFixed(2)),
+          confidence,
+        },
+        matched: true,
+      };
+    }
+    return { line: { ...line, confidence }, matched: false };
+  });
+
+  /* Melisma/held-note extension: when nothing else was transcribed between
+   * a matched line's last word and the next matched line's first word, the
+   * gap is very likely the current line's word being held/sustained rather
+   * than dead air — extend this line's end to meet the next one so it
+   * doesn't disappear the instant the word is first sung. Capped so it
+   * never swallows a genuine instrumental break. */
+  const HOLD_EXTEND_CAP_SEC = 6;
+  for (let i = 0; i < results.length - 1; i++) {
+    const cur = results[i]!;
+    const next = results[i + 1]!;
+    if (!cur.matched || !next.matched) continue;
+    const gap = next.line.startSec - cur.line.endSec;
+    if (gap <= 0 || gap > HOLD_EXTEND_CAP_SEC) continue;
+    cur.line = { ...cur.line, endSec: next.line.startSec };
+  }
+
+  const lastWordEnd = tokens.length > 0 ? tokens[tokens.length - 1]!.end : 0;
+  interpolateUnmatched(results, lastWordEnd + 2);
+
+  return {
+    syncedLines: results.map((r) => r.line),
+    matchedCount: results.filter((r) => r.matched).length,
+    needsReviewCount: results.filter((r) => !r.matched).length,
+  };
+}
+
 function tokenOverlap(a: string[], b: string[]): number {
   if (a.length === 0 || b.length === 0) return 0;
   const setB = new Set(b);
@@ -105,10 +279,19 @@ function tokenOverlap(a: string[], b: string[]): number {
   return hits / Math.max(a.length, b.length);
 }
 
+/** Segment-level matching (legacy). Kept as a fallback for when word-level
+ *  timestamps aren't available from the transcription response — much
+ *  coarser than `matchCaptionsToWords`, since it pins a whole caption line
+ *  to a segment span rather than the exact words sung. */
 function matchCaptionsToTranscript(
   lines: CaptionLine[],
   segments: WhisperSegment[],
+  words?: WhisperWord[] | null,
 ): { syncedLines: CaptionLine[]; matchedCount: number; needsReviewCount: number } {
+  if (words && words.length > 0) {
+    return matchCaptionsToWords(lines, words);
+  }
+
   let segCursor = 0;
 
   const results: Array<{ line: CaptionLine; matched: boolean }> = lines.map((line) => {
@@ -228,6 +411,51 @@ function buildCaptionsFromSegments(
   }
 
   /* Sort by start time */
+  lines.sort((a, b) => a.startSec - b.startSec);
+  return lines;
+}
+
+/** Build captions from word-level timestamps — chunks are sized on real
+ *  per-word timing rather than assuming words are spaced evenly across a
+ *  segment (a poor assumption for singing, where cadence is uneven and
+ *  words can be stretched or held). Chunks also split early on a pause
+ *  (>1.2s gap between words) so a caption line never spans a break. */
+const PAUSE_GAP_SEC = 1.2;
+
+function buildCaptionsFromWords(
+  words: WhisperWord[],
+  songDuration?: number | null,
+): CaptionLine[] {
+  const lines: CaptionLine[] = [];
+  let chunk: WhisperWord[] = [];
+
+  const flush = () => {
+    if (chunk.length === 0) return;
+    const startSec = chunk[0]!.start;
+    let endSec = chunk[chunk.length - 1]!.end;
+    if (songDuration != null && endSec > songDuration) endSec = songDuration;
+    const text = chunk.map((w) => w.word.trim()).filter(Boolean).join(" ");
+    if (text && startSec >= 0 && endSec > startSec) {
+      lines.push({
+        id: newLineId(),
+        startSec: parseFloat(startSec.toFixed(2)),
+        endSec: parseFloat(endSec.toFixed(2)),
+        text,
+        confidence: "high",
+      });
+    }
+    chunk = [];
+  };
+
+  for (const w of words) {
+    if (chunk.length > 0 && w.start - chunk[chunk.length - 1]!.end > PAUSE_GAP_SEC) {
+      flush();
+    }
+    chunk.push(w);
+    if (chunk.length >= WORDS_PER_CAPTION) flush();
+  }
+  flush();
+
   lines.sort((a, b) => a.startSec - b.startSec);
   return lines;
 }
@@ -505,6 +733,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       const data = await res.json() as {
         transcript: string;
         segments?: WhisperSegment[];
+        words?: WhisperWord[];
       };
 
       const segments = data.segments;
@@ -513,7 +742,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       }
 
       setAiSyncPhase("Matching captions to vocals…");
-      const { syncedLines, matchedCount, needsReviewCount } = matchCaptionsToTranscript(c.lines, segments);
+      const { syncedLines, matchedCount, needsReviewCount } = matchCaptionsToTranscript(c.lines, segments, data.words);
 
       /* ── Validate before saving — never overwrite with bad timings ── */
       const bad = badFraction(syncedLines);
@@ -759,8 +988,9 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
       }
 
-      const data = await res.json() as { transcript: string; segments?: WhisperSegment[] };
+      const data = await res.json() as { transcript: string; segments?: WhisperSegment[]; words?: WhisperWord[] };
       const segments = data.segments;
+      const words = data.words;
 
       if (!segments || segments.length === 0) {
         setRebuildDetails({ audioFound: true, hasTranscript: false, newCaptions: 0, invalidRows: 0, lastEndsAt: 0, songDuration: songDuration ?? null, saved: false });
@@ -768,7 +998,12 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       }
 
       setRebuildPhase("Building captions from transcript…");
-      const newLines = buildCaptionsFromSegments(segments, songDuration);
+      // Word-level timing directly reflects sung cadence (uneven pacing,
+      // held notes) instead of assuming words are spaced evenly within a
+      // segment, so prefer it whenever the API returned word timestamps.
+      const newLines = words && words.length > 0
+        ? buildCaptionsFromWords(words, songDuration)
+        : buildCaptionsFromSegments(segments, songDuration);
       const invalid = newLines.filter(isInvalidLine).length;
       const lastEndsAt = newLines.length > 0 ? (newLines[newLines.length - 1]?.endSec ?? 0) : 0;
 

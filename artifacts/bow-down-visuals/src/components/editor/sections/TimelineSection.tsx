@@ -11,6 +11,9 @@ interface TimelineSectionProps {
   onPreviewTransition: (sceneIndex: number) => void;
   onGoToClips: () => void;
   onGoToEffects: () => void;
+  /** Simple mode hides transition type/duration tuning — the automatic AI
+   *  edit already picked transitions, so this stays a read-only summary. */
+  isSimple?: boolean;
 }
 
 const TRANSITION_OPTIONS = ["Cut", ...TRANSITIONS.filter(t => t !== "Cut")];
@@ -22,6 +25,7 @@ export function TimelineSection({
   onPreviewTransition,
   onGoToClips,
   onGoToEffects,
+  isSimple = false,
 }: TimelineSectionProps) {
   const approvedScenes = scenes.filter(s => s.approved && s.demoClipUrl);
 
@@ -101,40 +105,51 @@ export function TimelineSection({
                     <div className="flex items-center gap-2 py-2 pl-8 pr-3">
                       <div className="h-px flex-1 bg-white/[0.06]" />
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <select
-                          value={transition}
-                          onChange={e => setClipTransition(scene.id, e.target.value)}
-                          className="text-[10px] text-white/60 bg-black/50 border border-white/[0.10] rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
-                        >
-                          {TRANSITION_OPTIONS.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-
-                        {transition !== "Cut" && (
+                      {isSimple ? (
+                        /* Simple mode: read-only summary — AI already picked
+                         * the transition, no tuning controls exposed. */
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] text-white/40 font-mono px-1.5 py-1">
+                            {transition}
+                            {transition !== "Cut" ? ` · ${transitionDuration}s` : ""}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <select
-                            value={String(transitionDuration)}
-                            onChange={e => setClipTransitionDuration(scene.id, Number(e.target.value))}
-                            className="text-[10px] text-white/40 bg-black/50 border border-white/[0.08] rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
+                            value={transition}
+                            onChange={e => setClipTransition(scene.id, e.target.value)}
+                            className="text-[10px] text-white/60 bg-black/50 border border-white/[0.10] rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
                           >
-                            {["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"].map(v => (
-                              <option key={v} value={v}>{v}s</option>
+                            {TRANSITION_OPTIONS.map(t => (
+                              <option key={t} value={t}>{t}</option>
                             ))}
                           </select>
-                        )}
 
-                        {transition !== "Cut" && originalIndex >= 0 && (
-                          <button
-                            type="button"
-                            onClick={() => onPreviewTransition(originalIndex)}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary/60 hover:text-primary px-2 py-1 rounded-md border border-primary/20 hover:border-primary/50 bg-primary/[0.03] hover:bg-primary/[0.08] transition-all"
-                          >
-                            <Play className="h-2.5 w-2.5" />
-                            Preview
-                          </button>
-                        )}
-                      </div>
+                          {transition !== "Cut" && (
+                            <select
+                              value={String(transitionDuration)}
+                              onChange={e => setClipTransitionDuration(scene.id, Number(e.target.value))}
+                              className="text-[10px] text-white/40 bg-black/50 border border-white/[0.08] rounded-md px-1.5 py-1 focus:outline-none focus:border-primary/40"
+                            >
+                              {["0.5", "1.0", "1.5", "2.0", "2.5", "3.0"].map(v => (
+                                <option key={v} value={v}>{v}s</option>
+                              ))}
+                            </select>
+                          )}
+
+                          {transition !== "Cut" && originalIndex >= 0 && (
+                            <button
+                              type="button"
+                              onClick={() => onPreviewTransition(originalIndex)}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary/60 hover:text-primary px-2 py-1 rounded-md border border-primary/20 hover:border-primary/50 bg-primary/[0.03] hover:bg-primary/[0.08] transition-all"
+                            >
+                              <Play className="h-2.5 w-2.5" />
+                              Preview
+                            </button>
+                          )}
+                        </div>
+                      )}
 
                       <div className="h-px flex-1 bg-white/[0.06]" />
                     </div>

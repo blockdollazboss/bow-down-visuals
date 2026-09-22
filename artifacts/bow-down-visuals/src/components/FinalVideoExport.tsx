@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
@@ -9,7 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
+import { computeManualTimings } from "@/lib/scene-timing";
 
 interface ExportRecord {
   final_video_url: string;
@@ -92,11 +93,20 @@ interface FinalVideoExportProps {
   masterAudioUrl?: string | null;
   audioSource?: VideoAudioSource;
   audioSourceLabel?: string;
-  fadeAudioIn?: boolean;
-  fadeAudioOut?: boolean;
+  fadeAudioInSec?: number;
+  fadeAudioOutSec?: number;
   loopAudio?: boolean;
+  /** Offset (seconds) into the audio where playback begins at video time 0. */
+  audioStartSec?: number;
+  /** Trim the audio to match the video length (studio "match length"). */
+  matchVideoLength?: boolean;
   addWatermark?: boolean;
   customWatermarkUrl?: string | null;
+  /** Legacy (non-branding) watermark placement/size/margin — mirrors settings.watermarkPosition
+   *  / watermarkSize / watermarkMargin so the burned-in watermark matches the Master Player preview. */
+  watermarkPosition?: string;
+  watermarkSize?: string;
+  watermarkMargin?: number;
   aspectRatio?: VideoFormat;
   resolution?: ExportResolution;
   existingExport?: ExportRecord | null;
@@ -109,10 +119,38 @@ interface FinalVideoExportProps {
   exportRangeEnd?: number | null;
   /** Human-readable label like "00:00.000 → 00:10.000" for the UI. */
   exportRangeLabel?: string;
+  /** True when the caller (Export Range UI) determined the selected custom range
+   *  doesn't resolve to a usable range (e.g. start/end left at 00:00.000, or end
+   *  before start). Blocks export instead of letting it reach the backend/FFmpeg. */
+  rangeInvalid?: boolean;
+  /** Human-readable reason shown to the user when rangeInvalid is true. */
+  rangeInvalidReason?: string;
   /** Per-clip transition overrides: index matches clipUrls, null = Cut */
   clipTransitions?: ({ type: string; duration: number } | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
+  /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
+   *  gaps (including a leading gap before the first clip) are held as freeze-frame padding
+   *  in the export, mirroring the editor preview. */
+  timelineLayout?: "auto" | "manual";
+  /** Per-scene edits keyed by scene id — only manualStartSec is read here. */
+  clipEdits?: Record<string, ClipEdit | undefined>;
+  /** Known audio duration (seconds), used to resolve manual layout timings. */
+  audioDurationSec?: number | null;
+  /** Song crop/trim window — export range is intersected with this when enabled. */
+  songCrop?: { enabled: boolean; startSec: number; endSec: number } | null;
+  /** Global Auto AI effects (settings.effects) — mirrors the master player's live
+   *  CSS preview. Burned into the real export via the shared cssToFfmpegChain
+   *  translation (same one Export Doctor uses). */
+  effects?: string[] | null;
+  /** Active overlay effect names (settings.overlays) — Light Leaks, Animated Waveform,
+   *  Logo / Watermark, etc. Burned into the export via FFmpeg filter injection. */
+  overlays?: string[] | null;
+  /** Per-overlay intensity (0–100) keyed by overlay name (settings.overlayIntensity). */
+  overlayIntensity?: Record<string, number> | null;
+  /** How source clips fill the target canvas: "fill" (crop), "fit" (letterbox), "blur" (blurred bg).
+   *  Defaults to "fill" when omitted. Forwarded to the server for FFmpeg normalization. */
+  fitMode?: string | null;
 }
 
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
@@ -126,7 +164,7 @@ function parseDuration(timestamp: string): number | null {
   return dur > 0 ? dur : null;
 }
 
-function isSelected(s: SceneData): boolean {
+export function isSelected(s: SceneData): boolean {
   if (!s.demoClipUrl || !s.demoClipUrl.startsWith("http")) return false;
   const isRunway =
     s.provider === "Runway" ||
@@ -155,11 +193,16 @@ export function FinalVideoExport({
   masterAudioUrl,
   audioSource = "uploaded",
   audioSourceLabel,
-  fadeAudioIn = false,
-  fadeAudioOut = false,
+  fadeAudioInSec = 0,
+  fadeAudioOutSec = 0,
   loopAudio = false,
+  audioStartSec = 0,
+  matchVideoLength = true,
   addWatermark = false,
   customWatermarkUrl,
+  watermarkPosition = "bottom-right",
+  watermarkSize = "medium",
+  watermarkMargin = 16,
   aspectRatio = "9:16",
   resolution = "1080p",
   existingExport,
@@ -170,16 +213,78 @@ export function FinalVideoExport({
   exportRangeStart = null,
   exportRangeEnd = null,
   exportRangeLabel,
+  rangeInvalid = false,
+  rangeInvalidReason,
   clipTransitions,
   overlayItems,
+  timelineLayout = "auto",
+  clipEdits,
+  audioDurationSec = null,
+  songCrop,
+  effects,
+  overlays,
+  overlayIntensity,
+  fitMode,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
 
-  const selectedScenes = scenes.filter(isSelected);
+  const isManualLayout = timelineLayout === "manual";
+
+  /* ── Freeform layout: reorder selected scenes/transitions into playback order
+     and compute gap-after padding, mirroring the editor preview's behavior. ── */
+  const baseSelectedScenes = scenes.filter(isSelected);
+  const manualResult = isManualLayout
+    ? computeManualTimings(scenes, audioDurationSec, clipEdits ?? {})
+    : null;
+
+  let selectedScenes = baseSelectedScenes;
+  let orderedClipTransitions = clipTransitions;
+  let manualGapsBeforeSec: number[] | null = null;
+
+  if (isManualLayout && manualResult) {
+    // Order = ALL scene array indices sorted by timeline startSec. Filter down to
+    // just the indices that made it into baseSelectedScenes (have a usable clip).
+    const selectedSceneIds = new Set(baseSelectedScenes.map((s) => s.id));
+    const orderedIndices = manualResult.order.filter((idx) => selectedSceneIds.has(scenes[idx]!.id));
+    selectedScenes = orderedIndices.map((idx) => scenes[idx]!);
+    orderedClipTransitions = orderedIndices.map((idx) => {
+      const scene = scenes[idx]!;
+      const timing = manualResult.timings[idx]!;
+      // Overlap with the previous clip in playback order becomes a crossfade;
+      // otherwise fall back to whatever transition was explicitly configured.
+      if (timing.overlapWithPrevSec > 0) {
+        return { type: "Crossfade", duration: timing.overlapWithPrevSec };
+      }
+      const original = clipTransitions?.[baseSelectedScenes.findIndex((s) => s.id === scene.id)];
+      return original ?? null;
+    });
+    // gapBeforeSec (index-aligned with the ordered/playback sequence) already
+    // includes the leading gap before the very first clip — sent as-is, no
+    // shifting. The server holds each gap as a freeze-frame pad immediately
+    // before the corresponding clip (black lead-in for the first clip, the
+    // previous clip's frozen last frame for any clip after it).
+    manualGapsBeforeSec = orderedIndices.map((idx) => {
+      const timing = manualResult.timings[idx]!;
+      return Math.max(0, timing.gapBeforeSec ?? 0);
+    });
+  }
+
   const clipUrls = selectedScenes.map((s) => s.demoClipUrl!);
   const uniqueUrls = new Set(clipUrls);
   const hasDuplicateUrls = clipUrls.length > 1 && uniqueUrls.size < clipUrls.length;
+
+  /* ── Song crop: intersect the requested export range with the crop window ── */
+  const cropEnabled = !!songCrop?.enabled;
+  const effectiveExportRangeStart = cropEnabled
+    ? Math.max(typeof exportRangeStart === "number" ? exportRangeStart : 0, songCrop!.startSec)
+    : exportRangeStart;
+  const effectiveExportRangeEnd = cropEnabled
+    ? Math.min(
+        typeof exportRangeEnd === "number" ? exportRangeEnd : songCrop!.endSec,
+        songCrop!.endSec > songCrop!.startSec ? songCrop!.endSec : (audioDurationSec ?? Infinity),
+      )
+    : exportRangeEnd;
 
   const [status, setStatus] = useState<ExportStatus>(
     existingExport?.export_status === "completed" ? "completed" : "idle",
@@ -196,12 +301,24 @@ export function FinalVideoExport({
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
   const [prepareId, setPrepareId]               = useState<string | null>(null);
+  const [prepareExpiresAt, setPrepareExpiresAt] = useState<number | null>(null);
   const [clipCheckResults, setClipCheckResults] = useState<ClipCheckRow[] | null>(null);
   const [audioCheckResult, setAudioCheckResult] = useState<AudioCheckRow | null>(null);
   const [prepareError, setPrepareError]         = useState<string | null>(null);
   const [prepareAllReady, setPrepareAllReady]   = useState(false);
   const [prepareReadyCount, setPrepareReadyCount] = useState(0);
   const [checkTableExpanded, setCheckTableExpanded] = useState(true);
+  const [isAutoRecovering, setIsAutoRecovering] = useState(false);
+
+  /* ── Live "expires in" ticker for the prepared session ── */
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!prepareExpiresAt) return;
+    const interval = setInterval(() => setNowTick(Date.now()), 15_000);
+    return () => clearInterval(interval);
+  }, [prepareExpiresAt]);
+  const msUntilExpiry = prepareExpiresAt ? prepareExpiresAt - nowTick : null;
+  const isPrepareLikelyExpired = msUntilExpiry !== null && msUntilExpiry <= 0;
 
   /* ── Audio source: prefer the EXACT URL the master player uses ── */
   const effectiveAudioUrl = (masterAudioUrl?.trim() || audioUrl?.trim()) || null;
@@ -209,10 +326,11 @@ export function FinalVideoExport({
   const anyClip = scenes.some((s) => !!s.demoClipUrl);
   if (!anyClip) return null;
 
-  async function handlePrepare() {
-    if (!projectId || selectedScenes.length === 0) return;
+  async function handlePrepare(): Promise<{ ready: boolean; prepareId: string | null }> {
+    if (!projectId || selectedScenes.length === 0) return { ready: false, prepareId: null };
     setPrepareState("running");
     setPrepareId(null);
+    setPrepareExpiresAt(null);
     setClipCheckResults(null);
     setAudioCheckResult(null);
     setPrepareError(null);
@@ -254,18 +372,23 @@ export function FinalVideoExport({
         readyClips: number;
         clips: ClipCheckRow[];
         audio?: AudioCheckRow | null;
+        expiresAt?: number;
         error?: string;
       }>(res, "/api/prepare-export-files");
       if (!res.ok) throw new Error(data.error ?? `Prepare failed (HTTP ${res.status})`);
       setPrepareId(data.prepareId);
+      setPrepareExpiresAt(data.expiresAt ?? null);
+      setNowTick(Date.now());
       setClipCheckResults(data.clips);
       setAudioCheckResult(data.audio ?? null);
       setPrepareAllReady(data.allReady);
       setPrepareReadyCount(data.readyClips);
       setPrepareState(data.allReady ? "done" : "failed");
+      return { ready: data.allReady, prepareId: data.prepareId };
     } catch (err) {
       setPrepareState("failed");
       setPrepareError(err instanceof Error ? err.message : "Prepare failed");
+      return { ready: false, prepareId: null };
     }
   }
 
@@ -276,8 +399,112 @@ export function FinalVideoExport({
     : aspectRatio === "16:9" ? "1920×1080 · YouTube"
     : "1080×1080 · Square";
 
-  const isRangeExport = typeof exportRangeStart === "number" && typeof exportRangeEnd === "number"
-    && exportRangeEnd > exportRangeStart;
+  const isRangeExport = typeof effectiveExportRangeStart === "number" && typeof effectiveExportRangeEnd === "number"
+    && effectiveExportRangeEnd > effectiveExportRangeStart;
+
+  /** Below this, a "range" export is effectively meaningless and FFmpeg can fail
+   *  (near-zero-duration output). Matches the server-side guard in export-video.ts. */
+  const MIN_RANGE_DURATION_SEC = 0.25;
+  /** A range was requested (start/end resolved to numbers, e.g. via the song-crop
+   *  intersection) but doesn't resolve to a usable, positive-length window — catches
+   *  cases the caller's own validity flag wouldn't see (e.g. crop window collapse). */
+  const derivedRangeInvalid =
+    (typeof effectiveExportRangeStart === "number" || typeof effectiveExportRangeEnd === "number") &&
+    !(isRangeExport && (effectiveExportRangeEnd! - effectiveExportRangeStart!) >= MIN_RANGE_DURATION_SEC);
+  const exportRangeBlocked = rangeInvalid || derivedRangeInvalid;
+  const exportRangeBlockedReason = rangeInvalid
+    ? (rangeInvalidReason ?? "The selected custom export range is invalid.")
+    : "The selected export range resolves to less than a quarter-second of video. Adjust the range or switch to Full Video.";
+
+  /** Fires the export request against a specific prepareId. Throws on failure,
+   *  with `.code` set to "PREPARE_STALE" when the failure is recoverable by re-preparing. */
+  async function runExportRequest(prepareIdToUse: string | null) {
+    const token = await getAccessToken();
+    const timelineOrder = scenes.map((s) => s.id);
+
+    const res = await fetch("/api/export-final-video", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token ?? ""}`,
+      },
+      body: JSON.stringify({
+        projectId,
+        clipUrls,
+        audioUrl: hasAudio ? effectiveAudioUrl : null,
+        timelineOrder,
+        testMode: false,
+        aspectRatio,
+        fadeAudioInSec: hasAudio ? fadeAudioInSec : 0,
+        fadeAudioOutSec: hasAudio ? fadeAudioOutSec : 0,
+        loopAudio: hasAudio ? loopAudio : false,
+        audioStartSec: hasAudio ? audioStartSec : 0,
+        matchVideoLength: hasAudio ? matchVideoLength : false,
+        addWatermark,
+        customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
+        watermarkPosition,
+        watermarkSize,
+        watermarkMargin,
+        audioSource,
+        captions: captionExportMode === "burn" && captions && captions.mode !== "none" ? captions : null,
+        captionExportMode,
+        branding: branding ?? null,
+        exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
+        exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
+        clipTransitions:  orderedClipTransitions ?? null,
+        manualGapsBeforeSec: manualGapsBeforeSec ?? null,
+        effects:               effects?.length ? effects : null,
+        overlayItems:          overlayItems?.length ? overlayItems : null,
+        overlayEffects:        overlays?.length ? overlays : null,
+        overlayEffectIntensity: overlayIntensity ?? null,
+        fitMode:               fitMode ?? "fill",
+        prepareId:             prepareIdToUse ?? undefined,
+      }),
+      signal: AbortSignal.timeout(10 * 60 * 1000),
+    });
+
+    if (!res.ok) {
+      const body = await parseJsonResponse<{
+        error?: string;
+        code?: string;
+        exportStatus?: Record<string, unknown>;
+        ffmpegStderr?: string;
+        stderrTail?: string[];
+        ffmpegExitCode?: number;
+      }>(res, "POST /api/generate/export-video");
+      const err = Object.assign(
+        new Error(body.error ?? `Export failed (HTTP ${res.status})`),
+        {
+          code:           body.code,
+          exportStatus:   body.exportStatus,
+          ffmpegStderr:   body.ffmpegStderr,
+          stderrTail:     body.stderrTail,
+          ffmpegExitCode: body.ffmpegExitCode,
+        },
+      );
+      throw err;
+    }
+
+    const data = await parseJsonResponse<{
+      url: string;
+      clipCount: number;
+      audioIncluded: boolean;
+      audioSource?: string;
+      duration?: number;
+      testMode?: boolean;
+      exportStatus?: Record<string, unknown>;
+      debug?: { identicalClipsDetected?: boolean };
+    }>(res, "POST /api/generate/export-video");
+
+    if (data.debug?.identicalClipsDetected) {
+      throw new Error(
+        "Server detected two or more downloaded clips with identical content. " +
+        "Re-generate the affected Runway clips and try again.",
+      );
+    }
+
+    return { data, timelineOrder };
+  }
 
   async function handleExport() {
     if (!projectId) {
@@ -296,89 +523,54 @@ export function FinalVideoExport({
       });
       return;
     }
+    if (exportRangeBlocked) {
+      toast({ title: "Invalid export range", description: exportRangeBlockedReason, variant: "destructive" });
+      return;
+    }
 
     setStatus("exporting");
     setErrorMsg(null);
     setProgressStep("Verifying clips…");
 
     try {
-      const token = await getAccessToken();
-      const timelineOrder = scenes.map((s) => s.id);
-
       setProgressStep(
         `Stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
         ` · ${aspectRatio} · ${resolution}` +
         (hasAudio ? ` · mixing audio…` : " · no audio…"),
       );
 
-      const res = await fetch("/api/export-final-video", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token ?? ""}`,
-        },
-        body: JSON.stringify({
-          projectId,
-          clipUrls,
-          audioUrl: hasAudio ? effectiveAudioUrl : null,
-          timelineOrder,
-          testMode: false,
-          aspectRatio,
-          fadeAudioIn: hasAudio ? fadeAudioIn : false,
-          fadeAudioOut: hasAudio ? fadeAudioOut : false,
-          loopAudio: hasAudio ? loopAudio : false,
-          addWatermark,
-          customWatermarkUrl: addWatermark ? (customWatermarkUrl ?? null) : null,
-          audioSource,
-          captions: captionExportMode === "burn" && captions && captions.mode !== "none" ? captions : null,
-          captionExportMode,
-          branding: branding ?? null,
-          exportRangeStart: typeof exportRangeStart === "number" ? exportRangeStart : null,
-          exportRangeEnd:   typeof exportRangeEnd   === "number" ? exportRangeEnd   : null,
-          clipTransitions:  clipTransitions ?? null,
-          overlayItems:     overlayItems?.length ? overlayItems : null,
-          prepareId:        prepareId ?? undefined,
-        }),
-        signal: AbortSignal.timeout(10 * 60 * 1000),
-      });
-
-      if (!res.ok) {
-        const body = await parseJsonResponse<{
-          error?: string;
-          exportStatus?: Record<string, unknown>;
-          ffmpegStderr?: string;
-          stderrTail?: string[];
-          ffmpegExitCode?: number;
-        }>(res, "POST /api/generate/export-video");
-        const err = Object.assign(
-          new Error(body.error ?? `Export failed (HTTP ${res.status})`),
-          {
-            exportStatus:   body.exportStatus,
-            ffmpegStderr:   body.ffmpegStderr,
-            stderrTail:     body.stderrTail,
-            ffmpegExitCode: body.ffmpegExitCode,
-          },
-        );
-        throw err;
+      let result;
+      try {
+        result = await runExportRequest(prepareId);
+      } catch (err: unknown) {
+        const code = (err as { code?: string }).code;
+        if (code === "PREPARE_STALE") {
+          // The prepared session vanished (server restart / TTL expiry / source
+          // drift) between "Prepare Export Files Only" and this click. Silently
+          // re-prepare once with the current clip/audio state and retry.
+          setIsAutoRecovering(true);
+          setProgressStep("Prepared files expired — re-preparing automatically…");
+          const { ready, prepareId: freshPrepareId } = await handlePrepare();
+          if (!ready || !freshPrepareId) {
+            setIsAutoRecovering(false);
+            throw new Error(
+              "Prepared files expired and automatic re-preparation failed. " +
+              "Click 'Prepare Export Files Only' again and try exporting.",
+            );
+          }
+          setProgressStep(
+            `Re-prepared — stitching ${selectedScenes.length} clip${selectedScenes.length > 1 ? "s" : ""}` +
+            ` · ${aspectRatio} · ${resolution}` +
+            (hasAudio ? ` · mixing audio…` : " · no audio…"),
+          );
+          result = await runExportRequest(freshPrepareId);
+          setIsAutoRecovering(false);
+        } else {
+          throw err;
+        }
       }
 
-      const data = await parseJsonResponse<{
-        url: string;
-        clipCount: number;
-        audioIncluded: boolean;
-        audioSource?: string;
-        duration?: number;
-        testMode?: boolean;
-        exportStatus?: Record<string, unknown>;
-        debug?: { identicalClipsDetected?: boolean };
-      }>(res, "POST /api/generate/export-video");
-
-      if (data.debug?.identicalClipsDetected) {
-        throw new Error(
-          "Server detected two or more downloaded clips with identical content. " +
-          "Re-generate the affected Runway clips and try again.",
-        );
-      }
+      const { data, timelineOrder } = result;
 
       setExportUrl(data.url);
       setStatus("completed");
@@ -400,6 +592,7 @@ export function FinalVideoExport({
         description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} · ${aspectRatio}${data.audioIncluded ? " · with audio" : " · video only"}.`,
       });
     } catch (err: unknown) {
+      setIsAutoRecovering(false);
       const msg = err instanceof Error ? err.message : "Export failed";
       if (msg === "out_of_credits") {
         setStatus("idle");
@@ -533,8 +726,8 @@ export function FinalVideoExport({
                 {hasAudio && (
                   <p className="text-[10px] text-white/30 mt-0.5">
                     {[
-                      fadeAudioIn && "Fade in",
-                      fadeAudioOut && "Fade out",
+                      fadeAudioInSec > 0 && "Fade in",
+                      fadeAudioOutSec > 0 && "Fade out",
                       loopAudio && "Loop if shorter",
                     ].filter(Boolean).join(" · ") || "No audio effects"}
                   </p>
@@ -746,8 +939,30 @@ export function FinalVideoExport({
                   />
                 )}
 
-                {/* Export buttons — only shown when all clips are ready */}
-                {prepareAllReady && (
+                {/* Prepared-session expiry indicator */}
+                {prepareAllReady && msUntilExpiry !== null && (
+                  <p className={`text-center text-[10px] leading-relaxed ${
+                    isPrepareLikelyExpired ? "text-amber-400/80" : "text-white/25"
+                  }`}>
+                    {isPrepareLikelyExpired
+                      ? "Prepared files may have expired — clicking export will auto re-prepare if needed."
+                      : `Prepared files expire in ~${Math.max(1, Math.round(msUntilExpiry / 60_000))} min. Export before then, or re-prepare.`}
+                  </p>
+                )}
+
+                {/* Invalid export range — block before the confirm/export buttons */}
+                {exportRangeBlocked && (
+                  <div className="space-y-2">
+                    <Button disabled className="w-full gap-2 opacity-50 cursor-not-allowed" data-testid="btn-export-range-blocked">
+                      <XCircle className="h-4 w-4" />
+                      Export Blocked — Invalid Export Range
+                    </Button>
+                    <p className="text-center text-[11px] text-red-400/80 leading-relaxed">{exportRangeBlockedReason}</p>
+                  </div>
+                )}
+
+                {/* Export buttons — only shown when all clips are ready and the range is valid */}
+                {prepareAllReady && !exportRangeBlocked && (
                   <>
                     {!confirmed ? (
                       <Button
@@ -764,11 +979,16 @@ export function FinalVideoExport({
                     ) : (
                       <Button
                         onClick={handleExport}
+                        disabled={isAutoRecovering}
                         className="gold-glow w-full gap-2"
                         data-testid="btn-start-export"
                       >
-                        <Film className="h-4 w-4" />
-                        Confirm &amp; Start Export
+                        {isAutoRecovering ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Film className="h-4 w-4" />
+                        )}
+                        {isAutoRecovering ? "Re-preparing…" : "Confirm & Start Export"}
                       </Button>
                     )}
                   </>

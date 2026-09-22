@@ -1,12 +1,14 @@
 import { Sparkles, SlidersHorizontal, Mic2, BookOpen, CheckCircle2, Circle, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EditorSettings, MusicStudioSettings } from "@/lib/editor-settings";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { AiAutoMix } from "@/components/editor/music/AiAutoMix";
 import { ManualDAW } from "@/components/editor/music/ManualDAW";
 import { SongWorkflow } from "@/components/editor/music/SongWorkflow";
 import { LipSyncStudio } from "@/components/editor/music/LipSyncStudio";
+import { GenerateAudio } from "@/components/editor/music/GenerateAudio";
 import { useMixPreview } from "@/components/editor/music/useMixPreview";
+import type { AudioExportType, DirectAudioExportStatus } from "@/lib/audio-export";
 
 interface MusicStudioProps {
   settings: EditorSettings;
@@ -27,6 +29,12 @@ interface MusicStudioProps {
   activeArtist?: ArtistVault | null;
   /** Navigate user to the Captions tab */
   onGoToCaptions?: () => void;
+  /** Simple mode: hide the Manual DAW / Lip Sync mode switcher and force AI Auto Mix. */
+  isSimple?: boolean;
+  /** Edge-triggered request from the video-audio fallback warning. */
+  requestedExport?: AudioExportType | null;
+  onExportRequestHandled?: () => void;
+  onDirectExportStatusChange?: (status: DirectAudioExportStatus) => void;
 }
 
 const MODES: {
@@ -51,10 +59,34 @@ export function MusicStudio({
   transcriptText,
   activeArtist,
   onGoToCaptions,
+  isSimple = false,
+  requestedExport = null,
+  onExportRequestHandled,
+  onDirectExportStatusChange,
 }: MusicStudioProps) {
   const ms = settings.musicStudio;
   const preview = useMixPreview(ms.stems, ms.master);
   const [guideOpen, setGuideOpen] = useState(true);
+
+  // Simple mode is AI-Auto-Mix only — Manual DAW / Lip Sync are advanced
+  // surfaces (stem mixing, EQ, sync tools) hidden behind the mode toggle.
+  // Force the setting back to "auto" if it somehow drifted (e.g. user
+  // started in Advanced, picked Manual, then switched to Simple).
+  useEffect(() => {
+    if (isSimple && ms.mode !== "auto") {
+      onChange({ ...settings, musicStudio: { ...ms, mode: "auto" } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSimple, ms.mode]);
+
+  /* A direct fallback render should use the mature Manual DAW export path,
+     even if the user currently has AI Auto Mix selected. */
+  useEffect(() => {
+    if (requestedExport && !isSimple && ms.mode !== "manual") {
+      onChange({ ...settings, musicStudio: { ...ms, mode: "manual" } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedExport, isSimple, ms.mode]);
 
   /*
    * Use the project-level audioUrl if available; otherwise fall back to the
@@ -164,7 +196,8 @@ export function MusicStudio({
         )}
       </div>
 
-      {/* Mode selector */}
+      {/* Mode selector — hidden in Simple mode (AI Auto Mix only) */}
+      {!isSimple && (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {MODES.map((m) => {
           const Icon = m.icon;
@@ -198,6 +231,10 @@ export function MusicStudio({
           );
         })}
       </div>
+      )}
+
+      {/* Generate Real Audio — available regardless of mode, adds a stem the timeline can use */}
+      <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} />
 
       {/*
        * Song Workflow — always shown at the top of every mode whenever
@@ -215,11 +252,18 @@ export function MusicStudio({
         />
       )}
 
-      {ms.mode === "manual" && (
-        <ManualDAW settings={settings} onChange={onChange} preview={preview} />
+      {!isSimple && ms.mode === "manual" && (
+        <ManualDAW
+          settings={settings}
+          onChange={onChange}
+          preview={preview}
+          requestedExport={requestedExport}
+          onExportRequestHandled={onExportRequestHandled}
+          onDirectExportStatusChange={onDirectExportStatusChange}
+        />
       )}
 
-      {ms.mode === "lipsync" && (
+      {!isSimple && ms.mode === "lipsync" && (
         <LipSyncStudio
           audioUrl={effectiveAudioUrl}
           transcriptText={transcriptText ?? null}

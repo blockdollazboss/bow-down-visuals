@@ -7,9 +7,11 @@ import {
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug, Mic2,
+  Move, Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,15 +27,20 @@ import {
   formatDimensions,
   FORMAT_PRESET_LABELS,
   VIDEO_FORMATS,
+  MASTER_PLAYER_SNAP_POSITIONS,
+  MASTER_PLAYER_MIN_WIDTH,
+  MASTER_PLAYER_MAX_WIDTH,
+  MASTER_PLAYER_DEFAULT_WIDTH,
+  MASTER_PLAYER_MIN_HEIGHT,
   type EditorSettings,
   type VideoFormat,
   type FitMode,
+  type MasterPlayerSnapPosition,
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
-import { VideoTimeline } from "@/components/editor/VideoTimeline";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
@@ -42,6 +49,19 @@ import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
+import { TimelineDock } from "@/components/editor/TimelineDock";
+import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import {
+  AUDIO_EXPORT_BUTTONS,
+  audioExportTypeForVideoAudioSource,
+  canRenderVideoAudioSource,
+  type AudioExportType,
+  type DirectAudioExportStatus,
+} from "@/lib/audio-export";
+import {
+  resolveVideoAudio,
+  VIDEO_AUDIO_SOURCE_LABELS,
+} from "@/lib/resolve-video-audio-url";
 
 type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio";
 
@@ -99,6 +119,10 @@ export default function VideoEditor() {
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
+  const { isSimple } = useUserMode();
+  /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
+   *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
+  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "timeline", "export"];
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -108,21 +132,44 @@ export default function VideoEditor() {
   const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  const [requestedAudioExport, setRequestedAudioExport] = useState<AudioExportType | null>(null);
+  const [directAudioExportStatus, setDirectAudioExportStatus] = useState<DirectAudioExportStatus>({ status: "idle" });
   function setTab(t: EditorTab) {
-    setRawTab(t);
-    window.dispatchEvent(new CustomEvent("bdv-editor-tab", { detail: t }));
+    // Centralized enforcement: even internal "go to X" callbacks (captions,
+    // effects, branding, lip-sync, studio) must never land a Simple-mode
+    // user on an advanced tab. Redirect to a safe default instead.
+    const next = isSimple && !SIMPLE_VISIBLE_TABS.includes(t) ? "clips" : t;
+    setRawTab(next);
+    window.dispatchEvent(new CustomEvent("bdv-editor-tab", { detail: next }));
   }
+  useEffect(() => {
+    if (isSimple && !SIMPLE_VISIBLE_TABS.includes(tab)) setTab("clips");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSimple, tab]);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
+  /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the floating
+   *  master player's bottom-anchored snap positions can clear it instead of overlapping it. */
+  const [dockHeight, setDockHeight] = useState(0);
+  useEffect(() => {
+    if (!project) setDockHeight(0);
+  }, [project]);
+  /** Current rendered height of the sticky top nav bar, so the floating master player's
+   *  top-anchored snap positions can clear it instead of overlapping it. */
+  const [headerHeight, setHeaderHeight] = useState(0);
   /** State broadcast from TimelinePreviewPlayer — drives Live Preview mirroring */
   const [previewEngineState, setPreviewEngineState] = useState<SharedPreviewState | null>(null);
   const [rebuildStatus, setRebuildStatus] = useState<"idle" | "rebuilding" | "done" | "error">("idle");
   const [rebuildError, setRebuildError] = useState<string | null>(null);
+  const [autoSceneStatus, setAutoSceneStatus] = useState<"idle" | "generating" | "error">("idle");
+  const [autoSceneError, setAutoSceneError] = useState<string | null>(null);
   const [syncState, setSyncState] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [transcriptText, setTranscriptText] = useState<string | null>(null);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
   /** Duration (seconds) probed from the resolved preview audio URL */
   const [detectedAudioDuration, setDetectedAudioDuration] = useState<number | null>(null);
+  /** Selected clip index — shared between the persistent TimelineDock and the Studio tab inspector. */
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
   const [testEffectActive, setTestEffectActive] = useState(false);
   const testEffectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,7 +278,9 @@ export default function VideoEditor() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user, projectId, getAccessToken]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depend on user id, not the
+    // user object, so a same-user session refresh (new object ref) doesn't re-trigger reload
+  }, [user?.id, projectId, getAccessToken]);
 
   /* ── Keep scenesRef in sync so persist() is never stale ── */
   useEffect(() => { scenesRef.current = scenes; }, [scenes]);
@@ -391,6 +440,30 @@ export default function VideoEditor() {
     }
   }
 
+  /* ── Generate scenes straight from the song's audio (no text plan needed) ── */
+  async function generateScenesFromSong() {
+    if (!previewAudioUrl) return;
+    setAutoSceneStatus("generating");
+    setAutoSceneError(null);
+    try {
+      const { scenes: newScenes } = await runAudioSceneFlow({
+        lyrics: lyricsForCaptions ?? "",
+        audioUrl: previewAudioUrl,
+        audioFile: null,
+        songStructure: null,
+        getAccessToken,
+      });
+      scenesRef.current = newScenes;
+      setScenes(newScenes);
+      setAutoSceneStatus("idle");
+      toast({ title: `${newScenes.length} scenes generated from your song`, description: "Scene cards are ready. Click Create Video Clip on any scene to generate a Runway clip." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not generate scenes from this song.";
+      setAutoSceneStatus("error");
+      setAutoSceneError(msg);
+    }
+  }
+
   /* ── Sync Missing Clips ── */
   async function syncMissingClips() {
     if (!project) return;
@@ -483,24 +556,34 @@ export default function VideoEditor() {
    *  2. project-level audioUrl (uploaded song)
    *  3. first uploaded stem URL (Music Mixer fallback)
    */
-  const previewAudioUrl: string | null = (() => {
-    const va = settings.musicStudio.videoAudio;
-    const ms = settings.musicStudio;
-    switch (va.source) {
-      case "none": return audioUrl ?? ms.stems[0]?.url ?? null;
-      case "uploaded": return audioUrl ?? ms.stems[0]?.url ?? null;
-      case "full-mix": {
-        const mp3 = ms.exports.find(r => r.kind === "full" && r.format === "mp3");
-        return mp3?.url ?? ms.exports.find(r => r.kind === "full")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
-      }
-      case "instrumental":
-        return ms.exports.find(r => r.kind === "instrumental")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
-      case "acapella":
-        return ms.exports.find(r => r.kind === "acapella")?.url ?? audioUrl ?? ms.stems[0]?.url ?? null;
-      default:
-        return audioUrl ?? ms.stems[0]?.url ?? null;
+  const previewAudioResolution = resolveVideoAudio(settings.musicStudio, audioUrl);
+  const previewAudioUrl: string | null = previewAudioResolution.url;
+  const selectedMixMissing = previewAudioResolution.missingExport &&
+    settings.musicStudio.videoAudio.source !== "uploaded" &&
+    settings.musicStudio.videoAudio.source !== "none";
+  const missingMixExportType = audioExportTypeForVideoAudioSource(settings.musicStudio.videoAudio.source);
+  const canDirectRenderMissingMix =
+    !isSimple &&
+    selectedMixMissing &&
+    missingMixExportType !== null &&
+    canRenderVideoAudioSource(settings.musicStudio.videoAudio.source, settings.musicStudio.stems);
+  const missingMixExportLabel = missingMixExportType
+    ? AUDIO_EXPORT_BUTTONS.find((button) => button.id === missingMixExportType)?.label ?? "Render mix"
+    : "Render mix";
+
+  function requestMissingMixRender() {
+    if (!missingMixExportType || !canDirectRenderMissingMix) {
+      setTab("music");
+      return;
     }
-  })();
+    setDirectAudioExportStatus({
+      status: "rendering",
+      exportType: missingMixExportType,
+      label: missingMixExportLabel,
+    });
+    setRequestedAudioExport(missingMixExportType);
+    setTab("music");
+  }
 
   /* ── Lyrics: check project input_data first, then fall back to scene lyricLines ── */
   const projectLyrics =
@@ -623,8 +706,9 @@ export default function VideoEditor() {
   function applyConsistencyToAllScenes() {
     if (!consistencyPrompt || scenes.length === 0) return;
     const updated = scenes.map((scene) => {
-      if (scene.aiVideoPrompt.startsWith(CONSISTENCY_MARKER)) return scene;
-      return { ...scene, aiVideoPrompt: `${consistencyPrompt}\n\n${scene.aiVideoPrompt}`.trimEnd() };
+      const existingPrompt = scene.aiVideoPrompt ?? "";
+      if (existingPrompt.startsWith(CONSISTENCY_MARKER)) return scene;
+      return { ...scene, aiVideoPrompt: `${consistencyPrompt}\n\n${existingPrompt}`.trimEnd() };
     });
     setScenes(updated);
     toast({
@@ -654,13 +738,13 @@ export default function VideoEditor() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
+      <TopBar onHeightChange={setHeaderHeight} />
 
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-yellow-600/[0.07] rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 py-8 md:py-12 pb-40">
         <Link href="/my-projects" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-6 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           Back to Projects
@@ -788,36 +872,54 @@ export default function VideoEditor() {
               onSetVolume={(vol) => timelinePlayerRef.current?.setVolume(vol)}
               onSetMuted={(m) => timelinePlayerRef.current?.setMuted(m)}
               onSetPlaybackRate={(r) => timelinePlayerRef.current?.setPlaybackRate(r)}
+              dockHeight={dockHeight}
+              headerHeight={headerHeight}
             />
 
-            {/* ── Timeline strip under master player ── */}
-            {scenes.length > 0 && (
-              <VideoTimeline
-                scenes={scenes}
-                currentTimeSec={previewEngineState?.currentTime ?? 0}
-                totalDurationSec={songDuration ?? undefined}
-                activeSceneIndex={previewEngineState?.activeSceneIndex ?? 0}
-                captionLines={settings.captions.lines}
-                effects={settings.effects}
-                appliedTransitions={settings.aiEdit?.appliedTransitions}
-                audioUrl={previewAudioUrl}
-                syncMode={settings.musicStudio.videoAudio.syncMode}
-                onSyncModeChange={(mode) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    musicStudio: {
-                      ...prev.musicStudio,
-                      videoAudio: { ...prev.musicStudio.videoAudio, syncMode: mode },
-                    },
-                  }))
-                }
-                clipEdits={settings.clips}
-                onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
-                onSceneClick={(id, _startSec) => setPreviewSceneId(id)}
-              />
+            {selectedMixMissing && (
+              <div
+                className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07]"
+                data-testid="video-audio-fallback-warning"
+              >
+                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-amber-300">Video audio fallback active</p>
+                  <p className="text-[11px] text-amber-200/65 mt-0.5 leading-relaxed">
+                    {VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source]} is selected, but it has not been rendered yet.
+                    Preview and export are using{" "}
+                    {previewAudioResolution.fallbackSource === "project-audio"
+                      ? "the uploaded song"
+                      : previewAudioResolution.fallbackSource === "first-stem"
+                      ? "the first uploaded stem"
+                      : "no audio"}{" "}
+                    instead.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestMissingMixRender}
+                  disabled={directAudioExportStatus.status === "rendering"}
+                  data-testid="btn-render-missing-video-audio"
+                  className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 underline hover:text-amber-200 transition-colors disabled:opacity-60 disabled:no-underline"
+                >
+                  {directAudioExportStatus.status === "rendering" ? (
+                    <><Loader2 className="h-3 w-3 animate-spin no-underline" /> Rendering…</>
+                  ) : canDirectRenderMissingMix ? (
+                    "Render mix"
+                  ) : (
+                    "Open Music Studio"
+                  )}
+                </button>
+                {directAudioExportStatus.status === "error" &&
+                  directAudioExportStatus.exportType === missingMixExportType && (
+                    <p className="basis-full text-[10px] text-red-300/85 mt-1">
+                      {directAudioExportStatus.message}
+                    </p>
+                  )}
+              </div>
             )}
 
-            {/* ── Collapsible Debug Panel — below timeline, collapsed by default ── */}
+            {/* ── Collapsible Debug Panel — below master player, collapsed by default ── */}
             <div className="rounded-xl border border-white/[0.06] overflow-hidden">
               <button
                 type="button"
@@ -875,17 +977,26 @@ export default function VideoEditor() {
               {/* RIGHT: scrollable tabs column */}
               <div className="flex-1 min-w-0">
 
-            {/* Tab nav */}
-            <div className="flex flex-wrap gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-6">
-              <TabButton active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
-              <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
-              <TabButton active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Music Studio" testId="tab-music" />
-              <TabButton active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
-              <TabButton active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
-              <TabButton active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
-              <TabButton active={tab === "lip-sync"} onClick={() => setTab("lip-sync")} icon={<Mic2 className="h-4 w-4" />} label="Lip Sync" testId="tab-lip-sync" />
-              <TabButton active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
-              <TabButton active={tab === "studio"} onClick={() => setTab("studio")} icon={<Clapperboard className="h-4 w-4" />} label="Studio" testId="tab-studio" />
+            {/* Tab nav — ordered as a guided flow: song → scenes → arrange → polish → export */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl border border-white/[0.08] bg-white/[0.03] mb-6">
+              <TabButton step={1} active={tab === "music"} onClick={() => setTab("music")} icon={<Music2 className="h-4 w-4" />} label="Song" testId="tab-music" />
+              <TabButton step={2} active={tab === "clips"} onClick={() => setTab("clips")} icon={<Film className="h-4 w-4" />} label="Clips" testId="tab-clips" />
+              <TabButton step={3} active={tab === "timeline"} onClick={() => setTab("timeline")} icon={<ListVideo className="h-4 w-4" />} label="Timeline" testId="tab-timeline" />
+              {!isSimple && (
+                <>
+                  <TabButton step={4} active={tab === "captions"} onClick={() => setTab("captions")} icon={<Captions className="h-4 w-4" />} label="Captions" testId="tab-captions" />
+                  <TabButton step={5} active={tab === "effects"} onClick={() => setTab("effects")} icon={<Wand2 className="h-4 w-4" />} label="Effects" testId="tab-effects" />
+                  <TabButton step={6} active={tab === "branding"} onClick={() => setTab("branding")} icon={<Layers className="h-4 w-4" />} label="Branding" testId="tab-branding" />
+                  <TabButton step={7} active={tab === "lip-sync"} onClick={() => setTab("lip-sync")} icon={<Mic2 className="h-4 w-4" />} label="Lip Sync" testId="tab-lip-sync" />
+                </>
+              )}
+              <TabButton step={isSimple ? 4 : 8} active={tab === "export"} onClick={() => setTab("export")} icon={<Download className="h-4 w-4" />} label="Export" testId="tab-export" />
+              {!isSimple && (
+                <>
+                  <div className="w-px self-stretch bg-white/[0.08] mx-1" aria-hidden="true" />
+                  <TabButton active={tab === "studio"} onClick={() => setTab("studio")} icon={<Clapperboard className="h-4 w-4" />} label="Advanced" testId="tab-studio" />
+                </>
+              )}
             </div>
 
             {/* ── Timeline tab — always in DOM so audio keeps playing across tab switches ── */}
@@ -902,6 +1013,10 @@ export default function VideoEditor() {
                 externalVideoRef={liveVideoRef}
                 outgoingVideoRef={outgoingVideoRef}
                 onSceneChange={handleSceneChange}
+                timelineLayout={settings.timelineLayout}
+                clipEdits={settings.clips}
+                songCrop={settings.musicStudio.songCrop}
+                audioOffsetSec={settings.musicStudio.videoAudio.startSec ?? 0}
               />
             </div>
 
@@ -913,6 +1028,7 @@ export default function VideoEditor() {
                 onPreviewTransition={handlePreviewTransition}
                 onGoToClips={() => setTab("clips")}
                 onGoToEffects={() => setTab("effects")}
+                isSimple={isSimple}
               />
             )}
 
@@ -936,6 +1052,51 @@ export default function VideoEditor() {
                         </button>
                       </div>
                     )}
+                    {/* Generate Scenes From Song — surfaced when there's no saved plan to rebuild
+                        from, but the song's audio + lyrics are already available. */}
+                    {scenes.length === 0 && !rawResult && (
+                      previewAudioUrl && lyricsForCaptions && lyricsForCaptions.trim().length > 10 ? (
+                        <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-white flex items-center gap-2">
+                              <Sparkles className="h-4 w-4 text-primary shrink-0" /> Generate scenes from your song
+                            </p>
+                            <p className="text-xs text-white/40 mt-0.5">
+                              We'll analyze your song's structure and beats to build a timed scene list automatically — no text plan needed.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { void generateScenesFromSong(); }}
+                            disabled={autoSceneStatus === "generating"}
+                            data-testid="btn-generate-scenes-from-audio"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors bg-primary text-black hover:bg-primary/90 disabled:opacity-50 shrink-0"
+                          >
+                            {autoSceneStatus === "generating"
+                              ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating scenes…</>
+                              : <><Clapperboard className="h-4 w-4" /> Generate Scenes From Song</>}
+                          </button>
+                          {autoSceneStatus === "error" && autoSceneError && (
+                            <p className="text-xs text-red-400/80 basis-full">{autoSceneError}</p>
+                          )}
+                        </div>
+                      ) : !previewAudioUrl ? (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-white/60">No song loaded yet</p>
+                            <p className="text-[10px] text-white/35 mt-0.5">Add your song in the Song tab first, then come back here to build scenes.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setTab("music")}
+                            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors"
+                          >
+                            <Music2 className="h-3.5 w-3.5" /> Go to Song
+                          </button>
+                        </div>
+                      ) : null
+                    )}
+
                     {/* Rebuild scenes banner — shown when saved plan exists */}
                     {rawResult && (
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.02]">
@@ -1035,6 +1196,10 @@ export default function VideoEditor() {
                 transcriptText={transcriptText}
                 activeArtist={activeArtist}
                 onGoToCaptions={() => setTab("captions")}
+                isSimple={isSimple}
+                requestedExport={requestedAudioExport}
+                onExportRequestHandled={() => setRequestedAudioExport(null)}
+                onDirectExportStatusChange={setDirectAudioExportStatus}
               />
             )}
 
@@ -1082,6 +1247,7 @@ export default function VideoEditor() {
                 setSettings={setSettings}
                 audioUrl={audioUrl}
                 masterAudioUrl={previewAudioUrl}
+                audioDuration={previewEngineState?.audioDuration ?? null}
                 projectId={projectId}
               />
             )}
@@ -1096,9 +1262,13 @@ export default function VideoEditor() {
                 rawProjectAudioUrl={audioUrl}
                 masterAudioUrl={previewAudioUrl}
                 onGoToMusicStudio={() => setTab("music")}
+                onRenderMissingMix={requestMissingMixRender}
+                canRenderMissingMix={canDirectRenderMissingMix}
+                directRenderStatus={directAudioExportStatus}
                 onGoToEffects={() => setTab("effects")}
                 masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
                 projectDurationSec={previewEngineState?.audioDuration ?? 0}
+                isSimple={isSimple}
               />
             )}
 
@@ -1117,6 +1287,8 @@ export default function VideoEditor() {
                 onRestart={() => timelinePlayerRef.current?.restart()}
                 onGoToExport={() => setTab("export")}
                 onGoToMusic={() => setTab("music")}
+                selectedIdx={selectedIdx}
+                setSelectedIdx={setSelectedIdx}
               />
             )}
 
@@ -1125,6 +1297,25 @@ export default function VideoEditor() {
           </>
         )}
       </div>
+
+      {project && (
+        <TimelineDock
+          scenes={scenes}
+          setScenes={setScenes}
+          settings={settings}
+          setSettings={setSettings}
+          currentTime={previewEngineState?.currentTime ?? 0}
+          audioDuration={previewEngineState?.audioDuration ?? null}
+          isPlaying={previewEngineState?.isPlaying ?? false}
+          audioUrl={previewAudioUrl}
+          onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+          onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+          onRestart={() => timelinePlayerRef.current?.restart()}
+          selectedIdx={selectedIdx}
+          setSelectedIdx={setSelectedIdx}
+          onHeightChange={setDockHeight}
+        />
+      )}
     </div>
   );
 }
@@ -1250,6 +1441,70 @@ const CYCLE_FORMATS: VideoFormat[] = ["9:16", "16:9", "1:1", "4:5"];
 /** Ordered list for Fit Mode cycling. */
 const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
 
+/** Edge margin (px) for floating snap anchors, and the fixed width of the minimized chip. */
+const FLOAT_PLAYER_MARGIN = 16;
+const MINIMIZED_CHIP_WIDTH = 96;
+
+function floatPlayerAspect(fmt: VideoFormat): number {
+  switch (fmt) {
+    case "16:9": return 16 / 9;
+    case "1:1": return 1;
+    case "4:5": return 4 / 5;
+    case "9:16":
+    default: return 9 / 16;
+  }
+}
+
+/** Pixel rect (top/left) for a given snap anchor, given the floating box's fixed size.
+ *  `bottomSafeArea` (e.g. the TimelineDock's height) is subtracted from bottom-anchored
+ *  positions so the floating box clears other fixed bottom chrome instead of overlapping it.
+ *  `topSafeArea` (the sticky top nav bar's height) is added to top-anchored positions so the
+ *  floating box always renders fully below the header instead of overlapping/hiding behind it.
+ *  Every returned `top` — including the vertically-centered anchors — is clamped to the
+ *  [topSafeArea, bottomSafeArea] band so the player can NEVER render under the top toolbar or
+ *  over the timeline dock, regardless of anchor or aspect ratio. Callers are responsible for
+ *  keeping `h` at or below the available band height (see `floatWidth` sizing in
+ *  MasterPreviewPlayer) — this function only positions the box, it cannot shrink it. */
+function getSnapAnchorRect(pos: MasterPlayerSnapPosition, w: number, h: number, bottomSafeArea = 0, topSafeArea = 0): { top: number; left: number } {
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 720;
+  const m = FLOAT_PLAYER_MARGIN;
+  const minTop = m + topSafeArea;
+  const maxTop = Math.max(minTop, vh - h - m - bottomSafeArea);
+  const midX = (vw - w) / 2;
+  const midY = Math.min(maxTop, Math.max(minTop, (vh - h) / 2));
+  const quarterLeft = vw * 0.25 - w / 2;
+  const quarterRight = vw * 0.75 - w / 2;
+  const top = minTop;
+  const bottom = maxTop;
+  switch (pos) {
+    case "top-left": return { top, left: m };
+    case "top-left-quarter": return { top, left: quarterLeft };
+    case "top-center": return { top, left: midX };
+    case "top-right-quarter": return { top, left: quarterRight };
+    case "top-right": return { top, left: vw - w - m };
+    case "right-center": return { top: midY, left: vw - w - m };
+    case "bottom-right": return { top: bottom, left: vw - w - m };
+    case "bottom-right-quarter": return { top: bottom, left: quarterRight };
+    case "bottom-center": return { top: bottom, left: midX };
+    case "bottom-left-quarter": return { top: bottom, left: quarterLeft };
+    case "bottom-left": return { top: bottom, left: m };
+    case "left-center": return { top: midY, left: m };
+  }
+}
+
+/** Finds the nearest of the 12 fixed snap anchors to a given (top, left) position. */
+function findNearestSnapPosition(pos: { top: number; left: number }, w: number, h: number, bottomSafeArea = 0, topSafeArea = 0): MasterPlayerSnapPosition {
+  let best: MasterPlayerSnapPosition = MASTER_PLAYER_SNAP_POSITIONS[0]!;
+  let bestDist = Infinity;
+  for (const candidate of MASTER_PLAYER_SNAP_POSITIONS) {
+    const rect = getSnapAnchorRect(candidate, w, h, bottomSafeArea, topSafeArea);
+    const dist = (rect.top - pos.top) ** 2 + (rect.left - pos.left) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = candidate; }
+  }
+  return best;
+}
+
 /** Short badge label shown on the Fit Mode button. */
 const FIT_BADGE: Record<FitMode, string> = { fill: "FILL", fit: "FIT", blur: "BLUR" };
 
@@ -1277,6 +1532,8 @@ function MasterPreviewPlayer({
   watermarkText, waveformPosition,
   onTogglePlay, onRestart,
   onSeek, onSetVolume, onSetMuted, onSetPlaybackRate,
+  dockHeight,
+  headerHeight,
 }: {
   eng: SharedPreviewState | null;
   scenes: SceneData[];
@@ -1300,12 +1557,162 @@ function MasterPreviewPlayer({
   onSetVolume: (vol: number) => void;
   onSetMuted: (muted: boolean) => void;
   onSetPlaybackRate: (rate: number) => void;
+  dockHeight: number;
+  headerHeight: number;
 }) {
   const containerRef  = useRef<HTMLDivElement | null>(null);
+  const chromeHeaderRef = useRef<HTMLDivElement | null>(null);
+  const chromeFooterRef = useRef<HTMLDivElement | null>(null);
+  const [chromeHeight, setChromeHeight] = useState(0);
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
   const blurVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  /* ── Master player: always floating (no docked/inline mode), draggable, snaps to
+   *    nearest of 12 anchors on release. Fullscreen replaces the floating chrome
+   *    entirely; minimize/hide are independent presentation states on top of it. ── */
+  const isFloating = !isFullscreen;
+  const isMinimized = !!settings.masterPlayerMinimized && !isFullscreen;
+  const isHidden = !!settings.masterPlayerHidden && !isFullscreen;
+  const aspect = floatPlayerAspect((settings.export.format ?? "9:16") as VideoFormat);
+
+  const [isDraggingFloat, setIsDraggingFloat] = useState(false);
+  const [floatDragPos, setFloatDragPos] = useState<{ top: number; left: number } | null>(null);
+  const floatDragOffsetRef = useRef({ dx: 0, dy: 0 });
+
+  const [isResizingFloat, setIsResizingFloat] = useState(false);
+  const [resizeWidth, setResizeWidth] = useState<number | null>(null);
+  const resizeStartRef = useRef({ startX: 0, startWidth: 0 });
+
+  /* ── Recompute the floating anchor whenever the browser window itself is resized.
+   *    getSnapAnchorRect() reads window.innerWidth/innerHeight at render time, so without
+   *    this listener a viewport resize (e.g. rotating a device, resizing the browser)
+   *    would leave the master player positioned against stale viewport dimensions —
+   *    on a short viewport that can make it overlap the bottom TimelineDock. ── */
+  const [, forceViewportRecalc] = useState(0);
+  useEffect(() => {
+    const onResize = () => forceViewportRecalc((n) => n + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const savedWidth = Math.min(MASTER_PLAYER_MAX_WIDTH, Math.max(MASTER_PLAYER_MIN_WIDTH, settings.masterPlayerSize || MASTER_PLAYER_DEFAULT_WIDTH));
+  const rawFloatWidth = isMinimized ? MINIMIZED_CHIP_WIDTH : (resizeWidth ?? savedWidth);
+  /* The vertical band the player is allowed to occupy — strictly between the top toolbar and
+   * the timeline dock, with the usual float margin on both ends. `chromeHeight` (the drag-handle
+   * header + transport rows measured live below) is subtracted so it's the VIDEO height that's
+   * bounded, not just the whole float box, matching how `floatTotalHeight` is computed below. */
+  const availableBandHeight = typeof window !== "undefined"
+    ? Math.max(1, window.innerHeight - headerHeight - dockHeight - FLOAT_PLAYER_MARGIN * 2 - chromeHeight)
+    : Infinity;
+  /* For wide/landscape formats (e.g. 16:9), the stored width alone can produce a very short,
+   * easy-to-miss player (260px wide -> ~146px tall). Grow the effective width so the rendered
+   * height never drops below MASTER_PLAYER_MIN_HEIGHT, capped at MASTER_PLAYER_MAX_WIDTH so it
+   * never overflows past the normal max footprint. It's also capped by `availableBandHeight` —
+   * converted to an equivalent max width via the locked aspect ratio — so the player's rendered
+   * size can never be taller than the space between the top toolbar and the timeline dock,
+   * regardless of aspect ratio (a portrait 9:16 player at a wide width can otherwise be taller
+   * than a short viewport's usable vertical band). */
+  const maxWidthForBand = Math.max(MASTER_PLAYER_MIN_WIDTH, availableBandHeight * aspect);
+  const floatWidth = isMinimized
+    ? rawFloatWidth
+    : Math.min(MASTER_PLAYER_MAX_WIDTH, maxWidthForBand, Math.max(rawFloatWidth, MASTER_PLAYER_MIN_HEIGHT * aspect));
+  const floatHeight = Math.round(floatWidth / aspect);
+
+  const toggleMinimize = () => {
+    setSettings({ ...settings, masterPlayerMinimized: !settings.masterPlayerMinimized });
+  };
+  const toggleHidden = () => {
+    setSettings({ ...settings, masterPlayerHidden: !settings.masterPlayerHidden });
+  };
+
+  const handleFloatDragStart = (e: React.PointerEvent) => {
+    if (!isFloating || isHidden) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    floatDragOffsetRef.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    setFloatDragPos({ top: rect.top, left: rect.left });
+    setIsDraggingFloat(true);
+  };
+
+  useEffect(() => {
+    if (!isDraggingFloat) return;
+    const onMove = (e: PointerEvent) => {
+      const left = Math.min(Math.max(e.clientX - floatDragOffsetRef.current.dx, 0), window.innerWidth - floatWidth);
+      const top = Math.min(Math.max(e.clientY - floatDragOffsetRef.current.dy, 0), window.innerHeight - (floatHeight + chromeHeight));
+      setFloatDragPos({ top, left });
+    };
+    const onUp = () => {
+      setIsDraggingFloat(false);
+      setFloatDragPos((pos) => {
+        if (pos) {
+          const nearest = findNearestSnapPosition(pos, floatWidth, floatHeight + chromeHeight, dockHeight, headerHeight);
+          setSettings({ ...settings, masterPlayerSnapPosition: nearest });
+        }
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [isDraggingFloat, floatWidth, floatHeight, chromeHeight, settings, setSettings, dockHeight, headerHeight]);
+
+  /* ── Resize: drag the bottom-right handle to grow/shrink the floating player,
+   *    the aspect ratio is always locked to the project's export format. ── */
+  const handleResizeStart = (e: React.PointerEvent) => {
+    if (!isFloating || isMinimized || isHidden) return;
+    e.stopPropagation();
+    resizeStartRef.current = { startX: e.clientX, startWidth: savedWidth };
+    setResizeWidth(savedWidth);
+    setIsResizingFloat(true);
+  };
+
+  useEffect(() => {
+    if (!isResizingFloat) return;
+    const onMove = (e: PointerEvent) => {
+      const delta = e.clientX - resizeStartRef.current.startX;
+      const next = Math.min(MASTER_PLAYER_MAX_WIDTH, Math.max(MASTER_PLAYER_MIN_WIDTH, resizeStartRef.current.startWidth + delta));
+      setResizeWidth(next);
+    };
+    const onUp = () => {
+      setIsResizingFloat(false);
+      setResizeWidth((w) => {
+        if (w != null) setSettings({ ...settings, masterPlayerSize: w });
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [isResizingFloat, settings, setSettings]);
+
+  /* Total on-screen footprint = the video's own target height (floatHeight) PLUS the
+   * natural height of the surrounding chrome (drag-handle header + transport rows below),
+   * measured live via ResizeObserver. Without this, a fixed container height equal to just
+   * floatHeight would force the flex layout to steal space from — and can collapse to
+   * zero — the video canvas to make room for the header/controls. */
+  const floatTotalHeight = floatHeight + chromeHeight;
+  const floatAnchorRect = getSnapAnchorRect(settings.masterPlayerSnapPosition, floatWidth, floatTotalHeight, dockHeight, headerHeight);
+  const floatStyle: React.CSSProperties | undefined = isFloating
+    ? {
+        position: "fixed",
+        top: isHidden ? -9999 : (floatDragPos ? floatDragPos.top : floatAnchorRect.top),
+        left: isHidden ? -9999 : (floatDragPos ? floatDragPos.left : floatAnchorRect.left),
+        width: floatWidth,
+        height: floatTotalHeight,
+        zIndex: 60,
+        transition: (floatDragPos || isResizingFloat || isHidden) ? "none" : "top 0.2s ease, left 0.2s ease, width 0.15s ease, height 0.15s ease",
+        pointerEvents: isHidden ? "none" : undefined,
+        visibility: isHidden ? "hidden" : "visible",
+      }
+    : undefined;
 
   /* ── Controls auto-hide (fullscreen only) ── */
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -1368,6 +1775,24 @@ function MasterPreviewPlayer({
   });
   const [enterOnScroll,      setEnterOnScroll     ] = useState(true);
   const [keepOnTabSwitch,    setKeepOnTabSwitch   ] = useState(true);
+
+  /* ── Measure the actual rendered height of the header + footer chrome (drag handle,
+   *    transport rows, etc.) so the outer floating container's fixed height can add this
+   *    on top of the video's target height, instead of the flex layout stealing space
+   *    from — and potentially collapsing to zero — the video canvas. ── */
+  useEffect(() => {
+    const headerEl = chromeHeaderRef.current;
+    const footerEl = chromeFooterRef.current;
+    const recompute = () => {
+      const h = (headerEl?.getBoundingClientRect().height ?? 0) + (footerEl?.getBoundingClientRect().height ?? 0);
+      setChromeHeight(h);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    if (headerEl) ro.observe(headerEl);
+    if (footerEl) ro.observe(footerEl);
+    return () => ro.disconnect();
+  }, [isFloating, isMinimized, isFullscreen, autoPiP, pipError]);
   /* Return-to-browser tracking */
   const [wasPlayingBeforePiP,setWasPlayingBeforePiP] = useState(false);
   const [lastKnownTime,      setLastKnownTime     ] = useState(0);
@@ -1780,30 +2205,77 @@ function MasterPreviewPlayer({
   const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
 
   return (
+    <>
+      {/* Persistent affordance to bring the player back once it's been hidden off-screen. */}
+      {isHidden && (
+        <button
+          type="button"
+          onClick={toggleHidden}
+          data-testid="master-player-show-tab"
+          title="Show master player"
+          style={{ position: "fixed", top: floatAnchorRect.top, left: floatAnchorRect.left, zIndex: 61 }}
+          className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-black/90 border border-white/20 text-white/70 hover:text-white hover:border-primary/50 shadow-2xl transition-colors"
+        >
+          <Eye className="h-3.5 w-3.5" />
+          <span className="text-[9px] font-bold uppercase tracking-wider">Show Player</span>
+        </button>
+      )}
     <div
       ref={containerRef}
       onMouseMove={showControls}
-      className={`overflow-hidden mb-6 ${
+      className={`overflow-hidden ${isFloating ? "" : "mb-6"} ${
         isFullscreen
           ? "bg-black flex flex-col"
-          : "rounded-2xl border border-white/[0.08] bg-black/50"
+          : `rounded-2xl border shadow-2xl flex flex-col ${isDraggingFloat ? "border-primary/60 cursor-grabbing" : "border-white/[0.15] bg-black"}`
       }`}
+      style={floatStyle}
     >
+      {isFloating && (
+        <div
+          ref={chromeHeaderRef}
+          onPointerDown={handleFloatDragStart}
+          className="flex items-center justify-between px-2 py-1 bg-black/80 border-b border-white/[0.1] cursor-grab active:cursor-grabbing select-none shrink-0"
+          title="Drag to reposition — release to snap"
+        >
+          <span className="flex items-center gap-1 text-[9px] font-bold text-white/50 uppercase tracking-wider">
+            <Move className="h-3 w-3" /> {!isMinimized && "Master Player"}
+          </span>
+          <span className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={toggleMinimize}
+              data-testid="master-player-minimize-toggle"
+              title={isMinimized ? "Restore master player" : "Minimize master player"}
+              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
+            >
+              {isMinimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}
+            </button>
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={toggleHidden}
+              data-testid="master-player-hide-toggle"
+              title="Hide master player"
+              className="flex items-center justify-center h-5 w-5 rounded text-white/50 hover:text-white hover:bg-white/[0.1] transition-colors"
+            >
+              <EyeOff className="h-3 w-3" />
+            </button>
+          </span>
+        </div>
+      )}
       {/* ── Video area — MasterVideoElement is ALWAYS in DOM ── */}
       {(() => {
         const fmt    = settings.export.format ?? "9:16";
         const arCss  = formatAspectCss(fmt);
-        const isWide = fmt === "16:9";
         const canvas = (
       <div
-        className="bg-black relative overflow-hidden [container-type:inline-size]"
-        style={isFullscreen
-          ? { aspectRatio: arCss, height: "100%", maxWidth: "100%" }
-          : { aspectRatio: arCss, maxHeight: isWide ? undefined : "72vh", transition: "aspect-ratio 0.35s ease" }
-        }
+        data-testid="master-player-canvas"
+        className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
+        style={{ aspectRatio: arCss, height: isFullscreen ? "100%" : floatHeight, maxWidth: "100%" }}
       >
         {/* ── Blur-background layer (fit mode = blur) ── */}
-        {fitMode === "blur" && !isFullscreen && (
+        {fitMode === "blur" && !isFullscreen && !isMinimized && (
           <div
             className="absolute inset-0 overflow-hidden pointer-events-none"
             style={{ transform: "scale(1.08)", zIndex: 0 }}
@@ -1849,6 +2321,7 @@ function MasterPreviewPlayer({
           watermarkSize={settings.watermarkSize ?? "medium"}
           watermarkMargin={settings.watermarkMargin ?? 16}
           watermarkShowOnPreview={settings.watermarkShowOnPreview ?? true}
+          brandingWatermark={settings.branding?.watermark ?? null}
           waveformPosition={settings.waveformPosition ?? "bottom-safe"}
           overlayQualityMode={settings.overlayQualityMode ?? "music-video"}
           overlayProtectCaptions={settings.overlayProtectCaptions ?? true}
@@ -1997,7 +2470,20 @@ function MasterPreviewPlayer({
           : canvas;
       })()}
 
-      {/* ── Transport bar — PRIMARY ROW (always visible, including fullscreen) ── */}
+      <div ref={chromeFooterRef}>
+      {/* ── Minimized chip — condensed play/pause only, distinct from auto-PiP ── */}
+      {isMinimized && (
+        <div className="flex items-center justify-center gap-1 px-2 py-1.5 border-t border-white/[0.06] shrink-0">
+          <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
+            className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30 shrink-0"
+            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
+            {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+          </button>
+        </div>
+      )}
+
+      {/* ── Transport bar — PRIMARY ROW (always visible, including fullscreen; hidden while minimized) ── */}
+      {!isMinimized && (
       <div className={`flex items-center gap-1.5 px-2.5 py-2 border-t border-white/[0.06] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
@@ -2067,7 +2553,7 @@ function MasterPreviewPlayer({
             {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
           </span>
         </button>
-        {/* Fullscreen */}
+        {/* Fullscreen — launches from the floating player */}
         <button type="button" onClick={toggleFullscreen}
           className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
             isFullscreen
@@ -2078,9 +2564,10 @@ function MasterPreviewPlayer({
           {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </button>
       </div>
+      )}
 
-      {/* ── Transport bar — EXTENDED ROW (hidden in fullscreen) ── */}
-      {!isFullscreen && (
+      {/* ── Transport bar — EXTENDED ROW (hidden in fullscreen / while minimized) ── */}
+      {!isFullscreen && !isMinimized && (
         <div className="flex items-center gap-1.5 px-2.5 pb-2 flex-wrap">
           {/* Rewind 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
@@ -2138,8 +2625,8 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* Auto PiP sub-settings — always visible when not fullscreen */}
-      {!isFullscreen && (
+      {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
+      {!isFullscreen && !isMinimized && (
         <div className="px-4 py-2 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-5 gap-y-1">
           <span className="text-[10px] font-bold text-white/30 shrink-0">Auto PiP:</span>
           <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -2174,8 +2661,8 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* Scene jump + PiP debug status — hidden in fullscreen */}
-      {!isFullscreen && (
+      {/* Scene jump + PiP debug status — dev-only diagnostics, hidden in fullscreen / while minimized */}
+      {import.meta.env.DEV && !isFullscreen && !isMinimized && (
         <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           {([
             ["scenes",        `${sceneOffsets.length} pts`],
@@ -2202,8 +2689,8 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* Playback Animation Debug — hidden in fullscreen */}
-      {!isFullscreen && (
+      {/* Playback Animation Debug — dev-only diagnostics, hidden in fullscreen / while minimized */}
+      {import.meta.env.DEV && !isFullscreen && !isMinimized && (
         <div className="px-4 py-1 border-t border-white/[0.04] bg-black/20 flex flex-wrap items-center gap-x-4 gap-y-0.5">
           <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest shrink-0">Anim</span>
           {([
@@ -2230,14 +2717,32 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* Error message — PiP or Auto PiP, hidden in fullscreen */}
-      {pipError && !isFullscreen && (
+      {/* Error message — PiP or Auto PiP, hidden in fullscreen / while minimized */}
+      {pipError && !isFullscreen && !isMinimized && (
         <div className="px-4 py-2 border-t border-red-500/20 bg-red-500/[0.06] text-[10px] text-red-400 font-mono flex items-start gap-1.5">
           <span className="shrink-0 mt-px">⚠</span>
           <span>{pipError}</span>
         </div>
       )}
+      </div>
+
+      {/* ── Resize handle — drag to grow/shrink; aspect ratio stays locked to export format ── */}
+      {isFloating && !isMinimized && !isHidden && (
+        <div
+          onPointerDown={handleResizeStart}
+          data-testid="master-player-resize-handle"
+          title="Drag to resize"
+          className={`absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize flex items-end justify-end p-0.5 ${
+            isResizingFloat ? "opacity-100" : "opacity-40 hover:opacity-90"
+          } transition-opacity`}
+        >
+          <svg viewBox="0 0 10 10" className="h-2.5 w-2.5 text-white/80" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M9 1 L1 9 M9 5 L5 9 M9 9 L9 9" />
+          </svg>
+        </div>
+      )}
     </div>
+    </>
   );
 }
 
@@ -2250,9 +2755,9 @@ function MasterPreviewPlayer({
 /* ─────────────────────── TAB / MODE BUTTONS ─────────────────────── */
 
 function TabButton({
-  active, onClick, icon, label, testId,
+  active, onClick, icon, label, testId, step,
 }: {
-  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; testId?: string;
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string; testId?: string; step?: number;
 }) {
   return (
     <button
@@ -2263,6 +2768,15 @@ function TabButton({
         active ? "bg-primary text-black" : "text-white/50 hover:text-white/80"
       }`}
     >
+      {step != null && (
+        <span
+          className={`flex items-center justify-center h-4 w-4 rounded-full text-[9px] font-black shrink-0 ${
+            active ? "bg-black/20 text-black" : "bg-white/10 text-white/50"
+          }`}
+        >
+          {step}
+        </span>
+      )}
       {icon}
       {label}
     </button>

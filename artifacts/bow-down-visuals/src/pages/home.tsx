@@ -4,10 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
+import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
-  Music, Video, Film, Image as ImageIcon, Mic2, Archive,
-  ChevronDown, ChevronRight, Menu, X, Zap, CheckCircle2,
-  Sparkles, Target, Users, ArrowRight, Star, Globe, Lock, AlertCircle
+  Music,
+  Video,
+  Film,
+  Image as ImageIcon,
+  Mic2,
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  Menu,
+  X,
+  Zap,
+  CheckCircle2,
+  Sparkles,
+  Target,
+  Users,
+  ArrowRight,
+  Star,
+  Globe,
+  Lock,
+  AlertCircle,
 } from "lucide-react";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
@@ -58,18 +76,43 @@ const OUTPUT_TYPES = [
 ];
 
 const CREATOR_TYPES = [
-  { title: "Independent Artists", body: "Move at your own speed. Generate professional content without a full team.", icon: Mic2 },
-  { title: "Music Producers", body: "Build complete song concepts and pitch lyrics to artists instantly.", icon: Music },
-  { title: "Video Directors", body: "Get detailed scene treatments and visual direction for any sound.", icon: Video },
-  { title: "Content Creators", body: "Keep your feed alive with platform-ready captions and promo ideas.", icon: Film },
-  { title: "Record Labels", body: "Scale output across your entire roster without burning out your team.", icon: Users },
-  { title: "Managers & A&R", body: "Draft release strategies and pitch decks in minutes, not days.", icon: Star },
+  {
+    title: "Independent Artists",
+    body: "Move at your own speed. Generate professional content without a full team.",
+    icon: Mic2,
+  },
+  {
+    title: "Music Producers",
+    body: "Build complete song concepts and pitch lyrics to artists instantly.",
+    icon: Music,
+  },
+  {
+    title: "Video Directors",
+    body: "Get detailed scene treatments and visual direction for any sound.",
+    icon: Video,
+  },
+  {
+    title: "Content Creators",
+    body: "Keep your feed alive with platform-ready captions and promo ideas.",
+    icon: Film,
+  },
+  {
+    title: "Record Labels",
+    body: "Scale output across your entire roster without burning out your team.",
+    icon: Users,
+  },
+  {
+    title: "Managers & A&R",
+    body: "Draft release strategies and pitch decks in minutes, not days.",
+    icon: Star,
+  },
 ];
 
 const TOOLS = [
   {
     title: "Make a Song",
-    description: "Generate full lyrics, hooks, verse structure, and song notes tailored to your genre and mood.",
+    description:
+      "Generate full lyrics, hooks, verse structure, and song notes tailored to your genre and mood.",
     icon: Music,
     cost: "1 credit",
     href: "/make-song",
@@ -77,7 +120,8 @@ const TOOLS = [
   },
   {
     title: "Make a Music Video",
-    description: "Create a complete scene-by-scene treatment with visual direction, location ideas, and shot notes.",
+    description:
+      "Create a complete scene-by-scene treatment with visual direction, location ideas, and shot notes.",
     icon: Video,
     cost: "1 credit",
     href: "/make-video",
@@ -85,7 +129,8 @@ const TOOLS = [
   },
   {
     title: "Make Song + Video",
-    description: "The full package — lyrics, music prompt, video treatment, and promo content generated together.",
+    description:
+      "The full package — lyrics, music prompt, video treatment, and promo content generated together.",
     icon: Mic2,
     cost: "2 credits",
     href: "/song-and-video",
@@ -93,7 +138,8 @@ const TOOLS = [
   },
   {
     title: "Promo Clip Maker",
-    description: "Plan your social media rollout with teaser scripts, release captions, and platform-specific hooks.",
+    description:
+      "Plan your social media rollout with teaser scripts, release captions, and platform-specific hooks.",
     icon: Film,
     cost: "1 credit",
     href: "/promo-clip",
@@ -101,7 +147,8 @@ const TOOLS = [
   },
   {
     title: "Thumbnail Maker",
-    description: "Generate compelling cover art concepts and thumbnail ideas that grab attention on every platform.",
+    description:
+      "Generate compelling cover art concepts and thumbnail ideas that grab attention on every platform.",
     icon: ImageIcon,
     cost: "1 credit",
     href: "/thumbnail",
@@ -109,7 +156,8 @@ const TOOLS = [
   },
   {
     title: "Artist Profiles",
-    description: "Save your artist profile, style rules, and brand colors so every generation is on-brand automatically.",
+    description:
+      "Save your artist profile, style rules, and brand colors so every generation is on-brand automatically.",
     icon: Archive,
     cost: "Coming soon",
     href: "#",
@@ -119,10 +167,30 @@ const TOOLS = [
 ];
 
 const CREDIT_PACKS = [
-  { credits: "10 Credits",  price: "$9",   packKey: "10",  perks: ["10 generation credits", "Never expires", "Instant top-up"] },
-  { credits: "50 Credits",  price: "$39",  packKey: "50",  perks: ["50 generation credits", "Never expires", "Instant top-up"] },
-  { credits: "150 Credits", price: "$99",  packKey: "150", perks: ["150 generation credits", "Never expires", "Best value"] },
-  { credits: "500 Credits", price: "$249", packKey: "500", perks: ["500 generation credits", "Never expires", "Pro volume"] },
+  {
+    credits: "10 Credits",
+    price: "$9",
+    packKey: "10",
+    perks: ["10 generation credits", "Never expires", "Instant top-up"],
+  },
+  {
+    credits: "50 Credits",
+    price: "$39",
+    packKey: "50",
+    perks: ["50 generation credits", "Never expires", "Instant top-up"],
+  },
+  {
+    credits: "150 Credits",
+    price: "$99",
+    packKey: "150",
+    perks: ["150 generation credits", "Never expires", "Best value"],
+  },
+  {
+    credits: "500 Credits",
+    price: "$249",
+    packKey: "500",
+    perks: ["500 generation credits", "Never expires", "Pro volume"],
+  },
 ];
 
 const FAQS = [
@@ -148,13 +216,32 @@ const FAQS = [
   },
   {
     q: "When is paid access launching?",
-    a: "We're currently in early access. Join the waitlist to be first in line when Pro and Label plans go live — waitlist members get priority access and early pricing.",
+    a: "We're currently in early access. Join the waitlist to be first in line when our paid plans go live — waitlist members get priority access and early pricing.",
   },
 ];
 
+const SOFTWARE_APPLICATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Bow Down Visuals",
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Web",
+  description:
+    "AI-powered creative studio for music creators — generate song lyrics, music video treatments, promo clip scripts, and thumbnail concepts in seconds.",
+  offers: {
+    "@type": "AggregateOffer",
+    priceCurrency: "USD",
+    lowPrice: "0",
+    highPrice: "249",
+    offerCount: "4",
+  },
+};
+
+const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
+
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
-function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
+function Navbar() {
   const [open, setOpen] = useState(false);
   const [, navigate] = useLocation();
 
@@ -168,11 +255,18 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-yellow-600/20 bg-black/85 backdrop-blur-xl" style={{boxShadow:'0 1px 0 0 rgba(212,160,23,0.12)' }}>
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 border-b border-yellow-600/20 bg-black/85 backdrop-blur-xl"
+      style={{ boxShadow: "0 1px 0 0 rgba(212,160,23,0.12)" }}
+    >
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="cursor-pointer shrink-0">
-          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-14 w-auto" />
+          <img
+            src={`${import.meta.env.BASE_URL}logo-static.png`}
+            alt="Bow Down Visuals"
+            className="h-14 w-auto"
+          />
         </Link>
 
         {/* Desktop nav */}
@@ -192,9 +286,15 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
         <div className="hidden md:flex items-center gap-3">
           {/* Theme song mini-player */}
 
-          <Button variant="ghost" size="sm" className="text-white/60 hover:text-white" onClick={onWaitlist}>
-            Join Waitlist
-          </Button>
+          <Link href="/waitlist">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white/60 hover:text-white"
+            >
+              Join Waitlist
+            </Button>
+          </Link>
           <Link href="/dashboard">
             <Button size="sm" className="gold-glow font-semibold px-5">
               Start Creating
@@ -225,11 +325,19 @@ function Navbar({ onWaitlist }: { onWaitlist: () => void }) {
             </button>
           ))}
           <div className="pt-3 space-y-2 border-t border-white/5">
-            <Button variant="outline" size="sm" className="w-full border-white/10" onClick={() => { onWaitlist(); setOpen(false); }}>
-              Join Waitlist
-            </Button>
+            <Link href="/waitlist" onClick={() => setOpen(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full border-white/10"
+              >
+                Join Waitlist
+              </Button>
+            </Link>
             <Link href="/dashboard">
-              <Button size="sm" className="w-full gold-glow font-semibold">Start Creating</Button>
+              <Button size="sm" className="w-full gold-glow font-semibold">
+                Start Creating
+              </Button>
             </Link>
           </div>
         </div>
@@ -243,17 +351,33 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
     <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-5 pt-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full blur-[140px] pointer-events-none" style={{background:'radial-gradient(circle, rgba(212,160,23,0.13) 0%, transparent 70%)'}} />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none" style={{background:'rgba(212,160,23,0.08)'}} />
-        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none" style={{background:'rgba(212,160,23,0.06)'}} />
-        <div className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full blur-[90px] pointer-events-none" style={{background:'rgba(212,160,23,0.05)'}} />
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full blur-[140px] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(212,160,23,0.13) 0%, transparent 70%)",
+          }}
+        />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none"
+          style={{ background: "rgba(212,160,23,0.08)" }}
+        />
+        <div
+          className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none"
+          style={{ background: "rgba(212,160,23,0.06)" }}
+        />
+        <div
+          className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full blur-[90px] pointer-events-none"
+          style={{ background: "rgba(212,160,23,0.05)" }}
+        />
       </div>
 
       {/* Grid overlay */}
       <div
         className="absolute inset-0 z-0 opacity-[0.03]"
         style={{
-          backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
           backgroundSize: "60px 60px",
         }}
       />
@@ -266,7 +390,10 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Beta badge */}
         <Link href="/beta-access">
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/50 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer shimmer" style={{boxShadow:'0 0 18px rgba(212,160,23,0.25)'}}>
+          <div
+            className="inline-flex items-center gap-2 bg-primary/10 border border-primary/50 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer shimmer"
+            style={{ boxShadow: "0 0 18px rgba(212,160,23,0.25)" }}
+          >
             <Sparkles className="h-3.5 w-3.5" />
             Beta Access Open
           </div>
@@ -274,10 +401,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
-          Create Songs,{" "}
-          <span className="gold-text-shine">
-            Music Videos,
-          </span>{" "}
+          Create Songs, <span className="gold-text-shine">Music Videos,</span>{" "}
           and Promo Clips With AI
         </h1>
 
@@ -288,13 +412,18 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto leading-relaxed">
-          Tell us your artist, genre, and idea. In seconds, we'll generate lyrics, a full video treatment, promo content, and more — ready to use.
+          Tell us your artist, genre, and idea. In seconds, we'll generate
+          lyrics, a full video treatment, promo content, and more — ready to
+          use.
         </p>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
           <Link href="/dashboard">
-            <Button size="lg" className="w-full sm:w-auto gold-glow gold-glow-lg shimmer text-base h-14 px-10 rounded-full font-bold gap-2">
+            <Button
+              size="lg"
+              className="w-full sm:w-auto gold-glow gold-glow-lg shimmer text-base h-14 px-10 rounded-full font-bold gap-2"
+            >
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -311,9 +440,18 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 
         {/* Social proof */}
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary/60" /> 3 free credits on signup</span>
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary/60" /> No credit card required</span>
-          <span className="flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary/60" /> Results in seconds</span>
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> 3 free credits
+            on signup
+          </span>
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> No credit card
+            required
+          </span>
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> Results in
+            seconds
+          </span>
         </div>
       </div>
 
@@ -330,12 +468,18 @@ function HowItWorks() {
     <section id="how-it-works" className="scroll-mt-20 py-28 px-5 relative">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             How It Works
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">From idea to release in minutes</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            From idea to release in minutes
+          </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            No experience needed. Just describe your vision and let the studio handle the rest.
+            No experience needed. Just describe your vision and let the studio
+            handle the rest.
           </p>
         </div>
 
@@ -354,8 +498,12 @@ function HowItWorks() {
               <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 mt-4 group-hover:bg-primary/20 transition-colors">
                 <step.icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
-              <p className="text-white/50 leading-relaxed text-sm">{step.body}</p>
+              <h3 className="text-xl font-bold text-white mb-3">
+                {step.title}
+              </h3>
+              <p className="text-white/50 leading-relaxed text-sm">
+                {step.body}
+              </p>
             </div>
           ))}
         </div>
@@ -369,12 +517,18 @@ function WhatYouCanMake() {
     <section className="py-24 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             What You Can Make
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">Everything your release needs</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            Everything your release needs
+          </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            One platform. Every piece of creative content your music career demands.
+            One platform. Every piece of creative content your music career
+            demands.
           </p>
         </div>
 
@@ -385,7 +539,9 @@ function WhatYouCanMake() {
               className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
-              <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">{type}</span>
+              <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
+                {type}
+              </span>
             </div>
           ))}
         </div>
@@ -399,12 +555,18 @@ function BuiltForCreators() {
     <section className="py-28 px-5">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             Built For
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">Built for music creators</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            Built for music creators
+          </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Whether you're an independent artist or running a label, Bow Down Visuals was made for you.
+            Whether you're an independent artist or running a label, Bow Down
+            Visuals was made for you.
           </p>
         </div>
 
@@ -417,8 +579,12 @@ function BuiltForCreators() {
               <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <creator.icon className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="font-bold text-white text-lg mb-2">{creator.title}</h3>
-              <p className="text-white/50 text-sm leading-relaxed">{creator.body}</p>
+              <h3 className="font-bold text-white text-lg mb-2">
+                {creator.title}
+              </h3>
+              <p className="text-white/50 text-sm leading-relaxed">
+                {creator.body}
+              </p>
             </div>
           ))}
         </div>
@@ -429,15 +595,24 @@ function BuiltForCreators() {
 
 function FeaturedTools() {
   return (
-    <section id="tools" className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
+    <section
+      id="tools"
+      className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent"
+    >
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             Featured Tools
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">The complete creator toolkit</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            The complete creator toolkit
+          </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Six powerful tools designed to take you from concept to release — faster than ever.
+            Six powerful tools designed to take you from concept to release —
+            faster than ever.
           </p>
         </div>
 
@@ -459,17 +634,28 @@ function FeaturedTools() {
                 </div>
               )}
 
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
-                tool.featured ? "bg-primary text-white" : "bg-white/5 group-hover:bg-primary/20 transition-colors"
-              }`}>
-                <tool.icon className={`h-6 w-6 ${tool.featured ? "text-white" : "text-primary"}`} />
+              <div
+                className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
+                  tool.featured
+                    ? "bg-primary text-white"
+                    : "bg-white/5 group-hover:bg-primary/20 transition-colors"
+                }`}
+              >
+                <tool.icon
+                  className={`h-6 w-6 ${tool.featured ? "text-white" : "text-primary"}`}
+                />
               </div>
 
               <div className="flex-1">
                 <div className="flex items-start justify-between mb-2 gap-2">
-                  <h3 className="font-bold text-white text-xl leading-tight">{tool.title}</h3>
+                  <h3 className="font-bold text-white text-xl leading-tight">
+                    {tool.title}
+                  </h3>
                   {tool.comingSoon ? (
-                    <Badge variant="outline" className="border-white/15 text-white/40 text-xs shrink-0 flex items-center gap-1">
+                    <Badge
+                      variant="outline"
+                      className="border-white/15 text-white/40 text-xs shrink-0 flex items-center gap-1"
+                    >
                       <Lock className="h-2.5 w-2.5" /> Soon
                     </Badge>
                   ) : (
@@ -478,12 +664,18 @@ function FeaturedTools() {
                     </span>
                   )}
                 </div>
-                <p className="text-white/50 text-sm leading-relaxed">{tool.description}</p>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  {tool.description}
+                </p>
               </div>
 
               {!tool.comingSoon && (
-                <Link href={tool.href} className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link">
-                  Try this tool <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
+                <Link
+                  href={tool.href}
+                  className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
+                >
+                  Try this tool{" "}
+                  <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
                 </Link>
               )}
             </div>
@@ -499,10 +691,15 @@ function PricingSection() {
     <section id="pricing" className="scroll-mt-20 py-28 px-5">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             Credit Packs
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">Simple, creator-first pricing</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            Simple, creator-first pricing
+          </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
             Buy credits once, use them any time. No subscription required.
           </p>
@@ -512,7 +709,9 @@ function PricingSection() {
         <div className="flex items-center justify-center gap-2 mb-10 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
           <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
           <span className="text-sm text-yellow-200/70">
-            Payments are in <strong className="text-yellow-300">test mode</strong>. No real money is charged.
+            Payments are in{" "}
+            <strong className="text-yellow-300">test mode</strong>. No real
+            money is charged.
           </span>
         </div>
 
@@ -523,20 +722,31 @@ function PricingSection() {
               className="relative flex flex-col p-6 rounded-2xl border bg-white/[0.02] border-white/[0.06] transition-all hover:border-primary/30 hover:bg-primary/5"
             >
               <div className="mb-5">
-                <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">{pack.credits}</p>
-                <div className="text-3xl font-black text-primary mb-1">{pack.price}</div>
+                <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">
+                  {pack.credits}
+                </p>
+                <div className="text-3xl font-black text-primary mb-1">
+                  {pack.price}
+                </div>
               </div>
 
               <ul className="space-y-2 flex-1 mb-6">
                 {pack.perks.map((perk) => (
-                  <li key={perk} className="flex items-center gap-2.5 text-sm text-white/60">
+                  <li
+                    key={perk}
+                    className="flex items-center gap-2.5 text-sm text-white/60"
+                  >
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-primary/60" />
                     {perk}
                   </li>
                 ))}
               </ul>
 
-              <Button asChild className="w-full font-semibold" variant="outline">
+              <Button
+                asChild
+                className="w-full font-semibold"
+                variant="outline"
+              >
                 <Link href="/pricing#credit-packs">Buy Credits</Link>
               </Button>
             </div>
@@ -556,13 +766,21 @@ function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent">
+    <section
+      id="faq"
+      className="scroll-mt-20 py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent"
+    >
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs"
+          >
             FAQ
           </Badge>
-          <h2 className="text-4xl md:text-5xl font-black text-white">Frequently asked questions</h2>
+          <h2 className="text-4xl md:text-5xl font-black text-white">
+            Frequently asked questions
+          </h2>
         </div>
 
         <div className="space-y-3">
@@ -579,14 +797,18 @@ function FAQSection() {
                 className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left"
                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
               >
-                <span className="font-semibold text-white text-base">{faq.q}</span>
+                <span className="font-semibold text-white text-base">
+                  {faq.q}
+                </span>
                 <ChevronDown
                   className={`h-5 w-5 text-primary shrink-0 transition-transform duration-200 ${openIndex === i ? "rotate-180" : ""}`}
                 />
               </button>
               {openIndex === i && (
                 <div className="px-6 pb-5">
-                  <p className="text-white/55 leading-relaxed text-sm">{faq.a}</p>
+                  <p className="text-white/55 leading-relaxed text-sm">
+                    {faq.a}
+                  </p>
                 </div>
               )}
             </div>
@@ -617,22 +839,31 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
       <div className="max-w-2xl mx-auto text-center space-y-8">
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
-          <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs mb-6">
+          <Badge
+            variant="outline"
+            className="border-primary/30 text-primary bg-primary/5 uppercase tracking-widest text-xs mb-6"
+          >
             Early Access
           </Badge>
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4">
             Be first in line.
           </h2>
           <p className="text-white/50 text-lg max-w-md mx-auto">
-            Join the waitlist and get priority access when Pro and Label plans go live — plus an early-bird discount.
+            Join the waitlist and get priority access when our paid plans go
+            live — plus an early-bird discount.
           </p>
         </div>
 
         {submitted ? (
           <div className="p-8 rounded-2xl border border-primary/30 bg-primary/10">
             <div className="text-4xl mb-3">🎤</div>
-            <h3 className="text-xl font-bold text-white mb-2">You're on the list.</h3>
-            <p className="text-white/60 text-sm">We'll hit you first when doors open. In the meantime, start creating with your 3 free credits.</p>
+            <h3 className="text-xl font-bold text-white mb-2">
+              You're on the list.
+            </h3>
+            <p className="text-white/60 text-sm">
+              We'll hit you first when doors open. In the meantime, start
+              creating with your 3 free credits.
+            </p>
             <Link href="/dashboard">
               <Button className="gold-glow mt-5 font-semibold gap-2">
                 Start Creating Now <ArrowRight className="h-4 w-4" />
@@ -640,7 +871,10 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+          >
             <Input
               type="email"
               placeholder="your@email.com"
@@ -660,7 +894,9 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
           </form>
         )}
 
-        <p className="text-white/25 text-xs">No spam. No credit card. Just early access.</p>
+        <p className="text-white/25 text-xs">
+          No spam. No credit card. Just early access.
+        </p>
       </div>
     </section>
   );
@@ -678,7 +914,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      <Navbar onWaitlist={scrollToWaitlist} />
+      <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
+      <JsonLd data={HOME_FAQ_JSON_LD} />
+      <Navbar />
       <HeroSection onWaitlist={scrollToWaitlist} />
       <HowItWorks />
       <WhatYouCanMake />

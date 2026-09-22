@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from "react";
 import type { User, SupabaseClient } from "@supabase/supabase-js";
 import { supabase, getSupabase } from "@/lib/supabase";
 
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchProfile(client, user.id);
   }
 
-  async function getAccessToken(): Promise<string | null> {
+  const getAccessToken = useCallback(async (): Promise<string | null> => {
     try {
       const client = getSupabase();
       const { data: { session } } = await client.auth.getSession();
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return null;
     }
-  }
+  }, []);
 
   async function signUp(email: string, password: string, displayName: string) {
     const client = getSupabase();
@@ -106,14 +106,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const client = getSupabase();
-    const { error } = await client.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+    const anonKey = String(import.meta.env.VITE_SUPABASE_ANON_KEY || "");
+
+    try {
+      const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: "POST",
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return {
+          error:
+            data.msg ||
+            data.message ||
+            data.error_description ||
+            data.error ||
+            "Login failed",
+        };
+      }
+
+      const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+      const storageKey = `sb-${projectRef}-auth-token`;
+      const expiresAt = Math.floor(Date.now() / 1000) + Number(data.expires_in || 3600);
+
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          ...data,
+          expires_at: data.expires_at || expiresAt,
+        })
+      );
+
+      if (data.user) {
+        setUser(data.user);
+
+        try {
+          const profileRes = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${data.user.id}&select=*`, {
+            headers: {
+              apikey: anonKey,
+              Authorization: `Bearer ${data.access_token}`,
+            },
+          });
+
+          if (profileRes.ok) {
+            const profiles = await profileRes.json();
+            setProfile(profiles?.[0] ?? null);
+          }
+        } catch {
+          setProfile(null);
+        }
+      }
+
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Login failed" };
+    }
   }
 
   async function signOut() {
-    const client = getSupabase();
-    await client.auth.signOut();
+    const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
+
+    try {
+      const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+      localStorage.removeItem(`sb-${projectRef}-auth-token`);
+    } catch {
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+        .forEach((key) => localStorage.removeItem(key));
+    }
+
+    setUser(null);
+    setProfile(null);
+    window.history.pushState({}, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
   return (

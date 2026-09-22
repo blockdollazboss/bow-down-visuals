@@ -543,6 +543,7 @@ export function ExportDoctor({
   const [audioSyncShortResult, setAudioSyncShortResult] =
     useState<AudioSyncDiagResult | null>(null);
   /** Result of the Lip Sync Offset Test (Export First 20s Lip Sync Offset Test button). */
+  const [previewLipSyncExportUrl, setPreviewLipSyncExportUrl] = useState<string | null>(null);
   const [audioSyncShortLipSyncResult, setAudioSyncShortLipSyncResult] =
     useState<AudioSyncDiagResult | null>(null);
   /** Export-only fine-tune offset added on top of the saved master player lip sync offset.
@@ -1250,7 +1251,7 @@ export function ExportDoctor({
             audioStartSec: 0,
             syncMode: syncMode ?? "keep-as-is",
             durationSec: 20,
-            lipSyncFineTuneSec: 0,
+            lipSyncFineTuneSec: exportLipSyncFineTune,
           }),
           signal: controller.signal,
         });
@@ -2209,8 +2210,8 @@ export function ExportDoctor({
                   />
                   <a
                     href={lipSyncExportResult.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    download
+                    
                     className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                   >
                     <ExternalLink className="h-3 w-3" /> Open / download lip
@@ -2511,8 +2512,8 @@ export function ExportDoctor({
             />
             <a
               href={exportResult.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              download
+              
               className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" /> Open / download test video
@@ -2535,8 +2536,8 @@ export function ExportDoctor({
             />
             <a
               href={audioExportResult.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              download
+              
               className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" /> Open / download test video
@@ -2939,8 +2940,8 @@ export function ExportDoctor({
                   />
                   <a
                     href={lipSyncExportResult.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    download
+                    
                     className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
                   >
                     <ExternalLink className="h-3 w-3" /> Open / download lip
@@ -4313,17 +4314,30 @@ export function ExportDoctor({
                       ) : (
                         <>
                           {audioSyncShortLipSyncResult.url && (
-                            <a
-                              href={audioSyncShortLipSyncResult.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 text-[10px] text-violet-300 hover:text-violet-200 underline underline-offset-2"
-                            >
-                              <Film className="h-3 w-3" />
-                              Download Lip Sync Offset Test Video
-                            </a>
-                          )}
-                          {/* Per-scene offset summary from server */}
+                              <div className="space-y-2 rounded-xl border border-violet-400/25 bg-black/40 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-violet-200">
+                                    Lip Sync Offset Test Preview
+                                  </div>
+                                  <div className="text-[9px] text-white/40">
+                                    Stays on this page
+                                  </div>
+                                </div>
+
+                                <video
+                                  src={audioSyncShortLipSyncResult.url}
+                                  controls
+                                  playsInline
+                                  className="w-full max-h-[520px] rounded-lg border border-white/10 bg-black"
+                                />
+
+                                <p className="text-[10px] text-white/45">
+                                  If the mouth is early, click +0.10s above and run Export First 20s + Audio Test again.
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Per-scene offset summary from server */}
                           {audioSyncShortLipSyncResult.lipSyncOffsetInfo && (
                             <div className="space-y-1">
                               <p className="text-[9px] text-white/30 uppercase tracking-wider font-bold">
@@ -4674,8 +4688,8 @@ export function ExportDoctor({
                     {result.url && (
                       <a
                         href={result.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        download
+                        
                         className="flex items-center gap-1.5 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
                       >
                         <ExternalLink className="h-3 w-3" />
@@ -5007,8 +5021,8 @@ export function ExportDoctor({
               />
               <a
                 href={exportAllResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download test video
@@ -5032,8 +5046,8 @@ export function ExportDoctor({
               />
               <a
                 href={exportAllAudioResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download test video
@@ -5105,8 +5119,8 @@ export function ExportDoctor({
               />
               <a
                 href={exportAllCaptionsResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download captioned
@@ -5325,8 +5339,8 @@ export function ExportDoctor({
               />
               <a
                 href={em.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download match test
@@ -5443,8 +5457,8 @@ export function ExportDoctor({
               />
               <a
                 href={tx.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download transitions
@@ -5471,8 +5485,8 @@ export function ExportDoctor({
               />
               <a
                 href={exportAllEffectsResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download effects
@@ -5533,8 +5547,8 @@ export function ExportDoctor({
               />
               <a
                 href={ovr.url}
-                target="_blank"
-                rel="noopener noreferrer"
+                download
+                
                 className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" /> Open / download overlay +

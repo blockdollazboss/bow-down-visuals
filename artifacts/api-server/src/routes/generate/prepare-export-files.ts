@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
-import { registerPreparedExport, type PreparedClipEntry, type PreparedAudioEntry } from "../../lib/prepared-exports";
+import { registerPreparedExport, PREPARE_TTL_MS, type PreparedClipEntry, type PreparedAudioEntry } from "../../lib/prepared-exports";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -535,13 +535,14 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     failedScenes: results.filter((r) => !r.readyForFFmpeg).map((r) => r.sceneNumber),
   }, `EXPORT DEBUG END — clips: ${readyCount}/${results.length} audio: ${audioRequested ? (audioReady ? "ready" : "FAILED") : "none"} allReady: ${allReady}`);
 
+  const createdAt = Date.now();
   registerPreparedExport(prepareId, {
     projectId,
     exportDir,
     clips: results,
     audio,
     allReady,
-    createdAt: Date.now(),
+    createdAt,
   });
 
   res.json({
@@ -554,6 +555,8 @@ router.post("/prepare-export-files", requireAuth, async (req, res) => {
     audio,
     audioRequested,
     audioReady,
+    createdAt,
+    expiresAt: createdAt + PREPARE_TTL_MS,
   });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

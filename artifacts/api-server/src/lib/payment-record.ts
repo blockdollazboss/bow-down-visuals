@@ -232,6 +232,84 @@ export async function recordRunwayClipHistory(input: RunwayClipHistoryInput): Pr
   }
 }
 
+export interface LipSyncHistoryInput {
+  userId:      string;
+  projectId?:  string | null;
+  sceneId?:    string | null;
+  videoUrl:    string;
+  creditsUsed: number;
+}
+
+/**
+ * Insert a generation_history row for a completed lip sync clip.
+ * Status is "saved" immediately — lip sync doesn't charge per-generation
+ * credits the way songs/thumbnails do, so there's nothing to reconcile later.
+ * Fire-and-forget safe — never throws.
+ */
+export async function recordLipSyncHistory(input: LipSyncHistoryInput): Promise<void> {
+  try {
+    await db
+      .insert(generationHistoryTable)
+      .values({
+        userId:         input.userId,
+        projectId:      input.projectId ?? null,
+        generationType: "lip_sync_clip",
+        result: {
+          content:     input.videoUrl,
+          videoUrl:    input.videoUrl,
+          sceneId:     input.sceneId ?? undefined,
+          actionLabel: "Lip Sync Clip",
+        },
+        creditsUsed: input.creditsUsed,
+        saveStatus:  "saved",
+        refunded:    false,
+      });
+    logger.info({ userId: input.userId, projectId: input.projectId }, "recordLipSyncHistory: saved");
+  } catch (err) {
+    logger.warn({ err }, "recordLipSyncHistory: failed (non-fatal)");
+  }
+}
+
+export interface ThumbnailHistoryInput {
+  userId:           string;
+  prompt?:          string | null;
+  content:          string;
+  thumbnailUrl:     string;
+  artistName?:      string | null;
+  songTitle?:       string | null;
+  creditsUsed:      number;
+}
+
+/**
+ * Insert a generation_history row for a completed AI thumbnail image.
+ * Status is "saved" immediately — credits were already charged by the time
+ * the image finishes generating. Fire-and-forget safe — never throws.
+ */
+export async function recordThumbnailHistory(input: ThumbnailHistoryInput): Promise<void> {
+  try {
+    await db
+      .insert(generationHistoryTable)
+      .values({
+        userId:         input.userId,
+        generationType: "thumbnail",
+        prompt:         input.prompt ?? null,
+        result: {
+          content:      input.content,
+          thumbnailUrl: input.thumbnailUrl,
+          artistName:   input.artistName ?? undefined,
+          songTitle:    input.songTitle ?? undefined,
+          actionLabel:  input.songTitle ? `Thumbnail — ${input.songTitle}` : "Thumbnail Maker",
+        },
+        creditsUsed: input.creditsUsed,
+        saveStatus:  "saved",
+        refunded:    false,
+      });
+    logger.info({ userId: input.userId }, "recordThumbnailHistory: saved");
+  } catch (err) {
+    logger.warn({ err }, "recordThumbnailHistory: failed (non-fatal)");
+  }
+}
+
 /**
  * Fetch generation history for a user, newest first.
  */

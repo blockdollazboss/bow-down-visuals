@@ -2,12 +2,14 @@ import { Router } from "express";
 import { createWriteStream, unlinkSync, existsSync, readFileSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID } from "crypto";
+import { spawn } from "child_process";
 import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 
 const router = Router();
 const SIDECAR = "http://127.0.0.1:1106";
@@ -59,6 +61,77 @@ function cleanup(f: string) {
   try { if (existsSync(f)) unlinkSync(f); } catch { /* best-effort */ }
 }
 
+/**
+ * Runway's raw `task.failure` string is explicitly documented as "not
+ * recommended to return to users directly without adding context." We map
+ * the machine-readable `failureCode` to a clear, actionable message — most
+ * importantly for content-moderation rejections of the reference photo,
+ * which should never look like a generic/confusing failure. Falls back to
+ * the raw failure text (or a generic message) for anything unrecognized.
+ */
+function describeRunwayFailure(failureCode: string | null, rawFailure: string | null): string {
+  const code = (failureCode ?? "").toUpperCase();
+  if (code.includes("MODERATION") || code.includes("SAFETY") || code.includes("CONTENT")) {
+    return "Runway rejected the reference photo (content moderation). Try a different vault photo, or remove it to generate from the text prompt alone.";
+  }
+  if (code.includes("INPUT_PREPROCESSING") || code.includes("IMAGE") || code.includes("ASSET")) {
+    return "Runway couldn't process the reference photo. Try a different image — it may be corrupted, too small, or an unsupported format.";
+  }
+  if (code.includes("INTERNAL") || code.includes("TIMEOUT")) {
+    return "Runway had an internal error generating this clip. Please try again.";
+  }
+  return rawFailure ?? "Runway generation failed with no further details.";
+}
+
+/**
+ * Grabs the last frame of a previously-generated clip and re-uploads it as a
+ * signed-URL JPEG so it can be used as Runway's `promptImage` for the next
+ * scene — chaining wardrobe/lighting/pose across scenes instead of resetting
+ * to the static vault photo every time. Best-effort: any failure (download,
+ * ffmpeg, upload) returns null so callers can fall back to the vault photo.
+ */
+async function extractLastFrameUrl(clipUrl: string): Promise<string | null> {
+  const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+  if (!bucketId) return null;
+
+  const tmpVideo = path.join(os.tmpdir(), `chain-src-${randomUUID()}.mp4`);
+  const tmpFrame = path.join(os.tmpdir(), `chain-frame-${randomUUID()}.jpg`);
+
+  try {
+    await downloadToFile(clipUrl, tmpVideo);
+
+    await new Promise<void>((resolve, reject) => {
+      /* Seek to ~1s before end-of-file and grab the single last decodable frame. */
+      const ff = spawn("ffmpeg", [
+        "-y",
+        "-sseof", "-1",
+        "-i", tmpVideo,
+        "-update", "1",
+        "-q:v", "2",
+        "-frames:v", "1",
+        tmpFrame,
+      ]);
+      let stderr = "";
+      ff.stderr.on("data", (d) => { stderr += d.toString(); });
+      ff.on("error", reject);
+      ff.on("close", (code) => {
+        if (code === 0 && existsSync(tmpFrame)) resolve();
+        else reject(new Error(`ffmpeg last-frame extraction exited ${code}: ${stderr.slice(-400)}`));
+      });
+    });
+
+    const objectName = `chain-frames/${randomUUID()}.jpg`;
+    const bucket = objectStorageClient.bucket(bucketId);
+    await bucket.file(objectName).save(readFileSync(tmpFrame), { contentType: "image/jpeg", resumable: false });
+    return await signGetUrl(bucketId, objectName);
+  } catch {
+    return null;
+  } finally {
+    cleanup(tmpVideo);
+    cleanup(tmpFrame);
+  }
+}
+
 /** DEV: confirm RUNWAYML_API_SECRET exists without revealing its value */
 router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
   const key = process.env["RUNWAYML_API_SECRET"];
@@ -73,17 +146,54 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt, ratio, projectId } = req.body as {
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl } = req.body as {
     promptText?: string;
     negativePrompt?: string;
     ratio?: "1280:720" | "720:1280";
     projectId?: string | null;
+    referenceImageUrl?: string | null;
+    /** Final frame of the immediately-preceding scene's clip, used to chain
+     *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
+     *  (vault photo) when absent or unusable. */
+    previousClipUrl?: string | null;
   };
 
   if (!promptText?.trim()) {
     res.status(400).json({ error: "promptText is required" });
     return;
   }
+
+  /* ── Reference image resolution ──────────────────────────────────────────
+     Priority: 1) last frame of the previous scene's clip (continuity chain),
+     2) the Artist Vault reference photo, 3) text-only (no image reference).
+     Runway's image-to-video flow requires a public HTTPS URL. ─────────────── */
+  const prevClip = previousClipUrl?.trim();
+  const hasPrevClip = !!prevClip && /^https:\/\//i.test(prevClip);
+
+  let refImage: string | undefined;
+  let referenceSource: "previous_scene" | "vault_photo" | "none" = "none";
+
+  if (hasPrevClip) {
+    req.log.info({ prevClip: prevClip!.slice(0, 80) }, "[runway-clip] attempting scene-chain last-frame extraction");
+    const chainedFrame = await extractLastFrameUrl(prevClip!);
+    if (chainedFrame) {
+      refImage = chainedFrame;
+      referenceSource = "previous_scene";
+      req.log.info("[runway-clip] using previous scene's last frame as reference");
+    } else {
+      req.log.warn("[runway-clip] last-frame extraction failed — falling back to vault photo");
+    }
+  }
+
+  if (!refImage) {
+    const vaultRef = referenceImageUrl?.trim();
+    if (vaultRef && /^https:\/\//i.test(vaultRef)) {
+      refImage = vaultRef;
+      referenceSource = "vault_photo";
+    }
+  }
+
+  const useImageRef = !!refImage;
 
   const apiKey = process.env["RUNWAYML_API_SECRET"];
   if (!apiKey) {
@@ -145,24 +255,42 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
 
   const neg = negativePrompt?.trim();
   const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
-  const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, 1400);
+  /* gen4.5 image-to-video caps promptText at 1000 UTF-16 code units; text-to-video allows more. */
+  const promptCap = useImageRef ? 1000 : 1400;
+  const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, promptCap);
 
   const client = new RunwayML({ apiKey });
+  const resolvedRatio = ratio === "1280:720" ? "1280:720" : "720:1280";
 
-  req.log.info({ userId: req.userId, ratio }, "[runway-clip] Runway generation started");
+  req.log.info(
+    { userId: req.userId, ratio, mode: useImageRef ? "image-to-video" : "text-to-video" },
+    "[runway-clip] Runway generation started",
+  );
 
   try {
-    const task = await client.textToVideo.create({
-      model: "gen4.5",
-      promptText: finalPrompt,
-      duration: 5,
-      ratio: ratio === "1280:720" ? "1280:720" : "720:1280",
-    });
+    /* Image-to-video: anchor the artist's face/look to their vault photo so every
+       generated scene keeps the same visual identity. Falls back to text-to-video
+       when no usable reference photo is provided. */
+    const task = useImageRef
+      ? await client.imageToVideo.create({
+          model: "gen4.5",
+          promptImage: refImage!,
+          promptText: finalPrompt,
+          duration: 5,
+          ratio: resolvedRatio,
+          contentModeration: { publicFigureThreshold: "low" },
+        })
+      : await client.textToVideo.create({
+          model: "gen4.5",
+          promptText: finalPrompt,
+          duration: 5,
+          ratio: resolvedRatio,
+        });
 
     pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null });
     req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
-    res.json({ taskId: task.id });
+    res.json({ taskId: task.id, referenceSource });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
     req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
@@ -219,7 +347,8 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
         );
 
         const creditsAfter = Math.max(0, freshCredits - CREDIT_COST);
-        const { error: deductErr } = await req.userSupabase!
+        /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+        const { error: deductErr } = await getSupabaseAdmin()
           .from("profiles")
           .update({ credits: creditsAfter })
           .eq("id", req.userId!);
@@ -289,8 +418,13 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
     /* ── FAILED / CANCELLED — credits were never charged ── */
     } else if (task.status === "FAILED" || task.status === "CANCELLED") {
-      const errMsg = (task as { failure?: string }).failure ?? "Runway returned a failure with no message";
-      req.log.info({ taskId, status: task.status }, "[runway-clip] task failed — no credits charged");
+      const rawFailure = (task as { failure?: string }).failure ?? null;
+      const failureCode = (task as { failureCode?: string }).failureCode ?? null;
+      const errMsg = describeRunwayFailure(failureCode, rawFailure);
+      req.log.info(
+        { taskId, status: task.status, failureCode, rawFailure },
+        "[runway-clip] task failed — no credits charged",
+      );
       pendingTasks.delete(taskId);
       const status = task.status === "CANCELLED" ? "cancelled" : "failed";
       res.json({ status, error: errMsg });

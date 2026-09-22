@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
@@ -25,7 +26,8 @@ router.post("/dev/add-credits", requireAuth, async (req, res) => {
 
   const newCredits = profile.credits + 10;
 
-  const { error: updateError } = await supabase
+  /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+  const { error: updateError } = await getSupabaseAdmin()
     .from("profiles")
     .update({ credits: newCredits })
     .eq("id", req.userId!);

@@ -440,6 +440,7 @@ function WatermarkEffect({
   size = "medium",
   margin = 16,
   showOnPreview = true,
+  logoUrl,
 }: {
   opacity: number;
   type?: string;
@@ -448,30 +449,43 @@ function WatermarkEffect({
   size?: string;
   margin?: number;
   showOnPreview?: boolean;
+  logoUrl?: string;
 }) {
   if (!showOnPreview || type === "none") return null;
 
   const isBottom = position.includes("bottom");
   const isRight  = position.includes("right");
 
+  // Margin & watermark footprint scale with the player's rendered box (container-query
+  // units) instead of fixed pixels, so the corner offset/size stays visually consistent
+  // as the floating/resizable Master Player is resized — instead of drifting relative to
+  // the frame. This mirrors export-video.ts's buildWmPos/wmW math, which sizes the
+  // burned-in watermark as a % of the export resolution rather than a fixed pixel value.
+  // Reference: margin (px) / 1000 == fraction of the shorter container dimension (cqmin).
+  const marginPct = (margin / 1000) * 100;
+  const marginCq = `clamp(4px, ${marginPct}cqmin, 64px)`;
   const posStyle: React.CSSProperties = {
     position: "absolute",
-    ...(isBottom ? { bottom: margin } : { top: margin }),
-    ...(isRight  ? { right:  margin } : { left:  margin }),
+    ...(isBottom ? { bottom: marginCq } : { top: marginCq }),
+    ...(isRight  ? { right:  marginCq } : { left:  marginCq }),
   };
 
   if (type === "logo") {
-    const h = size === "small" ? 28 : size === "large" ? 58 : 42;
+    // Same % of container width as export's wmW (small 10% / medium 15% / large 20% of
+    // TARGET_W), with height auto so the logo's own aspect ratio matches export exactly
+    // (export scales by width only: `scale=${wmW}:-2`).
+    const wPct = size === "small" ? 10 : size === "large" ? 20 : 15;
+    const wClampPx = size === "small" ? [18, 140] : size === "large" ? [30, 260] : [24, 200];
     return (
       <img
         data-testid="watermark-overlay"
-        src={WATERMARK_URL}
+        src={logoUrl || WATERMARK_URL}
         alt="Bow Down Visuals"
         draggable={false}
         style={{
           ...posStyle,
-          height: h,
-          width: "auto",
+          width: `clamp(${wClampPx[0]}px, ${wPct}cqw, ${wClampPx[1]}px)`,
+          height: "auto",
           opacity,
           display: "block",
           filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.72)) drop-shadow(0 0 2px rgba(0,0,0,0.50))",
@@ -481,9 +495,9 @@ function WatermarkEffect({
   }
 
   const fontSize =
-    size === "small" ? "clamp(7px,1.1vw,10px)" :
-    size === "large" ? "clamp(10px,1.8vw,15px)" :
-                       "clamp(8px,1.4vw,12px)";
+    size === "small" ? "clamp(7px,1.6cqw,10px)" :
+    size === "large" ? "clamp(10px,2.6cqw,15px)" :
+                       "clamp(8px,2.0cqw,12px)";
   return (
     <div
       data-testid="watermark-overlay"
@@ -521,10 +535,24 @@ export interface ActiveOverlayEffectsProps {
   watermarkSize?: string;
   watermarkMargin?: number;
   watermarkShowOnPreview?: boolean;
+  /** When set, this branding-driven watermark config takes priority over the
+   *  legacy watermarkText/Type/Position/Size/Margin props above (mirrors
+   *  export-video.ts, where branding.watermark also overrides the legacy
+   *  addWatermark path). */
+  brandingWatermark?: {
+    enabled: boolean;
+    bdvWatermark: boolean;
+    customLogoUrl: string | null;
+    position: string;
+    opacity: "low" | "medium" | "high";
+    size: string;
+  } | null;
   waveformPosition?: string;
   overlayQualityMode?: string;
   overlayProtectCaptions?: boolean;
 }
+
+const BRANDING_WM_OPACITY: Record<string, number> = { low: 0.30, medium: 0.60, high: 0.90 };
 
 const VISUAL_EFFECTS = ["Rain", "Smoke", "Sparks", "Dust", "Light Leaks", "Lens Flare", "Animated Waveform"];
 
@@ -540,19 +568,33 @@ export function ActiveOverlayEffects({
   watermarkSize = "medium",
   watermarkMargin = 16,
   watermarkShowOnPreview = true,
+  brandingWatermark = null,
   waveformPosition = "bottom-safe",
   overlayProtectCaptions = true,
 }: ActiveOverlayEffectsProps) {
+  // branding.watermark (the "Watermark & Logo" panel) is the source of truth when
+  // enabled — same precedence as export-video.ts, which prefers branding.watermark
+  // over the legacy addWatermark/watermarkType flow.
+  const useBrandingWm = !!brandingWatermark?.enabled;
+  const brandingWmLogoUrl = useBrandingWm
+    ? (brandingWatermark!.customLogoUrl || (brandingWatermark!.bdvWatermark !== false ? undefined : ""))
+    : undefined;
+  const brandingWmSuppressed = useBrandingWm && brandingWmLogoUrl === "";
+
   /* If solo preview is active, show only that overlay + watermark */
   let show: string[];
   if (soloPreviewOverlay) {
     show = [soloPreviewOverlay];
-    if (activeOverlays.includes("Logo / Watermark")) show.push("Logo / Watermark");
+    if (activeOverlays.includes("Logo / Watermark") || useBrandingWm) show.push("Logo / Watermark");
   } else if (testActive) {
     show = [...new Set([...activeOverlays, "Rain", "Sparks", "Lens Flare"])];
   } else {
-    show = activeOverlays;
+    show = useBrandingWm && !activeOverlays.includes("Logo / Watermark")
+      ? [...activeOverlays, "Logo / Watermark"]
+      : activeOverlays;
   }
+
+  if (brandingWmSuppressed) show = show.filter((s) => s !== "Logo / Watermark");
 
   if (show.length === 0) return null;
 
@@ -582,13 +624,14 @@ export function ActiveOverlayEffects({
       )}
       {show.includes("Logo / Watermark") && (
         <WatermarkEffect
-          opacity={gi(intensity, "Logo / Watermark")}
-          type={watermarkType}
+          opacity={useBrandingWm ? BRANDING_WM_OPACITY[brandingWatermark!.opacity] ?? 0.60 : gi(intensity, "Logo / Watermark")}
+          type="logo"
           text={watermarkText}
-          position={watermarkPosition}
-          size={watermarkSize}
+          position={useBrandingWm ? brandingWatermark!.position : watermarkPosition}
+          size={useBrandingWm ? brandingWatermark!.size : watermarkSize}
           margin={watermarkMargin}
           showOnPreview={watermarkShowOnPreview}
+          logoUrl={useBrandingWm ? brandingWmLogoUrl : undefined}
         />
       )}
 

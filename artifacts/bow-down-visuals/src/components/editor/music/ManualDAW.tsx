@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapperboard, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import {
   type AudioExportRecord,
 } from "@/lib/editor-settings";
 import {
-  AUDIO_EXPORT_BUTTONS, requestAudioExport, buildExportRecord,
-  type AudioExportType, type AudioExportButton,
+  AUDIO_EXPORT_BUTTONS, requestAudioExport, buildExportRecord, requestPreviewRender,
+  type AudioExportType, type AudioExportButton, type PreviewRenderResult,
+  type DirectAudioExportStatus,
 } from "@/lib/audio-export";
 import { EditorCard, Field, Segmented, Chip } from "@/components/editor/controls";
 import { StemList } from "@/components/editor/music/StemList";
@@ -22,6 +23,9 @@ interface ManualDAWProps {
   settings: EditorSettings;
   onChange: (next: EditorSettings) => void;
   preview: MixPreview;
+  requestedExport?: AudioExportType | null;
+  onExportRequestHandled?: () => void;
+  onDirectExportStatusChange?: (status: DirectAudioExportStatus) => void;
 }
 
 type DawTab = "tracks" | "mixer" | "effects" | "mastering" | "export";
@@ -34,13 +38,23 @@ const TABS: { id: DawTab; label: string; icon: typeof ListMusic }[] = [
   { id: "export", label: "Export Audio (Beta)", icon: Download },
 ];
 
-export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
+export function ManualDAW({
+  settings,
+  onChange,
+  preview,
+  requestedExport = null,
+  onExportRequestHandled,
+  onDirectExportStatusChange,
+}: ManualDAWProps) {
   const { toast } = useToast();
   const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<DawTab>("tracks");
   const [exporting, setExporting] = useState<AudioExportType | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [justExported, setJustExported] = useState<AudioExportRecord | null>(null);
+  const [rendering, setRendering] = useState(false);
+  const [renderedPreview, setRenderedPreview] = useState<PreviewRenderResult | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const ms = settings.musicStudio;
   const usingMixForVideo = ms.videoAudio.source === "full-mix";
 
@@ -53,15 +67,31 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
       : [...ms.exportSelections, fmt];
     onChange({ ...settings, musicStudio: { ...ms, exportSelections: next } });
   }
-  async function startExport(btn: AudioExportButton) {
+  async function startExport(btn: AudioExportButton, isDirectRequest = false) {
     if (exporting) return;
     setExportError(null);
     setJustExported(null);
     if (ms.stems.length === 0) {
-      setExportError("Upload at least one stem before exporting.");
+      const message = "Upload at least one stem before exporting.";
+      setExportError(message);
+      if (isDirectRequest) {
+        onDirectExportStatusChange?.({
+          status: "error",
+          exportType: btn.id,
+          label: btn.label,
+          message,
+        });
+      }
       return;
     }
     setExporting(btn.id);
+    if (isDirectRequest) {
+      onDirectExportStatusChange?.({
+        status: "rendering",
+        exportType: btn.id,
+        label: btn.label,
+      });
+    }
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("You need to be signed in to export audio.");
@@ -86,8 +116,11 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
           url: s.url,
           volume: s.volume,
           muted: s.muted,
+          solo: s.solo,
+          pan: s.pan,
           trimStart: s.trimStart,
           trimEnd: s.trimEnd,
+          effects: s.effects,
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
       });
@@ -100,11 +133,105 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
         musicStudio: { ...ms, exports: [record, ...ms.exports].slice(0, 25) },
       });
       setJustExported(record);
-      toast({ title: "Export Complete", description: `${btn.label} is ready to download.` });
+      if (isDirectRequest) {
+        onDirectExportStatusChange?.({
+          status: "complete",
+          exportType: btn.id,
+          label: btn.label,
+        });
+      }
+      if (resp.warnings && resp.warnings.length > 0) {
+        toast({
+          title: "Export Complete (with a note)",
+          description: `${btn.label} is ready to download. ${resp.warnings[0]}`,
+        });
+      } else {
+        toast({ title: "Export Complete", description: `${btn.label} is ready to download.` });
+      }
     } catch (e) {
-      setExportError(e instanceof Error ? e.message : "Export failed. Please try again.");
+      const message = e instanceof Error ? e.message : "Export failed. Please try again.";
+      setExportError(message);
+      if (isDirectRequest) {
+        onDirectExportStatusChange?.({
+          status: "error",
+          exportType: btn.id,
+          label: btn.label,
+          message,
+        });
+      }
     } finally {
       setExporting(null);
+    }
+  }
+
+  const handledRequestRef = useRef<AudioExportType | null>(null);
+  useEffect(() => {
+    if (!requestedExport) {
+      handledRequestRef.current = null;
+      return;
+    }
+    if (handledRequestRef.current === requestedExport || exporting) return;
+
+    const btn = AUDIO_EXPORT_BUTTONS.find((candidate) => candidate.id === requestedExport);
+    handledRequestRef.current = requestedExport;
+    onExportRequestHandled?.();
+    if (!btn) return;
+
+    setTab("export");
+    void startExport(btn, true);
+    // The request is edge-triggered by the parent and is cleared above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedExport]);
+  async function renderTruePreview() {
+    if (rendering) return;
+    setRenderError(null);
+    if (ms.stems.length === 0) {
+      setRenderError("Upload at least one stem before rendering a preview.");
+      return;
+    }
+    setRendering(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to render a preview.");
+      const result = await requestPreviewRender(token, {
+        masterVolume: ms.master.volume,
+        masterSettings: {
+          volume:         ms.master.volume,
+          compression:    ms.master.compression,
+          stereoWidth:    ms.master.stereoWidth,
+          bassBoost:      ms.master.bassBoost,
+          eqTone:         ms.master.eqTone,
+          loudnessTarget: ms.master.loudnessTarget,
+          limiter:        ms.master.limiter,
+          fadeIn:         ms.master.fadeIn,
+          fadeOut:        ms.master.fadeOut,
+        },
+        stems: ms.stems.map((s) => ({
+          id: s.id,
+          name: s.name,
+          type: s.type,
+          url: s.url,
+          volume: s.volume,
+          muted: s.muted,
+          solo: s.solo,
+          pan: s.pan,
+          trimStart: s.trimStart,
+          trimEnd: s.trimEnd,
+          effects: s.effects,
+          ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
+        })),
+      });
+      setRenderedPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev.url);
+        return result;
+      });
+      if (result.warnings.length > 0) {
+        toast({ title: "True Render Ready (with a note)", description: result.warnings[0] });
+      }
+    } catch (e) {
+      setRenderError(e instanceof Error ? e.message : "Preview render failed. Please try again.");
+    } finally {
+      setRendering(false);
     }
   }
   function handleSave() {
@@ -118,7 +245,14 @@ export function ManualDAW({ settings, onChange, preview }: ManualDAWProps) {
 
   return (
     <div className="space-y-5">
-      <PreviewTransport preview={preview} />
+      <PreviewTransport
+        preview={preview}
+        onRenderTruePreview={renderTruePreview}
+        rendering={rendering}
+        renderedPreview={renderedPreview}
+        renderError={renderError}
+        hasStems={ms.stems.length > 0}
+      />
 
       <div className="flex flex-wrap gap-1.5 p-1 rounded-xl border border-white/[0.06] bg-white/[0.02]">
         {TABS.map((t) => {

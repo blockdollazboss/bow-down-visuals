@@ -6,10 +6,12 @@ import { useAuth } from "@/contexts/AuthContext";
 interface Props {
   onTranscript: (text: string) => void;
   onFileUrl?: (url: string | null) => void;
+  /** Exposes the raw uploaded File (e.g. so a parent can read its duration or re-upload it). */
+  onFile?: (file: File | null) => void;
   className?: string;
 }
 
-export function AudioTranscribe({ onTranscript, onFileUrl, className = "" }: Props) {
+export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "" }: Props) {
   const { getAccessToken } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [transcribing, setTranscribing] = useState(false);
@@ -21,6 +23,7 @@ export function AudioTranscribe({ onTranscript, onFileUrl, className = "" }: Pro
     setFile(f);
     setError(null);
     if (onFileUrl) onFileUrl(f ? URL.createObjectURL(f) : null);
+    if (onFile) onFile(f);
     e.target.value = "";
   }
 
@@ -28,6 +31,7 @@ export function AudioTranscribe({ onTranscript, onFileUrl, className = "" }: Pro
     setFile(null);
     setError(null);
     if (onFileUrl) onFileUrl(null);
+    if (onFile) onFile(null);
   }
 
   async function handleTranscribe() {

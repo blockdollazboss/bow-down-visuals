@@ -530,6 +530,101 @@ async function normalizeClipsForDuration(
   return normPaths;
 }
 
+
+/** Normalize a lip-sync clip so positive offset delays the mouth like the master player.
+ *  Positive offset = freeze first frame for N seconds, then play video.
+ *  Negative offset = skip ahead N seconds into video.
+ */
+async function normalizeMultiClipWithStartDelayFallback(
+  input: string,
+  output: string,
+  startDelaySec: number,
+  trimStartSec = 0,
+  timelineDur: number | null = null,
+  rawFileDuration = 0,
+): Promise<{
+  method: "start-delay" | "failed";
+  normSize: number;
+  normDuration: number;
+  stderrTail: string;
+}> {
+  const args: string[] = [];
+
+  if (trimStartSec > 0.01) args.push("-ss", trimStartSec.toFixed(3));
+  args.push("-i", input);
+
+  if (timelineDur !== null && timelineDur > 0.05) {
+    args.push("-t", timelineDur.toFixed(3));
+  }
+
+  const sourceAvailable =
+    rawFileDuration > 0 ? Math.max(0, rawFileDuration - trimStartSec) : 0;
+
+  const vfParts = [
+    `scale=${MULTI_TARGET_W}:${MULTI_TARGET_H}:force_original_aspect_ratio=decrease`,
+    `pad=${MULTI_TARGET_W}:${MULTI_TARGET_H}:(ow-iw)/2:(oh-ih)/2:black`,
+    "setsar=1",
+    `fps=fps=${MULTI_TARGET_FPS}`,
+  ];
+
+  if (startDelaySec > 0.01) {
+    vfParts.push(`tpad=start_mode=clone:start_duration=${startDelaySec.toFixed(3)}`);
+  }
+
+  const totalAvailable = sourceAvailable + Math.max(0, startDelaySec);
+  if (timelineDur !== null && totalAvailable > 0 && totalAvailable < timelineDur - 0.05) {
+    const stopPad = Math.max(0.05, timelineDur - totalAvailable + 0.1);
+    vfParts.push(`tpad=stop_mode=clone:stop_duration=${stopPad.toFixed(3)}`);
+  }
+
+  args.push(
+    "-vf",
+    vfParts.join(","),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-crf",
+    "20",
+    "-pix_fmt",
+    "yuv420p",
+    "-video_track_timescale",
+    "90000",
+    "-an",
+    "-movflags",
+    "+faststart",
+    "-y",
+    output,
+  );
+
+  let stderrTail = "";
+  try {
+    await execFileAsync("ffmpeg", args, { timeout: 120_000 });
+  } catch (e) {
+    stderrTail = ((e as { stderr?: string }).stderr ?? String(e)).slice(-600);
+  }
+
+  if (existsSync(output) && statSync(output).size >= 1024) {
+    const probe = await probeMedia(output);
+    if (probe.hasVideo && probe.duration > 0.1) {
+      return {
+        method: "start-delay",
+        normSize: statSync(output).size,
+        normDuration: probe.duration,
+        stderrTail,
+      };
+    }
+  }
+
+  return {
+    method: "failed",
+    normSize: existsSync(output) ? statSync(output).size : 0,
+    normDuration: 0,
+    stderrTail,
+  };
+}
+
+
 /** Variant of normalizeClipsForDuration for the lip sync offset test.
  *  Uses separate file paths (norm-scene-{N}-lipsync.mp4) for clips that have a
  *  clipVideoOffsetSec so they never clobber the standard norm files.
@@ -563,10 +658,30 @@ async function normalizeClipsForDurationLipSyncTest(
     offsetApplied: boolean;
   }> = [];
   let accumulated = 0;
-  for (const c of session.clips) {
+  const firstLipSyncIndex = session.clips.findIndex((c) =>
+    Boolean(
+      (c as any).lipSyncUrl ||
+        (c as any).lip_sync_url ||
+        (c as any).lipsyncUrl ||
+        (c as any).syncUrl,
+    ),
+  );
+
+  const clipsForTest =
+    lipSyncExtraOffsetSec !== 0 && firstLipSyncIndex >= 0
+      ? session.clips.slice(firstLipSyncIndex)
+      : session.clips;
+
+  for (const c of clipsForTest) {
     const trimStart = c.trimStartSec ?? 0;
     const clipOffset = c.clipVideoOffsetSec ?? 0;
-    const isLipSync = (c as any).useLipSync === true || clipOffset > 0;
+    const hasLipSyncUrl = Boolean(
+      (c as any).lipSyncUrl ||
+        (c as any).lip_sync_url ||
+        (c as any).lipsyncUrl ||
+        (c as any).syncUrl
+    );
+    const isLipSync = (c as any).useLipSync === true || hasLipSyncUrl || clipOffset > 0;
     const extraOffset = isLipSync ? lipSyncExtraOffsetSec : 0;
     const effectiveTrim = isLipSync ? 0 : trimStart;
     const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
@@ -577,7 +692,7 @@ async function normalizeClipsForDurationLipSyncTest(
       : path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
 
     if (isLipSync) {
-      // Always re-normalize lip sync clips — the extra offset may differ from last run
+      // Always re-normalize lip sync clips — the export must match the master player.
       if (existsSync(np)) {
         try {
           rmSync(np, { force: true });
@@ -585,27 +700,39 @@ async function normalizeClipsForDurationLipSyncTest(
           /* best-effort */
         }
       }
+
+      const totalOffset = clipOffset + extraOffset;
+
+      // Export First 20s + Audio Test must respect positive fine-tune.
+      // Positive offset delays the mouth. Negative offset advances the mouth.
+      const startDelay = totalOffset > 0 ? totalOffset : 0;
+      const videoSeek = totalOffset < 0 ? Math.abs(totalOffset) : 0;
+
       logStep?.(
-        `scene ${c.sceneNumber} (lip sync): normalizing with effectiveTrim=${effectiveTrim.toFixed(2)}s [trim=${trimStart.toFixed(2)}+offset=${clipOffset.toFixed(2)}+fineTune=${extraOffset.toFixed(2)}]...`,
+        `scene ${c.sceneNumber} (lip sync): normalizing with master-player offset=${totalOffset.toFixed(2)}s [positive=delay mouth, negative=advance mouth]...`,
       );
-      const fb = await normalizeMultiClipWithFallback(
+
+      const fb = await normalizeMultiClipWithStartDelayFallback(
         c.localPath,
         np,
-        effectiveTrim,
+        startDelay,
+        videoSeek,
         timelineDur,
         c.duration,
       );
+
       if (
         fb.method === "failed" ||
         !existsSync(np) ||
         statSync(np).size < 1024
       ) {
         throw new Error(
-          `Scene ${c.sceneNumber} (lip sync) failed to normalize. stderr: ${fb.stderrTail.slice(0, 200)}`,
+          `Scene ${c.sceneNumber} (lip sync) failed to normalize with offset. stderr: ${fb.stderrTail.slice(0, 200)}`,
         );
       }
+
       logStep?.(
-        `scene ${c.sceneNumber} (lip sync): normalized OK via ${fb.method}`,
+        `scene ${c.sceneNumber} (lip sync): normalized OK with startDelay=${startDelay.toFixed(2)}s seek=${videoSeek.toFixed(2)}s`,
       );
     } else if (existsSync(np) && statSync(np).size >= 1024) {
       logStep?.(`scene ${c.sceneNumber}: reusing existing normalized clip`);
@@ -660,7 +787,17 @@ async function normalizeAllClips(
     const np = path.join(session.folder, `norm-scene-${c.sceneNumber}.mp4`);
     const trimStart = c.trimStartSec ?? 0;
     const clipOffset = c.clipVideoOffsetSec ?? 0;
-    const effectiveTrim = trimStart + clipOffset;
+    const hasLipSyncUrl = Boolean(
+      (c as any).lipSyncUrl ||
+        (c as any).lip_sync_url ||
+        (c as any).lipsyncUrl ||
+        (c as any).syncUrl
+    );
+    const isLipSync = (c as any).useLipSync === true || hasLipSyncUrl || clipOffset > 0;
+
+    // Lip-sync clips should use the lip-sync source timing directly.
+    // Regular clips keep normal master-player trim behavior.
+    const effectiveTrim = isLipSync ? 0 : trimStart + clipOffset;
     const timelineDur = c.timelineDuration > 0 ? c.timelineDuration : null;
     const fb = await normalizeMultiClipWithFallback(
       c.localPath,
@@ -669,6 +806,7 @@ async function normalizeAllClips(
       timelineDur,
       c.duration,
     );
+
     if (fb.method === "failed" || !existsSync(np) || statSync(np).size < 1024) {
       throw new Error(
         `Scene ${c.sceneNumber} failed to normalize — output missing or empty. stderr: ${fb.stderrTail.slice(0, 200)}`,
@@ -680,298 +818,39 @@ async function normalizeAllClips(
 }
 
 /* ── Auto AI effects → FFmpeg filter translation ──────────
- * Mirrors the master player's EFFECT_CSS_FILTERS table (video-editor.tsx) so a
- * burned export matches the live CSS preview as closely as possible. Only color
- * effects (eq / hue / colorchannelmixer / gblur) are export-safe here; animated
- * overlays (Smoke / Rain / Sparks) are intentionally NOT in this map. */
-const EFFECT_CSS_FILTERS: Record<string, string> = {
-  "Film Grain": "contrast(108%) brightness(97%)",
-  Glow: "brightness(118%) saturate(140%)",
-  Blur: "blur(2px)",
-  Sharpen: "contrast(125%) brightness(103%)",
-  Vignette: "brightness(82%)",
-  "Black & White": "grayscale(100%)",
-  "Neon Glow": "hue-rotate(270deg) saturate(180%) brightness(115%)",
-  VHS: "saturate(75%) contrast(112%) hue-rotate(8deg) brightness(92%)",
-  "Cinematic Bars": "brightness(83%) contrast(112%)",
-  "Camera Shake": "contrast(108%) saturate(105%)",
-  "Slow Zoom": "saturate(115%) brightness(103%)",
-  "Speed Ramp": "contrast(120%) brightness(98%)",
-  "Warm Grade": "sepia(40%) saturate(135%) brightness(108%)",
-  "Cool Grade": "hue-rotate(195deg) saturate(115%) brightness(94%)",
-  "Teal & Orange": "hue-rotate(20deg) saturate(165%) contrast(110%)",
-  "Moody Desaturated": "saturate(40%) contrast(120%) brightness(88%)",
-  "Vibrant Pop": "saturate(210%) brightness(108%) contrast(106%)",
-  "Street Night":
-    "hue-rotate(230deg) saturate(145%) brightness(80%) contrast(128%)",
-  "Luxury Gold": "sepia(65%) saturate(175%) brightness(112%) contrast(108%)",
-  "Dark Drill": "brightness(72%) contrast(148%) saturate(55%)",
-  "Cinematic Contrast": "contrast(155%) saturate(88%) brightness(90%)",
-};
-
-const clamp = (n: number, lo: number, hi: number) =>
-  Math.max(lo, Math.min(hi, n));
-
-/** Standard sepia matrix blended toward identity by `amount` (0..1). */
-function sepiaColorMixer(amount: number): string {
-  const a = clamp(amount, 0, 1);
-  const id = (x: number) => 1 - a + a * x; // diagonal
-  const off = (x: number) => a * x; // off-diagonal
-  const rr = id(0.393),
-    rg = off(0.769),
-    rb = off(0.189);
-  const gr = off(0.349),
-    gg = id(0.686),
-    gb = off(0.168);
-  const br = off(0.272),
-    bg = off(0.534),
-    bb = id(0.131);
-  const f = (x: number) => x.toFixed(4);
-  return `colorchannelmixer=rr=${f(rr)}:rg=${f(rg)}:rb=${f(rb)}:gr=${f(gr)}:gg=${f(gg)}:gb=${f(gb)}:br=${f(br)}:bg=${f(bg)}:bb=${f(bb)}`;
-}
-
-/**
- * Translate the combined CSS filter string (exactly as the master player builds it)
- * into an FFmpeg filter chain. Returns "" when nothing translatable is present.
- */
-function cssToFfmpegChain(combinedCss: string): string {
-  let brightnessMul = 1,
-    contrastMul = 1,
-    satMul = 1,
-    hueDeg = 0,
-    blurSigma = 0,
-    sepiaAmt = 0;
-  const re = /([a-z-]+)\(([^)]+)\)/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(combinedCss)) !== null) {
-    const fn = m[1]!.toLowerCase();
-    const raw = m[2]!.trim();
-    const num = parseFloat(raw);
-    if (!Number.isFinite(num)) continue;
-    const pct = raw.includes("%") ? num / 100 : num;
-    switch (fn) {
-      case "brightness":
-        brightnessMul *= pct;
-        break;
-      case "contrast":
-        contrastMul *= pct;
-        break;
-      case "saturate":
-        satMul *= pct;
-        break;
-      case "grayscale":
-        satMul *= 1 - pct;
-        break;
-      case "hue-rotate":
-        hueDeg += num;
-        break; // degrees
-      case "blur":
-        blurSigma = Math.max(blurSigma, num);
-        break;
-      case "sepia":
-        sepiaAmt = Math.max(sepiaAmt, pct);
-        break;
-      default:
-        break;
-    }
-  }
-  const parts: string[] = [];
-  if (sepiaAmt > 0) parts.push(sepiaColorMixer(sepiaAmt));
-  // eq: CSS brightness is multiplicative → approximate as additive (mul-1)*0.5
-  const eqBrightness = clamp((brightnessMul - 1) * 0.5, -1, 1);
-  const eqContrast = clamp(contrastMul, 0, 3);
-  const eqSaturation = clamp(satMul, 0, 3);
-  const eqBits: string[] = [];
-  if (Math.abs(eqContrast - 1) > 0.001)
-    eqBits.push(`contrast=${eqContrast.toFixed(4)}`);
-  if (Math.abs(eqBrightness) > 0.001)
-    eqBits.push(`brightness=${eqBrightness.toFixed(4)}`);
-  if (Math.abs(eqSaturation - 1) > 0.001)
-    eqBits.push(`saturation=${eqSaturation.toFixed(4)}`);
-  if (eqBits.length > 0) parts.push(`eq=${eqBits.join(":")}`);
-  if (hueDeg !== 0)
-    parts.push(`hue=h=${(((hueDeg % 360) + 360) % 360).toFixed(2)}`);
-  if (blurSigma > 0) parts.push(`gblur=sigma=${blurSigma.toFixed(2)}`);
-  return parts.join(",");
-}
-
-/* ── Named export-safe grades ────────────────────────────────────────────────
- * A few grades get DEDICATED FFmpeg chains instead of the lossy CSS→eq path so
- * the burned export actually looks like the master player (the generic sepia→eq
- * translation washed Luxury Gold out and the merged-eq path zeroed saturation
- * whenever Black & White was also active). */
-const BW_NAME = "Black & White";
-const LUXURY_GOLD_NAME = "Luxury Gold";
-
-/** Pure desaturation — export-safe Black & White. */
-const BW_FFMPEG = "eq=saturation=0.0";
-
-/** Real warm cinematic gold grade: warm balance, reduced blue/cool tones,
- *  increased contrast, gold highlights, cinematic saturation. */
-const LUXURY_GOLD_FFMPEG =
-  "colorbalance=rs=0.06:gs=0.03:bs=-0.06:rm=0.08:gm=0.04:bm=-0.08:rh=0.12:gh=0.07:bh=-0.14,eq=contrast=1.12:saturation=1.30:brightness=0.02";
-
-/** Black & White + Luxury Gold "blend both": gold-tinted monochrome so BOTH
- *  effects are visibly present (low saturation + strong warm gold cast). */
-const BW_GOLD_BLEND_FFMPEG =
-  "eq=saturation=0.18,colorbalance=rm=0.10:gm=0.05:bm=-0.10:rh=0.16:gh=0.08:bh=-0.16,eq=contrast=1.12:brightness=0.02";
-
-/** Effects treated as color grades (vs. plain filters) for the comparison panel. */
-const COLOR_GRADE_NAMES = new Set<string>([
-  "Warm Grade",
-  "Cool Grade",
-  "Teal & Orange",
-  "Moody Desaturated",
-  "Vibrant Pop",
-  "Street Night",
-  LUXURY_GOLD_NAME,
-  "Dark Drill",
-  "Cinematic Contrast",
+ * Shared with export-video.ts — see effects-ffmpeg.ts. Do not fork. */
+export {
+  EFFECT_CSS_FILTERS,
+  cssToFfmpegChain,
   BW_NAME,
-]);
-
-export type EffectConflictMode = "bw-only" | "gold-only" | "blend";
-
-export interface ExportEffectEntry {
-  name: string;
-  type: "color-grade" | "filter";
-  scope: "global";
-  intensity: number | null;
-  opacity: number;
-  blend: "normal";
-  startSec: number;
-  endSec: number;
-  supported: boolean;
-  applied: boolean;
-  ffmpeg: string;
-}
-
-export interface EffectStackResult {
-  filter: string;
-  stack: ExportEffectEntry[];
-  supported: string[];
-  unsupported: string[];
-  applied: string[];
-  conflict: {
-    detected: boolean;
-    effects: string[];
-    mode: EffectConflictMode;
-    note: string;
-  } | null;
-  /** True only when every supported effect is actually applied and nothing is dropped. */
-  stackMatch: boolean;
-}
-
-/** Resolve ONE effect name to an FFmpeg chain (dedicated grades first, else CSS path). */
-function ffmpegForEffect(name: string): {
-  ffmpeg: string;
-  supported: boolean;
-  type: "color-grade" | "filter";
-} {
-  if (name === BW_NAME)
-    return { ffmpeg: BW_FFMPEG, supported: true, type: "color-grade" };
-  if (name === LUXURY_GOLD_NAME)
-    return { ffmpeg: LUXURY_GOLD_FFMPEG, supported: true, type: "color-grade" };
-  const css = EFFECT_CSS_FILTERS[name];
-  if (!css) return { ffmpeg: "", supported: false, type: "filter" };
-  const ffmpeg = cssToFfmpegChain(css);
-  return {
-    ffmpeg,
-    supported: ffmpeg.length > 0,
-    type: COLOR_GRADE_NAMES.has(name) ? "color-grade" : "filter",
-  };
-}
-
-/**
- * Build the full export effect stack: each effect is chained SEQUENTIALLY (not
- * merged into one lossy eq), Black & White ↔ Luxury Gold conflicts are resolved
- * by `conflictMode`, and every effect is reported (supported / applied / ffmpeg)
- * so the UI can compare the master stack against what export actually burns.
- */
-function buildEffectStack(
-  effects: string[],
-  totalDuration: number,
-  conflictMode: EffectConflictMode = "blend",
-): EffectStackResult {
-  const names = effects.filter((e) => typeof e === "string" && e.trim());
-  const hasBW = names.includes(BW_NAME);
-  const hasGold = names.includes(LUXURY_GOLD_NAME);
-  const conflictDetected = hasBW && hasGold;
-
-  const chains: string[] = [];
-  const stack: ExportEffectEntry[] = [];
-  const supported: string[] = [];
-  const unsupported: string[] = [];
-  const applied: string[] = [];
-
-  for (const name of names) {
-    const base = ffmpegForEffect(name);
-    let isApplied = base.supported;
-    let usedFfmpeg = base.ffmpeg;
-
-    if (conflictDetected && (name === BW_NAME || name === LUXURY_GOLD_NAME)) {
-      if (conflictMode === "bw-only") {
-        isApplied = name === BW_NAME;
-        usedFfmpeg = name === BW_NAME ? BW_FFMPEG : "";
-      } else if (conflictMode === "gold-only") {
-        isApplied = name === LUXURY_GOLD_NAME;
-        usedFfmpeg = name === LUXURY_GOLD_NAME ? LUXURY_GOLD_FFMPEG : "";
-      } else {
-        // blend both — attribute the single blend chain to the Luxury Gold row
-        isApplied = true;
-        usedFfmpeg = name === LUXURY_GOLD_NAME ? BW_GOLD_BLEND_FFMPEG : "";
-      }
-    }
-
-    stack.push({
-      name,
-      type: base.type,
-      scope: "global",
-      intensity: null,
-      opacity: 1,
-      blend: "normal",
-      startSec: 0,
-      endSec: totalDuration,
-      supported: base.supported,
-      applied: isApplied,
-      ffmpeg: usedFfmpeg,
-    });
-
-    if (!base.supported) {
-      unsupported.push(name);
-      continue;
-    }
-    supported.push(name);
-    if (isApplied) {
-      applied.push(name);
-      if (usedFfmpeg) chains.push(usedFfmpeg);
-    }
-  }
-
-  const conflict = conflictDetected
-    ? {
-        detected: true,
-        effects: [BW_NAME, LUXURY_GOLD_NAME],
-        mode: conflictMode,
-        note: "Black & White reduces color from Luxury Gold.",
-      }
-    : null;
-
-  const stackMatch =
-    supported.length > 0 &&
-    applied.length === supported.length &&
-    unsupported.length === 0;
-
-  return {
-    filter: chains.join(","),
-    stack,
-    supported,
-    unsupported,
-    applied,
-    conflict,
-    stackMatch,
-  };
-}
+  LUXURY_GOLD_NAME,
+  BW_FFMPEG,
+  LUXURY_GOLD_FFMPEG,
+  BW_GOLD_BLEND_FFMPEG,
+  COLOR_GRADE_NAMES,
+  ffmpegForEffect,
+  buildEffectStack,
+} from "./effects-ffmpeg";
+export type {
+  EffectConflictMode,
+  ExportEffectEntry,
+  EffectStackResult,
+} from "./effects-ffmpeg";
+import {
+  EFFECT_CSS_FILTERS,
+  cssToFfmpegChain,
+  BW_NAME,
+  LUXURY_GOLD_NAME,
+  BW_FFMPEG,
+  LUXURY_GOLD_FFMPEG,
+  BW_GOLD_BLEND_FFMPEG,
+  COLOR_GRADE_NAMES,
+  ffmpegForEffect,
+  buildEffectStack,
+  type EffectConflictMode,
+  type ExportEffectEntry,
+  type EffectStackResult,
+} from "./effects-ffmpeg";
 
 /** Concatenate normalized clips (scene order) with optional audio + optional effects + optional burned ASS captions. */
 async function concatMultiClips(
@@ -2424,7 +2303,22 @@ router.post(
       debug["normCacheCleared"] = normCleared;
 
       // ── Step 2: re-download source ────────────────────────────────────────────
-      const url = clip.sourceUrl;
+      const lipSyncSourceUrl = String(
+    (clip as any).lipSyncUrl ||
+      (clip as any).lip_sync_url ||
+      (clip as any).lipsyncUrl ||
+      (clip as any).syncUrl ||
+      ""
+  ).trim();
+
+  const url = lipSyncSourceUrl.startsWith("http")
+    ? lipSyncSourceUrl
+    : clip.sourceUrl;
+
+  debug["sourceChoice"] = lipSyncSourceUrl.startsWith("http")
+    ? "lip-sync"
+    : "original";
+
       if (!url?.startsWith("http")) {
         res.status(400).json({
           error: "No source URL on this clip. Re-run Download All Clips.",
@@ -3363,6 +3257,7 @@ router.post(
       lastStep = "running ffmpeg concat";
       const range = { start: 0, duration: testDuration };
       let outputPath: string;
+      const shortTestFileName = `short-test-fine-${safeFineTune.toFixed(2).replace("-", "neg").replace(".", "p")}-${Date.now()}.mp4`;
       try {
         req.log.info(
           {
@@ -3373,11 +3268,12 @@ router.post(
           },
           "EXPORT SHORT TEST: starting ffmpeg concat",
         );
+
         outputPath = await concatMultiClips(
           session.folder,
           normPaths,
           audioPath,
-          "short-test.mp4",
+          shortTestFileName,
           null,
           null,
           range,
@@ -3421,7 +3317,7 @@ router.post(
       const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
       if (!bucketId)
         throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
-      const objectName = `export-doctor/${multiId}-short-test.mp4`;
+      const objectName = `export-doctor/${multiId}-${shortTestFileName}`;
       req.log.info(
         { multiId, objectName, fileSize: statSync(outputPath).size },
         "EXPORT SHORT TEST: uploading",

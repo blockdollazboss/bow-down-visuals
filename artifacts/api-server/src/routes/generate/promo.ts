@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -154,7 +155,8 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     const content = completion.choices[0]?.message?.content ?? "";
     const creditsAfter = currentCredits - CREDIT_COST;
 
-    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
     recordCreditUsage({ userId: req.userId!, action: "Promo Clips", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {

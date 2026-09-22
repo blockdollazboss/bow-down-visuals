@@ -9,14 +9,29 @@ import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { getPreparedExport, deletePreparedExport } from "../../lib/prepared-exports";
+import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { buildEffectStack } from "./effects-ffmpeg";
+import { fileURLToPath } from "url";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
 const SIDECAR = "http://127.0.0.1:1106";
 
 const IS_DEV = process.env["NODE_ENV"] !== "production";
+
+/**
+ * Resolve the workspace root regardless of the process's current working
+ * directory. The api-server is esbuild-bundled to a single file at
+ * `artifacts/api-server/dist/index.mjs`, so this module's own location is
+ * always `<workspaceRoot>/artifacts/api-server/dist` — three levels up from
+ * there lands on the monorepo root, independent of `process.cwd()` (which
+ * some launchers set to `artifacts/api-server`, breaking
+ * `path.join(process.cwd(), "artifacts/...")` lookups).
+ */
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const WORKSPACE_ROOT = path.resolve(MODULE_DIR, "../../../");
 
 /* ── Export status tracking ─────────────────────────── */
 interface ExportStatusInfo {
@@ -143,19 +158,23 @@ function buildTitleFilters(cfg: TitleConfig | null | undefined, tW: number, tH: 
   const ns = Math.round(d * 0.038);
   const ts = Math.round(d * 0.030);
   const mb = Math.round(tH * 0.08);
+  const mx = Math.round(d * 0.028); // horizontal margin, scales with resolution (was fixed 30px)
   const sd = Math.min(5, dur).toFixed(3);
   const out: string[] = [];
   if (cfg.showArtistName && cfg.artistNameText?.trim()) {
-    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.artistNameText)}':fontsize=${ns}:fontcolor=${col.n}:x=30:y=h-${mb+ns+12}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
+    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.artistNameText)}':fontsize=${ns}:fontcolor=${col.n}:x=${mx}:y=h-${mb+ns+12}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
   }
   if (cfg.showSongTitle && cfg.songTitleText?.trim()) {
-    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.songTitleText)}':fontsize=${ts}:fontcolor=${col.t}:x=30:y=h-${mb}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
+    out.push(`drawtext=fontfile='${SANS_BOLD}':text='${escapeDrawtext(cfg.songTitleText)}':fontsize=${ts}:fontcolor=${col.t}:x=${mx}:y=h-${mb}:borderw=2:bordercolor=0x000000:enable='between(t\\,0\\,${sd})'`);
   }
   return out;
 }
 
-function buildWmPos(position: string): string {
-  const m = 24;
+// Watermark/logo corner margin as a fraction of the shorter frame dimension, so the
+// logo sits a consistent relative distance from the edge across all aspect ratios
+// (9:16, 16:9, 1:1, 4:5) instead of a fixed pixel offset that drifts on portrait/landscape.
+function buildWmPos(position: string, targetW: number, targetH: number, marginFrac = 0.022): string {
+  const m = Math.round(Math.min(targetW, targetH) * marginFrac);
   switch (position) {
     case "top-left":    return `${m}:${m}`;
     case "top-right":   return `W-w-${m}:${m}`;
@@ -173,7 +192,6 @@ const ASPECT_DIMS: Record<string, [number, number]> = {
 };
 const TARGET_FPS = 30;
 const FFMPEG_TIMEOUT_MS = 8 * 60 * 1000;
-const FADE_DURATION_S = 1.5;
 
 /* ── helpers ─────────────────────────────────────────── */
 
@@ -245,24 +263,76 @@ async function normalizeClip(
   targetW: number,
   targetH: number,
   targetFps: number,
+  fitMode?: string,
 ): Promise<string> {
-  const args = [
-    "-i", inputPath,
-    "-vf", [
-      `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease`,
-      `pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`,
-      "setsar=1",
-      `fps=fps=${targetFps}`,
-    ].join(","),
-    "-c:v", "libx264",
-    "-preset", "ultrafast",
-    "-crf", "20",
-    "-pix_fmt", "yuv420p",
-    "-video_track_timescale", "90000",
-    "-an",
-    "-movflags", "+faststart",
-    "-y", outputPath,
-  ];
+  let args: string[];
+
+  if (fitMode === "blur") {
+    // Blur Background: split → (scale-up+crop+boxblur as bg) + (scale-to-fit as fg) → overlay
+    // The background is scaled to fill then heavily blurred; the foreground is letterboxed
+    // and composited centered over it, matching the master player's CSS blur preview.
+    const fc = [
+      `[0:v]split=2[bg][fg]`,
+      `[bg]scale=${targetW}:${targetH}:force_original_aspect_ratio=increase,crop=${targetW}:${targetH},boxblur=luma_radius=20:luma_power=5[blurred]`,
+      `[fg]scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease,setsar=1[scaled]`,
+      `[blurred][scaled]overlay=(W-w)/2:(H-h)/2,fps=fps=${targetFps},setsar=1[out]`,
+    ].join(";");
+    args = [
+      "-i", inputPath,
+      "-filter_complex", fc,
+      "-map", "[out]",
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "20",
+      "-pix_fmt", "yuv420p",
+      "-video_track_timescale", "90000",
+      "-an",
+      "-movflags", "+faststart",
+      "-y", outputPath,
+    ];
+  } else if (fitMode === "fill") {
+    // Fill / Crop: scale up so the shorter dimension matches, then center-crop to
+    // the target canvas — mirrors the master player's object-cover CSS behaviour.
+    // No black bars; content fills the full frame.
+    args = [
+      "-i", inputPath,
+      "-vf", [
+        `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase`,
+        `crop=${targetW}:${targetH}`,
+        "setsar=1",
+        `fps=fps=${targetFps}`,
+      ].join(","),
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "20",
+      "-pix_fmt", "yuv420p",
+      "-video_track_timescale", "90000",
+      "-an",
+      "-movflags", "+faststart",
+      "-y", outputPath,
+    ];
+  } else {
+    // "fit" or absent: letterbox with black bars — scale down so the entire frame
+    // fits within the target canvas, pad remaining space with black.
+    args = [
+      "-i", inputPath,
+      "-vf", [
+        `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease`,
+        `pad=${targetW}:${targetH}:(ow-iw)/2:(oh-ih)/2:black`,
+        "setsar=1",
+        `fps=fps=${targetFps}`,
+      ].join(","),
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "20",
+      "-pix_fmt", "yuv420p",
+      "-video_track_timescale", "90000",
+      "-an",
+      "-movflags", "+faststart",
+      "-y", outputPath,
+    ];
+  }
+
   try {
     const { stderr } = await execFileAsync("ffmpeg", args, { timeout: 120_000 });
     return stderr;
@@ -302,11 +372,16 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     timelineOrder,
     testMode,
     aspectRatio = "9:16",
-    fadeAudioIn = false,
-    fadeAudioOut = false,
+    fadeAudioInSec = 0,
+    fadeAudioOutSec = 0,
     loopAudio = false,
+    audioStartSec = 0,
+    matchVideoLength = true,
     addWatermark = false,
     customWatermarkUrl,
+    watermarkPosition = "bottom-right",
+    watermarkSize = "medium",
+    watermarkMargin = 16,
     audioSource = "uploaded",
     captions,
     branding,
@@ -315,6 +390,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     prepareId,
     clipTransitions,
     overlayItems,
+    manualGapsBeforeSec,
+    effects,
+    overlayEffects,
+    overlayEffectIntensity,
+    fitMode,
   } = req.body as {
     projectId: string;
     clipUrls: string[];
@@ -322,11 +402,24 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     timelineOrder?: string[];
     testMode?: boolean;
     aspectRatio?: string;
-    fadeAudioIn?: boolean;
-    fadeAudioOut?: boolean;
+    fadeAudioInSec?: number;
+    fadeAudioOutSec?: number;
     loopAudio?: boolean;
+    /** Offset (seconds) into the audio track where playback begins at video time 0.
+     *  Mirrors settings.musicStudio.videoAudio.startSec and the master player. */
+    audioStartSec?: number;
+    /** Trim the audio so it never runs past the video length (studio "match length"). */
+    matchVideoLength?: boolean;
     addWatermark?: boolean;
     customWatermarkUrl?: string | null;
+    /** Legacy (non-branding) watermark placement — mirrors settings.watermarkPosition. */
+    watermarkPosition?: string;
+    /** Legacy (non-branding) watermark size — mirrors settings.watermarkSize. */
+    watermarkSize?: string;
+    /** Legacy (non-branding) watermark corner offset (px, at a 1000px-reference shorter
+     *  dimension) — mirrors settings.watermarkMargin. Converted to a %-of-resolution
+     *  margin so it matches how the Master Player preview scales it. */
+    watermarkMargin?: number;
     audioSource?: string;
     captions?: CaptionBurnConfig | null;
     branding?: {
@@ -341,6 +434,27 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     prepareId?: string | null;
     /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
     clipTransitions?: ({ type: string; duration: number } | null)[] | null;
+    /** Freeform/manual layout: seconds of freeze-frame padding to hold immediately
+     *  BEFORE each clip (index-aligned with clipUrls, already in playback order) —
+     *  index 0's value is the leading gap before the first clip ever appears
+     *  (rendered as a black lead-in), later indices are the gap since the previous
+     *  clip (rendered as that previous clip's frozen last frame). 0/absent = no gap. */
+    manualGapsBeforeSec?: (number | null)[] | null;
+    /** Global Auto AI effects (color grade, film grain, glow, blur, vignette,
+     *  B&W, neon glow, VHS, cinematic bars, etc.) — mirrors settings.effects
+     *  and the master player's live CSS preview. Translated to FFmpeg via the
+     *  shared buildEffectStack() (effects-ffmpeg.ts) — same code Export Doctor uses. */
+    effects?: string[] | null;
+    /** Active overlay effect names from settings.overlays (e.g. "Light Leaks",
+     *  "Animated Waveform", "Logo / Watermark"). Burned into the export via
+     *  dedicated FFmpeg filter chains. */
+    overlayEffects?: string[] | null;
+    /** Per-overlay intensity (0–100) keyed by overlay name, from settings.overlayIntensity. */
+    overlayEffectIntensity?: Record<string, number> | null;
+    /** How source clips fill the target canvas during normalization.
+     *  "fill" = crop to fill (default), "fit" = letterbox with black bars,
+     *  "blur" = blurred zoomed-in background behind letterboxed foreground. */
+    fitMode?: string | null;
     /** Structured overlay items to burn into the video. */
     overlayItems?: {
       type: string;
@@ -352,6 +466,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       fontSize?: number;
       opacity?: number;
       position?: string;
+      /** URL for "image" / "watermark" overlay items (e.g. a user-uploaded logo). */
+      source?: string | null;
+      /** 1–200, interpreted as % width for images. */
+      size?: number;
     }[] | null;
   };
 
@@ -362,6 +480,30 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   if (!Array.isArray(clipUrls) || clipUrls.length === 0) {
     res.status(400).json({ error: "clipUrls must be a non-empty array" });
     return;
+  }
+
+  /* ── Custom export range validation ──
+   * A range is only meaningful when BOTH start/end are provided as finite numbers.
+   * Reject invalid or near-zero-duration ranges here (e.g. a "custom" range left at
+   * 00:00.000/00:00.000) instead of letting FFmpeg fail deep in the pipeline with a
+   * cryptic exit code (234). Mirrors the client-side guard in FinalVideoExport.tsx. */
+  const MIN_EXPORT_RANGE_DURATION_SEC = 0.25;
+  if ((exportRangeStart !== null && exportRangeStart !== undefined) || (exportRangeEnd !== null && exportRangeEnd !== undefined)) {
+    const startNum = typeof exportRangeStart === "number" ? exportRangeStart : NaN;
+    const endNum   = typeof exportRangeEnd   === "number" ? exportRangeEnd   : NaN;
+    const rangeIsUsable =
+      Number.isFinite(startNum) &&
+      Number.isFinite(endNum) &&
+      startNum >= 0 &&
+      endNum - startNum >= MIN_EXPORT_RANGE_DURATION_SEC;
+    if (!rangeIsUsable) {
+      res.status(400).json({
+        error: `Invalid export range: start=${exportRangeStart ?? "null"}, end=${exportRangeEnd ?? "null"}. ` +
+          `The range must have a valid start (>= 0) and an end at least ${MIN_EXPORT_RANGE_DURATION_SEC}s after the start.`,
+        code: "INVALID_EXPORT_RANGE",
+      });
+      return;
+    }
   }
 
   /* ── Credit check (5 credits for final export) ── */
@@ -381,6 +523,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   const tmpDir = os.tmpdir();
   const tmpFiles: string[] = [];
   const exportStatus = makeStatus();
+  let preparedExportAcquired = false;
 
   try {
     req.log.info({
@@ -389,9 +532,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       resolution: `${TARGET_W}x${TARGET_H}`,
       audioSource,
       hasAudio: !!audioUrl,
-      fadeAudioIn,
-      fadeAudioOut,
+      fadeAudioInSec,
+      fadeAudioOutSec,
       loopAudio,
+      audioStartSec,
+      matchVideoLength,
       addWatermark,
       testMode: !!testMode,
       exportRangeStart,
@@ -408,7 +553,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     if (prepareId) {
       if (!preparedEntry) {
         res.status(400).json({
-          error: "Prepare session expired or not found. Click 'Prepare Export Files Only' again before exporting.",
+          error: "Prepare session expired or not found (likely the server restarted or 30+ minutes passed since preparing). Click 'Prepare Export Files Only' again before exporting.",
+          code: "PREPARE_STALE",
           exportStatus,
         });
         return;
@@ -427,7 +573,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       for (const pc of preparedEntry.clips) {
         if (!existsSync(pc.localPath)) {
           res.status(400).json({
-            error: `Scene ${pc.sceneNumber} prepared file is gone from disk (${pc.localPath}). Re-prepare before exporting.`,
+            error: `Scene ${pc.sceneNumber} prepared file is gone from disk (${pc.localPath}) — likely the server restarted since preparing. Re-prepare before exporting.`,
+            code: "PREPARE_STALE",
             exportStatus,
           });
           return;
@@ -444,7 +591,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         }
         if (!existsSync(preparedEntry.audio.localPath)) {
           res.status(400).json({
-            error: `Prepared audio file is gone from disk (${preparedEntry.audio.localPath}). Re-prepare before exporting.`,
+            error: `Prepared audio file is gone from disk (${preparedEntry.audio.localPath}) — likely the server restarted since preparing. Re-prepare before exporting.`,
+            code: "PREPARE_STALE",
             exportStatus,
           });
           return;
@@ -455,6 +603,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       if (preparedEntry.clips.length !== clipUrls.length) {
         res.status(400).json({
           error: `FFmpeg blocked — clip selection changed since preparation (prepared ${preparedEntry.clips.length}, exporting ${clipUrls.length}). Re-prepare before exporting.`,
+          code: "PREPARE_STALE",
           exportStatus,
         });
         return;
@@ -463,6 +612,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         if (preparedEntry.clips[i]!.resolvedUrl !== clipUrls[i]) {
           res.status(400).json({
             error: `FFmpeg blocked — clip ${i + 1} source changed since preparation. Re-prepare before exporting so the export uses the same clips as the player.`,
+            code: "PREPARE_STALE",
             exportStatus,
           });
           return;
@@ -473,6 +623,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         if (!preparedEntry.audio?.requested) {
           res.status(400).json({
             error: `FFmpeg blocked — audio was added after preparation. Re-prepare before exporting so the export includes the player's audio.`,
+            code: "PREPARE_STALE",
             exportStatus,
           });
           return;
@@ -480,6 +631,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         if (preparedEntry.audio.sourceUrl !== audioUrl) {
           res.status(400).json({
             error: `FFmpeg blocked — audio source changed since preparation. Re-prepare before exporting so the export uses the same audio as the player.`,
+            code: "PREPARE_STALE",
             exportStatus,
           });
           return;
@@ -493,6 +645,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       preparedEntry.allReady &&
       preparedEntry.clips.length === clipUrls.length
     );
+
+    // ── Guard against concurrent/duplicate export requests for the same
+    // prepareId deleting files this request still needs mid-run. Acquired
+    // here (right after every hard-stop check has passed) and released in
+    // the outer `finally` block, which is the only place cleanup happens.
+    if (usePrepared && preparedEntry && prepareId) {
+      acquirePreparedExport(prepareId);
+      preparedExportAcquired = true;
+    }
 
     if (usePrepared && preparedEntry) {
       req.log.info({ prepareId, clipCount: preparedEntry.clips.length }, "[export] using pre-downloaded clips from prepare step");
@@ -588,8 +749,19 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     exportStatus.clipsValidated = clipInfos.length;
     req.log.info({ clipsValidated: clipInfos.length }, "[export] all clips validated");
 
+    /* ── Freeform layout: gap-before padding held as freeze-frame ──
+     *  (mirrors the editor preview's gap behavior). Index-aligned with clipUrls.
+     *  gapsBefore[0] is the leading gap before the first clip ever appears
+     *  (rendered as a black lead-in); gapsBefore[i>0] is the gap since the
+     *  previous clip (rendered as that previous clip's frozen last frame). */
+    const gapsBefore: number[] = clipUrls.map((_, i) => {
+      const g = Array.isArray(manualGapsBeforeSec) ? manualGapsBeforeSec[i] : null;
+      return typeof g === "number" && isFinite(g) && g > 0 ? g : 0;
+    });
+    const effectiveClipDurations = clipInfos.map((c, i) => c.duration + (gapsBefore[i] ?? 0));
+
     /* ── Compute total video duration (clips + optional intro/outro cards) ── */
-    const totalClipsDuration = clipInfos.reduce((sum, c) => sum + c.duration, 0);
+    const totalClipsDuration = effectiveClipDurations.reduce((sum, d) => sum + d, 0);
     const introEnabled = !!(branding?.introCard?.enabled);
     const outroEnabled = !!(branding?.outroCard?.enabled);
     const introDuration = introEnabled ? (branding!.introCard!.duration ?? 3) : 0;
@@ -599,9 +771,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     /* ── Compute clip timeline positions ── */
     const clipTimelineStarts: number[] = [];
     let clipCursor = introDuration;
-    for (const info of clipInfos) {
+    for (let i = 0; i < clipInfos.length; i++) {
       clipTimelineStarts.push(clipCursor);
-      clipCursor += info.duration;
+      clipCursor += effectiveClipDurations[i]!;
     }
 
     /* ── Resolve export range ── */
@@ -630,7 +802,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const selectedClipOrigIndices: number[] = [];
     for (let i = 0; i < clipInfos.length; i++) {
       const cStart = clipTimelineStarts[i]!;
-      const cEnd   = cStart + clipInfos[i]!.duration;
+      const cEnd   = cStart + effectiveClipDurations[i]!;
       if (!useRange || (cEnd > effectiveStart && cStart < effectiveEnd)) {
         selectedClipOrigIndices.push(i);
       }
@@ -701,7 +873,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
       req.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
 
-      await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS);
+      await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
 
       if (!existsSync(normPath) || statSync(normPath).size < 1024) {
         throw new Error(`Scene ${origIdx + 1} failed to normalize — output file missing or empty`);
@@ -740,7 +912,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     /* ── 2: Resolve audio (reuse prepared file or download fresh) ── */
     let audioPath: string | null = null;
-    const DEFAULT_WATERMARK = path.join(process.cwd(), "artifacts/bow-down-visuals/public/bdv-watermark.png");
+    const DEFAULT_WATERMARK = path.join(WORKSPACE_ROOT, "artifacts/bow-down-visuals/public/bdv-watermark.png");
 
     if (!testMode && usePrepared && preparedEntry?.audio?.ready && existsSync(preparedEntry.audio.localPath)) {
       // Use the EXACT audio file already downloaded + ffprobe-verified in prepare step
@@ -831,23 +1003,83 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     // branding.watermark wins; else fall back to legacy addWatermark toggle
     const activeWmPath = useBrandingWm ? brandingWmPath : (addWatermark ? watermarkPath : null);
 
+    /* ── 2e: Download "image"/"watermark" overlay item sources (e.g. a user's logo
+     *  placed via the structured overlay editor) so they can be burned in with
+     *  the FFmpeg `overlay` filter — previously these were silently dropped. ── */
+    const overlayImagePaths: (string | null)[] = [];
+    if (Array.isArray(overlayItems)) {
+      for (let i = 0; i < overlayItems.length; i++) {
+        const ov = overlayItems[i]!;
+        if ((ov.type === "image" || ov.type === "watermark") && ov.source?.startsWith("http")) {
+          const ext = /\.(jpe?g)($|\?)/.test(ov.source) ? ".jpg"
+            : /\.webp($|\?)/.test(ov.source) ? ".webp" : ".png";
+          const dest = path.join(tmpDir, `bdv-ovimg-${exportId}-${i}${ext}`);
+          tmpFiles.push(dest);
+          try {
+            await downloadToFile(ov.source, dest);
+            overlayImagePaths[i] = dest;
+            req.log.info({ idx: i, bytes: statSync(dest).size }, "[export] overlay image downloaded");
+          } catch (e) {
+            req.log.warn({ err: String(e), idx: i }, "[export] overlay image download failed, skipping");
+            overlayImagePaths[i] = null;
+          }
+        } else {
+          overlayImagePaths[i] = null;
+        }
+      }
+    }
+
     /* ── 3: Plan FFmpeg input indices ── */
     // Clips fed to FFmpeg are the pre-normalized subset (only those overlapping the range).
+    // Freeform layout: a leading gap before the very first rendered clip has no
+    // previous clip to freeze on, so it's rendered as its own black lavfi segment
+    // (mirrors the editor preview, which shows nothing until the first clip's
+    // manual position is reached).
+    const leadingGapSec = normalizedPaths.length > 0
+      ? Math.max(0, gapsBefore[selectedClipOrigIndices[0]!] ?? 0)
+      : 0;
     let nextIdx = 0;
     const introInputIdx = includeIntro ? nextIdx++ : -1;
+    const leadGapInputIdx = leadingGapSec > 0 ? nextIdx++ : -1;
     const clipBaseIdx   = nextIdx;
     nextIdx += normalizedPaths.length;           // only selected/normalized clips
     const outroInputIdx = includeOutro ? nextIdx++ : -1;
     const audioInputIdx = audioPath ? nextIdx++ : -1;
     const wmInputIdx    = activeWmPath ? nextIdx++ : -1;
+    // One FFmpeg input per successfully-downloaded overlay image, index-aligned with overlayItems.
+    const overlayImgInputIdx: number[] = overlayImagePaths.map((p) => (p ? nextIdx++ : -1));
 
     /* ── 3b: Build video filter_complex ── */
     // Clips are already normalized to target resolution/fps/codec — no scale filter needed.
     const filterParts: string[] = [];
 
-    // Reset timestamps for each normalized clip
+    // Resolve overlay effects helpers (used for wmAlpha override + filter injection below)
+    const overlayEffectsArr: string[] = Array.isArray(overlayEffects) ? overlayEffects : [];
+    const overlayIntensityMap: Record<string, number> =
+      overlayEffectIntensity && typeof overlayEffectIntensity === "object" && !Array.isArray(overlayEffectIntensity)
+        ? (overlayEffectIntensity as Record<string, number>)
+        : {};
+    // When Animated Waveform is active the audio stream is routed through the
+    // filter_complex via asplit; this label tracks the filter_complex audio output
+    // so the -map and -af sections below can switch accordingly.
+    let audioOutputFcLabel: string | null = null;
+
+    // Reset timestamps for each normalized clip. Freeform-layout gaps BETWEEN clips
+    // are represented by padding the PRECEDING clip with a frozen copy of its last
+    // frame (tpad), mirroring the editor preview's "hold last frame during gap"
+    // behavior — gapsBefore[nextOrigIdx] becomes trailing padding on this clip.
     for (let i = 0; i < normalizedPaths.length; i++) {
-      filterParts.push(`[${clipBaseIdx + i}:v]setpts=PTS-STARTPTS[v${i}]`);
+      const nextOrigIdx = i + 1 < normalizedPaths.length ? selectedClipOrigIndices[i + 1]! : -1;
+      const gap = nextOrigIdx >= 0 ? (gapsBefore[nextOrigIdx] ?? 0) : 0;
+      const padSuffix = gap > 0 ? `,tpad=stop_mode=clone:stop_duration=${gap.toFixed(3)}` : "";
+      filterParts.push(`[${clipBaseIdx + i}:v]setpts=PTS-STARTPTS${padSuffix}[v${i}]`);
+    }
+
+    // Leading gap before the very first rendered clip: no previous clip exists to
+    // freeze on, so hold a plain black frame instead (mirrors the editor preview,
+    // which shows nothing until the first clip's manual position is reached).
+    if (leadGapInputIdx >= 0) {
+      filterParts.push(`[${leadGapInputIdx}:v]setpts=PTS-STARTPTS[leadgap]`);
     }
 
     // Intro card with optional drawtext (lavfi color source, already at target res)
@@ -886,11 +1118,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     // Build clip chain — either incremental xfade or plain concat between selected clips
     if (hasAnyXfade) {
       let chainLabel = "v0";
-      let accDuration = clipInfos[selectedClipOrigIndices[0]!]!.duration;
+      let accDuration = effectiveClipDurations[selectedClipOrigIndices[0]!]!;
       for (let j = 1; j < normalizedPaths.length; j++) {
         const origIdx  = selectedClipOrigIndices[j]!;
         const trans    = activeTransitions![origIdx] ?? null;
-        const clipDur  = clipInfos[origIdx]!.duration;
+        const clipDur  = effectiveClipDurations[origIdx]!;
         const isLast   = j === normalizedPaths.length - 1;
         const outLabel = isLast ? "vclips" : `vxf${j}`;
         if (trans && trans.type !== "Cut") {
@@ -915,6 +1147,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     if (hasAnyXfade) {
       const outerSegs: string[] = [];
       if (introInputIdx >= 0) outerSegs.push("[intro_card]");
+      if (leadGapInputIdx >= 0) outerSegs.push("[leadgap]");
       outerSegs.push("[vclips]");
       if (outroInputIdx >= 0) outerSegs.push("[outro_card]");
       if (outerSegs.length === 1) {
@@ -925,9 +1158,29 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     } else {
       const segments: string[] = [];
       if (introInputIdx >= 0) segments.push("[intro_card]");
+      if (leadGapInputIdx >= 0) segments.push("[leadgap]");
       for (let i = 0; i < normalizedPaths.length; i++) segments.push(`[v${i}]`);
       if (outroInputIdx >= 0) segments.push("[outro_card]");
       filterParts.push(`${segments.join("")}concat=n=${segments.length}:v=1:a=0[vconcat]`);
+    }
+
+    // ── Global Auto AI effects (color grade, film grain, glow, blur, vignette,
+    //    B&W, neon glow, VHS, cinematic bars, etc.) — SAME translation Export
+    //    Doctor uses (buildEffectStack in effects-ffmpeg.ts), so a real export
+    //    matches what the diagnostics panel already predicted. Animated overlays
+    //    (Smoke/Rain/Sparks/etc.) are intentionally not in this map and stay
+    //    preview-only. ──
+    if (Array.isArray(effects) && effects.length > 0) {
+      const effectStack = buildEffectStack(effects, effectiveDuration);
+      if (effectStack.filter) {
+        filterParts.push(`[${workLabel}]${effectStack.filter}[veffects]`);
+        workLabel = "veffects";
+        req.log.info({
+          applied: effectStack.applied,
+          unsupported: effectStack.unsupported,
+          conflict: effectStack.conflict,
+        }, "[export] effects filter chain applied");
+      }
     }
 
     // Title overlay drawtext chain (artist name + song title in lower-left)
@@ -941,33 +1194,37 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       workLabel = nextLabel;
     }
 
-    // Watermark overlay
-    if (wmInputIdx >= 0 && activeWmPath) {
-      const bwm = useBrandingWm ? branding!.watermark : null;
-      const wmW = bwm
-        ? ({ small: 100, medium: 150, large: 200 }[bwm.size] ?? 150)
-        : Math.round(TARGET_W * 0.20);
-      const wmAlpha = bwm
-        ? ({ low: "0.30", medium: "0.60", high: "0.90" }[bwm.opacity] ?? "0.60")
-        : "0.90";
-      const wmPos = bwm ? buildWmPos(bwm.position) : "W-w-24:H-h-24";
-      filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2,format=rgba,colorchannelmixer=aa=${wmAlpha}[wm]`);
-      filterParts.push(`[${workLabel}][wm]overlay=${wmPos}:format=auto[vwmed]`);
-      workLabel = "vwmed";
-    }
-
-    // ── Structured overlay items: drawtext (text / lower-third) + drawbox (color) ──
+    // ── Structured overlay items: drawtext (text/lower-third), drawbox (color),
+    //    and overlay (image/watermark — e.g. a user-uploaded logo) ──
     if (Array.isArray(overlayItems) && overlayItems.length > 0) {
+      // Margins scale with the shorter frame dimension so text/logo placement stays
+      // proportionally consistent across all export aspect ratios (was fixed px).
+      const shortDim = Math.min(TARGET_W, TARGET_H);
+      const em = Math.round(shortDim * 0.028);  // edge margin (was 30/50px)
+      const bm = Math.round(shortDim * 0.074);  // bottom margin (was 80px)
       const OVERLAY_POS: Record<string, { x: string; y: string }> = {
-        "top-left":     { x: "30",              y: "50" },
-        "top-center":   { x: "(w-text_w)/2",    y: "50" },
-        "top-right":    { x: "w-text_w-30",     y: "50" },
-        "center-left":  { x: "30",              y: "(h-text_h)/2" },
+        "top-left":     { x: `${em}`,           y: `${em}` },
+        "top-center":   { x: "(w-text_w)/2",    y: `${em}` },
+        "top-right":    { x: `w-text_w-${em}`,  y: `${em}` },
+        "center-left":  { x: `${em}`,           y: "(h-text_h)/2" },
         "center":       { x: "(w-text_w)/2",    y: "(h-text_h)/2" },
-        "center-right": { x: "w-text_w-30",     y: "(h-text_h)/2" },
-        "bottom-left":  { x: "30",              y: "h-text_h-80" },
-        "bottom-center":{ x: "(w-text_w)/2",    y: "h-text_h-80" },
-        "bottom-right": { x: "w-text_w-30",     y: "h-text_h-80" },
+        "center-right": { x: `w-text_w-${em}`,  y: "(h-text_h)/2" },
+        "bottom-left":  { x: `${em}`,           y: `h-text_h-${bm}` },
+        "bottom-center":{ x: "(w-text_w)/2",    y: `h-text_h-${bm}` },
+        "bottom-right": { x: `w-text_w-${em}`,  y: `h-text_h-${bm}` },
+      };
+      // Same corner anchors expressed for the `overlay` filter, where W/H are the
+      // main video dims and w/h are the overlay (image) dims.
+      const IMG_OVERLAY_POS: Record<string, { x: string; y: string }> = {
+        "top-left":     { x: `${em}`,          y: `${em}` },
+        "top-center":   { x: "(W-w)/2",        y: `${em}` },
+        "top-right":    { x: `W-w-${em}`,      y: `${em}` },
+        "center-left":  { x: `${em}`,          y: "(H-h)/2" },
+        "center":       { x: "(W-w)/2",        y: "(H-h)/2" },
+        "center-right": { x: `W-w-${em}`,      y: "(H-h)/2" },
+        "bottom-left":  { x: `${em}`,          y: `H-h-${bm}` },
+        "bottom-center":{ x: "(W-w)/2",        y: `H-h-${bm}` },
+        "bottom-right": { x: `W-w-${em}`,      y: `H-h-${bm}` },
       };
       let ovIdx = 0;
       for (const ov of overlayItems) {
@@ -998,11 +1255,138 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
             `[${workLabel}]drawbox=${enableClause}:x=0:y=0:w=iw:h=ih:color=${col}@${alpha}:t=fill[${nextLabel}]`,
           );
           workLabel = nextLabel;
+        } else if (ov.type === "image" || ov.type === "watermark") {
+          const imgIdx = overlayImgInputIdx[ovIdx] ?? -1;
+          if (imgIdx < 0) { ovIdx++; continue; } // source missing/failed to download
+          const pos     = IMG_OVERLAY_POS[ov.position ?? "bottom-right"] ?? IMG_OVERLAY_POS["bottom-right"]!;
+          // ov.size is a 5–90% width, matching the live preview's clamp (OverlayLayer.tsx).
+          const widthPct = Math.max(5, Math.min(90, ov.size ?? 20));
+          const imgW     = Math.round(TARGET_W * (widthPct / 100));
+          const alpha    = (ov.opacity != null ? ov.opacity / 100 : 1.0).toFixed(2);
+          const scaledLabel = `ovimg${ovIdx}`;
+          filterParts.push(`[${imgIdx}:v]scale=${imgW}:-2,format=rgba,colorchannelmixer=aa=${alpha}[${scaledLabel}]`);
+          filterParts.push(
+            `[${workLabel}][${scaledLabel}]overlay=${pos.x}:${pos.y}:format=auto${enableClause ? `:${enableClause}` : ""}[${nextLabel}]`,
+          );
+          workLabel = nextLabel;
         }
-        // vignette, film-grain, light-leak, particles, image/watermark:
-        // too complex for drawtext — skip silently (CSS-only in preview)
+        // vignette, film-grain, light-leak, particles: too complex for drawtext/overlay
+        // to replicate the CSS preview faithfully — intentionally skipped in export.
         ovIdx++;
       }
+    }
+
+    // ── Light Leaks overlay: warm-tinted semi-transparent drawbox ──
+    // Approximates the CSS Light Leaks effect at the user-configured intensity.
+    if (overlayEffectsArr.includes("Light Leaks")) {
+      const leakOpacity = ((overlayIntensityMap["Light Leaks"] ?? 20) / 100).toFixed(2);
+      filterParts.push(
+        `[${workLabel}]drawbox=x=0:y=0:w=iw:h=ih:color=0xFF7733@${leakOpacity}:t=fill[vleak]`,
+      );
+      workLabel = "vleak";
+      req.log.info({ leakOpacity }, "[export] light leaks overlay injected");
+    }
+
+    // ── Animated Waveform overlay: audio-driven showwaves at bottom of frame ──
+    // The audio stream must be split via asplit before referencing it in the
+    // filter_complex. Without asplit, FFmpeg throws a "stream already used" error
+    // when the same audio input appears both inside filter_complex (for showwaves)
+    // and in a direct `-map audioInputIdx:a` outside it. asplit forks the stream:
+    // [audiofmap] → audio output map, [audiowave] → showwaves visualization.
+    // All audio filters (atrim/afade/loop) are inlined in filter_complex here
+    // (not via -af) because FFmpeg forbids combining -af with a stream already
+    // mapped from a complex filtergraph (exit 234).
+    if (overlayEffectsArr.includes("Animated Waveform") && !audioPath) {
+      req.log.warn(
+        { overlayEffects: overlayEffectsArr, audioUrl: audioUrl?.slice(0, 80) ?? null },
+        "[export] Animated Waveform overlay is active but no audio was resolved — waveform will be skipped. " +
+        "Ensure audio source is not 'none' and a valid audio URL is forwarded to the export request.",
+      );
+    }
+    if (overlayEffectsArr.includes("Animated Waveform") && audioPath && audioInputIdx >= 0) {
+      const waveOpacity = ((overlayIntensityMap["Animated Waveform"] ?? 20) / 100).toFixed(2);
+      const waveH       = Math.round(TARGET_H * 0.08);   // ~8% of frame height
+      const wavePosY    = TARGET_H - waveH - Math.round(TARGET_H * 0.06);
+
+      // Build audio filter chain to inline in filter_complex for the waveform path.
+      // FFmpeg forbids combining -af with a stream mapped from filter_complex, so
+      // all audio filters must live here. atrim duration = effectiveDuration +
+      // rangeRelativeStart so there is enough audio for the output-side -ss seek
+      // to consume and still leave a full effectiveDuration of audio in the output.
+      const wfAtrimDur = (effectiveDuration + rangeRelativeStart).toFixed(3);
+      const wfAudioParts: string[] = [];
+      if (loopAudio) {
+        wfAudioParts.push(`aloop=loop=-1:size=2147483647`);
+        wfAudioParts.push(`atrim=duration=${wfAtrimDur}`);
+        wfAudioParts.push(`asetpts=PTS-STARTPTS`);
+      } else if (matchVideoLength) {
+        wfAudioParts.push(`atrim=duration=${wfAtrimDur}`);
+        wfAudioParts.push(`asetpts=PTS-STARTPTS`);
+      }
+      if (fadeAudioInSec > 0) {
+        // Start the fade-in at rangeRelativeStart (not 0) so that after the
+        // output-side -ss seek discards the first rangeRelativeStart seconds,
+        // the user hears the full fade-in from the very beginning of the output.
+        // For full-video exports rangeRelativeStart=0, so this is a no-op there.
+        const wfFadeInStart = rangeRelativeStart;
+        wfAudioParts.push(`afade=t=in:st=${wfFadeInStart.toFixed(3)}:d=${fadeAudioInSec.toFixed(3)}`);
+      }
+      if (fadeAudioOutSec > 0 && effectiveDuration > fadeAudioOutSec * 2) {
+        // Fade-out st is adjusted for the pre-seek window so it lands at the
+        // correct moment after the output-side -ss rangeRelativeStart seek.
+        const wfFadeOutStart = Math.max(0, effectiveDuration + rangeRelativeStart - fadeAudioOutSec);
+        wfAudioParts.push(`afade=t=out:st=${wfFadeOutStart.toFixed(3)}:d=${fadeAudioOutSec.toFixed(3)}`);
+      }
+
+      // asplit → [audiofmap] (output branch) + [audiowave] (showwaves)
+      filterParts.push(`[${audioInputIdx}:a]asplit=2[audiofmap][audiowave]`);
+      if (wfAudioParts.length > 0) {
+        filterParts.push(`[audiofmap]${wfAudioParts.join(",")}[audioout_fc]`);
+        audioOutputFcLabel = "audioout_fc";
+      } else {
+        audioOutputFcLabel = "audiofmap";
+      }
+
+      filterParts.push(
+        `[audiowave]showwaves=s=${TARGET_W}x${waveH}:mode=line:rate=${TARGET_FPS}:colors=white[waveraw]`,
+      );
+      filterParts.push(
+        `[waveraw]colorkey=color=0x000000:similarity=0.15:blend=0.0,format=rgba,colorchannelmixer=aa=${waveOpacity}[wavefinal]`,
+      );
+      filterParts.push(
+        `[${workLabel}][wavefinal]overlay=0:${wavePosY}:format=auto[vwaved]`,
+      );
+      workLabel = "vwaved";
+      req.log.info({ waveOpacity, waveH, wavePosY, audioOutputFcLabel }, "[export] animated waveform overlay injected");
+    }
+
+    // ── Watermark overlay — applied LAST so it is the topmost visual layer.
+    // Nothing is composited on top of it after this point. ──
+    if (wmInputIdx >= 0 && activeWmPath) {
+      const bwm = useBrandingWm ? branding!.watermark : null;
+      // Size as a % of TARGET_W so the logo occupies a consistent relative footprint
+      // across all export aspect ratios/resolutions.
+      const wmSizeMap: Record<string, number> = { small: 0.10, medium: 0.15, large: 0.20 };
+      const wmW = bwm
+        ? Math.round(TARGET_W * (wmSizeMap[bwm.size] ?? 0.15))
+        : Math.round(TARGET_W * (wmSizeMap[watermarkSize] ?? 0.15));
+      // If "Logo / Watermark" is in overlayEffects with an explicit intensity, use that
+      // alpha so the burned watermark matches the editor overlay panel at that opacity.
+      const wmOverlayIntensityVal = overlayIntensityMap["Logo / Watermark"] ?? overlayIntensityMap["Watermark"];
+      const wmAlpha = wmOverlayIntensityVal != null
+        ? (wmOverlayIntensityVal / 100).toFixed(2)
+        : bwm
+        ? ({ low: "0.30", medium: "0.60", high: "0.90" }[bwm.opacity] ?? "0.60")
+        : "0.90";
+      // Legacy margin is stored as px at a 1000px-reference shorter dimension (same
+      // reference the preview's WatermarkEffect uses), converted to a %-of-resolution
+      // fraction; branding watermark keeps its existing fixed 2.2% margin.
+      const wmPos = bwm
+        ? buildWmPos(bwm.position, TARGET_W, TARGET_H)
+        : buildWmPos(watermarkPosition, TARGET_W, TARGET_H, watermarkMargin / 1000);
+      filterParts.push(`[${wmInputIdx}:v]scale=${wmW}:-2,format=rgba,colorchannelmixer=aa=${wmAlpha}[wm]`);
+      filterParts.push(`[${workLabel}][wm]overlay=${wmPos}:format=auto[vwmed]`);
+      workLabel = "vwmed";
     }
 
     // Rename workLabel → vout
@@ -1031,13 +1415,18 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         audioFilterParts.push(`aloop=loop=-1:size=2147483647`);
         audioFilterParts.push(`atrim=duration=${effectiveDuration.toFixed(3)}`);
         audioFilterParts.push(`asetpts=PTS-STARTPTS`);
+      } else if (matchVideoLength) {
+        // "Match video length" (studio default): trim the audio so it never plays
+        // past the video. No looping — a shorter track simply ends and the rest is silent.
+        audioFilterParts.push(`atrim=duration=${effectiveDuration.toFixed(3)}`);
+        audioFilterParts.push(`asetpts=PTS-STARTPTS`);
       }
-      if (fadeAudioIn) {
-        audioFilterParts.push(`afade=t=in:st=0:d=${FADE_DURATION_S}`);
+      if (fadeAudioInSec > 0) {
+        audioFilterParts.push(`afade=t=in:st=0:d=${fadeAudioInSec.toFixed(3)}`);
       }
-      if (fadeAudioOut && effectiveDuration > FADE_DURATION_S * 2) {
-        const fadeOutStart = Math.max(0, effectiveDuration - FADE_DURATION_S);
-        audioFilterParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${FADE_DURATION_S}`);
+      if (fadeAudioOutSec > 0 && effectiveDuration > fadeAudioOutSec * 2) {
+        const fadeOutStart = Math.max(0, effectiveDuration - fadeAudioOutSec);
+        audioFilterParts.push(`afade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fadeAudioOutSec.toFixed(3)}`);
       }
     }
 
@@ -1053,6 +1442,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       const bgColor = CARD_BG_HEX[branding!.introCard!.stylePreset] ?? "0x0a0a0a";
       ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${introDuration}:r=${TARGET_FPS}`);
     }
+    // Leading-gap black lavfi source (freeform layout only, before the first clip)
+    if (leadGapInputIdx >= 0) {
+      ffmpegArgs.push("-f", "lavfi", "-i", `color=c=0x000000:s=${TARGET_W}x${TARGET_H}:d=${leadingGapSec.toFixed(3)}:r=${TARGET_FPS}`);
+    }
     // Normalized clip inputs
     for (const np of normalizedPaths) {
       ffmpegArgs.push("-i", np);
@@ -1062,20 +1455,35 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       const bgColor = CARD_BG_HEX[branding!.outroCard!.stylePreset] ?? "0x0a0a0a";
       ffmpegArgs.push("-f", "lavfi", "-i", `color=c=${bgColor}:s=${TARGET_W}x${TARGET_H}:d=${outroDuration}:r=${TARGET_FPS}`);
     }
-    // Audio
+    // Audio (seek into the track first so it starts at the studio offset).
+    // The output-side `-ss rangeRelativeStart` (below) handles aligning the
+    // audio with the range-trimmed video — it applies to ALL output streams
+    // simultaneously, including directly-mapped and filter_complex-mapped audio.
+    // Do NOT add effectiveStart here; that would double-seek the audio.
     if (audioPath) {
+      const audioSeekSec = audioStartSec ?? 0;
+      if (audioSeekSec > 0) {
+        ffmpegArgs.push("-ss", audioSeekSec.toFixed(3));
+      }
       ffmpegArgs.push("-i", audioPath);
     }
     // Watermark still image (looped)
     if (wmInputIdx >= 0 && activeWmPath) {
       ffmpegArgs.push("-loop", "1", "-i", activeWmPath);
     }
+    // Structured overlay images (e.g. a user-uploaded logo placed via the overlay editor)
+    for (let i = 0; i < overlayImagePaths.length; i++) {
+      const imgPath = overlayImagePaths[i];
+      if (imgPath) ffmpegArgs.push("-loop", "1", "-i", imgPath);
+    }
 
     ffmpegArgs.push("-filter_complex", filterComplex);
     ffmpegArgs.push("-map", `[${voutLabel}]`);
 
     if (audioPath && audioInputIdx >= 0) {
-      ffmpegArgs.push("-map", `${audioInputIdx}:a`);
+      // When Animated Waveform is active the audio was split inside filter_complex;
+      // map the filter_complex output label instead of the raw input stream.
+      ffmpegArgs.push("-map", audioOutputFcLabel ? `[${audioOutputFcLabel}]` : `${audioInputIdx}:a`);
     }
 
     ffmpegArgs.push(
@@ -1086,7 +1494,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     );
 
     if (audioPath) {
-      if (audioFilterParts.length > 0) {
+      // When waveform is active, audio is mapped from filter_complex ([audiofmap]/
+      // [audioout_fc]). FFmpeg forbids combining -af (simple filter) with a stream
+      // that already comes from a complex filtergraph — the filters were already
+      // inlined in filter_complex above. Only apply -af for the non-waveform path.
+      if (!audioOutputFcLabel && audioFilterParts.length > 0) {
         ffmpegArgs.push("-af", audioFilterParts.join(","));
       }
       ffmpegArgs.push("-c:a", "aac", "-b:a", "192k");
@@ -1112,6 +1524,37 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         effectiveDuration: effectiveDuration.toFixed(3),
       }, "[export][debug] FFmpeg command");
     }
+
+    /* ── 5.5: Final pre-spawn existence check ──────────────────────────
+     * Every concrete file FFmpeg is about to open, re-verified right
+     * before spawning. Prepared/normalized files can theoretically vanish
+     * between earlier checks and this point (e.g. an unexpected disk
+     * cleanup); catching it here gives a specific, actionable error
+     * instead of a raw FFmpeg exit-254 stderr dump.
+     */
+    const preSpawnInputs: { label: string; path: string }[] = [
+      ...normalizedPaths.map((p, i) => ({
+        label: `Scene ${selectedClipOrigIndices[i]! + 1} normalized clip`,
+        path: p,
+      })),
+      ...(audioPath ? [{ label: "Audio track", path: audioPath }] : []),
+      ...(wmInputIdx >= 0 && activeWmPath ? [{ label: "Watermark image", path: activeWmPath }] : []),
+      ...overlayImagePaths
+        .map((p, i) => (p ? { label: `Overlay image #${i + 1}`, path: p } : null))
+        .filter((x): x is { label: string; path: string } => x !== null),
+      ...(captionsAssPath ? [{ label: "Caption/subtitle file", path: captionsAssPath }] : []),
+    ];
+    const missingInputs = preSpawnInputs.filter((f) => !existsSync(f.path));
+    if (missingInputs.length > 0) {
+      const detail = missingInputs.map((f) => `${f.label} (${f.path})`).join("; ");
+      req.log.error({ missingInputs }, "[export] pre-spawn check found missing input(s) — aborting before FFmpeg");
+      throw new Error(
+        `Export blocked — ${missingInputs.length} input file${missingInputs.length !== 1 ? "s" : ""} ` +
+        `disappeared right before rendering: ${detail}. This usually means the prepared session was ` +
+        `cleaned up mid-export (e.g. by a duplicate export click). Click "Prepare Export Files Only" again, then export once.`,
+      );
+    }
+    req.log.info({ inputCount: preSpawnInputs.length }, "[export] pre-spawn check passed — all inputs present");
 
     /* ── 6: Run FFmpeg ── */
     exportStatus.ffmpegStage = "combining";
@@ -1143,6 +1586,28 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         .pop() ?? stderrTail.at(-1) ?? "";
 
       const baseMsg = ffErr instanceof Error ? ffErr.message : String(ffErr);
+
+      // "No such file or directory" from FFmpeg means one of our own input
+      // paths was bad or vanished — despite the pre-spawn check just above.
+      // Name the exact missing file(s) here too, since a TOCTOU gap (file
+      // deleted in the few ms between our check and FFmpeg's open()) is
+      // still theoretically possible.
+      const looksLikeMissingFile = /No such file or directory/i.test(errorLine || baseMsg);
+      if (looksLikeMissingFile) {
+        const stillMissing = preSpawnInputs.filter((f) => !existsSync(f.path));
+        const missingDetail = stillMissing.length > 0
+          ? stillMissing.map((f) => `${f.label} (${f.path})`).join("; ")
+          : "an input file that was present moments earlier but is now gone";
+        throw Object.assign(
+          new Error(
+            `FFmpeg couldn't find one of its input files: ${missingDetail}. This usually means the prepared ` +
+            `session was cleaned up while this export was still running. Click "Prepare Export Files Only" ` +
+            `again, then export once (avoid double-clicking Export).`,
+          ),
+          { ffmpegExitCode: exitCode, ffmpegStderr, stderrTail },
+        );
+      }
+
       throw Object.assign(new Error(`FFmpeg failed (exit ${exitCode}): ${errorLine || baseMsg.slice(0, 200)}`), {
         ffmpegExitCode: exitCode,
         ffmpegStderr,
@@ -1218,37 +1683,25 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           aspect_ratio: aspectRatio,
         };
 
-        const { error: delErr } = await req.userSupabase!
-          .from("projects").delete().eq("id", projectId).eq("user_id", req.userId!);
+        /* Update output_data in place. Previously this did a delete-then-insert, which could
+         * permanently lose the project if the insert failed (or if it raced with another save)
+         * between the delete and the re-insert — a plain UPDATE is atomic and can never drop
+         * the row.
+         *
+         * NOTE: the projects table's RLS UPDATE policy is broken/missing (updates via the
+         * user-scoped client silently no-op with 0 rows affected, no error). Ownership was
+         * already verified above via the RLS-protected SELECT, so it's safe to use the
+         * service-role client here — we still scope by both id and user_id explicitly. */
+        const { error: updErr } = await getSupabaseAdmin()
+          .from("projects")
+          .update({ output_data: updatedOutputData })
+          .eq("id", projectId)
+          .eq("user_id", req.userId!);
 
-        if (delErr) {
-          req.log.warn({ err: delErr.message }, "[export] delete error during save");
+        if (updErr) {
+          req.log.warn({ err: updErr.message }, "[export] update error during save");
         } else {
-          const { error: insErr } = await req.userSupabase!
-            .from("projects")
-            .insert({
-              id: fullProject.id,
-              user_id: fullProject.user_id,
-              project_type: fullProject.project_type,
-              title: fullProject.title,
-              artist_name: fullProject.artist_name,
-              song_title: fullProject.song_title,
-              genre: fullProject.genre,
-              mood: fullProject.mood,
-              style: fullProject.style ?? null,
-              platform: fullProject.platform ?? null,
-              input_data: fullProject.input_data,
-              output_data: updatedOutputData,
-              credits_used: fullProject.credits_used,
-              created_at: fullProject.created_at,
-            });
-
-          if (insErr) {
-            req.log.warn({ err: insErr.message }, "[export] re-insert error");
-            await req.userSupabase!.from("projects").insert(fullProject);
-          } else {
-            req.log.info({ projectId, clips: clipUrls.length, audioSource }, "[export] project saved ok");
-          }
+          req.log.info({ projectId, clips: clipUrls.length, audioSource }, "[export] project saved ok");
         }
       }
     }
@@ -1256,7 +1709,8 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     /* ── Deduct credits + record usage on export success ── */
     if (!IS_DEV) {
       const creditsAfter = currentCredits - EXPORT_CREDIT_COST;
-      await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+      /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+      await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
       recordCreditUsage({ userId: req.userId!, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
       req.log.info({ userId: req.userId, creditsAfter }, "[export] credits deducted");
     }
@@ -1312,6 +1766,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     });
   } finally {
     cleanup(...tmpFiles);
+    // Release the in-flight guard first — if another concurrent request for
+    // the same prepareId is still running, this keeps its files alive; the
+    // last request to release performs the actual directory removal.
+    if (preparedExportAcquired && prepareId) {
+      releasePreparedExport(prepareId);
+    }
     // Clean up pre-downloaded prepare files (the whole export dir) after FFmpeg is done.
     if (prepareId) {
       deletePreparedExport(prepareId);

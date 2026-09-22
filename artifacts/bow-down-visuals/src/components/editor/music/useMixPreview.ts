@@ -15,11 +15,22 @@ function toEngineStems(stems: AudioStem[]): EngineStem[] {
       startTime: s.startTime,
       trimStart: s.trimStart,
       trimEnd: s.trimEnd,
+      effects: s.effects,
     }));
 }
 
 function toEngineMaster(master: MasterSettings): EngineMaster {
-  return { volume: master.volume, fadeIn: master.fadeIn, fadeOut: master.fadeOut };
+  return {
+    volume: master.volume,
+    fadeIn: master.fadeIn,
+    fadeOut: master.fadeOut,
+    compression: master.compression,
+    stereoWidth: master.stereoWidth,
+    bassBoost: master.bassBoost,
+    eqTone: master.eqTone,
+    loudnessTarget: master.loudnessTarget,
+    limiter: master.limiter,
+  };
 }
 
 const INITIAL: EngineSnapshot = {

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp } from "lucide-react";
+import { Copy, Check, Save, Loader2, FileText, FileDown, ChevronDown, ChevronUp, Music, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,8 @@ import { SceneStudio } from "@/components/SceneStudio";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { parseScenes, type SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { generateMusicAudio } from "@/lib/generate-music-audio";
+import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface Section {
   title: string;
@@ -98,6 +100,7 @@ export interface SaveMetadata {
   inputData: Record<string, unknown>;
   creditsUsed?: number;
   songStructure?: SongStructure;
+  thumbnailImageUrl?: string | null;
 }
 
 interface GenerationResultProps {
@@ -115,11 +118,16 @@ interface GenerationResultProps {
 
 export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, artistVault, onSaved, showScenes = true, collapsibleSections = false }: GenerationResultProps) {
   const sections = parseSections(result);
-  const { user, getAccessToken } = useAuth();
+  const musicPromptSection = sections.find((s) => /ai music prompt/i.test(s.title));
+  const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [generatingAudio, setGeneratingAudio] = useState(false);
+  const [audioOutOfCredits, setAudioOutOfCredits] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
   const [projectTitle, setProjectTitle] = useState(
     [saveMetadata.artistName, saveMetadata.songTitle].filter(Boolean).join(" — ") ||
     saveMetadata.songTitle ||
@@ -170,6 +178,34 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
     });
   }
 
+  async function handleGenerateAudio() {
+    if (!musicPromptSection) return;
+    setGeneratingAudio(true);
+    setAudioError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("You need to be signed in to generate audio.");
+      const resp = await generateMusicAudio(token, {
+        prompt: musicPromptSection.content,
+        artistName: saveMetadata.artistName,
+        songTitle: saveMetadata.songTitle,
+      });
+      setGeneratedAudioUrl(resp.url);
+      refreshProfile();
+      toast({ title: "Audio generated!", description: "It will be attached to this project when you save." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not generate audio.";
+      if (msg === "out_of_credits") {
+        setAudioOutOfCredits(true);
+        refreshProfile();
+      } else {
+        setAudioError(msg);
+      }
+    } finally {
+      setGeneratingAudio(false);
+    }
+  }
+
   async function handleSave() {
     if (!user) {
       toast({ title: "Sign in required", description: "Sign in to save your projects.", variant: "destructive" });
@@ -191,11 +227,15 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
           songTitle: saveMetadata.songTitle ?? null,
           genre: saveMetadata.genre ?? null,
           mood: saveMetadata.mood ?? null,
-          inputData: saveMetadata.inputData,
+          inputData: {
+            ...saveMetadata.inputData,
+            ...(generatedAudioUrl ? { audioUrl: generatedAudioUrl } : {}),
+          },
           outputData: {
             result,
             ...(saveMetadata.songStructure ? { songStructure: saveMetadata.songStructure } : {}),
             ...(scenes.length > 0 ? { scenes } : {}),
+            ...(saveMetadata.thumbnailImageUrl ? { thumbnailImageUrl: saveMetadata.thumbnailImageUrl } : {}),
           },
           creditsUsed: saveMetadata.creditsUsed ?? 1,
         }),
@@ -286,6 +326,49 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
           </div>
           {savedProjectId && scenes.length > 0 && (
             <OpenVideoEditorButton projectId={savedProjectId} size="sm" testId="btn-result-open-video-editor" />
+          )}
+        </div>
+      )}
+
+      {/* Generate Real Audio Panel */}
+      {musicPromptSection && (
+        <div className="bg-card border border-card-border rounded-xl p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <Music className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-white text-sm">Generate real audio from this prompt</p>
+              <p className="text-xs text-white/40 mt-0.5">
+                Turn the AI Music Prompt above into an actual playable track. It'll be attached to this project when you save.
+              </p>
+            </div>
+            <Button
+              onClick={handleGenerateAudio}
+              disabled={generatingAudio || audioOutOfCredits}
+              size="sm"
+              className="gold-glow shrink-0"
+              data-testid="btn-generate-audio"
+            >
+              {generatingAudio ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Generating...</> : "Generate Audio"}
+            </Button>
+          </div>
+
+          {audioOutOfCredits && <OutOfCredits />}
+
+          {audioError && (
+            <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/[0.08] border border-red-500/25">
+              <AlertCircle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-red-200/90 leading-relaxed">{audioError}</p>
+            </div>
+          )}
+
+          {generatedAudioUrl && (
+            <div className="space-y-2 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-400 shrink-0" />
+                <p className="text-xs font-black text-emerald-300">Audio ready</p>
+              </div>
+              <audio controls src={generatedAudioUrl} className="w-full" data-testid="audio-generated-preview" />
+            </div>
           )}
         </div>
       )}

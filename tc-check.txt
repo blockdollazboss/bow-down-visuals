@@ -1,0 +1,5 @@
+
+> @workspace/bow-down-visuals@0.0.0 typecheck /home/runner/workspace/artifacts/bow-down-visuals
+> tsc -p tsconfig.json --noEmit
+
+EXIT:0

@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { getSupabaseAdmin } from "../../lib/supabase-admin";
 
 const router = Router();
 const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
@@ -254,7 +255,8 @@ Master exclusion list for all AI generations.
 
     // Step 2: Deduct credits only after history is confirmed saved
     const creditsAfter = currentCredits - CREDIT_COST;
-    await req.userSupabase!.from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
+    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
+    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
