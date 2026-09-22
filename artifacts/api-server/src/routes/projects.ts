@@ -425,7 +425,7 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
         .eq("id", projectId)
         .eq("user_id", req.userId);
       if (!recDelErr) {
-        await req.userSupabase!.from("projects").insert({
+        const { error: recInsErr } = await req.userSupabase!.from("projects").insert({
           id:           existing.id,
           user_id:      existing.user_id,
           project_type: existing.project_type,
@@ -441,6 +441,10 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
           credits_used: existing.credits_used,
           created_at:   existing.created_at,
         });
+        if (recInsErr) {
+          res.status(500).json({ error: `Recovery persist failed: ${recInsErr.message}` });
+          return;
+        }
       }
     }
     res.json({
