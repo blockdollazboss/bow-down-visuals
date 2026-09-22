@@ -84,7 +84,7 @@ const WAITLIST_CONTACT_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Bow Down Visuals",
-  url: "https://www.bowdownvisuals.com",
+  url: "https://bowdownvisuals.com",
   email: "support@bowdownvisuals.com",
   contactPoint: {
     "@type": "ContactPoint",

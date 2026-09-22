@@ -199,7 +199,7 @@ export function HomepageThemePlayer() {
                   .marquee-text { display:inline-block; white-space:nowrap; animation:marquee 8s linear infinite; }
                 `}</style>
                 <p className="marquee-text text-sm font-semibold text-white/90 leading-tight">
-                  www.bowdownvisuals.com
+                  bowdownvisuals.com
                 </p>
               </div>
               <EqBars active={playing && !muted} />

@@ -15,7 +15,7 @@ export function JsonLd({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-const SITE_URL = "https://www.bowdownvisuals.com";
+const SITE_URL = "https://bowdownvisuals.com";
 
 export const ORGANIZATION_JSON_LD = {
   "@context": "https://schema.org",
