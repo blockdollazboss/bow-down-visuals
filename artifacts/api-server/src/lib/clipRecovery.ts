@@ -85,6 +85,7 @@ export async function recoverExpiredClipsViaReplit(
       (isLegacyGcsUrl(s["demoClipUrl"] as string) &&
         isExpiredGcsUrl(s["demoClipUrl"] as string)),
   );
+  console.log(`[clipRecovery] ${needsRecovery.length} of ${scenes.length} scenes need recovery`);
   if (needsRecovery.length === 0) return scenes;
 
   /* ── 1. Ask the Replit backend for fresh signed GCS URLs ── */
@@ -97,12 +98,15 @@ export async function recoverExpiredClipsViaReplit(
         signal: AbortSignal.timeout(30_000),
       },
     );
+    console.log(`[clipRecovery] Replit project API status: ${res.status}`);
     if (!res.ok) return scenes;
     const json = (await res.json()) as {
       project?: { output_data?: { scenes?: SceneLike[] } };
     };
     replitScenes = json.project?.output_data?.scenes ?? [];
-  } catch {
+    console.log(`[clipRecovery] Replit returned ${replitScenes.length} scenes`);
+  } catch (err) {
+    console.log(`[clipRecovery] Replit fetch failed: ${err instanceof Error ? err.message : String(err)}`);
     return scenes;
   }
 
@@ -117,7 +121,11 @@ export async function recoverExpiredClipsViaReplit(
     const sid = rs["id"];
     if (typeof sid === "string" && sid) freshBySceneId.set(sid, url);
   }
-  if (freshByObjectPath.size === 0 && freshBySceneId.size === 0) return scenes;
+  if (freshByObjectPath.size === 0 && freshBySceneId.size === 0) {
+    console.log(`[clipRecovery] No fresh URLs found in Replit scenes`);
+    return scenes;
+  }
+  console.log(`[clipRecovery] Fresh URLs: ${freshByObjectPath.size} by object path, ${freshBySceneId.size} by scene ID`);
 
   /* ── 2-4. Download each recoverable clip, upload to Supabase, rewrite ref ── */
   const updated = await Promise.all(
