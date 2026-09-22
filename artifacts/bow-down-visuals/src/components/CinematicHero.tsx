@@ -539,21 +539,56 @@ export function HeroBackdropCanvas() {
    scrubs with the mouse — mouse up = standing tall, mouse down =
    deep bow (t 0 → 2.8s, the bow-down segment of the clip). */
 
-const BOW_END = 2.8; // seconds — deepest frame of the bow in hero-shark.webm
+const FRAME_COUNT = 45; // pre-rendered transparent scrub frames in public/hero-frames/
+const FRAME_SIZE = 800; // px — square frames
 
 export function HeroLogo3D() {
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const posterRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
-    const video = videoRef.current;
+    const canvas = canvasRef.current;
     const section = sectionRef.current;
-    if (!video || !section || typeof window === "undefined") return;
+    if (!canvas || !section || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
+    const base = import.meta.env.BASE_URL;
+    const frames: HTMLImageElement[] = [];
+    let loaded = 0;
     let target = 0; // desired bow progress: 0 = standing … 1 = full bow
-    let current = 0; // smoothed progress
+    let current = 0; // eased progress
+    let drawn = -1; // last frame index painted
     let raf = 0;
+    let cancelled = false;
+
+    const draw = (idx: number) => {
+      const img = frames[idx];
+      if (!img || !img.complete || img.naturalWidth === 0) return;
+      ctx.clearRect(0, 0, FRAME_SIZE, FRAME_SIZE);
+      ctx.drawImage(img, 0, 0, FRAME_SIZE, FRAME_SIZE);
+      drawn = idx;
+      // Once the real frame is up, drop the poster placeholder.
+      if (posterRef.current) posterRef.current.style.display = "none";
+    };
+
+    // Preload the whole sequence up front so scrubbing never waits on the
+    // network or on video-seek decoding — this is what makes it butter-smooth.
+    for (let i = 0; i < FRAME_COUNT; i++) {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = `${base}hero-frames/f_${String(i + 1).padStart(3, "0")}.webp`;
+      img.onload = () => {
+        if (cancelled) return;
+        loaded++;
+        // Paint the standing frame the moment it's ready.
+        if (loaded === 1) draw(0);
+        else if (drawn >= 0) draw(drawn); // repaint in case it was a placeholder draw
+      };
+      frames.push(img);
+    }
 
     const setTargetFromClientY = (clientY: number) => {
       const r = section.getBoundingClientRect();
@@ -563,36 +598,32 @@ export function HeroLogo3D() {
     const onPointerMove = (e: PointerEvent) => setTargetFromClientY(e.clientY);
     window.addEventListener("pointermove", onPointerMove, { passive: true });
 
-    const settle = () => {
-      video.pause();
-      try {
-        video.currentTime = 0;
-      } catch {
-        /* metadata not ready — the loop below will catch up */
-      }
-    };
-    if (video.readyState >= 1) settle();
-    else video.addEventListener("loadedmetadata", settle, { once: true });
-
     if (!reduce) {
       const loop = () => {
-        // Ease toward the pointer so the bow feels weighty, not jittery.
-        current += (target - current) * 0.14;
-        if (Math.abs(target - current) < 0.0005) current = target;
-        const want = current * BOW_END;
-        if (video.readyState >= 1 && Math.abs(video.currentTime - want) > 1 / 30) {
-          try {
-            video.currentTime = want;
-          } catch {
-            /* ignore transient seek errors */
-          }
-        }
+        // Critically-damped-ish easing: snappy enough to feel 1:1 with the
+        // cursor, smooth enough to never step or stutter.
+        current += (target - current) * 0.32;
+        if (Math.abs(target - current) < 0.0015) current = target;
+        const idx = Math.min(
+          FRAME_COUNT - 1,
+          Math.max(0, Math.round(current * (FRAME_COUNT - 1)))
+        );
+        if (idx !== drawn) draw(idx);
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
+    } else {
+      // Reduced motion: hold the standing frame once loaded.
+      const t = window.setInterval(() => {
+        if (frames[0]?.complete && frames[0].naturalWidth > 0) {
+          draw(0);
+          window.clearInterval(t);
+        }
+      }, 100);
     }
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onPointerMove);
     };
@@ -600,22 +631,25 @@ export function HeroLogo3D() {
 
   return (
     <div ref={sectionRef} className="relative flex justify-center">
-      {/* Shark-king hero video with a real alpha channel — the background
-          is genuinely transparent, so he floats over the hero backdrop.
-          No glow, no shadow, no blend hacks. The bow in the footage
-          scrubs with the mouse: cursor up = standing tall, cursor down =
-          deep bow. */}
-      <video
-        ref={videoRef}
+      {/* Shark-king hero scrubber — 45 pre-rendered frames with a real alpha
+          channel, drawn on canvas and eased toward the pointer. No video
+          seeks (which stutter), no glow, no shadow, no blend hacks. He
+          floats over the page background: cursor up = standing tall,
+          cursor down = deep bow. */}
+      <img
+        ref={posterRef}
+        src={`${import.meta.env.BASE_URL}hero-shark-poster.png`}
+        alt=""
+        aria-hidden
         className="w-[480px] max-w-full h-auto"
-        src={`${import.meta.env.BASE_URL}hero-shark.webm`}
-        poster={`${import.meta.env.BASE_URL}hero-shark-poster.png`}
-        muted
-        playsInline
-        preload="auto"
-        disablePictureInPicture
-        aria-label="Bow Down Visuals shark king bowing"
         draggable={false}
+      />
+      <canvas
+        ref={canvasRef}
+        width={FRAME_SIZE}
+        height={FRAME_SIZE}
+        className="absolute inset-0 m-auto w-[480px] max-w-full h-auto"
+        aria-label="Bow Down Visuals shark king bowing"
       />
     </div>
   );
