@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -67,6 +68,8 @@ export function TopBar({ onHeightChange }: TopBarProps = {}) {
   const [addingCredits, setAddingCredits] = useState(false);
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
   const headerRef = useRef<HTMLElement | null>(null);
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   /* ── Report the header's rendered height whenever it changes (e.g. the mobile
    *    menu opening/closing grows the header), mirroring TimelineDock's onHeightChange. ── */
@@ -106,7 +109,7 @@ export function TopBar({ onHeightChange }: TopBarProps = {}) {
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
 
         {/* Logo */}
-        <Link href="/" className="cursor-pointer shrink-0">
+        <Link href="/" ref={logoTilt} className="cursor-pointer shrink-0 inline-block rounded-lg">
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-16 w-auto" />
         </Link>
 

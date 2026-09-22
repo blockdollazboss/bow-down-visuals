@@ -27,10 +27,13 @@ import {
   Coins
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, profile, signOut } = useAuth();
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   const links = [
     { href: "/", label: "Home", icon: Home },
@@ -47,7 +50,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="p-4">
-        <Link href="/" className="flex items-center gap-2 cursor-pointer">
+        <Link href="/" ref={logoTilt} className="flex items-center gap-2 cursor-pointer rounded-lg">
           <img
             src={`${import.meta.env.BASE_URL}logo-static.png`}
             alt="Bow Down Visuals"

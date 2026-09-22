@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { Mail } from "lucide-react";
 import { JsonLd, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from "@/components/seo/json-ld";
+import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const NAVIGATE = [
   { label: "Home",        href: "/" },
@@ -17,6 +18,9 @@ const LEGAL = [
 ];
 
 export function SiteFooter() {
+  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
+  const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
+
   return (
     <footer className="bg-black border-t border-white/[0.06] py-12 px-5">
       <JsonLd data={ORGANIZATION_JSON_LD} />
@@ -28,11 +32,11 @@ export function SiteFooter() {
 
           {/* Brand */}
           <div>
-            <Link href="/" className="cursor-pointer inline-block" aria-label="Bow Down Visuals — home">
+            <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.png`}
                 alt="Bow Down Visuals"
-                className="h-24 w-auto"
+                className="h-32 w-auto"
               />
             </Link>
             <p className="text-white/35 text-xs mt-4 max-w-xs leading-relaxed">
