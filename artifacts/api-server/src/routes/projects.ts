@@ -378,12 +378,27 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   const outputData = (existing.output_data as Record<string, unknown>) ?? {};
-  const scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
+  let scenes = (outputData["scenes"] as Record<string, unknown>[] | undefined) ?? [];
 
   if (scenes.length === 0) {
     res.status(422).json({ error: "No scenes found in this project. Open the Video Editor and load scenes first." });
     return;
   }
+
+  /* ── TEMPORARY RECOVERY (2026-09-22, REMOVE AFTER USE) ──
+     Recover clips whose Replit-GCS signed URLs expired (2026-07-14): pull
+     fresh URLs from the still-running Replit backend, download the videos,
+     and re-host them in Supabase Storage so playback works permanently.
+     Runs FIRST, on the raw stored scenes, before the generated_clips check. */
+  const preRecoveryScenes = scenes;
+  scenes = await recoverExpiredClipsViaReplit(
+    req.accessToken!,
+    projectId,
+    scenes,
+  );
+  const recoveredCount = scenes.filter(
+    (s, i) => s["demoClipUrl"] !== preRecoveryScenes[i]?.["demoClipUrl"],
+  ).length;
 
   /* ── Fetch completed clips for this project from generated_clips ── */
   const clips = await db
@@ -400,7 +415,43 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   const completedClips = clips.filter((c) => c.video_url && c.status !== "failed");
 
   if (completedClips.length === 0) {
-    res.json({ synced: 0, skipped: scenes.length, message: "No completed clips found for this project." });
+    /* TEMPORARY (2026-09-22): persist recovered scenes even when sync finds
+       nothing — REMOVE AFTER USE */
+    if (recoveredCount > 0) {
+      const recoveredOutputData: Record<string, unknown> = { ...outputData, scenes };
+      const { error: recDelErr } = await req.userSupabase!
+        .from("projects")
+        .delete()
+        .eq("id", projectId)
+        .eq("user_id", req.userId);
+      if (!recDelErr) {
+        await req.userSupabase!.from("projects").insert({
+          id:           existing.id,
+          user_id:      existing.user_id,
+          project_type: existing.project_type,
+          title:        existing.title,
+          artist_name:  existing.artist_name,
+          song_title:   existing.song_title,
+          genre:        existing.genre,
+          mood:         existing.mood,
+          style:        (existing as Record<string, unknown>)["style"] ?? null,
+          platform:     (existing as Record<string, unknown>)["platform"] ?? null,
+          input_data:   existing.input_data,
+          output_data:  recoveredOutputData,
+          credits_used: existing.credits_used,
+          created_at:   existing.created_at,
+        });
+      }
+    }
+    res.json({
+      synced: 0,
+      skipped: scenes.length,
+      recovered: recoveredCount,
+      scenes,
+      message: recoveredCount > 0
+        ? `Recovered ${recoveredCount} clip${recoveredCount !== 1 ? "s" : ""}.`
+        : "No completed clips found for this project.",
+    });
     return;
   }
 
@@ -456,21 +507,8 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
     return;
   }
 
-  /* ── TEMPORARY RECOVERY (2026-09-22, REMOVE AFTER USE) ──
-     Recover clips whose Replit-GCS signed URLs expired: pull fresh URLs from
-     the still-running Replit backend, download the videos, and re-host them
-     in Supabase Storage so playback works permanently. */
-  const recoveredScenes = await recoverExpiredClipsViaReplit(
-    req.accessToken!,
-    projectId,
-    updatedScenes as Record<string, unknown>[],
-  );
-  const recoveredCount = recoveredScenes.filter(
-    (s, i) => s["demoClipUrl"] !== (updatedScenes[i] as Record<string, unknown>)["demoClipUrl"],
-  ).length;
-
   /* ── Persist updated project (delete + reinsert) ── */
-  const updatedOutputData: Record<string, unknown> = { ...outputData, scenes: recoveredScenes };
+  const updatedOutputData: Record<string, unknown> = { ...outputData, scenes: updatedScenes };
 
   const { error: delErr } = await req.userSupabase!
     .from("projects")
@@ -517,7 +555,7 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
     skipped: scenes.length - synced,
     /* TEMPORARY (2026-09-22): recovery count — REMOVE AFTER USE */
     recovered: recoveredCount,
-    scenes: recoveredScenes,
+    scenes: updatedScenes,
   });
 });
 
