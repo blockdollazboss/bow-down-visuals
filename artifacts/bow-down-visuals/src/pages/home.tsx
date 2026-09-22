@@ -233,7 +233,7 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
   return (
-    <section className="relative min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center text-center px-5 py-16 overflow-hidden">
+    <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 py-16 overflow-hidden">
       {/* Background glow effects */}
       <div className="absolute inset-0 z-0">
         <div
@@ -267,9 +267,14 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         }}
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto space-y-4">
-        {/* Hero Logo — cinematic 3D mouse-tracked motion */}
-        <HeroLogo3D />
+      <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2">
+        {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}
+        <div className="flex justify-center">
+          <HeroLogo3D />
+        </div>
+
+        {/* Copy — right side */}
+        <div className="text-center lg:text-left space-y-4">
 
         {/* Beta badge */}
         <Link href="/beta-access">
@@ -283,7 +288,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </Link>
 
         {/* Headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight text-white leading-[0.92]">
+        <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-tight text-white leading-[0.92]">
           Create Songs, <span className="gold-text-shine">Music Videos,</span>{" "}
           and Promo Clips With AI
         </h1>
@@ -294,14 +299,14 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </p>
 
         {/* Subheadline */}
-        <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
           Tell us your artist, genre, and idea. In seconds, we'll generate
           lyrics, a full video treatment, promo content, and more — ready to
           use.
         </p>
 
         {/* CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
           <Link href="/dashboard">
             <Button
               size="lg"
@@ -322,7 +327,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </div>
 
         {/* Social proof */}
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
+        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-4 w-4 text-primary/60" /> 3 free credits
             on signup
@@ -335,6 +340,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
             <CheckCircle2 className="h-4 w-4 text-primary/60" /> Results in
             seconds
           </span>
+        </div>
         </div>
       </div>
 
