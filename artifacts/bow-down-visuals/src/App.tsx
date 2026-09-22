@@ -116,20 +116,20 @@ function App({ ssrPath }: { ssrPath?: string }) {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <ThemePlayerProvider>
-          <AuthProvider>
-            <UserModeProvider>
-              <ActiveArtistProvider>
-                <WouterRouter
-                  base={import.meta.env.BASE_URL.replace(/\/$/, "")}
-                  ssrPath={ssrPath}
-                >
+        <WouterRouter
+          base={import.meta.env.BASE_URL.replace(/\/$/, "")}
+          ssrPath={ssrPath}
+        >
+          <ThemePlayerProvider>
+            <AuthProvider>
+              <UserModeProvider>
+                <ActiveArtistProvider>
                   <AppShell />
-                </WouterRouter>
-              </ActiveArtistProvider>
-            </UserModeProvider>
-          </AuthProvider>
-        </ThemePlayerProvider>
+                </ActiveArtistProvider>
+              </UserModeProvider>
+            </AuthProvider>
+          </ThemePlayerProvider>
+        </WouterRouter>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

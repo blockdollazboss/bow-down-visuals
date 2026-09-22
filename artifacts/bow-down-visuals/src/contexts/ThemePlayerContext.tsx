@@ -2,6 +2,7 @@ import {
   createContext, useContext, useEffect, useRef, useState, useCallback,
   type ReactNode,
 } from "react";
+import { useLocation } from "wouter";
 
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
 
@@ -20,6 +21,13 @@ interface ThemePlayerCtx {
 const Ctx = createContext<ThemePlayerCtx | null>(null);
 
 export function ThemePlayerProvider({ children }: { children: ReactNode }) {
+  /*
+   * Route awareness — autoplay is a home-screen-only feature.
+   * (Provider must live inside the wouter Router for useLocation to work.)
+   */
+  const [pathname] = useLocation();
+  const isHome = pathname === "/" || pathname === "";
+
   const audioRef       = useRef<HTMLAudioElement | null>(null);
   const [status,  setStatus]  = useState<Status>("probing");
   const [playing, setPlaying] = useState(false);
@@ -35,7 +43,39 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
   const manuallyMuted  = useRef(false);
   const pausedByMedia  = useRef(false);
 
-  /* ── Boot: create audio, attempt unmuted autoplay ── */
+  /*
+   * Home-screen autoplay flags.
+   * isHomeRef       = fresh route read for handlers/effects.
+   * autoPausedByNav = we paused because the user left the home screen.
+   * userStartedRef  = user explicitly pressed play — their intent wins on any route.
+   */
+  const isHomeRef       = useRef(isHome);
+  const autoPausedByNav = useRef(false);
+  const userStartedRef  = useRef(false);
+  const volumeRef       = useRef(volume);
+
+  useEffect(() => { isHomeRef.current = isHome; }, [isHome]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+
+  /*
+   * Shared autoplay attempt. Only ever fires on the home screen,
+   * never when the user paused, never while another media owns the audio.
+   */
+  const tryAutoplay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!isHomeRef.current) return;     // home screen only
+    if (manuallyPaused.current) return; // user said no
+    if (pausedByMedia.current) return;  // another media owns the audio
+    if (!audio.paused) return;          // already playing
+    audio.muted  = false;
+    audio.volume = volumeRef.current;
+    audio.play()
+      .then(() => { setPlaying(true); setMuted(false); })
+      .catch(() => { /* blocked — the unlock listener below stays armed */ });
+  }, []);
+
+  /* ── Boot: create audio, attempt unmuted autoplay (home screen only) ── */
   useEffect(() => {
     const audio = new Audio(AUDIO_SRC);
     audio.loop    = true;
@@ -46,43 +86,74 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
 
     audio.addEventListener("error", () => setStatus("error"));
 
+    const removeUnlock = () => {
+      document.removeEventListener("click",      unlock);
+      document.removeEventListener("keydown",    unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+
+    /*
+     * Browser blocked autoplay: the moment the user clicks/taps/keys,
+     * start playing unmuted — but ONLY on the home screen. The listener
+     * stays armed on other routes, so arriving home later still auto-plays.
+     * Never falls back to muted.
+     */
+    const unlock = () => {
+      const a = audioRef.current;
+      if (!a) { removeUnlock(); return; }
+      if (manuallyPaused.current) { removeUnlock(); return; } // user already said no
+      if (!isHomeRef.current) return;   // not on home — stay armed
+      if (!a.paused) { removeUnlock(); return; }
+      if (pausedByMedia.current) return;
+      a.muted  = false;
+      a.volume = volumeRef.current;
+      a.play()
+        .then(() => { setPlaying(true); setMuted(false); removeUnlock(); })
+        .catch(() => {});
+    };
+    document.addEventListener("click",      unlock);
+    document.addEventListener("keydown",    unlock);
+    document.addEventListener("touchstart", unlock, { passive: true });
+
     fetch(AUDIO_SRC, { method: "HEAD" })
       .then((r) => {
         if (!r.ok) { setStatus("missing"); return; }
         setStatus("ready");
 
-        /* Attempt 1: unmuted autoplay (works after any prior user gesture) */
-        audio.play()
-          .then(() => { setPlaying(true); setMuted(false); })
-          .catch(() => {
-            /*
-             * Browser blocked autoplay. Register a one-shot interaction
-             * listener — the moment the user clicks/taps/keys anywhere,
-             * start playing unmuted. Never fall back to muted.
-             */
-            const unlock = () => {
-              if (manuallyPaused.current) return; // user already said no
-              audio.muted  = false;
-              audio.volume = 0.65;
-              audio.play()
-                .then(() => { setPlaying(true); setMuted(false); })
-                .catch(() => {});
-              document.removeEventListener("click",   unlock);
-              document.removeEventListener("keydown", unlock);
-              document.removeEventListener("touchstart", unlock);
-            };
-            document.addEventListener("click",      unlock, { once: true });
-            document.addEventListener("keydown",    unlock, { once: true });
-            document.addEventListener("touchstart", unlock, { once: true, passive: true });
-          });
+        /* Attempt 1: unmuted autoplay (works after any prior user gesture).
+           tryAutoplay no-ops anywhere but the home screen. */
+        tryAutoplay();
       })
       .catch(() => setStatus("missing"));
 
     return () => {
+      removeUnlock();
       audio.pause();
       audioRef.current = null;
     };
-  }, []);
+  }, [tryAutoplay]);
+
+  /* ── Home-screen-only autoplay: pause when leaving home, resume on return ── */
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || status !== "ready") return;
+    if (isHome) {
+      if (manuallyPaused.current) return; // respect the user's pause
+      /* Clear a stale media-duck if nothing is actually playing anymore. */
+      const stillPlaying = Array.from(
+        document.querySelectorAll<HTMLMediaElement>("audio, video")
+      ).some((el) => el !== audio && !el.paused && !el.ended);
+      if (!stillPlaying) pausedByMedia.current = false;
+      autoPausedByNav.current = false;
+      /* Resumes after a nav-away pause, or fresh autoplay arriving home. */
+      tryAutoplay();
+    } else if (!audio.paused && !userStartedRef.current) {
+      /* Left home: pause automatic playback. User-started playback keeps going. */
+      autoPausedByNav.current = true;
+      audio.pause();
+      setPlaying(false);
+    }
+  }, [isHome, status, tryAutoplay]);
 
   /* ── Detect other media playing on the page ── */
   useEffect(() => {
@@ -174,10 +245,13 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     if (playing) {
       manuallyPaused.current = true;
       pausedByMedia.current  = false;
+      autoPausedByNav.current = false;
       audio.pause();
       setPlaying(false);
     } else {
       manuallyPaused.current = false;
+      autoPausedByNav.current = false;
+      userStartedRef.current = true; // explicit user intent — plays on any route
       audio.muted  = manuallyMuted.current;
       audio.volume = volume;
       audio.play().catch(() => {});
@@ -194,6 +268,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     setMuted(next);
     /* Unmuting should also ensure playback starts if paused */
     if (!next && !playing && !manuallyPaused.current) {
+      userStartedRef.current = true; // explicit user intent
       audio.play().catch(() => {});
       setPlaying(true);
     }
