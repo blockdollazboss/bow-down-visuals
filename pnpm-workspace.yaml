@@ -36,12 +36,12 @@ minimumReleaseAgeExclude:
   - '@replit/*'
   - stripe-replit-sync
 
-onlyBuiltDependencies:
-  - '@swc/core'
-  - core-js
-  - esbuild
-  - msw
-  - unrs-resolver
+allowBuilds:
+  '@swc/core': true
+  core-js: true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
 
 overrides:
   '@babel/core': 7.29.6
