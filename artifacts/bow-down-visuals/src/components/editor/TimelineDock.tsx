@@ -458,7 +458,7 @@ export function TimelineDock({
           onClick={() => setSettings({ ...settings, timelineDockHidden: false })}
           data-testid="timeline-dock-show"
           title="Show Timeline Dock"
-          className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-[10px] font-bold text-muted-foreground bg-background border border-b-0 border-border hover:text-foreground hover:bg-foreground/5 transition-colors shadow-[0_-4px_12px_rgba(0,0,0,0.35)]"
+          className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-t-lg text-[10px] font-bold text-white/50 bg-black border border-b-0 border-white/10 hover:text-white hover:bg-white/5 transition-colors shadow-[0_-4px_12px_rgba(0,0,0,0.35)]"
         >
           <ChevronUp className="h-3 w-3" /> Show Timeline
         </button>
@@ -469,7 +469,7 @@ export function TimelineDock({
   return (
     <div
       ref={dockRootRef}
-      className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-border shadow-[0_-8px_24px_rgba(0,0,0,0.5)]"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-black border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.5)]"
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -497,7 +497,7 @@ export function TimelineDock({
       </div>
 
       {/* ── Transport row ── */}
-      <div className="flex items-center gap-2 px-3 md:px-6 py-1.5 border-b border-border/60">
+      <div className="flex items-center gap-2 px-3 md:px-6 py-1.5 border-b border-white/10 bg-black">
         <button type="button" onClick={onRestart}
           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
           title="Restart from 0:00">
@@ -586,7 +586,7 @@ export function TimelineDock({
 
       {/* ── Sync status panel — migrated from the removed VideoTimeline component ── */}
       {showSync && (
-        <div className="border-b border-border/60 bg-card/40 px-3 md:px-6 py-2 space-y-2">
+        <div className="border-b border-white/10 bg-black px-3 md:px-6 py-2 space-y-2">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-1.5 text-[9px] font-mono">
               <Music2 className="h-3 w-3 text-primary/60 shrink-0" />
@@ -666,7 +666,7 @@ export function TimelineDock({
           </div>
 
           {/* Waveform + fade handles + export range overlay — grows/shrinks with the dock height */}
-          <div ref={timelineRef} className="relative cursor-crosshair rounded bg-card/40 overflow-hidden"
+          <div ref={timelineRef} className="relative cursor-crosshair rounded bg-black overflow-hidden border border-white/5"
             style={{ flexGrow: 36, flexShrink: 1, flexBasis: 0, minHeight: 24 }}
             onClick={handleTimelineClick} onPointerDown={startRangeCreate} title="Click to seek · drag to select export range">
             {audioUrl ? (
@@ -726,8 +726,8 @@ export function TimelineDock({
               const endPct = (cropEndResolved / totalDur) * 100;
               return (
                 <>
-                  {startPct > 0 && <div className="absolute inset-y-0 left-0 bg-background/80 pointer-events-none z-10" style={{ width: `${startPct}%` }} />}
-                  {endPct < 100 && <div className="absolute inset-y-0 right-0 bg-background/80 pointer-events-none z-10" style={{ width: `${100 - endPct}%` }} />}
+                  {startPct > 0 && <div className="absolute inset-y-0 left-0 bg-black/80 pointer-events-none z-10" style={{ width: `${startPct}%` }} />}
+                  {endPct < 100 && <div className="absolute inset-y-0 right-0 bg-black/80 pointer-events-none z-10" style={{ width: `${100 - endPct}%` }} />}
                   <div onPointerDown={(e) => startCropDrag(e, "start")}
                     className="absolute top-0 bottom-0 w-1.5 -translate-x-1/2 bg-cyan-400/80 cursor-ew-resize z-20 hover:bg-cyan-300"
                     style={{ left: `${startPct}%` }} title={`Crop start: ${fmt(songCrop.startSec)}`} />
@@ -746,7 +746,7 @@ export function TimelineDock({
           </div>
 
           {/* Clip track — flex layout keeps clips structurally back-to-back; grows/shrinks with the dock height */}
-          <div className="relative bg-background/60 cursor-crosshair rounded mt-1"
+          <div className="relative bg-black cursor-crosshair rounded mt-1 border border-white/5"
             style={{ flexGrow: 56, flexShrink: 1, flexBasis: 0, minHeight: 32 }} onClick={handleTimelineClick}>
             {scenes.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground/40">

@@ -54,6 +54,7 @@ export function TimelineSection({
         title="Scene Timeline"
         subtitle={`${approvedScenes.length} clip${approvedScenes.length === 1 ? "" : "s"} in sequence`}
         icon={<Clapperboard className="h-4 w-4" />}
+        className="!bg-black !border-white/10"
       >
         {approvedScenes.length === 0 ? (
           <div className="py-8 text-center space-y-3">
