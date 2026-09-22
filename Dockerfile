@@ -8,16 +8,18 @@ RUN corepack enable
 WORKDIR /app
 
 # Frontend build-time variables baked into the JS bundle.
-# Koyeb passes service environment variables as Docker build args.
+# Render passes service environment variables as Docker build args.
 ARG VITE_SUPABASE_URL=""
 ARG VITE_SUPABASE_ANON_KEY=""
 ARG VITE_LIP_SYNC_API_KEY=""
+ARG PORT="8080"
 
 COPY . .
 
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
-    VITE_LIP_SYNC_API_KEY=$VITE_LIP_SYNC_API_KEY
+    VITE_LIP_SYNC_API_KEY=$VITE_LIP_SYNC_API_KEY \
+    PORT=$PORT
 
 # typecheck + build every workspace package (frontend + api-server)
 RUN pnpm install --frozen-lockfile && pnpm run build
