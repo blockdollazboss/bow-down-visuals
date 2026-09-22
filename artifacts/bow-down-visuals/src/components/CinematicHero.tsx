@@ -532,19 +532,18 @@ export function HeroBackdropCanvas() {
 }
 
 /* ─────────────────── Bowing shark logo ─────────────────── */
-/* The shark-king video scrubs with the mouse: he stands in position and the
-   bow in the footage tracks the cursor — mouse up = standing tall, mouse
-   down = deep bow (t 0 → 2.8s, the bow-down segment of the clip). The video
-   is blended with `screen` so its black background turns transparent and he
-   floats over the hero backdrop. A ground shadow spreads as he bows. */
+/* The shark-king video has a REAL alpha channel (VP9 yuva420p): its
+   background is genuinely transparent, so he floats over the hero
+   backdrop with nothing behind him — no glow blob, no shadow, no
+   blend-mode hacks. He stands in position; the bow in the footage
+   scrubs with the mouse — mouse up = standing tall, mouse down =
+   deep bow (t 0 → 2.8s, the bow-down segment of the clip). */
 
 const BOW_END = 2.8; // seconds — deepest frame of the bow in hero-shark.webm
 
 export function HeroLogo3D() {
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const glowRef = useRef<HTMLDivElement | null>(null);
-  const shadowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -588,12 +587,6 @@ export function HeroLogo3D() {
             /* ignore transient seek errors */
           }
         }
-        const shadow = shadowRef.current;
-        if (shadow) {
-          const s = 1 + current * 0.45;
-          shadow.style.transform = `translateX(-50%) scaleX(${s.toFixed(3)})`;
-          shadow.style.opacity = (0.3 + current * 0.35).toFixed(3);
-        }
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -607,47 +600,22 @@ export function HeroLogo3D() {
 
   return (
     <div ref={sectionRef} className="relative flex justify-center">
-      <div
-        ref={glowRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute rounded-full blur-[90px] will-change-transform"
-        style={{
-          left: "50%",
-          top: "44%",
-          width: 440,
-          height: 440,
-          transform: "translate(-50%, -50%)",
-          background:
-            "radial-gradient(circle, rgba(255,186,66,0.30) 0%, rgba(212,160,23,0.12) 45%, transparent 70%)",
-        }}
-      />
-      {/* Plain wrapper (no 3D transform): he stands in position. Kept free of
-          stacking-context tricks so the video's screen blend reaches the
-          hero backdrop behind it. */}
-      <div className="relative">
-        {/* Shark-king hero video — the bow in the footage scrubs with the
-            mouse. `screen` blend drops the black background so he floats
-            over the hero backdrop. */}
-        <video
-          ref={videoRef}
-          className="w-[480px] max-w-full h-auto"
-          style={{ mixBlendMode: "screen" }}
-          src={`${import.meta.env.BASE_URL}hero-shark.webm`}
-          poster={`${import.meta.env.BASE_URL}hero-shark-poster.jpg`}
-          muted
-          playsInline
-          preload="auto"
-          disablePictureInPicture
-          aria-label="Bow Down Visuals shark king bowing"
-          draggable={false}
-        />
-      </div>
-      {/* Ground shadow — spreads and darkens as he bows */}
-      <div
-        ref={shadowRef}
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 bottom-[4px] h-[30px] w-[60%] rounded-[100%] bg-black blur-[16px]"
-        style={{ transform: "translateX(-50%)", opacity: 0.28 }}
+      {/* Shark-king hero video with a real alpha channel — the background
+          is genuinely transparent, so he floats over the hero backdrop.
+          No glow, no shadow, no blend hacks. The bow in the footage
+          scrubs with the mouse: cursor up = standing tall, cursor down =
+          deep bow. */}
+      <video
+        ref={videoRef}
+        className="w-[480px] max-w-full h-auto"
+        src={`${import.meta.env.BASE_URL}hero-shark.webm`}
+        poster={`${import.meta.env.BASE_URL}hero-shark-poster.png`}
+        muted
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        aria-label="Bow Down Visuals shark king bowing"
+        draggable={false}
       />
     </div>
   );
