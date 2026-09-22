@@ -6,6 +6,8 @@ import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+/* TEMPORARY (2026-09-22): clip recovery via Replit backend — REMOVE AFTER USE */
+import { recoverExpiredClipsViaReplit } from "../lib/clipRecovery";
 
 const router = Router();
 
@@ -454,8 +456,21 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
     return;
   }
 
+  /* ── TEMPORARY RECOVERY (2026-09-22, REMOVE AFTER USE) ──
+     Recover clips whose Replit-GCS signed URLs expired: pull fresh URLs from
+     the still-running Replit backend, download the videos, and re-host them
+     in Supabase Storage so playback works permanently. */
+  const recoveredScenes = await recoverExpiredClipsViaReplit(
+    req.accessToken!,
+    projectId,
+    updatedScenes as Record<string, unknown>[],
+  );
+  const recoveredCount = recoveredScenes.filter(
+    (s, i) => s["demoClipUrl"] !== (updatedScenes[i] as Record<string, unknown>)["demoClipUrl"],
+  ).length;
+
   /* ── Persist updated project (delete + reinsert) ── */
-  const updatedOutputData: Record<string, unknown> = { ...outputData, scenes: updatedScenes };
+  const updatedOutputData: Record<string, unknown> = { ...outputData, scenes: recoveredScenes };
 
   const { error: delErr } = await req.userSupabase!
     .from("projects")
@@ -493,11 +508,17 @@ router.post("/projects/:projectId/sync-clips", requireAuth, async (req, res) => 
   }
 
   req.log.info(
-    { projectId, userId: req.userId, synced, total: scenes.length },
+    { projectId, userId: req.userId, synced, total: scenes.length, recoveredCount },
     "[projects] sync-clips completed",
   );
 
-  res.json({ synced, skipped: scenes.length - synced, scenes: updatedScenes });
+  res.json({
+    synced,
+    skipped: scenes.length - synced,
+    /* TEMPORARY (2026-09-22): recovery count — REMOVE AFTER USE */
+    recovered: recoveredCount,
+    scenes: recoveredScenes,
+  });
 });
 
 router.delete("/projects/:id", requireAuth, async (req, res) => {
