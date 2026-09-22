@@ -1,7 +1,7 @@
 # Bow Down Visuals — single-service production image.
 # Builds the API server and the Vite frontend, then runs the API server
 # which also serves the frontend's static files (same origin, so /api just works).
-FROM node:20-slim
+FROM node:22-slim
 
 RUN corepack enable
 
