@@ -233,7 +233,7 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
-  const logoTilt = useTiltOnHover<HTMLDivElement>();
+  const logoTilt = useTiltOnHover<HTMLDivElement>({ track: true });
   return (
     <section className="relative min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center text-center px-5 py-16 overflow-hidden">
       {/* Background glow effects */}
