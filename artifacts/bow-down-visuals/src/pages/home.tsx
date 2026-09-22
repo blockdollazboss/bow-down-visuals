@@ -2,7 +2,7 @@ import { useState, useRef, forwardRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HeroBackdropCanvas, HeroLogo3D } from "@/components/CinematicHero";
+import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -266,9 +266,6 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
           backgroundSize: "60px 60px",
         }}
       />
-
-      {/* Cinematic motion backdrop — embers, god rays, light sweeps */}
-      <HeroBackdropCanvas />
 
       <div className="relative z-10 max-w-5xl mx-auto space-y-4">
         {/* Hero Logo — cinematic 3D mouse-tracked motion */}
