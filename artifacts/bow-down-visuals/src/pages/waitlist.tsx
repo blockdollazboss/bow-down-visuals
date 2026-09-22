@@ -77,7 +77,7 @@ const TOOLS = [
   { label: "Make Song + Video",  icon: Mic2,      badge: "Most Popular" },
   { label: "Promo Clip Maker",   icon: Film,      badge: null },
   { label: "Thumbnail Maker",    icon: ImageIcon, badge: null },
-  { label: "Artist Vault",       icon: Archive,   badge: "Free" },
+  { label: "Artist Profiles",       icon: Archive,   badge: "Free" },
 ];
 
 const WAITLIST_CONTACT_JSON_LD = {
@@ -190,7 +190,7 @@ export default function Waitlist() {
                 </div>
               ))}
             </div>
-            <span className="text-sm text-white/40"><span className="text-white font-bold">2,847</span> artists on the waitlist</span>
+            <span className="text-sm text-white/40">Join the waitlist for early access</span>
           </div>
         </section>
 

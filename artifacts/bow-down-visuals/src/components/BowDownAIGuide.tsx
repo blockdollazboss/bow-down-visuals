@@ -116,7 +116,7 @@ const GUIDES: Record<HelpKey, GuideEntry> = {
     ],
     tips: [
       "Set an active artist first — it unlocks character consistency across all AI tools.",
-      "Credits are only used when generating video clips. Text generations are free.",
+      "Songs, video plans, promos, and thumbnails cost 1–2 credits each. Video clips cost 5 credits.",
     ],
   },
   "artist-vault": {
@@ -183,8 +183,8 @@ const GUIDES: Record<HelpKey, GuideEntry> = {
   pricing: {
     title: "Credits & Pricing — Guide",
     steps: [
-      { n: 1, title: "What credits are for",     desc: "Credits power Runway AI video clip generation. Each clip costs 5 credits." },
-      { n: 2, title: "Free vs paid features",    desc: "Lyrics, video plans, scene prompts, and artist profiles are free." },
+      { n: 1, title: "What credits are for",     desc: "Credits power every AI generation. Songs, video plans, promos, and thumbnails cost 1–2 credits each; video clips cost 5 credits." },
+      { n: 2, title: "Free vs paid features",    desc: "Creating artist profiles is free. Every AI generation — songs, video plans, promos, thumbnails, and video clips — uses credits." },
       { n: 3, title: "Buy credits",              desc: "Choose a credit pack below and check out. Credits appear instantly." },
       { n: 4, title: "Check your balance",       desc: "Your credit balance is always visible in the top bar." },
     ],

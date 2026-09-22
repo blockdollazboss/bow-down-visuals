@@ -135,7 +135,7 @@ export default function Signup() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Free plan includes 50 credits/month. No credit card required.
+          3 free credits on signup. No credit card required.
         </p>
       </div>
     </div>

@@ -77,8 +77,8 @@ const TOOLS = [
   { label: "Make Song + Video",  icon: Mic2,       badge: "Most Popular" },
   { label: "Promo Clip Maker",   icon: Film,       badge: null },
   { label: "Thumbnail Maker",    icon: ImageIcon,  badge: null },
-  { label: "Music Mixing",       icon: Headphones, badge: null },
-  { label: "Artist Vault",       icon: Archive,    badge: "Free" },
+  { label: "Music Mixing",       icon: Headphones, badge: "Beta" },
+  { label: "Artist Profiles",       icon: Archive,    badge: "Free" },
 ];
 
 const PERKS = [
@@ -188,7 +188,7 @@ export default function BetaAccess() {
                 </div>
               ))}
             </div>
-            <span className="text-sm text-white/40"><span className="text-white font-bold">2,847</span> creators already signed up</span>
+            <span className="text-sm text-white/40">Join the beta list for early access</span>
           </div>
         </section>
 

@@ -93,7 +93,7 @@ const PLANS = [
     features: [
       "100 credits monthly",
       "Everything in Starter",
-      "Runway video clip generation",
+      "Music video clip generation",
       "Artist Profiles",
       "Music Mixer beta",
       "Video Editor beta",
@@ -113,7 +113,7 @@ const PLANS = [
       "Everything in Creator",
       "More video clip generations",
       "Advanced promo packs",
-      "Music Studio tools",
+      "Music Studio tools (beta)",
       "Priority beta access",
     ],
   },
@@ -145,7 +145,7 @@ const CREDIT_PACKS = [
 const FAQ = [
   {
     q: "What are credits?",
-    a: "Credits are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing Runway clips. Each action draws from your monthly credit balance.",
+    a: "Credits are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly credit balance.",
   },
   {
     q: "Are payments live yet?",
@@ -156,8 +156,8 @@ const FAQ = [
     a: "Yes. Beta users can test selected tools with a starter credit balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
   },
   {
-    q: "Do Runway clips cost credits?",
-    a: "Yes — Runway video clip generation is a premium action and uses more credits than standard text generation. The exact cost per clip will be confirmed at launch.",
+    q: "Do music video clips cost credits?",
+    a: "Yes — music video clip generation is a premium action and uses more credits than standard text generation. The exact cost per clip will be confirmed at launch.",
   },
   {
     q: "Can I cancel later?",
