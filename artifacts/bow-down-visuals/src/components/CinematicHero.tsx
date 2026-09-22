@@ -617,7 +617,7 @@ export function HeroLogo3D() {
         className="relative will-change-transform"
         style={{ transformStyle: "preserve-3d", transformOrigin: "50% 84%" }}
       >
-        <AnimatedLogo className="w-[480px] max-w-full h-auto" />
+                {/* Shark-king hero video — bows in the footage and follows the             cursor via the 3D pointer rig above. */}         <video           ref={(v) => {             if (v) v.muted = true;           }}           className="w-[480px] max-w-full h-auto"           src={`${import.meta.env.BASE_URL}hero-shark.webm`}           poster={`${import.meta.env.BASE_URL}hero-shark-poster.jpg`}           autoPlay           muted           loop           playsInline           preload="auto"           disablePictureInPicture           aria-label="Bow Down Visuals shark king bowing"           draggable={false}         />
       </div>
       {/* Ground shadow — spreads and darkens as he bows */}
       <div
