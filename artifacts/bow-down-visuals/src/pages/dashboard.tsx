@@ -11,6 +11,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { StudioPipeline } from "@/components/StudioPipeline";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -403,7 +404,7 @@ export default function Dashboard() {
           <div className="mb-6 flex items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-black text-white tracking-tight">What do you want to create?</h2>
-              <p className="text-sm text-white/35 mt-1">Pick a workflow below to get started.</p>
+              <p className="text-sm text-white/35 mt-1">Follow the 1-2-3 release workflow, or pick any step on its own.</p>
             </div>
             <button
               type="button"
@@ -413,7 +414,11 @@ export default function Dashboard() {
               <Sparkles className="h-3.5 w-3.5" /> Try Simple Mode
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+          {/* 1 → 2 → 3 pipeline */}
+          <StudioPipeline />
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <CreatorCard
               icon={Mic2}
               title="Make Song + Video"

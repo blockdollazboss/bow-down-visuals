@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { Music, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -110,6 +111,9 @@ export default function MakeSong() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
+  const [uploadedLyrics, setUploadedLyrics] = useState<string>("");
+  const [uploadedSongUrl, setUploadedSongUrl] = useState<string | null>(null);
+  const [uploadedSongFile, setUploadedSongFile] = useState<File | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SongFormValues>({
     defaultValues: {
@@ -197,6 +201,36 @@ export default function MakeSong() {
         {/* Form card */}
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
+            {/* Upload your own song — skip generation, go straight to video */}
+            <div className="rounded-xl border border-dashed border-white/[0.12] bg-white/[0.015] p-5">
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <Upload className="h-4 w-4 text-primary" />
+                <p className="text-sm font-bold text-white">Already have a song?</p>
+              </div>
+              <p className="text-xs text-white/35 mb-3 leading-relaxed">
+                Upload your track to transcribe lyrics and jump to Step 2 — no generation credit needed.
+              </p>
+              <AudioTranscribe
+                onTranscript={(text) => setUploadedLyrics(text)}
+                onFileUrl={(url) => setUploadedSongUrl(url)}
+                onFile={(f) => setUploadedSongFile(f)}
+              />
+              {uploadedSongUrl && (
+                <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <p className="text-xs text-white/40 flex-1">
+                    {uploadedSongFile ? uploadedSongFile.name : "Your song"} is ready.
+                    {uploadedLyrics ? " Lyrics transcribed below — " : " "}
+                    head to Step 2 to build your video.
+                  </p>
+                  <Link href="/make-video">
+                    <Button type="button" size="sm" className="gold-glow font-bold gap-1.5 whitespace-nowrap">
+                      Continue to Step 2 <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
 
             <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
 
