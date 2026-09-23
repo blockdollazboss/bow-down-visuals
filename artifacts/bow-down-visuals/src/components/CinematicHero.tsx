@@ -8,7 +8,11 @@ import { useEffect, useRef } from "react";
    standing tall, mouse down = deep bow. The bow-down lives in the first
    ~4.2s of the clip, so pointer Y maps to 0 → BOW_END seconds. Scrubbing
    the real 24fps video is smoother and far higher-quality than scrubbing
-   still frames. */
+   still frames.
+   The scrub loop always runs: this motion is 100% user-driven (the video
+   only moves while the pointer moves — direct manipulation), never
+   autonomous animation. Under prefers-reduced-motion the follow snaps
+   1:1 instead of easing, and the pointer-leave reset is instant. */
 
 const BOW_END = 4.2; // seconds — deepest point of the bow in hero-bow.mp4
 
@@ -23,14 +27,15 @@ export function HeroLogo3D() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let target = 0; // desired time (s): 0 = standing … BOW_END = full bow
-    let current = 0; // eased time
+    let current = 0; // rendered time
     let raf = 0;
     let cancelled = false;
     let ready = false;
 
     video.pause();
 
-    const onLoaded = () => {
+    const markReady = () => {
+      if (ready) return;
       ready = true;
       // Preroll the standing frame so the slot is never blank.
       try {
@@ -40,8 +45,9 @@ export function HeroLogo3D() {
       }
       current = 0;
     };
-    if (video.readyState >= 1) onLoaded();
-    else video.addEventListener("loadedmetadata", onLoaded, { once: true });
+    if (video.readyState >= 1) markReady();
+    video.addEventListener("loadedmetadata", markReady);
+    video.addEventListener("canplay", markReady);
 
     // Scrub across the whole hero section — not just the shark's own box —
     // so the bow progresses gradually as the cursor travels down the page:
@@ -57,7 +63,7 @@ export function HeroLogo3D() {
       const t = e.touches[0];
       if (t) setTargetFromClientY(t.clientY);
     };
-    // Ease back to standing when the pointer leaves the hero.
+    // Back to standing when the pointer leaves the hero.
     const onLeave = () => {
       target = 0;
     };
@@ -65,28 +71,35 @@ export function HeroLogo3D() {
     heroSection.addEventListener("pointerleave", onLeave, { passive: true });
     heroSection.addEventListener("touchmove", onTouchMove, { passive: true });
 
-    if (!reduce) {
-      const loop = () => {
-        if (cancelled) return;
+    const loop = () => {
+      if (cancelled) return;
+      // Self-healing: if the metadata event was missed, pick it up here.
+      if (!ready && video.readyState >= 1) markReady();
+      if (reduce) {
+        // Reduced motion: direct 1:1 follow, no easing animation.
+        current = target;
+      } else {
         // Snappy easing: tracks the cursor 1:1 without stepping.
         current += (target - current) * 0.35;
         if (Math.abs(target - current) < 0.015) current = target;
-        // Only seek when meaningfully behind — avoids redundant seeks.
-        if (ready && Math.abs(video.currentTime - current) > 0.02) {
-          try {
-            video.currentTime = current;
-          } catch {
-            /* transient seek failure — next frame retries */
-          }
+      }
+      // Only seek when meaningfully behind — avoids redundant seeks.
+      if (ready && Math.abs(video.currentTime - current) > 0.02) {
+        try {
+          video.currentTime = current;
+        } catch {
+          /* transient seek failure — next frame retries */
         }
-        raf = requestAnimationFrame(loop);
-      };
+      }
       raf = requestAnimationFrame(loop);
-    }
+    };
+    raf = requestAnimationFrame(loop);
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
+      video.removeEventListener("loadedmetadata", markReady);
+      video.removeEventListener("canplay", markReady);
       heroSection.removeEventListener("pointermove", onPointerMove);
       heroSection.removeEventListener("pointerleave", onLeave);
       heroSection.removeEventListener("touchmove", onTouchMove);
@@ -99,7 +112,7 @@ export function HeroLogo3D() {
     <div ref={sectionRef} className="relative w-[480px] max-w-full aspect-square">
       {/* Shark-king bow scrubber — native video with its own background.
           No canvas, no frame images, no effects. Cursor up = standing tall,
-          cursor down = deep bow; eases back to standing on pointer leave. */}
+          cursor down = deep bow; returns to standing on pointer leave. */}
       <video
         ref={videoRef}
         className="absolute inset-0 h-full w-full object-cover"
