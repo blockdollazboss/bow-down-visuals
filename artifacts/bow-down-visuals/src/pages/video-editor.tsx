@@ -828,6 +828,7 @@ export default function VideoEditor() {
                       effects: "Effects",
                       branding: "Brand",
                       "lip-sync": "Lip Sync",
+                      "pre-production": "Pre-Pro",
                       export: "Export",
                       studio: "Advanced",
                     }[tab]}

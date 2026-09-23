@@ -124,15 +124,18 @@ export function Chip({
   active,
   onClick,
   children,
+  title,
 }: {
   active: boolean;
   onClick: () => void;
   children: ReactNode;
+  title?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
         active
           ? "border-primary/50 bg-primary/15 text-primary"

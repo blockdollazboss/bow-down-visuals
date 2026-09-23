@@ -126,9 +126,9 @@ export function AutoClipSection({
         timelineOrder,
         testMode: false,
         aspectRatio: "9:16", // vertical for TikTok/Reels/Shorts
-        fadeAudioInSec: hasAudio ? va.fadeInSec ?? 0 : 0,
-        fadeAudioOutSec: hasAudio ? va.fadeOutSec ?? 0 : 0,
-        loopAudio: hasAudio ? va.loop ?? false : false,
+        fadeAudioInSec: hasAudio ? va.fadeIn ?? 0 : 0,
+        fadeAudioOutSec: hasAudio ? va.fadeOut ?? 0 : 0,
+        loopAudio: hasAudio ? va.loopAudio ?? false : false,
         audioStartSec: hasAudio ? va.startSec ?? 0 : 0,
         matchVideoLength: false,
         addWatermark: settings.watermarkIncludeInExport,

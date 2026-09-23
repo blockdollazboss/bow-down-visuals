@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { getOpenAI } from "../lib/ai-clients";
 import { toFile } from "openai";
 import multer from "multer";
@@ -8,6 +8,30 @@ const router = Router();
 
 /** Whisper's hard file-size limit */
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+
+/**
+ * Bound the Whisper call so a slow/stalled transcription never hangs the
+ * request forever. The frontend uses a slightly longer timeout so this
+ * server-side error (with its clearer message) wins the race.
+ */
+const WHISPER_TIMEOUT_MS = 240_000; // 4 minutes
+
+function isTimeoutError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "TimeoutError" ||
+    err.name === "AbortError" ||
+    /timed out|timeout|aborted/i.test(err.message)
+  );
+}
+
+function timeoutResponse(res: Response) {
+  res.status(504).json({
+    error: "TRANSCRIBE_TIMEOUT",
+    message:
+      "Transcription took too long. Try a shorter audio file (or a lower-bitrate MP3), or paste your lyrics manually.",
+  });
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -32,13 +56,20 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
       req.file.originalname || "audio.mp3",
       { type: req.file.mimetype },
     );
-    const transcription = await getOpenAI().audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-    });
+    const transcription = await getOpenAI().audio.transcriptions.create(
+      {
+        file: audioFile,
+        model: "whisper-1",
+      },
+      { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
+    );
     res.json({ transcript: transcription.text });
   } catch (err) {
     req.log.error({ err }, "Transcription failed");
+    if (isTimeoutError(err)) {
+      timeoutResponse(res);
+      return;
+    }
     res.status(500).json({ error: "Transcription failed" });
   }
 });
@@ -127,12 +158,15 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
     // sung vocals (melisma, held notes, word stretching) accurately. Word
     // timestamps let the client align each caption line to the actual words
     // being sung rather than the whole segment they fall within.
-    const transcription = (await getOpenAI().audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      response_format: "verbose_json",
-      timestamp_granularities: ["word", "segment"],
-    })) as unknown as VerboseTranscription;
+    const transcription = (await getOpenAI().audio.transcriptions.create(
+      {
+        file: audioFile,
+        model: "whisper-1",
+        response_format: "verbose_json",
+        timestamp_granularities: ["word", "segment"],
+      },
+      { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
+    )) as unknown as VerboseTranscription;
 
     res.json({
       transcript: transcription.text,
@@ -144,6 +178,10 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "URL transcription failed");
     const msg = err instanceof Error ? err.message : "Transcription failed";
+    if (isTimeoutError(err)) {
+      timeoutResponse(res);
+      return;
+    }
     /* Surface OpenAI's own 413 / content-length errors cleanly */
     if (msg.toLowerCase().includes("413") || msg.toLowerCase().includes("content size") || msg.toLowerCase().includes("too large")) {
       res.status(413).json({
@@ -154,6 +192,27 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
     }
     res.status(500).json({ error: `Could not transcribe song: ${msg}` });
   }
+});
+
+/** Turn multer upload errors into clean JSON the frontend can display. */
+router.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({
+        error: "FILE_TOO_LARGE",
+        message:
+          "This song file exceeds the 25 MB transcription limit. Please upload a smaller MP3 or paste your lyrics manually.",
+      });
+      return;
+    }
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  if (err instanceof Error && err.message === "Only audio files are allowed") {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  next(err);
 });
 
 export default router;
