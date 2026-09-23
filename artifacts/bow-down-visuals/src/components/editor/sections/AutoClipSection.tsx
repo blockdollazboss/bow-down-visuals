@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
+import { pollExportJob } from "@/lib/export-job-poll";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Download, RotateCcw, X } from "lucide-react";
 
@@ -152,13 +153,16 @@ export function AutoClipSection({
         overlayEffectIntensity: settings.overlayIntensity ?? null,
         fitMode: settings.export.fitMode ?? "fill",
       }),
-      signal: AbortSignal.timeout(10 * 60 * 1000),
+      signal: AbortSignal.timeout(60 * 1000),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
     }
-    const data = await res.json();
+    // Exports render as background jobs (202 { jobId }); poll until done.
+    const accepted = (await res.json()) as { jobId?: string; url?: string };
+    if (!accepted.url && !accepted.jobId) throw new Error("Export did not return a job id");
+    const data = accepted.url ? accepted : await pollExportJob({ jobId: accepted.jobId!, getAccessToken });
     if (!data.url) throw new Error("Export returned no download URL");
     return data.url as string;
   }

@@ -15,6 +15,17 @@ import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { fileURLToPath } from "url";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from "../../lib/logger";
+import {
+  createExportJob,
+  getExportJob,
+  enqueueExport,
+  describeJobProgress,
+  type ExportJob,
+  type ExportJobError,
+  type ExportStatusRef,
+} from "../../lib/export-jobs";
 
 const execFileAsync = promisify(execFile);
 const router = Router();
@@ -364,39 +375,9 @@ function cleanup(...files: string[]) {
 }
 
 /* ── POST /api/export-final-video ────────────────────── */
+const EXPORT_CREDIT_COST = 5;
 
-router.post("/export-final-video", requireAuth, async (req, res) => {
-  const {
-    projectId,
-    clipUrls,
-    audioUrl,
-    timelineOrder,
-    testMode,
-    aspectRatio = "9:16",
-    fadeAudioInSec = 0,
-    fadeAudioOutSec = 0,
-    loopAudio = false,
-    audioStartSec = 0,
-    matchVideoLength = true,
-    addWatermark = false,
-    customWatermarkUrl,
-    watermarkPosition = "bottom-right",
-    watermarkSize = "medium",
-    watermarkMargin = 16,
-    audioSource = "uploaded",
-    captions,
-    branding,
-    exportRangeStart,
-    exportRangeEnd,
-    prepareId,
-    clipTransitions,
-    overlayItems,
-    manualGapsBeforeSec,
-    effects,
-    overlayEffects,
-    overlayEffectIntensity,
-    fitMode,
-  } = req.body as {
+export interface ExportRequestBody {
     projectId: string;
     clipUrls: string[];
     audioUrl?: string | null;
@@ -472,51 +453,55 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       /** 1–200, interpreted as % width for images. */
       size?: number;
     }[] | null;
-  };
+}
 
-  if (!projectId?.trim()) {
-    res.status(400).json({ error: "projectId is required" });
-    return;
-  }
-  if (!Array.isArray(clipUrls) || clipUrls.length === 0) {
-    res.status(400).json({ error: "clipUrls must be a non-empty array" });
-    return;
-  }
-
-  /* ── Custom export range validation ──
-   * A range is only meaningful when BOTH start/end are provided as finite numbers.
-   * Reject invalid or near-zero-duration ranges here (e.g. a "custom" range left at
-   * 00:00.000/00:00.000) instead of letting FFmpeg fail deep in the pipeline with a
-   * cryptic exit code (234). Mirrors the client-side guard in FinalVideoExport.tsx. */
-  const MIN_EXPORT_RANGE_DURATION_SEC = 0.25;
-  if ((exportRangeStart !== null && exportRangeStart !== undefined) || (exportRangeEnd !== null && exportRangeEnd !== undefined)) {
-    const startNum = typeof exportRangeStart === "number" ? exportRangeStart : NaN;
-    const endNum   = typeof exportRangeEnd   === "number" ? exportRangeEnd   : NaN;
-    const rangeIsUsable =
-      Number.isFinite(startNum) &&
-      Number.isFinite(endNum) &&
-      startNum >= 0 &&
-      endNum - startNum >= MIN_EXPORT_RANGE_DURATION_SEC;
-    if (!rangeIsUsable) {
-      res.status(400).json({
-        error: `Invalid export range: start=${exportRangeStart ?? "null"}, end=${exportRangeEnd ?? "null"}. ` +
-          `The range must have a valid start (>= 0) and an end at least ${MIN_EXPORT_RANGE_DURATION_SEC}s after the start.`,
-        code: "INVALID_EXPORT_RANGE",
-      });
-      return;
-    }
-  }
-
-  /* ── Credit check (5 credits for final export) ── */
-  const EXPORT_CREDIT_COST = 5;
-  const currentCredits = req.userCredits ?? 0;
-  if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
-    res.status(402).json({
-      error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
-    });
-    return;
-  }
+interface ExportJobContext {
+  body: ExportRequestBody;
+  userId: string;
+  userPlan?: string;
+  userSupabase?: SupabaseClient;
+  log: { info: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void };
+  statusRef: ExportStatusRef;
+}
+/**
+ * The full export render, detached from any HTTP request lifecycle.
+ * Runs in the background via the export job queue; progress is observable
+ * through ctx.statusRef (mirrored from exportStatus.ffmpegStage).
+ * Resolves with the exact payload the old synchronous route returned;
+ * rejects with a structured { status, message, code?, ... } on failure.
+ */
+async function executeExport(ctx: ExportJobContext): Promise<Record<string, unknown>> {
+  const {
+    projectId,
+    clipUrls,
+    audioUrl,
+    timelineOrder,
+    testMode,
+    aspectRatio = "9:16",
+    fadeAudioInSec = 0,
+    fadeAudioOutSec = 0,
+    loopAudio = false,
+    audioStartSec = 0,
+    matchVideoLength = true,
+    addWatermark = false,
+    customWatermarkUrl,
+    watermarkPosition = "bottom-right",
+    watermarkSize = "medium",
+    watermarkMargin = 16,
+    audioSource = "uploaded",
+    captions,
+    branding,
+    exportRangeStart,
+    exportRangeEnd,
+    prepareId,
+    clipTransitions,
+    overlayItems,
+    manualGapsBeforeSec,
+    effects,
+    overlayEffects,
+    overlayEffectIntensity,
+    fitMode,
+  } = ctx.body;
 
   const [TARGET_W, TARGET_H] = ASPECT_DIMS[aspectRatio] ?? ASPECT_DIMS["9:16"]!;
 
@@ -524,6 +509,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   const tmpDir = os.tmpdir();
   const tmpFiles: string[] = [];
   const exportStatus = makeStatus();
+  ctx.statusRef.current = exportStatus;
   let preparedExportAcquired = false;
 
   try {
@@ -531,11 +517,11 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
        The client sends addWatermark, but a free/trial user calling the API
        directly must not be able to bypass it. Mirrors the frontend gate. ── */
     const FREE_PLANS = ["", "free", "trial", "none", "null"];
-    const userPlan = (req.userPlan ?? "free").toLowerCase().trim();
+    const userPlan = (ctx.userPlan ?? "free").toLowerCase().trim();
     const isSubscriber = !FREE_PLANS.includes(userPlan);
     const effectiveAddWatermark = isSubscriber ? addWatermark : true;
 
-    req.log.info({
+    ctx.log.info({
       clipCount: clipUrls.length,
       aspectRatio,
       resolution: `${TARGET_W}x${TARGET_H}`,
@@ -563,89 +549,80 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     // ── HARD STOP: if prepareId was supplied, ALL clips must be file-verified ──
     if (prepareId) {
       if (!preparedEntry) {
-        res.status(400).json({
+        throw { status: 400,
           error: "Prepare session expired or not found (likely the server restarted or 30+ minutes passed since preparing). Click 'Prepare Export Files Only' again before exporting.",
           code: "PREPARE_STALE",
           exportStatus,
-        });
-        return;
+        };
       }
       if (!preparedEntry.allReady) {
         const failed = preparedEntry.clips
           .filter((c) => !c.readyForFFmpeg)
           .map((c) => `Scene ${c.sceneNumber}${c.error ? `: ${c.error.slice(0, 80)}` : ""}`);
-        res.status(400).json({
+        throw { status: 400,
           error: `FFmpeg blocked — ${failed.length} clip${failed.length !== 1 ? "s" : ""} failed preparation: ${failed.join(" | ")}. Fix the errors and re-prepare before exporting.`,
           exportStatus,
-        });
-        return;
+        };
       }
       // Double-check every prepared file still exists on disk
       for (const pc of preparedEntry.clips) {
         if (!existsSync(pc.localPath)) {
-          res.status(400).json({
+          throw { status: 400,
             error: `Scene ${pc.sceneNumber} prepared file is gone from disk (${pc.localPath}) — likely the server restarted since preparing. Re-prepare before exporting.`,
             code: "PREPARE_STALE",
             exportStatus,
-          });
-          return;
+          };
         }
       }
       // ── Audio hard stop: if audio was requested it must be ready + on disk ──
       if (preparedEntry.audio?.requested) {
         if (!preparedEntry.audio.ready) {
-          res.status(400).json({
+          throw { status: 400,
             error: `FFmpeg blocked — project audio failed preparation: ${preparedEntry.audio.error ?? "unknown error"}. Re-prepare before exporting.`,
             exportStatus,
-          });
-          return;
+          };
         }
         if (!existsSync(preparedEntry.audio.localPath)) {
-          res.status(400).json({
+          throw { status: 400,
             error: `Prepared audio file is gone from disk (${preparedEntry.audio.localPath}) — likely the server restarted since preparing. Re-prepare before exporting.`,
             code: "PREPARE_STALE",
             exportStatus,
-          });
-          return;
+          };
         }
       }
 
       // ── Source-identity hard stop: prepared files must match the EXACT clips/audio being exported ──
       if (preparedEntry.clips.length !== clipUrls.length) {
-        res.status(400).json({
+        throw { status: 400,
           error: `FFmpeg blocked — clip selection changed since preparation (prepared ${preparedEntry.clips.length}, exporting ${clipUrls.length}). Re-prepare before exporting.`,
           code: "PREPARE_STALE",
           exportStatus,
-        });
-        return;
+        };
       }
       for (let i = 0; i < clipUrls.length; i++) {
         if (preparedEntry.clips[i]!.resolvedUrl !== clipUrls[i]) {
-          res.status(400).json({
+          throw { status: 400,
             error: `FFmpeg blocked — clip ${i + 1} source changed since preparation. Re-prepare before exporting so the export uses the same clips as the player.`,
             code: "PREPARE_STALE",
             exportStatus,
-          });
-          return;
+          };
         }
       }
       const requestedAudio = !!audioUrl?.trim();
       if (requestedAudio) {
         if (!preparedEntry.audio?.requested) {
-          res.status(400).json({
+          throw { status: 400,
             error: `FFmpeg blocked — audio was added after preparation. Re-prepare before exporting so the export includes the player's audio.`,
             code: "PREPARE_STALE",
             exportStatus,
-          });
-          return;
+          };
         }
         if (preparedEntry.audio.sourceUrl !== audioUrl) {
-          res.status(400).json({
+          throw { status: 400,
             error: `FFmpeg blocked — audio source changed since preparation. Re-prepare before exporting so the export uses the same audio as the player.`,
             code: "PREPARE_STALE",
             exportStatus,
-          });
-          return;
+          };
         }
       }
     }
@@ -667,7 +644,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
 
     if (usePrepared && preparedEntry) {
-      req.log.info({ prepareId, clipCount: preparedEntry.clips.length }, "[export] using pre-downloaded clips from prepare step");
+      ctx.log.info({ prepareId, clipCount: preparedEntry.clips.length }, "[export] using pre-downloaded clips from prepare step");
       for (const pc of preparedEntry.clips) {
         if (!existsSync(pc.localPath)) {
           throw new Error(
@@ -690,13 +667,13 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           codec: pc.codec,
           fileSize: sz,
         });
-        req.log.info({ scene: pc.sceneNumber, fileSize: sz, duration: pc.duration.toFixed(2) }, "[export] pre-prepared clip accepted ✓");
+        ctx.log.info({ scene: pc.sceneNumber, fileSize: sz, duration: pc.duration.toFixed(2) }, "[export] pre-prepared clip accepted ✓");
       }
       // NOTE: do NOT delete prepared files here — they are still needed for dedup check and normalization.
       // Cleanup happens in the finally block below.
     } else {
       if (prepareId && !preparedEntry) {
-        req.log.warn({ prepareId }, "[export] prepareId not found in registry — falling back to live download");
+        ctx.log.warn({ prepareId }, "[export] prepareId not found in registry — falling back to live download");
       }
       exportStatus.ffmpegStage = "downloading clips";
 
@@ -707,7 +684,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         const dest = path.join(tmpDir, `bdv-clip-${exportId}-${i}.mp4`);
         tmpFiles.push(dest);
 
-        req.log.info({ i: i + 1, url: url.slice(0, 80) }, "[export] downloading clip");
+        ctx.log.info({ i: i + 1, url: url.slice(0, 80) }, "[export] downloading clip");
 
         try {
           await downloadToFile(url, dest);
@@ -716,7 +693,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         }
 
         const dlSize = statSync(dest).size;
-        req.log.info({ i: i + 1, fileSize: dlSize }, "[export] clip downloaded");
+        ctx.log.info({ i: i + 1, fileSize: dlSize }, "[export] clip downloaded");
         if (dlSize < 2048) {
           throw new Error(
             `Scene ${i + 1} clip download appears incomplete — file is only ${dlSize} bytes. ` +
@@ -725,7 +702,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         }
 
         const info = await probeVideo(dest);
-        req.log.info({
+        ctx.log.info({
           scene: i + 1,
           hasVideo: info.hasVideo,
           hasAudio: info.hasAudio,
@@ -758,7 +735,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
 
     exportStatus.clipsValidated = clipInfos.length;
-    req.log.info({ clipsValidated: clipInfos.length }, "[export] all clips validated");
+    ctx.log.info({ clipsValidated: clipInfos.length }, "[export] all clips validated");
 
     /* ── Freeform layout: gap-before padding held as freeze-frame ──
      *  (mirrors the editor preview's gap behavior). Index-aligned with clipUrls.
@@ -803,7 +780,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       : "full";
 
     if (useRange) {
-      req.log.info({ effectiveStart, effectiveEnd, effectiveDuration: effectiveDuration.toFixed(3) }, "[export] range export active");
+      ctx.log.info({ effectiveStart, effectiveEnd, effectiveDuration: effectiveDuration.toFixed(3) }, "[export] range export active");
     }
 
     /* ── Determine which clips overlap the export range ── */
@@ -818,7 +795,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         selectedClipOrigIndices.push(i);
       }
     }
-    req.log.info({
+    ctx.log.info({
       totalClips: clipInfos.length,
       selectedClips: selectedClipOrigIndices.length,
       includeIntro,
@@ -836,7 +813,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const rangeRelativeStart = useRange ? Math.max(0, effectiveStart - outputTimelineOffset) : 0;
 
     if (IS_DEV) {
-      req.log.info({
+      ctx.log.info({
         clips: clipInfos.map((c, i) => ({
           scene: i + 1,
           inRange: selectedClipOrigIndices.includes(i),
@@ -866,9 +843,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const uniqueFingerprints = new Set(clipFingerprints);
     const identicalClipsDetected = uniqueFingerprints.size < clipPaths.length;
     if (identicalClipsDetected) {
-      req.log.warn({ fingerprints: clipFingerprints }, "[export] identical clips detected");
+      ctx.log.warn({ fingerprints: clipFingerprints }, "[export] identical clips detected");
     } else {
-      req.log.info({ fingerprints: clipFingerprints }, "[export] all clips are distinct");
+      ctx.log.info({ fingerprints: clipFingerprints }, "[export] all clips are distinct");
     }
 
     /* ── 1c: Normalize selected clips to target format ── */
@@ -882,7 +859,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       tmpFiles.push(normPath);
 
       exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
-      req.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
+      ctx.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
 
       await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
 
@@ -892,7 +869,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       normalizedPaths.push(normPath);
     }
     exportStatus.clipsNormalized = normalizedPaths.length;
-    req.log.info({ clipsNormalized: normalizedPaths.length }, "[export] all clips normalized");
+    ctx.log.info({ clipsNormalized: normalizedPaths.length }, "[export] all clips normalized");
 
     /* ── 1d: Pre-FFmpeg preflight — verify every normalized file exists ── */
     for (let j = 0; j < normalizedPaths.length; j++) {
@@ -911,12 +888,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           `the source clip may be corrupt. Try re-generating this clip.`,
         );
       }
-      req.log.info(
+      ctx.log.info(
         { scene: origIdx + 1, file: path.basename(np), bytes: npSize },
         "[export] pre-flight: clip verified ✓",
       );
     }
-    req.log.info(
+    ctx.log.info(
       { count: normalizedPaths.length },
       "[export] pre-flight passed — all normalized clips present and valid",
     );
@@ -928,7 +905,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     if (!testMode && usePrepared && preparedEntry?.audio?.ready && existsSync(preparedEntry.audio.localPath)) {
       // Use the EXACT audio file already downloaded + ffprobe-verified in prepare step
       audioPath = preparedEntry.audio.localPath;
-      req.log.info({
+      ctx.log.info({
         audioPath,
         fileSize: preparedEntry.audio.fileSize,
         duration: preparedEntry.audio.duration.toFixed(2),
@@ -937,10 +914,10 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       const ext = audioUrl!.includes(".mp3") ? ".mp3" : audioUrl!.includes(".ogg") ? ".ogg" : audioUrl!.includes(".wav") ? ".wav" : ".aac";
       audioPath = path.join(tmpDir, `bdv-audio-${exportId}${ext}`);
       tmpFiles.push(audioPath);
-      req.log.info({ audioUrl: audioUrl!.slice(0, 80), audioSource }, "[export] downloading audio");
+      ctx.log.info({ audioUrl: audioUrl!.slice(0, 80), audioSource }, "[export] downloading audio");
       await downloadToFile(audioUrl!, audioPath);
       const audioSize = statSync(audioPath).size;
-      req.log.info({ audioSize, audioSource }, "[export] audio downloaded");
+      ctx.log.info({ audioSize, audioSource }, "[export] audio downloaded");
     }
 
     /* ── 2b: Resolve watermark image path ── */
@@ -954,15 +931,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         try {
           await downloadToFile(customWatermarkUrl, wmDest);
           watermarkPath = wmDest;
-          req.log.info({ bytes: statSync(wmDest).size }, "[export] custom watermark downloaded");
+          ctx.log.info({ bytes: statSync(wmDest).size }, "[export] custom watermark downloaded");
         } catch (wmErr) {
-          req.log.warn({ err: String(wmErr) }, "[export] custom watermark download failed, falling back to default");
+          ctx.log.warn({ err: String(wmErr) }, "[export] custom watermark download failed, falling back to default");
           watermarkPath = DEFAULT_WATERMARK;
         }
       } else {
         watermarkPath = DEFAULT_WATERMARK;
       }
-      if (IS_DEV) req.log.info({ watermarkPath }, "[export][debug] watermark resolved");
+      if (IS_DEV) ctx.log.info({ watermarkPath }, "[export][debug] watermark resolved");
     }
 
     /* ── 2c: Write ASS caption file if captions are active ── */
@@ -982,7 +959,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         captionsAssPath = path.join(tmpDir, `bdv-captions-${exportId}.ass`);
         tmpFiles.push(captionsAssPath);
         writeFileSync(captionsAssPath, assContent, "utf8");
-        req.log.info(
+        ctx.log.info(
           { captionsAssPath, lines: captions!.lines.length, mode: captions!.mode, captionTimeOffset },
           "[export] ASS captions file written",
         );
@@ -1002,9 +979,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         try {
           await downloadToFile(bwm.customLogoUrl, bwmDest);
           brandingWmPath = bwmDest;
-          req.log.info({ bytes: statSync(bwmDest).size }, "[export] branding custom logo downloaded");
+          ctx.log.info({ bytes: statSync(bwmDest).size }, "[export] branding custom logo downloaded");
         } catch (e) {
-          req.log.warn({ err: String(e) }, "[export] branding logo failed, using BDV default");
+          ctx.log.warn({ err: String(e) }, "[export] branding logo failed, using BDV default");
           brandingWmPath = bwm.bdvWatermark !== false ? DEFAULT_WATERMARK : null;
         }
       } else if (bwm.bdvWatermark !== false) {
@@ -1029,9 +1006,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           try {
             await downloadToFile(ov.source, dest);
             overlayImagePaths[i] = dest;
-            req.log.info({ idx: i, bytes: statSync(dest).size }, "[export] overlay image downloaded");
+            ctx.log.info({ idx: i, bytes: statSync(dest).size }, "[export] overlay image downloaded");
           } catch (e) {
-            req.log.warn({ err: String(e), idx: i }, "[export] overlay image download failed, skipping");
+            ctx.log.warn({ err: String(e), idx: i }, "[export] overlay image download failed, skipping");
             overlayImagePaths[i] = null;
           }
         } else {
@@ -1186,7 +1163,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       if (effectStack.filter) {
         filterParts.push(`[${workLabel}]${effectStack.filter}[veffects]`);
         workLabel = "veffects";
-        req.log.info({
+        ctx.log.info({
           applied: effectStack.applied,
           unsupported: effectStack.unsupported,
           conflict: effectStack.conflict,
@@ -1295,7 +1272,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         `[${workLabel}]drawbox=x=0:y=0:w=iw:h=ih:color=0xFF7733@${leakOpacity}:t=fill[vleak]`,
       );
       workLabel = "vleak";
-      req.log.info({ leakOpacity }, "[export] light leaks overlay injected");
+      ctx.log.info({ leakOpacity }, "[export] light leaks overlay injected");
     }
 
     // ── Lens Flare overlay: anamorphic-style horizontal streak + hotspot ──
@@ -1314,7 +1291,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         `boxblur=lr=${Math.round(hotSize / 2)}:lp=${Math.round(hotSize / 4)}[vflare]`,
       );
       workLabel = "vflare";
-      req.log.info({ flareOpacity }, "[export] lens flare overlay injected");
+      ctx.log.info({ flareOpacity }, "[export] lens flare overlay injected");
     }
 
     // ── Animated Waveform overlay: audio-driven showwaves at bottom of frame ──
@@ -1327,7 +1304,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     // (not via -af) because FFmpeg forbids combining -af with a stream already
     // mapped from a complex filtergraph (exit 234).
     if (overlayEffectsArr.includes("Animated Waveform") && !audioPath) {
-      req.log.warn(
+      ctx.log.warn(
         { overlayEffects: overlayEffectsArr, audioUrl: audioUrl?.slice(0, 80) ?? null },
         "[export] Animated Waveform overlay is active but no audio was resolved — waveform will be skipped. " +
         "Ensure audio source is not 'none' and a valid audio URL is forwarded to the export request.",
@@ -1387,7 +1364,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         `[${workLabel}][wavefinal]overlay=0:${wavePosY}:format=auto[vwaved]`,
       );
       workLabel = "vwaved";
-      req.log.info({ waveOpacity, waveH, wavePosY, audioOutputFcLabel }, "[export] animated waveform overlay injected");
+      ctx.log.info({ waveOpacity, waveH, wavePosY, audioOutputFcLabel }, "[export] animated waveform overlay injected");
     }
 
     // ── Watermark overlay — applied LAST so it is the topmost visual layer.
@@ -1433,7 +1410,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
         .replace(/'/g, "\\'");
       filterParts.push(`[vout]subtitles='${escapedPath}'[vfinal]`);
       voutLabel = "vfinal";
-      req.log.info({ voutLabel, escapedPath }, "[export] ASS subtitle filter injected");
+      ctx.log.info({ voutLabel, escapedPath }, "[export] ASS subtitle filter injected");
     }
 
     const filterComplex = filterParts.join(";");
@@ -1545,7 +1522,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     ffmpegArgs.push("-movflags", "+faststart", "-y", outputPath);
 
     if (IS_DEV) {
-      req.log.info({
+      ctx.log.info({
         filterComplex,
         audioFilter: audioFilterParts.join(",") || "(none)",
         ffmpegCommand: `ffmpeg ${ffmpegArgs.map(a => a.includes(" ") ? `"${a}"` : a).join(" ")}`,
@@ -1577,14 +1554,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const missingInputs = preSpawnInputs.filter((f) => !existsSync(f.path));
     if (missingInputs.length > 0) {
       const detail = missingInputs.map((f) => `${f.label} (${f.path})`).join("; ");
-      req.log.error({ missingInputs }, "[export] pre-spawn check found missing input(s) — aborting before FFmpeg");
+      ctx.log.error({ missingInputs }, "[export] pre-spawn check found missing input(s) — aborting before FFmpeg");
       throw new Error(
         `Export blocked — ${missingInputs.length} input file${missingInputs.length !== 1 ? "s" : ""} ` +
         `disappeared right before rendering: ${detail}. This usually means the prepared session was ` +
         `cleaned up mid-export (e.g. by a duplicate export click). Click "Prepare Export Files Only" again, then export once.`,
       );
     }
-    req.log.info({ inputCount: preSpawnInputs.length }, "[export] pre-spawn check passed — all inputs present");
+    ctx.log.info({ inputCount: preSpawnInputs.length }, "[export] pre-spawn check passed — all inputs present");
 
     /* ── 6: Run FFmpeg ── */
     exportStatus.ffmpegStage = "combining";
@@ -1594,7 +1571,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       ffmpegStderr = result.stderr ?? "";
       exportStatus.ffmpegExitCode = 0;
       if (IS_DEV && ffmpegStderr) {
-        req.log.info({ stderrTail: ffmpegStderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
+        ctx.log.info({ stderrTail: ffmpegStderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
       }
     } catch (ffErr: unknown) {
       ffmpegStderr = (ffErr as { stderr?: string }).stderr ?? "";
@@ -1604,7 +1581,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       const stderrTail  = stderrLines.slice(-20);
       exportStatus.stderrTail = stderrTail;
 
-      req.log.error({
+      ctx.log.error({
         exitCode,
         stderrTail: stderrTail.join("\n"),
         command: `ffmpeg ${ffmpegArgs.slice(0, 6).join(" ")} ...`,
@@ -1650,7 +1627,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     const outSize = statSync(outputPath).size;
     if (IS_DEV) {
-      req.log.info({ finalVideoBytes: outSize, finalVideoMB: (outSize / 1024 / 1024).toFixed(2) }, "[export][debug] output size");
+      ctx.log.info({ finalVideoBytes: outSize, finalVideoMB: (outSize / 1024 / 1024).toFixed(2) }, "[export][debug] output size");
     }
 
     if (outSize < 1024) {
@@ -1658,7 +1635,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     }
 
     const outInfo = await probeVideo(outputPath);
-    req.log.info({
+    ctx.log.info({
       hasVideo: outInfo.hasVideo,
       hasAudio: outInfo.hasAudio,
       codec: outInfo.codec,
@@ -1681,7 +1658,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     const bucket = objectStorageClient.bucket(bucketId);
     const gcsFile = bucket.file(objectName);
     await gcsFile.save(fileBuffer, { contentType: "video/mp4", resumable: false });
-    req.log.info({ objectName, bytes: fileBuffer.length }, "[export] uploaded to GCS");
+    ctx.log.info({ objectName, bytes: fileBuffer.length }, "[export] uploaded to GCS");
 
     /* ── 9: Sign URL ── */
     const signedUrl = await signGetUrl(bucketId, objectName);
@@ -1689,15 +1666,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     /* ── 10: Save to project ── */
     if (!testMode) {
-      const { data: fullProject, error: selectErr } = await req.userSupabase!
+      const { data: fullProject, error: selectErr } = await ctx.userSupabase!
         .from("projects")
         .select("id, user_id, project_type, title, artist_name, song_title, genre, mood, style, platform, input_data, output_data, credits_used, created_at")
         .eq("id", projectId)
-        .eq("user_id", req.userId!)
+        .eq("user_id", ctx.userId)
         .single();
 
       if (selectErr || !fullProject) {
-        req.log.warn({ err: selectErr?.message }, "[export] project not found for save");
+        ctx.log.warn({ err: selectErr?.message }, "[export] project not found for save");
       } else {
         const current = (fullProject.output_data as Record<string, unknown>) ?? {};
         const updatedOutputData = {
@@ -1726,12 +1703,12 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           .from("projects")
           .update({ output_data: updatedOutputData })
           .eq("id", projectId)
-          .eq("user_id", req.userId!);
+          .eq("user_id", ctx.userId);
 
         if (updErr) {
-          req.log.warn({ err: updErr.message }, "[export] update error during save");
+          ctx.log.warn({ err: updErr.message }, "[export] update error during save");
         } else {
-          req.log.info({ projectId, clips: clipUrls.length, audioSource }, "[export] project saved ok");
+          ctx.log.info({ projectId, clips: clipUrls.length, audioSource }, "[export] project saved ok");
         }
       }
     }
@@ -1741,24 +1718,23 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       // Atomic single-statement deduction — race-safe (no read-modify-write).
       let creditsAfter: number;
       try {
-        creditsAfter = await deductCredits(req.userId!, EXPORT_CREDIT_COST);
+        creditsAfter = await deductCredits(ctx.userId, EXPORT_CREDIT_COST);
       } catch (deductErr) {
         if (deductErr instanceof OutOfCreditsError) {
-          res.status(402).json({
+          throw { status: 402,
             error: "out_of_credits",
             message: "Not enough credits. Please buy more credits to continue.",
-          });
-          return;
+          };
         }
         throw deductErr;
       }
-      recordCreditUsage({ userId: req.userId!, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
-      req.log.info({ userId: req.userId, creditsAfter }, "[export] credits deducted");
+      recordCreditUsage({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
+      ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
     }
 
     exportStatus.ffmpegStage = "completed";
 
-    res.json({
+    return {
       url: signedUrl,
       objectPath,
       exportId,
@@ -1783,7 +1759,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           watermark: effectiveAddWatermark,
         } : {}),
       },
-    });
+    };
 
   } catch (err: unknown) {
     const msg         = err instanceof Error ? err.message : "Export failed";
@@ -1795,16 +1771,17 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     if (exitCode !== null) exportStatus.ffmpegExitCode = exitCode;
     if (stderrTail.length)  exportStatus.stderrTail    = stderrTail;
 
-    req.log.error({ err: msg, exitCode, stderrLines: stderrTail.length }, "[export] failed");
-    res.status(500).json({
-      error: msg,
+    ctx.log.error({ err: msg, exitCode, stderrLines: stderrTail.length }, "[export] failed");
+    throw {
+      status: 500,
+      message: msg,
       exportStatus,
       ...(IS_DEV && fullStderr ? {
         ffmpegStderr:  fullStderr.slice(-3000),
         stderrTail,
         ffmpegExitCode: exitCode,
       } : {}),
-    });
+    };
   } finally {
     cleanup(...tmpFiles);
     // Release the in-flight guard first — if another concurrent request for
@@ -1818,6 +1795,148 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       deletePreparedExport(prepareId);
     }
   }
+}
+
+/** Normalize any render failure into the job-error shape the client understands. */
+function normalizeJobError(err: unknown): ExportJobError {
+  if (err && typeof err === "object" && "status" in err) {
+    const e = err as {
+      status?: number; message?: string; error?: string; code?: string;
+      exportStatus?: unknown; stderrTail?: string[]; ffmpegExitCode?: number | null;
+    };
+    return {
+      message: e.message ?? e.error ?? "Export failed",
+      code: e.code,
+      exportStatus: e.exportStatus,
+      stderrTail: e.stderrTail,
+      ffmpegExitCode: e.ffmpegExitCode ?? null,
+    };
+  }
+  return { message: err instanceof Error ? err.message : "Export failed" };
+}
+
+/** Run one export job in the background, mirroring render stages onto the job. */
+async function runExportJobInBackground(job: ExportJob, ctx: ExportJobContext): Promise<void> {
+  job.state = "active";
+  job.stage = "starting";
+  job.updatedAt = Date.now();
+  const ticker = setInterval(() => {
+    const s = ctx.statusRef.current;
+    if (s?.ffmpegStage && s.ffmpegStage !== job.stage) {
+      job.stage = s.ffmpegStage;
+      job.updatedAt = Date.now();
+    }
+  }, 2000);
+  if (typeof (ticker as unknown as { unref?: unknown }).unref === "function") {
+    (ticker as unknown as { unref: () => void }).unref();
+  }
+  try {
+    const result = await executeExport(ctx);
+    job.state = "done";
+    job.stage = "completed";
+    job.result = result;
+  } catch (err) {
+    ctx.log.error({ err: err instanceof Error ? err.message : err }, "[export] background job failed");
+    job.state = "failed";
+    job.stage = "failed";
+    job.error = normalizeJobError(err);
+  } finally {
+    clearInterval(ticker);
+    job.updatedAt = Date.now();
+  }
+}
+
+router.post("/export-final-video", requireAuth, async (req, res) => {
+  const body = req.body as ExportRequestBody;
+  const { projectId, clipUrls, exportRangeStart, exportRangeEnd } = body;
+
+
+  if (!projectId?.trim()) {
+    res.status(400).json({ error: "projectId is required" });
+    return;
+  }
+  if (!Array.isArray(clipUrls) || clipUrls.length === 0) {
+    res.status(400).json({ error: "clipUrls must be a non-empty array" });
+    return;
+  }
+
+  /* ── Custom export range validation ──
+   * A range is only meaningful when BOTH start/end are provided as finite numbers.
+   * Reject invalid or near-zero-duration ranges here (e.g. a "custom" range left at
+   * 00:00.000/00:00.000) instead of letting FFmpeg fail deep in the pipeline with a
+   * cryptic exit code (234). Mirrors the client-side guard in FinalVideoExport.tsx. */
+  const MIN_EXPORT_RANGE_DURATION_SEC = 0.25;
+  if ((exportRangeStart !== null && exportRangeStart !== undefined) || (exportRangeEnd !== null && exportRangeEnd !== undefined)) {
+    const startNum = typeof exportRangeStart === "number" ? exportRangeStart : NaN;
+    const endNum   = typeof exportRangeEnd   === "number" ? exportRangeEnd   : NaN;
+    const rangeIsUsable =
+      Number.isFinite(startNum) &&
+      Number.isFinite(endNum) &&
+      startNum >= 0 &&
+      endNum - startNum >= MIN_EXPORT_RANGE_DURATION_SEC;
+    if (!rangeIsUsable) {
+      res.status(400).json({
+        error: `Invalid export range: start=${exportRangeStart ?? "null"}, end=${exportRangeEnd ?? "null"}. ` +
+          `The range must have a valid start (>= 0) and an end at least ${MIN_EXPORT_RANGE_DURATION_SEC}s after the start.`,
+        code: "INVALID_EXPORT_RANGE",
+      });
+      return;
+    }
+  }
+
+  /* ── Credit check (5 credits for final export) ── */
+  const currentCredits = req.userCredits ?? 0;
+  if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "Not enough credits. Please buy more credits to continue.",
+    });
+    return;
+  }
+
+  if (!req.userId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  /* ── Async export job ──
+   * The full render (download + normalize + FFmpeg + upload) takes minutes —
+   * far longer than a hosting proxy keeps an HTTP request open (the old
+   * synchronous design died with a 502 on real exports). Return 202
+   * immediately and render in the background; the client polls
+   * GET /api/export-video-job/:jobId for progress. Credits are deducted only
+   * when the render actually succeeds (inside executeExport). */
+  const job = createExportJob(req.userId, projectId.trim());
+  res.status(202).json({ jobId: job.id, status: job.state });
+
+  const ctx: ExportJobContext = {
+    body,
+    userId: req.userId,
+    userPlan: req.userPlan,
+    userSupabase: req.userSupabase,
+    log: req.log ?? logger,
+    statusRef: job.statusRef,
+  };
+  enqueueExport(() => runExportJobInBackground(job, ctx));
+});
+
+router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {
+  const rawId = req.params.jobId;
+  const jobId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
+  const job = getExportJob(jobId);
+  if (!job || job.userId !== req.userId) {
+    res.status(404).json({ error: "Export job not found" });
+    return;
+  }
+  const { stage, progress } = describeJobProgress(job);
+  res.json({
+    jobId: job.id,
+    status: job.state,
+    stage,
+    progress,
+    ...(job.state === "done" ? { result: job.result } : {}),
+    ...(job.state === "failed" ? { error: job.error } : {}),
+  });
 });
 
 export default router;
