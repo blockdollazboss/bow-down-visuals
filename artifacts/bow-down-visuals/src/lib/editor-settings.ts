@@ -375,6 +375,7 @@ export const TRANSITIONS = [
   "Fade to Black",
   "Slide",
   "Spin",
+  "Blur Dissolve",
 ] as const;
 
 export const EFFECTS = [

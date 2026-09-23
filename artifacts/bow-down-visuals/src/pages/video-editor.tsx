@@ -127,7 +127,7 @@ export default function VideoEditor() {
   const { isSimple } = useUserMode();
   /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
-  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "timeline", "export"];
+  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "lip-sync", "timeline", "export"];
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -793,7 +793,7 @@ export default function VideoEditor() {
                     { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                   ]
-                    .filter((item) => !isSimple || (["clips", "music", "timeline", "export"] as string[]).includes(item.id))
+                    .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
                       <button
                         key={item.id}

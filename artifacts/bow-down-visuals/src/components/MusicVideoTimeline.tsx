@@ -1209,7 +1209,7 @@
           lighting: "",
           mood: "",
           aiVideoPrompt: "",
-          negativePrompt: "",
+          negativePrompt: "distorted face, deformed hands, extra fingers, extra limbs, blurry, low quality, watermark, text overlay, cartoon, anime, oversaturated, harsh shadows on face",
           approved: false,
           demoClipUrl: null,
           generationStatus: null,

@@ -174,6 +174,8 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         <div className="flex flex-wrap gap-2 mb-3">
           {OVERLAYS.map((ov) => {
             const active = settings.overlays.includes(ov);
+            // Animated overlays are preview-only — the export pipeline doesn't burn them in yet.
+            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust", "Lens Flare"].includes(ov);
             return (
               <Chip
                 key={ov}
@@ -187,8 +189,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                   }
                   setSettings({ ...settings, overlays: newOverlays, overlayIntensity: newIntensity });
                 }}
+                title={previewOnly ? "Preview only — won't appear on export yet" : undefined}
               >
                 {ov}
+                {previewOnly && (
+                  <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wide text-white/40 bg-white/[0.06] rounded px-1 py-0.5">
+                    Preview
+                  </span>
+                )}
               </Chip>
             );
           })}
