@@ -527,6 +527,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   let preparedExportAcquired = false;
 
   try {
+    /* ── Server-side watermark gate: only subscribers may remove it.
+       The client sends addWatermark, but a free/trial user calling the API
+       directly must not be able to bypass it. Mirrors the frontend gate. ── */
+    const FREE_PLANS = ["", "free", "trial", "none", "null"];
+    const userPlan = (req.userPlan ?? "free").toLowerCase().trim();
+    const isSubscriber = !FREE_PLANS.includes(userPlan);
+    const effectiveAddWatermark = isSubscriber ? addWatermark : true;
+
     req.log.info({
       clipCount: clipUrls.length,
       aspectRatio,
@@ -538,7 +546,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       loopAudio,
       audioStartSec,
       matchVideoLength,
-      addWatermark,
+      addWatermark: effectiveAddWatermark,
+      addWatermarkRequested: addWatermark,
+      userPlan,
       testMode: !!testMode,
       exportRangeStart,
       exportRangeEnd,
@@ -935,7 +945,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     /* ── 2b: Resolve watermark image path ── */
     let watermarkPath: string | null = null;
-    if (addWatermark) {
+    if (effectiveAddWatermark) {
       if (customWatermarkUrl?.startsWith("http")) {
         const wmExt = /\.(jpe?g)($|\?)/.test(customWatermarkUrl) ? ".jpg"
           : /\.webp($|\?)/.test(customWatermarkUrl) ? ".webp" : ".png";
@@ -1002,7 +1012,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       }
     }
     // branding.watermark wins; else fall back to legacy addWatermark toggle
-    const activeWmPath = useBrandingWm ? brandingWmPath : (addWatermark ? watermarkPath : null);
+    const activeWmPath = useBrandingWm ? brandingWmPath : (effectiveAddWatermark ? watermarkPath : null);
 
     /* ── 2e: Download "image"/"watermark" overlay item sources (e.g. a user's logo
      *  placed via the structured overlay editor) so they can be burned in with
@@ -1286,6 +1296,25 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       );
       workLabel = "vleak";
       req.log.info({ leakOpacity }, "[export] light leaks overlay injected");
+    }
+
+    // ── Lens Flare overlay: anamorphic-style horizontal streak + hotspot ──
+    // Approximates a cinematic lens flare: a soft horizontal light streak
+    // across the upper third plus a bright hotspot. Intensity scales opacity.
+    if (overlayEffectsArr.includes("Lens Flare")) {
+      const flareOpacity = ((overlayIntensityMap["Lens Flare"] ?? 20) / 100).toFixed(2);
+      const streakY = Math.round(TARGET_H * 0.32);
+      const streakH = Math.max(2, Math.round(TARGET_H * 0.008));
+      const hotX = Math.round(TARGET_W * 0.72);
+      const hotY = Math.round(TARGET_H * 0.28);
+      const hotSize = Math.round(Math.min(TARGET_W, TARGET_H) * 0.06);
+      filterParts.push(
+        `[${workLabel}]drawbox=x=0:y=${streakY}:w=iw:h=${streakH}:color=0xFFF4E0@${flareOpacity}:t=fill,` +
+        `drawbox=x=${hotX - hotSize}:y=${hotY - hotSize}:w=${hotSize * 2}:h=${hotSize * 2}:color=0xFFFFFF@${flareOpacity}:t=fill,` +
+        `boxblur=lr=${Math.round(hotSize / 2)}:lp=${Math.round(hotSize / 4)}[vflare]`,
+      );
+      workLabel = "vflare";
+      req.log.info({ flareOpacity }, "[export] lens flare overlay injected");
     }
 
     // ── Animated Waveform overlay: audio-driven showwaves at bottom of frame ──
@@ -1751,7 +1780,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           effectiveDuration,
           rangeRelativeStart,
           audioFilters: audioFilterParts.join(",") || null,
-          watermark: addWatermark,
+          watermark: effectiveAddWatermark,
         } : {}),
       },
     });

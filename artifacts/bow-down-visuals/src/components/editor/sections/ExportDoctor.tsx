@@ -5421,8 +5421,8 @@ export function ExportDoctor({
             {!tx && (
               <p className="text-[10px] text-white/35 leading-snug pt-1 border-t border-white/[0.06]">
                 Run "Connect Transitions To Export" to render the xfade chain.
-                Supported: Cut, Crossfade, Fade to Black, Flash Cut. Whip Pan /
-                Zoom export as a hard cut.
+                All catalog transitions render: Cut, Crossfade, Fade to Black, Flash,
+                Glitch, Whip Pan, Zoom, Light Leak, Slide, Spin, Blur Dissolve.
               </p>
             )}
             {tx?.stderrTail && tx.stderrTail.length > 0 && (
