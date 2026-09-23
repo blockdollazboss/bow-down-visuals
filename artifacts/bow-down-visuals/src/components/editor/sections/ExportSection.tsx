@@ -214,7 +214,17 @@ export function ExportSection({
 }: ExportSectionProps) {
   const ms = settings.musicStudio;
   const va = ms.videoAudio;
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, profile } = useAuth();
+
+  /* ── Watermark gate: only monthly subscribers can remove it.
+     Free users always export with the watermark.
+     Any plan that isn't explicitly free/trial counts as a subscriber —
+     this stays correct no matter what plan names the backend uses. ── */
+  const FREE_PLANS = ["", "free", "trial", "none", "null"];
+  const planValue = (profile?.plan ?? "").toLowerCase().trim();
+  const isSubscriber = !FREE_PLANS.includes(planValue);
+  // Non-subscribers: watermark is forced on. Subscribers: respect their toggle.
+  const effectiveWatermark = isSubscriber ? settings.export.watermark : true;
 
   const [wmUploading, setWmUploading] = useState(false);
   const [wmError, setWmError] = useState<string | null>(null);
@@ -388,10 +398,10 @@ export function ExportSection({
                       ? "border-primary/50 bg-primary/10"
                       : avail
                       ? "border-white/10 bg-white/[0.03] hover:border-white/20"
-                      : "border-white/[0.06] bg-white/[0.02] opacity-60 hover:border-white/12"
+                      : "border-white/[0.12] bg-white/[0.02] opacity-60 hover:border-white/12"
                   }`}
                 >
-                  <span className={`shrink-0 ${active ? "text-primary" : avail ? "text-white/50" : "text-white/25"}`}>
+                  <span className={`shrink-0 ${active ? "text-primary" : avail ? "text-white/50" : "text-white/45"}`}>
                     {opt.icon}
                   </span>
                   <span className="flex-1 min-w-0">
@@ -403,7 +413,7 @@ export function ExportSection({
                   {avail ? (
                     <span className="text-[10px] font-bold text-green-400/70 shrink-0">Available</span>
                   ) : opt.value !== "none" ? (
-                    <span className="text-[10px] font-bold text-white/25 shrink-0">Not exported</span>
+                    <span className="text-[10px] font-bold text-white/45 shrink-0">Not exported</span>
                   ) : null}
                   {active && (
                     <span className="ml-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
@@ -497,16 +507,16 @@ export function ExportSection({
               Loop if shorter than video
             </Chip>
           </div>
-          <p className="text-[10px] text-white/25 mt-2">
+          <p className="text-[10px] text-white/45 mt-2">
             Drag the fade handles on the Studio timeline for precise fade durations.
           </p>
 
           {/* Song start point — nudges where in the track playback begins */}
-          <div className="mt-4 pt-3 border-t border-white/[0.06] space-y-2">
+          <div className="mt-4 pt-3 border-t border-white/[0.12] space-y-2">
             <label className="text-[11px] text-white/40 font-semibold uppercase tracking-widest">
               Song start point
             </label>
-            <p className="text-[10px] text-white/25">
+            <p className="text-[10px] text-white/45">
               Skip ahead into the track before it plays under the video — great for skipping a silent intro or landing the hook right on scene 1.
             </p>
             <div className="flex gap-2 items-center">
@@ -556,12 +566,12 @@ export function ExportSection({
           </div>
 
           {va.loopAudio && (
-            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+            <p className="text-[11px] text-white/50 mt-2 leading-relaxed">
               If the audio is shorter than the video, it will repeat seamlessly until the video ends.
             </p>
           )}
           {!va.loopAudio && (
-            <p className="text-[11px] text-white/30 mt-2 leading-relaxed">
+            <p className="text-[11px] text-white/50 mt-2 leading-relaxed">
               If audio is shorter than the video, it ends naturally — the video continues silently.
             </p>
           )}
@@ -598,21 +608,27 @@ export function ExportSection({
         </div>
       </EditorCard>
 
-      {/* ── Export Options ── */}
-      {!isSimple && (
+      {/* ── Export Options: Watermark — always visible so subscribers can find the toggle.
+           Simple 123: no hunting through modes for a paid feature. ── */}
       <EditorCard
         title="Watermark"
         subtitle="Burned into the bottom-right corner of the exported video"
         icon={<ImageIcon className="h-4 w-4" />}
       >
         <div className="space-y-4">
-          {/* Toggle */}
+          {/* Toggle — subscribers only can remove the watermark */}
           <Chip
-            active={settings.export.watermark}
-            onClick={() => setExport({ watermark: !settings.export.watermark })}
+            active={effectiveWatermark}
+            onClick={() => isSubscriber && setExport({ watermark: !settings.export.watermark })}
           >
             Add watermark to video
           </Chip>
+          {!isSubscriber && (
+            <p className="text-[11px] text-white/40 leading-relaxed">
+              Watermark removal is for monthly subscribers.{" "}
+              <a href="/pricing" className="text-primary font-bold hover:underline">Upgrade to remove it →</a>
+            </p>
+          )}
 
           {settings.export.watermark && (
             <div className="space-y-3">
@@ -676,7 +692,7 @@ export function ExportSection({
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                     : <Upload className="h-3.5 w-3.5 shrink-0" />}
                   <span>{wmUploading ? "Uploading…" : settings.export.customWatermarkUrl ? "Replace with a different image" : "Upload your own logo / watermark"}</span>
-                  <span className="ml-auto text-[10px] text-white/25">PNG · JPG · WebP · max 5 MB</span>
+                  <span className="ml-auto text-[10px] text-white/45">PNG · JPG · WebP · max 5 MB</span>
                 </button>
                 {wmError && (
                   <p className="text-[11px] text-red-400 mt-1.5">{wmError}</p>
@@ -686,7 +702,6 @@ export function ExportSection({
           )}
         </div>
       </EditorCard>
-      )}
 
       {/* ── Caption Export ── */}
       {!isSimple && (
@@ -714,14 +729,14 @@ export function ExportSection({
             ["using master/project audio",   !!resolvedAudioUrl,                 resolvedAudioUrl ? "yes ✓" : "no"],
           ] as [string, boolean, string][]).map(([label, ok, value]) => (
             <div key={label} className="flex items-center justify-between gap-2 text-[11px]">
-              <span className="text-white/30 font-mono">{label}:</span>
+              <span className="text-white/50 font-mono">{label}:</span>
               <span className={`font-semibold font-mono ${ok ? "text-green-400/70" : value.startsWith("no") || value.endsWith("✗") ? "text-amber-400/70" : "text-white/45"}`}>
                 {value}
               </span>
             </div>
           ))}
           {!resolvedAudioUrl && (
-            <p className="text-[11px] text-amber-400/70 pt-1 border-t border-white/[0.06] leading-relaxed">
+            <p className="text-[11px] text-amber-400/70 pt-1 border-t border-white/[0.12] leading-relaxed">
               {!rawProjectAudioUrl && ms.stems.length === 0
                 ? "No audio saved to project. Upload your song in the Music tab, then return here."
                 : !rawProjectAudioUrl && ms.stems.length > 0
@@ -840,7 +855,7 @@ export function ExportSection({
           {/* Range slider (shows when not full) */}
           {rangeMode !== "full" && projectDur > 0 && (
             <div className="space-y-1">
-              <div className="flex justify-between text-[10px] font-mono text-white/25">
+              <div className="flex justify-between text-[10px] font-mono text-white/45">
                 <span>{fmtTimecode(0)}</span>
                 <span>{fmtTimecode(projectDur)}</span>
               </div>
@@ -870,7 +885,7 @@ export function ExportSection({
               ["Selected end",     fmtTimecode(Math.min(resolved.endSec, projectDur))],
             ].map(([label, value]) => (
               <div key={label} className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-3 py-2">
-                <p className="text-[10px] text-white/30">{label}</p>
+                <p className="text-[10px] text-white/50">{label}</p>
                 <p className="text-xs font-mono font-bold text-white/70 mt-0.5">{value}</p>
               </div>
             ))}
@@ -878,8 +893,8 @@ export function ExportSection({
 
           {/* Range status debug */}
           <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-white/[0.06] bg-white/[0.03]">
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">Export Range Status</p>
+            <div className="px-3 py-1.5 border-b border-white/[0.12] bg-white/[0.03]">
+              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Export Range Status</p>
             </div>
             <div className="divide-y divide-white/[0.04]">
               {([
@@ -917,7 +932,7 @@ export function ExportSection({
         loopAudio={va.loopAudio}
         audioStartSec={va.startSec ?? 0}
         matchVideoLength={va.matchVideoLength}
-        addWatermark={settings.export.watermark}
+        addWatermark={effectiveWatermark}
         customWatermarkUrl={settings.export.customWatermarkUrl}
         watermarkPosition={settings.watermarkPosition ?? "bottom-right"}
         watermarkSize={settings.watermarkSize ?? "medium"}
@@ -1032,7 +1047,7 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
       <div className="space-y-3">
         {!hasCaptions && (
           <div className="flex items-start gap-2.5 p-3 rounded-xl border border-white/10 bg-white/[0.03] text-xs text-white/35">
-            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/25" />
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-white/45" />
             No captions generated yet. Go to the Captions tab to create them.
           </div>
         )}
@@ -1087,14 +1102,14 @@ function CaptionExportCard({ mode, hasCaptions, onChange }: CaptionExportCardPro
         )}
 
         {mode === "overlay" && (
-          <p className="text-[11px] text-white/30 leading-relaxed px-1">
+          <p className="text-[11px] text-white/50 leading-relaxed px-1">
             Overlay captions appear in the Timeline Preview only. They are not burned into the
             exported video file. Switch to <strong className="text-white/50">Burn Captions Into Video</strong>{" "}
             to make captions permanent in the export.
           </p>
         )}
 
-        <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-white/[0.07] bg-white/[0.02] text-[10px] text-white/30 leading-relaxed">
+        <div className="flex items-start gap-2 px-3 py-2 rounded-lg border border-white/[0.07] bg-white/[0.02] text-[10px] text-white/50 leading-relaxed">
           <Eye className="h-3 w-3 shrink-0 mt-0.5 text-white/20" />
           <span>
             Preview captions always show as HTML overlays in the Timeline tab. Use{" "}

@@ -475,7 +475,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
           {/* ── Export note ── */}
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
             <p className="text-[10px] text-amber-200/70 leading-relaxed">
-              <span className="font-bold text-amber-300">Export note:</span> Effects and color grade are preview-only CSS overlays in the master player. When you export, effects and caption style are burned in via the FFmpeg pipeline. Transitions and beat-cut pacing are reference notes for the render — clip re-cutting is not connected to export yet.
+              <span className="font-bold text-amber-300">Export note:</span> Transitions are burned into your export via the render pipeline. Effects and color grade also export. Animated overlays (Smoke, Rain, Sparks, Dust, Lens Flare) are preview-only for now — they won't appear on export yet.
             </p>
           </div>
 

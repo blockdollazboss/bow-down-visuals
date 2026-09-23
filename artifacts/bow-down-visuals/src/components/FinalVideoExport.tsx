@@ -665,6 +665,35 @@ export function FinalVideoExport({
             >
               Export again with updated settings
             </button>
+
+            {/* ── Share: turn creators into marketers ── */}
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-3 space-y-2">
+              <p className="text-xs font-bold text-white/70">🔥 Your video is ready — show it off!</p>
+              <p className="text-[11px] text-white/40 leading-relaxed">
+                Share it and tag <span className="text-primary font-bold">@bowdownvisuals</span> for a chance to be featured.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
+                    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
+                >
+                  𝕏 Post
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText("Made with Bow Down Visuals 🔥 bowdownvisuals.com");
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
+                >
+                  Copy Caption
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
