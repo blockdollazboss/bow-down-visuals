@@ -934,9 +934,9 @@ async function concatMultiClips(
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Transitions → FFmpeg xfade
- * Supported (real xfade): Cut (hard), Crossfade, Fade to Black, Flash Cut.
- * Unsupported: Whip Pan, Zoom Transition — they fall back to a hard cut at that
- * boundary and are reported with a reason (no native xfade equivalent).
+ * Mirrors the exporter's XFADE_MAP in export-video.ts — every transition in
+ * the catalog renders as a real xfade effect. Only unknown names fall back
+ * to a hard cut and are reported with a reason.
  * ────────────────────────────────────────────────────────────────────────── */
 export interface TransitionPlanEntry {
   sceneIndex: number;
@@ -988,21 +988,34 @@ function resolveTransition(type: string): {
     case "whip pan":
     case "whippan":
       return {
-        supported: false,
-        xfade: "fade",
-        durationSec: 0.04,
+        supported: true,
+        xfade: "slideright",
+        durationSec: 0.5,
         reason:
-          "Whip Pan needs a motion-blur pan that FFmpeg xfade can't reproduce — exported as a hard cut.",
+          "Whip Pan renders as a fast lateral slide (xfade slideright) — no motion blur, but no hard cut.",
       };
     case "zoom":
     case "zoom transition":
       return {
-        supported: false,
-        xfade: "fade",
-        durationSec: 0.04,
+        supported: true,
+        xfade: "zoomin",
+        durationSec: 0.5,
         reason:
-          "Zoom transition needs scale/zoompan keyframes not available in xfade — exported as a hard cut.",
+          "Zoom renders as a push-in (xfade zoomin).",
       };
+    case "slide":
+      return { supported: true, xfade: "slideleft", durationSec: 0.5, reason: null };
+    case "glitch":
+      return { supported: true, xfade: "pixelize", durationSec: 0.5, reason: null };
+    case "light leak":
+    case "lightleak":
+      return { supported: true, xfade: "fadewhite", durationSec: 0.5, reason: null };
+    case "spin":
+      return { supported: true, xfade: "circlecrop", durationSec: 0.6, reason: null };
+    case "blur dissolve":
+    case "blurdissolve":
+    case "hblur":
+      return { supported: true, xfade: "hblur", durationSec: 0.6, reason: null };
     default:
       return {
         supported: false,
@@ -4649,7 +4662,7 @@ router.post(
 /* ──────────────────────────────────────────────────────────────────────────
  * POST /export-doctor/export-effects-transitions
  * Build an xfade chain from applied transitions + the exact effect stack, and
- * report per-transition support (Whip Pan / Zoom fall back to a hard cut).
+ * report per-transition support (mirrors the exporter's XFADE_MAP).
  * ────────────────────────────────────────────────────────────────────────── */
 router.post(
   "/export-doctor/export-effects-transitions",

@@ -8,6 +8,7 @@ declare global {
       userEmail?: string;
       accessToken?: string;
       userCredits?: number;
+      userPlan?: string;
       userSupabase?: SupabaseClient;
     }
   }
@@ -55,19 +56,20 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   const userClient = await createSessionSupabase(token);
   req.userSupabase = userClient;
 
-  // Fetch profile with credits.
+  // Fetch profile with credits and plan.
   const { data: profile, error: profileError } = await userClient
     .from("profiles")
-    .select("id, credits")
+    .select("id, credits, plan")
     .eq("id", user.id)
     .single();
 
   if (process.env["NODE_ENV"] === "development") {
-    console.log(`[requireAuth] userId=${user.id} profileOk=${!!profile} profileError=${profileError?.message ?? "none"} credits=${profile?.credits}`);
+    console.log(`[requireAuth] userId=${user.id} profileOk=${!!profile} profileError=${profileError?.message ?? "none"} credits=${profile?.credits} plan=${profile?.plan ?? "none"}`);
   }
 
   if (profile) {
     req.userCredits = profile.credits;
+    req.userPlan = profile.plan ?? "free";
   } else {
     // Profile doesn't exist yet — create it.
     const { data: newProfile, error: insertError } = await userClient
@@ -87,6 +89,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.userCredits = newProfile?.credits ?? 3;
+    req.userPlan = "free";
   }
 
   next();
