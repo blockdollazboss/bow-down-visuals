@@ -10,7 +10,7 @@ const router = Router();
 const UpsertDraftSchema = z.object({
   workflowType: z.string().min(1).max(64),
   title: z.string().max(200).optional().nullable(),
-  draftData: z.record(z.unknown()),
+  draftData: z.record(z.string(), z.unknown()),
 });
 
 /* POST /api/drafts — upsert (one slot per user per workflow) */

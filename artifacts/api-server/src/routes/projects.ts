@@ -18,8 +18,8 @@ const SaveProjectSchema = z.object({
   songTitle:    z.string().optional().nullable(),
   genre:        z.string().optional().nullable(),
   mood:         z.string().optional().nullable(),
-  inputData:    z.record(z.unknown()).optional().default({}),
-  outputData:   z.record(z.unknown()).optional().default({}),
+  inputData:    z.record(z.string(), z.unknown()).optional().default({}),
+  outputData:   z.record(z.string(), z.unknown()).optional().default({}),
   creditsUsed:  z.number().int().min(0).optional().default(0),
   genHistoryId: z.string().uuid().optional().nullable(),
 });

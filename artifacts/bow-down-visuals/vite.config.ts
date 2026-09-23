@@ -55,16 +55,18 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-radix": [
-            "@radix-ui/react-accordion",
-            "@radix-ui/react-alert-dialog",
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-tooltip",
-          ],
+        // Rolldown (Vite 8's bundler) only accepts the function form of
+        // manualChunks. Matches both npm-style (@radix-ui/react-dialog) and
+        // pnpm-style (@radix-ui+react-dialog@1.x) module paths.
+        manualChunks(id) {
+          if (
+            /@radix-ui[\\/+]react-(accordion|alert-dialog|dialog|dropdown-menu|select|tabs|tooltip)/.test(
+              id
+            )
+          ) {
+            return "vendor-radix";
+          }
+          return undefined;
         },
       },
     },
