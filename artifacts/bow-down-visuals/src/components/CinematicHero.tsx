@@ -27,6 +27,7 @@ const FS = 600; // frame size in px
 export function HeroLogo3D() {
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const posterRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -60,6 +61,11 @@ export function HeroLogo3D() {
       ctx.drawImage(sheet, sx, sy, FS, FS, 0, 0, canvas.width, canvas.height);
       drawnFrame = f;
       canvas.dataset.bdvFrame = String(f);
+      // The poster did its job (instant paint / load fallback). Hide it now
+      // that the canvas is painting — otherwise the standing poster ghosts
+      // behind every bowed frame. (If the sheets ever fail to load, no draw
+      // happens and the poster stays as the fallback.)
+      if (posterRef.current) posterRef.current.style.display = "none";
     };
 
     const frameFor = (t: number) =>
@@ -165,8 +171,11 @@ export function HeroLogo3D() {
 
   return (
     <div ref={sectionRef} className="relative w-[480px] max-w-full aspect-square">
-      {/* Standing-shark poster: instant paint + fallback if sprites fail. */}
+      {/* Standing-shark poster: instant paint + fallback if sprites fail.
+          Hidden the moment the canvas paints so it never ghosts behind
+          bowed frames. */}
       <img
+        ref={posterRef}
         src={`${base}hero-bow-poster.webp`}
         alt=""
         aria-hidden
