@@ -1808,29 +1808,53 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     }
     ctx.log.info({ inputCount: preSpawnInputs.length }, "[export] pre-spawn check passed — all inputs present");
 
-    /* ── 6: Run FFmpeg ── */
+    /* ── 6: Run FFmpeg in two passes (memory) ─────────────────────────
+     * Render's 512MB instance OOM-killed the service during the old single
+     * pass, which decoded + filtered + libx264-encoded 1080x1920 video AND
+     * decoded/filtered/AAC-encoded the audio in one FFmpeg process. Split:
+     *   Pass A (video only): stitched video → subtitles/watermark/effects/
+     *     overlays → CRF 18 intermediate. No audio processing at all.
+     *   Pass B (audio + mux): Pass-A intermediate + audio → -af audio chain,
+     *     AAC encode, video stream-COPIED → final MP4. No x264, no decode.
+     * Peak RSS becomes max(pass A, pass B) instead of both pipelines at once.
+     * Pass A reuses the single-pass inputs + filter_complex verbatim (the
+     * audio input stays present-but-unmapped, so filter_complex input indices
+     * never shift). The range trim (-ss/-t) is applied in pass A exactly as
+     * the single pass did; pass B bakes the identical audio window [R, D]
+     * into -af via atrim=start (an output -ss in pass B would re-trim the
+     * already-trimmed video). Exception: Animated Waveform's showwaves video
+     * filter consumes the audio stream, so audio stays inside pass A for that
+     * path and pass B is a pure remux. Each pass eagerly deletes its consumed
+     * intermediate on success. */
     exportStatus.ffmpegStage = "combining";
-    let ffmpegStderr = "";
-    try {
-      const result = await execFileAsync("ffmpeg", ffmpegArgs, { timeout: FFMPEG_TIMEOUT_MS });
-      ffmpegStderr = result.stderr ?? "";
-      exportStatus.ffmpegExitCode = 0;
-      if (IS_DEV && ffmpegStderr) {
-        ctx.log.info({ stderrTail: ffmpegStderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
-      }
-    } catch (ffErr: unknown) {
-      ffmpegStderr = (ffErr as { stderr?: string }).stderr ?? "";
+    const isWaveformPath = !!audioOutputFcLabel;
+    const passAPath = path.join(tmpDir, `bdv-export-${exportId}-passA.mp4`);
+    tmpFiles.push(passAPath);
+
+    // Shared per-pass failure diagnostics (mirrors the old single-pass behavior).
+    const failPass = (
+      passLabel: string,
+      ffErr: unknown,
+      passArgs: string[],
+      checkInputs: { label: string; path: string }[],
+    ): never => {
+      const stderr = (ffErr as { stderr?: string }).stderr ?? "";
       const exitCode = (ffErr as { code?: number }).code ?? -1;
+      const killed = (ffErr as { killed?: boolean }).killed ?? false;
+      const signal = (ffErr as { signal?: string }).signal ?? null;
       exportStatus.ffmpegExitCode = exitCode;
-      const stderrLines = ffmpegStderr.split("\n").filter(Boolean);
-      const stderrTail  = stderrLines.slice(-20);
+      const stderrLines = stderr.split("\n").filter(Boolean);
+      const stderrTail = stderrLines.slice(-20);
       exportStatus.stderrTail = stderrTail;
 
       ctx.log.error({
+        pass: passLabel,
         exitCode,
+        killed,
+        signal,
         stderrTail: stderrTail.join("\n"),
-        command: `ffmpeg ${ffmpegArgs.slice(0, 6).join(" ")} ...`,
-      }, "[export] FFmpeg failed");
+        command: `ffmpeg ${passArgs.slice(0, 6).join(" ")} ...`,
+      }, `[export] FFmpeg ${passLabel} failed`);
 
       // Find the most specific error line in stderr
       const errorLine = stderrLines
@@ -1846,26 +1870,125 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       // still theoretically possible.
       const looksLikeMissingFile = /No such file or directory/i.test(errorLine || baseMsg);
       if (looksLikeMissingFile) {
-        const stillMissing = preSpawnInputs.filter((f) => !existsSync(f.path));
+        const stillMissing = checkInputs.filter((f) => !existsSync(f.path));
         const missingDetail = stillMissing.length > 0
           ? stillMissing.map((f) => `${f.label} (${f.path})`).join("; ")
           : "an input file that was present moments earlier but is now gone";
         throw Object.assign(
           new Error(
-            `FFmpeg couldn't find one of its input files: ${missingDetail}. This usually means the prepared ` +
-            `session was cleaned up while this export was still running. Click "Prepare Export Files Only" ` +
-            `again, then export once (avoid double-clicking Export).`,
+            `FFmpeg ${passLabel} couldn't find one of its input files: ${missingDetail}. This usually means the prepared ` +
+            `session was cleaned up while this export was still running. Click "Prepare Export Files Only" again, then export once (avoid double-clicking Export).`,
           ),
-          { ffmpegExitCode: exitCode, ffmpegStderr, stderrTail },
+          { ffmpegExitCode: exitCode, ffmpegStderr: stderr, stderrTail },
         );
       }
 
-      throw Object.assign(new Error(`FFmpeg failed (exit ${exitCode}): ${errorLine || baseMsg.slice(0, 200)}`), {
+      throw Object.assign(new Error(`FFmpeg ${passLabel} failed (exit ${exitCode}): ${errorLine || baseMsg.slice(0, 200)}`), {
         ffmpegExitCode: exitCode,
-        ffmpegStderr,
+        ffmpegStderr: stderr,
         stderrTail,
       });
+    };
+
+    const runPass = async (
+      passLabel: string,
+      passArgs: string[],
+      checkInputs: { label: string; path: string }[],
+    ): Promise<void> => {
+      try {
+        const result = await execFileAsync("ffmpeg", passArgs, { timeout: FFMPEG_TIMEOUT_MS });
+        exportStatus.ffmpegExitCode = 0;
+        if (IS_DEV && result.stderr) {
+          ctx.log.info({ pass: passLabel, stderrTail: result.stderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
+        }
+      } catch (ffErr: unknown) {
+        failPass(passLabel, ffErr, passArgs, checkInputs);
+      }
+    };
+
+    const eagerUnlink = (p: string, why: string): void => {
+      try { unlinkSync(p); } catch { /* best-effort */ }
+      const ti = tmpFiles.indexOf(p);
+      if (ti >= 0) tmpFiles.splice(ti, 1);
+      ctx.log.info({ file: path.basename(p) }, `[export] ${why} — intermediate released eagerly`);
+    };
+
+    /* ── Pass A: video-only encode ── */
+    const fcIdx = ffmpegArgs.indexOf("-filter_complex");
+    const passAArgs: string[] = [
+      ...ffmpegArgs.slice(0, fcIdx + 2), // inputs + "-filter_complex" + graph (indices preserved)
+      "-map", `[${voutLabel}]`,
+      ...(isWaveformPath ? ["-map", `[${audioOutputFcLabel}]`] : []),
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "18",
+      "-pix_fmt", "yuv420p",
+      "-video_track_timescale", "90000",
+      ...(isWaveformPath
+        ? ["-c:a", "aac", "-b:a", "192k"] // waveform audio already filtered inside filter_complex
+        : ["-an"]),
+      ...(rangeRelativeStart > 0 ? ["-ss", rangeRelativeStart.toFixed(3)] : []),
+      "-t", effectiveDuration.toFixed(3),
+      "-y", passAPath,
+    ];
+    ctx.log.info(
+      { crf: 18, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
+      "[export] pass A (video) starting",
+    );
+    await runPass("pass A (video)", passAArgs, preSpawnInputs);
+    if (!existsSync(passAPath)) throw new Error("FFmpeg pass A produced no output file");
+    // Pass A consumed the phase-1 stitched intermediate — release it eagerly.
+    for (const p of normalizedPaths) eagerUnlink(p, "pass A done");
+
+    /* ── Pass B: audio + mux (video stream-copied — no decode, no x264) ── */
+    const passBArgs: string[] = ["-threads", "2", "-i", passAPath];
+    let passBAudioFilters: string[] | null = null;
+    if (!isWaveformPath && audioPath) {
+      if ((audioStartSec ?? 0) > 0) passBArgs.push("-ss", audioStartSec!.toFixed(3));
+      passBArgs.push("-i", audioPath);
+      // Reproduce the single-pass audio window exactly: the old pipeline ran
+      // `-af <audioFilterParts>` + output `-ss R -t D`. The video is already
+      // range-trimmed, so bake the same [R, D] window into -af via atrim=start
+      // instead of an output -ss (which would trim the video a second time).
+      const rangeAtrim = `atrim=start=${rangeRelativeStart.toFixed(3)}:duration=${Math.max(0, effectiveDuration - rangeRelativeStart).toFixed(3)}`;
+      passBAudioFilters = [];
+      let swapped = false;
+      for (let k = 0; k < audioFilterParts.length; k++) {
+        const part = audioFilterParts[k]!;
+        if (!swapped && part.startsWith("atrim=")) {
+          passBAudioFilters.push(rangeAtrim, "asetpts=PTS-STARTPTS");
+          if (audioFilterParts[k + 1] === "asetpts=PTS-STARTPTS") k++;
+          swapped = true;
+        } else {
+          passBAudioFilters.push(part);
+        }
+      }
+      if (!swapped) passBAudioFilters.unshift(rangeAtrim, "asetpts=PTS-STARTPTS");
     }
+    passBArgs.push("-map", "0:v");
+    if (isWaveformPath) {
+      passBArgs.push("-map", "0:a", "-c:v", "copy", "-c:a", "copy");
+    } else if (audioPath) {
+      passBArgs.push("-map", "1:a", "-af", passBAudioFilters!.join(","), "-c:v", "copy", "-c:a", "aac", "-b:a", "192k");
+    } else {
+      passBArgs.push("-c:v", "copy", "-an");
+    }
+    passBArgs.push("-movflags", "+faststart", "-y", outputPath);
+    ctx.log.info(
+      { waveform: isWaveformPath, hasAudio: !!audioPath, af: passBAudioFilters?.join(",") ?? "(none)" },
+      "[export] pass B (audio+mux) starting",
+    );
+    await runPass(
+      "pass B (audio+mux)",
+      passBArgs,
+      [
+        { label: "Pass A video intermediate", path: passAPath },
+        ...(!isWaveformPath && audioPath ? [{ label: "Audio track", path: audioPath }] : []),
+      ],
+    );
+    // Pass B consumed the pass-A intermediate — release it eagerly.
+    eagerUnlink(passAPath, "pass B done");
+    /* ── end two-pass FFmpeg ── */
 
     /* ── 7: Verify output ── */
     if (!existsSync(outputPath)) throw new Error("FFmpeg produced no output file");
