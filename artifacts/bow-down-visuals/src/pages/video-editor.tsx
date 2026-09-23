@@ -111,6 +111,13 @@ interface LoadedProject {
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
+/** Auto PiP guard — requestPictureInPicture() throws "Metadata for the video
+ *  element are not loaded yet" (which surfaces as a player error) when called
+ *  before HAVE_METADATA. Only engage PiP once metadata is in. */
+function canAutoPiP(v: HTMLVideoElement | null | undefined): v is HTMLVideoElement {
+  return !!v && v.readyState >= 1;
+}
+
 export default function VideoEditor() {
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
@@ -1883,7 +1890,7 @@ function MasterPreviewPlayer({
     const onVisibility = () => {
       const hidden = document.hidden;
       setDocHidden(hidden);
-      if (hidden && autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+      if (hidden && autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch((e) => {
           const msg = e instanceof Error ? e.message : String(e);
           setPipError(`Browser blocked automatic PiP. Click Enable Auto PiP again. (${msg})`);
@@ -1895,7 +1902,7 @@ function MasterPreviewPlayer({
     /* pagehide / pageshow */
     const onPageHide = () => {
       setDocHidden(true);
-      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch(() => {});
       }
     };
@@ -1908,7 +1915,7 @@ function MasterPreviewPlayer({
     const onFocus = () => setBrowserFocused(true);
     const onBlur  = () => {
       setBrowserFocused(false);
-      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused) {
+      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch(() => {});
       }
     };
@@ -1938,14 +1945,16 @@ function MasterPreviewPlayer({
     const el = containerRef.current;
     if (!el || !pipSupported) return;
     const observer = new IntersectionObserver(([entry]) => {
+      const lv = liveVideoRef.current;
       if (
         !entry?.isIntersecting &&
         autoPiPRef.current &&
         enterOnScrollRef.current &&
         isPlayingRef.current &&
-        !document.pictureInPictureElement
+        !document.pictureInPictureElement &&
+        canAutoPiP(lv)
       ) {
-        liveVideoRef.current?.requestPictureInPicture().catch((e) => {
+        lv.requestPictureInPicture().catch((e) => {
           setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
         });
       }
@@ -1957,15 +1966,17 @@ function MasterPreviewPlayer({
 
   /* Auto PiP — editor-tab switch */
   useEffect(() => {
+    const lv = liveVideoRef.current;
     if (
       prevTabRef.current !== tab &&
       autoPiPRef.current &&
       keepOnTabSwitchRef.current &&
       isPlayingRef.current &&
       pipSupported &&
-      !document.pictureInPictureElement
+      !document.pictureInPictureElement &&
+      canAutoPiP(lv)
     ) {
-      liveVideoRef.current?.requestPictureInPicture().catch((e) => {
+      lv.requestPictureInPicture().catch((e) => {
         setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
       });
     }
