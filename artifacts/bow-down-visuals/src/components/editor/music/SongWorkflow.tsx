@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Mic, FileText, Clapperboard, CheckCircle2, Loader2, AlertCircle,
-  Music2, RotateCcw, PenLine, Sparkles, Clock,
+  Music2, RotateCcw, PenLine, Sparkles, Clock, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import type { CaptionLine, EditorSettings } from "@/lib/editor-settings";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
+
+/** Backstop against infinite spin — the server times out first (4 min) with a clearer message. */
+const TRANSCRIBE_TIMEOUT_MS = 5 * 60 * 1000;
 
 interface WhisperSegment {
   id: number;
@@ -75,6 +78,8 @@ export function SongWorkflow({
   const [localTranscript, setLocalTranscript] = useState<string | null>(null);
   const [localSegments, setLocalSegments] = useState<WhisperSegment[] | null>(null);
   const [songDuration, setSongDuration] = useState<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
 
   const ms = settings.musicStudio;
   const usingUploadedAudio = ms.videoAudio.source === "uploaded";
@@ -107,10 +112,19 @@ export function SongWorkflow({
     }
   })();
 
+  function cancelGetLyrics() {
+    cancelledRef.current = true;
+    abortRef.current?.abort();
+  }
+
   async function getLyrics() {
     setTxState("running");
     setTxError(null);
     setSentToCaptions(false);
+    cancelledRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const timeout = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/transcribe-url", {
@@ -120,6 +134,7 @@ export function SongWorkflow({
           Authorization: `Bearer ${token ?? ""}`,
         },
         body: JSON.stringify({ audioUrl }),
+        signal: controller.signal,
       });
       const data = (await res.json()) as {
         transcript?: string;
@@ -148,9 +163,25 @@ export function SongWorkflow({
       onTranscriptReady(text);
       setTxState("done");
     } catch (err) {
+      if (cancelledRef.current) {
+        /* User cancelled — back to idle quietly. */
+        setTxState("idle");
+        return;
+      }
+      if (controller.signal.aborted) {
+        setTxError(
+          "Transcription timed out — your song may be too long. Try a shorter MP3 or paste your lyrics manually.",
+        );
+        setTxState("error");
+        return;
+      }
       const msg = err instanceof Error ? err.message : "Could not transcribe song";
       setTxError(msg);
       setTxState("error");
+    } finally {
+      clearTimeout(timeout);
+      abortRef.current = null;
+      cancelledRef.current = false;
     }
   }
 
@@ -256,6 +287,19 @@ export function SongWorkflow({
                   ? "Retry Transcription"
                   : "Get Lyrics From Song"}
           </Button>
+
+          {/* Cancel a stuck/slow transcription */}
+          {txState === "running" && (
+            <Button
+              onClick={cancelGetLyrics}
+              variant="outline"
+              className="h-11 text-sm font-bold justify-start border-white/12 bg-white/[0.03] hover:bg-white/[0.06] text-white/50"
+              data-testid="btn-cancel-transcribe"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+          )}
 
           {/* Re-transcribe once done */}
           {txState === "done" && (

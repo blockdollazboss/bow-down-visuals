@@ -11,12 +11,19 @@ interface Props {
   className?: string;
 }
 
+/** Backstop against infinite spin — the server times out first (4 min) with a clearer message. */
+const TRANSCRIBE_TIMEOUT_MS = 5 * 60 * 1000;
+
 export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "" }: Props) {
   const { getAccessToken } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [transcribing, setTranscribing] = useState(false);
+  /** "uploading" while the file posts, "transcribing" while Whisper works. */
+  const [phase, setPhase] = useState<"uploading" | "transcribing" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
@@ -34,26 +41,64 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
     if (onFile) onFile(null);
   }
 
+  function cancelTranscribe() {
+    cancelledRef.current = true;
+    abortRef.current?.abort();
+  }
+
   async function handleTranscribe() {
-    if (!file) return;
+    if (!file || transcribing) return;
     setTranscribing(true);
+    setPhase("uploading");
     setError(null);
+    cancelledRef.current = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    /* Longer than the server's own Whisper timeout so the server's clearer
+       error message wins the race; this is the backstop against infinite spin. */
+    const timeout = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
     try {
       const token = await getAccessToken();
       const fd = new FormData();
       fd.append("audio", file);
+      setPhase("transcribing");
       const res = await fetch("/api/transcribe", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
+        signal: controller.signal,
       });
-      if (!res.ok) throw new Error("Transcription failed");
-      const data = (await res.json()) as { transcript: string };
-      onTranscript(data.transcript);
-    } catch {
-      setError("We could not transcribe this audio. Please paste your lyrics manually.");
+      const data = (await res.json().catch(() => null)) as {
+        transcript?: string;
+        error?: string;
+        message?: string;
+      } | null;
+      if (!res.ok) {
+        throw new Error(data?.message ?? data?.error ?? "Transcription failed");
+      }
+      const transcript = data?.transcript?.trim();
+      if (!transcript) {
+        throw new Error(
+          "The transcription came back empty — your song may have no clear vocals. Try a shorter clip or paste your lyrics manually.",
+        );
+      }
+      onTranscript(transcript);
+    } catch (err) {
+      if (cancelledRef.current) {
+        /* User cancelled — just reset quietly. */
+      } else if (controller.signal.aborted) {
+        setError(
+          "Transcription timed out — your song may be too long. Try a shorter MP3 or paste your lyrics manually.",
+        );
+      } else {
+        setError("We could not transcribe this audio. Please paste your lyrics manually.");
+      }
     } finally {
+      clearTimeout(timeout);
+      abortRef.current = null;
+      cancelledRef.current = false;
       setTranscribing(false);
+      setPhase(null);
     }
   }
 
@@ -91,14 +136,31 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
               className="h-9 gap-2 bg-primary/15 hover:bg-primary/25 text-primary border border-primary/25 rounded-xl font-bold text-sm px-4"
             >
               {transcribing ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Transcribing lyrics...</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> {phase === "uploading" ? "Uploading song..." : "Transcribing lyrics..."}</>
               ) : (
                 <><Mic className="h-4 w-4" /> Transcribe Lyrics</>
               )}
             </Button>
+            {transcribing && (
+              <button
+                type="button"
+                onClick={cancelTranscribe}
+                className="h-9 px-3 rounded-xl flex items-center gap-1.5 text-xs font-bold text-white/40 hover:text-white/70 hover:bg-white/[0.05] transition-colors"
+              >
+                <X className="h-3.5 w-3.5" /> Cancel
+              </button>
+            )}
           </>
         )}
       </div>
+
+      {transcribing && (
+        <p className="text-xs text-white/35">
+          {phase === "uploading"
+            ? "Sending your song — keep this tab open."
+            : "Long songs can take a few minutes. You can cancel anytime."}
+        </p>
+      )}
 
       {file && (
         <p className="flex items-center gap-1.5 text-xs text-white/25">
