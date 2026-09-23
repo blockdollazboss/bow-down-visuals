@@ -156,6 +156,33 @@ export function ClipGeneratorSection({
   const [timelineSaveMsgType, setTimelineSaveMsgType] = useState<"saved" | "error">("saved");
   const mutatedRef = useRef(false);
 
+  /* One-time backfill: a scene whose clip URL duplicates an earlier scene's
+     URL could only have gotten it from "Use existing clip" (generation and
+     upload always produce unique URLs), so mark it intentional for export. */
+  const reuseBackfillRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (reuseBackfillRef.current === projectId) return;
+    if (scenes.length === 0) return;
+    reuseBackfillRef.current = projectId ?? "none";
+    const seen = new Set<string>();
+    let changed = false;
+    const next = scenes.map((s) => {
+      const url = s.demoClipUrl;
+      if (url && url.startsWith("http")) {
+        if (seen.has(url) && !s.clipReusedIntentionally) {
+          changed = true;
+          return { ...s, clipReusedIntentionally: true };
+        }
+        seen.add(url);
+      }
+      return s;
+    });
+    if (changed) {
+      setScenes(next);
+      markMutated();
+    }
+  }, [scenes, projectId, setScenes]);
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   useEffect(() => {
@@ -1105,7 +1132,7 @@ function SceneClipCard({
       return;
     }
     setReuseError(null);
-    onUpdateScene(scene.id, { demoClipUrl: url, generationStatus: "completed" });
+    onUpdateScene(scene.id, { demoClipUrl: url, generationStatus: "completed", clipReusedIntentionally: true });
     setClipUrlDraft("");
   }
 
