@@ -852,6 +852,12 @@ export default function VideoEditor() {
                       onGoToClips={() => setTab("clips")}
                       onGoToEffects={() => setTab("effects")}
                       isSimple={isSimple}
+                      /* Connected to the master player: same engine state + transport */
+                      engineState={previewEngineState}
+                      duration={songDuration}
+                      onSeek={(sec) => timelinePlayerRef.current?.seekTo(sec)}
+                      onTogglePlay={() => timelinePlayerRef.current?.togglePlay()}
+                      onRestart={() => timelinePlayerRef.current?.restart()}
                     />
                   )}
 
