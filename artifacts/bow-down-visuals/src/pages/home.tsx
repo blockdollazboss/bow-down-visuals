@@ -251,7 +251,7 @@ function CheatCodeTicker() {
   const row = [...TICKER_ITEMS, ...TICKER_ITEMS];
   return (
     <div
-      className="lux-marquee lux-marquee-mask relative overflow-hidden border-y border-white/[0.06] bg-black/40 py-5"
+      className="lux-marquee lux-marquee-mask relative overflow-hidden border-b border-white/[0.06] bg-black/40 py-5"
       aria-hidden="true"
     >
       <div className="lux-marquee-track flex w-max">
@@ -281,38 +281,49 @@ function SectionDivider() {
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
   return (
     <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 py-16 overflow-hidden">
-      {/* Background glow effects */}
-      <div className="absolute inset-0 z-0">
+      {/* Background — glows + grid dissolve into the next section: one continuous surface, no seam */}
+      <div
+        className="absolute inset-0 z-0"
+        aria-hidden="true"
+        style={{
+          maskImage: "linear-gradient(to bottom, black 70%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 70%, transparent 100%)",
+        }}
+      >
+        {/* Background glow effects */}
+        <div className="absolute inset-0">
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full blur-[140px] pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(212,160,23,0.13) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none"
+            style={{ background: "rgba(212,160,23,0.08)" }}
+          />
+          <div
+            className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none"
+            style={{ background: "rgba(212,160,23,0.06)" }}
+          />
+          <div
+            className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full blur-[90px] pointer-events-none"
+            style={{ background: "rgba(212,160,23,0.05)" }}
+          />
+        </div>
+
+        {/* Grid overlay */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full blur-[140px] pointer-events-none"
+          className="absolute inset-0 opacity-[0.03]"
           style={{
-            background:
-              "radial-gradient(circle, rgba(212,160,23,0.13) 0%, transparent 70%)",
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
           }}
         />
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[100px] pointer-events-none"
-          style={{ background: "rgba(212,160,23,0.08)" }}
-        />
-        <div
-          className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full blur-[90px] pointer-events-none"
-          style={{ background: "rgba(212,160,23,0.06)" }}
-        />
-        <div
-          className="absolute bottom-1/3 right-1/4 w-[250px] h-[250px] rounded-full blur-[90px] pointer-events-none"
-          style={{ background: "rgba(212,160,23,0.05)" }}
-        />
       </div>
-
-      {/* Grid overlay */}
-      <div
-        className="absolute inset-0 z-0 opacity-[0.03]"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
 
       {/* Film grain + vignette — quiet cinematic depth */}
       <div className="lux-grain z-[1]" aria-hidden="true" />
@@ -857,6 +868,54 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
 });
 WaitlistSection.displayName = "WaitlistSection";
 
+/* ───── Official music video teaser — cinematic full-bleed placeholder ───── */
+
+function MusicVideoTeaser() {
+  return (
+    <section
+      aria-label="Official music video teaser"
+      className="relative bg-black"
+    >
+      <LuxReveal>
+        <div className="relative w-full overflow-hidden">
+          <video
+            className="h-[72svh] min-h-[420px] w-full object-cover"
+            src="/official-teaser.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-label="Bow Down Visuals official music video teaser"
+          />
+          {/* Cinematic letterbox melt — top and bottom dissolve into the page */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"
+            aria-hidden="true"
+          />
+          <div
+            className="pointer-events-none absolute inset-0 lux-vignette"
+            aria-hidden="true"
+          />
+          {/* Copy */}
+          <div className="absolute inset-0 flex flex-col items-center justify-end px-5 pb-14 text-center sm:pb-16">
+            <MarketingBadge variant="kicker" className="mb-4">
+              Official Music Video
+            </MarketingBadge>
+            <h2 className="font-display italic text-4xl text-white sm:text-5xl md:text-6xl">
+              Coming soon
+            </h2>
+            <p className="mt-3 max-w-md text-sm text-white/55 sm:text-base">
+              A first taste of the official visual. The full music video is in
+              production.
+            </p>
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
@@ -873,6 +932,7 @@ export default function Home() {
       <MarketingNav />
       <HeroSection onWaitlist={scrollToWaitlist} />
       <CheatCodeTicker />
+      <MusicVideoTeaser />
       <HowItWorks />
       <SectionDivider />
       <WhatYouCanMake />
