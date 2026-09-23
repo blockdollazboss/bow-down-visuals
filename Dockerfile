@@ -3,6 +3,12 @@
 # which also serves the frontend's static files (same origin, so /api just works).
 FROM node:22-slim
 
+# ffmpeg + ffprobe: the export pipeline shells out to both (prepare step
+# probes clip duration/resolution/codec; the render step runs ffmpeg).
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable
 
 WORKDIR /app
