@@ -11,6 +11,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
 import { computeManualTimings } from "@/lib/scene-timing";
+import { pollExportJob } from "@/lib/export-job-poll";
 
 interface ExportRecord {
   final_video_url: string;
@@ -473,7 +474,7 @@ export function FinalVideoExport({
         fitMode:               fitMode ?? "fill",
         prepareId:             prepareIdToUse ?? undefined,
       }),
-      signal: AbortSignal.timeout(10 * 60 * 1000),
+      signal: AbortSignal.timeout(60 * 1000),
     });
 
     if (!res.ok) {
@@ -498,7 +499,11 @@ export function FinalVideoExport({
       throw err;
     }
 
-    const data = await parseJsonResponse<{
+    // The export runs as a background job: POST returns 202 { jobId } immediately
+    // and the render continues server-side (the old synchronous design died with
+    // a 502 on real exports). Poll the job until it finishes.
+    interface ExportPayload {
+      jobId?: string;
       url: string;
       clipCount: number;
       audioIncluded: boolean;
@@ -507,16 +512,33 @@ export function FinalVideoExport({
       testMode?: boolean;
       exportStatus?: Record<string, unknown>;
       debug?: { identicalClipsDetected?: boolean };
-    }>(res, "POST /api/generate/export-video");
-
-    if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
-      throw new Error(
-        "Server detected two or more downloaded clips with identical content. " +
-        "Re-generate the affected Runway clips and try again.",
-      );
     }
+    const accepted = await parseJsonResponse<ExportPayload>(res, "POST /api/generate/export-video");
 
-    return { data, timelineOrder };
+    const finishExport = (data: ExportPayload) => {
+      if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
+        throw new Error(
+          "Server detected two or more downloaded clips with identical content. " +
+          "Re-generate the affected Runway clips and try again.",
+        );
+      }
+      return { data, timelineOrder };
+    };
+
+    if (accepted.url) {
+      // Back-compat: very old servers responded synchronously.
+      return finishExport(accepted);
+    }
+    if (!accepted.jobId) {
+      throw new Error("Export did not return a job id");
+    }
+    setProgressStep("Render queued — starting…");
+    const data = await pollExportJob({
+      jobId: accepted.jobId,
+      getAccessToken,
+      onProgress: (stage, progress) => setProgressStep(`${stage} · ${progress}%`),
+    });
+    return finishExport(data as unknown as ExportPayload);
   }
 
   async function handleExport() {
