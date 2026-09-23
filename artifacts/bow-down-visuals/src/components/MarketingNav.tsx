@@ -3,15 +3,16 @@ import { Link } from "wouter";
 import { Menu, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * MarketingNav — the single shared nav for all marketing pages
  * (home, pricing, contact, waitlist, beta-access).
  *
  * Consistent links: Home · Pricing · Tools · Waitlist, plus Sign In
- * and a gold "Start Creating" CTA. The mobile menu carries the same
- * links and always includes Sign In. The brand mark tilts toward the
- * cursor on desktop (gated inside useTiltOnHover).
+ * (or Dashboard when already signed in) and a gold "Start Creating"
+ * CTA. The mobile menu carries the same links. The brand mark tilts
+ * toward the cursor on desktop (gated inside useTiltOnHover).
  */
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -28,6 +29,10 @@ const MOBILE_LINK =
 export function MarketingNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
+  /* Signed-in visitors should never be offered "Sign In" — that click just
+   * bounced them through /login back into the app. Show Dashboard instead. */
+  const { user } = useAuth();
+  const signedIn = !!user;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
@@ -54,15 +59,27 @@ export function MarketingNav() {
         </nav>
 
         <div className="flex items-center gap-2.5">
-          <Link href="/login" className="hidden md:inline-flex">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white/60 hover:text-white hover:bg-white/[0.06] font-semibold"
-            >
-              Sign In
-            </Button>
-          </Link>
+          {signedIn ? (
+            <Link href="/dashboard" className="hidden md:inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/60 hover:text-white hover:bg-white/[0.06] font-semibold"
+              >
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/login" className="hidden md:inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white/60 hover:text-white hover:bg-white/[0.06] font-semibold"
+              >
+                Sign In
+              </Button>
+            </Link>
+          )}
           <Link href="/dashboard" className="hidden md:inline-flex">
             <Button size="sm" className="gold-glow font-semibold px-5 gap-1.5">
               Start Creating <ArrowRight className="h-3.5 w-3.5" />
@@ -92,11 +109,11 @@ export function MarketingNav() {
             </Link>
           ))}
           <Link
-            href="/login"
+            href={signedIn ? "/dashboard" : "/login"}
             onClick={() => setMenuOpen(false)}
             className={`${MOBILE_LINK} font-semibold text-primary`}
           >
-            Sign In
+            {signedIn ? "Dashboard" : "Sign In"}
           </Link>
           <div className="pt-2">
             <Link href="/dashboard" onClick={() => setMenuOpen(false)}>

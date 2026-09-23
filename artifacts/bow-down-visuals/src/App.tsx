@@ -1,6 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
@@ -23,27 +23,102 @@ import Home    from "@/pages/home";
 import Pricing from "@/pages/pricing";
 import Waitlist from "@/pages/waitlist";
 
-const Dashboard     = lazy(() => import("@/pages/dashboard"));
-const ChooseArtist  = lazy(() => import("@/pages/choose-artist"));
-const MakeSong      = lazy(() => import("@/pages/make-song"));
-const MakeVideo     = lazy(() => import("@/pages/make-video"));
-const SongAndVideo  = lazy(() => import("@/pages/song-and-video"));
-const CreateSimple  = lazy(() => import("@/pages/create-simple"));
-const PromoClip     = lazy(() => import("@/pages/promo-clip"));
-const Thumbnail     = lazy(() => import("@/pages/thumbnail"));
-const ArtistVault   = lazy(() => import("@/pages/artist-vault"));
-const MyProjects    = lazy(() => import("@/pages/my-projects"));
-const VideoEditor   = lazy(() => import("@/pages/video-editor"));
-const BetaAccess    = lazy(() => import("@/pages/beta-access"));
-const Contact       = lazy(() => import("@/pages/contact"));
-const Login         = lazy(() => import("@/pages/login"));
-const Signup        = lazy(() => import("@/pages/signup"));
-const NotFound      = lazy(() => import("@/pages/not-found"));
-const CreditHistory = lazy(() => import("@/pages/credit-history"));
-const MyClips       = lazy(() => import("@/pages/my-clips"));
-const Terms         = lazy(() => import("@/pages/terms"));
-const Privacy       = lazy(() => import("@/pages/privacy"));
-const RefundPolicy  = lazy(() => import("@/pages/refund-policy"));
+const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
+const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
+const MakeSong      = lazyWithRetry(() => import("@/pages/make-song"));
+const MakeVideo     = lazyWithRetry(() => import("@/pages/make-video"));
+const SongAndVideo  = lazyWithRetry(() => import("@/pages/song-and-video"));
+const CreateSimple  = lazyWithRetry(() => import("@/pages/create-simple"));
+const PromoClip     = lazyWithRetry(() => import("@/pages/promo-clip"));
+const Thumbnail     = lazyWithRetry(() => import("@/pages/thumbnail"));
+const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
+const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
+const VideoEditor   = lazyWithRetry(() => import("@/pages/video-editor"));
+const BetaAccess    = lazyWithRetry(() => import("@/pages/beta-access"));
+const Contact       = lazyWithRetry(() => import("@/pages/contact"));
+const Login         = lazyWithRetry(() => import("@/pages/login"));
+const Signup        = lazyWithRetry(() => import("@/pages/signup"));
+const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
+const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
+const MyClips       = lazyWithRetry(() => import("@/pages/my-clips"));
+const Terms         = lazyWithRetry(() => import("@/pages/terms"));
+const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
+const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
+
+/**
+ * lazy() with a retry for chunk-load failures.
+ *
+ * A route chunk can fail to load for transient reasons (network blip) or
+ * because a fresh deploy replaced the hashed chunk files (deploy skew) while
+ * this tab still references the old names. Without a retry, the rejected
+ * import unmounts the whole app into a dead blank page and only a manual
+ * reload recovers. So: wait a beat and retry once; if the chunk is still
+ * unreachable, do a full reload — that fetches a fresh index.html with the
+ * current chunk hashes, which is exactly the manual recovery, automated.
+ */
+function lazyWithRetry<T extends ComponentType<any>>(
+  importer: () => Promise<{ default: T }>,
+) {
+  return lazy(async () => {
+    try {
+      return await importer();
+    } catch (firstError) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      try {
+        return await importer();
+      } catch {
+        window.location.reload();
+        throw firstError;
+      }
+    }
+  });
+}
+
+/**
+ * Catches render errors anywhere inside the routed page (including a chunk
+ * that failed even after retry) and shows a one-click recovery instead of
+ * unmounting the app into a dead blank page. Keyed by location so navigating
+ * to another route clears a previous failure.
+ */
+class RouteErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[RouteErrorBoundary]", error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center px-6 py-16">
+          <div className="max-w-sm text-center space-y-4">
+            <p className="text-white/80 font-semibold">
+              This page didn't load properly.
+            </p>
+            <p className="text-white/40 text-sm leading-relaxed">
+              Nothing was lost — reloading usually fixes it right away.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-primary text-black hover:brightness-110 transition"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const queryClient = new QueryClient();
 
@@ -71,6 +146,7 @@ function AppShell() {
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
       <Suspense fallback={<RouteFallback />}>
+        <RouteErrorBoundary key={location}>
         <Switch>
           {/* Auth routes */}
           <Route path="/login"><Login /></Route>
@@ -105,6 +181,7 @@ function AppShell() {
 
           <Route component={NotFound} />
         </Switch>
+        </RouteErrorBoundary>
       </Suspense>
       {!hideFooter && <SiteFooter />}
     </>
