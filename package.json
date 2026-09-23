@@ -14,10 +14,10 @@
   },
   "private": true,
   "devDependencies": {
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.8",
     "typescript": "~5.9.3"
   },
   "dependencies": {
-    "stripe": "^22.2.2"
+    "stripe": "^22.6.2"
   }
 }
