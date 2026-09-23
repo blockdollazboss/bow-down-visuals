@@ -999,6 +999,79 @@ export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
   "Logo / Watermark":  65,
 };
 
+/** A production bible: the locked creative source of truth for a music video / film project. */
+export interface ProductionBible {
+  concept: string;
+  visualStyle: string;
+  colorPalette: string;
+  locations: string;
+  wardrobe: string;
+  propsNeeded: string;
+  cast: string;
+  mood: string;
+  doNotChange: string;
+  /** When true, all generation (storyboard, assets, clips) must honor this bible. */
+  locked: boolean;
+}
+
+/** One storyboard shot with AI-generated start + end frames (bookends for video generation). */
+export interface StoryboardShot {
+  id: string;
+  shotNumber: number;
+  description: string;
+  cameraAngle: string;
+  durationSec: number;
+  /** Opening frame of the shot — first image the video generates from. */
+  startFrameUrl: string | null;
+  startFrameStatus: "idle" | "generating" | "done" | "error";
+  startFrameError?: string;
+  /** Closing frame of the shot — last image, the video interpolates toward this. */
+  endFrameUrl: string | null;
+  endFrameStatus: "idle" | "generating" | "done" | "error";
+  endFrameError?: string;
+}
+
+/** A generated production asset: prop, wardrobe piece, location plate, vehicle, set piece. */
+export interface ProductionAsset {
+  id: string;
+  category: "Prop" | "Wardrobe" | "Location" | "Vehicle" | "Set Piece" | "Other";
+  prompt: string;
+  imageUrl: string | null;
+  status: "idle" | "generating" | "done" | "error";
+  error?: string;
+  createdAt: string;
+}
+
+/** Pre-production state: bible + storyboard + asset library, persisted per project. */
+export interface PreProductionState {
+  bible: ProductionBible;
+  storyboard: StoryboardShot[];
+  assets: ProductionAsset[];
+}
+
+export function defaultProductionBible(): ProductionBible {
+  return {
+    concept: "",
+    visualStyle: "",
+    colorPalette: "",
+    locations: "",
+    wardrobe: "",
+    propsNeeded: "",
+    cast: "",
+    mood: "",
+    doNotChange: "",
+    locked: false,
+  };
+}
+
+export function defaultPreProduction(): PreProductionState {
+  return {
+    bible: defaultProductionBible(),
+    storyboard: [],
+    assets: [],
+  };
+}
+
 export interface EditorSettings {
   mode: "auto" | "manual";
   /**
@@ -1064,6 +1137,8 @@ export interface EditorSettings {
   branding: BrandingSettings;
   aiEdit: AiEditSettings;
   lipSync: LipSyncSettings;
+  /** Pre-production: bible, storyboard, asset library. Persists per project. */
+  preProduction: PreProductionState;
   updatedAt: string;
 }
 
@@ -1226,6 +1301,7 @@ export function defaultEditorSettings(): EditorSettings {
       },
     },
     lipSync: defaultLipSyncSettings(),
+    preProduction: defaultPreProduction(),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -1501,6 +1577,13 @@ export function normalizeEditorSettings(
     lipSync: stored.lipSync
       ? { ...defaultLipSyncSettings(), ...stored.lipSync }
       : defaultLipSyncSettings(),
+    preProduction: stored.preProduction
+      ? {
+          bible: { ...defaultProductionBible(), ...(stored.preProduction.bible ?? {}) },
+          storyboard: Array.isArray(stored.preProduction.storyboard) ? stored.preProduction.storyboard : [],
+          assets: Array.isArray(stored.preProduction.assets) ? stored.preProduction.assets : [],
+        }
+      : defaultPreProduction(),
     branding: stored.branding
       ? {
           introCard:    { ...base.branding.introCard,    ...(stored.branding.introCard    ?? {}) },

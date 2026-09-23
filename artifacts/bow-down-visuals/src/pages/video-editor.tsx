@@ -7,7 +7,7 @@ import {
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug, Mic2,
-  Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle,
+  Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -45,6 +45,7 @@ import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
 import { BrandingSection } from "@/components/editor/sections/BrandingSection";
 import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
+import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
 import { TimelineDock } from "@/components/editor/TimelineDock";
@@ -61,7 +62,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -100,6 +101,8 @@ interface LoadedProject {
   title: string;
   artist_name: string | null;
   song_title: string | null;
+  genre: string | null;
+  mood: string | null;
   input_data: Record<string, unknown> | null;
   output_data: {
     result?: string;
@@ -127,7 +130,7 @@ export default function VideoEditor() {
   const { isSimple } = useUserMode();
   /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
-  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "lip-sync", "timeline", "export"];
+  const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -790,6 +793,7 @@ export default function VideoEditor() {
                     { id: "effects", label: "Effects", icon: <Wand2 className="h-5 w-5" />, testId: "rail-effects" },
                     { id: "branding", label: "Brand", icon: <Layers className="h-5 w-5" />, testId: "rail-branding" },
                     { id: "lip-sync", label: "Lip Sync", icon: <Mic2 className="h-5 w-5" />, testId: "rail-lip-sync" },
+                    { id: "pre-production", label: "Pre-Pro", icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
                     { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                   ]
@@ -1085,6 +1089,16 @@ export default function VideoEditor() {
                       masterAudioUrl={previewAudioUrl}
                       audioDuration={previewEngineState?.audioDuration ?? null}
                       projectId={projectId}
+                    />
+                  )}
+
+                  {tab === "pre-production" && project && (
+                    <PreProductionSection
+                      settings={settings}
+                      setSettings={setSettings}
+                      songTitle={project.song_title ?? undefined}
+                      genre={project.genre ?? undefined}
+                      mood={project.mood ?? undefined}
                     />
                   )}
 
