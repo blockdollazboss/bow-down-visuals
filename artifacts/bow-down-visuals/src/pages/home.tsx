@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
   Music,
@@ -161,24 +162,28 @@ const CREDIT_PACKS = [
     credits: "10 Credits",
     price: "$9",
     packKey: "10",
+    featured: false,
     perks: ["10 generation credits", "Never expires", "Instant top-up"],
   },
   {
     credits: "50 Credits",
     price: "$39",
     packKey: "50",
+    featured: false,
     perks: ["50 generation credits", "Never expires", "Instant top-up"],
   },
   {
     credits: "150 Credits",
     price: "$99",
     packKey: "150",
+    featured: true,
     perks: ["150 generation credits", "Never expires", "Best value"],
   },
   {
     credits: "500 Credits",
     price: "$249",
     packKey: "500",
+    featured: false,
     perks: ["500 generation credits", "Never expires", "Pro volume"],
   },
 ];
@@ -229,6 +234,48 @@ const SOFTWARE_APPLICATION_JSON_LD = {
 
 const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 
+/* ──────────────────── Capability ticker ──────────────────── */
+
+const TICKER_ITEMS = [
+  "Lyrics in seconds",
+  "Full video treatments",
+  "Promo clips on demand",
+  "Thumbnails that stop the scroll",
+  "Captions for every platform",
+  "Release strategies",
+  "Scene-by-scene prompts",
+  "Hooks & chorus ideas",
+];
+
+function CheatCodeTicker() {
+  const row = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  return (
+    <div
+      className="lux-marquee lux-marquee-mask relative overflow-hidden border-y border-white/[0.06] bg-black/40 py-5"
+      aria-hidden="true"
+    >
+      <div className="lux-marquee-track flex w-max">
+        {row.map((item, i) => (
+          <span key={i} className="flex items-center gap-10 pr-10">
+            <span className="whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.24em] text-white/40">
+              {item}
+            </span>
+            <span className="h-1.5 w-1.5 rotate-45 bg-primary/60 shrink-0" />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionDivider() {
+  return (
+    <div className="mx-auto max-w-6xl px-5" aria-hidden="true">
+      <div className="lux-divider" />
+    </div>
+  );
+}
+
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
 function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
@@ -267,6 +314,10 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         }}
       />
 
+      {/* Film grain + vignette — quiet cinematic depth */}
+      <div className="lux-grain z-[1]" aria-hidden="true" />
+      <div className="lux-vignette z-[1]" aria-hidden="true" />
+
       <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}
         <div className="flex justify-center">
@@ -274,7 +325,12 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </div>
 
         {/* Copy — right side */}
-        <div className="text-center lg:text-left space-y-4">
+        <div className="text-center lg:text-left space-y-5">
+
+        {/* Positioning — the quiet luxury whisper */}
+        <p className="font-display italic text-xl sm:text-2xl text-primary/90 leading-snug">
+          The content creator&rsquo;s cheat code
+        </p>
 
         {/* Beta badge */}
         <Link href="/beta-access">
@@ -288,7 +344,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
         </Link>
 
         {/* Headline */}
-        <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-tight text-white leading-[0.92]">
+        <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95]">
           Create Songs, <span className="gold-text-shine">Music Videos,</span>{" "}
           and Promo Clips With AI
         </h1>
@@ -310,7 +366,8 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
           <Link href="/dashboard">
             <Button
               size="lg"
-              className="w-full sm:w-auto gold-glow gold-glow-lg shimmer text-base h-14 px-10 rounded-full font-bold gap-2"
+              variant="luxury"
+              className="w-full sm:w-auto text-base h-14 px-10 rounded-full gap-2"
             >
               Start Creating <ArrowRight className="h-4 w-4" />
             </Button>
@@ -319,7 +376,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
             <Button
               size="lg"
               variant="outline"
-              className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/35 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/50 font-bold gap-2"
+              className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/30 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:border-primary/60 hover:text-primary font-semibold gap-2 transition-all duration-300"
             >
               <Sparkles className="h-4 w-4" /> Join Beta
             </Button>
@@ -355,7 +412,7 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
 function HowItWorks() {
   return (
     <section id="how-it-works" className="scroll-mt-20 py-20 md:py-28 px-5 relative">
-      <div className="max-w-6xl mx-auto">
+      <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
             How It Works
@@ -376,7 +433,7 @@ function HowItWorks() {
           {STEPS.map((step) => (
             <div
               key={step.number}
-              className="relative flex flex-col items-center text-center p-8 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-primary/25 transition-all duration-300 group"
+              className="relative flex flex-col items-center text-center p-8 rounded-2xl lux-panel lux-card-lift group"
             >
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-5xl font-black text-primary/10 select-none pointer-events-none">
                 {step.number}
@@ -393,7 +450,7 @@ function HowItWorks() {
             </div>
           ))}
         </div>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -401,7 +458,7 @@ function HowItWorks() {
 function WhatYouCanMake() {
   return (
     <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
-      <div className="max-w-6xl mx-auto">
+      <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
             What You Can Make
@@ -419,7 +476,7 @@ function WhatYouCanMake() {
           {OUTPUT_TYPES.map((type, i) => (
             <div
               key={i}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
               <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
@@ -428,7 +485,7 @@ function WhatYouCanMake() {
             </div>
           ))}
         </div>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -436,7 +493,7 @@ function WhatYouCanMake() {
 function BuiltForCreators() {
   return (
     <section className="py-20 md:py-28 px-5">
-      <div className="max-w-6xl mx-auto">
+      <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
             Built For
@@ -454,7 +511,7 @@ function BuiltForCreators() {
           {CREATOR_TYPES.map((creator) => (
             <div
               key={creator.title}
-              className="group p-7 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 transition-all duration-300"
+              className="group p-7 rounded-2xl lux-panel lux-card-lift"
             >
               <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <creator.icon className="h-5 w-5 text-primary" />
@@ -468,7 +525,7 @@ function BuiltForCreators() {
             </div>
           ))}
         </div>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -479,7 +536,7 @@ function FeaturedTools() {
       id="tools"
       className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent"
     >
-      <div className="max-w-6xl mx-auto">
+      <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
             Featured Tools
@@ -497,10 +554,10 @@ function FeaturedTools() {
           {TOOLS.map((tool) => (
             <div
               key={tool.title}
-              className={`relative group flex flex-col p-7 rounded-2xl border transition-all duration-300 ${
+              className={`relative group flex flex-col p-7 rounded-2xl lux-card-lift ${
                 tool.featured
-                  ? "bg-primary/10 border-primary/40 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
-                  : "bg-white/[0.02] border-white/[0.06] hover:border-primary/30 hover:bg-primary/5"
+                  ? "royal-border bg-primary/10 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
+                  : "lux-panel"
               } ${tool.comingSoon ? "opacity-60" : ""}`}
             >
               {tool.featured && (
@@ -555,7 +612,7 @@ function FeaturedTools() {
             </div>
           ))}
         </div>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -563,7 +620,7 @@ function FeaturedTools() {
 function PricingSection() {
   return (
     <section id="pricing" className="scroll-mt-20 py-20 md:py-28 px-5">
-      <div className="max-w-5xl mx-auto">
+      <LuxReveal className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
           <MarketingBadge variant="kicker">
             Credit Packs
@@ -590,8 +647,15 @@ function PricingSection() {
           {CREDIT_PACKS.map((pack) => (
             <div
               key={pack.packKey}
-              className="relative flex flex-col p-6 rounded-2xl border bg-white/[0.02] border-white/[0.06] transition-all hover:border-primary/30 hover:bg-primary/5"
+              className={`relative flex flex-col p-6 rounded-2xl lux-card-lift ${
+                pack.featured ? "royal-border bg-primary/[0.08]" : "lux-panel"
+              }`}
             >
+              {pack.featured && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <MarketingBadge variant="popular">Best value</MarketingBadge>
+                </div>
+              )}
               <div className="mb-5">
                 <p className="text-sm font-bold text-white/40 uppercase tracking-widest mb-1">
                   {pack.credits}
@@ -616,7 +680,7 @@ function PricingSection() {
               <Button
                 asChild
                 className="w-full font-semibold"
-                variant="outline"
+                variant={pack.featured ? "luxury" : "outline"}
               >
                 <Link href="/pricing#credit-packs">Buy Credits</Link>
               </Button>
@@ -628,7 +692,7 @@ function PricingSection() {
           <Lock className="h-3 w-3" />
           Sign in to purchase credits.
         </p>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -641,7 +705,7 @@ function FAQSection() {
       id="faq"
       className="scroll-mt-20 py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/8 to-transparent"
     >
-      <div className="max-w-3xl mx-auto">
+      <LuxReveal className="max-w-3xl mx-auto">
         <div className="text-center mb-14 space-y-4">
           <MarketingBadge variant="kicker">
             FAQ
@@ -682,7 +746,7 @@ function FAQSection() {
             </div>
           ))}
         </div>
-      </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -720,7 +784,8 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
 
   return (
     <section ref={ref} id="waitlist" className="scroll-mt-20 py-20 md:py-28 px-5">
-      <div className="max-w-2xl mx-auto text-center space-y-8">
+      <LuxReveal className="max-w-2xl mx-auto">
+      <div className="lux-panel rounded-[2rem] px-6 py-12 sm:px-12 text-center space-y-8">
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
           <MarketingBadge variant="kicker" className="mb-6">
@@ -746,7 +811,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               creating with your 3 free credits.
             </p>
             <Link href="/dashboard">
-              <Button className="gold-glow mt-5 font-semibold gap-2">
+              <Button variant="luxury" className="mt-5 font-semibold gap-2">
                 Start Creating Now <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -768,7 +833,8 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               type="submit"
               size="lg"
               disabled={loading}
-              className="gold-glow h-12 px-7 font-bold shrink-0"
+              variant="luxury"
+              className="h-12 px-7 shrink-0"
             >
               {loading ? "Joining..." : "Join Waitlist"}
             </Button>
@@ -785,6 +851,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
           No spam. No credit card. Just early access.
         </p>
       </div>
+      </LuxReveal>
     </section>
   );
 });
@@ -805,11 +872,15 @@ export default function Home() {
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <MarketingNav />
       <HeroSection onWaitlist={scrollToWaitlist} />
+      <CheatCodeTicker />
       <HowItWorks />
+      <SectionDivider />
       <WhatYouCanMake />
       <BuiltForCreators />
+      <SectionDivider />
       <FeaturedTools />
       <PricingSection />
+      <SectionDivider />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>

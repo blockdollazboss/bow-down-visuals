@@ -22,7 +22,7 @@ const NAV_LINKS = [
 ];
 
 const DESKTOP_LINK =
-  "px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors";
+  "lux-nav-link px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors";
 const MOBILE_LINK =
   "flex items-center px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white hover:bg-white/[0.04] transition-colors";
 
@@ -35,7 +35,7 @@ export function MarketingNav() {
   const signedIn = !!user;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-transparent bg-black/80 backdrop-blur-2xl">
       <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 flex items-center justify-between gap-4">
         <Link
           href="/"
@@ -81,7 +81,7 @@ export function MarketingNav() {
             </Link>
           )}
           <Link href="/dashboard" className="hidden md:inline-flex">
-            <Button size="sm" className="gold-glow font-semibold px-5 gap-1.5">
+            <Button size="sm" variant="luxury" className="px-5 gap-1.5">
               Start Creating <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </Link>
@@ -117,13 +117,15 @@ export function MarketingNav() {
           </Link>
           <div className="pt-2">
             <Link href="/dashboard" onClick={() => setMenuOpen(false)}>
-              <Button size="sm" className="w-full gold-glow font-semibold gap-1.5">
+              <Button size="sm" variant="luxury" className="w-full gap-1.5">
                 Start Creating <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </div>
         </div>
       )}
+      {/* Hairline gold rule under the nav */}
+      <div className="h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" aria-hidden="true" />
     </header>
   );
 }

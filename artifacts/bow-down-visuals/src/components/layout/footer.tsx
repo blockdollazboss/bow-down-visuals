@@ -22,7 +22,9 @@ export function SiteFooter() {
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   return (
-    <footer className="bg-black border-t border-white/[0.06] py-12 px-5">
+    <footer className="relative bg-black border-t border-transparent py-12 px-5">
+      {/* Hairline gold rule above the footer */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" aria-hidden="true" />
       <JsonLd data={ORGANIZATION_JSON_LD} />
       <JsonLd data={WEBSITE_JSON_LD} />
       <div className="max-w-6xl mx-auto">
@@ -39,7 +41,10 @@ export function SiteFooter() {
                 className="h-40 w-auto"
               />
             </Link>
-            <p className="text-white/35 text-xs mt-4 max-w-xs leading-relaxed">
+            <p className="font-display italic text-primary/85 text-[15px] mt-4">
+              The content creator&rsquo;s cheat code.
+            </p>
+            <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
               AI creator credits for lyrics, music video plans, video prompts,
               captions, thumbnails, promo clips, and more.
             </p>

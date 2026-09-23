@@ -20,7 +20,7 @@ const VARIANT_CLASSES: Record<MarketingBadgeVariant, string> = {
   free: "bg-white/[0.05] text-white/50 border-white/10",
   muted: "bg-primary/10 text-primary/90 border-primary/20",
   kicker:
-    "bg-transparent text-primary/90 border-primary/25 uppercase tracking-[0.22em] text-[10px] font-bold",
+    "lux-kicker bg-transparent text-primary/90 border-transparent uppercase tracking-[0.28em] text-[10px] font-bold px-1",
 };
 
 interface MarketingBadgeProps {
