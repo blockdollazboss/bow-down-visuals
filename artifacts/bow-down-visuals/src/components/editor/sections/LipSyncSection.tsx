@@ -563,11 +563,17 @@ export function LipSyncSection({
     audio.addEventListener("ended", () => setIsPreviewingAudio(false));
   }
 
-  /* ── Adjust audio offset for the selected scene ── */
+  /* ── Adjust audio offset for the selected scene ──
+     The preview offset (lipSyncAudioOffset) is what the user dials in while
+     watching the preview. The export offset (lipSyncOffsetSeconds) must match
+     it, otherwise the export comes out wrong even though the preview looked
+     right. Keep them in sync automatically. */
   function setAudioOffset(offset: number) {
     if (!selectedScene) return;
+    const rounded = Math.round(offset * 10) / 10;
     updateClipEdit(selectedScene.id, {
-      lipSyncAudioOffset: Math.round(offset * 10) / 10,
+      lipSyncAudioOffset: rounded,
+      lipSyncOffsetSeconds: rounded,
     });
   }
 

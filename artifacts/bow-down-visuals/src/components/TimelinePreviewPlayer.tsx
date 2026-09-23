@@ -517,7 +517,10 @@ function TimelinePreviewPlayer({
   /* ─── Imperative handle for master player ─────────────────── */
   useImperativeHandle(ref, () => ({
     togglePlay() {
-      if (playing) {
+      // Use playingRef (not the `playing` state) — this handle is created once
+      // via useImperativeHandle, so the state value would be stale. The ref is
+      // synced on every render (see playingRef.current = playing above).
+      if (playingRef.current) {
         pauseTimeline();
       } else if (currentTimeRef.current > 0) {
         resumeTimeline();
@@ -533,7 +536,9 @@ function TimelinePreviewPlayer({
       currentTimeRef.current = t;
       setMode("timeline");
       prevSceneIdxRef.current = -999;
-      if (playing) {
+      // Use playingRef — see togglePlay note above about the stale closure.
+      const isPlayingNow = playingRef.current;
+      if (isPlayingNow) {
         doAudioPlay(t);
       } else if (audioRef.current) {
         audioRef.current.currentTime = toTrackTime(t);
@@ -544,7 +549,7 @@ function TimelinePreviewPlayer({
       if (scene?.demoClipUrl && videoRef.current) {
         const clipOffset = Math.max(0, t - (offsets[idx] ?? 0));
         loadClipWithOffset(scene, videoRef.current, "Clip", clipOffset);
-        if (!playing) videoRef.current.pause();
+        if (!isPlayingNow) videoRef.current.pause();
       } else if (videoRef.current) {
         videoRef.current.pause();
       }
