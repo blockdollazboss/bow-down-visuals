@@ -1023,7 +1023,7 @@ export default function ArtistVault() {
                 <div className="flex-1 space-y-2">
                   <p className="text-xs text-white/40">Upload a front-facing photo. Used as your visual reference across all AI tools. Max 10MB (JPG, PNG, WebP).</p>
                   <div className="flex flex-wrap gap-2">
-                    <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors ${uploadingPhoto ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
+                    <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-primary/60 focus-within:outline-none ${uploadingPhoto ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
                       {uploadingPhoto ? (
                         <><Loader2 className="h-4 w-4 animate-spin" /> Uploading...</>
                       ) : (
@@ -1032,7 +1032,8 @@ export default function ArtistVault() {
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
+                        className="sr-only"
+                        aria-label={photoUrl ? "Replace reference photo" : "Upload reference photo"}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) uploadPhoto(file);

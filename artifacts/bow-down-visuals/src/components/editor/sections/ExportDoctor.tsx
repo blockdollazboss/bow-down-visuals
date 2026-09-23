@@ -493,6 +493,11 @@ export function ExportDoctor({
   const [exportResult, setExportResult] = useState<ExportResult | null>(null);
   const [audioExportResult, setAudioExportResult] =
     useState<ExportResult | null>(null);
+  /** Inputs the download / audio tests were run against. If the scene's clip URL
+   *  (or the selected audio) changes afterwards, the green results are stale and
+   *  must never disagree with the export gating — see downloadStale below. */
+  const [testedSceneUrl, setTestedSceneUrl] = useState<string | null>(null);
+  const [testedAudioUrl, setTestedAudioUrl] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
 
   // Multi-clip ("All 5 Clips") doctor state
@@ -583,8 +588,18 @@ export function ExportDoctor({
   const [showAudioMap, setShowAudioMap] = useState(false);
 
   const doctorId = downloadResult?.doctorId ?? null;
+  /* Stale-test guard: the download/export checks ran against testedSceneUrl. If
+   * Scene 1's clip URL changed since (clip regenerated, replaced, or removed),
+   * the stored green results no longer describe the current scene — gate the
+   * export buttons off and say so, instead of showing contradictory greens. */
+  const downloadStale =
+    !!downloadResult && testedSceneUrl !== null && testedSceneUrl !== scene1Url;
   const downloadOk =
-    !!downloadResult?.fileExists && !!downloadResult?.ffprobeValid;
+    !!downloadResult?.fileExists &&
+    !!downloadResult?.ffprobeValid &&
+    !downloadStale;
+  const audioStale =
+    !!audioExportResult && testedAudioUrl !== (masterAudioUrl ?? null);
 
   // Per-clip master player duration — replicates the master player's own parseDur + buildOffsets logic.
   // Timestamp format "0:05 - 0:10" → 5s duration. Single timestamps like "3:15" are song positions,
@@ -843,6 +858,7 @@ export function ExportDoctor({
           (data as { error?: string }).error ?? `HTTP ${res.status}`,
         );
       setDownloadResult(data);
+      setTestedSceneUrl(scene1Url);
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -888,6 +904,7 @@ export function ExportDoctor({
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setAudioExportResult(data);
+      setTestedAudioUrl(masterAudioUrl ?? null);
       if (data.error) setLastError(data.error);
     } catch (e) {
       setLastError(e instanceof Error ? e.message : String(e));
@@ -2233,6 +2250,19 @@ export function ExportDoctor({
           <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-1">
             Export Doctor Status
           </p>
+          {downloadStale && (
+            <p className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
+              Scene 1's clip URL changed since these checks ran — the results
+              below are stale and the export buttons are locked until you
+              re-run "Test URL" and "Download Scene 1 Only".
+            </p>
+          )}
+          {audioStale && (
+            <p className="text-[11px] font-mono text-amber-300/90 bg-amber-500/10 border border-amber-500/25 rounded-lg px-2.5 py-2 leading-snug">
+              The selected audio changed since the audio export check ran —
+              re-run "Export Scene 1 + Audio Only" to re-verify.
+            </p>
+          )}
           {statusRows.map(([label, val]) => (
             <div
               key={label}

@@ -105,14 +105,15 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors border ${file ? "bg-white/[0.06] border-white/[0.12] text-white/80" : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.07]"}`}>
+        <label className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-colors border focus-within:ring-2 focus-within:ring-primary/60 focus-within:outline-none ${file ? "bg-white/[0.06] border-white/[0.12] text-white/80" : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white/80 hover:bg-white/[0.07]"}`}>
           <Upload className="h-4 w-4 shrink-0" />
           <span className="truncate max-w-[180px]">{file ? file.name : "Upload Audio"}</span>
           <input
             ref={inputRef}
             type="file"
             accept="audio/*,video/mp4,video/webm"
-            className="hidden"
+            className="sr-only"
+            aria-label={file ? `Replace audio file (currently ${file.name})` : "Upload audio file"}
             onChange={handleFileChange}
           />
         </label>
