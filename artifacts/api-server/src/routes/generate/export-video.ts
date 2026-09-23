@@ -1915,8 +1915,14 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     /* ── Pass A: video-only encode ── */
     const fcIdx = ffmpegArgs.indexOf("-filter_complex");
+    const passABase = ffmpegArgs.slice(0, fcIdx + 2);
+    // Single-thread the big 1080x1920 Pass-A encode: x264's frame buffers scale
+    // with thread count, and we are fighting for every MB on a 512MB instance.
+    // (Output is bit-identical in quality settings; just slower.)
+    const tIdx = passABase.indexOf("-threads");
+    if (tIdx >= 0 && tIdx + 1 < passABase.length) passABase[tIdx + 1] = "1";
     const passAArgs: string[] = [
-      ...ffmpegArgs.slice(0, fcIdx + 2), // inputs + "-filter_complex" + graph (indices preserved)
+      ...passABase, // inputs + "-filter_complex" + graph (indices preserved)
       "-map", `[${voutLabel}]`,
       ...(isWaveformPath ? ["-map", `[${audioOutputFcLabel}]`] : []),
       "-c:v", "libx264",

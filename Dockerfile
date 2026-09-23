@@ -41,4 +41,7 @@ EXPOSE 8080
 # interactive confirmation so the container never hangs waiting for input.
 # The `;` (not `&&`) guarantees the server still starts if the push hits a
 # transient DB hiccup — the failure will be visible in the logs.
-CMD ["sh", "-c", "pnpm --filter @workspace/db push-force; exec node --enable-source-maps artifacts/api-server/dist/index.mjs"]
+# Cap the V8 heap: on a 512MB instance an uncapped Node heap grows until it
+# starves the FFmpeg child (1080x1920 x264) and Render OOM-kills the service.
+# 160MB heap keeps Node's RSS ~220MB, leaving ~280MB for FFmpeg.
+CMD ["sh", "-c", "pnpm --filter @workspace/db push-force; exec node --enable-source-maps --max-old-space-size=160 artifacts/api-server/dist/index.mjs"]
