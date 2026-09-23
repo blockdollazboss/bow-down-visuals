@@ -24,6 +24,7 @@ import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
 import { computeSceneTimings, withSceneDurationSet, formatClock, type SceneTiming } from "@/lib/scene-timing";
+import { AutoDirectorPanel } from "@/components/editor/sections/AutoDirectorPanel";
 
 const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
 
@@ -106,6 +107,8 @@ interface ClipGeneratorSectionProps {
   saveState?: SaveState;
   playheadTimeSec?: number;
   totalDurationSec?: number;
+  artistName?: string;
+  songTitle?: string;
 }
 
 export function ClipGeneratorSection({
@@ -121,6 +124,8 @@ export function ClipGeneratorSection({
   saveState = "idle",
   playheadTimeSec = 0,
   totalDurationSec,
+  artistName = "",
+  songTitle = "",
 }: ClipGeneratorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -629,6 +634,19 @@ export function ClipGeneratorSection({
 
   return (
     <div className="space-y-4">
+
+      {/* ── Auto Director: song → shoot-ready video plan (auto or manual) ── */}
+      <AutoDirectorPanel
+        scenes={scenes}
+        setScenes={setScenes}
+        captions={settings.captions.lines}
+        totalDurationSec={totalDurationSec ?? null}
+        songTitle={songTitle}
+        artistName={artistName}
+        artistVault={artistVault}
+        getAccessToken={getAccessToken}
+        onMutated={markMutated}
+      />
 
       {/* ── Global save / undo status bar ── */}
       {(timelineSaveMsg || reorderStatus || undoSnapshot) && (

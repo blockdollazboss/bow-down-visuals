@@ -350,16 +350,26 @@ export const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
 
 const LEGACY_GCS_URL_PREFIX = "https://storage.googleapis.com/";
 
-/** Idempotent bucket ensure — private bucket, mirrors the lip-sync.ts pattern. */
+/** Idempotent bucket ensure — private bucket, mirrors the lip-sync.ts pattern.
+ *  Checks existence first via getBucket so we never depend on the exact
+ *  wording of createBucket's "already exists" error. Throws the REAL error
+ *  when creation fails so Render logs show the root cause. */
 export async function ensureSupabaseClipsBucket(): Promise<void> {
   const supabase = getSupabaseAdmin();
+  const { data: existing, error: getErr } = await supabase.storage.getBucket(SUPABASE_CLIPS_BUCKET);
+  if (existing) return;
+  if (getErr) {
+    // getBucket errors when the bucket is missing — that's the expected path
+    // to creation. Log anything unexpected-looking but proceed to create.
+    console.error(
+      `[storage] getBucket("${SUPABASE_CLIPS_BUCKET}") failed before create: ${getErr.message}`,
+    );
+  }
   const { error } = await supabase.storage.createBucket(SUPABASE_CLIPS_BUCKET, {
     public: false,
     fileSizeLimit: 100 * 1024 * 1024, // 100 MB — generated clips are a few MB
   });
   if (error) {
-    const msg = (error.message ?? "").toLowerCase();
-    if (msg.includes("already exist") || msg.includes("duplicate")) return;
     throw new Error(
       `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${error.message}`,
     );
@@ -379,9 +389,14 @@ export async function uploadMediaToSupabaseStorage(
   const supabase = getSupabaseAdmin();
   try {
     await ensureSupabaseClipsBucket();
-  } catch {
-    /* Non-fatal — the bucket may already exist under different error wording;
-       the upload below surfaces real failures. */
+  } catch (ensureErr) {
+    // Loud, not silent: the bucket-creation error is the root cause whenever
+    // the upload below fails with "Bucket not found". Still attempt the upload
+    // — the bucket may exist despite the ensure failure (e.g. a race).
+    console.error(
+      `[storage] ensureSupabaseClipsBucket failed for "${SUPABASE_CLIPS_BUCKET}":`,
+      ensureErr instanceof Error ? ensureErr.message : ensureErr,
+    );
   }
   const { error: upErr } = await supabase.storage
     .from(SUPABASE_CLIPS_BUCKET)

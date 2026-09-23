@@ -1021,6 +1021,8 @@ export default function VideoEditor() {
                             saveState={saveState}
                             playheadTimeSec={previewEngineState?.currentTime ?? 0}
                             totalDurationSec={songDuration ?? undefined}
+                            artistName={artistName}
+                            songTitle={songTitle}
                           />
                         </div>
                       )}
