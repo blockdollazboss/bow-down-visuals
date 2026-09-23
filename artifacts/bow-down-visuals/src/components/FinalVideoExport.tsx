@@ -271,8 +271,21 @@ export function FinalVideoExport({
   }
 
   const clipUrls = selectedScenes.map((s) => s.demoClipUrl!);
-  const uniqueUrls = new Set(clipUrls);
-  const hasDuplicateUrls = clipUrls.length > 1 && uniqueUrls.size < clipUrls.length;
+  /* Duplicate URLs block export only when they look accidental. Scenes
+     assigned via "Use existing clip" carry clipReusedIntentionally — a URL
+     group is explained when at most one of its scenes lacks the flag. */
+  const urlGroups = new Map<string, boolean[]>();
+  clipUrls.forEach((url, i) => {
+    const g = urlGroups.get(url) ?? [];
+    g.push(selectedScenes[i]?.clipReusedIntentionally === true);
+    urlGroups.set(url, g);
+  });
+  const hasDuplicateUrls = [...urlGroups.values()].some(
+    (g) => g.length > 1 && g.filter((flagged) => !flagged).length > 1,
+  );
+  const hasIntentionalReuse = [...urlGroups.values()].some(
+    (g) => g.length > 1 && g.some((flagged) => flagged),
+  );
 
   /* ── Song crop: intersect the requested export range with the crop window ── */
   const cropEnabled = !!songCrop?.enabled;
@@ -496,7 +509,7 @@ export function FinalVideoExport({
       debug?: { identicalClipsDetected?: boolean };
     }>(res, "POST /api/generate/export-video");
 
-    if (data.debug?.identicalClipsDetected) {
+    if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
       throw new Error(
         "Server detected two or more downloaded clips with identical content. " +
         "Re-generate the affected Runway clips and try again.",
@@ -819,6 +832,18 @@ export function FinalVideoExport({
                   <p className="text-xs font-bold text-red-300">Duplicate clip URLs detected</p>
                   <p className="text-xs text-red-400/80 mt-0.5 leading-relaxed">
                     Two scenes point to the same URL. Re-generate those scenes first.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!hasDuplicateUrls && hasIntentionalReuse && (
+              <div className="flex items-start gap-2.5 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-primary">Clips intentionally reused</p>
+                  <p className="text-xs text-white/50 mt-0.5 leading-relaxed">
+                    Some scenes share a clip on purpose. Each scene still exports its own segment.
                   </p>
                 </div>
               </div>
