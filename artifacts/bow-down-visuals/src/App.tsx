@@ -62,6 +62,10 @@ function RouteFallback() {
 }
 
 function AppShell() {
+  const [location] = useLocation();
+  /* The video editor is a full-viewport studio surface — the marketing site
+   * footer doesn't belong under it. */
+  const hideFooter = location.startsWith("/video-editor");
   return (
     <>
       <ScrollToTop />
@@ -102,7 +106,7 @@ function AppShell() {
           <Route component={NotFound} />
         </Switch>
       </Suspense>
-      <SiteFooter />
+      {!hideFooter && <SiteFooter />}
     </>
   );
 }
