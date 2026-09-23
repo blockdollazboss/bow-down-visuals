@@ -363,6 +363,133 @@ async function normalizeClip(
   }
 }
 
+/* ── Phase-1 pairwise stitch (low-memory) ────────────────────────────────
+ * Stitches the normalized clips with their xfade transitions using sequential
+ * 2-input FFmpeg passes instead of one N-input filter graph. A single pass
+ * holding 7 simultaneous 1080x1920 decoders plus the xfade chain OOM-kills
+ * small instances mid-render; pairwise keeps peak RAM to ~2 decoders.
+ *
+ * Transition math (offsets/durations/accumulation) is intentionally identical
+ * to the old single-pass chain, so the stitched timeline matches it exactly
+ * (modulo intermediate re-encode generations, kept small via CRF 16).
+ * Only the latest intermediate is kept on disk; earlier ones are deleted.
+ */
+const PHASE1_XFADE_MAP: Record<string, string> = {
+  "Crossfade":     "fade",
+  "Fade to Black": "fadeblack",
+  "Slide":         "slideleft",
+  "Whip Pan":      "slideright",
+  "Zoom":          "zoomin",
+  "Blur Dissolve": "hblur",
+  "Flash":         "fadewhite",
+  "Glitch":        "pixelize",
+  "Light Leak":    "fadewhite",
+  "Spin":          "circlecrop",
+};
+
+async function stitchClipsPairwise(args: {
+  log: ExportJobContext["log"];
+  tmpDir: string;
+  tmpFiles: string[];
+  exportId: string;
+  /** Normalized clip files, selected order. */
+  clipPaths: string[];
+  /** effectiveClipDurations per selected position. */
+  clipDurs: number[];
+  /** Trailing freeze-frame pad per selected position (gap before the NEXT clip). */
+  trailingPads: number[];
+  /** clipTransitions entry per selected position (transition INTO that clip). */
+  transitions: ({ type: string; duration: number } | null)[];
+  onStage: (stage: string) => void;
+}): Promise<{ path: string; duration: number }> {
+  const { log, tmpDir, tmpFiles, exportId, clipPaths, clipDurs, trailingPads, transitions, onStage } = args;
+  const n = clipPaths.length;
+
+  let accPath = clipPaths[0]!;
+  let accDuration = clipDurs[0]!;
+  let prevIntermediate: string | null = null;
+
+  for (let j = 1; j < n; j++) {
+    const bPath = clipPaths[j]!;
+    const bDur = clipDurs[j]!;
+    const trans = transitions[j] ?? null;
+    const padA = j === 1 ? (trailingPads[0] ?? 0) : 0; // clip 0's trailing pad (intermediates already carry theirs)
+    const padB = trailingPads[j] ?? 0;
+
+    let joinOp: string;
+    let newAcc: number;
+    if (trans && trans.type !== "Cut") {
+      // Identical math to the old single-pass chain.
+      const xft = PHASE1_XFADE_MAP[trans.type] ?? "fade";
+      const transDur = Number(Math.min(trans.duration, accDuration * 0.8, bDur * 0.8).toFixed(3));
+      let offset = Number(Math.max(0, accDuration - transDur).toFixed(3));
+      // Defensive: the accumulated input must actually cover offset+transDur
+      // (encode rounding can shave a few ms off the predicted duration).
+      const aInfo = await probeVideo(accPath);
+      if (aInfo.duration > 0 && offset + transDur > aInfo.duration) {
+        const clamped = Math.max(0, aInfo.duration - transDur - 0.02);
+        log.warn({ step: j, offset, clamped, aDuration: aInfo.duration }, "[export][phase1] clamping xfade offset to input duration");
+        offset = Number(clamped.toFixed(3));
+      }
+      joinOp = `xfade=transition=${xft}:duration=${transDur}:offset=${offset}`;
+      newAcc = offset + bDur;
+    } else {
+      joinOp = `concat=n=2:v=1:a=0`;
+      newAcc = accDuration + bDur;
+    }
+
+    const aPad = padA > 0 ? `,tpad=stop_mode=clone:stop_duration=${padA.toFixed(3)}` : "";
+    const bPad = padB > 0 ? `,tpad=stop_mode=clone:stop_duration=${padB.toFixed(3)}` : "";
+    const fc = `[0:v]setpts=PTS-STARTPTS${aPad}[a];[1:v]setpts=PTS-STARTPTS${bPad}[b];[a][b]${joinOp}[out]`;
+    const outPath = path.join(tmpDir, `bdv-stitch-${exportId}-${j}.mp4`);
+    tmpFiles.push(outPath);
+    onStage(`stitching scene ${j + 1}/${n}`);
+    log.info({ step: j, of: n - 1, op: joinOp.slice(0, 64) }, "[export][phase1] pairwise stitch step");
+
+    const ffArgs = [
+      "-threads", "2",
+      "-i", accPath,
+      "-i", bPath,
+      "-filter_complex", fc,
+      "-map", "[out]",
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-crf", "16", // high-quality intermediate; final pass re-encodes to the delivery CRF
+      "-pix_fmt", "yuv420p",
+      "-an",
+      "-movflags", "+faststart",
+      "-y", outPath,
+    ];
+    try {
+      await execFileAsync("ffmpeg", ffArgs, { timeout: 180_000 });
+    } catch (e: unknown) {
+      const stderr = (e as { stderr?: string }).stderr ?? "";
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(`Scene stitch step ${j}/${n - 1} failed: ${msg.slice(0, 200)}\nStderr: ${stderr.slice(-400)}`);
+    }
+    if (!existsSync(outPath) || statSync(outPath).size < 1024) {
+      throw new Error(`Scene stitch step ${j}/${n - 1} produced no output file`);
+    }
+    // Only the latest intermediate is ever kept on disk.
+    if (prevIntermediate && existsSync(prevIntermediate)) {
+      try { unlinkSync(prevIntermediate); } catch { /* best-effort */ }
+      const ti = tmpFiles.indexOf(prevIntermediate);
+      if (ti >= 0) tmpFiles.splice(ti, 1);
+    }
+    prevIntermediate = outPath;
+    accPath = outPath;
+    accDuration = newAcc;
+  }
+
+  const info = await probeVideo(accPath);
+  log.info({
+    steps: n - 1,
+    predictedDuration: accDuration.toFixed(3),
+    actualDuration: info.duration.toFixed(3),
+  }, "[export][phase1] stitch complete");
+  return { path: accPath, duration: info.duration > 0 ? info.duration : accDuration };
+}
+
 async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
@@ -754,7 +881,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const g = Array.isArray(manualGapsBeforeSec) ? manualGapsBeforeSec[i] : null;
       return typeof g === "number" && isFinite(g) && g > 0 ? g : 0;
     });
-    const effectiveClipDurations = clipInfos.map((c, i) => c.duration + (gapsBefore[i] ?? 0));
+    let effectiveClipDurations = clipInfos.map((c, i) => c.duration + (gapsBefore[i] ?? 0));
 
     /* ── Compute total video duration (clips + optional intro/outro cards) ── */
     const totalClipsDuration = effectiveClipDurations.reduce((sum, d) => sum + d, 0);
@@ -795,7 +922,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     // Clips not in range are skipped (not downloaded for normalize) saving time on test exports.
     const includeIntro = introEnabled && effectiveStart < introDuration;
     const includeOutro = outroEnabled && effectiveEnd > (introDuration + totalClipsDuration);
-    const selectedClipOrigIndices: number[] = [];
+    let selectedClipOrigIndices: number[] = [];
     for (let i = 0; i < clipInfos.length; i++) {
       const cStart = clipTimelineStarts[i]!;
       const cEnd   = cStart + effectiveClipDurations[i]!;
@@ -859,7 +986,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     /* ── 1c: Normalize selected clips to target format ── */
     // Pre-normalizing ensures all clips are concat-compatible: same resolution, fps, codec, pix_fmt.
     // Only clips overlapping the export range are normalized (saves time on short test exports).
-    const normalizedPaths: string[] = []; // aligned 1:1 with selectedClipOrigIndices
+    let normalizedPaths: string[] = []; // aligned 1:1 with selectedClipOrigIndices
     for (let j = 0; j < selectedClipOrigIndices.length; j++) {
       const origIdx  = selectedClipOrigIndices[j]!;
       const srcPath  = clipPaths[origIdx]!;
@@ -905,6 +1032,46 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       { count: normalizedPaths.length },
       "[export] pre-flight passed — all normalized clips present and valid",
     );
+
+    /* ── 1e: Phase-1 pairwise stitch (low-memory) ──
+     * The old single-pass stitch opened every clip as a simultaneous FFmpeg
+     * input (7x 1080x1920 decoders + xfade chain) and OOM-killed small
+     * instances. Phase 1 stitches pairwise (2 inputs max) into one silent
+     * intermediate; phase 2 (the existing pipeline below) then treats it as
+     * a single clip and applies effects/titles/overlays/captions/audio.
+     * Stash the range's first original index BEFORE re-pointing the clip
+     * variables at the stitched file — the leading-gap calc needs it. */
+    const rangeFirstOrigIdx = selectedClipOrigIndices[0];
+    if (normalizedPaths.length > 1) {
+      const n = normalizedPaths.length;
+      const stitched = await stitchClipsPairwise({
+        log: ctx.log,
+        tmpDir,
+        tmpFiles,
+        exportId,
+        clipPaths: [...normalizedPaths],
+        clipDurs: selectedClipOrigIndices.map((o) => effectiveClipDurations[o]!),
+        trailingPads: selectedClipOrigIndices.map((o, p) =>
+          p + 1 < n ? (gapsBefore[selectedClipOrigIndices[p + 1]!] ?? 0) : 0,
+        ),
+        transitions: selectedClipOrigIndices.map((o) => clipTransitions?.[o] ?? null),
+        onStage: (s) => { exportStatus.ffmpegStage = s; },
+      });
+      ctx.log.info(
+        { stitched: path.basename(stitched.path), duration: stitched.duration.toFixed(3) },
+        "[export] phase-1 stitch done — phase 2 sees a single clip",
+      );
+      // Phase 2 only needs the stitched file — release the per-clip normalized
+      // files now so peak disk stays flat vs the old single-pass pipeline.
+      for (const p of normalizedPaths) {
+        try { unlinkSync(p); } catch { /* best-effort */ }
+        const ti = tmpFiles.indexOf(p);
+        if (ti >= 0) tmpFiles.splice(ti, 1);
+      }
+      normalizedPaths = [stitched.path];
+      selectedClipOrigIndices = [0];
+      effectiveClipDurations = [stitched.duration];
+    }
 
     /* ── 2: Resolve audio (reuse prepared file or download fresh) ── */
     let audioPath: string | null = null;
@@ -1032,7 +1199,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     // (mirrors the editor preview, which shows nothing until the first clip's
     // manual position is reached).
     const leadingGapSec = normalizedPaths.length > 0
-      ? Math.max(0, gapsBefore[selectedClipOrigIndices[0]!] ?? 0)
+      ? Math.max(0, gapsBefore[rangeFirstOrigIdx!] ?? 0)
       : 0;
     let nextIdx = 0;
     const introInputIdx = includeIntro ? nextIdx++ : -1;
