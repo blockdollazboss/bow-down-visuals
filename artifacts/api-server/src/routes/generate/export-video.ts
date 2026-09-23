@@ -369,10 +369,12 @@ async function normalizeClip(
  * holding 7 simultaneous 1080x1920 decoders plus the xfade chain OOM-kills
  * small instances mid-render; pairwise keeps peak RAM to ~2 decoders.
  *
- * Transition math (offsets/durations/accumulation) is intentionally identical
- * to the old single-pass chain, so the stitched timeline matches it exactly
- * (modulo intermediate re-encode generations, kept small via CRF 16).
- * Only the latest intermediate is kept on disk; earlier ones are deleted.
+ * Transition offsets/durations are derived per step from freshly probed
+ * input durations (the normalized video-only files are the source of truth,
+ * not the pre-normalize container durations), so the stitched timeline
+ * matches the old single-pass chain exactly (modulo intermediate re-encode
+ * generations, kept small via CRF 18). Only the latest intermediate and
+ * not-yet-consumed normalized clips are kept on disk.
  */
 const PHASE1_XFADE_MAP: Record<string, string> = {
   "Crossfade":     "fade",
@@ -394,48 +396,89 @@ async function stitchClipsPairwise(args: {
   exportId: string;
   /** Normalized clip files, selected order. */
   clipPaths: string[];
-  /** effectiveClipDurations per selected position. */
-  clipDurs: number[];
   /** Trailing freeze-frame pad per selected position (gap before the NEXT clip). */
   trailingPads: number[];
   /** clipTransitions entry per selected position (transition INTO that clip). */
   transitions: ({ type: string; duration: number } | null)[];
   onStage: (stage: string) => void;
 }): Promise<{ path: string; duration: number }> {
-  const { log, tmpDir, tmpFiles, exportId, clipPaths, clipDurs, trailingPads, transitions, onStage } = args;
+  const { log, tmpDir, tmpFiles, exportId, clipPaths, trailingPads, transitions, onStage } = args;
   const n = clipPaths.length;
+  if (n < 2) throw new Error("stitchClipsPairwise needs at least 2 clips");
+
+  const forgetFile = (p: string) => {
+    try { if (existsSync(p)) unlinkSync(p); } catch { /* best-effort */ }
+    const ti = tmpFiles.indexOf(p);
+    if (ti >= 0) tmpFiles.splice(ti, 1);
+  };
+
+  // Pre-probe every normalized input up front. The normalized (video-only)
+  // files are the source of truth for durations — the container durations
+  // probed from the pre-normalize sources can be longer when a source
+  // carries an audio stream beyond its video. Fail fast here with a clear
+  // message instead of a cryptic mid-stitch ffmpeg error.
+  const probedDurs: number[] = [];
+  for (let j = 0; j < n; j++) {
+    const info = await probeVideo(clipPaths[j]!);
+    if (!(info.duration > 0)) {
+      throw new Error(
+        `Scene stitch pre-check failed: normalized clip ${j + 1}/${n} has no probed duration ` +
+        `(${clipPaths[j]}). The source clip may be corrupt or the normalize step produced no video.`,
+      );
+    }
+    probedDurs.push(info.duration);
+  }
+  log.info({ clips: n, durations: probedDurs.map((d) => Number(d.toFixed(2))) }, "[export][phase1] inputs probed");
 
   let accPath = clipPaths[0]!;
-  let accDuration = clipDurs[0]!;
+  let accDuration = probedDurs[0]!;
   let prevIntermediate: string | null = null;
 
   for (let j = 1; j < n; j++) {
     const bPath = clipPaths[j]!;
-    const bDur = clipDurs[j]!;
+    const bDur = probedDurs[j]!;
     const trans = transitions[j] ?? null;
     const padA = j === 1 ? (trailingPads[0] ?? 0) : 0; // clip 0's trailing pad (intermediates already carry theirs)
     const padB = trailingPads[j] ?? 0;
 
+    onStage(`stitching scene ${j + 1}/${n}`);
+
+    // Re-probe the accumulated input every step: it is the ground truth for
+    // the xfade offset math (never a prediction carried across steps).
+    const aInfo = await probeVideo(accPath);
+    const aDur = aInfo.duration;
+    if (!(aDur > 0)) {
+      throw new Error(
+        `Scene stitch step ${j}/${n - 1} failed: accumulated input has no probed duration (${accPath}). ` +
+        `The previous stitch step may have produced a corrupt file.`,
+      );
+    }
+    const aTotal = aDur + padA;
+    const bTotal = bDur + padB;
+
     let joinOp: string;
     let newAcc: number;
     if (trans && trans.type !== "Cut") {
-      // Identical math to the old single-pass chain.
       const xft = PHASE1_XFADE_MAP[trans.type] ?? "fade";
-      const transDur = Number(Math.min(trans.duration, accDuration * 0.8, bDur * 0.8).toFixed(3));
-      let offset = Number(Math.max(0, accDuration - transDur).toFixed(3));
-      // Defensive: the accumulated input must actually cover offset+transDur
-      // (encode rounding can shave a few ms off the predicted duration).
-      const aInfo = await probeVideo(accPath);
-      if (aInfo.duration > 0 && offset + transDur > aInfo.duration) {
-        const clamped = Math.max(0, aInfo.duration - transDur - 0.02);
-        log.warn({ step: j, offset, clamped, aDuration: aInfo.duration }, "[export][phase1] clamping xfade offset to input duration");
-        offset = Number(clamped.toFixed(3));
+      const wantDur = Number(trans.duration);
+      const transDur = [wantDur, aTotal * 0.8, bTotal * 0.8].every((v) => Number.isFinite(v) && v > 0)
+        ? Number(Math.min(wantDur, aTotal * 0.8, bTotal * 0.8).toFixed(3))
+        : 0;
+      if (!(transDur > 0)) {
+        // Degenerate transition parameters — join with a hard cut rather
+        // than failing the whole export on one transition.
+        log.warn({ step: j, type: trans.type, duration: trans.duration, aDur, bDur },
+          "[export][phase1] transition math degenerate — falling back to hard cut");
+        joinOp = `concat=n=2:v=1:a=0`;
+        newAcc = aTotal + bTotal;
+      } else {
+        const offset = Number(Math.max(0, aTotal - transDur).toFixed(3));
+        joinOp = `xfade=transition=${xft}:duration=${transDur.toFixed(3)}:offset=${offset.toFixed(3)}`;
+        newAcc = offset + bTotal;
       }
-      joinOp = `xfade=transition=${xft}:duration=${transDur}:offset=${offset}`;
-      newAcc = offset + bDur;
     } else {
       joinOp = `concat=n=2:v=1:a=0`;
-      newAcc = accDuration + bDur;
+      newAcc = aTotal + bTotal;
     }
 
     const aPad = padA > 0 ? `,tpad=stop_mode=clone:stop_duration=${padA.toFixed(3)}` : "";
@@ -443,8 +486,8 @@ async function stitchClipsPairwise(args: {
     const fc = `[0:v]setpts=PTS-STARTPTS${aPad}[a];[1:v]setpts=PTS-STARTPTS${bPad}[b];[a][b]${joinOp}[out]`;
     const outPath = path.join(tmpDir, `bdv-stitch-${exportId}-${j}.mp4`);
     tmpFiles.push(outPath);
-    onStage(`stitching scene ${j + 1}/${n}`);
-    log.info({ step: j, of: n - 1, op: joinOp.slice(0, 64) }, "[export][phase1] pairwise stitch step");
+    log.info({ step: j, of: n - 1, op: joinOp.slice(0, 80), aDur: Number(aDur.toFixed(3)), bDur: Number(bDur.toFixed(3)) },
+      "[export][phase1] pairwise stitch step");
 
     const ffArgs = [
       "-threads", "2",
@@ -454,29 +497,38 @@ async function stitchClipsPairwise(args: {
       "-map", "[out]",
       "-c:v", "libx264",
       "-preset", "ultrafast",
-      "-crf", "16", // high-quality intermediate; final pass re-encodes to the delivery CRF
+      "-crf", "18", // intermediate; final pass re-encodes to the delivery CRF
       "-pix_fmt", "yuv420p",
       "-an",
       "-movflags", "+faststart",
       "-y", outPath,
     ];
+    // Generous duration-scaled timeout: later steps encode minutes of video.
+    const stepTimeout = Math.max(180_000, Math.ceil((aTotal + bTotal) * 4000));
     try {
-      await execFileAsync("ffmpeg", ffArgs, { timeout: 180_000 });
+      await execFileAsync("ffmpeg", ffArgs, { timeout: stepTimeout });
     } catch (e: unknown) {
       const stderr = (e as { stderr?: string }).stderr ?? "";
       const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(`Scene stitch step ${j}/${n - 1} failed: ${msg.slice(0, 200)}\nStderr: ${stderr.slice(-400)}`);
+      log.error({ step: j, of: n - 1, ffmpegArgs: ffArgs, stderr },
+        "[export][phase1] pairwise stitch step failed");
+      throw new Error(
+        `Scene stitch step ${j}/${n - 1} failed: ${msg.slice(0, 200)}\n` +
+        `Filter: ${fc.slice(0, 300)}\n` +
+        `Stderr: ${stderr.slice(-2000)}`,
+      );
     }
     if (!existsSync(outPath) || statSync(outPath).size < 1024) {
       throw new Error(`Scene stitch step ${j}/${n - 1} produced no output file`);
     }
     // Only the latest intermediate is ever kept on disk.
-    if (prevIntermediate && existsSync(prevIntermediate)) {
-      try { unlinkSync(prevIntermediate); } catch { /* best-effort */ }
-      const ti = tmpFiles.indexOf(prevIntermediate);
-      if (ti >= 0) tmpFiles.splice(ti, 1);
-    }
+    if (prevIntermediate) forgetFile(prevIntermediate);
     prevIntermediate = outPath;
+    // The B input is fully consumed by this step — release it now so peak
+    // disk stays flat instead of holding all normalized clips at once.
+    // (clipPaths[0] is superseded once the first intermediate exists.)
+    forgetFile(bPath);
+    if (j === 1) forgetFile(clipPaths[0]!);
     accPath = outPath;
     accDuration = newAcc;
   }
@@ -1050,7 +1102,6 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         tmpFiles,
         exportId,
         clipPaths: [...normalizedPaths],
-        clipDurs: selectedClipOrigIndices.map((o) => effectiveClipDurations[o]!),
         trailingPads: selectedClipOrigIndices.map((o, p) =>
           p + 1 < n ? (gapsBefore[selectedClipOrigIndices[p + 1]!] ?? 0) : 0,
         ),
