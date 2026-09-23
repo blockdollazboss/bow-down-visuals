@@ -1,130 +1,114 @@
 import { useEffect, useRef } from "react";
 
-/* ─────────────────── Bowing shark logo ─────────────────── */
-/* The shark-king frames have a REAL alpha channel: the background is
-   genuinely transparent, so he floats over the hero with nothing behind
-   him — no glow blob, no shadow, no blend-mode hacks. He stands in
-   position in his own fixed square slot (never overlapping the headline);
-   the bow scrubs with the mouse — mouse up = standing tall, mouse
-   down = deep bow. */
+/* ─────────────────── Bowing shark hero ─────────────────── */
+/* Native video scrubber. The shark-king clip keeps its own clean studio
+   background — no cutout, no transparency tricks, no fringe, no glow, no
+   shadow. He stands in position in his own fixed square slot (never
+   overlapping the headline); the bow scrubs with the mouse — mouse up =
+   standing tall, mouse down = deep bow. The bow-down lives in the first
+   ~4.2s of the clip, so pointer Y maps to 0 → BOW_END seconds. Scrubbing
+   the real 24fps video is smoother and far higher-quality than scrubbing
+   still frames. */
 
-const FRAME_COUNT = 45; // pre-rendered transparent scrub frames in public/hero-frames/
-const FRAME_SIZE = 800; // px — square frames
+const BOW_END = 4.2; // seconds — deepest point of the bow in hero-bow.mp4
 
 export function HeroLogo3D() {
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const posterRef = useRef<HTMLImageElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const section = sectionRef.current;
-    if (!canvas || !section || typeof window === "undefined") return;
+    const video = videoRef.current;
+    const slot = sectionRef.current;
+    if (!video || !slot || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
 
-    const base = import.meta.env.BASE_URL;
-    const frames: HTMLImageElement[] = [];
-    let loaded = 0;
-    let target = 0; // desired bow progress: 0 = standing … 1 = full bow
-    let current = 0; // eased progress
-    let drawn = -1; // last frame index painted
+    let target = 0; // desired time (s): 0 = standing … BOW_END = full bow
+    let current = 0; // eased time
     let raf = 0;
     let cancelled = false;
+    let ready = false;
 
-    const draw = (idx: number) => {
-      const img = frames[idx];
-      if (!img || !img.complete || img.naturalWidth === 0) return;
-      ctx.clearRect(0, 0, FRAME_SIZE, FRAME_SIZE);
-      ctx.drawImage(img, 0, 0, FRAME_SIZE, FRAME_SIZE);
-      drawn = idx;
-      // Once the real frame is up, drop the poster placeholder.
-      if (posterRef.current) posterRef.current.style.display = "none";
+    video.pause();
+
+    const onLoaded = () => {
+      ready = true;
+      // Preroll the standing frame so the slot is never blank.
+      try {
+        video.currentTime = 0.001;
+      } catch {
+        /* seek not ready yet — poster covers the slot */
+      }
+      current = 0;
     };
+    if (video.readyState >= 1) onLoaded();
+    else video.addEventListener("loadedmetadata", onLoaded, { once: true });
 
-    // Preload the whole sequence up front so scrubbing never waits on the
-    // network or on video-seek decoding — this is what makes it butter-smooth.
-    for (let i = 0; i < FRAME_COUNT; i++) {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = `${base}hero-frames/f_${String(i + 1).padStart(3, "0")}.webp`;
-      img.onload = () => {
-        if (cancelled) return;
-        loaded++;
-        // Paint the standing frame the moment it's ready.
-        if (loaded === 1) draw(0);
-        else if (drawn >= 0) draw(drawn); // repaint in case it was a placeholder draw
-      };
-      frames.push(img);
-    }
-
-    // Scrub across the whole hero section — not just the shark's own box — so
-    // the bow progresses gradually with plenty of in-between frames as the
-    // cursor travels down the page: top of hero = standing tall, bottom =
-    // deep bow. (Mapping to the shark's small box made the transition feel
-    // binary: standing one moment, bowed the next, nothing in between.)
-    const heroSection = section.closest("section") ?? section;
+    // Scrub across the whole hero section — not just the shark's own box —
+    // so the bow progresses gradually as the cursor travels down the page:
+    // top of hero = standing tall, bottom = deep bow.
+    const heroSection = slot.closest("section") ?? slot;
     const setTargetFromClientY = (clientY: number) => {
       const r = heroSection.getBoundingClientRect();
       const p = (clientY - r.top) / Math.max(1, r.height);
-      target = Math.min(1, Math.max(0, p));
+      target = Math.min(BOW_END, Math.max(0, p * BOW_END));
     };
     const onPointerMove = (e: PointerEvent) => setTargetFromClientY(e.clientY);
-    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (t) setTargetFromClientY(t.clientY);
+    };
+    // Ease back to standing when the pointer leaves the hero.
+    const onLeave = () => {
+      target = 0;
+    };
+    heroSection.addEventListener("pointermove", onPointerMove, { passive: true });
+    heroSection.addEventListener("pointerleave", onLeave, { passive: true });
+    heroSection.addEventListener("touchmove", onTouchMove, { passive: true });
 
     if (!reduce) {
       const loop = () => {
-        // Critically-damped-ish easing: snappy enough to feel 1:1 with the
-        // cursor, smooth enough to never step or stutter.
-        current += (target - current) * 0.32;
-        if (Math.abs(target - current) < 0.0015) current = target;
-        const idx = Math.min(
-          FRAME_COUNT - 1,
-          Math.max(0, Math.round(current * (FRAME_COUNT - 1)))
-        );
-        if (idx !== drawn) draw(idx);
+        if (cancelled) return;
+        // Snappy easing: tracks the cursor 1:1 without stepping.
+        current += (target - current) * 0.35;
+        if (Math.abs(target - current) < 0.015) current = target;
+        // Only seek when meaningfully behind — avoids redundant seeks.
+        if (ready && Math.abs(video.currentTime - current) > 0.02) {
+          try {
+            video.currentTime = current;
+          } catch {
+            /* transient seek failure — next frame retries */
+          }
+        }
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
-    } else {
-      // Reduced motion: hold the standing frame once loaded.
-      const t = window.setInterval(() => {
-        if (frames[0]?.complete && frames[0].naturalWidth > 0) {
-          draw(0);
-          window.clearInterval(t);
-        }
-      }, 100);
     }
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      window.removeEventListener("pointermove", onPointerMove);
+      heroSection.removeEventListener("pointermove", onPointerMove);
+      heroSection.removeEventListener("pointerleave", onLeave);
+      heroSection.removeEventListener("touchmove", onTouchMove);
     };
   }, []);
 
+  const base = import.meta.env.BASE_URL;
+
   return (
     <div ref={sectionRef} className="relative w-[480px] max-w-full aspect-square">
-      {/* Shark-king hero scrubber — 45 pre-rendered frames with a real alpha
-          channel, drawn on canvas and eased toward the pointer. No video
-          seeks (which stutter), no glow, no shadow, no blend hacks. The
-          fixed square slot keeps him in position above the headline — he
-          never covers it, even after the poster placeholder hides itself.
-          Cursor up = standing tall, cursor down = deep bow. */}
-      <img
-        ref={posterRef}
-        src={`${import.meta.env.BASE_URL}hero-shark-poster.png`}
-        alt=""
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-contain"
-        draggable={false}
-      />
-      <canvas
-        ref={canvasRef}
-        width={FRAME_SIZE}
-        height={FRAME_SIZE}
-        className="absolute inset-0 h-full w-full"
+      {/* Shark-king bow scrubber — native video with its own background.
+          No canvas, no frame images, no effects. Cursor up = standing tall,
+          cursor down = deep bow; eases back to standing on pointer leave. */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        src={`${base}hero-bow.mp4`}
+        poster={`${base}hero-bow-poster.jpg`}
+        muted
+        playsInline
+        preload="auto"
+        disablePictureInPicture
         aria-label="Bow Down Visuals shark king bowing"
       />
     </div>
