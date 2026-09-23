@@ -1618,7 +1618,7 @@ export function sceneHasClip(scene: SceneData): boolean {
 /** Parse a "0:00 - 0:05" style timestamp into its duration in seconds. */
 function parseSceneDuration(ts: string | null | undefined): number {
   if (!ts) return 5;
-  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+  const m = ts.match(/(\d+):(\d{2}(?:\.\d+)?)\s*[-–]\s*(\d+):(\d{2}(?:\.\d+)?)/);
   if (m) {
     const s = +m[1] * 60 + +m[2];
     const e = +m[3] * 60 + +m[4];

@@ -381,9 +381,9 @@ function fmtBytes(n: number | null | undefined): string {
 /** Parse scene timestamp "M:SS" or "MM:SS" → seconds. Returns null if unparseable.
  *  This gives the ABSOLUTE SONG POSITION — it is NOT a clip duration. */
 function parseTimestamp(ts: string | null | undefined): number | null {
-  const m = (ts ?? "").match(/(\d+):(\d{2})/);
+  const m = (ts ?? "").match(/(\d+):(\d{2}(?:\.\d+)?)/);
   if (!m) return null;
-  return parseInt(m[1]!, 10) * 60 + parseInt(m[2]!, 10);
+  return parseInt(m[1]!, 10) * 60 + parseFloat(m[2]!);
 }
 
 /** Replicates the master player's parseDur — parses "M:SS – M:SS" range format → duration (seconds).
@@ -391,7 +391,7 @@ function parseTimestamp(ts: string | null | undefined): number | null {
  *  NOTE: single timestamps like "3:15" are NOT clip durations; they're song positions. */
 function parseMasterDur(ts: string | null | undefined): number {
   if (!ts) return 5;
-  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+  const m = ts.match(/(\d+):(\d{2}(?:\.\d+)?)\s*[-–]\s*(\d+):(\d{2}(?:\.\d+)?)/);
   if (m) {
     const start = +m[1]! * 60 + +m[2]!;
     const end = +m[3]! * 60 + +m[4]!;

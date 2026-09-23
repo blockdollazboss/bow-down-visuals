@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Eye, EyeOff, CheckCircle2, Volume2, VolumeX, Video, ArrowUp, ArrowDown,
   Copy, Trash2, Link2, ShieldCheck, Film, Loader2, Sparkles, AlertCircle,
@@ -23,6 +23,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
+import { computeSceneTimings, withSceneDurationSet, formatClock, type SceneTiming } from "@/lib/scene-timing";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 
@@ -440,6 +441,20 @@ export function ClipGeneratorSection({
 
   function updateScene(id: string, patch: Partial<SceneData>) {
     setScenes(scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    markMutated();
+  }
+
+  /* ── Precise scene timing: computed start/end for every scene (same math
+   *  the master player + export use), and a duration setter that materializes
+   *  current timings into explicit timestamps so nothing else shifts. ── */
+  const sceneTimings = useMemo(
+    () => computeSceneTimings(scenes, totalDurationSec ?? null),
+    [scenes, totalDurationSec],
+  );
+
+  function setSceneDuration(sceneId: string, durSec: number) {
+    if (!isFinite(durSec) || durSec <= 0) return;
+    setScenes(withSceneDurationSet(scenes, totalDurationSec ?? null, sceneId, durSec));
     markMutated();
   }
 
@@ -901,6 +916,8 @@ export function ClipGeneratorSection({
                     onSelect={() => setSelectedSceneId((prev) => prev === scene.id ? null : scene.id)}
                     onUpdateScene={updateScene}
                     onPatchClip={patchClip}
+                    timing={sceneTimings[i]}
+                    onSetDuration={(d) => setSceneDuration(scene.id, d)}
                     onMove={move}
                     onMoveToStart={moveToStart}
                     onMoveToEnd={moveToEnd}
@@ -924,8 +941,48 @@ export function ClipGeneratorSection({
   );
 }
 
-/* ── Sortable wrapper ────────────────────────────────────────── */
-function SortableSceneCard({
+/* ── Precise duration input — keyboard accessible, commits on blur/Enter.
+ *  Local text state while editing so typing never fights reformatting. ── */
+function DurationInput({
+  index,
+  seconds,
+  onCommit,
+}: {
+  index: number;
+  seconds: number;
+  onCommit: (durSec: number) => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  const shown = text ?? String(Math.round(seconds * 10) / 10);
+
+  function commit() {
+    if (text === null) return;
+    const v = parseFloat(text);
+    if (isFinite(v) && v > 0) onCommit(v);
+    setText(null);
+  }
+
+  return (
+    <Input
+      id={`scene-duration-${index}`}
+      data-testid={`input-duration-${index}`}
+      type="number"
+      min={0.1}
+      step={0.1}
+      value={shown}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setText(null);
+      }}
+      className="h-8 text-xs font-mono bg-white/[0.04] border-white/[0.1] text-white/80 focus:border-primary/50"
+      aria-label={`Scene ${index + 1} duration in seconds`}
+    />
+  );
+}
+
+/* ── Sortable wrapper ────────────────────────────────────────── */function SortableSceneCard({
   id,
   children,
 }: {
@@ -956,6 +1013,10 @@ interface SceneClipCardProps {
   onSelect: () => void;
   onUpdateScene: (id: string, patch: Partial<SceneData>) => void;
   onPatchClip: (sceneId: string, patch: Partial<ReturnType<typeof getClipEdit>>) => void;
+  /** Computed timeline placement (same math the master player + export use). */
+  timing?: SceneTiming;
+  /** Set this scene's duration in seconds (precise, 0.1s). Later scenes shift. */
+  onSetDuration?: (durSec: number) => void;
   onMove: (index: number, dir: -1 | 1) => void;
   onMoveToStart: (index: number) => void;
   onMoveToEnd: (index: number) => void;
@@ -994,6 +1055,8 @@ function SceneClipCard({
   dragHandleProps,
   isDragging,
   previousClipUrl,
+  timing,
+  onSetDuration,
 }: SceneClipCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
 
@@ -1102,6 +1165,16 @@ function SceneClipCard({
 
       {/* ── Quick action row ── */}
       <div className="px-2 py-1.5 flex items-center gap-1 flex-wrap">
+        {timing && (
+          <span
+            className="flex items-center gap-1 text-[9px] font-mono text-white/35 shrink-0 mr-1"
+            title="Where this scene sits on the song timeline (start → end)"
+            data-testid={`timing-readout-${index}`}
+          >
+            <Clock className="h-3 w-3 text-white/25" />
+            {formatClock(timing.startSec)}–{formatClock(timing.endSec)}
+          </span>
+        )}
         {hasClip && (
           <button
             type="button"
@@ -1159,6 +1232,39 @@ function SceneClipCard({
             <p className="text-[10px] text-white/40 italic leading-snug">
               "{scene.lyricLine || scene.action}"
             </p>
+          )}
+
+          {/* ── Timing — precise scene placement on the song timeline ── */}
+          {timing && onSetDuration && (
+            <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+              <p className="text-[10px] font-bold text-white/50 mb-2 flex items-center gap-1.5">
+                <Clock className="h-3 w-3" /> Timing
+              </p>
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-white/35 font-bold mb-1">Starts at</p>
+                  <p className="text-xs font-mono text-white/70 h-8 flex items-center" data-testid={`timing-start-${index}`}>
+                    {formatClock(timing.startSec)}
+                  </p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label htmlFor={`scene-duration-${index}`} className="text-[9px] text-white/35 font-bold mb-1 block">
+                    Duration (sec)
+                  </label>
+                  <DurationInput index={index} seconds={timing.durationSec} onCommit={onSetDuration} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] text-white/35 font-bold mb-1">Ends at</p>
+                  <p className="text-xs font-mono text-white/70 h-8 flex items-center" data-testid={`timing-end-${index}`}>
+                    {formatClock(timing.endSec)}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[9px] text-white/25 mt-2 leading-snug">
+                Type an exact duration — later scenes shift automatically (back-to-back).
+                Same timing the master player and export use.
+              </p>
+            </div>
           )}
 
           {/* AI Prompt */}

@@ -23,17 +23,39 @@ export interface SceneTiming {
   hasExplicitEnd: boolean;
 }
 
+/** Matches "M:SS-M:SS" / "M:SS - M:SS", with optional decimal seconds
+ *  ("2:57-3:16.8") so precise timing controls can express tenths. */
+const RANGE_RE = /(\d+):(\d{2}(?:\.\d+)?)\s*[-–]\s*(\d+):(\d{2}(?:\.\d+)?)/;
+
 /** Parse a scene's raw "M:SS-M:SS" duration. Returns the 5s default when
  *  the timestamp is missing or not a parseable range — mirrors TLP's parseDur. */
 export function parseRawSceneDuration(ts: string | null | undefined): { durationSec: number; hasExplicitEnd: boolean } {
   if (!ts) return { durationSec: 5, hasExplicitEnd: false };
-  const m = ts.match(/(\d+):(\d{2})\s*[-–]\s*(\d+):(\d{2})/);
+  const m = ts.match(RANGE_RE);
   if (m) {
     const s = +m[1] * 60 + +m[2];
     const e = +m[3] * 60 + +m[4];
     return e > s ? { durationSec: e - s, hasExplicitEnd: true } : { durationSec: 5, hasExplicitEnd: false };
   }
   return { durationSec: 5, hasExplicitEnd: false };
+}
+
+/** Format seconds as a clock string: "0:45", "1:28", "3:16.8".
+ *  One decimal place max; trailing ".0" is trimmed. */
+export function formatClock(sec: number): string {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const tenths = Math.round(sec * 10); // integer tenths — avoids float carry bugs
+  const m = Math.floor(tenths / 600);
+  const rem = tenths - m * 600;
+  const s = Math.floor(rem / 10);
+  const t = rem % 10;
+  const sStr = t === 0 ? String(s).padStart(2, "0") : `${String(s).padStart(2, "0")}.${t}`;
+  return `${m}:${sStr}`;
+}
+
+/** Build a parseable "M:SS-M:SS(.s)" timestamp range from absolute seconds. */
+export function formatTimestampRange(startSec: number, endSec: number): string {
+  return `${formatClock(startSec)}-${formatClock(endSec)}`;
 }
 
 /**
@@ -74,6 +96,33 @@ export function getSceneTiming(scene: SceneData, scenes: SceneData[], audioDurat
   const idx = scenes.findIndex((s) => s.id === scene.id);
   const timings = computeSceneTimings(scenes, audioDuration);
   return timings[idx >= 0 ? idx : 0] ?? { startSec: 0, endSec: 5, durationSec: 5, hasExplicitEnd: false };
+}
+
+/**
+ * Return a new scene array with `sceneId`'s duration set to `newDurSec`
+ * (rounded to 0.1s, minimum 0.1s), materializing every scene's CURRENT
+ * computed timing into an explicit "M:SS-M:SS(.s)" timestamp first.
+ *
+ * Why materialize: scenes without an explicit range currently rely on the
+ * 5s default or on even-distribution across the song. Writing only the
+ * edited scene's timestamp would silently shrink every other scene to 5s.
+ * Materializing first locks in exactly what the user sees; only the edited
+ * scene changes duration, and later scenes shift (back-to-back layout)
+ * while earlier scenes are untouched.
+ */
+export function withSceneDurationSet(
+  scenes: SceneData[],
+  audioDuration: number | null,
+  sceneId: string,
+  newDurSec: number,
+): SceneData[] {
+  const timings = computeSceneTimings(scenes, audioDuration);
+  const dur = Math.max(0.1, Math.round(newDurSec * 10) / 10);
+  return scenes.map((s, i) => {
+    const t = timings[i]!;
+    const d = s.id === sceneId ? dur : t.durationSec;
+    return { ...s, timestamp: formatTimestampRange(t.startSec, t.startSec + d) };
+  });
 }
 
 /** Minimal shape needed from ClipEdit for manual timeline placement. */

@@ -156,10 +156,10 @@ interface FinalVideoExportProps {
 type ExportStatus = "idle" | "exporting" | "completed" | "failed";
 
 function parseDuration(timestamp: string): number | null {
-  const m = timestamp?.match(/(\d+):(\d+)\s*[-–]\s*(\d+):(\d+)/);
+  const m = timestamp?.match(/(\d+):(\d+(?:\.\d+)?)\s*[-–]\s*(\d+):(\d+(?:\.\d+)?)/);
   if (!m) return null;
-  const start = parseInt(m[1]!) * 60 + parseInt(m[2]!);
-  const end   = parseInt(m[3]!) * 60 + parseInt(m[4]!);
+  const start = parseInt(m[1]!) * 60 + parseFloat(m[2]!);
+  const end   = parseInt(m[3]!) * 60 + parseFloat(m[4]!);
   const dur   = end - start;
   return dur > 0 ? dur : null;
 }
