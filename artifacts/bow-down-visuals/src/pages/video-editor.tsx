@@ -156,14 +156,14 @@ export default function VideoEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSimple, tab]);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
-  /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the floating
-   *  master player's bottom-anchored snap positions can clear it instead of overlapping it. */
+  /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the pinned
+   *  master player's height clamp clears it instead of running underneath it. */
   const [dockHeight, setDockHeight] = useState(0);
   useEffect(() => {
     if (!project) setDockHeight(0);
   }, [project]);
-  /** Current rendered height of the sticky top nav bar, so the floating master player's
-   *  top-anchored snap positions can clear it instead of overlapping it. */
+  /** Current rendered height of the sticky top nav bar, so the pinned master player's
+   *  height clamp clears it instead of running underneath it. */
   const [headerHeight, setHeaderHeight] = useState(0);
   /** State broadcast from TimelinePreviewPlayer — drives Live Preview mirroring */
   const [previewEngineState, setPreviewEngineState] = useState<SharedPreviewState | null>(null);
@@ -1148,7 +1148,10 @@ export default function VideoEditor() {
 
               {/* ── CENTER: preview ── */}
               <main className="flex-1 min-w-0 bg-black flex flex-col min-h-0 overflow-y-auto">
-                <div className="flex-1 flex items-center justify-center p-4 md:p-6 min-h-[320px]">
+                {/* ── MASTER PLAYER — pinned to the top of the workspace column.
+                    Sticky + solid background so it stays fixed in view while the
+                    panels below scroll; it never drifts or pops out while editing. ── */}
+                <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center p-4 md:p-6">
                   <div className="w-full max-w-4xl">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
@@ -1530,7 +1533,7 @@ const CYCLE_FORMATS: VideoFormat[] = ["9:16", "16:9", "1:1", "4:5"];
 /** Ordered list for Fit Mode cycling. */
 const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
 
-/** Edge margin (px) for floating snap anchors, and the fixed width of the minimized chip. */
+/** Margin (px) around the pinned player in the workspace column, and the fixed width of the minimized chip. */
 const FLOAT_PLAYER_MARGIN = 16;
 const MINIMIZED_CHIP_WIDTH = 96;
 
@@ -1771,11 +1774,10 @@ function MasterPreviewPlayer({
     try { const s = localStorage.getItem("bdv:autoPiP"); return s === null ? true : s === "true"; }
     catch { return true; }
   });
-  const [enterOnScroll,      setEnterOnScroll     ] = useState(true);
-  const [keepOnTabSwitch,    setKeepOnTabSwitch   ] = useState(true);
+  const [keepOnTabSwitch,    setKeepOnTabSwitch   ] = useState(false);
 
   /* ── Measure the actual rendered height of the header + footer chrome (drag handle,
-   *    transport rows, etc.) so the outer floating container's fixed height can add this
+   *    transport rows, etc.) so the outer pinned container's fixed height can add this
    *    on top of the video's target height, instead of the flex layout stealing space
    *    from — and potentially collapsing to zero — the video canvas. ── */
   useEffect(() => {
@@ -1843,15 +1845,13 @@ function MasterPreviewPlayer({
 
   /* Refs — callbacks always see latest values without re-subscribing */
   const autoPiPRef          = useRef(autoPiP); /* matches lazy-init state */
-  const enterOnScrollRef    = useRef(true);
-  const keepOnTabSwitchRef  = useRef(true);
+  const keepOnTabSwitchRef  = useRef(false);
   const isPlayingRef        = useRef(false);
   const prevTabRef          = useRef<EditorTab>(tab);
   const wasPlayingRef       = useRef(false);
   const engRef              = useRef<SharedPreviewState | null>(null);
 
   useEffect(() => { autoPiPRef.current         = autoPiP;               }, [autoPiP]);
-  useEffect(() => { enterOnScrollRef.current   = enterOnScroll;         }, [enterOnScroll]);
   useEffect(() => { keepOnTabSwitchRef.current = keepOnTabSwitch;       }, [keepOnTabSwitch]);
   useEffect(() => { isPlayingRef.current       = eng?.isPlaying ?? false; }, [eng?.isPlaying]);
   useEffect(() => { engRef.current             = eng;                   }, [eng]);
@@ -1956,31 +1956,8 @@ function MasterPreviewPlayer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Auto PiP — IntersectionObserver: enter PiP when player scrolls out of view */
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || !pipSupported) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      const lv = liveVideoRef.current;
-      if (
-        !entry?.isIntersecting &&
-        autoPiPRef.current &&
-        enterOnScrollRef.current &&
-        isPlayingRef.current &&
-        !document.pictureInPictureElement &&
-        canAutoPiP(lv)
-      ) {
-        lv.requestPictureInPicture().catch((e) => {
-          setPipError(`Auto PiP: ${e instanceof Error ? e.message : String(e)}`);
-        });
-      }
-    }, { threshold: 0.15 });
-    observer.observe(el);
-    return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pipSupported]);
-
-  /* Auto PiP — editor-tab switch */
+  /* Auto PiP — editor-tab switch (off by default; the master player stays
+   * fixed in the workspace unless the user opts in) */
   useEffect(() => {
     const lv = liveVideoRef.current;
     if (
@@ -2554,7 +2531,7 @@ function MasterPreviewPlayer({
             {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
           </span>
         </button>
-        {/* Fullscreen — launches from the floating player */}
+        {/* Fullscreen — launches from the pinned player */}
         <button type="button" onClick={toggleFullscreen}
           className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
             isFullscreen
@@ -2639,16 +2616,7 @@ function MasterPreviewPlayer({
             />
             <span className="text-[10px] text-white/50">Enable Auto PiP</span>
           </label>
-          {autoPiP && (<>
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={enterOnScroll}
-                onChange={(e) => setEnterOnScroll(e.target.checked)}
-                className="accent-primary w-3 h-3"
-              />
-              <span className="text-[10px] text-white/50">On scroll</span>
-            </label>
+          {autoPiP && (
             <label className="flex items-center gap-1.5 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -2658,7 +2626,7 @@ function MasterPreviewPlayer({
               />
               <span className="text-[10px] text-white/50">On tab switch</span>
             </label>
-          </>)}
+          )}
         </div>
       )}
 

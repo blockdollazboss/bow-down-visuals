@@ -44,9 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function bootstrap() {
       try {
-        const { data: { session } } = await client.auth.getSession();
-        setUser(session?.user ?? null);
-        if (session?.user) await fetchProfile(client, session.user.id);
+        /* Never leave the app on an infinite spinner: if the session or
+         * profile fetch hangs (flaky network, stalled request), time out and
+         * treat the visitor as signed out — ProtectedRoute then sends them to
+         * /login instead of hanging on a dead loading screen. */
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("auth bootstrap timeout")), 15000),
+        );
+        const work = (async () => {
+          const { data: { session } } = await client.auth.getSession();
+          setUser(session?.user ?? null);
+          if (session?.user) await fetchProfile(client, session.user.id);
+        })();
+        await Promise.race([work, timeout]);
       } catch (err) {
         console.error("[AuthContext] Failed to get session", err);
       } finally {

@@ -38,12 +38,12 @@
 
     function parseDuration(ts: string | undefined | null): string {
       if (!ts) return "";
-      const m = ts.match(/(\d+):(\d+)\s*[-–—]\s*(\d+):(\d+)/);
+      const m = ts.match(/(\d+):(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+):(\d+(?:\.\d+)?)/);
       if (!m) return "";
-      const start = parseInt(m[1]!) * 60 + parseInt(m[2]!);
-      const end = parseInt(m[3]!) * 60 + parseInt(m[4]!);
+      const start = parseInt(m[1]!) * 60 + parseFloat(m[2]!);
+      const end = parseInt(m[3]!) * 60 + parseFloat(m[4]!);
       const diff = end - start;
-      return diff > 0 ? `${diff}s` : "";
+      return diff > 0 ? `${Math.round(diff * 10) / 10}s` : "";
     }
 
     const SECTION_COLORS: Record<string, string> = {
