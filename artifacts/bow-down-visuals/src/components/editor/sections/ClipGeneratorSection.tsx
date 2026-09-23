@@ -472,6 +472,21 @@ export function ClipGeneratorSection({
     [scenes, totalDurationSec],
   );
 
+  /* Clips available for free reuse on scenes that have none yet. */
+  const clipOptions = useMemo(
+    () =>
+      scenes.flatMap((s, i) =>
+        s.demoClipUrl && s.demoClipUrl.startsWith("http")
+          ? [{
+              id: s.id,
+              label: `Scene ${i + 1}${s.section ? ` · ${s.section.slice(0, 32)}` : ""}`,
+              url: s.demoClipUrl,
+            }]
+          : [],
+      ),
+    [scenes],
+  );
+
   function setSceneDuration(sceneId: string, durSec: number) {
     if (!isFinite(durSec) || durSec <= 0) return;
     setScenes(withSceneDurationSet(scenes, totalDurationSec ?? null, sceneId, durSec));
@@ -947,6 +962,7 @@ export function ClipGeneratorSection({
                     dragHandleProps={dragHandleProps}
                     isDragging={isDragging}
                     previousClipUrl={getPreviousClipUrl(scenes, i)}
+                    siblingClips={clipOptions.filter((o) => o.id !== scene.id)}
                   />
                 )}
               </SortableSceneCard>
@@ -1046,6 +1062,8 @@ interface SceneClipCardProps {
   dragHandleProps?: React.HTMLAttributes<HTMLElement>;
   isDragging?: boolean;
   previousClipUrl?: string | null;
+  /** Clips from other scenes, available for free reuse on this scene. */
+  siblingClips: { id: string; label: string; url: string }[];
 }
 
 function SceneClipCard({
@@ -1072,10 +1090,24 @@ function SceneClipCard({
   dragHandleProps,
   isDragging,
   previousClipUrl,
+  siblingClips,
   timing,
   onSetDuration,
 }: SceneClipCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const [clipUrlDraft, setClipUrlDraft] = useState("");
+  const [reuseError, setReuseError] = useState<string | null>(null);
+
+  function applyReusedClip() {
+    const url = clipUrlDraft.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      setReuseError("Paste a valid http(s) clip URL.");
+      return;
+    }
+    setReuseError(null);
+    onUpdateScene(scene.id, { demoClipUrl: url, generationStatus: "completed" });
+    setClipUrlDraft("");
+  }
 
   const hasClip        = sceneHasClip(scene);
   const edit           = getClipEdit(settings, scene.id);
@@ -1316,6 +1348,54 @@ function SceneClipCard({
               previousClipUrl={previousClipUrl}
             />
           </div>
+
+          {/* Reuse an existing clip — free, no regeneration, no re-upload */}
+          {!hasClip && (
+            <div className="rounded-xl border border-white/[0.12] bg-white/[0.015] px-3 py-2.5">
+              <p className="text-[10px] font-bold text-white/50 mb-1.5 flex items-center gap-1.5">
+                <Link2 className="h-3 w-3" /> Use existing clip
+              </p>
+              <p className="text-[9px] text-white/35 mb-2 leading-snug">
+                Reuse a clip from another scene — free, nothing regenerates.
+              </p>
+              {siblingClips.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => { if (e.target.value) setClipUrlDraft(e.target.value); }}
+                  className="w-full h-8 text-xs bg-white/[0.04] border border-white/[0.1] rounded-md text-white/80 px-2 mb-2"
+                  data-testid={`select-reuse-clip-${index}`}
+                  aria-label="Choose a clip from another scene"
+                >
+                  <option value="">Choose a scene's clip…</option>
+                  {siblingClips.map((c) => (
+                    <option key={c.id} value={c.url}>{c.label}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={clipUrlDraft}
+                  onChange={(e) => setClipUrlDraft(e.target.value)}
+                  placeholder="…or paste a clip URL"
+                  className="h-8 text-xs bg-white/[0.04] border-white/[0.1] text-white/80"
+                  data-testid={`input-reuse-clip-${index}`}
+                  aria-label="Clip URL to reuse"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!clipUrlDraft.trim()}
+                  onClick={applyReusedClip}
+                  data-testid={`btn-reuse-clip-${index}`}
+                >
+                  <Check className="h-3 w-3 mr-1" /> Use clip
+                </Button>
+              </div>
+              {reuseError && (
+                <p className="text-[9px] text-red-400 mt-1.5">{reuseError}</p>
+              )}
+            </div>
+          )}
 
           {/* Clip editing controls */}
           {hasClip && (
