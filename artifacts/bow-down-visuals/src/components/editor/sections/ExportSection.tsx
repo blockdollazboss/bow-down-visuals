@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, Download, Music2, AlertCircle, Radio, Mic2, Drum, VolumeX, Upload, X, Loader2, ImageIcon, Subtitles, Eye, Flame, Scissors, Crosshair } from "lucide-react";
 import { FinalVideoExport, isSelected as isExportSelected } from "@/components/FinalVideoExport";
 import { ExportDoctor } from "@/components/editor/sections/ExportDoctor";
+import { AutoClipSection } from "@/components/editor/sections/AutoClipSection";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   VIDEO_FORMATS,
@@ -969,6 +970,16 @@ export function ExportSection({
         overlays={settings.overlays}
         overlayIntensity={settings.overlayIntensity}
         fitMode={settings.export.fitMode ?? "fill"}
+      />
+
+      {/* ── Auto-Clip: vertical promo clips from the same timeline ── */}
+      <AutoClipSection
+        scenes={scenes}
+        settings={settings}
+        projectId={projectId}
+        projectDurationSec={projectDur}
+        audioUrl={resolvedAudioUrl}
+        getAccessToken={getAccessToken}
       />
 
       {/* ── Export Doctor (single-clip diagnostics) ── */}
