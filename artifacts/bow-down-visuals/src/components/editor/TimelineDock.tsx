@@ -658,7 +658,7 @@ export function TimelineDock({
               const t = i * 5;
               if (t > totalDur) return null;
               return (
-                <span key={i} className="absolute text-[8px] text-muted-foreground/60 font-mono -translate-x-1/2" style={{ left: `${(t / totalDur) * 100}%` }}>
+                <span key={i} className="absolute text-[9px] text-muted-foreground font-mono -translate-x-1/2" style={{ left: `${(t / totalDur) * 100}%` }}>
                   {fmt(t)}
                 </span>
               );
@@ -674,7 +674,7 @@ export function TimelineDock({
             ) : (
               <div className="w-full h-full flex items-center justify-center gap-2">
                 <Music2 className="h-3 w-3 text-amber-400/40" />
-                <span className="text-[9px] text-amber-400/40">Add a song to see the waveform</span>
+                <span className="text-[10px] text-amber-400/75">Add a song to see the waveform</span>
               </div>
             )}
 
@@ -739,7 +739,7 @@ export function TimelineDock({
             })()}
 
             {totalDur > 0 && (
-              <div className="absolute top-0 bottom-0 w-px bg-primary pointer-events-none z-30" style={{ left: `${(currentTime / totalDur) * 100}%` }}>
+              <div className="absolute top-0 bottom-0 w-0.5 bg-primary pointer-events-none z-30 shadow-[0_0_8px_rgba(234,179,8,0.8)]" style={{ left: `${(currentTime / totalDur) * 100}%` }}>
                 <div className="absolute -top-0 -translate-x-1/2 w-2 h-2 bg-primary rounded-full" />
               </div>
             )}
@@ -747,7 +747,7 @@ export function TimelineDock({
 
           {/* Clip track — flex layout keeps clips structurally back-to-back; grows/shrinks with the dock height */}
           <div className="relative bg-black cursor-crosshair rounded mt-1 border border-white/5"
-            style={{ flexGrow: 56, flexShrink: 1, flexBasis: 0, minHeight: 32 }} onClick={handleTimelineClick}>
+            style={{ flexGrow: 56, flexShrink: 1, flexBasis: 0, minHeight: 40 }} onClick={handleTimelineClick}>
             {scenes.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground/40">
                 <Film className="h-4 w-4" />
@@ -778,15 +778,15 @@ export function TimelineDock({
                     >
                       {hasGap && (
                         <div className="absolute -left-2 top-0 bottom-0 flex items-center pointer-events-none" title={`Gap: ${timing.gapBeforeSec.toFixed(1)}s`}>
-                          <span className="text-[7px] text-white/25 font-mono -translate-x-full whitespace-nowrap">{timing.gapBeforeSec.toFixed(1)}s gap</span>
+                          <span className="text-[9px] text-white/70 font-mono -translate-x-full whitespace-nowrap bg-black/70 rounded px-1">{timing.gapBeforeSec.toFixed(1)}s gap</span>
                         </div>
                       )}
                       <div
                         onPointerDown={(e) => startMoveDrag(e, scene.id, clipStart)}
                         className="relative h-full rounded flex items-center overflow-hidden select-none mx-px"
                         style={{
-                          background: !hasClip ? "rgba(251,191,36,0.18)" : selected ? `${color}bb` : active ? `${color}88` : `${color}44`,
-                          border: `1px solid ${hasOverlap ? "#f472b6" : !hasClip ? "rgba(251,191,36,0.5)" : selected ? color : active ? `${color}88` : `${color}33`}`,
+                          background: !hasClip ? "rgba(251,191,36,0.30)" : selected ? `${color}bb` : active ? `${color}99` : `${color}66`,
+                          border: `1px solid ${hasOverlap ? "#f472b6" : !hasClip ? "rgba(251,191,36,0.75)" : selected ? color : active ? color : `${color}66`}`,
                           boxShadow: selected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : hasOverlap ? "0 0 0 1px #f472b655" : undefined,
                           cursor: "grab",
                         }}
@@ -802,25 +802,25 @@ export function TimelineDock({
                             style={{ width: `${Math.min(48, (trimEnd / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderLeft: "1px dashed rgba(255,255,255,0.25)" }} />
                         )}
                         <div className="px-1.5 z-10 min-w-0 flex-1 overflow-hidden pointer-events-none">
-                          <p className="text-[8px] font-bold text-white truncate leading-tight">{i + 1}. {scene.section || `Scene ${i + 1}`}</p>
-                          <p className="text-[7px] text-white/40 font-mono">{fmt(clipStart)}–{fmt(clipStart + clipDur)}</p>
+                          <p className="text-[10px] font-bold text-white truncate leading-tight">{i + 1}. {scene.section || `Scene ${i + 1}`}</p>
+                          <p className="text-[9px] text-white/60 font-mono">{fmt(clipStart)}–{fmt(clipStart + clipDur)}</p>
                         </div>
                         {!hasClip && <span className="text-[9px] text-amber-400 mr-1 shrink-0 pointer-events-none">⚠</span>}
-                        {useLipSync && <span className="text-[6px] text-violet-300 mr-1 shrink-0 font-bold pointer-events-none">LS</span>}
-                        {hasOverlap && <span className="text-[6px] text-pink-300 mr-1 shrink-0 font-bold pointer-events-none" title={`Overlap: ${timing.overlapWithPrevSec.toFixed(1)}s → transition`}>⇄{timing.overlapWithPrevSec.toFixed(1)}s</span>}
+                        {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold pointer-events-none">LS</span>}
+                        {hasOverlap && <span className="text-[8px] text-pink-300 mr-1 shrink-0 font-bold pointer-events-none" title={`Overlap: ${timing.overlapWithPrevSec.toFixed(1)}s → transition`}>⇄{timing.overlapWithPrevSec.toFixed(1)}s</span>}
                         {selected && (
                           <>
                             <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
                               title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
-                              <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
+                              <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                             </div>
                             <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
                               title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                               onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                               onClick={(e) => e.stopPropagation()}>
-                              <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
+                              <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                             </div>
                           </>
                         )}
@@ -852,8 +852,8 @@ export function TimelineDock({
                               {...dragHandleProps}
                               className="relative h-full rounded flex items-center overflow-hidden select-none mx-px"
                               style={{
-                                background: !hasClip ? "rgba(251,191,36,0.18)" : selected ? `${color}bb` : active ? `${color}88` : `${color}44`,
-                                border: `1px solid ${!hasClip ? "rgba(251,191,36,0.5)" : selected ? color : active ? `${color}88` : `${color}33`}`,
+                                background: !hasClip ? "rgba(251,191,36,0.30)" : selected ? `${color}bb` : active ? `${color}99` : `${color}66`,
+                                border: `1px solid ${!hasClip ? "rgba(251,191,36,0.75)" : selected ? color : active ? color : `${color}66`}`,
                                 boxShadow: selected ? `0 0 0 1px ${color}55, 0 0 12px ${color}33` : undefined,
                                 opacity: isDragging ? 0.6 : 1,
                                 cursor: "grab",
@@ -870,24 +870,24 @@ export function TimelineDock({
                                   style={{ width: `${Math.min(48, (trimEnd / clipDur) * 100)}%`, background: "rgba(0,0,0,0.6)", borderLeft: "1px dashed rgba(255,255,255,0.25)" }} />
                               )}
                               <div className="px-1.5 z-10 min-w-0 flex-1 overflow-hidden">
-                                <p className="text-[8px] font-bold text-white truncate leading-tight">{i + 1}. {scene.section || `Scene ${i + 1}`}</p>
-                                <p className="text-[7px] text-white/40 font-mono">{fmt(clipStart)}–{fmt(clipStart + clipDur)}</p>
+                                <p className="text-[10px] font-bold text-white truncate leading-tight">{i + 1}. {scene.section || `Scene ${i + 1}`}</p>
+                                <p className="text-[9px] text-white/60 font-mono">{fmt(clipStart)}–{fmt(clipStart + clipDur)}</p>
                               </div>
                               {!hasClip && <span className="text-[9px] text-amber-400 mr-1 shrink-0">⚠</span>}
-                              {useLipSync && <span className="text-[6px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
+                              {useLipSync && <span className="text-[8px] text-violet-300 mr-1 shrink-0 font-bold">LS</span>}
                               {selected && (
                                 <>
                                   <div className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-l transition-colors"
                                     title="Trim clip content start — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "start", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
-                                    <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
+                                    <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                                   </div>
                                   <div className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 flex items-center justify-center hover:bg-white/15 rounded-r transition-colors"
                                     title="Trim clip content end — scene length is set in the Clips tab (Details → Timing)"
                                     onPointerDown={(e) => startTrimDrag(e, "end", scene.id, clipDur, clipStart)}
                                     onClick={(e) => e.stopPropagation()}>
-                                    <div className="w-0.5 h-3/4 bg-white/60 rounded-full" />
+                                    <div className="w-1 h-3/4 bg-white/80 rounded-full" />
                                   </div>
                                 </>
                               )}
@@ -901,7 +901,7 @@ export function TimelineDock({
               </DndContext>
             )}
             {totalDur > 0 && (
-              <div className="absolute top-0 bottom-0 w-px bg-primary/70 pointer-events-none z-30" style={{ left: `${(currentTime / totalDur) * 100}%` }} />
+              <div className="absolute top-0 bottom-0 w-0.5 bg-primary pointer-events-none z-30 shadow-[0_0_8px_rgba(234,179,8,0.8)]" style={{ left: `${(currentTime / totalDur) * 100}%` }} />
             )}
           </div>
         </div>
@@ -952,7 +952,7 @@ function TinyWaveform({ progress = 0 }: { progress?: number }) {
       {points.map((h, i) => {
         const played = i / segments < progress;
         return (
-          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.55)" : "rgba(255,255,255,0.12)" }} />
+          <div key={i} className="flex-1 rounded-full" style={{ height: `${h * 100}%`, background: played ? "rgba(234,179,8,0.75)" : "rgba(255,255,255,0.20)" }} />
         );
       })}
     </div>
