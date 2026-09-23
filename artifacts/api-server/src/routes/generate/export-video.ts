@@ -527,6 +527,14 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   let preparedExportAcquired = false;
 
   try {
+    /* ── Server-side watermark gate: only subscribers may remove it.
+       The client sends addWatermark, but a free/trial user calling the API
+       directly must not be able to bypass it. Mirrors the frontend gate. ── */
+    const FREE_PLANS = ["", "free", "trial", "none", "null"];
+    const userPlan = (req.userPlan ?? "free").toLowerCase().trim();
+    const isSubscriber = !FREE_PLANS.includes(userPlan);
+    const effectiveAddWatermark = isSubscriber ? addWatermark : true;
+
     req.log.info({
       clipCount: clipUrls.length,
       aspectRatio,
@@ -538,7 +546,9 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       loopAudio,
       audioStartSec,
       matchVideoLength,
-      addWatermark,
+      addWatermark: effectiveAddWatermark,
+      addWatermarkRequested: addWatermark,
+      userPlan,
       testMode: !!testMode,
       exportRangeStart,
       exportRangeEnd,
@@ -935,7 +945,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
 
     /* ── 2b: Resolve watermark image path ── */
     let watermarkPath: string | null = null;
-    if (addWatermark) {
+    if (effectiveAddWatermark) {
       if (customWatermarkUrl?.startsWith("http")) {
         const wmExt = /\.(jpe?g)($|\?)/.test(customWatermarkUrl) ? ".jpg"
           : /\.webp($|\?)/.test(customWatermarkUrl) ? ".webp" : ".png";
@@ -1002,7 +1012,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       }
     }
     // branding.watermark wins; else fall back to legacy addWatermark toggle
-    const activeWmPath = useBrandingWm ? brandingWmPath : (addWatermark ? watermarkPath : null);
+    const activeWmPath = useBrandingWm ? brandingWmPath : (effectiveAddWatermark ? watermarkPath : null);
 
     /* ── 2e: Download "image"/"watermark" overlay item sources (e.g. a user's logo
      *  placed via the structured overlay editor) so they can be burned in with
@@ -1751,7 +1761,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
           effectiveDuration,
           rangeRelativeStart,
           audioFilters: audioFilterParts.join(",") || null,
-          watermark: addWatermark,
+          watermark: effectiveAddWatermark,
         } : {}),
       },
     });
