@@ -12,7 +12,7 @@ import { recordCreditUsage } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,9 +20,14 @@ import { logger } from "../../lib/logger";
 import {
   createExportJob,
   getExportJob,
+  claimJobForRun,
+  updateJobStage,
+  completeJob,
+  failJob,
+  chargeCreditsForJob,
+  recoverInterruptedJobs,
   enqueueExport,
   describeJobProgress,
-  type ExportJob,
   type ExportJobError,
   type ExportStatusRef,
 } from "../../lib/export-jobs";
@@ -1713,24 +1718,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       }
     }
 
-    /* ── Deduct credits + record usage on export success ── */
-    if (!IS_DEV) {
-      // Atomic single-statement deduction — race-safe (no read-modify-write).
-      let creditsAfter: number;
-      try {
-        creditsAfter = await deductCredits(ctx.userId, EXPORT_CREDIT_COST);
-      } catch (deductErr) {
-        if (deductErr instanceof OutOfCreditsError) {
-          throw { status: 402,
-            error: "out_of_credits",
-            message: "Not enough credits. Please buy more credits to continue.",
-          };
-        }
-        throw deductErr;
-      }
-      recordCreditUsage({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: projectId ?? null }).catch(() => {});
-      ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
-    }
+    /* ── Credits are deducted by runExportJobInBackground after executeExport
+     * resolves, via chargeCreditsForJob — a single transaction that flips
+     * the job's credits_charged flag and drops the balance atomically, so a
+     * crash or recovery can never double-charge. ── */
 
     exportStatus.ffmpegStage = "completed";
 
@@ -1816,15 +1807,27 @@ function normalizeJobError(err: unknown): ExportJobError {
 }
 
 /** Run one export job in the background, mirroring render stages onto the job. */
-async function runExportJobInBackground(job: ExportJob, ctx: ExportJobContext): Promise<void> {
-  job.state = "active";
-  job.stage = "starting";
-  job.updatedAt = Date.now();
+async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
+  // Claim the durable job row first: on a restart this same jobId may be
+  // re-queued by boot recovery, and the claim (attempts + 1) is what keeps
+  // a poison job from looping forever.
+  const claimed = await claimJobForRun(jobId).catch((err) => {
+    ctx.log.error({ err, jobId }, "[export] failed to claim job row");
+    return undefined;
+  });
+  if (!claimed) {
+    ctx.log.warn({ jobId }, "[export] job not claimable (missing or already terminal); skipping run");
+    return;
+  }
+  // Mirror the live FFmpeg stage into the durable row (≤ ~2s stale for pollers).
+  let lastStage = "starting";
   const ticker = setInterval(() => {
-    const s = ctx.statusRef.current;
-    if (s?.ffmpegStage && s.ffmpegStage !== job.stage) {
-      job.stage = s.ffmpegStage;
-      job.updatedAt = Date.now();
+    const s = ctx.statusRef.current?.ffmpegStage;
+    if (s && s.length > 0 && s !== lastStage) {
+      lastStage = s;
+      updateJobStage(jobId, s).catch((err) =>
+        ctx.log.warn({ err, jobId }, "[export] stage persist failed"),
+      );
     }
   }, 2000);
   if (typeof (ticker as unknown as { unref?: unknown }).unref === "function") {
@@ -1832,17 +1835,37 @@ async function runExportJobInBackground(job: ExportJob, ctx: ExportJobContext): 
   }
   try {
     const result = await executeExport(ctx);
-    job.state = "done";
-    job.stage = "completed";
-    job.result = result;
+
+    /* ── Deduct credits + record usage on export success ── */
+    if (!IS_DEV) {
+      try {
+        const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, EXPORT_CREDIT_COST);
+        if (charged) {
+          recordCreditUsage({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null }).catch(() => {});
+          ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
+        } else {
+          ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");
+        }
+      } catch (deductErr) {
+        if (deductErr instanceof OutOfCreditsError) {
+          await failJob(jobId, {
+            message: "Not enough credits. Please buy more credits to continue.",
+            code: "out_of_credits",
+          });
+          return;
+        }
+        throw deductErr;
+      }
+    }
+
+    await completeJob(jobId, result);
   } catch (err) {
-    ctx.log.error({ err: err instanceof Error ? err.message : err }, "[export] background job failed");
-    job.state = "failed";
-    job.stage = "failed";
-    job.error = normalizeJobError(err);
+    ctx.log.error({ err: err instanceof Error ? err.message : err, jobId }, "[export] background job failed");
+    await failJob(jobId, normalizeJobError(err)).catch((persistErr) =>
+      ctx.log.error({ persistErr, jobId }, "[export] failed to persist job failure"),
+    );
   } finally {
     clearInterval(ticker);
-    job.updatedAt = Date.now();
   }
 }
 
@@ -1902,11 +1925,13 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   /* ── Async export job ──
    * The full render (download + normalize + FFmpeg + upload) takes minutes —
    * far longer than a hosting proxy keeps an HTTP request open (the old
-   * synchronous design died with a 502 on real exports). Return 202
-   * immediately and render in the background; the client polls
-   * GET /api/export-video-job/:jobId for progress. Credits are deducted only
-   * when the render actually succeeds (inside executeExport). */
-  const job = createExportJob(req.userId, projectId.trim());
+   * synchronous design died with a 502 on real exports). The job is recorded
+   * in the export_jobs table and the render runs in the background, so a
+   * server restart can no longer lose it: boot recovery re-queues
+   * interrupted jobs and the client keeps polling the same jobId.
+   * Credits are deducted only when the render actually succeeds
+   * (chargeCreditsForJob, exactly once). */
+  const job = await createExportJob(req.userId, projectId.trim(), body);
   res.status(202).json({ jobId: job.id, status: job.state });
 
   const ctx: ExportJobContext = {
@@ -1915,15 +1940,15 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
     userPlan: req.userPlan,
     userSupabase: req.userSupabase,
     log: req.log ?? logger,
-    statusRef: job.statusRef,
+    statusRef: { current: null },
   };
-  enqueueExport(() => runExportJobInBackground(job, ctx));
+  enqueueExport(() => runExportJobInBackground(job.id, ctx));
 });
 
 router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {
   const rawId = req.params.jobId;
   const jobId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
-  const job = getExportJob(jobId);
+  const job = await getExportJob(jobId).catch(() => undefined);
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Export job not found" });
     return;
@@ -1938,5 +1963,39 @@ router.get("/export-video-job/:jobId", requireAuth, async (req, res) => {
     ...(job.state === "failed" ? { error: job.error } : {}),
   });
 });
+
+/**
+ * Boot recovery: re-queue export jobs orphaned by a previous process.
+ * Called once from index.ts after the server starts listening. Each
+ * recovered job re-runs from scratch with its persisted request params;
+ * a fresh statusRef is used because the old process's live render state
+ * died with it. The service-role client stands in for the user's scoped
+ * client — ownership was verified when the job was created.
+ */
+export async function recoverInterruptedExportJobs(): Promise<void> {
+  await recoverInterruptedJobs(async (job) => {
+    const admin = getSupabaseAdmin();
+    let plan = "free";
+    try {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("plan")
+        .eq("id", job.userId)
+        .single();
+      if (profile?.plan) plan = profile.plan;
+    } catch {
+      /* keep "free" — watermark gating fails closed */
+    }
+    const ctx: ExportJobContext = {
+      body: (job.params ?? {}) as ExportRequestBody,
+      userId: job.userId,
+      userPlan: plan,
+      userSupabase: admin,
+      log: logger,
+      statusRef: { current: null },
+    };
+    enqueueExport(() => runExportJobInBackground(job.id, ctx));
+  });
+}
 
 export default router;
