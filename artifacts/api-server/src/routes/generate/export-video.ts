@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { createWriteStream, readFileSync, writeFileSync, unlinkSync, existsSync, statSync } from "fs";
+import { createReadStream, createWriteStream, readFileSync, writeFileSync, unlinkSync, existsSync, statSync } from "fs";
 import { pipeline } from "stream/promises";
 import { randomUUID, createHash } from "crypto";
 import path from "path";
@@ -295,6 +295,7 @@ async function normalizeClip(
       `[blurred][scaled]overlay=(W-w)/2:(H-h)/2,fps=fps=${targetFps},setsar=1[out]`,
     ].join(";");
     args = [
+      "-threads", "2", // bound RAM: small instances OOM with FFmpeg's default thread count
       "-i", inputPath,
       "-filter_complex", fc,
       "-map", "[out]",
@@ -312,6 +313,7 @@ async function normalizeClip(
     // the target canvas — mirrors the master player's object-cover CSS behaviour.
     // No black bars; content fills the full frame.
     args = [
+      "-threads", "2", // bound RAM: small instances OOM with FFmpeg's default thread count
       "-i", inputPath,
       "-vf", [
         `scale=${targetW}:${targetH}:force_original_aspect_ratio=increase`,
@@ -332,6 +334,7 @@ async function normalizeClip(
     // "fit" or absent: letterbox with black bars — scale down so the entire frame
     // fits within the target canvas, pad remaining space with black.
     args = [
+      "-threads", "2", // bound RAM: small instances OOM with FFmpeg's default thread count
       "-i", inputPath,
       "-vf", [
         `scale=${targetW}:${targetH}:force_original_aspect_ratio=decrease`,
@@ -1448,6 +1451,9 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     tmpFiles.push(outputPath);
 
     const ffmpegArgs: string[] = [];
+    // Bound FFmpeg's thread count: 7 simultaneous 1080x1920 inputs + xfade
+    // filter graph OOMs small instances at the default thread count.
+    ffmpegArgs.push("-threads", "2");
 
     // Intro lavfi color source (already at target size + fps)
     if (introInputIdx >= 0) {
@@ -1659,11 +1665,19 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
 
     const objectName = `exports/${exportId}.mp4`;
-    const fileBuffer = readFileSync(outputPath);
+    // Stream the upload — readFileSync on a multi-hundred-MB final MP4 OOMs
+    // small instances. The file stays on disk; only small chunks are in RAM.
+    const fileSize = statSync(outputPath).size;
     const bucket = objectStorageClient.bucket(bucketId);
     const gcsFile = bucket.file(objectName);
-    await gcsFile.save(fileBuffer, { contentType: "video/mp4", resumable: false });
-    ctx.log.info({ objectName, bytes: fileBuffer.length }, "[export] uploaded to GCS");
+    await new Promise<void>((resolve, reject) => {
+      createReadStream(outputPath)
+        .on("error", reject)
+        .pipe(gcsFile.createWriteStream({ contentType: "video/mp4", resumable: false, validation: false }))
+        .on("error", reject)
+        .on("finish", () => resolve());
+    });
+    ctx.log.info({ objectName, bytes: fileSize }, "[export] uploaded to GCS");
 
     /* ── 9: Sign URL ── */
     const signedUrl = await signGetUrl(bucketId, objectName);
