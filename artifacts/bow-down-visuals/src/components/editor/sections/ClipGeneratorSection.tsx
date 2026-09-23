@@ -24,11 +24,8 @@ import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
 import { computeSceneTimings, withSceneDurationSet, formatClock, type SceneTiming } from "@/lib/scene-timing";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
 
 const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
-const CLIP_BUCKET = "clips";
 
 const SECTION_COLORS: Record<string, string> = {
   intro:  "bg-white/[0.12] text-zinc-200 border-white/20",
@@ -125,7 +122,6 @@ export function ClipGeneratorSection({
   playheadTimeSec = 0,
   totalDurationSec,
 }: ClipGeneratorSectionProps) {
-  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* "Create All" runs scenes sequentially so each later scene can chain from
@@ -351,42 +347,66 @@ export function ClipGeneratorSection({
     if (!file) return;
     if (fileInputRef.current) fileInputRef.current.value = "";
 
+    /* The clip attaches to the selected scene in place — it never creates a
+       new scene, so timing, captions and effects are untouched. */
+    const targetScene = scenes.find((s) => s.id === selectedSceneId);
+    if (!targetScene) {
+      setUploadError("Select a scene first — the uploaded clip will be attached to it.");
+      setUploadStatus("error");
+      return;
+    }
+
     setUploadStatus("uploading");
     setUploadError(null);
 
     try {
-      const sb = supabase;
-      if (!sb) throw new Error("Storage client not initialised — check Supabase env vars");
+      let token: string | null = null;
+      try {
+        token = (await getAccessToken?.()) ?? null;
+      } catch {
+        token = null;
+      }
+      if (!token) throw new Error("Not signed in. Please sign in and try again.");
 
-      const ext = file.name.split(".").pop() ?? "mp4";
-      const folder = user?.id ?? "anon";
-      const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-      const { error: upErr } = await sb.storage
-        .from(CLIP_BUCKET)
-        .upload(path, file, { upsert: true });
-
-      if (upErr) throw new Error(upErr.message);
-
-      const { data } = sb.storage.from(CLIP_BUCKET).getPublicUrl(path);
-      const url = data.publicUrl;
-
-      const newScene: SceneData = {
-        ...makeBlankScene(scenes.length),
-        demoClipUrl: url,
-        generationStatus: "completed",
-        section: file.name.replace(/\.[^.]+$/, "").slice(0, 40),
+      /* 1. Upload through the backend into the private generated-clips bucket. */
+      const form = new FormData();
+      form.append("clip", file, file.name);
+      const upRes = await fetch("/api/upload-clip", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const upData = (await upRes.json().catch(() => ({}))) as {
+        url?: string; ref?: string; error?: string; message?: string;
       };
+      if (!upRes.ok) throw new Error(upData.message ?? upData.error ?? `Upload failed (${upRes.status})`);
+      if (!upData.url) throw new Error("Upload succeeded but returned no clip URL.");
 
-      const insertIdx = selectedSceneId
-        ? scenes.findIndex((s) => s.id === selectedSceneId) + 1
-        : scenes.length;
-      const next = [...scenes];
-      next.splice(insertIdx, 0, newScene);
-      setScenes(next);
-      setSelectedSceneId(newScene.id);
+      /* 2. Attach the clip to the existing scene (persists; the backend
+         normalizes the URL to a stable storage ref). Free — no credits. */
+      if (projectId) {
+        const patchRes = await fetch(`/api/projects/${projectId}/scene-clip`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ clipUrl: upData.url, sceneId: targetScene.id }),
+        });
+        if (!patchRes.ok) {
+          const pData = (await patchRes.json().catch(() => ({}))) as { error?: string };
+          throw new Error(pData.error ?? `Could not attach the clip to the scene (${patchRes.status}).`);
+        }
+      }
+
+      /* 3. Update local state — same scene, same timing, now with the clip. */
+      setScenes(
+        scenes.map((s) =>
+          s.id === targetScene.id
+            ? { ...s, demoClipUrl: upData.url as string, generationStatus: "completed" as const }
+            : s,
+        ),
+      );
       markMutated();
       setUploadStatus("done");
+      setTimeout(() => setUploadStatus("idle"), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setUploadError(msg);
@@ -626,12 +646,9 @@ export function ClipGeneratorSection({
           {uploadStatus === "done" && <CheckCircle2 className="h-4 w-4 shrink-0" />}
           {uploadStatus === "error" && <AlertCircle className="h-4 w-4 shrink-0" />}
           {uploadStatus === "uploading" && "Uploading clip…"}
-          {uploadStatus === "done" && "Clip uploaded and added to timeline"}
+          {uploadStatus === "done" && "Clip uploaded and attached to the selected scene"}
           {uploadStatus === "error" && (
-            <span>
-              Upload failed: {uploadError ?? "unknown error"}{" "}
-              <span className="text-white/40 font-normal">— paste the URL into "Replace clip URL" instead</span>
-            </span>
+            <span>Upload failed: {uploadError ?? "unknown error"}</span>
           )}
         </div>
       )}
