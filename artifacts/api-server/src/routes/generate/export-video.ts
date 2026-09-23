@@ -508,17 +508,28 @@ async function stitchClipsPairwise(args: {
       "-movflags", "+faststart",
       "-y", outPath,
     ];
-    // Generous duration-scaled timeout: later steps encode minutes of video.
-    const stepTimeout = Math.max(180_000, Math.ceil((aTotal + bTotal) * 4000));
+    // Duration-scaled timeout: production encodes can run as slow as ~0.13x
+    // realtime on throttled instances, so allow 10x media duration with a
+    // 10-minute floor. A previous 4x/3min timeout SIGTERM-killed a healthy
+    // step-5 encode at 95% completion (clean stderr, exitCode null, no OOM).
+    const stepTimeout = Math.max(600_000, Math.ceil((aTotal + bTotal) * 10) * 1000);
     try {
       await execFileAsync("ffmpeg", ffArgs, { timeout: stepTimeout });
     } catch (e: unknown) {
-      const stderr = (e as { stderr?: string }).stderr ?? "";
+      const err = e as { stderr?: string; killed?: boolean; signal?: string | null; code?: number | null };
+      const stderr = err.stderr ?? "";
       const msg = e instanceof Error ? e.message : String(e);
-      log.error({ step: j, of: n - 1, ffmpegArgs: ffArgs, stderr },
+      // execFileAsync sets killed=true when its own `timeout` fires — mark it
+      // explicitly so a timeout kill is never again mistaken for a crash/OOM.
+      const timedOut = err.killed === true;
+      if (timedOut) {
+        log.error({ step: j, of: n - 1, stepTimeoutMs: stepTimeout, signal: err.signal ?? null },
+          "[export][phase1] stitch TIMEOUT killing ffmpeg");
+      }
+      log.error({ step: j, of: n - 1, ffmpegArgs: ffArgs, stderr, killed: err.killed ?? null, signal: err.signal ?? null, code: err.code ?? null },
         "[export][phase1] pairwise stitch step failed");
       throw new Error(
-        `Scene stitch step ${j}/${n - 1} failed: ${msg.slice(0, 200)}\n` +
+        `Scene stitch step ${j}/${n - 1} failed${timedOut ? " (ffmpeg timeout)" : ""}: ${msg.slice(0, 200)}\n` +
         `Filter: ${fc.slice(0, 300)}\n` +
         `Stderr: ${stderr.slice(-2000)}`,
       );
