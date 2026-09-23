@@ -45,6 +45,9 @@ export function HeroLogo3D() {
     let drawnFrame = -1;
     let raf = 0;
     let cancelled = false;
+    // Invisible diagnostics (readable via devtools/DOM): moves counts
+    // pointermove events seen, target/frame show scrub state.
+    let moves = 0;
 
     const drawFrame = (f: number) => {
       if (f === drawnFrame) return;
@@ -56,6 +59,7 @@ export function HeroLogo3D() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(sheet, sx, sy, FS, FS, 0, 0, canvas.width, canvas.height);
       drawnFrame = f;
+      canvas.dataset.bdvFrame = String(f);
     };
 
     const frameFor = (t: number) =>
@@ -90,8 +94,11 @@ export function HeroLogo3D() {
       const r = heroSection.getBoundingClientRect();
       const p = (clientY - r.top) / Math.max(1, r.height);
       target = Math.min(BOW_END, Math.max(0, p * BOW_END));
+      canvas.dataset.bdvTarget = target.toFixed(2);
     };
     const onPointerMove = (e: PointerEvent) => {
+      moves++;
+      canvas.dataset.bdvMoves = String(moves);
       const r = heroSection.getBoundingClientRect();
       // Ignore movement far outside the hero (e.g. hero scrolled away).
       if (e.clientY < r.top - 80 || e.clientY > r.bottom + 80) return;
@@ -104,6 +111,7 @@ export function HeroLogo3D() {
     // Back to standing when the pointer leaves the hero.
     const onLeave = () => {
       target = 0;
+      canvas.dataset.bdvTarget = "0";
     };
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     heroSection.addEventListener("pointerleave", onLeave, { passive: true });
