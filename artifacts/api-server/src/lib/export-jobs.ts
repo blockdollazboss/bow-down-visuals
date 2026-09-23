@@ -142,13 +142,16 @@ export async function getExportJob(id: string): Promise<ExportJob | undefined> {
 
 /**
  * Claim a job for a worker run: queued → active, attempts + 1.
- * Returns undefined when the job is gone or already terminal.
+ * The claim is a single atomic UPDATE, so even if two processes ever
+ * raced (e.g. overlapping deploys), exactly one wins the render —
+ * the loser gets no row and skips. Returns undefined when the job is
+ * gone or already terminal.
  */
 export async function claimJobForRun(id: string): Promise<ExportJob | undefined> {
   const res = await db().execute(sql`
     UPDATE export_jobs
     SET state = 'active', stage = 'starting', attempts = attempts + 1, updated_at = now()
-    WHERE id = ${id} AND state IN ('queued', 'active')
+    WHERE id = ${id} AND state = 'queued'
     RETURNING ${JOB_COLUMNS}
   `);
   const row = res.rows[0] as Record<string, unknown> | undefined;
