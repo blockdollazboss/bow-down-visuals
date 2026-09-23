@@ -1298,6 +1298,25 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
       req.log.info({ leakOpacity }, "[export] light leaks overlay injected");
     }
 
+    // ── Lens Flare overlay: anamorphic-style horizontal streak + hotspot ──
+    // Approximates a cinematic lens flare: a soft horizontal light streak
+    // across the upper third plus a bright hotspot. Intensity scales opacity.
+    if (overlayEffectsArr.includes("Lens Flare")) {
+      const flareOpacity = ((overlayIntensityMap["Lens Flare"] ?? 20) / 100).toFixed(2);
+      const streakY = Math.round(TARGET_H * 0.32);
+      const streakH = Math.max(2, Math.round(TARGET_H * 0.008));
+      const hotX = Math.round(TARGET_W * 0.72);
+      const hotY = Math.round(TARGET_H * 0.28);
+      const hotSize = Math.round(Math.min(TARGET_W, TARGET_H) * 0.06);
+      filterParts.push(
+        `[${workLabel}]drawbox=x=0:y=${streakY}:w=iw:h=${streakH}:color=0xFFF4E0@${flareOpacity}:t=fill,` +
+        `drawbox=x=${hotX - hotSize}:y=${hotY - hotSize}:w=${hotSize * 2}:h=${hotSize * 2}:color=0xFFFFFF@${flareOpacity}:t=fill,` +
+        `boxblur=lr=${Math.round(hotSize / 2)}:lp=${Math.round(hotSize / 4)}[vflare]`,
+      );
+      workLabel = "vflare";
+      req.log.info({ flareOpacity }, "[export] lens flare overlay injected");
+    }
+
     // ── Animated Waveform overlay: audio-driven showwaves at bottom of frame ──
     // The audio stream must be split via asplit before referencing it in the
     // filter_complex. Without asplit, FFmpeg throws a "stream already used" error

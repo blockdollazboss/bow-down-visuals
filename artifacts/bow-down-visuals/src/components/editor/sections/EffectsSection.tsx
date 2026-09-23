@@ -174,8 +174,8 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
         <div className="flex flex-wrap gap-2 mb-3">
           {OVERLAYS.map((ov) => {
             const active = settings.overlays.includes(ov);
-            // Animated overlays are preview-only — the export pipeline doesn't burn them in yet.
-            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust", "Lens Flare"].includes(ov);
+            // Particle overlays (Smoke, Rain, Sparks, Dust) are preview-only — the export pipeline doesn't burn them in yet.
+            const previewOnly = ["Smoke", "Rain", "Sparks", "Dust"].includes(ov);
             return (
               <Chip
                 key={ov}
