@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -16,4 +17,10 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Re-queue export jobs orphaned by a previous process (deploy/restart/crash).
+  // Runs after listen so the server is already serving polls for recovered jobs.
+  recoverInterruptedExportJobs().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Export job recovery failed"),
+  );
 });
