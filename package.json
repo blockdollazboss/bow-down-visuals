@@ -15,7 +15,7 @@
   "private": true,
   "devDependencies": {
     "prettier": "^3.9.8",
-    "typescript": "~5.9.3"
+    "typescript": "~7.0.2"
   },
   "dependencies": {
     "stripe": "^22.6.2"

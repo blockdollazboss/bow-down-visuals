@@ -6,7 +6,7 @@ import {
   CheckCircle2, Circle, Layers, Play, Pause,
   RefreshCw, Zap, SkipBack, Maximize, Minimize, PictureInPicture2,
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
-  Crop, Smartphone, Monitor, Square, Instagram, ChevronDown, ChevronUp, Bug, Mic2,
+  Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
 } from "lucide-react";
 
@@ -14,6 +14,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
@@ -1520,7 +1521,7 @@ const FORMAT_ICONS_MAP: Record<VideoFormat, React.ReactNode> = {
   "9:16":  <Smartphone className="h-3.5 w-3.5" />,
   "16:9":  <Monitor   className="h-3.5 w-3.5" />,
   "1:1":   <Square    className="h-3.5 w-3.5" />,
-  "4:5":   <Instagram className="h-3.5 w-3.5" />,
+  "4:5":   <InstagramIcon className="h-3.5 w-3.5" />,
 };
 
 /** Ordered list for Aspect Ratio cycling. */

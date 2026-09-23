@@ -4,7 +4,8 @@
  * Changing the format immediately reshapes the master player in the preview.
  * The same format drives the export pipeline.
  */
-import { Monitor, Smartphone, Square, Instagram } from "lucide-react";
+import { Monitor, Smartphone, Square } from "lucide-react";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
 import {
   VIDEO_FORMATS, FORMAT_PRESET_LABELS, formatDimensions,
   type EditorSettings, type VideoFormat, type FitMode,
@@ -20,7 +21,7 @@ const FORMAT_ICONS: Record<VideoFormat, React.ReactNode> = {
   "9:16":  <Smartphone className="h-3.5 w-3.5" />,
   "16:9":  <Monitor   className="h-3.5 w-3.5" />,
   "1:1":   <Square    className="h-3.5 w-3.5" />,
-  "4:5":   <Instagram className="h-3.5 w-3.5" />,
+  "4:5":   <InstagramIcon className="h-3.5 w-3.5" />,
 };
 
 const FIT_MODES: { id: FitMode; label: string; desc: string }[] = [
