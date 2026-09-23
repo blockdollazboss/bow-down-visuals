@@ -499,6 +499,11 @@ async function stitchClipsPairwise(args: {
       "-preset", "ultrafast",
       "-crf", "18", // intermediate; final pass re-encodes to the delivery CRF
       "-pix_fmt", "yuv420p",
+      // CRITICAL: normalizeClip() writes 90000 tbn; without this flag the
+      // intermediate gets ffmpeg's default timebase (15360 @30fps) and the
+      // NEXT step's xfade dies with "timebase do not match" (step 2/6 failed
+      // deterministically in prod for exactly this reason).
+      "-video_track_timescale", "90000",
       "-an",
       "-movflags", "+faststart",
       "-y", outPath,
