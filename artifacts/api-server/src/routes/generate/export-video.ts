@@ -7,7 +7,7 @@ import { randomUUID, createHash } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
-import { objectStorageClient } from "../../lib/objectStorage";
+import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, VIDEO_EXPORTS_BUCKET, SUPABASE_SIGNED_URL_TTL_SEC } from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
@@ -34,7 +34,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const router = Router();
-const SIDECAR = "http://127.0.0.1:1106";
+// (Replit sidecar removed — it doesn't exist on Render)
 
 const IS_DEV = process.env["NODE_ENV"] === "development";
 
@@ -640,19 +640,6 @@ async function stitchClipsPairwise(args: {
   return { path: stitchedPath, duration: info.duration > 0 ? info.duration : predicted };
 }
 
-
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
-  const { signed_url } = (await res.json()) as { signed_url: string };
-  return signed_url;
-}
 
 function cleanup(...files: string[]) {
   for (const f of files) {
@@ -2117,27 +2104,20 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     if (!outInfo.hasVideo) throw new Error("Output file has no video stream — FFmpeg may have produced a corrupt file");
     if (outInfo.duration <= 0) throw new Error("Output file has zero duration — FFmpeg may have produced a corrupt file");
 
-    /* ── 8: Upload to GCS ── */
-    const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-    if (!bucketId) throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+    /* ── 8: Upload final MP4 to Supabase Storage (private video-exports bucket) ── */
+    await ensureVideoExportsBucket().catch(() => {});
+    
 
     const objectName = `exports/${exportId}.mp4`;
     // Stream the upload — readFileSync on a multi-hundred-MB final MP4 OOMs
     // small instances. The file stays on disk; only small chunks are in RAM.
-    const fileSize = statSync(outputPath).size;
-    const bucket = objectStorageClient.bucket(bucketId);
-    const gcsFile = bucket.file(objectName);
-    await new Promise<void>((resolve, reject) => {
-      createReadStream(outputPath)
-        .on("error", reject)
-        .pipe(gcsFile.createWriteStream({ contentType: "video/mp4", resumable: false, validation: false }))
-        .on("error", reject)
-        .on("finish", () => resolve());
-    });
-    ctx.log.info({ objectName, bytes: fileSize }, "[export] uploaded to GCS");
+    const storageRef = await uploadFileStreamToSupabaseStorage(VIDEO_EXPORTS_BUCKET, objectName, outputPath, "video/mp4");
+    const { data: signData, error: signErr } = await getSupabaseAdmin().storage.from(VIDEO_EXPORTS_BUCKET).createSignedUrl(objectName, SUPABASE_SIGNED_URL_TTL_SEC);
+    if (signErr || !signData?.signedUrl) throw new Error(`Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}`);
+    ctx.log.info({ objectName, storageRef }, "[export] uploaded to Supabase storage");
 
-    /* ── 9: Sign URL ── */
-    const signedUrl = await signGetUrl(bucketId, objectName);
+    /* ── 9: Sign URL (fresh signed URL for the response; stable ref persisted) ── */
+    const signedUrl = signData.signedUrl;
     const objectPath = `/objects/exports/${exportId}.mp4`;
 
     /* ── 10: Save to project ── */
@@ -2155,7 +2135,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         const current = (fullProject.output_data as Record<string, unknown>) ?? {};
         const updatedOutputData = {
           ...current,
-          final_video_url: signedUrl,
+          final_video_url: storageRef,
           export_object_path: objectPath,
           export_status: "completed",
           export_created_at: new Date().toISOString(),
