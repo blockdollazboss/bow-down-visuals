@@ -1808,10 +1808,35 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       ffmpegArgs.push("-map", audioOutputFcLabel ? `[${audioOutputFcLabel}]` : `${audioInputIdx}:a`);
     }
 
+    /* ── Bitrate budget: keep the final MP4 under Supabase's per-file ceiling ──
+     * Supabase enforces a plan-level per-file size ceiling (50 MB on the free
+     * tier). A bucket file_size_limit can only lower it, never raise it —
+     * attempts to set it above the ceiling are rejected with 413, and a null
+     * limit inherits the ceiling. A fixed CRF alone can blow past it (61 MB
+     * observed for a 41 s export at CRF 22 / ultrafast), so cap the video
+     * bitrate via VBV (-maxrate/-bufsize) to keep the final file comfortably
+     * under 45 MB. CRF 22 still governs quality below the cap. */
+    const EXPORT_MAX_BYTES = 45 * 1024 * 1024;
+    const EXPORT_AUDIO_BPS = 192000; // must match the -b:a value below
+    const EXPORT_OVERHEAD_BYTES = 2 * 1024 * 1024; // moov/faststart + container
+    const exportVideoBudgetBytes = Math.max(
+      1,
+      EXPORT_MAX_BYTES - (EXPORT_AUDIO_BPS / 8) * effectiveDuration - EXPORT_OVERHEAD_BYTES,
+    );
+    const exportMaxVideoKbps = Math.floor(
+      ((exportVideoBudgetBytes * 8) / Math.max(1, effectiveDuration)) / 1000,
+    );
+    ctx.log.info(
+      { exportMaxVideoKbps, effectiveDuration: effectiveDuration.toFixed(2) },
+      "[export] final video bitrate budget",
+    );
+
     ffmpegArgs.push(
       "-c:v", "libx264",
       "-preset", "ultrafast",
       "-crf", "22",
+      "-maxrate", `${exportMaxVideoKbps}k`,
+      "-bufsize", `${exportMaxVideoKbps * 2}k`,
       "-pix_fmt", "yuv420p",
     );
 
@@ -2103,6 +2128,18 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     if (!outInfo.hasVideo) throw new Error("Output file has no video stream — FFmpeg may have produced a corrupt file");
     if (outInfo.duration <= 0) throw new Error("Output file has zero duration — FFmpeg may have produced a corrupt file");
+
+    /* Fail fast on size: Supabase's plan-level per-file ceiling (50 MB on the
+     * free tier) rejects oversized uploads with a cryptic 413. The bitrate
+     * budget above should keep us under it — this is the backstop with a
+     * clear, actionable message. */
+    const EXPORT_SUPABASE_MAX_BYTES = 48 * 1024 * 1024;
+    if (outInfo.fileSize > EXPORT_SUPABASE_MAX_BYTES) {
+      throw new Error(
+        `Final export is ${(outInfo.fileSize / 1048576).toFixed(1)} MB — above Supabase's per-file upload limit. ` +
+        `Try a shorter range or fewer scenes.`,
+      );
+    }
 
     /* ── 8: Upload final MP4 to Supabase Storage (private video-exports bucket) ──
      * Fail fast here: ensureVideoExportsBucket verifies the bucket exists
