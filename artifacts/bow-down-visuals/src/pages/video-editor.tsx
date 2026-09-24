@@ -1110,7 +1110,10 @@ export default function VideoEditor() {
 
                   {tab === "export" && (
                     <ExportSection
-                      scenes={scenes}
+                      // NOTE: resolvedScenes (not raw scenes) so the export uses
+                      // lip-synced clip URLs wherever the user enabled lip sync —
+                      // what you see in the master player is what gets exported.
+                      scenes={resolvedScenes}
                       settings={settings}
                       setSettings={setSettings}
                       projectId={project!.id}
