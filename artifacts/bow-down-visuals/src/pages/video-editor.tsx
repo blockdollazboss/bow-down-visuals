@@ -2556,174 +2556,165 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Transport bar — PRIMARY ROW (always visible, including fullscreen; hidden while minimized) ── */}
+      {/* ── Transport bar — ONE premium row (always visible, including fullscreen; hidden while minimized) ── */}
       {!isMinimized && (
-      <div className={`flex items-center gap-1.5 px-2.5 py-2 border-t border-white/[0.06] transition-all duration-300 ${
+      <div className={`flex items-center gap-1.5 px-3 py-2 border-t border-white/[0.06] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
       }`}>
         {/* Restart */}
         <button type="button" onClick={onRestart} disabled={!hasScenes}
-          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/45 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0 disabled:opacity-30"
           title="Restart (Home)">
           <SkipBack className="h-3.5 w-3.5" />
         </button>
-        {/* Prev Clip */}
+        {/* Prev Scene */}
         <button type="button" onClick={prevClip} disabled={!hasScenes}
-          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/45 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0 disabled:opacity-30"
           title="Previous Scene (Shift+←)">
           <Rewind className="h-3.5 w-3.5" />
         </button>
-        {/* Rewind 5s */}
-        <button type="button" onClick={() => rewind(5)} disabled={!hasScenes}
-          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
-          title="Rewind 5s (←)">-5</button>
-        {/* Play / Pause */}
+        {/* Play / Pause — the hero */}
         <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-          className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 transition-colors text-primary disabled:opacity-30 shrink-0"
+          className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-black hover:bg-[#d8b04a] shadow-[0_0_18px_rgba(201,168,76,0.35)] transition-all shrink-0 disabled:opacity-30 disabled:shadow-none mx-0.5"
           title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
-          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current ml-0.5" />}
         </button>
-        {/* FF 5s */}
-        <button type="button" onClick={() => ff(5)} disabled={!hasScenes}
-          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
-          title="Forward 5s (→)">+5</button>
-        {/* Next Clip */}
+        {/* Next Scene */}
         <button type="button" onClick={nextClip} disabled={!hasScenes}
-          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/45 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0 disabled:opacity-30"
           title="Next Scene (Shift+→)">
           <FastForward className="h-3.5 w-3.5" />
         </button>
+        {/* ±5s */}
+        <button type="button" onClick={() => rewind(5)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md text-[9px] font-black text-white/35 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-30 tabular-nums"
+          title="Rewind 5s (←)">-5</button>
+        <button type="button" onClick={() => ff(5)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md text-[9px] font-black text-white/35 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-30 tabular-nums"
+          title="Forward 5s (→)">+5</button>
+
         {/* Scrubable progress bar */}
         <div
           ref={scrubRef}
-          className="relative flex-1 h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
+          className="relative flex-1 h-4 rounded-full cursor-pointer group select-none flex items-center"
           onPointerDown={handleScrubDown}
           onPointerMove={handleScrubMove}
           onPointerUp={handleScrubUp}
           onPointerLeave={handleScrubUp}
         >
-          <div className="absolute inset-y-0 left-0 bg-primary/70 rounded-full transition-none pointer-events-none"
+          <div className="absolute inset-x-0 h-1 rounded-full bg-white/[0.08] pointer-events-none" />
+          <div className="absolute inset-y-0 left-0 h-1 top-1/2 -translate-y-1/2 bg-gradient-to-r from-primary/70 to-primary rounded-full transition-none pointer-events-none"
             style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
-          <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-primary shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-            style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
+          <div className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-primary shadow-[0_0_8px_rgba(201,168,76,0.6)] pointer-events-none transition-transform group-hover:scale-110"
+            style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 6px)` : "0" }} />
         </div>
         {/* Timecode */}
-        <span className="text-[10px] font-mono text-white/40 tabular-nums shrink-0">
-          {fmtSecs(currentTime)} / {fmtSecs(duration || 0)}
+        <span className="text-[10px] font-mono tabular-nums shrink-0">
+          <span className="text-white/85">{fmtSecs(currentTime)}</span>
+          <span className="text-white/30"> / {fmtSecs(duration || 0)}</span>
         </span>
+
+        <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
+        {/* Frame step */}
+        <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0 disabled:opacity-30"
+          title="Step 1 Frame Back (,)">
+          <SkipBack className="h-3 w-3" />
+        </button>
+        <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0 disabled:opacity-30"
+          title="Step 1 Frame Forward (.)">
+          <SkipForward className="h-3 w-3" />
+        </button>
+
+        <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
+        {/* Volume — hover for slider */}
+        <div className="relative group/vol flex items-center shrink-0">
+          <button type="button" onClick={toggleMute}
+            className="flex items-center justify-center h-7 w-7 rounded-md text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
+            title={muted ? "Unmute (M)" : "Mute (M)"}>
+            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover/vol:block bg-[#141414] border border-white/10 rounded-lg px-2.5 py-2 shadow-xl z-50">
+            <input
+              type="range" min={0} max={1} step={0.01}
+              value={muted ? 0 : volume}
+              onChange={(e) => handleVolume(Number(e.target.value))}
+              className="w-24 accent-primary cursor-pointer block"
+              title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+            />
+          </div>
+        </div>
+        {/* Playback speed */}
+        <button type="button" onClick={cycleSpeed}
+          className="flex items-center justify-center h-7 min-w-[2.25rem] px-1.5 rounded-md text-[9px] font-black text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors tabular-nums"
+          title={`Speed: ${speed}× — click to cycle`}>
+          {speed}×
+        </button>
+        {/* PiP — hover for Auto PiP settings */}
+        <div className="relative group/pip flex items-center shrink-0">
+          <button type="button" onClick={() => void togglePiP()}
+            className={`flex items-center justify-center h-7 w-7 rounded-md transition-colors ${
+              pipActive
+                ? "text-primary bg-primary/10"
+                : "text-white/40 hover:text-white/80 hover:bg-white/[0.06]"
+            }`}
+            title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
+            <PictureInPicture2 className="h-3.5 w-3.5" />
+          </button>
+          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover/pip:block bg-[#141414] border border-white/10 rounded-lg px-3 py-2 shadow-xl z-50 whitespace-nowrap">
+            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-1.5">Auto PiP</p>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={autoPiP}
+                onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
+                className="accent-primary w-3 h-3"
+              />
+              <span className="text-[10px] text-white/60">Enable Auto PiP</span>
+            </label>
+            {autoPiP && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none mt-1.5">
+                <input
+                  type="checkbox"
+                  checked={keepOnTabSwitch}
+                  onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
+                  className="accent-primary w-3 h-3"
+                />
+                <span className="text-[10px] text-white/60">On tab switch</span>
+              </label>
+            )}
+          </div>
+        </div>
+
+        <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
         {/* Aspect Ratio cycle */}
         <button type="button" onClick={cycleFormat}
-          className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/60 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
+          className="flex items-center justify-center h-7 w-7 rounded-md text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
           title={`Aspect Ratio: ${settings.export.format ?? "9:16"} — click to cycle`}>
           {FORMAT_ICONS_MAP[(settings.export.format ?? "9:16") as VideoFormat]}
         </button>
         {/* Fit Mode cycle */}
         <button type="button" onClick={cycleFitMode}
-          className="flex items-center justify-center h-7 min-w-[2rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/55 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
+          className="flex items-center justify-center h-7 min-w-[2rem] px-1 rounded-md text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors shrink-0"
           title={`Fit: ${FIT_TOAST[(settings.export.fitMode ?? "fill") as FitMode]} — click to cycle`}>
           <span className="text-[7px] font-black tracking-widest uppercase leading-none">
             {FIT_BADGE[(settings.export.fitMode ?? "fill") as FitMode]}
           </span>
         </button>
-        {/* Fullscreen — launches from the pinned player */}
+        {/* Fullscreen */}
         <button type="button" onClick={toggleFullscreen}
-          className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
+          className={`flex items-center justify-center h-7 w-7 rounded-md transition-colors shrink-0 ${
             isFullscreen
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-white hover:bg-white/[0.07]"
+              ? "text-primary bg-primary/10"
+              : "text-white/40 hover:text-white hover:bg-white/[0.06]"
           }`}
           title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}>
           {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
         </button>
       </div>
-      )}
-
-      {/* ── Transport bar — EXTENDED ROW (hidden in fullscreen / while minimized) ── */}
-      {!isFullscreen && !isMinimized && (
-        <div className="flex items-center gap-1.5 px-2.5 pb-2 flex-wrap">
-          {/* Rewind 10s */}
-          <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
-            title="Rewind 10s">-10</button>
-          {/* Frame step back */}
-          <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
-            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
-            title="Step 1 Frame Back (,)">
-            <SkipBack className="h-3 w-3" />
-          </button>
-          {/* Frame step forward */}
-          <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
-            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0 disabled:opacity-30"
-            title="Step 1 Frame Forward (.)">
-            <SkipForward className="h-3 w-3" />
-          </button>
-          {/* FF 10s */}
-          <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className="flex items-center justify-center h-7 min-w-[1.75rem] px-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/45 hover:text-white hover:bg-white/[0.07] transition-colors disabled:opacity-30 tabular-nums"
-            title="Forward 10s">+10</button>
-          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
-          {/* Mute */}
-          <button type="button" onClick={toggleMute}
-            className="flex items-center justify-center h-7 w-7 rounded-md border border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors shrink-0"
-            title={muted ? "Unmute (M)" : "Mute (M)"}>
-            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          </button>
-          {/* Volume slider */}
-          <input
-            type="range" min={0} max={1} step={0.01}
-            value={muted ? 0 : volume}
-            onChange={(e) => handleVolume(Number(e.target.value))}
-            className="w-16 accent-primary cursor-pointer"
-            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
-          />
-          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
-          {/* Playback speed */}
-          <button type="button" onClick={cycleSpeed}
-            className="flex items-center justify-center h-7 min-w-[2.25rem] px-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] text-[9px] font-black text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors tabular-nums"
-            title={`Speed: ${speed}× — click to cycle`}>
-            {speed}×
-          </button>
-          <span className="w-px h-4 bg-white/[0.08] shrink-0 mx-0.5" />
-          {/* PiP — one button, manual only; Auto PiP toggled via settings row below */}
-          <button type="button" onClick={() => void togglePiP()}
-            className={`flex items-center justify-center h-7 w-7 rounded-md border transition-colors shrink-0 ${
-              pipActive
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:text-white/80"
-            }`}
-            title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
-            <PictureInPicture2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {/* Auto PiP sub-settings — hidden in fullscreen / while minimized */}
-      {!isFullscreen && !isMinimized && (
-        <div className="px-4 py-2 border-t border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-x-5 gap-y-1">
-          <span className="text-[10px] font-bold text-white/30 shrink-0">Auto PiP:</span>
-          <label className="flex items-center gap-1.5 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={autoPiP}
-              onChange={(e) => { if (e.target.checked) void enableAutoPiP(); else disableAutoPiP(); }}
-              className="accent-primary w-3 h-3"
-            />
-            <span className="text-[10px] text-white/50">Enable Auto PiP</span>
-          </label>
-          {autoPiP && (
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={keepOnTabSwitch}
-                onChange={(e) => setKeepOnTabSwitch(e.target.checked)}
-                className="accent-primary w-3 h-3"
-              />
-              <span className="text-[10px] text-white/50">On tab switch</span>
-            </label>
-          )}
-        </div>
       )}
 
       {/* Scene jump + PiP debug status — dev-only diagnostics, hidden in fullscreen / while minimized */}
