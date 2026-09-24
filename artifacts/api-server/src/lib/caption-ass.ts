@@ -282,7 +282,7 @@ export function buildAssContent(
     config.fontFamily,
   );
 
-  const events: Array<{ start: number; end: number; text: string; style?: string }> = [];
+  const events: Array<{ start: number; end: number; text: string; style?: string; layer?: number }> = [];
 
   // Artist / title cards at the very beginning (shifted by timeOffset when intro card precedes clips)
   let introCursor = 0.5 + timeOffset;
@@ -318,6 +318,7 @@ export function buildAssContent(
           end: we,
           text: config.stylePreset === "drill" ? w.word.toUpperCase() : w.word,
           style: "KaraokeWord",
+          layer: 1,
         });
       }
     }
@@ -357,12 +358,13 @@ export function buildAssContent(
   const dialogueLines = events
     .map((e) => {
       const escaped = e.text.replace(/\n/g, "\\N").replace(/,/g, "{\\,}");
-      return `Dialogue: 0,${secToAss(e.start)},${secToAss(e.end)},${e.style ?? "Default"},,0,0,0,,${escaped}`;
+      return `Dialogue: ${e.layer ?? 0},${secToAss(e.start)},${secToAss(e.end)},${e.style ?? "Default"},,0,0,0,,${escaped}`;
     })
     .join("\n");
 
   // Word-highlight style for the karaoke-word preset: same face, gold, popped slightly larger.
-  const karaokeWordStyleLine = isWordKaraoke
+  // Only emitted when at least one word event exists (keeps the file clean on fallback).
+  const karaokeWordStyleLine = isWordKaraoke && events.some((e) => e.style === "KaraokeWord")
     ? "\n" + [
         "Style: KaraokeWord",
         s.fontname,
