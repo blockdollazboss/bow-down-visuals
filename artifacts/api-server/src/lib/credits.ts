@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
+
 /**
  * Thrown by deductCredits() when the profile is missing or the balance is
  * below `cost`. Routes translate this into the existing 402
@@ -12,6 +13,7 @@ export class OutOfCreditsError extends Error {
     this.name = "OutOfCreditsError";
   }
 }
+
 /**
  * Deducts `cost` credits from a user's profile.
  *
