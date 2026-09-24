@@ -363,18 +363,28 @@ async function normalizeClip(
   }
 }
 
-/* ── Phase-1 pairwise stitch (low-memory) ────────────────────────────────
- * Stitches the normalized clips with their xfade transitions using sequential
- * 2-input FFmpeg passes instead of one N-input filter graph. A single pass
- * holding 7 simultaneous 1080x1920 decoders plus the xfade chain OOM-kills
- * small instances mid-render; pairwise keeps peak RAM to ~2 decoders.
+/* ── Phase-1 segmented stitch (low-memory) ─────────────────────────────────
+ * Stitches the normalized clips with their xfade transitions without ever
+ * holding more than 2 short inputs inside one FFmpeg process.
  *
- * Transition offsets/durations are derived per step from freshly probed
- * input durations (the normalized video-only files are the source of truth,
- * not the pre-normalize container durations), so the stitched timeline
- * matches the old single-pass chain exactly (modulo intermediate re-encode
- * generations, kept small via CRF 18). Only the latest intermediate and
- * not-yet-consumed normalized clips are kept on disk.
+ * History: the original single-pass stitch opened all N clips as simultaneous
+ * 1080x1920 inputs plus an xfade chain and OOM-killed 512MB instances
+ * mid-render. The pairwise chain that replaced it re-encodes the accumulated
+ * timeline at every step — O(n²) work, up to 6 lossy generations — and still
+ * OOM'd on the final (longest) step. This version builds each timeline piece
+ * exactly once, renders every transition as its own tiny 2-input xfade, and
+ * joins the pieces with the concat demuxer (stream copy: no re-encode).
+ * Peak RAM per FFmpeg invocation is ~2 short decodes; total encode work is
+ * linear in the timeline length; each pixel is encoded at most twice
+ * (piece + delivery pass).
+ *
+ * Timeline math — d_j = transition INTO clip j (0 = Cut/missing/degenerate),
+ * c_j = normalized clip duration, p_j = trailing freeze-frame pad:
+ *   E_j   = clip_j[d_j : c_j] ++ freeze(p_j)            (full piece file)
+ *   T_j   = xfade( tail_dj(E_{j-1}), head_dj(clip_j) )  (transition, dur d_j)
+ *   seg_j = E_j[0 : Ec_j − d_{j+1}]                      (overlap trimmed off)
+ *   out   = seg_0 ++ T_1 ++ seg_1 ++ … ++ T_{n−1} ++ seg_{n−1}
+ * Total = Σc_j − Σd_j + Σp_j — identical to the old chain.
  */
 const PHASE1_XFADE_MAP: Record<string, string> = {
   "Crossfade":     "fade",
@@ -411,6 +421,53 @@ async function stitchClipsPairwise(args: {
     const ti = tmpFiles.indexOf(p);
     if (ti >= 0) tmpFiles.splice(ti, 1);
   };
+  const track = (p: string): string => { tmpFiles.push(p); return p; };
+
+  // Identical encoding on every intermediate so the final concat demuxer can
+  // stream-copy the pieces together with no re-encode.
+  const pieceEncodeTail = (outPath: string): string[] => [
+    "-c:v", "libx264",
+    "-preset", "ultrafast",
+    "-crf", "18", // intermediate; the delivery pass re-encodes to the final CRF
+    "-pix_fmt", "yuv420p",
+    // CRITICAL: normalizeClip() writes 90000 tbn; keep every intermediate on
+    // the same timebase or xfade/concat die with "timebase do not match".
+    "-video_track_timescale", "90000",
+    "-an",
+    "-y", outPath,
+  ];
+
+  // Duration-scaled timeout: production encodes can run as slow as ~0.13x
+  // realtime on throttled instances, so allow 10x media duration with a
+  // 10-minute floor. A previous 4x/3min timeout SIGTERM-killed a healthy
+  // encode at 95% completion (clean stderr, exitCode null, no OOM).
+  const runFfmpeg = async (ffArgs: string[], mediaDur: number, what: string): Promise<void> => {
+    const outPath = ffArgs[ffArgs.length - 1]!;
+    const stepTimeout = Math.max(600_000, Math.ceil(mediaDur * 10) * 1000);
+    try {
+      await execFileAsync("ffmpeg", ffArgs, { timeout: stepTimeout });
+    } catch (e: unknown) {
+      const err = e as { stderr?: string; killed?: boolean; signal?: string | null; code?: number | null };
+      const stderr = err.stderr ?? "";
+      const msg = e instanceof Error ? e.message : String(e);
+      // execFileAsync sets killed=true when its own `timeout` fires — mark it
+      // explicitly so a timeout kill is never again mistaken for a crash/OOM.
+      const timedOut = err.killed === true;
+      if (timedOut) {
+        log.error({ what, stepTimeoutMs: stepTimeout, signal: err.signal ?? null },
+          "[export][phase1] ffmpeg step TIMEOUT killing ffmpeg");
+      }
+      log.error({ what, ffmpegArgs: ffArgs, stderr, killed: err.killed ?? null, signal: err.signal ?? null, code: err.code ?? null },
+        "[export][phase1] ffmpeg step failed");
+      throw new Error(
+        `${what} failed${timedOut ? " (ffmpeg timeout)" : ""}: ${msg.slice(0, 200)}\n` +
+        `Stderr: ${stderr.slice(-2000)}`,
+      );
+    }
+    if (!existsSync(outPath) || statSync(outPath).size < 1024) {
+      throw new Error(`${what} produced no output file`);
+    }
+  };
 
   // Pre-probe every normalized input up front. The normalized (video-only)
   // files are the source of truth for durations — the container durations
@@ -430,133 +487,143 @@ async function stitchClipsPairwise(args: {
   }
   log.info({ clips: n, durations: probedDurs.map((d) => Number(d.toFixed(2))) }, "[export][phase1] inputs probed");
 
-  let accPath = clipPaths[0]!;
-  let accDuration = probedDurs[0]!;
-  let prevIntermediate: string | null = null;
+  const f3 = (v: number): string => v.toFixed(3);
+  const transDur: number[] = new Array(n).fill(0);    // d_j: transition INTO clip j
+  const transXf: string[] = new Array(n).fill("fade"); // xfade name per j (j>=1, when d_j>0)
+  const piecePath: (string | null)[] = new Array(n).fill(null); // E_j files
+  const pieceDur: number[] = new Array(n).fill(0);               // Ec_j probed
+  const segPaths: string[] = [];                    // final concat bodies, in order
+  const transPaths: (string | null)[] = new Array(n).fill(null); // T_j files (j>=1)
 
-  for (let j = 1; j < n; j++) {
-    const bPath = clipPaths[j]!;
-    const bDur = probedDurs[j]!;
+  // Resolve d_j (transition INTO clip j) with the old chain's safety clamps:
+  // never take more than 80% of either side, and never more head than the
+  // clip has. Needs E_{j-1}'s probed duration, so called as pieces are built.
+  const resolveTransition = (j: number): void => {
     const trans = transitions[j] ?? null;
-    const padA = j === 1 ? (trailingPads[0] ?? 0) : 0; // clip 0's trailing pad (intermediates already carry theirs)
-    const padB = trailingPads[j] ?? 0;
-
-    onStage(`stitching scene ${j + 1}/${n}`);
-
-    // Re-probe the accumulated input every step: it is the ground truth for
-    // the xfade offset math (never a prediction carried across steps).
-    const aInfo = await probeVideo(accPath);
-    const aDur = aInfo.duration;
-    if (!(aDur > 0)) {
-      throw new Error(
-        `Scene stitch step ${j}/${n - 1} failed: accumulated input has no probed duration (${accPath}). ` +
-        `The previous stitch step may have produced a corrupt file.`,
-      );
-    }
-    const aTotal = aDur + padA;
-    const bTotal = bDur + padB;
-
-    let joinOp: string;
-    let newAcc: number;
+    let d = 0;
     if (trans && trans.type !== "Cut") {
-      const xft = PHASE1_XFADE_MAP[trans.type] ?? "fade";
       const wantDur = Number(trans.duration);
-      const transDur = [wantDur, aTotal * 0.8, bTotal * 0.8].every((v) => Number.isFinite(v) && v > 0)
-        ? Number(Math.min(wantDur, aTotal * 0.8, bTotal * 0.8).toFixed(3))
-        : 0;
-      if (!(transDur > 0)) {
-        // Degenerate transition parameters — join with a hard cut rather
-        // than failing the whole export on one transition.
-        log.warn({ step: j, type: trans.type, duration: trans.duration, aDur, bDur },
-          "[export][phase1] transition math degenerate — falling back to hard cut");
-        joinOp = `concat=n=2:v=1:a=0`;
-        newAcc = aTotal + bTotal;
+      const aAvail = pieceDur[j - 1]!;
+      const bAvail = probedDurs[j]!;
+      const clamp = Math.min(wantDur, aAvail * 0.8, bAvail * 0.8);
+      if (Number.isFinite(clamp) && clamp > 0) {
+        d = Number(clamp.toFixed(3));
+        transXf[j] = PHASE1_XFADE_MAP[trans.type] ?? "fade";
       } else {
-        const offset = Number(Math.max(0, aTotal - transDur).toFixed(3));
-        joinOp = `xfade=transition=${xft}:duration=${transDur.toFixed(3)}:offset=${offset.toFixed(3)}`;
-        newAcc = offset + bTotal;
+        log.warn({ step: j, type: trans.type, duration: trans.duration },
+          "[export][phase1] transition math degenerate — falling back to hard cut");
       }
-    } else {
-      joinOp = `concat=n=2:v=1:a=0`;
-      newAcc = aTotal + bTotal;
     }
+    transDur[j] = d;
+  };
 
-    const aPad = padA > 0 ? `,tpad=stop_mode=clone:stop_duration=${padA.toFixed(3)}` : "";
-    const bPad = padB > 0 ? `,tpad=stop_mode=clone:stop_duration=${padB.toFixed(3)}` : "";
-    const fc = `[0:v]setpts=PTS-STARTPTS${aPad}[a];[1:v]setpts=PTS-STARTPTS${bPad}[b];[a][b]${joinOp}[out]`;
-    const outPath = path.join(tmpDir, `bdv-stitch-${exportId}-${j}.mp4`);
-    tmpFiles.push(outPath);
-    log.info({ step: j, of: n - 1, op: joinOp.slice(0, 80), aDur: Number(aDur.toFixed(3)), bDur: Number(bDur.toFixed(3)) },
-      "[export][phase1] pairwise stitch step");
+  // L1 — full piece: clip content minus incoming-transition head, plus trailing pad.
+  const buildPiece = async (j: number): Promise<void> => {
+    const d = transDur[j]!;
+    const c = probedDurs[j]!;
+    const p = trailingPads[j] ?? 0;
+    onStage(`stitching scene ${j + 1}/${n}`);
+    const outPath = track(path.join(tmpDir, `bdv-piece-${exportId}-${j}.mp4`));
+    const padF = p > 0 ? `,tpad=stop_mode=clone:stop_duration=${f3(p)}` : "";
+    const fc = `[0:v]trim=start=${f3(d)}:end=${f3(c)},setpts=PTS-STARTPTS${padF}[out]`;
+    log.info({ piece: j, headTrim: d, srcDur: Number(c.toFixed(3)), pad: p }, "[export][phase1] building piece");
+    await runFfmpeg(["-threads", "2", "-i", clipPaths[j]!, "-filter_complex", fc, "-map", "[out]",
+      ...pieceEncodeTail(outPath)], c, `Scene ${j + 1} piece`);
+    const info = await probeVideo(outPath);
+    if (!(info.duration > 0)) throw new Error(`Scene ${j + 1} piece has no probed duration`);
+    piecePath[j] = outPath;
+    pieceDur[j] = info.duration;
+  };
 
-    const ffArgs = [
-      "-threads", "2",
-      "-i", accPath,
-      "-i", bPath,
-      "-filter_complex", fc,
-      "-map", "[out]",
-      "-c:v", "libx264",
-      "-preset", "ultrafast",
-      "-crf", "18", // intermediate; final pass re-encodes to the delivery CRF
-      "-pix_fmt", "yuv420p",
-      // CRITICAL: normalizeClip() writes 90000 tbn; without this flag the
-      // intermediate gets ffmpeg's default timebase (15360 @30fps) and the
-      // NEXT step's xfade dies with "timebase do not match" (step 2/6 failed
-      // deterministically in prod for exactly this reason).
-      "-video_track_timescale", "90000",
-      "-an",
-      "-movflags", "+faststart",
-      "-y", outPath,
-    ];
-    // Duration-scaled timeout: production encodes can run as slow as ~0.13x
-    // realtime on throttled instances, so allow 10x media duration with a
-    // 10-minute floor. A previous 4x/3min timeout SIGTERM-killed a healthy
-    // step-5 encode at 95% completion (clean stderr, exitCode null, no OOM).
-    const stepTimeout = Math.max(600_000, Math.ceil((aTotal + bTotal) * 10) * 1000);
-    try {
-      await execFileAsync("ffmpeg", ffArgs, { timeout: stepTimeout });
-    } catch (e: unknown) {
-      const err = e as { stderr?: string; killed?: boolean; signal?: string | null; code?: number | null };
-      const stderr = err.stderr ?? "";
-      const msg = e instanceof Error ? e.message : String(e);
-      // execFileAsync sets killed=true when its own `timeout` fires — mark it
-      // explicitly so a timeout kill is never again mistaken for a crash/OOM.
-      const timedOut = err.killed === true;
-      if (timedOut) {
-        log.error({ step: j, of: n - 1, stepTimeoutMs: stepTimeout, signal: err.signal ?? null },
-          "[export][phase1] stitch TIMEOUT killing ffmpeg");
-      }
-      log.error({ step: j, of: n - 1, ffmpegArgs: ffArgs, stderr, killed: err.killed ?? null, signal: err.signal ?? null, code: err.code ?? null },
-        "[export][phase1] pairwise stitch step failed");
-      throw new Error(
-        `Scene stitch step ${j}/${n - 1} failed${timedOut ? " (ffmpeg timeout)" : ""}: ${msg.slice(0, 200)}\n` +
-        `Filter: ${fc.slice(0, 300)}\n` +
-        `Stderr: ${stderr.slice(-2000)}`,
-      );
-    }
-    if (!existsSync(outPath) || statSync(outPath).size < 1024) {
-      throw new Error(`Scene stitch step ${j}/${n - 1} produced no output file`);
-    }
-    // Only the latest intermediate is ever kept on disk.
-    if (prevIntermediate) forgetFile(prevIntermediate);
-    prevIntermediate = outPath;
-    // The B input is fully consumed by this step — release it now so peak
-    // disk stays flat instead of holding all normalized clips at once.
-    // (clipPaths[0] is superseded once the first intermediate exists.)
-    forgetFile(bPath);
-    if (j === 1) forgetFile(clipPaths[0]!);
-    accPath = outPath;
-    accDuration = newAcc;
+  // L2 — transition clip: xfade of E_{j-1}'s tail with clip_j's head.
+  // The A-side trim starts a hair early (one extra frame): xfade only consumes
+  // the first `d` seconds at offset 0, so overshoot is harmless, but a probed
+  // duration that overshoots reality by even a frame would starve the filter.
+  const buildTransition = async (j: number): Promise<void> => {
+    const d = transDur[j]!;
+    if (!(d > 0)) return; // hard cut — no transition file
+    const aPath = piecePath[j - 1]!;
+    const aDur = pieceDur[j - 1]!;
+    const outPath = track(path.join(tmpDir, `bdv-trans-${exportId}-${j}.mp4`));
+    const fc =
+      `[0:v]trim=start=${f3(Math.max(0, aDur - d - 0.05))},setpts=PTS-STARTPTS[a];` +
+      `[1:v]trim=end=${f3(d)},setpts=PTS-STARTPTS[b];` +
+      `[a][b]xfade=transition=${transXf[j]}:duration=${f3(d)}:offset=0[out]`;
+    log.info({ trans: j, type: transXf[j], dur: d }, "[export][phase1] building transition");
+    await runFfmpeg(["-threads", "2", "-i", aPath, "-i", clipPaths[j]!, "-filter_complex", fc, "-map", "[out]",
+      ...pieceEncodeTail(outPath)], d * 2 + 1, `Scene ${j + 1} transition`);
+    transPaths[j] = outPath;
+  };
+
+  // L3 — concat body: piece minus the tail consumed by the NEXT transition.
+  // Frees the full piece file once the trimmed body exists.
+  const buildSeg = async (j: number): Promise<void> => {
+    const ePath = piecePath[j]!;
+    const eDur = pieceDur[j]!;
+    const nextD = j + 1 < n ? transDur[j + 1]! : 0;
+    if (!(nextD > 0)) { segPaths.push(ePath); piecePath[j] = null; return; }
+    const outPath = track(path.join(tmpDir, `bdv-seg-${exportId}-${j}.mp4`));
+    const fc = `[0:v]trim=end=${f3(eDur - nextD)},setpts=PTS-STARTPTS[out]`;
+    await runFfmpeg(["-threads", "2", "-i", ePath, "-filter_complex", fc, "-map", "[out]",
+      ...pieceEncodeTail(outPath)], eDur, `Scene ${j + 1} segment`);
+    forgetFile(ePath);
+    piecePath[j] = null;
+    segPaths.push(outPath);
+  };
+
+  // transDur[0] stays 0: nothing transitions INTO the first clip.
+  await buildPiece(0);
+  for (let j = 1; j < n; j++) {
+    resolveTransition(j);  // needs E_{j-1}'s probed duration
+    await buildPiece(j);   // needs d_j for the head trim
+    await buildTransition(j);
+    await buildSeg(j - 1); // needs d_j for the tail trim; E_{j-1} is spent after
   }
+  // Last piece doubles as its own segment (no outgoing transition).
+  segPaths.push(piecePath[n - 1]!);
+  piecePath[n - 1] = null;
 
-  const info = await probeVideo(accPath);
+  // L4 — join everything with the concat demuxer (stream copy, no re-encode).
+  // Every piece shares codec/pix_fmt/resolution/fps/timebase, so this is valid.
+  const listPath = track(path.join(tmpDir, `bdv-concat-${exportId}.txt`));
+  const listLines: string[] = [];
+  for (let j = 0; j < n; j++) {
+    listLines.push(`file '${segPaths[j]}'`);
+    if (j + 1 < n && transPaths[j + 1]) listLines.push(`file '${transPaths[j + 1]}'`);
+  }
+  writeFileSync(listPath, listLines.join("\n") + "\n");
+  const stitchedPath = track(path.join(tmpDir, `bdv-stitched-${exportId}.mp4`));
+  onStage(`joining ${n} scenes`);
+  try {
+    await execFileAsync("ffmpeg",
+      ["-f", "concat", "-safe", "0", "-i", listPath, "-c", "copy", "-movflags", "+faststart", "-y", stitchedPath],
+      { timeout: 600_000 });
+  } catch (e: unknown) {
+    const err = e as { stderr?: string };
+    log.error({ stderr: err.stderr ?? String(e) }, "[export][phase1] concat failed");
+    throw new Error(`Scene concat failed: ${(err.stderr ?? String(e)).slice(-2000)}`);
+  }
+  if (!existsSync(stitchedPath) || statSync(stitchedPath).size < 1024) {
+    throw new Error("Scene concat produced no output file");
+  }
+  // Release the per-piece files; the stitched file is all phase 2 needs.
+  for (const p of segPaths) forgetFile(p);
+  for (let j = 1; j < n; j++) if (transPaths[j]) forgetFile(transPaths[j]!);
+  forgetFile(listPath);
+
+  const predicted = probedDurs.reduce((a, b) => a + b, 0)
+    - transDur.reduce((a, b) => a + b, 0)
+    + trailingPads.reduce((a, b) => a + (b ?? 0), 0);
+  const info = await probeVideo(stitchedPath);
   log.info({
-    steps: n - 1,
-    predictedDuration: accDuration.toFixed(3),
+    pieces: n,
+    transitions: transDur.filter((d) => d > 0).length,
+    predictedDuration: predicted.toFixed(3),
     actualDuration: info.duration.toFixed(3),
   }, "[export][phase1] stitch complete");
-  return { path: accPath, duration: info.duration > 0 ? info.duration : accDuration };
+  return { path: stitchedPath, duration: info.duration > 0 ? info.duration : predicted };
 }
+
 
 async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
