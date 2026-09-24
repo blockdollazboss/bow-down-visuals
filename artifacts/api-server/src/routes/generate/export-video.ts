@@ -2104,8 +2104,11 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     if (!outInfo.hasVideo) throw new Error("Output file has no video stream — FFmpeg may have produced a corrupt file");
     if (outInfo.duration <= 0) throw new Error("Output file has zero duration — FFmpeg may have produced a corrupt file");
 
-    /* ── 8: Upload final MP4 to Supabase Storage (private video-exports bucket) ── */
-    await ensureVideoExportsBucket().catch(() => {});
+    /* ── 8: Upload final MP4 to Supabase Storage (private video-exports bucket) ──
+     * Fail fast here: ensureVideoExportsBucket verifies the bucket exists
+     * after creating it, so a throw names the true root cause instead of
+     * letting the upload below die with a confusing NoSuchBucket. */
+    await ensureVideoExportsBucket();
     
 
     const objectName = `exports/${exportId}.mp4`;
