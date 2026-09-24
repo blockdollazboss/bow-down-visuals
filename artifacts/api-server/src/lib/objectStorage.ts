@@ -494,56 +494,95 @@ export async function uploadFileStreamToSupabaseStorage(
 }
 
 /**
- * Extract the object path from a stored value when it refers to our
- * `generated-clips` bucket — either a `supabase://generated-clips/<path>`
- * storage ref or a previously-minted signed URL under this project's
- * bucket. Returns null for legacy GCS URLs and everything else.
+ * First-party Supabase Storage buckets. `parseSupabaseStorageRefBucketed`
+ * recognizes refs and old signed URLs for every bucket listed here, so
+ * adding a bucket here is enough to make re-signing work for it.
  */
-export function parseSupabaseStorageRef(value: string): string | null {
+const KNOWN_STORAGE_BUCKETS: readonly string[] = [
+  SUPABASE_CLIPS_BUCKET,
+  VIDEO_EXPORTS_BUCKET,
+];
+
+export interface ParsedStorageRef {
+  bucket: string;
+  objectPath: string;
+}
+
+/**
+ * Extract the bucket + object path from a stored value when it refers to one
+ * of our Supabase buckets — either a `supabase://<bucket>/<path>` storage
+ * ref or a previously-minted signed URL under this project's bucket.
+ * Returns null for legacy GCS URLs and everything else.
+ */
+export function parseSupabaseStorageRefBucketed(
+  value: string,
+): ParsedStorageRef | null {
   if (typeof value !== "string" || value.length === 0) return null;
-  if (value.startsWith(SUPABASE_STORAGE_REF_PREFIX)) {
-    const p = value.slice(SUPABASE_STORAGE_REF_PREFIX.length);
-    return p.length > 0 ? p : null;
+  for (const bucket of KNOWN_STORAGE_BUCKETS) {
+    const prefix = `supabase://${bucket}/`;
+    if (value.startsWith(prefix)) {
+      const objectPath = value.slice(prefix.length);
+      return objectPath.length > 0 ? { bucket, objectPath } : null;
+    }
   }
-  const supabaseUrl = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const supabaseUrl = (
+    process.env["SUPABASE_URL"] ??
+    process.env["VITE_SUPABASE_URL"] ??
+    ""
+  ).replace(/\/$/, "");
   if (supabaseUrl) {
-    const signPrefix = `${supabaseUrl}/storage/v1/object/sign/${SUPABASE_CLIPS_BUCKET}/`;
-    if (value.startsWith(signPrefix)) {
-      const rest = value.slice(signPrefix.length).split("?")[0] ?? "";
-      const p = decodeURIComponent(rest);
-      return p.length > 0 ? p : null;
+    for (const bucket of KNOWN_STORAGE_BUCKETS) {
+      const signPrefix = `${supabaseUrl}/storage/v1/object/sign/${bucket}/`;
+      if (value.startsWith(signPrefix)) {
+        const rest = value.slice(signPrefix.length).split("?")[0] ?? "";
+        const objectPath = decodeURIComponent(rest);
+        return objectPath.length > 0 ? { bucket, objectPath } : null;
+      }
     }
   }
   return null;
 }
 
 /**
+ * Extract the object path from a stored value when it refers to any of our
+ * Supabase buckets — either a `supabase://<bucket>/<path>` storage ref or a
+ * previously-minted signed URL under this project's bucket. Returns null
+ * for legacy GCS URLs and everything else.
+ */
+export function parseSupabaseStorageRef(value: string): string | null {
+  const parsed = parseSupabaseStorageRefBucketed(value);
+  return parsed ? parsed.objectPath : null;
+}
+
+/**
  * Normalize a media value to the stable storage-ref form when it points at
- * our `generated-clips` bucket. Use at WRITE time before persisting.
+ * one of our Supabase buckets. Use at WRITE time before persisting. The
+ * bucket is preserved (`supabase://video-exports/...` stays video-exports).
  * Legacy GCS URLs and unrelated URLs pass through unchanged.
  */
 export function normalizeToStorageRef(
   value: string | null | undefined,
 ): string | null {
   if (value == null) return null;
-  const objectPath = parseSupabaseStorageRef(value);
-  if (!objectPath) return value;
-  return `${SUPABASE_STORAGE_REF_PREFIX}${objectPath}`;
+  const parsed = parseSupabaseStorageRefBucketed(value);
+  if (!parsed) return value;
+  return `supabase://${parsed.bucket}/${parsed.objectPath}`;
 }
 
 /**
  * Mint a fresh 1-day signed URL for a stored value. Storage refs (and our
- * own older signed URLs) are re-signed; legacy GCS URLs and everything else
- * pass through unchanged so callers never see a hard failure.
+ * own older signed URLs) are re-signed from the bucket they point at;
+ * legacy GCS URLs and everything else pass through unchanged so callers
+ * never see a hard failure.
  */
 export async function refreshSupabaseStorageUrl(value: string): Promise<string> {
-  const objectPath = parseSupabaseStorageRef(value);
-  if (!objectPath) return value; // legacy GCS / public / unrelated → as-is
+  const parsed = parseSupabaseStorageRefBucketed(value);
+  if (!parsed) return value; // legacy GCS / public / unrelated → as-is
   try {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.storage
-      .from(SUPABASE_CLIPS_BUCKET)
-      .createSignedUrl(objectPath, SUPABASE_SIGNED_URL_TTL_SEC);
+      .from(parsed.bucket)
+      .createSignedUrl(parsed.objectPath, SUPABASE_SIGNED_URL_TTL_SEC);
     if (error || !data?.signedUrl) return value;
     return data.signedUrl;
   } catch {
