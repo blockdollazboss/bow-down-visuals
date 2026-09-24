@@ -36,8 +36,8 @@ const PROVIDER_NAME = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "sync" : null);
 const STEM_BUCKET = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
 const SIDECAR = "http://127.0.0.1:1106";
 
-/** Sync Labs plan limit in seconds */
-const PROVIDER_LIMIT_SEC = 20;
+/** Sync Labs plan limit in seconds — Hobbyist plan (upgraded 2026-09-24). */
+const PROVIDER_LIMIT_SEC = 60;
 
 /** Supabase storage bucket for temporary lip-sync audio segments */
 const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
