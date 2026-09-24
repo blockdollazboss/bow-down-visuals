@@ -149,17 +149,36 @@ export type CaptionStylePreset =
   | "karaoke"
   | "boxed"
   | "viral-shorts"
+  | "minimal"
+  | "neon-glow"
+  | "pill-pop"
+  | "brutalist"
+  | "karaoke-word";
+
+export type CaptionAnimation = "none" | "fade" | "pop" | "bounce" | "slide-up" | "typewriter" | "word-pop";
+  | "viral-shorts"
   | "minimal";
 
 export type CaptionAnimation = "none" | "fade" | "pop" | "bounce" | "slide-up";
 
 export const CAPTION_ANIMATIONS: { id: CaptionAnimation; label: string }[] = [
-  { id: "none",     label: "None"     },
-  { id: "fade",     label: "Fade"     },
-  { id: "pop",      label: "Pop"      },
-  { id: "bounce",   label: "Bounce"   },
-  { id: "slide-up", label: "Slide Up" },
+  { id: "none",       label: "None"       },
+  { id: "fade",       label: "Fade"       },
+  { id: "pop",        label: "Pop"        },
+  { id: "bounce",     label: "Bounce"     },
+  { id: "slide-up",   label: "Slide Up"   },
+  { id: "typewriter", label: "Typewriter" },
+  { id: "word-pop",   label: "Word Pop"   },
 ];
+
+/** Word-level timing for karaoke-style captions. Optional per line. */
+export interface CaptionWord {
+  word: string;
+  /** Seconds, relative to the start of the parent line. */
+  start: number;
+  /** Seconds, relative to the start of the parent line. */
+  end: number;
+}
 
 export type CaptionSplitStyle = "short" | "medium" | "long";
 
@@ -170,6 +189,10 @@ export interface CaptionLine {
   text: string;
   /** Set by AI Sync — confidence of the vocal match. */
   confidence?: "high" | "medium" | "low" | "needs-review";
+  /** Word-level timings for karaoke styles. Dropped automatically when the
+   *  line text is edited (timings no longer align). Times are relative to
+   *  the start of this line. */
+  words?: CaptionWord[];
 }
 
 export const CAPTION_MODE_DEFS: { id: CaptionMode; label: string; description: string }[] = [
