@@ -113,9 +113,11 @@ export function TransitionCompositor({ outgoingVideoRef, transitionState }: Tran
         break;
 
       case "Glitch":
-        baseVideoStyle.opacity = isAnimating ? 0 : 1;
-        baseVideoStyle.filter = isAnimating ? "hue-rotate(90deg) saturate(4) blur(2px)" : "none";
-        baseVideoStyle.transition = `opacity ${durCss} ease, filter ${durCss} ease`;
+        // Stepped keyframe glitch (slice jumps + chromatic aberration) that
+        // ends with the outgoing scene gone — mirrors the export's custom
+        // glitch transition. The animation only runs once "animating" starts.
+        baseVideoStyle.opacity = 1;
+        baseVideoStyle.animation = isAnimating ? `bdv-glitch-slice ${durCss} linear forwards` : "none";
         break;
 
       case "Spin":
