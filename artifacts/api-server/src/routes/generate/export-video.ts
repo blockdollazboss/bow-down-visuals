@@ -300,6 +300,7 @@ async function normalizeClip(
       "-filter_complex", fc,
       "-map", "[out]",
       "-c:v", "libx264",
+      "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
       "-crf", "20",
       "-pix_fmt", "yuv420p",
@@ -322,6 +323,7 @@ async function normalizeClip(
         `fps=fps=${targetFps}`,
       ].join(","),
       "-c:v", "libx264",
+      "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
       "-crf", "20",
       "-pix_fmt", "yuv420p",
@@ -343,6 +345,7 @@ async function normalizeClip(
         `fps=fps=${targetFps}`,
       ].join(","),
       "-c:v", "libx264",
+      "-threads", "2", // output position: bounds the ENCODER (input-position -threads only throttles the decoder)
       "-preset", "ultrafast",
       "-crf", "20",
       "-pix_fmt", "yuv420p",
@@ -425,8 +428,14 @@ async function stitchClipsPairwise(args: {
 
   // Identical encoding on every intermediate so the final concat demuxer can
   // stream-copy the pieces together with no re-encode.
+  // NOTE on -threads placement: an input-position "-threads" (before -i) only
+  // throttles the DECODER — the libx264 encoder ignores it and runs at auto
+  // threads (1.5x host cores), which OOM-killed the 512MB instance. The
+  // encoder must be constrained by an output-position -threads (after -i,
+  // before the output path), which is what this tail provides.
   const pieceEncodeTail = (outPath: string): string[] => [
     "-c:v", "libx264",
+    "-threads", "2", // output position: bounds the ENCODER (see note above)
     "-preset", "ultrafast",
     "-crf", "18", // intermediate; the delivery pass re-encodes to the final CRF
     "-pix_fmt", "yuv420p",
@@ -1968,9 +1977,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       passLabel: string,
       passArgs: string[],
       checkInputs: { label: string; path: string }[],
+      timeoutMs: number = FFMPEG_TIMEOUT_MS,
     ): Promise<void> => {
       try {
-        const result = await execFileAsync("ffmpeg", passArgs, { timeout: FFMPEG_TIMEOUT_MS });
+        const result = await execFileAsync("ffmpeg", passArgs, { timeout: timeoutMs });
         exportStatus.ffmpegExitCode = 0;
         if (IS_DEV && result.stderr) {
           ctx.log.info({ pass: passLabel, stderrTail: result.stderr.split("\n").slice(-10).join("\n") }, "[export] FFmpeg stderr tail");
@@ -2000,6 +2010,11 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       "-map", `[${voutLabel}]`,
       ...(isWaveformPath ? ["-map", `[${audioOutputFcLabel}]`] : []),
       "-c:v", "libx264",
+      // OUTPUT-position -threads: this is what actually bounds the ENCODER.
+      // (The "-threads 1" patched into passABase above sits before -i, so it
+      // only throttles the decoder — libx264 was still spawning 1.5x host
+      // cores and OOM-killing the 512MB instance within a minute of pass A.)
+      "-threads", "1",
       "-preset", "ultrafast",
       "-crf", "18",
       "-pix_fmt", "yuv420p",
@@ -2015,7 +2030,12 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       { crf: 18, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
       "[export] pass A (video) starting",
     );
-    await runPass("pass A (video)", passAArgs, preSpawnInputs);
+    // Pass A is single-threaded 1080x1920 x264: on a throttled instance it can
+    // run at ~0.05-0.1x realtime, so scale the timeout like the phase-1 steps
+    // (10x media duration, 10-min floor) instead of the fixed 8 minutes —
+    // otherwise our own timeout SIGTERM-kills a healthy encode near the end.
+    const passATimeoutMs = Math.max(10 * 60 * 1000, effectiveDuration * 10 * 1000);
+    await runPass("pass A (video)", passAArgs, preSpawnInputs, passATimeoutMs);
     if (!existsSync(passAPath)) throw new Error("FFmpeg pass A produced no output file");
     // Pass A consumed the phase-1 stitched intermediate — release it eagerly.
     for (const p of normalizedPaths) eagerUnlink(p, "pass A done");
