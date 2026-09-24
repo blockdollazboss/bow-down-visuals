@@ -113,7 +113,7 @@ export class ObjectStorageService {
     if (!privateObjectDir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var (comma-separated paths)."
+          "tool and set PRIVATE_OBJECT_DIR env var."
       );
     }
 
