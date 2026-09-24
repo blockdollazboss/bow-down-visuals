@@ -1813,9 +1813,10 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
      * tier). A bucket file_size_limit can only lower it, never raise it —
      * attempts to set it above the ceiling are rejected with 413, and a null
      * limit inherits the ceiling. A fixed CRF alone can blow past it (61 MB
-     * observed for a 41 s export at CRF 22 / ultrafast), so cap the video
-     * bitrate via VBV (-maxrate/-bufsize) to keep the final file comfortably
-     * under 45 MB. CRF 22 still governs quality below the cap. */
+     * observed for a 41 s export), so cap the video bitrate via VBV
+     * (-maxrate/-bufsize) on Pass A (the actual x264 encode — Pass B only
+     * stream-copies the video while muxing audio) to keep the final file
+     * comfortably under 45 MB. CRF 18 still governs quality below the cap. */
     const EXPORT_MAX_BYTES = 45 * 1024 * 1024;
     const EXPORT_AUDIO_BPS = 192000; // must match the -b:a value below
     const EXPORT_OVERHEAD_BYTES = 2 * 1024 * 1024; // moov/faststart + container
@@ -2011,6 +2012,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
 
     /* ── Pass A: video-only encode ── */
     const fcIdx = ffmpegArgs.indexOf("-filter_complex");
+    
     const passABase = ffmpegArgs.slice(0, fcIdx + 2);
     // Single-thread the big 1080x1920 Pass-A encode: x264's frame buffers scale
     // with thread count, and we are fighting for every MB on a 512MB instance.
@@ -2029,6 +2031,12 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       "-threads", "1",
       "-preset", "ultrafast",
       "-crf", "18",
+      // Bitrate budget (computed above): Pass A is the real x264 encode, so the
+      // VBV cap must live here — not on the legacy single-pass ffmpegArgs,
+      // which Pass A/B replaced. Pass B stream-copies this video, so the cap
+      // carries through to the final MP4.
+      "-maxrate", `${exportMaxVideoKbps}k`,
+      "-bufsize", `${exportMaxVideoKbps * 2}k`,
       "-pix_fmt", "yuv420p",
       "-video_track_timescale", "90000",
       ...(isWaveformPath
@@ -2039,7 +2047,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       "-y", passAPath,
     ];
     ctx.log.info(
-      { crf: 18, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
+      { crf: 18, maxrateKbps: exportMaxVideoKbps, waveform: isWaveformPath, rangeStart: rangeRelativeStart.toFixed(3), duration: effectiveDuration.toFixed(3) },
       "[export] pass A (video) starting",
     );
     // Pass A is single-threaded 1080x1920 x264: on a throttled instance it can
