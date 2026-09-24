@@ -450,7 +450,7 @@ export async function ensureVideoExportsBucket(): Promise<void> {
       id: VIDEO_EXPORTS_BUCKET,
       name: VIDEO_EXPORTS_BUCKET,
       public: false,
-      file_size_limit: 500 * 1024 * 1024, // 500 MB — final exports dwarf generated clips
+      // NOTE: no file_size_limit — Supabase rejected 500 MB with 413 EntityTooLarge
     }),
   });
   const createText = await createRes.text().catch(() => "");
