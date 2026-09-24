@@ -416,23 +416,59 @@ export async function uploadMediaToSupabaseStorage(
 export const VIDEO_EXPORTS_BUCKET = "video-exports";
 
 /** Idempotent bucket ensure — private bucket, 500 MB per-file limit so
- *  longer exports don't hit the clips bucket's 100 MB cap. */
+ *  longer exports don't hit the clips bucket's 100 MB cap.
+ *
+ *  Uses the Storage REST API directly (like uploadFileStreamToSupabaseStorage)
+ *  instead of supabase-js: under this service's Node/fetch combination the
+ *  supabase-js bucket helpers can report success without the bucket actually
+ *  being created (seen 2026-09-24 — getBucket said "not found", createBucket
+ *  returned no error, yet the follow-up upload still got NoSuchBucket).
+ *  After creating, we re-read the bucket and throw LOUDLY if it is still
+ *  missing, so an export can never silently march into a doomed upload. */
 export async function ensureVideoExportsBucket(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const { data: existing, error: getErr } = await supabase.storage.getBucket(VIDEO_EXPORTS_BUCKET);
-  if (existing) return;
-  if (getErr) {
-    console.error(
-      `[storage] getBucket("${VIDEO_EXPORTS_BUCKET}") failed before create: ${getErr.message}`,
+  const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured — cannot ensure video-exports bucket.",
     );
   }
-  const { error } = await supabase.storage.createBucket(VIDEO_EXPORTS_BUCKET, {
-    public: false,
-    fileSizeLimit: 500 * 1024 * 1024, // 500 MB — final exports dwarf generated clips
+  const headers: Record<string, string> = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const getBucket = () => fetch(`${url}/storage/v1/bucket/${VIDEO_EXPORTS_BUCKET}`, { headers });
+
+  if ((await getBucket()).ok) return; // already exists
+
+  const createRes = await fetch(`${url}/storage/v1/bucket`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      id: VIDEO_EXPORTS_BUCKET,
+      name: VIDEO_EXPORTS_BUCKET,
+      public: false,
+      file_size_limit: 500 * 1024 * 1024, // 500 MB — final exports dwarf generated clips
+    }),
   });
-  if (error) {
+  const createText = await createRes.text().catch(() => "");
+  const alreadyExists = createRes.status === 409 || /already exists/i.test(createText);
+  if (!createRes.ok && !alreadyExists) {
     throw new Error(
-      `Failed to create Supabase bucket "${VIDEO_EXPORTS_BUCKET}": ${error.message}`,
+      `Failed to create Supabase bucket "${VIDEO_EXPORTS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    );
+  }
+
+  // Verify it actually exists now — never silently continue into a doomed upload.
+  const verifyRes = await getBucket();
+  if (!verifyRes.ok) {
+    const verifyText = await verifyRes.text().catch(() => "");
+    throw new Error(
+      `Supabase bucket "${VIDEO_EXPORTS_BUCKET}" still missing after create attempt ` +
+        `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
+        `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
     );
   }
 }
