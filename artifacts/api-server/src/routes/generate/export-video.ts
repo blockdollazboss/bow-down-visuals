@@ -7,7 +7,7 @@ import { randomUUID, createHash } from "crypto";
 import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
-import { objectStorageClient } from "../../lib/objectStorage";
+import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, VIDEO_EXPORTS_BUCKET, SUPABASE_SIGNED_URL_TTL_SEC } from "../../lib/objectStorage";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
@@ -34,7 +34,7 @@ import {
 
 const execFileAsync = promisify(execFile);
 const router = Router();
-const SIDECAR = "http://127.0.0.1:1106";
+// (Replit sidecar removed — it doesn't exist on Render)
 
 const IS_DEV = process.env["NODE_ENV"] === "development";
 
@@ -2135,7 +2135,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
         const current = (fullProject.output_data as Record<string, unknown>) ?? {};
         const updatedOutputData = {
           ...current,
-          final_video_url: signedUrl,
+          final_video_url: storageRef,
           export_object_path: objectPath,
           export_status: "completed",
           export_created_at: new Date().toISOString(),
