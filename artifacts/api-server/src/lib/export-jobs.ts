@@ -4,6 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { logger } from "./logger";
 import { OutOfCreditsError } from "./credits";
+import { getSupabaseAdmin } from "./supabase-admin";
 
 /**
  * Durable async export job store.
@@ -168,11 +169,15 @@ export async function updateJobStage(id: string, stage: string): Promise<void> {
 /**
  * Exactly-once credit charge for a successful render.
  *
- * The credits_charged flag flip and the balance deduction happen in a
- * single Postgres transaction: either both commit or neither does. A
- * crash between "render done" and "charged" can therefore never
- * double-charge on recovery — the retry simply finds credits_charged
- * already true and skips the deduction.
+ * The credits_charged flag flip in the export_jobs row is the idempotency
+ * gate: only the worker that flips it false→true proceeds to deduct, so a
+ * boot-recovery re-run of the same job can never double-charge.
+ *
+ * The deduction itself targets Supabase `profiles` — the table the auth
+ * middleware reads, the UI displays, and every other charge path writes.
+ * (The Render Postgres behind DATABASE_URL has no profiles table; the old
+ * code deducted there and every export died with
+ * `relation "profiles" does not exist`.)
  *
  * Throws OutOfCreditsError when the balance is insufficient (the render
  * itself already succeeded; the caller decides how to report that).
@@ -185,42 +190,39 @@ export async function chargeCreditsForJob(
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`chargeCreditsForJob: invalid cost ${cost}`);
   }
-  const pool = getPool();
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const flag = await client.query(
-      `UPDATE export_jobs SET credits_charged = true, updated_at = now()
-       WHERE id = $1 AND credits_charged = false
-       RETURNING id`,
-      [jobId],
-    );
-    if ((flag.rowCount ?? 0) === 0) {
-      await client.query("ROLLBACK");
-      return { charged: false, creditsAfter: -1 };
-    }
-    const deduction = await client.query(
-      `UPDATE profiles SET credits = credits - $2
-       WHERE id = $1 AND credits >= $2
-       RETURNING credits`,
-      [userId, cost],
-    );
-    if ((deduction.rowCount ?? 0) === 0) {
-      await client.query("ROLLBACK");
-      throw new OutOfCreditsError();
-    }
-    await client.query("COMMIT");
-    return { charged: true, creditsAfter: (deduction.rows[0] as { credits: number }).credits };
-  } catch (err) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {
-      /* already rolled back / connection dead — the original error matters */
-    }
-    throw err;
-  } finally {
-    client.release();
+  const flag = await db().execute(sql`
+    UPDATE export_jobs SET credits_charged = true, updated_at = now()
+    WHERE id = ${jobId} AND credits_charged = false
+    RETURNING id
+  `);
+  if (flag.rows.length === 0) {
+    return { charged: false, creditsAfter: -1 };
   }
+  // Fresh balance read — never deduct from a stale value.
+  const admin = getSupabaseAdmin();
+  const { data: profile, error: readErr } = await admin
+    .from("profiles")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+  if (readErr) {
+    logger.warn({ jobId, userId, err: readErr.message }, "[export] credit deduction: failed to read profile");
+    throw new OutOfCreditsError();
+  }
+  const current = (profile as { credits?: number } | null)?.credits ?? 0;
+  if (current < cost) {
+    throw new OutOfCreditsError();
+  }
+  const creditsAfter = current - cost;
+  const { error: updateErr } = await admin
+    .from("profiles")
+    .update({ credits: creditsAfter })
+    .eq("id", userId);
+  if (updateErr) {
+    logger.error({ jobId, userId, err: updateErr.message }, "[export] credit deduction write failed");
+    throw updateErr;
+  }
+  return { charged: true, creditsAfter };
 }
 
 /** Mark a job done with its render result. */
