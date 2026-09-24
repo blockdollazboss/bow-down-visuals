@@ -632,19 +632,6 @@ async function stitchClipsPairwise(args: {
 }
 
 
-async function signGetUrl(bucketName: string, objectName: string): Promise<string> {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method: "GET", expires_at: expiresAt }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Failed to sign URL: ${res.status}`);
-  const { signed_url } = (await res.json()) as { signed_url: string };
-  return signed_url;
-}
-
 function cleanup(...files: string[]) {
   for (const f of files) {
     try { if (existsSync(f)) unlinkSync(f); } catch { /* best-effort */ }
