@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { Mail } from "lucide-react";
 import { JsonLd, ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from "@/components/seo/json-ld";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { InstagramIcon, TikTokIcon, YouTubeIcon, SOCIAL_HANDLE } from "@/components/social-icons";
 
 const NAVIGATE = [
   { label: "Home",        href: "/" },
@@ -17,6 +18,13 @@ const LEGAL = [
   { label: "Refund Policy",    href: "/refund-policy" },
 ];
 
+/* Social channels — accounts are being created; links go live with real URLs then. */
+const SOCIALS_COMING_SOON = [
+  { label: "Instagram", Icon: InstagramIcon },
+  { label: "TikTok",    Icon: TikTokIcon },
+  { label: "YouTube",   Icon: YouTubeIcon },
+];
+
 export function SiteFooter() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
@@ -30,7 +38,7 @@ export function SiteFooter() {
       <div className="max-w-6xl mx-auto">
 
         {/* Top row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
 
           {/* Brand */}
           <div>
@@ -84,6 +92,28 @@ export function SiteFooter() {
               </Link>
             ))}
           </nav>
+
+          {/* Follow - social accounts launching soon */}
+          <div className="flex flex-col gap-2.5" aria-label="Follow">
+            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Follow</p>
+            {SOCIALS_COMING_SOON.map(({ label, Icon }) => (
+              <span
+                key={label}
+                title={`${label} - coming soon`}
+                aria-disabled="true"
+                className="inline-flex items-center gap-2.5 w-fit text-sm text-white/35 cursor-not-allowed"
+              >
+                <span className="h-8 w-8 rounded-lg border border-white/10 bg-white/[0.03] inline-flex items-center justify-center">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span>{label}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 border border-primary/25 rounded-full px-1.5 py-0.5">
+                  Soon
+                </span>
+              </span>
+            ))}
+            <p className="text-white/30 text-xs mt-1">{SOCIAL_HANDLE}</p>
+          </div>
         </div>
 
         {/* Bottom bar */}
