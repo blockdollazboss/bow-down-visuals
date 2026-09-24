@@ -214,6 +214,7 @@ async function ensureSupabaseBucket(): Promise<void> {
 async function uploadAudioToSupabase(
   buffer: Buffer,
   objectName: string,
+  contentType = "audio/mpeg",
 ): Promise<string> {
   await ensureSupabaseBucket().catch(() => {
     /* ignore — bucket likely exists */
@@ -222,7 +223,7 @@ async function uploadAudioToSupabase(
 
   const { error: upErr } = await supabase.storage
     .from(LIP_SYNC_AUDIO_BUCKET)
-    .upload(objectName, buffer, { contentType: "audio/mpeg", upsert: true });
+    .upload(objectName, buffer, { contentType, upsert: true });
 
   if (upErr) {
     throw new Error(
@@ -363,6 +364,103 @@ async function trimAndUploadAudioSegment(
   }
 }
 
+/* ── Video segmentation (FFmpeg + Supabase storage) ────────────────────────
+   Trims the scene's clip to the same duration as the audio segment so the
+   provider receives a short video + short audio pair. Previously the FULL
+   untrimmed clip was submitted alongside a short audio window, which
+   degraded lip-sync quality (2026-09-24). Downloading server-side also
+   fixes signed-URL expiry: the provider fetches our fresh signed URL
+   instead of a possibly-stale client URL. Falls back to the original
+   clipUrl if trimming fails. */
+async function trimAndUploadVideoSegment(
+  clipUrl: string,
+  durationSec: number,
+): Promise<string> {
+  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-vid-"));
+  try {
+    const dlRes = await fetch(clipUrl, {
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!dlRes.ok) {
+      throw new Error(
+        `Video download failed: HTTP ${dlRes.status}` +
+          ` (url type: ${detectUrlType(clipUrl)})`,
+      );
+    }
+    const inputPath = join(tmpDir, "input.mp4");
+    const outputPath = join(tmpDir, "segment.mp4");
+    await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
+
+    /* Trim to the audio window duration from the clip start. -an strips the
+       clip's own audio track — the provider receives clean audio separately,
+       so a conflicting embedded track can't confuse the model. Timeout is
+       required: a hung ffmpeg must not wedge the job forever. */
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y",
+        "-i",
+        inputPath,
+        "-t",
+        durationSec.toFixed(3),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-an",
+        "-movflags",
+        "+faststart",
+        outputPath,
+      ],
+      { timeout: 120_000 },
+    ).catch((err: Error & { stderr?: string; killed?: boolean }) => {
+      const timedOut = err.killed || /ETIMEDOUT|signal/i.test(err.message);
+      throw new Error(
+        timedOut
+          ? "FFmpeg video trim timed out after 120s."
+          : `FFmpeg video trim failed: ${err.message}`,
+      );
+    });
+
+    /* Verify the trimmed segment is a valid, non-trivial video file */
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "stream=codec_type,width,height",
+        "-of",
+        "default=noprint_wrappers=1",
+        outputPath,
+      ],
+      { timeout: 15_000 },
+    );
+    if (!stdout.toLowerCase().includes("video")) {
+      throw new Error("Trimmed video has no video stream.");
+    }
+    const segBytes = statSync(outputPath).size;
+    if (segBytes < 10 * 1024) {
+      throw new Error(`Trimmed video too small (${segBytes} bytes).`);
+    }
+
+    const buffer = await readFile(outputPath);
+    return await uploadAudioToSupabase(
+      buffer,
+      `segments/${randomUUID()}.mp4`,
+      "video/mp4",
+    );
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 /* ── In-process async job store ──────────────────────────────────────────
    Each POST /lip-sync/preview enqueues a job here and returns its ID
    immediately so the HTTP response completes before the proxy times out.
@@ -445,8 +543,23 @@ async function processLipSyncJob(
     }
 
     if (PROVIDER_NAME === "sync") {
+      /* Trim the video to the audio window so the provider gets a short
+         video + short audio pair. Falls back to the full clip if the trim
+         fails — never break a job over an optimization. */
+      let providerClipUrl = params.clipUrl;
+      try {
+        providerClipUrl = await trimAndUploadVideoSegment(
+          params.clipUrl,
+          durationSec,
+        );
+      } catch (vidErr) {
+        console.warn(
+          "[lip-sync] video trim failed, falling back to full clip:",
+          vidErr instanceof Error ? vidErr.message : String(vidErr),
+        );
+      }
       const syncId = await syncLabsSubmit(
-        params.clipUrl,
+        providerClipUrl,
         segmentUrl,
         LIP_SYNC_API_KEY!,
       );
@@ -517,6 +630,7 @@ router.get("/lip-sync/status", (_req, res) => {
     mode: SERVER_KEY_FOUND ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec: PROVIDER_LIMIT_SEC,
+    model: SYNC_LABS_MODEL,
   });
 });
 
