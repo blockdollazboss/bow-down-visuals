@@ -1143,7 +1143,7 @@ async function probeAudioDurationSec(url: string): Promise<number | null> {
   }
 }
 
-const RUN_ALL_SCENE_TIMEOUT_MS = 12 * 60 * 1000; // per scene (provider caps its own poll at ~6 min)
+const RUN_ALL_SCENE_TIMEOUT_MS = 12 * 60 * 1000; // per scene (matches the server provider poll window)
 const RUN_ALL_EXPORT_TIMEOUT_MS = 35 * 60 * 1000;
 
 /** Poll an in-process lip-sync sub-job until it resolves. Rejects on failure/timeout. */
@@ -1156,11 +1156,42 @@ async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
     if (job.status === "done" && job.url) return job.url;
     if (job.status === "failed")
       throw new Error(job.error ?? "Lip-sync provider failed.");
-    if (Date.now() >= deadline)
-      throw new Error(
-        "Lip-sync timed out for this scene — keeping the original clip.",
-      );
+    if (Date.now() >= deadline) break;
   }
+  /* Provider-direct recovery: our poller may have given up while Sync.so is
+     still working. Check the provider job directly before failing the scene. */
+  const syncId = lipSyncJobs.get(subJobId)?.syncLabsJobId;
+  if (syncId && LIP_SYNC_API_KEY) {
+    const recoverUntil = Date.now() + 10 * 60 * 1000;
+    while (Date.now() < recoverUntil) {
+      await new Promise((r) => setTimeout(r, 15000));
+      try {
+        const res = await fetch(`${SYNC_LABS_BASE}/generate/${syncId}`, {
+          headers: { "x-api-key": LIP_SYNC_API_KEY },
+          signal: AbortSignal.timeout(30_000),
+        });
+        if (res.ok) {
+          const pj = (await res.json()) as SyncLabsJob;
+          if (pj.status === "completed" && pj.outputUrl) {
+            const job = lipSyncJobs.get(subJobId);
+            if (job) {
+              job.status = "done";
+              job.url = pj.outputUrl;
+              job.updatedAt = new Date().toISOString();
+            }
+            return pj.outputUrl;
+          }
+          if (pj.status === "failed")
+            throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Sync Labs job failed"))
+          throw e;
+        /* transient — keep polling */
+      }
+    }
+  }
+  throw new Error("Lip-sync timed out for this scene — keeping the original clip.");
 }
 
 /** Poll the durable export job until it resolves. Returns the video URL. */
