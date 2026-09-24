@@ -1,10 +1,22 @@
 /* ── Caption / ASS subtitle helpers ──────────────────── */
 
+import { resolveCaptionFontFamily } from "./fonts";
+
+export interface CaptionWordTiming {
+  word: string;
+  /** Seconds, relative to the start of the parent line. */
+  start: number;
+  /** Seconds, relative to the start of the parent line. */
+  end: number;
+}
+
 export interface CaptionBurnConfig {
   mode: string;
   stylePreset: string;
   position: string;
   fontSize: string;
+  /** Caption font family id's canonical family name (see lib/fonts). Empty/unknown → preset default. */
+  fontFamily?: string;
   textColor: string;
   outline: boolean;
   background: boolean;
@@ -12,9 +24,18 @@ export interface CaptionBurnConfig {
   showSongTitle: boolean;
   artistNameText: string;
   songTitleText: string;
-  lines: Array<{ startSec: number; endSec: number; text: string }>;
+  lines: Array<{ startSec: number; endSec: number; text: string; words?: CaptionWordTiming[] }>;
   /** Max caption width as % of canvas, e.g. "80%". Default 80%. */
   maxWidth?: string;
+}
+
+/** Word timings are only usable when they still match the line text. */
+function validWords(text: string, words?: CaptionWordTiming[]): CaptionWordTiming[] | null {
+  if (!words || words.length === 0) return null;
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  if (norm(words.map((w) => w.word).join(" ")) !== norm(text)) return null;
+  if (words.some((w) => !(w.end > w.start))) return null;
+  return words;
 }
 
 /** Convert #RRGGBB → ASS &H00BBGGRR */
@@ -62,6 +83,8 @@ function resolveAssStyle(
   backgroundOn: boolean,
   targetW: number,
   targetH: number,
+  /** Canonical family name of the user's font pick (see lib/fonts). */
+  fontFamily?: string,
 ): AssStyle {
   const ALIGN: Record<string, number> = { Top: 8, Center: 5, Bottom: 2, "Lower Third": 2 };
   const alignment = ALIGN[position] ?? 2;
@@ -171,6 +194,43 @@ function resolveAssStyle(
       outline: 0,
       shadow: 1,
     },
+    /* ── New generation ── */
+    "neon-glow": {
+      fontname: "Arial",
+      primaryColor: "&H00A5F3FC", // #A5F3FC → ASS BGR 00A5F3FC
+      outlineColor: "&HFF0A1A2E",
+      backColor: "&H90000000",
+      bold: -1,
+      outline: 2,
+      shadow: 3,
+    },
+    "pill-pop": {
+      fontname: "Arial",
+      primaryColor: "&H00000000", // black text on a gold pill
+      outlineColor: "&H00000000",
+      backColor: "&H0000D7FF",    // gold #FFD700 → ASS BGR 00D7FF, opaque box
+      bold: -1,
+      outline: 1,
+      shadow: 0,
+    },
+    brutalist: {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H00000000",
+      backColor: "&HFF000000",    // opaque black box, no blur
+      bold: -1,
+      outline: 0,
+      shadow: 0,
+    },
+    "karaoke-word": {
+      fontname: "Arial",
+      primaryColor: "&H00FFFFFF",
+      outlineColor: "&H00000000",
+      backColor: "&H80000000",
+      bold: -1,
+      outline: 4,
+      shadow: 1,
+    },
   };
 
   const base = PRESETS[preset] ?? PRESETS["clean-white"]!;
@@ -180,11 +240,16 @@ function resolveAssStyle(
       ? hexToAssColor(textColor)
       : (base.primaryColor ?? "&H00FFFFFF");
 
-  // "boxed" and "karaoke" always use box border style; respect backgroundOn for others
-  const forceBorderStyle3 = preset === "boxed" || preset === "karaoke";
+  // "boxed", "karaoke", "pill-pop" and "brutalist" always use box border style; respect backgroundOn for others
+  const forceBorderStyle3 =
+    preset === "boxed" || preset === "karaoke" || preset === "pill-pop" || preset === "brutalist";
+
+  // The user's font pick wins when it resolves to a font bundled in the Docker image.
+  const resolvedFont = resolveCaptionFontFamily(fontFamily);
+  const fontname = resolvedFont ?? base.fontname ?? "Arial";
 
   return {
-    fontname: base.fontname ?? "Arial",
+    fontname,
     fontsize,
     primaryColor,
     outlineColor: base.outlineColor ?? "&H00000000",
@@ -214,9 +279,10 @@ export function buildAssContent(
     config.background,
     targetW,
     targetH,
+    config.fontFamily,
   );
 
-  const events: Array<{ start: number; end: number; text: string }> = [];
+  const events: Array<{ start: number; end: number; text: string; style?: string }> = [];
 
   // Artist / title cards at the very beginning (shifted by timeOffset when intro card precedes clips)
   let introCursor = 0.5 + timeOffset;
@@ -230,6 +296,7 @@ export function buildAssContent(
 
   // Caption lines (shifted by timeOffset so they align with clips after the intro card)
   const clipEnd = timeOffset + totalDuration;
+  const isWordKaraoke = config.stylePreset === "karaoke-word";
   for (const line of config.lines) {
     if (!line.text.trim()) continue;
     const start = Math.max(0, line.startSec + timeOffset);
@@ -237,6 +304,23 @@ export function buildAssContent(
     if (end <= start) continue;
     const text = config.stylePreset === "drill" ? line.text.toUpperCase() : line.text;
     events.push({ start, end, text });
+
+    // TikTok-style word karaoke: the full line renders white underneath while
+    // each word flashes gold (slightly larger) on a higher layer exactly as sung.
+    const words = isWordKaraoke ? validWords(line.text, line.words) : null;
+    if (words) {
+      for (const w of words) {
+        const ws = start + w.start;
+        const we = Math.min(start + w.end, end);
+        if (we <= ws) continue;
+        events.push({
+          start: ws,
+          end: we,
+          text: config.stylePreset === "drill" ? w.word.toUpperCase() : w.word,
+          style: "KaraokeWord",
+        });
+      }
+    }
   }
 
   if (events.length === 0) return "";
@@ -273,9 +357,33 @@ export function buildAssContent(
   const dialogueLines = events
     .map((e) => {
       const escaped = e.text.replace(/\n/g, "\\N").replace(/,/g, "{\\,}");
-      return `Dialogue: 0,${secToAss(e.start)},${secToAss(e.end)},Default,,0,0,0,,${escaped}`;
+      return `Dialogue: 0,${secToAss(e.start)},${secToAss(e.end)},${e.style ?? "Default"},,0,0,0,,${escaped}`;
     })
     .join("\n");
+
+  // Word-highlight style for the karaoke-word preset: same face, gold, popped slightly larger.
+  const karaokeWordStyleLine = isWordKaraoke
+    ? "\n" + [
+        "Style: KaraokeWord",
+        s.fontname,
+        s.fontsize,
+        "&H0000D7FF", // gold #FFD700 → ASS BGR
+        "&H0000D7FF",
+        s.outlineColor,
+        s.backColor,
+        s.bold,
+        0, 0, 0,
+        108, 108,     // scaleX, scaleY — the "pop"
+        0, 0,         // spacing, angle
+        1,            // BorderStyle: normal (no box; the base line sits underneath)
+        s.outline,
+        s.shadow,
+        s.alignment,
+        marginH, marginH,
+        s.marginV,
+        1,
+      ].join(",")
+    : "";
 
   return `[Script Info]
 ScriptType: v4.00+
@@ -286,7 +394,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-${styleLine}
+${styleLine}${karaokeWordStyleLine}
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

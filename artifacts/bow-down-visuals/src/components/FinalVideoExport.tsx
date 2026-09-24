@@ -801,7 +801,8 @@ export function FinalVideoExport({
 
             {/* Caption export debug */}
             {(() => {
-              const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal"];
+              const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal",
+                "drill", "luxury", "rnb", "kids", "neon-glow", "pill-pop", "brutalist", "karaoke-word"];
               const captionsFound = !!(captions && captions.lines && captions.lines.length > 0);
               const captionCount = captions?.lines?.length ?? 0;
               const styleFound = KNOWN_PRESETS.includes(captions?.stylePreset ?? "");

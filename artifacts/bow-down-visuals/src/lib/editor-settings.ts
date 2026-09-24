@@ -1,4 +1,5 @@
 import type { SceneData } from "@/lib/scene-parser";
+import { DEFAULT_CAPTION_FONT_ID } from "@/lib/fonts";
 
 /* ─────────────────────────────────────────────────────────────
    Video Editor settings model.
@@ -150,16 +151,19 @@ export type CaptionStylePreset =
   | "boxed"
   | "viral-shorts"
   | "minimal"
+  /* Legacy presets (still produced by the export renderer — kept selectable
+     so older projects keep rendering their saved style). */
+  | "drill"
+  | "luxury"
+  | "rnb"
+  | "kids"
+  /* New generation. */
   | "neon-glow"
   | "pill-pop"
   | "brutalist"
   | "karaoke-word";
 
 export type CaptionAnimation = "none" | "fade" | "pop" | "bounce" | "slide-up" | "typewriter" | "word-pop";
-  | "viral-shorts"
-  | "minimal";
-
-export type CaptionAnimation = "none" | "fade" | "pop" | "bounce" | "slide-up";
 
 export const CAPTION_ANIMATIONS: { id: CaptionAnimation; label: string }[] = [
   { id: "none",       label: "None"       },
@@ -178,6 +182,20 @@ export interface CaptionWord {
   start: number;
   /** Seconds, relative to the start of the parent line. */
   end: number;
+}
+
+/**
+ * Returns the line's word timings when they still match the line text.
+ * Editing the text invalidates the timings — in that case (or when the line
+ * never had any) returns null so callers fall back to plain rendering.
+ */
+export function getValidCaptionWords(line: { text: string; words?: CaptionWord[] }): CaptionWord[] | null {
+  const words = line.words;
+  if (!words || words.length === 0) return null;
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  if (norm(words.map((w) => w.word).join(" ")) !== norm(line.text)) return null;
+  if (words.some((w) => !(w.end > w.start))) return null;
+  return words;
 }
 
 export type CaptionSplitStyle = "short" | "medium" | "long";
@@ -212,6 +230,16 @@ export const CAPTION_STYLE_PRESET_DEFS: {
   { id: "boxed",         name: "Boxed",          description: "White text · semi-transparent black box",            accent: "from-white/10 to-black/20 border-white/15" },
   { id: "viral-shorts",  name: "Viral Shorts",   description: "Large bold uppercase · thick outline · center-bottom", accent: "from-red-500/20 to-pink-500/10 border-red-500/30" },
   { id: "minimal",       name: "Minimal",        description: "Small clean white · soft shadow · bottom",           accent: "from-white/5 to-white/0 border-white/10" },
+  /* Legacy presets — match the export renderer's built-in styles. */
+  { id: "drill",         name: "Drill",          description: "White · red outline · hard edge · uppercase",        accent: "from-red-600/20 to-black/20 border-red-600/30" },
+  { id: "luxury",        name: "Luxury",         description: "Gold serif · soft shadow · refined",                 accent: "from-yellow-400/15 to-amber-600/5 border-yellow-400/25" },
+  { id: "rnb",           name: "R&B",            description: "Warm soft white · gentle glow",                      accent: "from-orange-200/10 to-white/5 border-orange-200/20" },
+  { id: "kids",          name: "Kids",           description: "Playful yellow · thick outline",                    accent: "from-yellow-300/15 to-orange-400/10 border-yellow-300/30" },
+  /* New generation. */
+  { id: "neon-glow",     name: "Neon Glow",      description: "Cyan glow on dark · night-street energy",            accent: "from-cyan-400/20 to-fuchsia-500/10 border-cyan-400/30" },
+  { id: "pill-pop",      name: "Pill Pop",       description: "Bold text on a gold pill · max readability",        accent: "from-yellow-500/25 to-amber-600/10 border-yellow-500/40" },
+  { id: "brutalist",     name: "Brutalist",      description: "Black box · stark white · no blur",                 accent: "from-white/15 to-black/30 border-white/25" },
+  { id: "karaoke-word",  name: "Word Karaoke",   description: "Word-by-word highlight · TikTok viral style",        accent: "from-fuchsia-500/20 to-yellow-400/10 border-fuchsia-400/30" },
 ];
 
 /* ── AI Edit types ───────────────────────────────────── */
@@ -567,6 +595,8 @@ export interface CaptionSettings {
   position: string;
   /** Font size preset, see CAPTION_FONT_SIZES. */
   fontSize: string;
+  /** Caption font id, see CAPTION_FONTS in @/lib/fonts. Empty = legacy preset default. */
+  fontFamily: string;
   /** Hex colour string, e.g. "#ffffff". */
   textColor: string;
   outline: boolean;
@@ -911,9 +941,9 @@ export type MasterPlayerSnapPosition =
   | "left-center";
 
 /** The master player is locked in — docked inline in the editor's center column, never a floating overlay. These snap positions are kept for settings compatibility only. */
-export const MASTER_PLAYER_DEFAULT_WIDTH = 260;
+export const MASTER_PLAYER_DEFAULT_WIDTH = 360;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
-export const MASTER_PLAYER_MAX_WIDTH = 480;
+export const MASTER_PLAYER_MAX_WIDTH = 560;
 /** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
  *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
  *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
@@ -1245,8 +1275,9 @@ export function defaultEditorSettings(): EditorSettings {
       mode: "none",
       stylePreset: "clean-white",
       animation: "none",
-      position: "Bottom",
+      position: "Lower Third",
       fontSize: "Medium",
+      fontFamily: DEFAULT_CAPTION_FONT_ID,
       textColor: "#ffffff",
       outline: true,
       background: false,

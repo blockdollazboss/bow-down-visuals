@@ -32,11 +32,13 @@ import {
   MASTER_PLAYER_MAX_WIDTH,
   MASTER_PLAYER_DEFAULT_WIDTH,
   MASTER_PLAYER_MIN_HEIGHT,
+  getValidCaptionWords,
   type EditorSettings,
   type VideoFormat,
   type FitMode,
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
+import { captionFontFamily } from "@/lib/fonts";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
@@ -1237,23 +1239,17 @@ export default function VideoEditor() {
                   })()}
                   {selectedMixMissing && (
                     <div
-                      className="flex items-start gap-3 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.07]"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-amber-500/20 bg-amber-500/[0.06]"
                       data-testid="video-audio-fallback-warning"
                     >
-                      <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-amber-300">Video audio fallback active</p>
-                        <p className="text-[11px] text-amber-200/65 mt-0.5 leading-relaxed">
-                          {VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source]} is selected, but it has not been rendered yet.
-                          Preview and export are using{" "}
-                          {previewAudioResolution.fallbackSource === "project-audio"
-                            ? "the uploaded song"
-                            : previewAudioResolution.fallbackSource === "first-stem"
-                            ? "the first uploaded stem"
-                            : "no audio"}{" "}
-                          instead.
-                        </p>
-                      </div>
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-400/80 shrink-0" />
+                      <p className="text-[11px] text-amber-200/70 leading-snug min-w-0 flex-1 truncate">
+                        Previewing with {previewAudioResolution.fallbackSource === "project-audio"
+                          ? "the uploaded song"
+                          : previewAudioResolution.fallbackSource === "first-stem"
+                          ? "the first stem"
+                          : "no audio"} — {VIDEO_AUDIO_SOURCE_LABELS[settings.musicStudio.videoAudio.source]} isn't rendered yet.
+                      </p>
                       <button
                         type="button"
                         onClick={requestMissingMixRender}
@@ -1269,15 +1265,11 @@ export default function VideoEditor() {
                           "Open Music Studio"
                         )}
                       </button>
-                      {directAudioExportStatus.status === "error" &&
-                        directAudioExportStatus.exportType === missingMixExportType && (
-                          <p className="basis-full text-[10px] text-red-300/85 mt-1">
-                            {directAudioExportStatus.message}
-                          </p>
-                        )}
                     </div>
                   )}
-                  {/* ── Collapsible Debug Panel — below master player, collapsed by default ── */}
+                  {/* ── Collapsible Debug Panel — only with ?debug=1; the editor
+                      should feel like a finished product, not a sandbox. ── */}
+                  {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
                   <div className="rounded-xl border border-white/[0.06] overflow-hidden">
                     <button
                       type="button"
@@ -1329,6 +1321,7 @@ export default function VideoEditor() {
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </main>
 
@@ -1480,10 +1473,12 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
     : /* Bottom */ { ...sidePad, bottom: "7%", top: "auto" };
 
   const animClass =
-    cs.animation === "fade"      ? "bdv-caption-fade"
-    : cs.animation === "pop"     ? "bdv-caption-pop"
-    : cs.animation === "bounce"  ? "bdv-caption-bounce"
+    cs.animation === "fade"       ? "bdv-caption-fade"
+    : cs.animation === "pop"      ? "bdv-caption-pop"
+    : cs.animation === "bounce"   ? "bdv-caption-bounce"
     : cs.animation === "slide-up" ? "bdv-caption-slide-up"
+    : cs.animation === "typewriter" ? "bdv-caption-typewriter"
+    : cs.animation === "word-pop" ? "bdv-caption-word-pop"
     : "";
 
   const presets: Record<string, { wrapperStyle: React.CSSProperties; textStyle: React.CSSProperties }> = {
@@ -1515,10 +1510,55 @@ function buildCaptionOverlayStyle(cs: CaptionSettings): {
       wrapperStyle: {},
       textStyle: { color: "#fff", fontWeight: 500, textShadow: "0 2px 8px rgba(0,0,0,.6)" },
     },
+    /* Legacy presets (export renderer parity). */
+    "drill": {
+      wrapperStyle: {},
+      textStyle: { color: "#fff", fontWeight: 900, textTransform: "uppercase",
+        textShadow: "2px 2px 0 #c00,-2px -2px 0 #c00,2px -2px 0 #c00,-2px 2px 0 #c00" },
+    },
+    "luxury": {
+      wrapperStyle: {},
+      textStyle: { color: "#FFD700", fontWeight: 600, fontFamily: "\"Cinzel\", Georgia, serif",
+        textShadow: "0 2px 10px rgba(0,0,0,.85)" },
+    },
+    "rnb": {
+      wrapperStyle: {},
+      textStyle: { color: "#FFF6EA", fontWeight: 600, textShadow: "0 0 12px rgba(255,200,150,.45), 0 2px 6px rgba(0,0,0,.7)" },
+    },
+    "kids": {
+      wrapperStyle: {},
+      textStyle: { color: "#FFE14D", fontWeight: 900,
+        textShadow: "2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000" },
+    },
+    /* New generation. */
+    "neon-glow": {
+      wrapperStyle: {},
+      textStyle: { color: "#A5F3FC", fontWeight: 800,
+        textShadow: "0 0 8px rgba(34,211,238,.9), 0 0 24px rgba(34,211,238,.5), 1px 1px 0 #000" },
+    },
+    "pill-pop": {
+      wrapperStyle: { background: "linear-gradient(180deg,#FFD700,#E0A800)", borderRadius: "999px",
+        padding: "0.15rem 1.1rem", boxShadow: "0 4px 18px rgba(0,0,0,.55)" },
+      textStyle: { color: "#111", fontWeight: 900 },
+    },
+    "brutalist": {
+      wrapperStyle: { background: "#000", padding: "0.2rem 0.9rem" },
+      textStyle: { color: "#fff", fontWeight: 800, letterSpacing: "0.04em" },
+    },
+    "karaoke-word": {
+      wrapperStyle: {},
+      textStyle: { color: "#fff", fontWeight: 900,
+        textShadow: "2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000" },
+    },
   };
 
   const ps = presets[cs.stylePreset] ?? presets["clean-white"]!;
-  return { containerStyle, wrapperStyle: ps.wrapperStyle, textStyle: { fontSize, ...ps.textStyle }, animClass, maxWidth };
+  const textStyle: React.CSSProperties = { fontSize, ...ps.textStyle };
+  // An explicit font pick always wins; otherwise the preset keeps its own face
+  // (e.g. luxury's Cinzel serif).
+  const picked = captionFontFamily(cs.fontFamily);
+  if (picked) textStyle.fontFamily = picked;
+  return { containerStyle, wrapperStyle: ps.wrapperStyle, textStyle, animClass, maxWidth };
 }
 
 /** Icon shown on the Aspect Ratio cycle button for each format. */
@@ -1867,6 +1907,30 @@ function MasterPreviewPlayer({
     return () => document.removeEventListener("fullscreenchange", onFSChange);
   }, []);
 
+  /* ── Video error recovery — if the media pipeline dies (black frame /
+   *    "Unable to play media"), reload the current source and resume where
+   *    it left off instead of staying dead until a page reload. ── */
+  useEffect(() => {
+    const v = liveVideoRef.current;
+    if (!v) return;
+    let attempts = 0;
+    const onError = () => {
+      if (attempts >= 2 || !v.src) return; // don't loop on a truly broken source
+      attempts += 1;
+      const resumeAt = v.currentTime;
+      const wasPlaying = !v.paused;
+      const onMeta = () => {
+        v.removeEventListener("loadedmetadata", onMeta);
+        try { v.currentTime = Math.max(0, resumeAt); } catch { /* metadata race */ }
+        if (wasPlaying) void v.play().catch(() => {});
+      };
+      v.addEventListener("loadedmetadata", onMeta);
+      v.load();
+    };
+    v.addEventListener("error", onError);
+    return () => v.removeEventListener("error", onError);
+  }, []);
+
   /* ── PiP events + visibilitychange + focus/blur ── */
   useEffect(() => {
     const v = liveVideoRef.current;
@@ -1904,11 +1968,13 @@ function MasterPreviewPlayer({
       }
     };
 
-    /* visibilitychange — enter PiP when browser is hidden */
+    /* visibilitychange — enter PiP when browser is hidden.
+       Never while fullscreen: PiP and fullscreen fight over the same media
+       pipeline and the video can die with "Unable to play media". */
     const onVisibility = () => {
       const hidden = document.hidden;
       setDocHidden(hidden);
-      if (hidden && autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
+      if (hidden && autoPiPRef.current && !document.fullscreenElement && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch((e) => {
           const msg = e instanceof Error ? e.message : String(e);
           setPipError(`Browser blocked automatic PiP. Click Enable Auto PiP again. (${msg})`);
@@ -1920,7 +1986,7 @@ function MasterPreviewPlayer({
     /* pagehide / pageshow */
     const onPageHide = () => {
       setDocHidden(true);
-      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
+      if (autoPiPRef.current && !document.fullscreenElement && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch(() => {});
       }
     };
@@ -1933,7 +1999,7 @@ function MasterPreviewPlayer({
     const onFocus = () => setBrowserFocused(true);
     const onBlur  = () => {
       setBrowserFocused(false);
-      if (autoPiPRef.current && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
+      if (autoPiPRef.current && !document.fullscreenElement && !document.pictureInPictureElement && !v.paused && canAutoPiP(v)) {
         v.requestPictureInPicture().catch(() => {});
       }
     };
@@ -2384,6 +2450,18 @@ function MasterPreviewPlayer({
         {activeCaption && (() => {
           const { containerStyle, wrapperStyle, textStyle, animClass, maxWidth } = buildCaptionOverlayStyle(captionSettings);
           const lineClamp = Number(captionSettings.maxLines ?? "2");
+          const karaokeWords = captionSettings.stylePreset === "karaoke-word"
+            ? getValidCaptionWords(activeCaption)
+            : null;
+          const clampStyle: React.CSSProperties = {
+            ...textStyle,
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: lineClamp,
+            overflow: "hidden",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          };
           return (
             <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ ...containerStyle, zIndex: 27 }}>
               <div
@@ -2392,42 +2470,58 @@ function MasterPreviewPlayer({
                 style={{ ...wrapperStyle, maxWidth }}
                 data-testid="master-caption-text"
               >
-                <span style={{
-                  ...textStyle,
-                  display: "-webkit-box",
-                  WebkitBoxOrient: "vertical",
-                  WebkitLineClamp: lineClamp,
-                  overflow: "hidden",
-                  wordBreak: "break-word",
-                  overflowWrap: "break-word",
-                }}>{activeCaption.text}</span>
+                {karaokeWords ? (
+                  <span style={clampStyle}>
+                    {karaokeWords.map((w, i) => {
+                      const ws = activeCaption.startSec + w.start;
+                      const we = activeCaption.startSec + w.end;
+                      const isActive = currentTime >= ws && currentTime < we;
+                      const isSung = currentTime >= we;
+                      return (
+                        <span
+                          key={i}
+                          style={{
+                            color: isActive ? "#FFD700" : isSung ? "#ffffff" : "rgba(255,255,255,0.42)",
+                            textShadow: isActive
+                              ? "0 0 14px rgba(255,215,0,.75), 2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000"
+                              : "2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000",
+                            display: "inline-block",
+                            transform: isActive ? "scale(1.12)" : "scale(1)",
+                            transition: "transform 0.12s ease, color 0.12s ease",
+                          }}
+                        >
+                          {w.word}{i < karaokeWords.length - 1 ? "\u00A0" : ""}
+                        </span>
+                      );
+                    })}
+                  </span>
+                ) : (
+                  <span style={clampStyle}>{activeCaption.text}</span>
+                )}
               </div>
             </div>
           );
         })()}
 
-        {/* Scene badge — top-left */}
+        {/* Scene badge — top-left, slim and on-brand */}
         {displayScene && displaySceneIdx >= 0 && (
-          <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/70 border border-white/10 backdrop-blur-sm pointer-events-none">
-            <Film className="h-3 w-3 text-primary/60" />
-            <span className="text-[10px] font-bold text-white/70 max-w-[200px] truncate">
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/55 border border-[#C9A84C]/25 backdrop-blur-sm pointer-events-none">
+            <Film className="h-2.5 w-2.5 text-[#C9A84C]/80" />
+            <span className="text-[9px] font-bold text-white/60 max-w-[200px] truncate tracking-wide">
               Scene {displaySceneIdx + 1}/{scenes.length}
               {displayScene.section ? ` · ${displayScene.section}` : ""}
             </span>
           </div>
         )}
 
-        {/* Playing indicator / audio status — top-right */}
-        {isPlaying ? (
+        {/* Playing indicator — top-right, only while actually playing.
+            The paused state is already communicated by the big play button. */}
+        {isPlaying && (
           <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/90 pointer-events-none">
             <Volume2 className="h-3 w-3 text-black animate-pulse" />
             <span className="text-[10px] font-black text-black uppercase tracking-wide">Live</span>
           </div>
-        ) : eng && !isPlaying ? (
-          <div className="absolute top-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/10 border border-white/10 backdrop-blur-sm pointer-events-none">
-            <span className="text-[10px] font-bold text-white/50">Paused</span>
-          </div>
-        ) : null}
+        )}
 
         {/* Big play button overlay — not playing, has scenes */}
         {!isPlaying && hasScenes && (
