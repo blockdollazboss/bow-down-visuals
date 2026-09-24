@@ -2282,6 +2282,14 @@ function MasterPreviewPlayer({
           }}
         >
           <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          {/* Animated film grain — preview of the export's real grain (see FILM_GRAIN_FFMPEG) */}
+          {activeEffects.includes("Film Grain") && (
+            <div
+              className="absolute inset-0 pointer-events-none bdv-film-grain"
+              style={{ zIndex: 2 }}
+              aria-hidden
+            />
+          )}
           {/* Outgoing video + CSS transition overlay */}
           <TransitionCompositor
             outgoingVideoRef={outgoingVideoRef}

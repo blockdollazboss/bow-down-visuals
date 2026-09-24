@@ -292,6 +292,25 @@ body::before {
   68%  { clip-path: inset(0 0 0 0);    transform: translate(0,0);        filter: none; opacity: 1; }
   100% { clip-path: inset(0 0 0 0);    transform: translate(0,0);        filter: none; opacity: 0; }
 }
+/* Animated film grain overlay for the master player preview.
+   Mirrors the export's real grain (noise=alls=7:allf=t in effects-ffmpeg.ts):
+   SVG turbulence texture, position jumped with steps() so it shimmers like
+   real grain instead of sitting still. */
+.bdv-film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+  opacity: 0.45;
+  mix-blend-mode: overlay;
+  animation: bdv-grain-shift 0.5s steps(1) infinite;
+}
+@keyframes bdv-grain-shift {
+  0%   { background-position: 0 0; }
+  20%  { background-position: -70px 40px; }
+  40%  { background-position: 50px -60px; }
+  60%  { background-position: -40px -80px; }
+  80%  { background-position: 60px 70px; }
+  100% { background-position: 0 0; }
+}
 .bdv-caption-fade     { animation: bdv-fade     0.3s ease forwards; }
 .bdv-caption-pop      { animation: bdv-pop      0.28s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 .bdv-caption-bounce   { animation: bdv-bounce   0.4s ease forwards; }
