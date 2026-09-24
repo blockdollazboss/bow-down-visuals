@@ -1,5 +1,6 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Readable } from "stream";
+import { createReadStream, statSync } from "fs";
 import { randomUUID } from "crypto";
 import {
   ObjectAclPolicy,
@@ -112,7 +113,7 @@ export class ObjectStorageService {
     if (!privateObjectDir) {
       throw new Error(
         "PRIVATE_OBJECT_DIR not set. Create a bucket in 'Object Storage' " +
-          "tool and set PRIVATE_OBJECT_DIR env var."
+          "tool and set PRIVATE_OBJECT_DIR env var (comma-separated paths)."
       );
     }
 
@@ -408,6 +409,88 @@ export async function uploadMediaToSupabaseStorage(
     );
   }
   return `${SUPABASE_STORAGE_REF_PREFIX}${objectName}`;
+}
+
+/** Private Supabase Storage bucket for final exported videos (much larger
+ *  files than generated clips, so it gets its own bucket + higher limit). */
+export const VIDEO_EXPORTS_BUCKET = "video-exports";
+
+/** Idempotent bucket ensure — private bucket, 500 MB per-file limit so
+ *  longer exports don't hit the clips bucket's 100 MB cap. */
+export async function ensureVideoExportsBucket(): Promise<void> {
+  const supabase = getSupabaseAdmin();
+  const { data: existing, error: getErr } = await supabase.storage.getBucket(VIDEO_EXPORTS_BUCKET);
+  if (existing) return;
+  if (getErr) {
+    console.error(
+      `[storage] getBucket("${VIDEO_EXPORTS_BUCKET}") failed before create: ${getErr.message}`,
+    );
+  }
+  const { error } = await supabase.storage.createBucket(VIDEO_EXPORTS_BUCKET, {
+    public: false,
+    fileSizeLimit: 500 * 1024 * 1024, // 500 MB — final exports dwarf generated clips
+  });
+  if (error) {
+    throw new Error(
+      `Failed to create Supabase bucket "${VIDEO_EXPORTS_BUCKET}": ${error.message}`,
+    );
+  }
+}
+
+/**
+ * Stream a local file to Supabase Storage WITHOUT loading it into the Node
+ * heap. The api-server runs with --max-old-space-size=160, so readFileSync on
+ * a multi-hundred-MB final MP4 would OOM the process.
+ *
+ * Uses the Storage REST API directly with a web ReadableStream body
+ * (duplex: 'half') rather than supabase-js .upload(), whose stream-body
+ * handling isn't guaranteed under this Node/fetch combination.
+ *
+ * Returns the STABLE STORAGE REF (`supabase://<bucket>/<objectName>`) —
+ * persist this, never a signed URL (readers re-sign via
+ * refreshSupabaseStorageUrl / refreshSupabaseStorageUrlsDeep).
+ */
+export async function uploadFileStreamToSupabaseStorage(
+  bucket: string,
+  objectName: string,
+  filePath: string,
+  contentType: string,
+): Promise<string> {
+  const url = process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"];
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url) {
+    throw new Error("SUPABASE_URL is not configured — cannot upload export.");
+  }
+  if (!serviceRoleKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured — cannot upload export.");
+  }
+
+  const { size } = statSync(filePath);
+  const endpoint = `${url.replace(/\/$/, "")}/storage/v1/object/${bucket}/${objectName}`;
+  const init: Record<string, unknown> = {
+    method: "POST",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": contentType,
+      "Content-Length": String(size),
+      "x-upsert": "true",
+    },
+    // Web-stream body keeps heap flat; duplex:'half' is required by Node's
+    // fetch for stream bodies (not in the DOM RequestInit type, hence the cast).
+    body: Readable.toWeb(createReadStream(filePath)),
+    duplex: "half",
+    signal: AbortSignal.timeout(10 * 60 * 1000),
+  };
+  const res = await fetch(endpoint, init as RequestInit);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Supabase storage upload failed: ${res.status} ${text.slice(0, 300)}` +
+        ` (bucket: ${bucket}, path: ${objectName})`,
+    );
+  }
+  return `supabase://${bucket}/${objectName}`;
 }
 
 /**
