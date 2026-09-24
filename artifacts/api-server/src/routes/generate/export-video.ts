@@ -539,6 +539,12 @@ async function stitchClipsPairwise(args: {
   // The A-side trim starts a hair early (one extra frame): xfade only consumes
   // the first `d` seconds at offset 0, so overshoot is harmless, but a probed
   // duration that overshoots reality by even a frame would starve the filter.
+  // The B-side gets 0.1s of headroom past `d`, then the xfade output is trimmed
+  // back to exactly `d`: ffmpeg 5.x's xfade hangs forever when its second input
+  // ends exactly at offset+duration (it renders the transition frames, then spins
+  // waiting for a frame that never comes). The output trim keeps the concat
+  // timeline math exact. d is clamped to <= 80% of the clip, so d+0.1 of B-side
+  // always exists (and trim just yields what's there in any degenerate case).
   const buildTransition = async (j: number): Promise<void> => {
     const d = transDur[j]!;
     if (!(d > 0)) return; // hard cut — no transition file
@@ -547,8 +553,9 @@ async function stitchClipsPairwise(args: {
     const outPath = track(path.join(tmpDir, `bdv-trans-${exportId}-${j}.mp4`));
     const fc =
       `[0:v]trim=start=${f3(Math.max(0, aDur - d - 0.05))},setpts=PTS-STARTPTS[a];` +
-      `[1:v]trim=end=${f3(d)},setpts=PTS-STARTPTS[b];` +
-      `[a][b]xfade=transition=${transXf[j]}:duration=${f3(d)}:offset=0[out]`;
+      `[1:v]trim=end=${f3(d + 0.1)},setpts=PTS-STARTPTS[b];` +
+      `[a][b]xfade=transition=${transXf[j]}:duration=${f3(d)}:offset=0[x];` +
+      `[x]trim=end=${f3(d)},setpts=PTS-STARTPTS[out]`;
     log.info({ trans: j, type: transXf[j], dur: d }, "[export][phase1] building transition");
     await runFfmpeg(["-threads", "2", "-i", aPath, "-i", clipPaths[j]!, "-filter_complex", fc, "-map", "[out]",
       ...pieceEncodeTail(outPath)], d * 2 + 1, `Scene ${j + 1} transition`);
