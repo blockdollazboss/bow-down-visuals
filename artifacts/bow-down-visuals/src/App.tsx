@@ -61,7 +61,6 @@ const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const VoiceoverStudio = lazyWithRetry(() => import("@/pages/voiceover"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const TrendPredictor = lazyWithRetry(() => import("@/pages/trends"));
-const PodcastStudio = lazyWithRetry(() => import("@/pages/podcast"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
@@ -74,6 +73,7 @@ const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
+const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
@@ -246,7 +246,6 @@ function AppShell() {
           <Route path="/voiceover"><VoiceoverStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/trends"><TrendPredictor /></Route>
-          <Route path="/podcast"><PodcastStudio /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/sponsors"><SponsorMarketplace /></Route>
@@ -259,6 +258,7 @@ function AppShell() {
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
+          <Route path="/contests"><Contests /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>

@@ -41,3 +41,4 @@ export * from "./beats";
 export * from "./fan-memberships";
 export * from "./press-kits";
 export * from "./live-shopping";
+export * from "./contests";
