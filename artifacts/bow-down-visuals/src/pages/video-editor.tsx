@@ -2232,7 +2232,6 @@ function MasterPreviewPlayer({
   const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
 
   /* ── Cinema transport button styles ── */
-  const tBtn = "flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0 disabled:opacity-30";
   const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
   return (
@@ -2565,12 +2564,9 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Info strip: timecode · scene · format · loop status ── */}
+      {/* ── Info strip: scene · format · loop status (timecode moved into the transport row) ── */}
       {!isMinimized && (
         <div className="flex items-center gap-1.5 px-3 pt-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] font-mono text-white/60 tabular-nums">
-            {fmtSecs(currentTime)}<span className="text-white/25">/</span>{fmtSecs(duration || 0)}
-          </span>
           {hasScenes && sceneOffsets.length > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[10px] font-bold text-[#f0d488]">
               <Film className="h-2.5 w-2.5" />
@@ -2589,94 +2585,60 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Transport bar — floating glass console (always visible, including
-          fullscreen; hidden while minimized). Row 1: main transport.
-          Row 2: scrub + secondary controls. ── */}
+      {/* ── Transport bar — floating glass console pinned to the bottom of the
+          player (always visible docked; auto-hides in fullscreen; hidden while
+          minimized). Utility row: scene nav + player settings (compact,
+          secondary). Main row: ONE clean line — play/pause · seek · time ·
+          volume · fullscreen. ── */}
       {!isMinimized && (
       <div className={`mx-2.5 mt-2 mb-1 rounded-2xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-2 py-2 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
       }`}>
-        {/* Row 1 — main transport */}
-        <div className="flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap">
+        {/* Utility row — scene navigation + player settings (compact, secondary) */}
+        <div className="flex items-center justify-center gap-1 flex-wrap">
           {/* Restart */}
           <button type="button" onClick={onRestart} disabled={!hasScenes}
-            className={tBtn} title="Restart (Home)">
-            <RotateCcw className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Restart (Home)">
+            <RotateCcw className="h-3 w-3" />
           </button>
           {/* Prev Scene */}
           <button type="button" onClick={prevClip} disabled={!hasScenes}
-            className={tBtn} title="Previous Scene (Shift+Left)">
-            <Rewind className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Previous Scene (Shift+Left)">
+            <Rewind className="h-3 w-3" />
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtn} min-w-[2rem] px-1 text-[9px] font-black tabular-nums`} title="Back 10s (J)">-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Back 10s (J)">-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
-            className={tBtn} title="Step 1 frame back (,)">
+            className={tBtnSm} title="Step 1 frame back (,)">
             <StepBack className="h-3 w-3" />
-          </button>
-          {/* Play / Pause — hero button */}
-          <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
-            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
           {/* Frame step forward */}
           <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
-            className={tBtn} title="Step 1 frame forward (.)">
+            className={tBtnSm} title="Step 1 frame forward (.)">
             <StepForward className="h-3 w-3" />
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtn} min-w-[2rem] px-1 text-[9px] font-black tabular-nums`} title="Forward 10s (L)">+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Forward 10s (L)">+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
-            className={tBtn} title="Next Scene (Shift+Right)">
-            <FastForward className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Next Scene (Shift+Right)">
+            <FastForward className="h-3 w-3" />
           </button>
           {/* Loop */}
           <button type="button" onClick={() => setLoop((v) => !v)} disabled={!hasScenes}
-            className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
+            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
               loop
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30"
             }`}
             title={loop ? "Loop: on — click to turn off" : "Loop playback"}>
-            <Repeat className="h-3.5 w-3.5" />
+            <Repeat className="h-3 w-3" />
           </button>
-        </div>
-        {/* Row 2 — scrub + secondary */}
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {/* Scrubable progress bar */}
-          <div
-            ref={scrubRef}
-            className="relative flex-1 min-w-[80px] h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
-            onPointerDown={handleScrubDown}
-            onPointerMove={handleScrubMove}
-            onPointerUp={handleScrubUp}
-            onPointerLeave={handleScrubUp}
-          >
-            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A84C]/80 to-[#f7dd7f]/90 rounded-full transition-none pointer-events-none"
-              style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
-            <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-[#f7dd7f] shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
-          </div>
-          {/* Mute */}
-          <button type="button" onClick={toggleMute}
-            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"}>
-            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          </button>
-          {/* Volume slider */}
-          <input
-            type="range" min={0} max={1} step={0.01}
-            value={muted ? 0 : volume}
-            onChange={(e) => handleVolume(Number(e.target.value))}
-            className="w-14 sm:w-16 accent-[#C9A84C] cursor-pointer"
-            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
-          />
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
             className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[9px] font-black tabular-nums`}
@@ -2705,8 +2667,49 @@ function MasterPreviewPlayer({
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/[0.08]"
             }`}
             title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
-            <PictureInPicture2 className="h-3.5 w-3.5" />
+            <PictureInPicture2 className="h-3 w-3" />
           </button>
+        </div>
+        {/* ── Main transport row — one clean line at the bottom of the player:
+            play/pause · seek · time · volume · fullscreen ── */}
+        <div className="flex items-center gap-2 mt-1.5 border-t border-white/[0.06] pt-2">
+          {/* Play / Pause — hero button */}
+          <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
+            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
+            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
+            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+          </button>
+          {/* Scrubable progress bar — flexible width */}
+          <div
+            ref={scrubRef}
+            className="relative flex-1 min-w-[40px] h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
+            onPointerDown={handleScrubDown}
+            onPointerMove={handleScrubMove}
+            onPointerUp={handleScrubUp}
+            onPointerLeave={handleScrubUp}
+          >
+            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A84C]/80 to-[#f7dd7f]/90 rounded-full transition-none pointer-events-none"
+              style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
+            <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-[#f7dd7f] shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
+          </div>
+          {/* Time display — current / total */}
+          <span className="shrink-0 text-[11px] font-mono tabular-nums text-white/70">
+            {fmtSecs(currentTime)}<span className="text-white/25">/</span>{fmtSecs(duration || 0)}
+          </span>
+          {/* Mute */}
+          <button type="button" onClick={toggleMute}
+            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"}>
+            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+          {/* Volume slider */}
+          <input
+            type="range" min={0} max={1} step={0.01}
+            value={muted ? 0 : volume}
+            onChange={(e) => handleVolume(Number(e.target.value))}
+            className="w-12 sm:w-14 accent-[#C9A84C] cursor-pointer shrink-0"
+            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+          />
           {/* Fullscreen — launches from the pinned player */}
           <button type="button" onClick={toggleFullscreen}
             className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${
