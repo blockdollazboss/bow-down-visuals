@@ -68,6 +68,7 @@ import lyricVideoRouter from "./generate/lyric-video";
 import captionStylerRouter from "./generate/caption-styler";
 import communityRouter from "./generate/community";
 import videoTranslatorRouter from "./generate/video-translator";
+import royaltiesRouter from "./generate/royalties";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
@@ -75,7 +76,6 @@ import distributionRouter from "./generate/distribution";
 import streamerClipsRouter from "./generate/streamer-clips";
 import beatsRouter from "./generate/beats";
 import membershipsRouter from "./generate/memberships";
-import samplePackRouter from "./generate/sample-pack";
 
 const router: IRouter = Router();
 
@@ -148,6 +148,7 @@ router.use(thumbnailTestRouter);
 router.use(captionStylerRouter);
 router.use(communityRouter);
 router.use(pressKitRouter);
+router.use(royaltiesRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
@@ -155,6 +156,5 @@ router.use(distributionRouter);
 router.use(streamerClipsRouter);
 router.use(beatsRouter);
 router.use(membershipsRouter);
-router.use(samplePackRouter);
 
 export default router;
