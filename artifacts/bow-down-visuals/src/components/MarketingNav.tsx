@@ -37,7 +37,7 @@ const NAV_LINKS = [
   { label: "Memberships", href: "/memberships" },
   { label: "Press Kits", href: "/press-kit" },
   { label: "Translate", href: "/translate" },
-  { label: "Email List", href: "/email-list" },
+  { label: "Collabs", href: "/collabs" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

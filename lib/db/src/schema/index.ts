@@ -40,4 +40,4 @@ export * from "./customer-shops";
 export * from "./beats";
 export * from "./fan-memberships";
 export * from "./press-kits";
-export * from "./email-lists";
+export * from "./collab";
