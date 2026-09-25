@@ -57,10 +57,12 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
+const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
+const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
@@ -224,10 +226,12 @@ function AppShell() {
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
+          <Route path="/titles"><TitleStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/release"><ReleaseChecklist /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
+          <Route path="/sponsors"><SponsorMarketplace /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>

@@ -35,3 +35,4 @@ export * from "./artist-outfits";
 export * from "./discord";
 export * from "./press-kits";
 export * from "./royalties";
+export * from "./sponsor-deals";
