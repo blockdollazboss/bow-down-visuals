@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { PixelHeadline, PixelKicker, PixelDivider } from "@/components/pixel-headline";
 
 const GOLD = "#C9A84C";
 const gold = (o: number) => `rgba(201,168,76,${o})`;
@@ -149,26 +150,22 @@ export default function ChooseArtist() {
         <div className="text-center mb-12 md:mb-16">
           <div className="animate-bd-entrance-fade mb-6 inline-flex items-center gap-2.5 rounded-full border border-[rgba(201,168,76,0.35)] bg-[rgba(201,168,76,0.06)] px-5 py-2 shadow-[0_0_24px_rgba(201,168,76,0.12)] backdrop-blur-sm">
             <Crown className="h-3.5 w-3.5 text-[#C9A84C]" />
-            <span className="text-[#C9A84C] text-[10px] md:text-[11px] font-bold uppercase tracking-[0.35em]">
-              The Grand Entrance
-            </span>
+            <PixelKicker>The Grand Entrance</PixelKicker>
           </div>
 
-          <h1
-            className="animate-bd-entrance font-display text-5xl md:text-7xl leading-[1.05] text-white mb-5"
-            style={{ animationDelay: "0.15s", textShadow: "0 2px 30px rgba(0,0,0,0.8)" }}
+          <PixelHeadline
+            size="page"
+            align="center"
+            className="animate-bd-entrance mb-5"
+            style={{ animationDelay: "0.15s" }}
           >
-            Who's In Front
-            <br />
-            of the{" "}
-            <span className="italic bg-gradient-to-b from-[#F5DE8E] via-[#C9A84C] to-[#8A6B1F] bg-clip-text text-transparent">
-              Camera?
-            </span>
-          </h1>
-
-          <div className="animate-bd-entrance mb-5" style={{ animationDelay: "0.3s" }}>
-            <RopeDivider width="w-32 md:w-44" />
-          </div>
+            Who's In Front of the Camera?
+          </PixelHeadline>
+          <PixelDivider
+            align="center"
+            className="animate-bd-entrance mb-5"
+            style={{ animationDelay: "0.3s" }}
+          />
 
           <p
             className="animate-bd-entrance text-white/55 text-base md:text-lg max-w-xl mx-auto leading-relaxed"

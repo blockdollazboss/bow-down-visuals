@@ -17,6 +17,7 @@ import {
   clearReplyHistory,
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Comment Reply Assistant ────────────────────────────
    Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
@@ -190,7 +191,7 @@ export default function CommentReplies() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's engagement tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> engagement tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Comment Reply <span className="text-primary">Assistant</span>

@@ -18,6 +18,7 @@ import {
   tagsCopyString,
 } from "@/lib/title-studio";
 import type { RankedTitle, TitleStudioHistoryEntry } from "@/lib/title-studio";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Title & Description Studio ─────────────────────────
    One paid AI tool: type your video topic, pick a platform + tone, and GPT-6
@@ -195,7 +196,7 @@ export default function TitleStudio() {
             Title <span className="text-primary">&amp;</span> Description Studio
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/55">
-            Stop guessing what to name the video. Thy Cheat Code writes 10 click-ranked
+            Stop guessing what to name the video. <CheatCodeName /> writes 10 click-ranked
             titles, a full description with timestamps and CTA, and 15 tags — tuned
             for the platform you're posting on.
           </p>

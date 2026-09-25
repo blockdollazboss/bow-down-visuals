@@ -18,6 +18,7 @@ import {
   sfxSlug,
   type SfxItem,
 } from "@/lib/sfx";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Text-to-SFX ──────────────────────────────────────────
    Describe a sound effect in words — AI generates it. POST /api/generate-sfx
@@ -282,7 +283,7 @@ export default function TextToSfx() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's audio tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> audio tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Text-to-<span className="text-primary">SFX</span>
