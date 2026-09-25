@@ -62,21 +62,28 @@ const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
+const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
+const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
+const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
+const Features = lazyWithRetry(() => import("@/pages/features"));
+const Promote = lazyWithRetry(() => import("@/pages/promote"));
+const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -85,7 +92,6 @@ const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
-const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
 /* ── Orphaned feature pages wired up (site organization) ── */
@@ -273,14 +279,16 @@ function AppShell() {
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/sounds"><SoundFinder /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
+          <Route path="/tour"><TourPlanner /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
-          <Route path="/tips/:handle"><TipPage /></Route>
-          <Route path="/upscale"><Upscale /></Route>
+          <Route path="/tips/:handle"><TipPage /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Analytics /></Route>
           <Route path="/import"><MediaImport /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
@@ -291,6 +299,8 @@ function AppShell() {
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:id"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
+          <Route path="/features"><Features /></Route>
+          <Route path="/promote"><Promote /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
@@ -352,7 +362,10 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
-                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>                <Route component={NotFound} />                <Route component={NotFound} />              </Switch>
+                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
+                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route component={NotFound} />
+              </Switch>
             </AuthedLayout>
           </Route>
         </Switch>
