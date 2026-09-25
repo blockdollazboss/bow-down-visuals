@@ -31,6 +31,8 @@ const SongAndVideo  = lazyWithRetry(() => import("@/pages/song-and-video"));
 const CreateSimple  = lazyWithRetry(() => import("@/pages/create-simple"));
 const PromoClip     = lazyWithRetry(() => import("@/pages/promo-clip"));
 const Thumbnail     = lazyWithRetry(() => import("@/pages/thumbnail"));
+const PromptStudio  = lazyWithRetry(() => import("@/pages/prompt-studio"));
+const ImageStudio   = lazyWithRetry(() => import("@/pages/image-studio"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
 const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
 const VideoEditor   = lazyWithRetry(() => import("@/pages/video-editor"));
@@ -176,6 +178,8 @@ function AppShell() {
           <Route path="/create"><ProtectedRoute><CreateSimple /></ProtectedRoute></Route>
           <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
           <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
+          <Route path="/prompt-studio"><ProtectedRoute><PromptStudio /></ProtectedRoute></Route>
+          <Route path="/image-studio"><ProtectedRoute><ImageStudio /></ProtectedRoute></Route>
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
           <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
           <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>

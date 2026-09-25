@@ -26,7 +26,9 @@ import {
   LogOut,
   LogIn,
   Coins,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles,
+  ImagePlus
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -66,6 +68,8 @@ export function AppSidebar() {
     { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
+    { href: "/prompt-studio", label: "Prompt Studio", icon: Sparkles },
+    { href: "/image-studio", label: "Image Studio", icon: ImagePlus },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
