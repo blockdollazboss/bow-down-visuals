@@ -57,13 +57,14 @@ ${SITE_KNOWLEDGE}
    Per chat message (worst case): ~2,800 input tokens (system prompt +
    knowledge + capped history) ≈ $0.0056; ~250 output tokens ≈ $0.0025.
    Total ≈ $0.008/message worst case; typical $0.003–$0.005.
-   At ~$0.50/credit (500-pack at $249), even 1 credit/message would be a
-   60–160x margin — far too steep for a support/sales chat. Hence the
-   default below: free, rate-limited, treated as a sales tool. */
+   At ~$0.50/credit (500-pack at $249), 1 credit/message is a ~60-160x
+   margin. Per the standing "everything on this site costs a fee" rule
+   (user decision 2026-09-25), the default is paid: 1 credit/message. */
 export const CHAT_MAX_OUTPUT_TOKENS = 500;
 
-/** Credit cost per chat message. Env-overridable; default 0 = free (sales/support tool). */
+/** Credit cost per chat message. Env-overridable; default 1 (paid per the
+    "everything costs a fee" rule). Set CHAT_CREDIT_COST=0 for free mode. */
 export function getChatCreditCost(): number {
-  const raw = Number(process.env["CHAT_CREDIT_COST"] ?? "0");
+  const raw = Number(process.env["CHAT_CREDIT_COST"] ?? "1");
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
 }
