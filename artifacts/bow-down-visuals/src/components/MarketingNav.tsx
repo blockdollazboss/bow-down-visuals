@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { label: "Voiceover", href: "/voiceover" },
   { label: "Script Writer", href: "/script-writer" },
   { label: "Money Coach", href: "/coach" },
+  { label: "Podcast Studio", href: "/podcast" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Distribute", href: "/distribute" },
   { label: "Clip Maker", href: "/clip-maker" },
