@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import {
-  Bot, ChevronRight, Zap, Play, Pause, Volume2, VolumeX,
+  Bot, ChevronRight, Zap,
   Minimize2, ChevronUp, GripHorizontal,
 } from "lucide-react";
 import { useThemePlayer } from "@/contexts/ThemePlayerContext";
@@ -322,67 +322,6 @@ function saveOpen(v: boolean) {
   try { localStorage.setItem(LS_OPEN, v ? "true" : "false"); } catch { /* noop */ }
 }
 
-/* ─── Theme player row ─── */
-function ThemePlayerRow() {
-  const { status, playing, muted, volume, togglePlay, toggleMute, setVolume } = useThemePlayer();
-  const loaded      = status === "ready" || status === "playing";
-  const unavailable = status === "missing" || status === "error";
-
-  return (
-    <div className="space-y-2">
-      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest flex items-center gap-1.5">
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${loaded ? "bg-green-400" : unavailable ? "bg-red-400/60" : "bg-yellow-400/60"}`} />
-        Theme Song
-        {unavailable && <span className="text-red-400/60 font-normal normal-case tracking-normal ml-1">— not found</span>}
-      </p>
-      {!unavailable && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <button
-            onClick={togglePlay}
-            aria-label={playing ? "Pause theme" : "Play theme"}
-            className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 transition-transform hover:scale-110 active:scale-95"
-            style={{ background: "linear-gradient(135deg,#9B7515,#DAA520)", boxShadow: "0 0 8px rgba(218,165,32,0.50)" }}
-          >
-            {playing
-              ? <Pause className="h-3 w-3 text-black" fill="black" />
-              : <Play  className="h-3 w-3 text-black" fill="black" style={{ marginLeft: 1 }} />
-            }
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-yellow-400/70 leading-none">Bow Down Visuals</p>
-            {playing && (
-              <div className="flex items-end gap-[2px] mt-1" style={{ height: 7 }}>
-                {["0s","0.12s","0.22s","0.08s"].map((delay, i) => (
-                  <div key={i} style={{
-                    width: 2, borderRadius: 1,
-                    background: "linear-gradient(to top,#9B7515,#FFD700)",
-                    height: 7,
-                    animation: `bdvEq${i} 0.6s ease-in-out ${delay} infinite alternate`,
-                  }} />
-                ))}
-              </div>
-            )}
-          </div>
-          <input
-            type="range" min={0} max={1} step={0.05}
-            value={muted ? 0 : volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="w-16 h-1 accent-yellow-500 cursor-pointer"
-            aria-label="Theme volume"
-          />
-          <button
-            onClick={toggleMute}
-            aria-label={muted ? "Unmute theme" : "Mute theme"}
-            className="h-6 w-6 flex items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/50 hover:text-white hover:border-white/20 transition-colors shrink-0"
-          >
-            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ─── Snap position indicator dots ─── */
 function SnapDots({ current }: { current: SnapPt }) {
   const positions: { pt: SnapPt; style: React.CSSProperties }[] = [
@@ -442,8 +381,7 @@ export function BowDownAIGuide() {
   const [location]   = useLocation();
   const [editorTab,  setEditorTab] = useState<string | null>(null);
 
-  const { status, playing, muted } = useThemePlayer();
-  const loaded = status === "ready" || status === "playing";
+  const { playing } = useThemePlayer();
 
   /* ── helpers ── */
   function updatePos(p: { x: number; y: number }) {
@@ -684,10 +622,6 @@ export function BowDownAIGuide() {
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 
-              <ThemePlayerRow />
-
-              <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
-
               {/* Page guide */}
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{guide.title}</p>
@@ -729,9 +663,7 @@ export function BowDownAIGuide() {
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
               >
                 <span className="text-white/25">Guide: <span className="text-green-400/70">active ✓</span></span>
-                <span className="text-white/25">Theme song: <span className={loaded ? "text-green-400/70" : "text-white/25"}>{loaded ? "loaded ✓" : "loading…"}</span></span>
-                <span className="text-white/25">Playing: <span className={playing ? "text-green-400/70" : "text-white/25"}>{playing ? "yes" : "no"}</span></span>
-                <span className="text-white/25">Muted: <span className={muted ? "text-amber-400/70" : "text-white/25"}>{muted ? "yes" : "no"}</span></span>
+                <span className="text-white/25">Playlist: <span className="text-green-400/70">on homepage ✓</span></span>
                 <span className="text-white/25">Snap: <span className="text-yellow-400/50">{SNAP_LABELS[currentSnap]}</span></span>
               </div>
 

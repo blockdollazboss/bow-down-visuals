@@ -7,6 +7,7 @@ import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
+import { FeaturedPlaylist } from "@/components/FeaturedPlaylist";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
   Music,
@@ -947,6 +948,7 @@ export default function Home() {
       <HeroSection onWaitlist={scrollToWaitlist} />
       <CheatCodeTicker />
       <MusicVideoTeaser />
+      <FeaturedPlaylist />
       <HowItWorks />
       <SectionDivider />
       <WhatYouCanMake />

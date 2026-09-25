@@ -58,6 +58,7 @@ const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const FeaturedSongsManage = lazyWithRetry(() => import("@/pages/featured-songs-manage"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
@@ -252,6 +253,7 @@ function AppShell() {
                 <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
+                <Route path="/featured-songs"><ProtectedRoute><FeaturedSongsManage /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
