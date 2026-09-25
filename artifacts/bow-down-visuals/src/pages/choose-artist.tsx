@@ -49,6 +49,16 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
+  /* Top 3 featured (active artist first, then most recent), max 10 total. */
+  const sortedVaults = [...vaults].sort((a, b) => {
+    if (a.id === activeArtist?.id) return -1;
+    if (b.id === activeArtist?.id) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  const featuredVaults = sortedVaults.slice(0, 3);
+  const remainingVaults = sortedVaults.slice(3, 10);
+  const hiddenCount = sortedVaults.length - 10;
+
   return (
     <div className="min-h-screen bg-black text-white">
       <TopBar />
@@ -85,8 +95,13 @@ export default function ChooseArtist() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {vaults.map((vault) => {
+          <>
+            {/* Featured top 3 */}
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+              Your top artists
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              {featuredVaults.map((vault) => {
               const isSelected = selectedId === vault.id;
               const G = (o: number) => `rgba(201,168,76,${o})`;
               const GOLD = "#C9A84C";
@@ -180,7 +195,54 @@ export default function ChooseArtist() {
                 </button>
               );
             })}
-          </div>
+            </div>
+
+            {/* Remaining artists (up to 7 more, max 10 total) */}
+            {remainingVaults.length > 0 && (
+              <>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  More artists
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                  {remainingVaults.map((vault) => {
+                    const isSelected = selectedId === vault.id;
+                    const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
+                    return (
+                      <button
+                        key={vault.id}
+                        type="button"
+                        onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                        className={`rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? "border-primary/60 bg-primary/[0.08]"
+                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {vault.reference_image_url ? (
+                            <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-sm font-bold text-white/50">
+                              {initials}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">{vault.artist_name}</p>
+                            {vault.genre && <p className="truncate text-xs text-white/40">{vault.genre}</p>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {hiddenCount > 0 && (
+              <p className="mb-6 text-center text-sm text-white/35">
+                +{hiddenCount} more artist{hiddenCount === 1 ? "" : "s"} — showing your top 10
+              </p>
+            )}
+          </>
         )}
 
         {/* Action buttons */}
