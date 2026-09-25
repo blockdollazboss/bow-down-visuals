@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
@@ -184,13 +185,13 @@ export default function MakeSong() {
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Music className="h-5 w-5 text-primary" />
+              <PixelSprite name="note" pixel={4} />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <PixelHeadline size="section" className="mb-3">
             Make a Song
-          </h1>
+          </PixelHeadline>
           <p className="text-white/50 text-lg max-w-2xl">
             Create lyrics, hooks, verses, beat direction, vocal style, and AI music prompts for your next release.
           </p>

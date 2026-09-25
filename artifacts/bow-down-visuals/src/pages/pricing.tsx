@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
+import { PixelHeadline, PixelDivider, PixelSprite } from "@/components/pixel-headline";
 
 /* ─── data ─── */
 
@@ -292,12 +293,15 @@ export default function Pricing() {
           <MarketingBadge variant="kicker" className="mb-5 px-4 py-1.5">
             Pricing
           </MarketingBadge>
-          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
-            Choose Your<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
-              Creator Plan
-            </span>
-          </h1>
+          <div className="flex justify-center mb-6">
+            <PixelSprite name="coin" pixel={7} />
+          </div>
+          <PixelHeadline size="page" align="center" className="mb-5">
+            Choose Your
+            <br />
+            Creator Plan
+          </PixelHeadline>
+          <PixelDivider align="center" className="mb-5" />
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
             Start with AI songs, video plans, promo clips, artist profiles, and editing tools. Full paid access is coming soon.
           </p>

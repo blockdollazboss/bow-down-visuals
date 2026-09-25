@@ -7,6 +7,7 @@ import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
+import { PixelHeadline, PixelDivider } from "@/components/pixel-headline";
 import {
   Music,
   Video,
@@ -354,11 +355,11 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
           </div>
         </Link>
 
-        {/* Headline */}
-        <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95]">
-          Create Songs, <span className="gold-text-shine">Music Videos,</span>{" "}
-          and Promo Clips With AI
-        </h1>
+        {/* Headline — 8-bit arcade pixel typography */}
+        <PixelHeadline size="hero" cursor>
+          Create Songs, Music Videos, and Promo Clips With AI
+        </PixelHeadline>
+        <PixelDivider align="left" className="lg:justify-start justify-center" />
 
         {/* Slogan */}
         <p className="text-base sm:text-lg font-semibold tracking-widest text-primary/80 uppercase">

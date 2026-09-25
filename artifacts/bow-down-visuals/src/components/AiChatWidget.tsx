@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Send, Loader2, Dices } from "lucide-react";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -141,7 +142,7 @@ export function AiChatWidget() {
                 className="h-10 w-10 rounded-full border-2 border-primary/60 object-cover shadow-[0_0_12px_rgba(212,175,55,0.4)]"
               />
               <div>
-                <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
+                <p className="text-sm font-bold text-primary"><CheatCodeName /> 🦈</p>
                 <p className="text-[11px] text-neutral-400">
                   {creditCost
                     ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`

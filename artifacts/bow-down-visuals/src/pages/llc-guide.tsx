@@ -16,6 +16,7 @@ import {
   getAgentTier,
   type RegisteredAgentTier,
 } from "@/data/llc-state-fees";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── AI-powered LLC Formation Guide ──────────────────────────────────────
    Free: step-by-step checklist (localStorage progress), 50-state fee table,
@@ -342,7 +343,7 @@ export default function LlcGuide() {
         <section className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
           <SectionLabel icon={Sparkles}>Ask about LLCs · AI answers</SectionLabel>
           <h2 className="text-2xl font-black tracking-tight">
-            Ask Thy Cheat Code <span className="text-primary">anything</span>
+            Ask <CheatCodeName /> <span className="text-primary">anything</span>
           </h2>
           <p className="mt-2 text-sm text-white/55">
             “Should I file in Delaware or my home state?” “What's a registered agent?”
@@ -794,7 +795,7 @@ export default function LlcGuide() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Business formed? Ask{" "}
-          <Link href="/coach" className="font-semibold text-primary hover:underline">Thy Cheat Code's Money Coach</Link>{" "}
+          <Link href="/coach" className="font-semibold text-primary hover:underline"><CheatCodeName possessive /> Money Coach</Link>{" "}
           how to make it pay. 🦈
         </p>
       </main>

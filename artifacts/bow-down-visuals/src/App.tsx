@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
 import { HelpPanel } from "@/components/HelpPanel";
+import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
@@ -222,6 +223,7 @@ function AppShell() {
       {typeof window !== "undefined" && <BowDownAIGuide />}
       {typeof window !== "undefined" && <AiChatWidget />}
       {typeof window !== "undefined" && <HelpPanel />}
+      {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
         <Switch>

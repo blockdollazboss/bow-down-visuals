@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Sponsor Marketplace ───────────────────────────────────────────────
    Brands post paid sponsorship deals, creators apply with a pitch —
@@ -315,7 +316,7 @@ export default function Sponsors() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Handshake className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+            <Handshake className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Sponsor <span className="text-primary">Marketplace</span>
@@ -663,7 +664,7 @@ export default function Sponsors() {
 
         <p className="relative mt-8 text-center text-sm text-white/40">
           Closed a deal? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <CheatCodeName /> 🦈{" "}
           in the chat bubble for content ideas that over-deliver for the brand.
         </p>
       </main>
