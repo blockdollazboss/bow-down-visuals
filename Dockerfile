@@ -5,17 +5,29 @@ FROM node:22-slim
 
 # ffmpeg + ffprobe: the export pipeline shells out to both (prepare step
 # probes clip duration/resolution/codec; the render step runs ffmpeg).
-# python3-venv: the vocal-isolation pipelines (lip-sync vocal-only input,
-# artist voice lock) shell out to Demucs for vocal/instrumental separation.
-# build-essential: diffq ships no prebuilt wheel, so pip compiles it from
-# source during the Docker build — gcc/g++ must be present or the deploy fails.
-# python3-dev: diffq's C extension includes Python.h, which ships in python3-dev.
-# fonts-dejavu-core: the lyric-video renderer burns ASS karaoke subtitles with
-# ffmpeg's ass filter, which needs a real font via fontconfig — without this
-# the text renders as tofu boxes (or libass fails outright).
+# fontconfig + curl: caption burn-in uses libass, which resolves ASS
+# Fontname through fontconfig. The caption font library (see
+# artifacts/api-server/src/lib/fonts.ts) is downloaded here so the
+# exported video uses the exact same faces as the web preview.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential python3-dev fonts-dejavu-core \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get install -y --no-install-recommends ffmpeg fontconfig curl \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /usr/share/fonts/bdv \
+  && cd /usr/share/fonts/bdv \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/alfaslabone/AlfaSlabOne-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf \
+  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/barlowcondensed/BarlowCondensed-Bold.ttf" \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bungee/Bungee-Regular.ttf \
+  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf" \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/luckiestguy/LuckiestGuy-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/permanentmarker/PermanentMarker-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/titanone/TitanOne-Regular.ttf \
+  && fc-cache -f /usr/share/fonts/bdv \
+  && echo "caption fonts installed: $(fc-list /usr/share/fonts/bdv file 2>/dev/null | wc -l)"
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
 # DEMUCS_PYTHON points the server at this interpreter; DEMUCS_MODEL can

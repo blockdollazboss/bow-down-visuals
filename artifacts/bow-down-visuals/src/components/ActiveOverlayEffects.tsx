@@ -20,12 +20,12 @@ const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.png`;
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {
   "Light Leaks":       35,
   "Lens Flare":        30,
-  "Smoke":             28,
+  "Smoke":             18,
   "Rain":              35,
   "Sparks":            35,
   "Dust":              25,
   "Animated Waveform": 45,
-  "Logo / Watermark":  65,
+  "Logo / Watermark":  30,
 };
 
 /* ─── Per-mode intensity presets ─────────────────────────────────────────── */
@@ -152,9 +152,10 @@ function SmokeEffect({ opacity, isPlaying }: { opacity: number; isPlaying: boole
             bottom: `${-8 + dr(i * 3) * 15}%`,
             width: `${80 + dr(i * 11) * 120}px`,
             height: `${80 + dr(i * 5) * 120}px`,
-            background: `rgba(200,200,200,${0.55 + dr(i * 9) * 0.30})`,
+            // Warm, soft, low-alpha wisps — atmosphere, not gray smudges.
+            background: `rgba(216,205,190,${0.32 + dr(i * 9) * 0.22})`,
             borderRadius: "50%",
-            filter: `blur(${38 + dr(i * 13) * 45}px)`,
+            filter: `blur(${52 + dr(i * 13) * 55}px)`,
             animationName: "bdv-smoke",
             animationDuration: `${3.5 + dr(i * 7) * 5}s`,
             animationDelay: `${-dr(i * 17) * 5.5}s`,
@@ -488,7 +489,7 @@ function WatermarkEffect({
           height: "auto",
           opacity,
           display: "block",
-          filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.72)) drop-shadow(0 0 2px rgba(0,0,0,0.50))",
+          filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.45))",
         }}
       />
     );

@@ -24,6 +24,7 @@ import {
 } from "@/lib/editor-settings";
 import { LayoutTemplate } from "lucide-react";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
+import { CAPTION_FONTS, FONT_VIBES, getCaptionFont } from "@/lib/fonts";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 
 interface Props {
@@ -407,7 +408,14 @@ function buildCaptionsFromSegments(
       /* Skip degenerate rows */
       if (startSec < 0 || endSec <= startSec) return;
 
-      lines.push({ id: newLineId(), startSec, endSec, text: chunk.join(" "), confidence: "high" });
+      // Even word distribution as a fallback (no per-word timestamps here).
+      const lineDur = endSec - startSec;
+      const wordTimings = chunk.map((word, wi) => ({
+        word,
+        start: parseFloat(((wi / chunk.length) * lineDur).toFixed(2)),
+        end: parseFloat((((wi + 1) / chunk.length) * lineDur).toFixed(2)),
+      }));
+      lines.push({ id: newLineId(), startSec, endSec, text: chunk.join(" "), confidence: "high", words: wordTimings });
     });
   }
 
@@ -437,12 +445,23 @@ function buildCaptionsFromWords(
     if (songDuration != null && endSec > songDuration) endSec = songDuration;
     const text = chunk.map((w) => w.word.trim()).filter(Boolean).join(" ");
     if (text && startSec >= 0 && endSec > startSec) {
+      // Keep per-word timings (relative to line start) so the Word Karaoke
+      // style can highlight each word as it's sung. Dropped automatically if
+      // the line text is edited later (timings would no longer align).
+      const words = chunk
+        .map((w) => ({
+          word: w.word.trim(),
+          start: parseFloat(Math.max(0, w.start - startSec).toFixed(2)),
+          end: parseFloat(Math.max(0, w.end - startSec).toFixed(2)),
+        }))
+        .filter((w) => w.word);
       lines.push({
         id: newLineId(),
         startSec: parseFloat(startSec.toFixed(2)),
         endSec: parseFloat(endSec.toFixed(2)),
         text,
         confidence: "high",
+        words,
       });
     }
     chunk = [];
@@ -1668,6 +1687,32 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
                   options={CAPTION_FONT_SIZES.map((s) => ({ value: s, label: s }))}
                   onChange={(v) => setCaption("fontSize", v)}
                 />
+              </Field>
+              <Field label="Font" hint="Burned into the export in the same face">
+                <select
+                  value={c.fontFamily || ""}
+                  onChange={(e) => setCaption("fontFamily", e.target.value)}
+                  className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-bold text-white/80 outline-none focus:border-[#C9A84C]/50 [&>optgroup]:bg-[#141414] [&>option]:bg-[#141414]"
+                  data-testid="caption-font-select"
+                >
+                  {FONT_VIBES.map((vibe) => (
+                    <optgroup key={vibe} label={vibe}>
+                      {CAPTION_FONTS.filter((f) => f.vibe === vibe).map((f) => (
+                        <option key={f.id} value={f.id} style={{ fontFamily: `"${f.family}", sans-serif` }}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                {(() => {
+                  const f = getCaptionFont(c.fontFamily);
+                  return f ? (
+                    <p className="mt-1.5 text-lg leading-none text-white/90" style={{ fontFamily: `"${f.family}", sans-serif` }}>
+                      Bow down visuals
+                    </p>
+                  ) : null;
+                })()}
               </Field>
               <Field label="Position">
                 <Segmented
