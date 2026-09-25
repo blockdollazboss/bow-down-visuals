@@ -694,6 +694,9 @@ interface WardrobeOutfit {
   is_default: boolean;
 }
 
+/** Must match MAX_OUTFITS_PER_ARTIST in the outfits API route. */
+const MAX_OUTFITS = 5;
+
 function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOutfit }: {
   vaultId: string;
   hasReferencePhoto: boolean;
@@ -732,7 +735,13 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
 
   useEffect(() => { fetchOutfits(); }, [vaultId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const wardrobeFull = outfits.length >= MAX_OUTFITS;
+
   const addOutfit = async (outfitLabel: string, url: string, path: string | null) => {
+    if (wardrobeFull) {
+      setError(`Each artist can save up to ${MAX_OUTFITS} outfits — remove one to add another.`);
+      return;
+    }
     if (!outfitLabel.trim() || !/^https?:\/\//i.test(url.trim())) {
       setError("Give the outfit a name and a valid image URL.");
       return;
@@ -832,28 +841,37 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   return (
     <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-bold text-white/30 uppercase tracking-wider">👔 Wardrobe</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onGenerateOutfit}
-            disabled={!hasReferencePhoto}
-            title={hasReferencePhoto ? "Generate a new outfit with your locked identity — face stays the same" : "Save an Artist Photo first to unlock outfit generation"}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:brightness-110 transition-all disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <Camera className="h-3.5 w-3.5" /> Generate outfit
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowAdd((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add outfit
-          </button>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-white/30 uppercase tracking-wider">👔 Wardrobe</p>
+          {wardrobeFull && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/25">
+              {outfits.length} of {MAX_OUTFITS} outfits
+            </span>
+          )}
         </div>
+        {!wardrobeFull && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onGenerateOutfit}
+              disabled={!hasReferencePhoto}
+              title={hasReferencePhoto ? "Generate a new outfit with your locked identity — face stays the same" : "Save an Artist Photo first to unlock outfit generation"}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:brightness-110 transition-all disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Camera className="h-3.5 w-3.5" /> Generate outfit
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdd((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add outfit
+            </button>
+          </div>
+        )}
       </div>
 
-      {showAdd && (
+      {showAdd && !wardrobeFull && (
         <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3 space-y-2">
           <Input
             value={label}

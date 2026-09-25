@@ -6,8 +6,8 @@
  *   DELETE /api/artist-vaults/:vaultId/outfits/:outfitId
  *
  * Covers: vault-owner scoping (no cross-vault access), first-outfit-becomes-
- * default, default uniqueness, URL validation, and non-destructive delete
- * (row removal only — storage is never touched).
+ * default, default uniqueness, URL validation, the 5-outfit-per-artist cap,
+ * and non-destructive delete (row removal only — storage is never touched).
  *
  * Heavy modules (DB, auth) are mocked; the real Express router runs against
  * a local ephemeral server.
@@ -183,6 +183,26 @@ describe("wardrobe outfits API", () => {
     expect(res.status).toBe(400);
     const res2 = await post("/artist-vaults/vault-1/outfits", { label: "Empty" });
     expect(res2.status).toBe(400);
+  });
+
+  it("rejects a 6th outfit — each artist can save up to 5", async () => {
+    for (let i = 1; i <= 5; i++) {
+      const res = await post("/artist-vaults/vault-1/outfits", {
+        label: `Outfit ${i}`,
+        image_url: `https://example.com/o${i}.png`,
+      });
+      expect(res.status).toBe(201);
+    }
+    const res = await post("/artist-vaults/vault-1/outfits", {
+      label: "Outfit 6",
+      image_url: "https://example.com/o6.png",
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/up to 5 outfits/i);
+    // Nothing was inserted.
+    const list = (await (await get("/artist-vaults/vault-1/outfits")).json()).outfits;
+    expect(list).toHaveLength(5);
   });
 
   it("sets the default outfit exactly once", async () => {

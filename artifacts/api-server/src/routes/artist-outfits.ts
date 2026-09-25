@@ -6,6 +6,9 @@ import { eq, and, asc } from "drizzle-orm";
 
 const router = Router();
 
+/** Max outfits an artist can save in their wardrobe. */
+export const MAX_OUTFITS_PER_ARTIST = 5;
+
 const httpsUrl = z
   .string()
   .trim()
@@ -79,7 +82,11 @@ router.post("/artist-vaults/:vaultId/outfits", requireAuth, async (req, res) => 
     .select({ id: artistOutfitsTable.id })
     .from(artistOutfitsTable)
     .where(eq(artistOutfitsTable.vault_id, vaultId))
-    .limit(1);
+    .limit(MAX_OUTFITS_PER_ARTIST + 1);
+  if (existing.length >= MAX_OUTFITS_PER_ARTIST) {
+    res.status(400).json({ error: `Each artist can save up to ${MAX_OUTFITS_PER_ARTIST} outfits.` });
+    return;
+  }
   const isFirst = existing.length === 0;
 
   const [row] = await db
