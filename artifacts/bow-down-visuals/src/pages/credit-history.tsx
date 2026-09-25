@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 
-interface Purchase {
+interface Payment {
   id: string;
   createdAt: string;
   creditPack: string | null;
@@ -21,11 +21,6 @@ interface Usage {
   action: string;
   creditsUsed: number;
   projectId: string | null;
-}
-
-interface CreditHistory {
-  purchases: Purchase[];
-  usage: Usage[];
 }
 
 function fmt(dateStr: string) {
@@ -45,7 +40,8 @@ function fmtMoney(cents: number | null, currency: string | null) {
 
 export default function CreditHistory() {
   const { profile, getAccessToken } = useAuth();
-  const [history, setHistory] = useState<CreditHistory | null>(null);
+  const [payments, setPayments] = useState<Payment[] | null>(null);
+  const [usage, setUsage] = useState<Usage[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,10 +52,18 @@ export default function CreditHistory() {
         const token = await getAccessToken();
         const headers: Record<string, string> = {};
         if (token) headers["Authorization"] = `Bearer ${token}`;
-        const res = await fetch("/api/credits/history", { headers });
-        if (!res.ok) throw new Error("Failed to load history");
-        const data = await res.json();
-        if (!cancelled) setHistory(data);
+        const [payRes, histRes] = await Promise.all([
+          fetch("/api/payments/history", { headers }),
+          fetch("/api/credits/history", { headers }),
+        ]);
+        if (!payRes.ok) throw new Error("Failed to load purchase history");
+        if (!histRes.ok) throw new Error("Failed to load credit history");
+        const payData = (await payRes.json()) as { payments?: Payment[] };
+        const histData = (await histRes.json()) as { usage?: Usage[] };
+        if (!cancelled) {
+          setPayments(payData.payments ?? []);
+          setUsage(histData.usage ?? []);
+        }
       } catch {
         if (!cancelled) setError("Could not load credit history.");
       } finally {
@@ -83,7 +87,7 @@ export default function CreditHistory() {
 
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Credit History</h1>
-          <p className="text-white/40 mt-1 text-sm">Track your credits added and spent</p>
+          <p className="text-white/40 mt-1 text-sm">Track your purchases and credit usage</p>
         </div>
 
         {/* Section 1: Current Balance */}
@@ -115,19 +119,19 @@ export default function CreditHistory() {
           <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-red-400 text-sm">{error}</div>
         )}
 
-        {!loading && history && (
+        {!loading && payments && usage && (
           <>
-            {/* Section 2: Credits Added */}
+            {/* Section 2: Purchase History */}
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold">Credits Added</h2>
-                {history.purchases.length > 0 && (
-                  <span className="ml-auto text-xs text-white/30">{history.purchases.length} purchase{history.purchases.length !== 1 ? "s" : ""}</span>
+                <h2 className="text-lg font-bold">Purchase History</h2>
+                {payments.length > 0 && (
+                  <span className="ml-auto text-xs text-white/30">{payments.length} purchase{payments.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
-              {history.purchases.length === 0 ? (
+              {payments.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
                   No purchases yet.{" "}
                   <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy credits</Link> to get started.
@@ -145,7 +149,7 @@ export default function CreditHistory() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...history.purchases].reverse().map((p) => (
+                      {[...payments].reverse().map((p) => (
                         <tr key={p.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-3 text-white/50">{fmt(p.createdAt)}</td>
                           <td className="px-4 py-3 text-white/70">{p.creditPack ?? "—"}</td>
@@ -173,12 +177,12 @@ export default function CreditHistory() {
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
                 <h2 className="text-lg font-bold">Credits Used</h2>
-                {history.usage.length > 0 && (
-                  <span className="ml-auto text-xs text-white/30">{history.usage.length} action{history.usage.length !== 1 ? "s" : ""}</span>
+                {usage.length > 0 && (
+                  <span className="ml-auto text-xs text-white/30">{usage.length} action{usage.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
-              {history.usage.length === 0 ? (
+              {usage.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
                   No credits spent yet. Start creating to see your usage here.
                 </div>
@@ -193,7 +197,7 @@ export default function CreditHistory() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...history.usage].reverse().map((u) => (
+                      {[...usage].reverse().map((u) => (
                         <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-3 text-white/50">{fmt(u.createdAt)}</td>
                           <td className="px-4 py-3 text-white/80">{u.action}</td>

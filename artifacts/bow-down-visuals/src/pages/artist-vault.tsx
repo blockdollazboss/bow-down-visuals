@@ -10,6 +10,7 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
+  AlertTriangle,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -564,6 +565,7 @@ function LockedVoiceSection({ vault, onChanged }: {
           </Button>
         </div>
       ) : (
+        <>
         <div className="flex flex-wrap gap-2">
           <label
             className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
@@ -618,6 +620,14 @@ function LockedVoiceSection({ vault, onChanged }: {
             From my songs
           </Button>
         </div>
+        <p className="mt-3 flex items-start gap-2 text-xs text-primary/80">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">From a song needs clear, prominent lead vocals.</span>{" "}
+            Heavy effects, buried or doubled vocals, and instrumental-heavy tracks may fail or clone poorly.
+          </span>
+        </p>
+        </>
       )}
 
       {/* Single section-level error display (kept at the bottom of the section). */}
@@ -632,6 +642,7 @@ function LockedVoiceSection({ vault, onChanged }: {
         <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
           <p className="px-3 py-2 text-xs text-white/40">
             Pick a song — its vocals get stripped and cloned into the locked voice (2 credits).
+            Best with clear lead vocals; heavy effects or buried vocals may fail.
           </p>
           {songs.map((s) => (
             <button
