@@ -155,7 +155,7 @@ export default function Thumbnail() {
 
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="thumbnail" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Artist Name</Label>

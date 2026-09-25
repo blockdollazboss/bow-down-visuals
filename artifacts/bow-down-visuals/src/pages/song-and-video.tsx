@@ -949,7 +949,7 @@ export default function SongAndVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
 
                   <FieldWrapper label="Artist Description">
                     <Textarea {...register("artistDescription", { required: !loadedVault })}

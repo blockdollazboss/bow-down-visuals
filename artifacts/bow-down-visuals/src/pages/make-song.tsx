@@ -232,7 +232,7 @@ export default function MakeSong() {
               )}
             </div>
 
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="music" />
 
             {/* Row 1: Artist + Song Title */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
