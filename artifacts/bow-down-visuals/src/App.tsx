@@ -57,6 +57,7 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -209,6 +210,7 @@ function AppShell() {
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          <Route path="/watermark-removal"><WatermarkRemoval /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
