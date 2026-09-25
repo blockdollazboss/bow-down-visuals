@@ -16,6 +16,8 @@ import { HelpPanel } from "@/components/HelpPanel";
 import { SiteFooter } from "@/components/layout/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
 /*
  * Marketing pages are imported eagerly so they land in the initial bundle
@@ -150,15 +152,27 @@ function RouteFallback() {
 
 /**
  * Authenticated app layout: persistent sidebar navigation (with the
- * admin-only Admin link) beside the page content. The video editor keeps
- * its full-viewport studio surface and stays outside this layout.
+ * admin-only Admin link) beside the page content. The sidebar is
+ * collapsible on desktop — the collapsed choice persists in localStorage —
+ * and a floating expand button guarantees the user can always bring it
+ * back. On mobile the sidebar renders as a drawer (unchanged).
+ * The video editor keeps its full-viewport studio surface and stays
+ * outside this layout.
  */
 function AuthedLayout({ children }: { children: ReactNode }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      open={!sidebarCollapsed}
+      onOpenChange={(open) => setSidebarCollapsed(!open)}
+    >
       <div className="flex min-h-svh w-full">
         <AppSidebar />
         <main className="min-w-0 flex-1">{children}</main>
+        <ExpandSidebarButton
+          collapsed={sidebarCollapsed}
+          onExpand={() => setSidebarCollapsed(false)}
+        />
       </div>
     </SidebarProvider>
   );
