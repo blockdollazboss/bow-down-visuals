@@ -55,6 +55,9 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
   }
 
   const musicLengthMs = clampLengthMs(lengthSeconds);
+  // Pin the music model explicitly — the API default can lag behind releases.
+  // Override with ELEVENLABS_MUSIC_MODEL if a newer model ships.
+  const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
 
   try {
     const elevenRes = await fetch("https://api.elevenlabs.io/v1/music", {
@@ -66,6 +69,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
       body: JSON.stringify({
         prompt: prompt.trim().slice(0, 2000),
         music_length_ms: musicLengthMs,
+        model_id: musicModel,
       }),
     });
 
