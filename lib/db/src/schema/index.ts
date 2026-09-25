@@ -34,3 +34,4 @@ export * from "./locations";
 export * from "./artist-outfits";
 export * from "./discord";
 export * from "./customer-shops";
+export * from "./email-lists";

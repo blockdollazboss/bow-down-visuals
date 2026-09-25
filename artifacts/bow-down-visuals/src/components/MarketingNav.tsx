@@ -22,8 +22,12 @@ const NAV_LINKS = [
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
+<<<<<<< HEAD
   { label: "Cover Art", href: "/cover-art" },
   { label: "My Shop", href: "/my-shop" },
+=======
+  { label: "Email List", href: "/email-list" },
+>>>>>>> tmp-3
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
