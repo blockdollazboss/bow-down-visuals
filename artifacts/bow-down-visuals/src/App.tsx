@@ -74,6 +74,7 @@ const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
+const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -242,6 +243,7 @@ function AppShell() {
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
           <Route path="/shop/:handle"><ShopStorefront /></Route>
+          <Route path="/cover-art"><CoverArt /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
