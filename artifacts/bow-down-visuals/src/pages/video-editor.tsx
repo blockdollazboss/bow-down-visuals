@@ -54,7 +54,6 @@ import {
   comparePosFromClientX,
   hasActiveVisualEffects,
 } from "@/lib/compare-slider";
->>>>>>> origin/main
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
