@@ -160,7 +160,7 @@ export default function CreditHistory() {
                   <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy credits</Link> to get started.
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
@@ -210,7 +210,7 @@ export default function CreditHistory() {
                   No credit activity yet. Start creating to see your transactions here.
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">

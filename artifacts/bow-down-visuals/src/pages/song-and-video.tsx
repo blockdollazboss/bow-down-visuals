@@ -739,7 +739,7 @@ export default function SongAndVideo() {
     <div className="min-h-screen bg-black text-white">
       <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-primary/7 rounded-full blur-[120px]" />
       </div>
 

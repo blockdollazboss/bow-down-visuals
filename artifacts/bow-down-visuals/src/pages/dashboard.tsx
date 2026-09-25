@@ -147,6 +147,7 @@ export default function Dashboard() {
   const { setMode, isSimple } = useUserMode();
   const [, setLocation] = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
   const [vaultCount, setVaultCount] = useState<number | null>(null);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [paymentToast, setPaymentToast] = useState<{ type: "success" | "error" | "cancelled"; message: string } | null>(null);
@@ -199,6 +200,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
+    setProjectsLoading(true);
     (async () => {
       const token = await getAccessToken();
       const res = await fetch("/api/projects", {
@@ -207,8 +209,9 @@ export default function Dashboard() {
       if (!cancelled) {
         const d = res.ok ? await res.json() : { projects: [] };
         setProjects(d.projects ?? []);
+        setProjectsLoading(false);
       }
-    })().catch(() => {});
+    })().catch(() => { if (!cancelled) setProjectsLoading(false); });
     return () => { cancelled = true; };
   }, [user, getAccessToken]);
 
@@ -478,7 +481,19 @@ export default function Dashboard() {
               </span>
             </Link>
           </div>
-          {recentProjects.length === 0 ? (
+          {projectsLoading ? (
+            <div className="flex flex-col gap-2" aria-label="Loading projects">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse">
+                  <div className="h-8 w-8 rounded-lg bg-white/[0.06] shrink-0" />
+                  <div className="flex-1">
+                    <div className="h-3.5 w-2/5 rounded bg-white/[0.07] mb-2" />
+                    <div className="h-2.5 w-1/4 rounded bg-white/[0.05]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : recentProjects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-white/[0.05] bg-white/[0.01] text-center gap-3">
               <FolderOpen className="h-8 w-8 text-white/10" />
               <p className="text-sm text-white/25">No saved projects yet.</p>

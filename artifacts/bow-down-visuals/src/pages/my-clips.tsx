@@ -529,7 +529,7 @@ export default function MyClips() {
     <div className="min-h-screen bg-black text-white">
       <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-yellow-600/6 rounded-full blur-[100px]" />
       </div>
 

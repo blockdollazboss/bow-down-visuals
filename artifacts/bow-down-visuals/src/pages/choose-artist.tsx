@@ -66,7 +66,7 @@ export default function ChooseArtist() {
       <TopBar />
 
       {/* Photography studio lighting — overhead softbox beams */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] -rotate-12 origin-top" />
         <div className="absolute top-0 right-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] rotate-12 origin-top" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/[0.03] rounded-full blur-[100px]" />
