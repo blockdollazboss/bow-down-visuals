@@ -13,6 +13,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
@@ -1108,8 +1109,17 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
   const G = (o: number) => `rgba(201,168,76,${o})`;
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   return (
+    <>
+    {lightboxOpen && vault.reference_image_url && (
+      <PhotoLightbox
+        photoUrl={vault.reference_image_url}
+        artistName={vault.artist_name}
+        onClose={() => setLightboxOpen(false)}
+      />
+    )}
     <div style={{
       borderRadius: 20,
       border: isActive ? `2px solid ${G(0.55)}` : "1px solid rgba(255,255,255,0.07)",
@@ -1118,8 +1128,10 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
       transition: "all 0.2s ease",
       background: isActive ? "#0d0900" : "#0a0a0a",
     }}>
-      {/* Full-photo top section */}
-      <div style={{
+      {/* Full-photo top section — click to enlarge */}
+      <div
+        onClick={() => vault.reference_image_url && setLightboxOpen(true)}
+        style={{
         height: 220,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) top center/cover no-repeat`
@@ -1127,6 +1139,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
             ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
             : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
+        cursor: vault.reference_image_url ? "zoom-in" : "default",
       }}>
         {/* Initials avatar (no photo) */}
         {!vault.reference_image_url && (
@@ -1250,6 +1263,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
         </div>
       </div>
     </div>
+    </>
   );
 }
 
