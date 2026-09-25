@@ -48,6 +48,7 @@ const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
+const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -167,6 +168,7 @@ function AppShell() {
           <Route path="/privacy"><Privacy /></Route>
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Randomizer /></Route>
+          <Route path="/hooks"><HookStudio /></Route>
 
           {/* Protected app pages */}
           <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>

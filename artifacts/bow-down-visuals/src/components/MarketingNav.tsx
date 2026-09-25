@@ -18,6 +18,7 @@ const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Pricing", href: "/pricing" },
   { label: "Randomizer", href: "/randomizer" },
+  { label: "Hook Studio", href: "/hooks" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
