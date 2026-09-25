@@ -14,6 +14,8 @@ import { AiChatWidget } from "@/components/AiChatWidget";
 import { HelpPanel } from "@/components/HelpPanel";
 
 import { SiteFooter } from "@/components/layout/footer";
+import { VideoBanner } from "@/components/layout/video-banner";
+import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
@@ -166,13 +168,15 @@ function RouteFallback() {
 }
 
 /**
- * Authenticated app layout: persistent sidebar navigation (with the
- * admin-only Admin link) beside the page content. The sidebar is
+ * Authenticated app layout: the interactive video banner strip sits on top
+ * (exactly where the old toolbar lived), with persistent sidebar navigation
+ * (plus the admin-only Admin link) beside the page content. The sidebar is
  * collapsible on desktop — the collapsed choice persists in localStorage —
  * and a floating expand button guarantees the user can always bring it
- * back. On mobile the sidebar renders as a drawer (unchanged).
- * The video editor keeps its full-viewport studio surface and stays
- * outside this layout.
+ * back. On mobile the sidebar renders as a drawer opened by the floating
+ * MobileSidebarTrigger (the old desktop-only expand button had no mobile
+ * equivalent). The video editor keeps its full-viewport studio surface and
+ * stays outside this layout.
  */
 function AuthedLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
@@ -183,11 +187,17 @@ function AuthedLayout({ children }: { children: ReactNode }) {
     >
       <div className="flex min-h-svh w-full">
         <AppSidebar />
-        <main className="min-w-0 flex-1">{children}</main>
+        <div className="min-w-0 flex-1 flex flex-col">
+          <div className="sticky top-0 z-40">
+            <VideoBanner />
+          </div>
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
         <ExpandSidebarButton
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
+        <MobileSidebarTrigger />
       </div>
     </SidebarProvider>
   );
@@ -211,8 +221,7 @@ function AppShell() {
           <Route path="/login"><Login /></Route>
           <Route path="/signup"><Signup /></Route>
 
-          {/* Marketing */}
-          <Route path="/"><Home /></Route>
+          {/* Marketing (home lives inside the sidebar layout below) */}
           <Route path="/pricing"><Pricing /></Route>
           <Route path="/waitlist"><Waitlist /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
@@ -244,6 +253,10 @@ function AppShell() {
           <Route>
             <AuthedLayout>
               <Switch>
+                {/* Home is public: signed-in visitors are redirected to
+                    /choose-artist by the page itself; everyone gets the
+                    sidebar + banner shell. */}
+                <Route path="/"><Home /></Route>
                 <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
                 <Route path="/choose-artist"><ProtectedRoute><ChooseArtist /></ProtectedRoute></Route>
                 <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>

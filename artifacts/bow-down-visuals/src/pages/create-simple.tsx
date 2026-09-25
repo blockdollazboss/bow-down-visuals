@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Sparkles, Loader2, Music, ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
@@ -256,7 +255,6 @@ export default function CreateSimple() {
   if (outOfCredits) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <TopBar />
         <div className="max-w-xl mx-auto px-5 py-16">
           <OutOfCredits />
         </div>
@@ -266,7 +264,6 @@ export default function CreateSimple() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/[0.08] rounded-full blur-[120px]" />
       </div>

@@ -6,7 +6,6 @@ import {
   ArrowRight, Zap, AlertCircle, User, RefreshCw,
   ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal, Users,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -275,7 +274,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

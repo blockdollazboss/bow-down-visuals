@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -167,7 +166,6 @@ export default function MakeSong() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
