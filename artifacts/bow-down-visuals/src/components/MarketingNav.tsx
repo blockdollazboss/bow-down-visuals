@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Press Kits", href: "/press-kit" },
   { label: "Release Planner", href: "/release" },
+  { label: "Samples", href: "/samples" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
