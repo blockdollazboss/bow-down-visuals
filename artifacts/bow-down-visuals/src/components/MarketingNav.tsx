@@ -17,6 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
 const NAV_LINKS = [
   { label: "Home", href: "/" },
   { label: "Pricing", href: "/pricing" },
+  { label: "Features", href: "/features" },
+  { label: "Promote", href: "/promote" },
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
   { label: "Sound Finder", href: "/sounds" },

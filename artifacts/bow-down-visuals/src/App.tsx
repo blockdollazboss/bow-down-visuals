@@ -80,6 +80,9 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
+const Features = lazyWithRetry(() => import("@/pages/features"));
+const Promote = lazyWithRetry(() => import("@/pages/promote"));
+const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -88,7 +91,6 @@ const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
-const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
 /* ── Orphaned feature pages wired up (site organization) ── */
@@ -296,8 +298,8 @@ function AppShell() {
           <Route path="/llc-guide"><LlcGuide /></Route>
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:id"><PressPublic /></Route>
-          <Route path="/join/:handle"><Join /></Route>
-
+          <Route path="/join/:handle"><Join /></Route>          <Route path="/features"><Features /></Route>
+          <Route path="/promote"><Promote /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
@@ -359,8 +361,7 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
-                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
-                <Route component={NotFound} />
+                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>                <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
           </Route>
