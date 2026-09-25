@@ -72,6 +72,8 @@ const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
+const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -239,6 +241,7 @@ function AppShell() {
           <Route path="/llc-guide"><LlcGuide /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
+          <Route path="/shop/:handle"><ShopStorefront /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -263,6 +266,7 @@ function AppShell() {
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
+                <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>

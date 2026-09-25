@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { label: "Distribute", href: "/distribute" },
   { label: "Clip Maker", href: "/clip-maker" },
   { label: "Branding Shop", href: "/branding-shop" },
+  { label: "My Shop", href: "/my-shop" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
