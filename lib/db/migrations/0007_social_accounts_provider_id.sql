@@ -1,7 +1,7 @@
 -- TikTok auto-post (drafts tier) — platform-agnostic provider user id + refresh tokens.
 -- Run ONCE against the production database (Render Postgres) before the
 -- matching code deploys. Idempotent: safe to run multiple times.
--- Builds on 0002_social_accounts.sql (Instagram MVP); numbered 0005 because
+-- Builds on 0002_social_accounts.sql (Instagram MVP); numbered 0007 because
 -- 0004 is taken by the Facebook Pages migration.
 --
 -- The 0002 unique index is (user_id, platform, ig_user_id), which is
