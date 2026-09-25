@@ -259,9 +259,24 @@ router.delete("/artist-vaults/:id/voice", requireAuth, async (req, res) => {
    without it can never succeed here, and Demucs on a full song can OOM a
    small container (2026-09-25 incident). The check fails open.
    Isolation uses a lighter Demucs model (FROM_SONG_DEMUCS_MODEL, default
-   htdemucs) — the vocals only need to be intelligible IVC input. */
+   htdemucs) — the vocals only need to be intelligible IVC input.
+   Before Demucs runs, the song is trimmed to its loudest
+   FROM_SONG_TRIM_SECONDS-second window (default 90): ElevenLabs IVC only
+   needs ~30s of clean vocals, and Demucs on a full-length song timed out
+   after 10 min on the 2GB Render box (2026-09-25 incident). */
 const FROM_SONG_CREDIT_COST = 2;
 const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
+
+/**
+ * Env override for the pre-Demucs trim window (seconds). Exported for tests.
+ * Falls back to 90 on missing/invalid values — an invalid trim must never
+ * silently disable the protection against full-song Demucs runs.
+ */
+export function resolveFromSongTrimSeconds(env: NodeJS.ProcessEnv = process.env): number {
+  const v = Number(env["FROM_SONG_TRIM_SECONDS"] ?? 90);
+  return Number.isFinite(v) && v > 0 ? v : 90;
+}
+const FROM_SONG_TRIM_SECONDS = resolveFromSongTrimSeconds();
 
 async function loadSongBuffer(
   file: Express.Multer.File | undefined,
@@ -375,10 +390,12 @@ router.post(
       );
       req.log.info({ vaultId: vault.id, label }, "artist-voices: from-song isolation started");
 
-      /* 1 — Strip the song down to its vocals (lighter model: this runs
-         inside a web request on a small container). */
+      /* 1 — Trim to the loudest window, then strip it down to its vocals
+         (lighter model: this runs inside a web request on a small
+         container). */
       const { vocalsPath, workdir } = await separateVocalStems(songBuffer, {
         model: FROM_SONG_DEMUCS_MODEL,
+        trimSeconds: FROM_SONG_TRIM_SECONDS,
       });
       let vocalsBuffer: Buffer;
       try {
