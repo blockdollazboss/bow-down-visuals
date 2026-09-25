@@ -7,6 +7,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import {
   VIDEO_FORMATS,
   getClipEdit,
+  proToolsActive,
   type EditorSettings,
   type VideoFormat,
   type ExportResolution,
@@ -960,6 +961,10 @@ export function ExportSection({
           const clip = getClipEdit(settings, s.id);
           if (!clip.transition || clip.transition === "Cut") return null;
           return { type: clip.transition, duration: clip.transitionDuration ?? 1.0 };
+        })}
+        clipProTools={scenes.filter(isExportSelected).map((s) => {
+          const pt = getClipEdit(settings, s.id).proTools;
+          return proToolsActive(pt) ? pt : null;
         })}
         overlayItems={settings.overlayItems}
         timelineLayout={settings.timelineLayout}

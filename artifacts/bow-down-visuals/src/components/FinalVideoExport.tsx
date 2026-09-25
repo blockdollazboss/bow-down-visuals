@@ -17,7 +17,8 @@ import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import { proToolsActive } from "@/lib/editor-settings";
 import { computeManualTimings } from "@/lib/scene-timing";
 import { pollExportJob } from "@/lib/export-job-poll";
 
@@ -136,6 +137,9 @@ interface FinalVideoExportProps {
   rangeInvalidReason?: string;
   /** Per-clip transition overrides: index matches clipUrls, null = Cut */
   clipTransitions?: ({ type: string; duration: number } | null)[];
+  /** Per-clip Pro Tools settings (color/chroma/speed/reverse/rotate/flip/crop):
+   *  index matches clipUrls (pre-manual-layout order), null = neutral. */
+  clipProTools?: (ProToolsSettings | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
   /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
@@ -225,6 +229,7 @@ export function FinalVideoExport({
   rangeInvalid = false,
   rangeInvalidReason,
   clipTransitions,
+  clipProTools,
   overlayItems,
   timelineLayout = "auto",
   clipEdits,
@@ -249,6 +254,7 @@ export function FinalVideoExport({
 
   let selectedScenes = baseSelectedScenes;
   let orderedClipTransitions = clipTransitions;
+  let orderedClipProTools = clipProTools;
   let manualGapsBeforeSec: number[] | null = null;
 
   if (isManualLayout && manualResult) {
@@ -276,6 +282,11 @@ export function FinalVideoExport({
     manualGapsBeforeSec = orderedIndices.map((idx) => {
       const timing = manualResult.timings[idx]!;
       return Math.max(0, timing.gapBeforeSec ?? 0);
+    });
+    // Pro tools follow the same playback-order remap as transitions.
+    orderedClipProTools = orderedIndices.map((idx) => {
+      const scene = scenes[idx]!;
+      return clipProTools?.[baseSelectedScenes.findIndex((s) => s.id === scene.id)] ?? null;
     });
   }
 
@@ -479,6 +490,7 @@ export function FinalVideoExport({
         exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
         exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
         clipTransitions:  orderedClipTransitions ?? null,
+        clipProTools:    orderedClipProTools?.some((p) => p && proToolsActive(p)) ? orderedClipProTools : null,
         manualGapsBeforeSec: manualGapsBeforeSec ?? null,
         effects:               effects?.length ? effects : null,
         overlayItems:          overlayItems?.length ? overlayItems : null,
