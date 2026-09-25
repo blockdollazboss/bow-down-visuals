@@ -62,11 +62,8 @@ const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const PodcastStudio = lazyWithRetry(() => import("@/pages/podcast"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
-<<<<<<< HEAD
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
-=======
 const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
->>>>>>> tmp-7
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
@@ -74,18 +71,12 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
-<<<<<<< HEAD
-<<<<<<< HEAD
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
-=======
 const EmailListBuilder = lazyWithRetry(() => import("@/pages/email-list"));
 const JoinList = lazyWithRetry(() => import("@/pages/join"));
->>>>>>> tmp-3
-=======
 const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
->>>>>>> tmp-6
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -243,11 +234,8 @@ function AppShell() {
           <Route path="/podcast"><PodcastStudio /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
-<<<<<<< HEAD
           <Route path="/memberships"><Memberships /></Route>
-=======
           <Route path="/distribute"><Distribute /></Route>
->>>>>>> tmp-7
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
@@ -255,17 +243,11 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
-<<<<<<< HEAD
-<<<<<<< HEAD
           <Route path="/cover-art"><CoverArt /></Route>
           <Route path="/shop/:handle"><ShopStorefront /></Route>
-=======
           <Route path="/email-list"><EmailListBuilder /></Route>
           <Route path="/join/:handle"><JoinList /></Route>
->>>>>>> tmp-3
-=======
           <Route path="/lyric-video"><LyricVideo /></Route>
->>>>>>> tmp-6
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
