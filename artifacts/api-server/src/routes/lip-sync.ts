@@ -195,19 +195,63 @@ async function probeUrl(
 
 /* ── Supabase storage for trimmed audio segments ─────────────────────────── */
 
+/** Idempotent bucket ensure — private bucket for trimmed lip-sync audio.
+ *
+ *  Uses the Storage REST API directly (same pattern as
+ *  ensureSupabaseClipsBucket / ensureVideoExportsBucket in
+ *  lib/objectStorage.ts) instead of supabase-js: under this service's
+ *  Node/fetch combination the supabase-js bucket helpers can report success
+ *  without the bucket actually being created, and file_size_limit in the
+ *  create body gets rejected with 413 EntityTooLarge (seen on the
+ *  video-exports bucket, PR #5). After creating, we re-read the bucket and
+ *  throw LOUDLY if it is still missing, so an upload can never silently
+ *  march into a doomed upload. */
 async function ensureSupabaseBucket(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase.storage.createBucket(LIP_SYNC_AUDIO_BUCKET, {
-    public: false,
-    fileSizeLimit: 50 * 1024 * 1024,
+  const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured — cannot ensure lip-sync-temp bucket.",
+    );
+  }
+  const headers: Record<string, string> = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const getBucket = () => fetch(`${url}/storage/v1/bucket/${LIP_SYNC_AUDIO_BUCKET}`, { headers });
+
+  if ((await getBucket()).ok) return; // already exists
+
+  const createRes = await fetch(`${url}/storage/v1/bucket`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      id: LIP_SYNC_AUDIO_BUCKET,
+      name: LIP_SYNC_AUDIO_BUCKET,
+      public: false,
+      // NOTE: no file_size_limit — Supabase rejected it with 413 EntityTooLarge
+      // on the video-exports bucket (PR #5). Trimmed audio segments are tiny.
+    }),
   });
-  // Ignore "already exists" — any other error propagates
-  if (
-    error &&
-    !error.message?.toLowerCase().includes("already exist") &&
-    error.message !== "Duplicate"
-  ) {
-    // Non-fatal: bucket might exist under a different error wording
+  const createText = await createRes.text().catch(() => "");
+  const alreadyExists = createRes.status === 409 || /already exists/i.test(createText);
+  if (!createRes.ok && !alreadyExists) {
+    throw new Error(
+      `Failed to create Supabase bucket "${LIP_SYNC_AUDIO_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    );
+  }
+
+  // Verify it actually exists now — never silently continue into a doomed upload.
+  const verifyRes = await getBucket();
+  if (!verifyRes.ok) {
+    const verifyText = await verifyRes.text().catch(() => "");
+    throw new Error(
+      `Supabase bucket "${LIP_SYNC_AUDIO_BUCKET}" still missing after create attempt ` +
+        `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
+        `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
+    );
   }
 }
 
@@ -216,9 +260,10 @@ async function uploadAudioToSupabase(
   objectName: string,
   contentType = "audio/mpeg",
 ): Promise<string> {
-  await ensureSupabaseBucket().catch(() => {
-    /* ignore — bucket likely exists */
-  });
+  // Fail fast here: ensureSupabaseBucket verifies the bucket exists after
+  // creation and throws loudly if it is still missing — never silently
+  // march into a doomed upload.
+  await ensureSupabaseBucket();
   const supabase = getSupabaseAdmin();
 
   const { error: upErr } = await supabase.storage
