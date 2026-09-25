@@ -5,8 +5,7 @@ import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { publicApiLimiter } from "../lib/rate-limit";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../lib/credits";
-import { recordCreditUsage } from "../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import {
   CHAT_SYSTEM_PROMPT,
   CHAT_MAX_OUTPUT_TOKENS,
@@ -65,18 +64,17 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       return;
     }
     try {
-      await deductCredits(req.userId!, chatCreditCost);
-      recordCreditUsage({
-        userId: req.userId!,
-        action: "AI Chat Assistant",
-        creditsUsed: chatCreditCost,
-      }).catch(() => {});
+      await chargeCredits(req.userId!, chatCreditCost, { action: "AI Chat Assistant" });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
           message: "You're out of credits — top up to keep chatting with Thy Cheat Code.",
         });
+        return;
+      }
+      if (err instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
         return;
       }
       throw err;

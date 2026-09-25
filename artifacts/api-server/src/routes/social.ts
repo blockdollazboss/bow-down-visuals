@@ -4,9 +4,8 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db, socialAccountsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../lib/credits";
-import { addCreditsToProfile, getSupabaseAdmin } from "../lib/supabase-admin";
-import { recordCreditUsage } from "../lib/payment-record";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
@@ -324,13 +323,17 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
     creditsRemaining = await readCreditBalance(req.userId!);
   } else {
     try {
-      creditsRemaining = await deductCredits(req.userId!, INSTAGRAM_POST_CREDITS);
+      creditsRemaining = await chargeCredits(req.userId!, INSTAGRAM_POST_CREDITS, { action: "Instagram Auto-Post" });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
           message: `Posting to Instagram costs ${INSTAGRAM_POST_CREDITS} credits — top up to publish.`,
         });
+        return;
+      }
+      if (err instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
         return;
       }
       throw err;
@@ -355,7 +358,7 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
 
   const refund = async () => {
     try {
-      await addCreditsToProfile(req.userId!, INSTAGRAM_POST_CREDITS);
+      await refundCredits(req.userId!, INSTAGRAM_POST_CREDITS, { action: "Instagram Auto-Post \u2014 Refund" });
       logger.info({ userId: req.userId }, "[social] refunded Instagram post credits after Meta failure");
     } catch (refundErr) {
       logger.error({ userId: req.userId, err: refundErr }, "[social] FAILED to refund Instagram post credits");
@@ -409,11 +412,7 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
     } catch (err) {
       logger.error({ userId: req.userId, err }, "[social] FAILED to record publish attempt success");
     }
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Instagram Auto-Post",
-      creditsUsed: INSTAGRAM_POST_CREDITS,
-    }).catch(() => {});
+    /* Ledger entry written atomically by chargeCredits() above. */
     res.json(result);
   } catch (err) {
     const message = err instanceof MetaApiError ? err.userMessage : "Couldn't publish to Instagram.";

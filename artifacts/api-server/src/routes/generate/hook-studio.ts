@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -76,12 +76,7 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await deductCredits(req.userId!, HOOK_STUDIO_CREDITS);
-    recordCreditUsage({
-      userId: req.userId!,
-      action: parsed.data.mode === "hooks" ? "Hook Generator" : "Virality Pre-flight",
-      creditsUsed: HOOK_STUDIO_CREDITS,
-    }).catch(() => {});
+    creditsRemaining = await chargeCredits(req.userId!, HOOK_STUDIO_CREDITS, { action: parsed.data.mode === "hooks" ? "Hook Generator" : "Virality Pre-flight" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({

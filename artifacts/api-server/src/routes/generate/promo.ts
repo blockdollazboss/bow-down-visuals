@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -157,7 +157,7 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -166,9 +166,12 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
-    recordCreditUsage({ userId: req.userId!, action: "Promo Clips", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);
