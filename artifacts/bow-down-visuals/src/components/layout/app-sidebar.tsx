@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -24,14 +25,35 @@ import {
   Mic2,
   LogOut,
   LogIn,
-  Coins
+  Coins,
+  ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, getAccessToken } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/admin/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await res.json()) as { isAdmin?: boolean };
+        if (!cancelled) setIsAdmin(res.ok && data.isAdmin === true);
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, getAccessToken]);
+
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
@@ -45,6 +67,7 @@ export function AppSidebar() {
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 
   return (
