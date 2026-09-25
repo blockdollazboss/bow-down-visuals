@@ -27,7 +27,7 @@ export function getOpenAI(): OpenAI {
 export const OPENAI_TEXT_MODEL =
   process.env["OPENAI_TEXT_MODEL"] ?? "gpt-5.4-mini";
 export const OPENAI_IMAGE_MODEL =
-  process.env["OPENAI_IMAGE_MODEL"] ?? "gpt-image-1.5";
+  process.env["OPENAI_IMAGE_MODEL"] ?? "gpt-image-2";
 
 /* Chat completion that stays compatible across model generations.
    GPT-5-family models reject non-default temperature/top_p and expect
