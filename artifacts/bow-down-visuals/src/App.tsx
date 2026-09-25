@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
 import { HelpPanel } from "@/components/HelpPanel";
+import { OnboardingTour } from "@/components/OnboardingTour";
 
 import { SiteFooter } from "@/components/layout/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -184,6 +185,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
+        {typeof window !== "undefined" && <OnboardingTour />}
       </div>
     </SidebarProvider>
   );

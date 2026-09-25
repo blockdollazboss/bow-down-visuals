@@ -66,15 +66,15 @@ export function AppSidebar() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
-  const links = [
+  const links: { href: string; label: string; icon: typeof Home; tour?: string }[] = [
     { href: "/", label: "Home", icon: Home },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
     { href: "/make-song", label: "Make a Song", icon: Music },
     { href: "/songs", label: "Songs", icon: Music2 },
     { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/make-video", label: "Make a Music Video", icon: Video },
-    { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
+    { href: "/make-video", label: "Make a Music Video", icon: Video, tour: "nav-make-video" },
+    { href: "/video-editor", label: "Video Editor", icon: Clapperboard, tour: "nav-video-editor" },
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/my-clips", label: "My Clips", icon: Library },
     { href: "/go-live", label: "Go Live", icon: Radio },
@@ -122,7 +122,7 @@ export function AppSidebar() {
                     isActive={location === link.href}
                     className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
                   >
-                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
+                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour}>
                       <link.icon className="h-5 w-5" />
                       <span className="font-medium">{link.label}</span>
                     </Link>
@@ -137,7 +137,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
         {user && profile ? (
           <>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between" data-tour="credits">
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
                 <span className="text-sm text-sidebar-foreground/70 font-medium">Credits</span>
