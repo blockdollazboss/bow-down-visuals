@@ -198,8 +198,8 @@ export default function CreditHistory() {
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
                 <h2 className="text-lg font-bold">Credit Activity</h2>
-                {history.usage.length > 0 && (
-                  <span className="ml-auto text-xs text-white/30">{history.usage.length} transaction{history.usage.length !== 1 ? "s" : ""}</span>
+                {usage.length > 0 && (
+                  <span className="ml-auto text-xs text-white/30">{usage.length} transaction{usage.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
@@ -219,7 +219,7 @@ export default function CreditHistory() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...history.usage].reverse().map((u) => {
+                      {[...usage].reverse().map((u) => {
                         const d = describeUsage(u);
                         return (
                           <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
