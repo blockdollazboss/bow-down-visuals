@@ -380,7 +380,8 @@ interface VoiceOption {
 
 /**
  * Locked Voice — the artist's ElevenLabs voice. Every song generated for
- * this artist is vocal-swapped to it. Clone from a recording or pick one.
+ * this artist is vocal-swapped to it. Clone from a recording, strip a song
+ * to its vocals, or pick one.
  */
 function LockedVoiceSection({ vault, onChanged }: {
   vault: ArtistVaultRecord;
@@ -392,6 +393,10 @@ function LockedVoiceSection({ vault, onChanged }: {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [voices, setVoices] = useState<VoiceOption[]>([]);
   const [loadingVoices, setLoadingVoices] = useState(false);
+  const [songPickerOpen, setSongPickerOpen] = useState(false);
+  const [songs, setSongs] = useState<{ id: string; title: string }[]>([]);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
 
   async function authHeaders(): Promise<HeadersInit> {
     const token = await getAccessToken();
@@ -421,6 +426,58 @@ function LockedVoiceSection({ vault, onChanged }: {
     }
   }
 
+  async function handleFromSong(fileOrId: File | string) {
+    setBusy(true);
+    setError(null);
+    try {
+      let res: Response;
+      const headers = await authHeaders();
+      if (typeof fileOrId === "string") {
+        setStage("Stripping the song to its vocals…");
+        res = await fetch(`/api/artist-vaults/${vault.id}/voice/from-song`, {
+          method: "POST",
+          headers: { ...headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ songId: fileOrId }),
+        });
+      } else {
+        const form = new FormData();
+        form.append("song", fileOrId);
+        setStage("Uploading the song…");
+        res = await fetch(`/api/artist-vaults/${vault.id}/voice/from-song`, {
+          method: "POST",
+          headers,
+          body: form,
+        });
+      }
+      setStage("Cloning the vocals into a voice…");
+      const data = await res.json().catch(() => ({} as { error?: string }));
+      if (!res.ok) throw new Error(data.error || "Could not build a voice from this song.");
+      setSongPickerOpen(false);
+      setStage(null);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not build a voice from this song.");
+    } finally {
+      setBusy(false);
+      setStage(null);
+    }
+  }
+
+  async function loadSongs() {
+    setLoadingSongs(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/songs", { headers: await authHeaders() });
+      const data = await res.json().catch(() => ({} as { error?: string; songs?: { id: string; title: string }[] }));
+      if (!res.ok) throw new Error(data.error || "Could not load songs.");
+      setSongs(data.songs ?? []);
+      setSongPickerOpen((v) => !v);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load songs.");
+    } finally {
+      setLoadingSongs(false);
+    }
+  }
   async function loadVoices() {
     setLoadingVoices(true);
     setError(null);
@@ -532,6 +589,64 @@ function LockedVoiceSection({ vault, onChanged }: {
             {loadingVoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Choose a voice
           </Button>
+          <label
+            className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
+            title="Upload a song — the site strips it to its vocals and clones them"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            From a song
+            <input
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleFromSong(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { void loadSongs(); }}
+            disabled={busy || loadingSongs}
+            className="rounded-xl border-white/15 text-white/80 h-[38px] px-4"
+          >
+            {loadingSongs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            From my songs
+          </Button>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+
+      {busy && stage && (
+        <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {stage} This can take a few minutes — vocal isolation is heavy work.
+        </p>
+      )}
+
+      {songPickerOpen && !vault.voice_id && (
+        <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
+          <p className="px-3 py-2 text-xs text-white/40">
+            Pick a song — its vocals get stripped and cloned into the locked voice (2 credits).
+          </p>
+          {songs.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => { void handleFromSong(s.id); }}
+              disabled={busy}
+              className="w-full px-3 py-2 hover:bg-white/5 text-sm text-white/80 truncate text-left hover:text-white disabled:opacity-50"
+            >
+              {s.title}
+            </button>
+          ))}
+          {songs.length === 0 && (
+            <p className="px-3 py-4 text-sm text-white/40">No songs yet — upload one on the Songs page first.</p>
+          )}
         </div>
       )}
 
