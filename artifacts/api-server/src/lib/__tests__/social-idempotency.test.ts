@@ -71,6 +71,18 @@ function makeStore() {
         row.updated_at = new Date();
       }
     },
+    async claimStaleProcessing(cutoff, error) {
+      const claimed: Array<{ id: string; userId: string; creditsDeducted: boolean }> = [];
+      for (const row of rows.values()) {
+        if (row.status === "processing" && row.updated_at < cutoff) {
+          row.status = "failed";
+          row.error = error;
+          row.updated_at = new Date();
+          claimed.push({ id: row.id, userId: row.user_id, creditsDeducted: row.credits_deducted });
+        }
+      }
+      return claimed;
+    },
   };
   return { store, rows };
 }
@@ -126,6 +138,23 @@ describe("claimPublishAttempt", () => {
     expect(out.outcome).toBe("claimed");
     if (out.outcome === "claimed") {
       /* Credits were refunded on failure, so the retry charges fresh. */
+      expect(out.creditsAlreadyDeducted).toBe(false);
+    }
+  });
+
+  it("recharges on retry after a failed attempt that had deducted credits", async () => {
+    const { store } = makeStore();
+    const first = await claimPublishAttempt(store, CLAIM);
+    if (first.outcome !== "claimed") throw new Error("expected claim");
+    /* Real route sequence: deduct → mark → Meta fails → fail + refund. */
+    await store.markCreditsDeducted(first.attemptId);
+    await store.failAttempt(first.attemptId, "instagram_error");
+
+    const out = await claimPublishAttempt(store, CLAIM);
+    expect(out.outcome).toBe("claimed");
+    if (out.outcome === "claimed") {
+      /* The failure refunded the credits, so the retry must charge fresh —
+         the stale credits_deducted flag must not make the retry free. */
       expect(out.creditsAlreadyDeducted).toBe(false);
     }
   });

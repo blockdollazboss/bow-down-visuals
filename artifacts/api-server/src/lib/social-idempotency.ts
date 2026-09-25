@@ -34,7 +34,14 @@ import { logger } from "./logger";
    Residual risk, documented honestly: if the process dies in the tiny window
    between Meta's media_publish succeeding and the `succeeded` row update, a
    reclaimed retry would post a second time. That window is one UPDATE wide;
-   everything else is exactly-once. */
+   everything else is exactly-once.
+
+   The stale-attempt sweeper (social-sweeper.ts) closes the remaining gap:
+   `processing` rows older than STALE_PROCESSING_MS are atomically moved to
+   `failed` via claimStaleProcessing() and their deducted credits refunded.
+   A later retry with the same key then flows through the normal
+   `failed`→reclaim path above and charges fresh — no double charge, no
+   double refund. */
 
 export const STALE_PROCESSING_MS = 30 * 60 * 1000;
 
@@ -71,6 +78,14 @@ export interface AttemptStore {
     staleBefore?: Date;
     accountId?: string;
   }): Promise<boolean>;
+  /** Atomically claim every `processing` row older than `cutoff`, moving it
+      to `failed` with the given error. Returns the claimed rows (id, owner,
+      whether credits were deducted) for refund processing. A single UPDATE
+      statement, so concurrent sweepers can never claim the same row twice. */
+  claimStaleProcessing(
+    cutoff: Date,
+    error: string,
+  ): Promise<Array<{ id: string; userId: string; creditsDeducted: boolean }>>;
   markCreditsDeducted(id: string): Promise<void>;
   completeAttempt(id: string, result: PublishAttemptResult): Promise<void>;
   failAttempt(id: string, error: string): Promise<void>;
@@ -124,6 +139,15 @@ export function createDrizzleAttemptStore(db: Db = defaultDb): AttemptStore {
 
     async markCreditsDeducted(id) {
       await db.update(T).set({ credits_deducted: true, updated_at: new Date() }).where(eq(T.id, id));
+    },
+
+    async claimStaleProcessing(cutoff, error) {
+      const rows = await db
+        .update(T)
+        .set({ status: "failed", error, updated_at: new Date() })
+        .where(and(eq(T.status, "processing"), lt(T.updated_at, cutoff)))
+        .returning({ id: T.id, userId: T.user_id, creditsDeducted: T.credits_deducted });
+      return rows;
     },
 
     async completeAttempt(id, result) {
@@ -180,6 +204,9 @@ export async function claimPublishAttempt(
     (row.status === "processing" && row.updated_at < staleCutoff);
 
   if (reclaimable) {
+    /* Capture the pre-reclaim status: some store implementations mutate the
+       row object on reclaim, so the decision must not read row.status after. */
+    const statusBeforeReclaim = row.status;
     const reclaimed = await store.reclaimAttempt({
       id: row.id,
       expectedStatus: row.status,
@@ -190,7 +217,15 @@ export async function claimPublishAttempt(
       return {
         outcome: "claimed",
         attemptId: row.id,
-        creditsAlreadyDeducted: row.credits_deducted,
+        /* Only a reclaimed stale `processing` attempt skips the deduction:
+           it was charged and never refunded (the process died mid-publish).
+           A `failed` attempt was always refunded when it failed — every
+           failAttempt in the publish route and the stale sweeper is paired
+           with a refund — so its retry must charge fresh. (The
+           credits_deducted flag is intentionally NOT cleared on failure;
+           this branch is what makes the retry re-charge.) */
+        creditsAlreadyDeducted:
+          statusBeforeReclaim === "processing" ? row.credits_deducted : false,
       };
     }
     /* Lost the reclaim race to a concurrent request — it owns the attempt now. */
