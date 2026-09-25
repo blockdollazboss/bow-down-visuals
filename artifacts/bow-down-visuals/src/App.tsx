@@ -74,6 +74,14 @@ const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
+const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
+const Merch = lazyWithRetry(() => import("@/pages/merch"));
+const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
+const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
+const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
+const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
+const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
+const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -274,6 +282,14 @@ function AppShell() {
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
+                <Route path="/thumbnail-maker"><ProtectedRoute><ThumbnailMaker /></ProtectedRoute></Route>
+                <Route path="/merch"><ProtectedRoute><Merch /></ProtectedRoute></Route>
+                <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
+                <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
+                <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
+                <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
+                <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
+                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
