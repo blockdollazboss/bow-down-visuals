@@ -100,7 +100,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       completion.choices[0]?.message?.content?.trim() ||
       "My fins slipped — could you ask that again? 🦈";
 
-    res.json({ reply, model });
+    res.json({ reply, model, creditCost: chatCreditCost });
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[chat] OpenAI rate limit / quota");
@@ -114,6 +114,12 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       error: "Something went wrong on my end — give me another shot. 🦈",
     });
   }
+});
+
+/* GET /api/chat/status → { creditCost } — lets the widget show the
+   per-message price upfront instead of hardcoding it. */
+router.get("/chat/status", (_req: Request, res: Response) => {
+  res.json({ creditCost: chatCreditCost });
 });
 
 export default router;

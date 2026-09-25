@@ -54,8 +54,20 @@ export function AiChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [creditCost, setCreditCost] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /* Fetch the per-message price once so the header can show it upfront. */
+  useEffect(() => {
+    if (!open || creditCost !== null) return;
+    fetch("/api/chat/status")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.creditCost === "number") setCreditCost(d.creditCost);
+      })
+      .catch(() => {});
+  }, [open, creditCost]);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -85,10 +97,21 @@ export function AiChatWidget() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      const reply: string =
-        data.reply ||
-        data.error ||
-        "My fins slipped — could you ask that again? 🦈";
+      if (typeof data.creditCost === "number") setCreditCost(data.creditCost);
+      let reply: string;
+      if (res.status === 401) {
+        reply =
+          "Sign in to chat with me — it's 1 credit per message. 🦈";
+      } else if (res.status === 402) {
+        reply =
+          data.message ||
+          "You're out of credits — top up to keep chatting with Thy Cheat Code.";
+      } else {
+        reply =
+          data.reply ||
+          data.error ||
+          "My fins slipped — could you ask that again? 🦈";
+      }
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch {
       setMessages((prev) => [
@@ -113,7 +136,11 @@ export function AiChatWidget() {
           <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
             <div>
               <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
-              <p className="text-[11px] text-neutral-400">AI assistant — ask me about the site</p>
+              <p className="text-[11px] text-neutral-400">
+                {creditCost
+                  ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
+                  : "AI assistant — ask me about the site"}
+              </p>
             </div>
             <button
               onClick={() => {
