@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, type Dispatch, type SetStateA
 import {
   Mic2, Play, Save, CheckCircle2, XCircle, Loader2, AlertTriangle,
   SkipForward, Info, Radio, User, Sliders, RefreshCw, X, Upload, Music,
-  KeyRound, FlaskConical, Clapperboard, ScanSearch, ShieldCheck, Copy, ExternalLink,
+  KeyRound, FlaskConical, ScanSearch, ShieldCheck, Copy, ExternalLink,
 } from "lucide-react";
 import type { SceneData } from "@/lib/scene-parser";
 import { getSceneTiming, computeManualTimings, type SceneTiming } from "@/lib/scene-timing";
@@ -1505,16 +1505,16 @@ export function LipSyncSection({
                 </div>
               )}
 
-              {/* Visual mode active — theater-style spotlight treatment */}
+              {/* Demo mode active */}
               {!providerLoading && !providerConnected && demoMode && (
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-purple-500/30 bg-purple-500/[0.06] text-purple-300 text-[11px] font-semibold shadow-[0_0_24px_rgba(168,85,247,0.15)]">
-                  <Clapperboard className="h-3.5 w-3.5 shrink-0" />
-                  Visual Mode — theater preview, simulations only, no real API calls
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/[0.06] text-blue-400 text-[11px] font-semibold">
+                  <FlaskConical className="h-3.5 w-3.5 shrink-0" />
+                  Demo Mode Active — simulations only, no real API calls
                   <button
                     type="button"
                     onClick={() => setDemoMode(false)}
                     className="ml-auto text-white/50 hover:text-white/60 transition-colors"
-                    title="Exit visual mode"
+                    title="Exit demo mode"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -1568,7 +1568,7 @@ export function LipSyncSection({
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-white/60 text-[11px] font-bold hover:bg-white/[0.06] transition-colors"
                         >
                           <FlaskConical className="h-3.5 w-3.5" />
-                          Use Visual Mode For Now
+                          Use Demo Mode For Now
                         </button>
                       </div>
                     </>
@@ -2242,7 +2242,7 @@ export function LipSyncSection({
                     <StatusRow label="timing safe"            value={timingOk === null ? "checking…" : timingOk ? "yes ✓ (< 0.25s diff)" : `no — diff ${timingDiff!.toFixed(2)}s`}                    ok={timingOk} />
                     <StatusRow label="provider"               value={providerConnected ? `${providerName ?? "Sync.so"} ✓` : "not connected"}                                                           ok={providerConnected} />
                     <StatusRow label="audio source"           value={audioReady ? "ready ✓" : "none"}                                                                                                 ok={audioReady} />
-                    <StatusRow label="paid job confirmation"  value={!demoMode ? "required before submit" : "skipped (visual mode)"}                                                                     ok={null} />
+                    <StatusRow label="paid job confirmation"  value={!demoMode ? "required before submit" : "skipped (demo mode)"}                                                                     ok={null} />
                     <StatusRow label="job submitted"          value={ce?.lipSyncSubmittedAt ? `yes — ${fmtDate(ce.lipSyncSubmittedAt)}` : "no"}                                                        ok={ce?.lipSyncSubmittedAt ? true : null} />
                     <StatusRow label="job ID saved"           value={ce?.lipSyncJobId ? `yes — ${ce.lipSyncJobId.slice(0, 14)}…` : "no"}                                                               ok={ce?.lipSyncJobId ? true : null} />
                     <StatusRow label="provider status"        value={providerStatusLabel}                                                                                                              ok={hasCompletedResult ? true : null} />
@@ -2567,7 +2567,7 @@ export function LipSyncSection({
                     {demoMode ? (
                       <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
                         <FlaskConical className="h-3 w-3 shrink-0" />
-                        Visual mode — theater preview, no real API call. No credits charged.
+                        Demo mode — no real API call. No credits charged.
                       </div>
                     ) : !providerConnected ? (
                       <p className="text-[10px] text-red-400/80 font-semibold">
