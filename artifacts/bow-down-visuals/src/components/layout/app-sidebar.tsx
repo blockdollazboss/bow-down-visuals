@@ -9,7 +9,8 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter
+  SidebarFooter,
+  useSidebar
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,8 @@ import {
   LogIn,
   Coins,
   ShieldCheck,
-  MapPin
+  MapPin,
+  ChevronsLeft
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -36,6 +38,7 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, profile, signOut, getAccessToken } = useAuth();
+  const { setOpen } = useSidebar();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -77,13 +80,27 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="p-4">
-        <Link href="/" ref={logoTilt} className="flex items-center gap-2 cursor-pointer rounded-lg">
-          <img
-            src={`${import.meta.env.BASE_URL}logo-static.png`}
-            alt="Bow Down Visuals"
-            className="h-14 w-auto"
-          />
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/" ref={logoTilt} className="flex items-center gap-2 cursor-pointer rounded-lg">
+            <img
+              src={`${import.meta.env.BASE_URL}logo-static.png`}
+              alt="Bow Down Visuals"
+              className="h-14 w-auto"
+            />
+          </Link>
+          {/* Desktop-only: hide the sidebar for full-width content. The
+              floating expand button (or Cmd/Ctrl+B) brings it back. */}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            data-testid="btn-collapse-sidebar"
+            className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
