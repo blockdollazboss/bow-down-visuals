@@ -649,7 +649,8 @@ function cleanup(...files: string[]) {
 }
 
 /* ── POST /api/export-final-video ────────────────────── */
-const EXPORT_CREDIT_COST = 4;
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export const EXPORT_CREDIT_COST = 4;
 
 export interface ExportRequestBody {
     projectId: string;
@@ -735,7 +736,8 @@ export interface ExportRequestBody {
     }[] | null;
 }
 
-interface ExportJobContext {
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export interface ExportJobContext {
   body: ExportRequestBody;
   userId: string;
   userPlan?: string;
@@ -2348,7 +2350,8 @@ function normalizeJobError(err: unknown): ExportJobError {
 }
 
 /** Run one export job in the background, mirroring render stages onto the job. */
-async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
   // Claim the durable job row first: on a restart this same jobId may be
   // re-queued by boot recovery, and the claim (attempts + 1) is what keeps
   // a poison job from looping forever.

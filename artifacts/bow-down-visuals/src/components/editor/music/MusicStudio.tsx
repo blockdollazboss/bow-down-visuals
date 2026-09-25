@@ -61,6 +61,7 @@ export function MusicStudio({
   artistName,
   songTitle,
   audioUrl,
+  projectId,
   getAccessToken,
   onTranscriptReady,
   transcriptText,
@@ -384,6 +385,8 @@ export function MusicStudio({
           audioUrl={effectiveAudioUrl}
           transcriptText={transcriptText ?? null}
           activeArtist={activeArtist ?? null}
+          projectId={projectId ?? null}
+          getAccessToken={getAccessToken}
         />
       )}
 
