@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   buildFacebookAuthUrl,
+  exchangeFacebookCodeForLongLivedToken,
   listPages,
-  findInstagramPage,
   publishVideoToPage,
   MetaApiError,
   type FetchImpl,
@@ -59,6 +59,34 @@ describe("buildFacebookAuthUrl", () => {
   });
 });
 
+describe("exchangeFacebookCodeForLongLivedToken", () => {
+  const cfg = { appId: "fb-app-1", appSecret: "fb-secret", redirectUri: "https://x.test/fb-cb" };
+
+  it("exchanges code for short-lived then long-lived token via graph.facebook.com", async () => {
+    const { impl, urls } = recordingFetch([
+      { body: { access_token: "short-token", expires_in: 3600 } },
+      { body: { access_token: "long-token", expires_in: 5184000 } },
+    ]);
+    const result = await exchangeFacebookCodeForLongLivedToken(cfg, "auth-code", impl);
+    expect(result).toEqual({ accessToken: "long-token", expiresInSec: 5184000 });
+    // Both legs hit the Facebook OAuth endpoint — never the Instagram one.
+    expect(urls[0]).toContain("https://graph.facebook.com/v21.0/oauth/access_token");
+    expect(urls[0]).not.toContain("instagram.com");
+    expect(urls[0]).toContain("code=auth-code");
+    expect(urls[1]).toContain("grant_type=fb_exchange_token");
+    expect(urls[1]).not.toContain("ig_exchange_token");
+  });
+
+  it("throws a Facebook-flavored error when the code exchange fails", async () => {
+    const fetchImpl = mockFetch([
+      { status: 400, body: { error: { message: "Invalid verification code format.", code: 100 } } },
+    ]);
+    const err = await exchangeFacebookCodeForLongLivedToken(cfg, "bad-code", fetchImpl).catch((e) => e);
+    expect(err).toBeInstanceOf(MetaApiError);
+    expect((err as MetaApiError).userMessage).toMatch(/facebook/i);
+  });
+});
+
 describe("listPages", () => {
   it("maps every Page with its token and IG link status", async () => {
     const fetchImpl = mockFetch([
@@ -80,29 +108,20 @@ describe("listPages", () => {
       { pageId: "p2", pageName: "Page Two", pageAccessToken: "tok-2", igUserId: null },
     ]);
   });
-});
 
-describe("findInstagramPage", () => {
-  it("picks the first Page with a linked IG account", async () => {
-    const fetchImpl = mockFetch([
-      { body: { data: [{ id: "p9", name: "Nine", access_token: "tok-9" }] } },
-      { body: { instagram_business_account: { id: "ig-9" } } },
+  it("hits graph.facebook.com, never graph.instagram.com", async () => {
+    const { impl, urls } = recordingFetch([
+      { body: { data: [{ id: "p1", name: "Page One", access_token: "tok-1" }] } },
+      { body: {} },
     ]);
-    const page = await findInstagramPage("user-token", fetchImpl);
-    expect(page).toMatchObject({ pageId: "p9", igUserId: "ig-9" });
-  });
-
-  it("throws a helpful message when no Page has an IG account", async () => {
-    const make = () =>
-      mockFetch([
-        { body: { data: [{ id: "p9", name: "Nine", access_token: "tok-9" }] } },
-        { body: {} },
-      ]);
-    const err = await findInstagramPage("user-token", make()).catch((e) => e);
-    expect(err).toBeInstanceOf(MetaApiError);
-    expect((err as MetaApiError).message).toMatch(/linked/i);
+    await listPages("user-token", impl);
+    for (const url of urls) {
+      expect(url).toContain("https://graph.facebook.com/v21.0");
+      expect(url).not.toContain("graph.instagram.com");
+    }
   });
 });
+
 
 describe("publishVideoToPage", () => {
   const input = {
@@ -124,6 +143,10 @@ describe("publishVideoToPage", () => {
 
     // Upload goes to the graph-video host, not graph.facebook.com.
     expect(urls[0]).toBe("https://graph-video.facebook.com/v21.0/page-1/videos");
+    // Status poll + permalink read go to graph.facebook.com, never graph.instagram.com.
+    expect(urls[1]).toContain("https://graph.facebook.com/v21.0/video-1");
+    expect(urls[3]).toContain("https://graph.facebook.com/v21.0/video-1");
+    for (const url of urls.slice(1)) expect(url).not.toContain("graph.instagram.com");
     const uploadParams = new URLSearchParams(bodies[0]);
     expect(uploadParams.get("file_url")).toBe("https://cdn.test/v.mp4");
     expect(uploadParams.get("description")).toBe("hello #test");
