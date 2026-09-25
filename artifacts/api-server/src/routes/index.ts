@@ -67,6 +67,7 @@ import sponsorshipOutreachRouter from "./generate/sponsorship-outreach";
 import shoutoutsRouter from "./generate/shoutouts";
 import releaseChecklistRouter from "./generate/release-checklist";
 import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
+import cheatCodeRouter from "./cheat-code";
 
 const router: IRouter = Router();
 
@@ -138,5 +139,6 @@ router.use(sponsorshipOutreachRouter);
 router.use(shoutoutsRouter);
 router.use(releaseChecklistRouter);
 router.use(thumbnailGeneratorRouter);
+router.use(cheatCodeRouter);
 
 export default router;
