@@ -12,20 +12,28 @@ import {
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRef,
 } from "../../lib/objectStorage";
-import { recordCreditUsage } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import {
+  GEN45_CREDIT_COST,
+  SEEDANCE_CREDITS_PER_SEC_FALLBACK,
+  resolveClipPlan,
+} from "./clip-pricing";
+import { getLockedPack } from "./pre-production";
+import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
-const CREDIT_COST = 5;
+/* Site credits charged per second of Seedance 2.5 video. Env-overridable so
+   the rate can be tuned without a deploy; the client mirrors this default. */
+const SEEDANCE_CREDITS_PER_SEC = Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) || SEEDANCE_CREDITS_PER_SEC_FALLBACK;
 
 /**
  * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
- * Key: Runway taskId  Value: { userId, projectId }
+ * Key: Runway taskId  Value: { userId, projectId, credits }
  * Cleared on SUCCEEDED (after charging) or FAILED/CANCELLED.
  * In-memory only — a server restart before polling completes means credits
  * won't be charged for that clip (acceptable; user gets a free clip, not a spurious charge).
  */
-const pendingTasks = new Map<string, { userId: string; projectId: string | null }>();
+const pendingTasks = new Map<string, { userId: string; projectId: string | null; credits: number }>();
 
 /**
  * Tracks successfully charged tasks so generated-clips.ts can issue a refund
@@ -130,7 +138,7 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl } = req.body as {
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = req.body as {
     promptText?: string;
     negativePrompt?: string;
     ratio?: "1280:720" | "720:1280";
@@ -140,12 +148,59 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
      *  wardrobe/lighting/pose across scenes. Falls back to referenceImageUrl
      *  (vault photo) when absent or unusable. */
     previousClipUrl?: string | null;
+    /** Video model: "gen4.5" (default, 5s) or "seedance2_5" (premium, up to 30s). */
+    model?: "gen4.5" | "seedance2_5";
+    /** Requested clip length in seconds. Only honored for seedance2_5 (3–30s). */
+    durationSec?: number;
+    /** Output resolution tier for seedance2_5. */
+    resolution?: "720p" | "1080p";
+    /** Locked pre-production pack + shot: when present, the prompt, negative
+     *  prompt, model, duration, and ratio come from the pack's locked
+     *  ingredients — the client's promptText is ignored. */
+    packId?: string | null;
+    shotNumber?: number | null;
   };
 
-  if (!promptText?.trim()) {
+  /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
+  let lockedIngredients: PackIngredients | null = null;
+  if (packId) {
+    try {
+      const pack = await getLockedPack(req.userId!, String(packId));
+      const list = (pack.ingredients as PackIngredients[] | null) ?? [];
+      lockedIngredients = list.find((g) => g.shotNumber === Number(shotNumber)) ?? null;
+      if (!lockedIngredients) {
+        res.status(404).json({ error: `Shot ${shotNumber} is not in the locked pack.` });
+        return;
+      }
+    } catch (err: any) {
+      res.status(err?.status ?? 500).json({ error: err?.message ?? "Failed to load the locked pack." });
+      return;
+    }
+  }
+
+  const effectivePrompt = lockedIngredients?.prompt ?? promptText;
+  const effectiveNegative = lockedIngredients?.negativePrompt ?? negativePrompt;
+  const effectiveModel = lockedIngredients?.model ?? model;
+  const effectiveDuration = lockedIngredients?.durationSec ?? durationSec;
+  const effectiveRatio = (lockedIngredients?.ratio === "1280:720" ? "1280:720" : "720:1280") as "1280:720" | "720:1280";
+
+  if (!effectivePrompt?.trim()) {
     res.status(400).json({ error: "promptText is required" });
     return;
   }
+
+  /* ── Model + duration resolution ───────────────────────────────────────── */
+  const plan = resolveClipPlan({
+    model: effectiveModel,
+    durationSec: effectiveDuration,
+    resolution,
+    ratio: effectiveRatio,
+    creditsPerSec: SEEDANCE_CREDITS_PER_SEC,
+  });
+  const useSeedance = plan.useSeedance;
+  const resolvedDurationSec = plan.durationSec;
+  /* Duration-proportional pricing for the premium model; flat 5 for gen4.5. */
+  const creditCost = plan.creditCost;
 
   /* ── Reference image resolution ──────────────────────────────────────────
      Priority: 1) last frame of the previous scene's clip (continuity chain),
@@ -195,13 +250,13 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;
   req.log.info(
-    { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+    { userId: req.userId, currentCredits, requiredCredits: creditCost, model: useSeedance ? "seedance2_5" : "gen4.5" },
     "[runway-clip] credit check started",
   );
 
-  if (currentCredits < CREDIT_COST) {
+  if (currentCredits < creditCost) {
     req.log.info(
-      { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+      { userId: req.userId, currentCredits, requiredCredits: creditCost },
       "[runway-clip] credit check FAILED — insufficient credits",
     );
     res.status(402).json({
@@ -212,7 +267,7 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
   }
 
   req.log.info(
-    { userId: req.userId, currentCredits, requiredCredits: CREDIT_COST },
+    { userId: req.userId, currentCredits, requiredCredits: creditCost },
     "[runway-clip] credit check PASSED",
   );
 
@@ -231,38 +286,77 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     "Emotional closing shot: slow walk away, camera pulls back gradually, " +
     "gentle wind and shifting light, cinematic fade-out energy.";
 
+  /* Lip-sync-friendly cinematography: appended to Seedance generations so
+     downstream Sync.so jobs get a forward-facing, clearly-visible mouth —
+     the single biggest lever on lip-sync quality. */
+  const PERFORMANCE_DIRECTIVE =
+    "Performance framing for lip sync: performer faces the camera directly, " +
+    "mouth clearly visible and well lit, stable medium close-up, minimal " +
+    "head turns, no hands or objects covering the mouth, smooth and minimal " +
+    "camera movement.";
+
   const AVOID_TERMS =
     "frozen pose, static portrait, still image, slideshow, photo animation, " +
     "no camera movement, no body movement";
 
   /* Detect outro / closing scene from the prompt text */
   const isOutro = /\b(outro|closing|final scene|ending|walk away|farewell|fade out)\b/i.test(
-    promptText,
+    effectivePrompt,
   );
 
-  const base = promptText.trim().slice(0, 480);
+  const base = effectivePrompt.trim().slice(0, 480);
   const motionBlock = `${MOTION_DIRECTIVE}${isOutro ? ` ${OUTRO_DIRECTIVE}` : ""}`;
-  const content = `${base} ${motionBlock}`.trim();
+  /* Locked pack continuity: the ingredients' continuity notes ride along. */
+  const continuityBlock = lockedIngredients?.continuityNotes?.trim()
+    ? ` Continuity lock: ${lockedIngredients.continuityNotes.trim()}`.slice(0, 200)
+    : "";
+  const content = `${base} ${motionBlock}${continuityBlock}`.trim();
 
-  const neg = negativePrompt?.trim();
+  const neg = effectiveNegative?.trim();
   const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
   /* gen4.5 image-to-video caps promptText at 1000 UTF-16 code units; text-to-video allows more. */
   const promptCap = useImageRef ? 1000 : 1400;
   const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, promptCap);
 
   const client = new RunwayML({ apiKey });
-  const resolvedRatio = ratio === "1280:720" ? "1280:720" : "720:1280";
+  const resolvedRatio = effectiveRatio;
+  /* Seedance 2.5 resolution mapping: 720p stays at the base ratio, 1080p
+     steps up to the full-HD variant. Generated audio is always off — music
+     videos get their audio from the song, not the video model. */
+  const seedanceRatio = plan.seedanceRatio;
 
   req.log.info(
-    { userId: req.userId, ratio, mode: useImageRef ? "image-to-video" : "text-to-video" },
+    { userId: req.userId, ratio: effectiveRatio, mode: useImageRef ? "image-to-video" : "text-to-video", model: effectiveModel, durationSec: resolvedDurationSec, packId: packId ?? null, shotNumber: shotNumber ?? null },
     "[runway-clip] Runway generation started",
   );
 
   try {
+    /* Seedance 2.5 prompt: the model accepts up to 15000 characters, so keep
+       the lip-sync-friendly performance direction intact instead of the
+       aggressive truncation gen4.5 needs. */
+    const seedancePrompt = `${content} ${PERFORMANCE_DIRECTIVE} | Avoid: ${avoidBlock}`.slice(0, 4000);
+
     /* Image-to-video: anchor the artist's face/look to their vault photo so every
        generated scene keeps the same visual identity. Falls back to text-to-video
        when no usable reference photo is provided. */
-    const task = useImageRef
+    const task = useSeedance
+      ? useImageRef
+        ? await client.imageToVideo.create({
+            model: "seedance2_5",
+            promptImage: refImage!,
+            promptText: seedancePrompt,
+            duration: resolvedDurationSec,
+            ratio: seedanceRatio,
+            audio: false,
+          })
+        : await client.textToVideo.create({
+            model: "seedance2_5",
+            promptText: seedancePrompt,
+            duration: resolvedDurationSec,
+            ratio: seedanceRatio,
+            audio: false,
+          })
+      : useImageRef
       ? await client.imageToVideo.create({
           model: "gen4.5",
           promptImage: refImage!,
@@ -278,10 +372,10 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
           ratio: resolvedRatio,
         });
 
-    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null });
+    pendingTasks.set(task.id, { userId: req.userId!, projectId: projectId ?? null, credits: creditCost });
     req.log.info({ taskId: task.id, userId: req.userId }, "[runway-clip] task submitted — credits pending on SUCCEEDED");
 
-    res.json({ taskId: task.id, referenceSource });
+    res.json({ taskId: task.id, referenceSource, creditCost, model: useSeedance ? "seedance2_5" : "gen4.5", durationSec: resolvedDurationSec });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Runway API returned an error";
     req.log.error({ err: msg }, "[runway-clip] submission failed — no credits charged");
@@ -324,6 +418,8 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
       /* ── Charge credits (only once, guarded by pendingTasks presence) ── */
       if (pending && pending.userId === req.userId) {
+        /* Duration-proportional cost for Seedance, flat 5 for gen4.5. */
+        const cost = pending.credits ?? GEN45_CREDIT_COST;
         /* Fresh credit read to avoid stale middleware value */
         const { data: freshProfile } = await req.userSupabase!
           .from("profiles")
@@ -333,39 +429,37 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
         const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
         req.log.info(
-          { taskId, userId: req.userId, freshCredits, requiredCredits: CREDIT_COST },
+          { taskId, userId: req.userId, freshCredits, requiredCredits: cost },
           "[runway-clip] current credits before deduction",
         );
 
-        const creditsAfter = Math.max(0, freshCredits - CREDIT_COST);
-        /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-        const { error: deductErr } = await getSupabaseAdmin()
-          .from("profiles")
-          .update({ credits: creditsAfter })
-          .eq("id", req.userId!);
-
-        if (deductErr) {
-          req.log.error({ err: deductErr, taskId }, "[runway-clip] credit deduction FAILED — clip delivered without charge");
-        } else {
+        // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The
+        // clip was already delivered, so on ledger failure the deduction
+        // stands (rollback disabled) and the gap is logged CRITICAL — never
+        // silent.
+        /* Record credit_usage */
+        const projectId = pending.projectId ?? null;
+        try {
+          const creditsAfter = await chargeCreditsAtomic(
+            req.userId!,
+            cost,
+            { action: "Runway Video Clip", projectId },
+            { rollbackOnLedgerFailure: false },
+          );
           req.log.info(
-            { taskId, userId: req.userId, creditsAfter, deducted: CREDIT_COST },
+            { taskId, userId: req.userId, creditsAfter, deducted: cost },
             "[runway-clip] credits deducted",
           );
 
-          /* Record credit_usage */
-          const projectId = pending.projectId ?? null;
-          recordCreditUsage({
-            userId:      req.userId!,
-            action:      "Runway Video Clip",
-            creditsUsed: CREDIT_COST,
-            projectId,
-          })
-            .then(() => req.log.info({ taskId, userId: req.userId }, "[runway-clip] credit_usage saved"))
-            .catch((e) => req.log.warn({ err: e }, "[runway-clip] credit_usage save failed (non-fatal)"));
-
           /* Track for possible refund if the subsequent save fails */
-          chargedTasks.set(taskId, { userId: req.userId!, credits: CREDIT_COST, refunded: false });
+          chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
           setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
+        } catch (err) {
+          if (err instanceof LedgerWriteError) {
+            req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after deduction — clip delivered, charge has no ledger trace");
+          } else {
+            req.log.error({ err, taskId }, "[runway-clip] credit deduction FAILED — clip delivered without charge");
+          }
         }
 
         pendingTasks.delete(taskId);

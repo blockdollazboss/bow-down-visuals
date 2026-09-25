@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -13,12 +13,14 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
 
 Think like:
-- a hit songwriter
-- a music video director
+- a Grammy-winning hit songwriter
+- an Oscar-winning music video director
 - a cinematographer
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Hold everything to an award-winning bar: hooks engineered like chart-toppers, visuals composed like cinema frames. If it wouldn't win, rewrite it.
 
 Make everything:
 - original
@@ -143,19 +145,19 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 4500,
+      max_completion_tokens: 4500,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Promo Clips" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -164,9 +166,12 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
-    recordCreditUsage({ userId: req.userId!, action: "Promo Clips", creditsUsed: CREDIT_COST }).catch(() => {});
 
     if (process.env["NODE_ENV"] === "development") {
       console.log(`[generate-promo-clips] success userId=${req.userId} creditsAfter=${creditsAfter}`);

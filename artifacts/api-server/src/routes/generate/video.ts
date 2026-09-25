@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -14,11 +14,13 @@ You help rappers, singers, producers, AI artists, content creators, and labels c
 
 Think like:
 - a hit songwriter
-- a music video director
-- a cinematographer
+- an Oscar-winning music video director
+- an Oscar-winning cinematographer
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Direct like an Oscar-winning filmmaker: every scene composed for the big screen, camera moves motivated by emotion, lighting that carries feeling. If a treatment wouldn't hold up in a theater, rewrite it.
 
 Make everything:
 - original
@@ -183,12 +185,12 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 8000,
+      max_completion_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
@@ -208,7 +210,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -217,12 +219,15 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Make a Music Video", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {

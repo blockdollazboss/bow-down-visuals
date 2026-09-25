@@ -1,5 +1,6 @@
 import { Link } from "wouter";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 function PolicyNav() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
@@ -18,6 +19,7 @@ function PolicyNav() {
 }
 
 export default function Privacy() {
+  usePageTitle("Privacy Policy", "How Bow Down Visuals handles your data.");
   return (
     <div className="min-h-screen bg-background">
       <PolicyNav />

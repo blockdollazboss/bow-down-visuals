@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -13,12 +13,14 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
 
 Think like:
-- a hit songwriter
+- a Grammy-winning songwriter and producer
 - a music video director
 - a cinematographer
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Write and produce like a Grammy-winning songwriter and producer: melodies that stick after one listen, quotable lyrics, arrangements with real dynamics. Every song engineered like it's headed for the charts. If it wouldn't win, rewrite it.
 
 Make everything:
 - original
@@ -159,12 +161,12 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 4000,
+      max_completion_tokens: 4000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
@@ -184,7 +186,7 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Song" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -193,12 +195,15 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
-    // Step 3: Fire-and-forget — mark charged + log usage
+    // Step 3: Fire-and-forget — mark charged (usage already logged by chargeCredits)
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Make a Song", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {

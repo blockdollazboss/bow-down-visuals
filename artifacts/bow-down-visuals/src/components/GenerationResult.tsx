@@ -12,6 +12,7 @@ import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import { parseScenes, type SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface Section {
@@ -121,6 +122,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
   const musicPromptSection = sections.find((s) => /ai music prompt/i.test(s.title));
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
@@ -189,7 +191,9 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
         prompt: musicPromptSection.content,
         artistName: saveMetadata.artistName,
         songTitle: saveMetadata.songTitle,
-      });
+        artistVaultId: artistVault?.id,
+      }, confirmedFetch);
+      if (!resp) return; // user cancelled the credit confirmation
       setGeneratedAudioUrl(resp.url);
       refreshProfile();
       toast({ title: "Audio generated!", description: "It will be attached to this project when you save." });

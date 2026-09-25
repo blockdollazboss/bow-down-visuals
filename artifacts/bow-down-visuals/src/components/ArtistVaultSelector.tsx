@@ -22,6 +22,9 @@ export interface ArtistVault {
   reference_image_url: string | null;
   reference_image_path: string | null;
   consistency_prompt: string | null;
+  voice_id: string | null;
+  voice_name: string | null;
+  voice_preview_url: string | null;
   is_active: boolean;
   created_at: string;
 }

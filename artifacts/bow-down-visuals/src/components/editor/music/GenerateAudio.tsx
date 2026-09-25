@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { defaultStemEffects, type EditorSettings, type AudioStem } from "@/lib/editor-settings";
 
 interface GenerateAudioProps {
@@ -13,6 +14,8 @@ interface GenerateAudioProps {
   onChange: (next: EditorSettings) => void;
   artistName?: string;
   songTitle?: string;
+  /** Active artist vault id — server swaps vocals to its locked voice if set. */
+  artistVaultId?: string;
 }
 
 const LENGTH_OPTIONS = [
@@ -22,9 +25,10 @@ const LENGTH_OPTIONS = [
   { value: "180", label: "3min" },
 ];
 
-export function GenerateAudio({ settings, onChange, artistName, songTitle }: GenerateAudioProps) {
+export function GenerateAudio({ settings, onChange, artistName, songTitle, artistVaultId }: GenerateAudioProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const ms = settings.musicStudio;
 
   const [prompt, setPrompt] = useState("");
@@ -49,7 +53,9 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle }: Gen
         lengthSeconds: Number(lengthSeconds),
         artistName,
         songTitle,
-      });
+        artistVaultId,
+      }, confirmedFetch);
+      if (!resp) return; // user cancelled the credit confirmation
 
       const stem: AudioStem = {
         id: `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,

@@ -18,3 +18,11 @@ export function getOpenAI(): OpenAI {
   }
   return cached;
 }
+
+/* Default OpenAI text model for every prompt-generation route — env-overridable.
+   gpt-6-sol is the current price/performance pick ($2 input / $10 output per 1M
+   tokens). Override with OPENAI_TEXT_MODEL (e.g. gpt-6-astra for flagship,
+   gpt-6-luna for the cheapest tier). */
+export function getTextModel(): string {
+  return process.env["OPENAI_TEXT_MODEL"] || "gpt-6-sol";
+}

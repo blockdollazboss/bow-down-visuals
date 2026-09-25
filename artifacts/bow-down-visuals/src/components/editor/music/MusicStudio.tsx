@@ -61,6 +61,7 @@ export function MusicStudio({
   artistName,
   songTitle,
   audioUrl,
+  projectId,
   getAccessToken,
   onTranscriptReady,
   transcriptText,
@@ -351,7 +352,7 @@ export function MusicStudio({
       {/* ── Generate — Suno-style create card ── */}
       {(studioTab === "create" || ms.stems.length === 0) && (
         <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-1">
-          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} />
+          <GenerateAudio settings={settings} onChange={onChange} artistName={artistName} songTitle={songTitle} artistVaultId={activeArtist?.id} />
         </div>
       )}
 
@@ -384,6 +385,8 @@ export function MusicStudio({
           audioUrl={effectiveAudioUrl}
           transcriptText={transcriptText ?? null}
           activeArtist={activeArtist ?? null}
+          projectId={projectId ?? null}
+          getAccessToken={getAccessToken}
         />
       )}
 

@@ -18,6 +18,7 @@ interface AuthContextValue {
   loading: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
@@ -86,6 +87,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", userId)
       .single();
+    if (data) {
+      /* Admins always display at the highest tier, regardless of the
+       * stored plan value. The admin check is server-side (ADMIN_EMAILS). */
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.access_token) {
+          const res = await fetch("/api/admin/status", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (res.ok) {
+            const { isAdmin } = await res.json();
+            if (isAdmin) data.plan = "studio";
+          }
+        }
+      } catch {
+        /* Non-fatal: fall back to the stored plan value. */
+      }
+    }
     setProfile(data ?? null);
   }
 
@@ -135,6 +154,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /* Google OAuth via Supabase. On success the browser redirects to Google,
+   * so this only returns when something goes wrong before the redirect. */
+  async function signInWithGoogle() {
+    try {
+      const client = getSupabase();
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/choose-artist` },
+      });
+      return { error: error?.message ?? null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Google sign-in failed" };
+    }
+  }
+
   async function signOut() {
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 
@@ -154,7 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signOut, refreshProfile, getAccessToken }}>
+    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signInWithGoogle, signOut, refreshProfile, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   );
