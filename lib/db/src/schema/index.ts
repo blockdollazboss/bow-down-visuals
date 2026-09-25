@@ -25,6 +25,8 @@ export * from "./project-drafts";
 export * from "./generation-history";
 export * from "./contact-messages";
 export * from "./export-jobs";
+export * from "./lip-sync-jobs";
+export * from "./job-notifications";
 export * from "./songs";
 export * from "./social-accounts";
 export * from "./social-publish-attempts";
