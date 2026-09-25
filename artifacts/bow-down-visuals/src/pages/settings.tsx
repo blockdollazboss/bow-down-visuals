@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link, useSearch } from "wouter";
 import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
+import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { useToast } from "@/hooks/use-toast";
 
 /* Account settings. The social OAuth callbacks redirect here with
@@ -94,6 +95,8 @@ export default function Settings() {
         </div>
 
         <ConnectedAccounts />
+
+        <DiscordWebhookSettings />
       </div>
     </div>
   );

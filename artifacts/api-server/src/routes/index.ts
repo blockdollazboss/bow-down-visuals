@@ -51,6 +51,7 @@ import logoRouter from "./generate/logo";
 import introOutroRouter from "./generate/intro-outro";
 import llcGuideRouter from "./generate/llc-guide";
 import socialRouter from "./social";
+import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 
 const router: IRouter = Router();
@@ -107,6 +108,7 @@ router.use(logoRouter);
 router.use(introOutroRouter);
 router.use(llcGuideRouter);
 router.use(socialRouter);
+router.use(discordRouter);
 router.use(jobNotificationsRouter);
 
 export default router;
