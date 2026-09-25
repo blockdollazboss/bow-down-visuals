@@ -5,12 +5,14 @@ import { randomUUID } from "crypto";
 import path from "path";
 import os from "os";
 import RunwayML from "@runwayml/sdk";
+import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import {
   GEN4_IMAGE_CREDIT_COST,
   GEN4_IMAGE_TURBO_CREDIT_COST,
+  GPT_IMAGE_25_SUNBURST_CREDIT_COST,
   resolveArtistImagePlan,
 } from "./artist-image-pricing";
 
@@ -19,6 +21,17 @@ const router = Router();
 /* Site credits per generated artist image. Env-overridable without a deploy. */
 const PRO_CREDITS = Number(process.env["ARTIST_IMAGE_CREDITS"]) || GEN4_IMAGE_CREDIT_COST;
 const TURBO_CREDITS = Number(process.env["ARTIST_IMAGE_TURBO_CREDITS"]) || GEN4_IMAGE_TURBO_CREDIT_COST;
+const SUNBURST_CREDITS = Number(process.env["ARTIST_IMAGE_SUNBURST_CREDITS"]) || GPT_IMAGE_25_SUNBURST_CREDIT_COST;
+
+/** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
+const SUNBURST_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
+
+/** Maps the site's ratio picker to OpenAI image sizes. */
+const SUNBURST_SIZES: Record<string, "1024x1024" | "1024x1536" | "1536x1024"> = {
+  "1080:1920": "1024x1536",
+  "1080:1080": "1024x1024",
+  "1920:1080": "1536x1024",
+};
 
 /** Supabase Storage bucket the Artist Profiles page already uses for photos. */
 const ARTIST_BUCKET = "artist-references";
@@ -38,6 +51,53 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
 
 function cleanup(f: string) {
   try { if (existsSync(f)) unlinkSync(f); } catch { /* best-effort */ }
+}
+
+/**
+ * Deducts site credits after a successful synchronous (OpenAI) generation.
+ * Mirrors the charge logic in the Runway poller: charges once, records usage.
+ */
+async function chargeForImage(req: {
+  userId?: string;
+  userSupabase?: ReturnType<typeof getSupabaseAdmin>;
+  log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void; warn: (...a: unknown[]) => void };
+}, credits: number): Promise<void> {
+  const { data: freshProfile } = await req.userSupabase!
+    .from("profiles")
+    .select("credits")
+    .eq("id", req.userId!)
+    .single();
+  const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
+  const creditsAfter = Math.max(0, freshCredits - credits);
+  const { error: deductErr } = await getSupabaseAdmin()
+    .from("profiles")
+    .update({ credits: creditsAfter })
+    .eq("id", req.userId!);
+
+  if (deductErr) {
+    req.log.error({ err: deductErr }, "[artist-image] credit deduction FAILED — image delivered without charge");
+  } else {
+    req.log.info({ userId: req.userId, creditsAfter, deducted: credits }, "[artist-image] credits deducted (OpenAI)");
+    recordCreditUsage({
+      userId: req.userId!,
+      action: "Artist Image (GPT Image 2.5)",
+      creditsUsed: credits,
+      projectId: null,
+    }).catch((e) => req.log.warn({ err: e }, "[artist-image] credit_usage save failed (non-fatal)"));
+  }
+}
+
+/** Uploads a buffer to the artist-references bucket; returns public URL + path. */
+async function uploadGeneratedImage(userId: string, buffer: Buffer): Promise<{ url: string; path: string | null }> {
+  const filePath = `${userId}/generated/${randomUUID()}.png`;
+  const { error: upErr } = await getSupabaseAdmin().storage
+    .from(ARTIST_BUCKET)
+    .upload(filePath, buffer, { contentType: "image/png", upsert: false });
+  if (upErr) throw upErr;
+  const { data: { publicUrl } } = getSupabaseAdmin().storage
+    .from(ARTIST_BUCKET)
+    .getPublicUrl(filePath);
+  return { url: publicUrl, path: filePath };
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -68,6 +128,7 @@ router.post("/generate-artist-image", requireAuth, async (req, res) => {
     ratio,
     proCredits: PRO_CREDITS,
     turboCredits: TURBO_CREDITS,
+    sunburstCredits: SUNBURST_CREDITS,
   });
   const creditCost = plan.creditCost;
 
@@ -78,6 +139,43 @@ router.post("/generate-artist-image", requireAuth, async (req, res) => {
       error: "out_of_credits",
       message: "Not enough credits. Please buy more credits to continue.",
     });
+    return;
+  }
+
+  /* ── GPT Image 2.5 Sunburst path: synchronous, best quality ── */
+  if (plan.model === "gpt-image-2.5-sunburst") {
+    try {
+      req.log.info(
+        { userId: req.userId, ratio: plan.ratio, vaultId: vaultId ?? null },
+        "[artist-image] GPT Image 2.5 generation started",
+      );
+      const imageResp = await getOpenAI().images.generate({
+        model: SUNBURST_MODEL,
+        prompt: promptText.trim().slice(0, 4000),
+        size: SUNBURST_SIZES[plan.ratio] ?? "1024x1536",
+        quality: "high",
+        n: 1,
+      });
+      const b64 = imageResp.data?.[0]?.b64_json;
+      if (!b64) {
+        res.status(500).json({ error: "Image generation returned no image data." });
+        return;
+      }
+      await chargeForImage(req, creditCost);
+      const { url, path: storagePath } = await uploadGeneratedImage(req.userId!, Buffer.from(b64, "base64"));
+      res.json({
+        taskId: `oai-${randomUUID()}`,
+        status: "succeeded",
+        url,
+        path: storagePath,
+        creditCost,
+        model: plan.model,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "OpenAI image generation failed";
+      req.log.error({ err: msg }, "[artist-image] GPT Image 2.5 generation failed — no credits charged");
+      res.status(500).json({ error: msg });
+    }
     return;
   }
 
