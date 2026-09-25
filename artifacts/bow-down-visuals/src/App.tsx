@@ -85,6 +85,7 @@ const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -295,6 +296,7 @@ function AppShell() {
                 <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
+                <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
