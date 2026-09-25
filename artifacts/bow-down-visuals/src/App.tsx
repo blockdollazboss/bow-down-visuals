@@ -72,6 +72,7 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
+const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -239,6 +240,7 @@ function AppShell() {
           <Route path="/script-writer"><ScriptWriter /></Route>
           <Route path="/beats"><Beats /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
+          <Route path="/caption-styler"><CaptionStyler /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
