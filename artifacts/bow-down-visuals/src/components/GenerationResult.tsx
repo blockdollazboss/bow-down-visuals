@@ -189,6 +189,7 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
         prompt: musicPromptSection.content,
         artistName: saveMetadata.artistName,
         songTitle: saveMetadata.songTitle,
+        artistVaultId: artistVault?.id,
       });
       setGeneratedAudioUrl(resp.url);
       refreshProfile();

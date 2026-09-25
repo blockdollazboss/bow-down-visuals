@@ -5,9 +5,20 @@ FROM node:22-slim
 
 # ffmpeg + ffprobe: the export pipeline shells out to both (prepare step
 # probes clip duration/resolution/codec; the render step runs ffmpeg).
+# python3-venv: the vocal-isolation pipelines (lip-sync vocal-only input,
+# artist voice lock) shell out to Demucs for vocal/instrumental separation.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg \
+  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv \
   && rm -rf /var/lib/apt/lists/*
+
+# Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
+# DEMUCS_PYTHON points the server at this interpreter; DEMUCS_MODEL can
+# override the model (default mdx_extra_q).
+RUN python3 -m venv /opt/demucs-venv \
+  && /opt/demucs-venv/bin/pip install --no-cache-dir --upgrade pip \
+  && /opt/demucs-venv/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
+  && /opt/demucs-venv/bin/pip install --no-cache-dir demucs numpy diffq
+ENV DEMUCS_PYTHON=/opt/demucs-venv/bin/python
 
 RUN corepack enable
 

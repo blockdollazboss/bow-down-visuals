@@ -13,6 +13,8 @@ interface GenerateAudioProps {
   onChange: (next: EditorSettings) => void;
   artistName?: string;
   songTitle?: string;
+  /** Active artist vault id — server swaps vocals to its locked voice if set. */
+  artistVaultId?: string;
 }
 
 const LENGTH_OPTIONS = [
@@ -22,7 +24,7 @@ const LENGTH_OPTIONS = [
   { value: "180", label: "3min" },
 ];
 
-export function GenerateAudio({ settings, onChange, artistName, songTitle }: GenerateAudioProps) {
+export function GenerateAudio({ settings, onChange, artistName, songTitle, artistVaultId }: GenerateAudioProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
   const ms = settings.musicStudio;
@@ -49,6 +51,7 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle }: Gen
         lengthSeconds: Number(lengthSeconds),
         artistName,
         songTitle,
+        artistVaultId,
       });
 
       const stem: AudioStem = {

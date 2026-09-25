@@ -4,6 +4,8 @@ export interface GenerateMusicAudioRequest {
   lengthSeconds?: number;
   artistName?: string;
   songTitle?: string;
+  /** Active artist vault — server swaps vocals to its locked voice if set. */
+  artistVaultId?: string;
 }
 
 export interface GenerateMusicAudioResponse {

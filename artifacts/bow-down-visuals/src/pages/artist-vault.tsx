@@ -40,6 +40,9 @@ interface ArtistVaultRecord {
   reference_image_url: string | null;
   reference_image_path: string | null;
   consistency_prompt: string | null;
+  voice_id: string | null;
+  voice_name: string | null;
+  voice_preview_url: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -368,9 +371,208 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
-function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
+interface VoiceOption {
+  voice_id: string;
+  name: string;
+  preview_url: string | null;
+  category: string | null;
+}
+
+/**
+ * Locked Voice — the artist's ElevenLabs voice. Every song generated for
+ * this artist is vocal-swapped to it. Clone from a recording or pick one.
+ */
+function LockedVoiceSection({ vault, onChanged }: {
+  vault: ArtistVaultRecord;
+  onChanged: () => Promise<void>;
+}) {
+  const { getAccessToken } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [voices, setVoices] = useState<VoiceOption[]>([]);
+  const [loadingVoices, setLoadingVoices] = useState(false);
+
+  async function authHeaders(): Promise<HeadersInit> {
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function handleCloneFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      Array.from(files).slice(0, 3).forEach((f) => form.append("files", f));
+      const res = await fetch(`/api/artist-vaults/${vault.id}/voice/clone`, {
+        method: "POST",
+        headers: await authHeaders(),
+        body: form,
+      });
+      const data = await res.json().catch(() => ({} as { error?: string }));
+      if (!res.ok) throw new Error(data.error || "Voice cloning failed.");
+      setPickerOpen(false);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Voice cloning failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadVoices() {
+    setLoadingVoices(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/voices", { headers: await authHeaders() });
+      const data = await res.json().catch(() => ({} as { error?: string; voices?: VoiceOption[] }));
+      if (!res.ok) throw new Error(data.error || "Could not load voices.");
+      setVoices(data.voices ?? []);
+      setPickerOpen(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load voices.");
+    } finally {
+      setLoadingVoices(false);
+    }
+  }
+
+  async function pickVoice(v: VoiceOption) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/artist-vaults/${vault.id}/voice`, {
+        method: "PATCH",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voiceId: v.voice_id,
+          voiceName: v.name,
+          voicePreviewUrl: v.preview_url,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not lock this voice.");
+      setPickerOpen(false);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not lock this voice.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeVoice() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/artist-vaults/${vault.id}/voice`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("Could not remove the voice.");
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove the voice.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 mb-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Lock className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Locked Voice</p>
+      </div>
+      <p className="text-xs text-white/40 mb-3">
+        Every song made for {vault.artist_name} sings in this voice. Same voice, every time.
+      </p>
+
+      {vault.voice_id ? (
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white truncate">{vault.voice_name ?? "Locked voice"}</p>
+            {vault.voice_preview_url && (
+              <audio controls src={vault.voice_preview_url} className="mt-2 h-8 w-full max-w-xs" />
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={removeVoice}
+            disabled={busy}
+            className="text-white/50 hover:text-red-400 shrink-0"
+            title="Remove locked voice"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <label
+            className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Clone from recording
+            <input
+              type="file"
+              accept="audio/*"
+              multiple
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => { void handleCloneFiles(e.target.files); e.target.value = ""; }}
+            />
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { void loadVoices(); }}
+            disabled={busy || loadingVoices}
+            className="rounded-xl border-white/15 text-white/80 h-[38px] px-4"
+          >
+            {loadingVoices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Choose a voice
+          </Button>
+        </div>
+      )}
+
+      {pickerOpen && !vault.voice_id && (
+        <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
+          {voices.map((v) => (
+            <div
+              key={v.voice_id}
+              className="w-full px-3 py-2 hover:bg-white/5 flex items-center justify-between gap-2"
+            >
+              <button
+                onClick={() => { void pickVoice(v); }}
+                disabled={busy}
+                className="text-sm text-white/80 truncate text-left flex-1 hover:text-white"
+              >
+                {v.name}
+              </button>
+              {v.preview_url && (
+                <audio controls src={v.preview_url} className="h-7 w-40 shrink-0" />
+              )}
+            </div>
+          ))}
+          {voices.length === 0 && (
+            <p className="px-3 py-4 text-sm text-white/40">No voices found.</p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {!vault.voice_id && (
+        <p className="mt-2 text-[11px] text-white/30">
+          Tip: upload 30+ seconds of clean singing or talking for the best clone.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged }: {
   vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
-  onSetActive: () => void; isActive: boolean;
+  onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
@@ -426,6 +628,8 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive }: {
             <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.do_not_change_rules}</p>
           </div>
         )}
+
+        <LockedVoiceSection vault={vault} onChanged={onVoiceChanged} />
 
         <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
           <Button
@@ -641,7 +845,7 @@ export default function ArtistVault() {
   const watched = watch();
   const isEditing = editId !== null;
 
-  async function fetchVaults() {
+  async function fetchVaults(): Promise<ArtistVaultRecord[]> {
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/artist-vaults", {
@@ -650,12 +854,14 @@ export default function ArtistVault() {
       if (res.ok) {
         const data = (await res.json()) as { vaults: ArtistVaultRecord[] };
         setVaults(data.vaults);
+        return data.vaults;
       }
     } catch {
       /* silent */
     } finally {
       setLoadingVaults(false);
     }
+    return [];
   }
 
   useEffect(() => { fetchVaults(); }, []);
@@ -771,6 +977,9 @@ export default function ArtistVault() {
         reference_image_url: photoUrl || null,
         reference_image_path: photoPath || null,
         consistency_prompt: null,
+        voice_id: null,
+        voice_name: null,
+        voice_preview_url: null,
         is_active: false,
         created_at: "",
       };
@@ -862,6 +1071,11 @@ export default function ArtistVault() {
           onLock={() => { setOpenVault(null); setConsistencyVault(openVault); }}
           onSetActive={() => { setActiveArtist(openVault as unknown as ArtistVault); setOpenVault(null); }}
           isActive={activeArtist?.id === openVault?.id}
+          onVoiceChanged={async () => {
+            const vaults = await fetchVaults();
+            const fresh = vaults.find((v) => v.id === openVault?.id);
+            if (fresh) setOpenVault(fresh);
+          }}
         />
       )}
 
