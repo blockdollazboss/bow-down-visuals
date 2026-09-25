@@ -40,6 +40,7 @@ import lipSyncRouter from "./lip-sync";
 import chatRouter from "./chat";
 import preProductionRouter from "./generate/pre-production";
 import randomizerRouter from "./generate/randomizer";
+import hookStudioRouter from "./generate/hook-studio";
 
 const router: IRouter = Router();
 
@@ -84,5 +85,6 @@ router.use(lipSyncRouter);
 router.use(preProductionRouter);
 router.use(chatRouter);
 router.use(randomizerRouter);
+router.use(hookStudioRouter);
 
 export default router;
