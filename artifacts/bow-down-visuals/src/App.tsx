@@ -69,11 +69,11 @@ const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const VocalRemover = lazyWithRetry(() => import("@/pages/vocal-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
-const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
@@ -254,11 +254,11 @@ function AppShell() {
           <Route path="/memberships"><Memberships /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/vocal-remover"><VocalRemover /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
-          <Route path="/contests"><Contests /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
