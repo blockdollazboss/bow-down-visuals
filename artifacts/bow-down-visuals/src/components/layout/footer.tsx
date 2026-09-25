@@ -93,6 +93,9 @@ export function SiteFooter() {
         {/* Bottom bar */}
         <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
+          <p className="text-white/[0.13] text-[10px] select-none" title="every arcade has its secrets">
+            psst&hellip; this site has a cheat code
+          </p>
           <div className="flex items-center gap-4">
             <Link href="/terms"         className="text-white/20 text-xs hover:text-white/50 transition-colors">Terms</Link>
             <Link href="/privacy"       className="text-white/20 text-xs hover:text-white/50 transition-colors">Privacy</Link>

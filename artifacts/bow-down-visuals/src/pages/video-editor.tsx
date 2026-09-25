@@ -8,15 +8,17 @@ import {
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
-  Theater, Repeat, StepBack, StepForward, RotateCcw,
+  Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { TopBar } from "@/components/layout/top-bar";
+import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
@@ -32,12 +34,23 @@ import {
   MASTER_PLAYER_MIN_WIDTH,
   MASTER_PLAYER_MAX_WIDTH,
   MASTER_PLAYER_DEFAULT_WIDTH,
-  MASTER_PLAYER_MIN_HEIGHT,
   type EditorSettings,
   type VideoFormat,
   type FitMode,
 } from "@/lib/editor-settings";
+import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
+import {
+  COMPARE_POS_DEFAULT,
+  COMPARE_POS_MIN,
+  COMPARE_POS_MAX,
+  COMPARE_KEY_STEP,
+  COMPARE_KEY_STEP_LARGE,
+  clampComparePos,
+  compareClipPath,
+  comparePosFromClientX,
+  hasActiveVisualEffects,
+} from "@/lib/compare-slider";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
@@ -50,6 +63,13 @@ import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
+import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
+import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
+import {
+  buildProToolsCssFilter,
+  buildProToolsTransform,
+  buildProToolsClipPath,
+} from "@/lib/pro-tools-preview";
 import { TimelineDock } from "@/components/editor/TimelineDock";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
@@ -64,7 +84,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -128,9 +148,10 @@ export default function VideoEditor() {
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
   const { isSimple } = useUserMode();
-  /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
+  /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
   const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
 
@@ -156,6 +177,29 @@ export default function VideoEditor() {
     if (isSimple && !SIMPLE_VISIBLE_TABS.includes(tab)) setTab("clips");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSimple, tab]);
+  /* Voiceover Studio handoff: if the user clicked "Use in video editor" on
+     /voiceover, surface the finished narration here so it can be layered
+     under the project. The key is cleared after pickup (one-shot). */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv_voiceover_handoff");
+      if (!raw) return;
+      localStorage.removeItem("bdv_voiceover_handoff");
+      const handoff = JSON.parse(raw) as {
+        audioUrl?: string;
+        format?: string;
+        wordCount?: number;
+      };
+      if (!handoff.audioUrl) return;
+      toast({
+        title: "Voiceover ready",
+        description: `Your AI narration (${handoff.wordCount ?? "?"} words, ${String(handoff.format ?? "mp3").toUpperCase()}) is ready. Download it from the Voiceover Studio or paste this URL into your audio layer: ${handoff.audioUrl}`,
+      });
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the pinned
    *  master player's height clamp clears it instead of running underneath it. */
@@ -435,13 +479,20 @@ export default function VideoEditor() {
     setAutoSceneStatus("generating");
     setAutoSceneError(null);
     try {
-      const { scenes: newScenes } = await runAudioSceneFlow({
+      const flow = await runAudioSceneFlow({
         lyrics: lyricsForCaptions ?? "",
         audioUrl: previewAudioUrl,
         audioFile: null,
         songStructure: null,
         getAccessToken,
+        fetchImpl: confirmedFetch,
       });
+      if (!flow) {
+        // User cancelled the credit confirmation — reset the status and bail out
+        setAutoSceneStatus("idle");
+        return;
+      }
+      const { scenes: newScenes } = flow;
       scenesRef.current = newScenes;
       setScenes(newScenes);
       setAutoSceneStatus("idle");
@@ -742,7 +793,7 @@ export default function VideoEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
-      <TopBar onHeightChange={setHeaderHeight} />
+      <VideoBanner onHeightChange={setHeaderHeight} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">Back to Projects</Link>
@@ -798,6 +849,7 @@ export default function VideoEditor() {
                     { id: "pre-production", label: "Pre-Pro", icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
                     { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "pro-tools", label: "Pro Tools", icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                   ]
                     .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -833,6 +885,7 @@ export default function VideoEditor() {
                       "pre-production": "Pre-Pro",
                       export: "Export",
                       studio: "Advanced",
+                      "pro-tools": "Pro Tools",
                     }[tab]}
                   </h2>
                 </div>
@@ -1146,6 +1199,15 @@ export default function VideoEditor() {
                       setSelectedIdx={setSelectedIdx}
                     />
                   )}
+
+                  {tab === "pro-tools" && (
+                    <ProToolsSection
+                      scenes={resolvedScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      videoRef={liveVideoRef}
+                    />
+                  )}
                 </div>
               </aside>
 
@@ -1155,7 +1217,7 @@ export default function VideoEditor() {
                     Sticky + solid background so it stays fixed in view while the
                     panels below scroll; it never drifts or pops out while editing. ── */}
                 <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center p-4 md:p-6">
-                  <div className="w-full max-w-4xl">
+                  <div className="w-full max-w-6xl">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
                       eng={previewEngineState}
@@ -1186,7 +1248,7 @@ export default function VideoEditor() {
 
                   </div>
                 </div>
-                <div className="shrink-0 px-4 md:px-6 pb-4 space-y-3 w-full max-w-4xl mx-auto">
+                <div className="shrink-0 px-4 md:px-6 pb-4 space-y-3 w-full max-w-6xl mx-auto">
                   {/* Active Artist pill */}
                   {activeArtist && (() => {
                     const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -1536,8 +1598,7 @@ const CYCLE_FORMATS: VideoFormat[] = ["9:16", "16:9", "1:1", "4:5"];
 /** Ordered list for Fit Mode cycling. */
 const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
 
-/** Margin (px) around the pinned player in the workspace column, and the fixed width of the minimized chip. */
-const FLOAT_PLAYER_MARGIN = 16;
+/** Fixed width of the minimized player chip. (Fit margin lives in lib/master-player-size.ts.) */
 const MINIMIZED_CHIP_WIDTH = 96;
 
 /** Docked-player aspect ratio from the project's export format. */
@@ -1610,6 +1671,24 @@ function MasterPreviewPlayer({
   const chromeHeaderRef = useRef<HTMLDivElement | null>(null);
   const chromeFooterRef = useRef<HTMLDivElement | null>(null);
   const [chromeHeight, setChromeHeight] = useState(0);
+  /* ── Measure the center-column content width the player sits in (the
+   *    `w-full max-w-6xl` wrapper above the player). The fit math clamps the
+   *    video width to this so the wrapper's `max-width: 100%` never engages —
+   *    without it, narrow layouts silently clamp the width while the canvas
+   *    keeps its fixed height, distorting the aspect box and letterboxing the
+   *    video tiny inside it. Observing the PARENT (not the player itself)
+   *    avoids a measurement feedback loop. ── */
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const [columnWidth, setColumnWidth] = useState(0);
+  useEffect(() => {
+    const parent = outerRef.current?.parentElement;
+    if (!parent) return;
+    const update = () => setColumnWidth(parent.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, []);
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
@@ -1641,26 +1720,28 @@ function MasterPreviewPlayer({
 
   const savedWidth = Math.min(MASTER_PLAYER_MAX_WIDTH, Math.max(MASTER_PLAYER_MIN_WIDTH, settings.masterPlayerSize || MASTER_PLAYER_DEFAULT_WIDTH));
   const rawFloatWidth = isMinimized ? MINIMIZED_CHIP_WIDTH : (resizeWidth ?? savedWidth);
-  /* The vertical band the player is allowed to occupy — strictly between the top toolbar and
-   * the timeline dock, with the usual float margin on both ends. `chromeHeight` (the drag-handle
-   * header + transport rows measured live below) is subtracted so it's the VIDEO height that's
-   * bounded, not just the whole float box, matching how `floatTotalHeight` is computed below. */
-  const availableBandHeight = typeof window !== "undefined"
-    ? Math.max(1, window.innerHeight - headerHeight - dockHeight - FLOAT_PLAYER_MARGIN * 2 - chromeHeight)
-    : Infinity;
-  /* For wide/landscape formats (e.g. 16:9), the stored width alone can produce a very short,
-   * easy-to-miss player (480px wide -> ~270px tall). Grow the effective width so the rendered
-   * height never drops below MASTER_PLAYER_MIN_HEIGHT, capped at MASTER_PLAYER_MAX_WIDTH so it
-   * never overflows past the normal max footprint. It's also capped by `availableBandHeight` —
-   * converted to an equivalent max width via the locked aspect ratio — so the player's rendered
-   * size can never be taller than the space between the top toolbar and the timeline dock,
-   * regardless of aspect ratio (a portrait 9:16 player at a wide width can otherwise be taller
-   * than a short viewport's usable vertical band). */
-  const maxWidthForBand = Math.max(MASTER_PLAYER_MIN_WIDTH, availableBandHeight * aspect);
-  const floatWidth = isMinimized
-    ? rawFloatWidth
-    : Math.min(MASTER_PLAYER_MAX_WIDTH, maxWidthForBand, Math.max(rawFloatWidth, MASTER_PLAYER_MIN_HEIGHT * aspect));
-  const floatHeight = Math.round(floatWidth / aspect);
+  /* ── Master player fit — every aspect ratio, every viewport.
+   *    computeMasterPlayerFit (src/lib/master-player-size.ts, unit-tested) guarantees:
+   *      · video height + chrome (drag header + transport rows, measured live)
+   *        never exceeds the band between the top toolbar and the timeline dock,
+   *        so transport controls are ALWAYS fully visible — never cut off;
+   *      · video width never exceeds the measured center-column width, so the
+   *        canvas aspect-ratio box stays exact (no silent max-width clamp
+   *        distorting the box and letterboxing the video tiny inside it);
+   *      · landscape formats still grow to a readable height when space allows.
+   *    The old inline math floored the width at MASTER_PLAYER_MIN_WIDTH even when
+   *    the band couldn't fit that height (short viewport + 9:16), pushing the
+   *    transport rows below the fold. Fit now always wins over the minimum. */
+  const { width: floatWidth, height: floatHeight } = computeMasterPlayerFit({
+    viewportHeight: typeof window !== "undefined" ? window.innerHeight : 1080,
+    headerHeight,
+    dockHeight,
+    chromeHeight,
+    columnWidth,
+    aspect,
+    savedWidth: rawFloatWidth,
+    minimized: isMinimized,
+  });
 
   const toggleMinimize = () => {
     setSettings({ ...settings, masterPlayerMinimized: !settings.masterPlayerMinimized });
@@ -1707,12 +1788,6 @@ function MasterPreviewPlayer({
     };
   }, [isResizingFloat, settings, setSettings]);
 
-  /* Total on-screen footprint = the video's own target height (floatHeight) PLUS the
-   * natural height of the surrounding chrome (drag-handle header + transport rows below),
-   * measured live via ResizeObserver. Without this, a fixed container height equal to just
-   * floatHeight would force the flex layout to steal space from — and can collapse to
-   * zero — the video canvas to make room for the header/controls. */
-  const floatTotalHeight = floatHeight + chromeHeight;
   /* Locked in: the player lives in the normal page flow inside the center column —
    * no fixed positioning, no floating over the top bar or rail. When hidden we keep
    * the (empty) container mounted with display:none so the video element persists. */
@@ -2225,14 +2300,151 @@ function MasterPreviewPlayer({
 
   const effectsTransform = testEffectActive ? "scale(1.25)" : undefined;
 
+  /* ── Pro Tools live preview (per-clip) ──
+   * Mirrors the server-side buildProToolsFilterChain() so the preview matches
+   * the burned export. Chroma key uses a canvas (CSS can't key a color). */
+  const displayProTools = useMemo(() => {
+    if (!displayScene) return null;
+    return getClipEdit(settings, displayScene.id).proTools;
+  }, [displayScene, settings]);
+
+  const proToolsCssFilter = displayProTools
+    ? buildProToolsCssFilter(displayProTools.colorCorrection)
+    : "";
+  const proToolsTransform = displayProTools
+    ? buildProToolsTransform(displayProTools)
+    : "";
+  const proToolsClipPath = displayProTools
+    ? buildProToolsClipPath(displayProTools, null)
+    : undefined;
+  const chromaActive = displayProTools?.chromaKey.enabled ?? false;
+
+  const combinedCssFilter = [effectsCssFilter, proToolsCssFilter].filter(Boolean).join(" ") || undefined;
+  const combinedTransform = [effectsTransform, proToolsTransform].filter(Boolean).join(" ") || undefined;
+
+  /* Speed preview: match the clip's playback rate on the master player. */
+  useEffect(() => {
+    const v = liveVideoRef.current;
+    if (v && displayProTools) {
+      const rate = Math.min(4, Math.max(0.25, displayProTools.speed || 1));
+      if (v.playbackRate !== rate) v.playbackRate = rate;
+    }
+  }, [displayProTools?.speed, displayScene?.id]);
+
   const overlayColor = testEffectActive
     ? "rgba(220,30,30,0.55)"
     : null;
 
   const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
 
+  /* ── Before/after compare slider ──────────────────────────────────
+   * When on, a raw mirror of the live video (no filters, no overlays, no
+   * test badges) renders underneath the effected composition; the effected
+   * layer is clipped to the right of a draggable split so both sides stay
+   * frame-synced. LEFT = before (raw), RIGHT = after (effected). */
+  const [compareOn, setCompareOn] = useState(false);
+  const [comparePos, setComparePos] = useState(COMPARE_POS_DEFAULT);
+  const compareVideoRef = useRef<HTMLVideoElement | null>(null);
+  const compareTrackRef = useRef<HTMLDivElement | null>(null);
+  const compareDraggingRef = useRef(false);
+
+  /* Mirror the live video into the "before" layer — same pattern as the
+   * ambient-glow sync: re-attach src on remount, chase currentTime each
+   * frame, mirror play/pause. Only runs while compare mode is on. */
+  useEffect(() => {
+    if (!compareOn) return;
+    const main = liveVideoRef.current;
+    const mirror = compareVideoRef.current;
+    if (!main || !mirror) return;
+
+    const syncSrc = () => {
+      if (mirror.src !== main.src) {
+        mirror.src = main.src;
+        mirror.load();
+      }
+    };
+    syncSrc();
+    main.addEventListener("emptied", syncSrc);
+    main.addEventListener("loadedmetadata", syncSrc);
+
+    let raf = 0;
+    const tick = () => {
+      syncSrc(); // re-attach src if the mirror remounted
+      if (mirror.readyState >= 2 && Math.abs(mirror.currentTime - main.currentTime) > 0.15) {
+        mirror.currentTime = main.currentTime;
+      }
+      if (main.paused !== mirror.paused) {
+        if (main.paused) mirror.pause();
+        else mirror.play().catch(() => { /* main is already playing; ignore */ });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      main.removeEventListener("emptied", syncSrc);
+      main.removeEventListener("loadedmetadata", syncSrc);
+    };
+  }, [compareOn, liveVideoRef]);
+
+  const setPosFromClientX = useCallback((clientX: number) => {
+    const el = compareTrackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setComparePos(comparePosFromClientX(clientX, rect.left, rect.width));
+  }, []);
+
+  const handleCompareDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    compareDraggingRef.current = true;
+    setPosFromClientX(e.clientX);
+  }, [setPosFromClientX]);
+
+  const handleCompareMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!compareDraggingRef.current) return;
+    setPosFromClientX(e.clientX);
+  }, [setPosFromClientX]);
+
+  const endCompareDrag = useCallback(() => {
+    compareDraggingRef.current = false;
+  }, []);
+
+  const handleCompareKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const step = e.shiftKey ? COMPARE_KEY_STEP_LARGE : COMPARE_KEY_STEP;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos((p) => clampComparePos(p - step));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos((p) => clampComparePos(p + step));
+    } else if (e.key === "Home") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos(COMPARE_POS_MIN);
+    } else if (e.key === "End") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos(COMPARE_POS_MAX);
+    }
+  }, []);
+
+  /* The compare toggle only appears when at least one visual effect is
+   * actually altering the picture — otherwise it's clutter. */
+  const showCompareToggle = hasActiveVisualEffects({
+    testEffectActive,
+    testOverlayActive,
+    effectCount: activeEffects.length,
+    overlayChipCount: activeOverlayChips.length,
+    soloPreviewOverlay: settings.soloPreviewOverlay ?? null,
+  });
+
+  /* If the last effect is removed while comparing, drop out of compare mode
+   * (the toggle is gone, so the user couldn't exit otherwise). */
+  useEffect(() => {
+    if (!showCompareToggle && compareOn) setCompareOn(false);
+  }, [showCompareToggle, compareOn]);
+
   /* ── Cinema transport button styles ── */
-  const tBtn = "flex items-center justify-center h-8 w-8 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0 disabled:opacity-30";
   const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
   return (
@@ -2251,8 +2463,9 @@ function MasterPreviewPlayer({
           <span className="text-[9px] font-bold uppercase tracking-wider">Show Player</span>
         </button>
       )}
-    {/* ── Theater mode: dim the whole editor with a spotlight on the player.
-        The player wrapper below is raised above this overlay via z-index. ── */}
+    {/* ── Visual mode: true focus mode. The background is essentially blacked out
+        so ONLY the master player is visible. The player wrapper below is raised
+        above this overlay via z-index. ── */}
     {theaterOn && !isHidden && (
       <div
         aria-hidden
@@ -2260,11 +2473,12 @@ function MasterPreviewPlayer({
         style={{
           zIndex: 55,
           background:
-            "radial-gradient(ellipse 62% 58% at 50% 42%, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.94) 78%)",
+            "radial-gradient(ellipse 55% 52% at 50% 42%, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.985) 72%)",
         }}
       />
     )}
     <div
+      ref={outerRef}
       style={floatStyle}
       className={`relative mb-6 ${theaterOn && !isHidden ? "z-[60]" : ""}`}
     >
@@ -2310,12 +2524,30 @@ function MasterPreviewPlayer({
             {!isMinimized && "Master Player"}
           </span>
           <span className="flex items-center gap-0.5">
+            {/* Before/after compare — only when an effect is actually altering the picture */}
+            {showCompareToggle && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setCompareOn((v) => !v)}
+                data-testid="master-player-compare-toggle"
+                title={compareOn ? "Exit before/after compare" : "Compare before/after effects"}
+                aria-pressed={compareOn}
+                className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
+                  compareOn
+                    ? "text-[#f7dd7f] bg-[#C9A84C]/20"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.1]"
+                }`}
+              >
+                <Columns2 className="h-3 w-3" />
+              </button>
+            )}
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleTheater}
               data-testid="master-player-theater-toggle"
-              title={theaterOn ? "Exit theater mode (T)" : "Theater mode (T)"}
+              title={theaterOn ? "Exit visual mode (T)" : "Visual mode (T)"}
               className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                 theaterOn
                   ? "text-[#f7dd7f] bg-[#C9A84C]/20"
@@ -2354,6 +2586,7 @@ function MasterPreviewPlayer({
         const canvas = (
       <div
         data-testid="master-player-canvas"
+        ref={compareTrackRef}
         className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
         style={{ aspectRatio: arCss, height: isFullscreen ? "100%" : floatHeight, maxWidth: "100%" }}
       >
@@ -2373,18 +2606,55 @@ function MasterPreviewPlayer({
           </div>
         )}
 
-        {/* ── Effects-wrapped video layer — filter + zoom applied here only ── */}
+        {/* ── BEFORE layer (compare mode): a raw mirror of the live video —
+            no CSS filters, no zoom, no overlays, no test badges. It stays in
+            sync with the main video via the compare rAF loop above. ── */}
+        {compareOn && (
+          <div className="absolute inset-0" style={{ zIndex: 1 }} aria-hidden="true">
+            <video
+              ref={compareVideoRef}
+              playsInline
+              muted
+              data-testid="master-player-compare-before-video"
+              className={`w-full h-full ${fitMode === "fill" ? "object-cover" : "object-contain"}`}
+            />
+          </div>
+        )}
+
+        {/* ── AFTER layer: the full effected composition. In compare mode it is
+            clipped to the right of the split (LEFT = before, RIGHT = after);
+            otherwise it fills the canvas exactly as it always has. ── */}
+        <div
+          className="absolute inset-0"
+          data-testid="master-player-after-layer"
+          style={compareOn ? { clipPath: compareClipPath(comparePos), zIndex: 2 } : { zIndex: 2 }}
+        >
+        {/* ── Effects-wrapped video layer — filter + zoom applied here only.
+            Pro Tools per-clip grade/geometry/crop layer in on top of effects. ── */}
         <div
           className="absolute inset-0"
           style={{
-            filter: effectsCssFilter || undefined,
-            transform: effectsTransform,
+            filter: combinedCssFilter,
+            transform: combinedTransform,
+            clipPath: proToolsClipPath,
             transformOrigin: "center center",
             transition: "filter 0.3s ease, transform 0.4s ease",
             zIndex: 1,
           }}
         >
-          <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          {/* Chroma key preview draws FROM the video element via canvas — the
+              video stays mounted (hidden) as the frame source. */}
+          <div style={{ display: chromaActive ? "none" : undefined, width: "100%", height: "100%" }}>
+            <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          </div>
+          {chromaActive && displayProTools && (
+            <div className="absolute inset-0" style={{ zIndex: 2 }}>
+              <ChromaKeyPreview
+                videoRef={liveVideoRef}
+                settings={displayProTools.chromaKey}
+              />
+            </div>
+          )}
           {/* Outgoing video + CSS transition overlay */}
           <TransitionCompositor
             outgoingVideoRef={outgoingVideoRef}
@@ -2446,6 +2716,59 @@ function MasterPreviewPlayer({
               {testText}
             </div>
           </div>
+        )}
+        </div>{/* ── end AFTER layer ── */}
+
+        {/* ── Pro Tools reverse badge — reverse playback can't be previewed in
+            HTML video; the flip happens at export time. ── */}
+        {displayProTools?.reverse && (
+          <div className="absolute top-3 left-3 pointer-events-none" style={{ zIndex: 30 }}>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
+              bg-black/70 border border-[#C9A84C]/50 text-[#C9A84C]">
+              <Repeat className="h-3 w-3" /> Reversed on export
+            </div>
+          </div>
+        )}
+
+        {/* ── Compare split handle + Before/After tags ── */}
+        {compareOn && (
+          <>
+            {/* split line */}
+            <div
+              className="absolute inset-y-0 pointer-events-none"
+              style={{ left: `${clampComparePos(comparePos)}%`, zIndex: 30 }}
+              aria-hidden="true"
+            >
+              <div className="absolute inset-y-0 w-[2px] -translate-x-1/2 bg-[#f7dd7f] shadow-[0_0_14px_rgba(201,168,76,0.9)]" />
+            </div>
+            {/* drag handle — pointer drag + full keyboard support */}
+            <button
+              type="button"
+              role="slider"
+              aria-label="Before and after compare position"
+              aria-valuemin={COMPARE_POS_MIN}
+              aria-valuemax={COMPARE_POS_MAX}
+              aria-valuenow={clampComparePos(comparePos)}
+              aria-valuetext={`${clampComparePos(comparePos)} percent after`}
+              data-testid="master-player-compare-handle"
+              onPointerDown={handleCompareDown}
+              onPointerMove={handleCompareMove}
+              onPointerUp={endCompareDrag}
+              onPointerCancel={endCompareDrag}
+              onKeyDown={handleCompareKeyDown}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 h-10 w-10 rounded-full bg-black/85 border-2 border-[#f7dd7f] text-[#f7dd7f] flex items-center justify-center cursor-ew-resize touch-none shadow-[0_0_18px_rgba(201,168,76,0.5)] hover:scale-105 transition-transform"
+              style={{ left: `${clampComparePos(comparePos)}%` }}
+            >
+              <ChevronsLeftRight className="h-4 w-4" />
+            </button>
+            {/* Before / After tags */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[10px] font-black uppercase tracking-widest text-white/80">
+              Before
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[10px] font-black uppercase tracking-widest text-black">
+              After
+            </div>
+          </>
         )}
 
         {/* No-clip placeholder — over the (empty) video */}
@@ -2565,12 +2888,9 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Info strip: timecode · scene · format · loop status ── */}
+      {/* ── Info strip: scene · format · loop status (timecode moved into the transport row) ── */}
       {!isMinimized && (
         <div className="flex items-center gap-1.5 px-3 pt-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[10px] font-mono text-white/60 tabular-nums">
-            {fmtSecs(currentTime)}<span className="text-white/25">/</span>{fmtSecs(duration || 0)}
-          </span>
           {hasScenes && sceneOffsets.length > 0 && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C9A84C]/10 border border-[#C9A84C]/30 text-[10px] font-bold text-[#f0d488]">
               <Film className="h-2.5 w-2.5" />
@@ -2589,94 +2909,60 @@ function MasterPreviewPlayer({
         </div>
       )}
 
-      {/* ── Transport bar — floating glass console (always visible, including
-          fullscreen; hidden while minimized). Row 1: main transport.
-          Row 2: scrub + secondary controls. ── */}
+      {/* ── Transport bar — floating glass console pinned to the bottom of the
+          player (always visible docked; auto-hides in fullscreen; hidden while
+          minimized). Utility row: scene nav + player settings (compact,
+          secondary). Main row: ONE clean line — play/pause · seek · time ·
+          volume · fullscreen. ── */}
       {!isMinimized && (
       <div className={`mx-2.5 mt-2 mb-1 rounded-2xl border border-[#C9A84C]/25 bg-black/55 backdrop-blur-xl px-2 py-2 shadow-[0_12px_44px_-12px_rgba(0,0,0,0.9)] transition-all duration-300 ${
         isFullscreen
           ? `shrink-0 ${controlsVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`
           : ""
       }`}>
-        {/* Row 1 — main transport */}
-        <div className="flex items-center justify-center gap-1 sm:gap-1.5 flex-wrap">
+        {/* Utility row — scene navigation + player settings (compact, secondary) */}
+        <div className="flex items-center justify-center gap-1 flex-wrap">
           {/* Restart */}
           <button type="button" onClick={onRestart} disabled={!hasScenes}
-            className={tBtn} title="Restart (Home)">
-            <RotateCcw className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Restart (Home)">
+            <RotateCcw className="h-3 w-3" />
           </button>
           {/* Prev Scene */}
           <button type="button" onClick={prevClip} disabled={!hasScenes}
-            className={tBtn} title="Previous Scene (Shift+Left)">
-            <Rewind className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Previous Scene (Shift+Left)">
+            <Rewind className="h-3 w-3" />
           </button>
           {/* Back 10s */}
           <button type="button" onClick={() => rewind(10)} disabled={!hasScenes}
-            className={`${tBtn} min-w-[2rem] px-1 text-[9px] font-black tabular-nums`} title="Back 10s (J)">-10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Back 10s (J)">-10</button>
           {/* Frame step back */}
           <button type="button" onClick={() => frameStep(-1)} disabled={!hasScenes}
-            className={tBtn} title="Step 1 frame back (,)">
+            className={tBtnSm} title="Step 1 frame back (,)">
             <StepBack className="h-3 w-3" />
-          </button>
-          {/* Play / Pause — hero button */}
-          <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
-            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
-            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
           </button>
           {/* Frame step forward */}
           <button type="button" onClick={() => frameStep(1)} disabled={!hasScenes}
-            className={tBtn} title="Step 1 frame forward (.)">
+            className={tBtnSm} title="Step 1 frame forward (.)">
             <StepForward className="h-3 w-3" />
           </button>
           {/* Forward 10s */}
           <button type="button" onClick={() => ff(10)} disabled={!hasScenes}
-            className={`${tBtn} min-w-[2rem] px-1 text-[9px] font-black tabular-nums`} title="Forward 10s (L)">+10</button>
+            className={`${tBtnSm} min-w-[1.75rem] px-1 text-[9px] font-black tabular-nums`} title="Forward 10s (L)">+10</button>
           {/* Next Scene */}
           <button type="button" onClick={nextClip} disabled={!hasScenes}
-            className={tBtn} title="Next Scene (Shift+Right)">
-            <FastForward className="h-3.5 w-3.5" />
+            className={tBtnSm} title="Next Scene (Shift+Right)">
+            <FastForward className="h-3 w-3" />
           </button>
           {/* Loop */}
           <button type="button" onClick={() => setLoop((v) => !v)} disabled={!hasScenes}
-            className={`flex items-center justify-center h-8 w-8 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
+            className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 disabled:opacity-30 ${
               loop
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/20 text-[#f7dd7f] shadow-[0_0_12px_rgba(201,168,76,0.4)]"
                 : "border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30"
             }`}
             title={loop ? "Loop: on — click to turn off" : "Loop playback"}>
-            <Repeat className="h-3.5 w-3.5" />
+            <Repeat className="h-3 w-3" />
           </button>
-        </div>
-        {/* Row 2 — scrub + secondary */}
-        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-          {/* Scrubable progress bar */}
-          <div
-            ref={scrubRef}
-            className="relative flex-1 min-w-[80px] h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
-            onPointerDown={handleScrubDown}
-            onPointerMove={handleScrubMove}
-            onPointerUp={handleScrubUp}
-            onPointerLeave={handleScrubUp}
-          >
-            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A84C]/80 to-[#f7dd7f]/90 rounded-full transition-none pointer-events-none"
-              style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
-            <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-[#f7dd7f] shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-              style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
-          </div>
-          {/* Mute */}
-          <button type="button" onClick={toggleMute}
-            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"}>
-            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-          </button>
-          {/* Volume slider */}
-          <input
-            type="range" min={0} max={1} step={0.01}
-            value={muted ? 0 : volume}
-            onChange={(e) => handleVolume(Number(e.target.value))}
-            className="w-14 sm:w-16 accent-[#C9A84C] cursor-pointer"
-            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
-          />
           {/* Playback speed */}
           <button type="button" onClick={cycleSpeed}
             className={`${tBtnSm} min-w-[2.25rem] px-1.5 text-[9px] font-black tabular-nums`}
@@ -2705,8 +2991,49 @@ function MasterPreviewPlayer({
                 : "border-white/[0.08] bg-white/[0.04] text-white/50 hover:text-white/85 hover:bg-white/[0.08]"
             }`}
             title={pipActive ? "Exit Picture-in-Picture (P)" : "Picture-in-Picture (P)"}>
-            <PictureInPicture2 className="h-3.5 w-3.5" />
+            <PictureInPicture2 className="h-3 w-3" />
           </button>
+        </div>
+        {/* ── Main transport row — one clean line at the bottom of the player:
+            play/pause · seek · time · volume · fullscreen ── */}
+        <div className="flex items-center gap-2 mt-1.5 border-t border-white/[0.06] pt-2">
+          {/* Play / Pause — hero button */}
+          <button type="button" onClick={onTogglePlay} disabled={!hasScenes}
+            className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] text-black shadow-[0_0_22px_rgba(201,168,76,0.55)] hover:brightness-110 active:scale-95 transition-all shrink-0 disabled:opacity-30"
+            title={isPlaying ? "Pause (Space)" : "Play (Space)"}>
+            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+          </button>
+          {/* Scrubable progress bar — flexible width */}
+          <div
+            ref={scrubRef}
+            className="relative flex-1 min-w-[40px] h-3 rounded-full cursor-pointer bg-white/[0.08] group select-none"
+            onPointerDown={handleScrubDown}
+            onPointerMove={handleScrubMove}
+            onPointerUp={handleScrubUp}
+            onPointerLeave={handleScrubUp}
+          >
+            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#C9A84C]/80 to-[#f7dd7f]/90 rounded-full transition-none pointer-events-none"
+              style={{ width: duration > 0 ? `${Math.min(100, (currentTime / duration) * 100)}%` : "0%" }} />
+            <div className="absolute top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-[#f7dd7f] shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              style={{ left: duration > 0 ? `calc(${Math.min(100, (currentTime / duration) * 100)}% - 7px)` : "0" }} />
+          </div>
+          {/* Time display — current / total */}
+          <span className="shrink-0 text-[11px] font-mono tabular-nums text-white/70">
+            {fmtSecs(currentTime)}<span className="text-white/25">/</span>{fmtSecs(duration || 0)}
+          </span>
+          {/* Mute */}
+          <button type="button" onClick={toggleMute}
+            className={tBtnSm} title={muted ? "Unmute (M)" : "Mute (M)"}>
+            {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+          </button>
+          {/* Volume slider */}
+          <input
+            type="range" min={0} max={1} step={0.01}
+            value={muted ? 0 : volume}
+            onChange={(e) => handleVolume(Number(e.target.value))}
+            className="w-12 sm:w-14 accent-[#C9A84C] cursor-pointer shrink-0"
+            title={`Volume: ${Math.round((muted ? 0 : volume) * 100)}%`}
+          />
           {/* Fullscreen — launches from the pinned player */}
           <button type="button" onClick={toggleFullscreen}
             className={`flex items-center justify-center h-7 w-7 rounded-lg border transition-colors shrink-0 ${

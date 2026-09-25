@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
 import { pollExportJob } from "@/lib/export-job-poll";
+import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Download, RotateCcw, X } from "lucide-react";
 
@@ -93,6 +95,8 @@ export function AutoClipSection({
   audioUrl,
   getAccessToken,
 }: AutoClipSectionProps) {
+  const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
   const [clipCount, setClipCount] = useState(3);
   const [clipLen, setClipLen] = useState(15);
   const [jobs, setJobs] = useState<ClipJob[]>([]);
@@ -107,14 +111,14 @@ export function AutoClipSection({
   const captions = settings.captions;
   const captionExportMode = (settings.export.captionExportMode as string) ?? "burn";
 
-  async function renderOne(job: ClipJob): Promise<string> {
+  async function renderOne(job: ClipJob, fetchImpl: FetchImpl = fetch): Promise<string> {
     const token = await getAccessToken();
     const clipUrls = readyScenes.map((s) => s.demoClipUrl!);
     const timelineOrder = readyScenes.map((s) => s.id);
     const hasAudio = !!audioUrl;
     const va = settings.musicStudio.videoAudio;
 
-    const res = await fetch("/api/export-final-video", {
+    const res = await fetchImpl("/api/export-final-video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -155,6 +159,7 @@ export function AutoClipSection({
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
+    if (!res) throw new Error("Export cancelled"); // user cancelled the credit confirmation
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error ?? `Export failed (HTTP ${res.status})`);
@@ -169,8 +174,18 @@ export function AutoClipSection({
 
   async function runAutoClip() {
     if (!hasContent || isRunning) return;
-    cancelRef.current = false;
     const ranges = pickClipRanges(readyScenes, projectDurationSec, clipCount, effectiveClipLen);
+    if (ranges.length === 0) return;
+    // One confirmation for the whole batch (4 credits per clip export)
+    const okToSpend = await confirmSpend({
+      cost: ranges.length * 4,
+      feature: `Auto Clip ${ranges.length} Promo Clip${ranges.length !== 1 ? "s" : ""}`,
+      details: "Renders vertical promo clips through the full export pipeline.",
+    });
+    if (!okToSpend) return;
+    const skipConfirmFetch: FetchImpl = (url, init) =>
+      confirmedFetch(url, { ...init, skipConfirm: true });
+    cancelRef.current = false;
     const initial: ClipJob[] = ranges.map((r, i) => ({
       id: i,
       startSec: r.startSec,
@@ -186,7 +201,7 @@ export function AutoClipSection({
       if (cancelRef.current) break;
       setJobs((prev) => prev.map((j) => (j.id === i ? { ...j, status: "rendering" } : j)));
       try {
-        const url = await renderOne(initial[i]);
+        const url = await renderOne(initial[i]!, skipConfirmFetch);
         setJobs((prev) => prev.map((j) => (j.id === i ? { ...j, status: "done", url } : j)));
       } catch (e) {
         setJobs((prev) =>

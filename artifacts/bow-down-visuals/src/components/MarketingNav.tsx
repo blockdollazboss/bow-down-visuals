@@ -19,8 +19,8 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing" },
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
+  { label: "Sound Finder", href: "/sounds" },
   { label: "Comment Replies", href: "/comment-replies" },
-  { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
   { label: "Podcast Studio", href: "/podcast" },
   { label: "Content Calendar", href: "/content-calendar" },
@@ -29,8 +29,8 @@ const NAV_LINKS = [
   { label: "Email List", href: "/email-list" },
   { label: "Memberships", href: "/memberships" },
   { label: "Lyric Video", href: "/lyric-video" },
-  { label: "Distribute", href: "/distribute" },
-  { label: "Tools", href: "/dashboard" },
+  { label: "Distribute", href: "/distribute" },  { label: "Scheduler", href: "/scheduler" },
+  { label: "Tip Jar", href: "/tips" },  { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
 

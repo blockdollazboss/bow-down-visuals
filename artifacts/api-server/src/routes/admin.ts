@@ -23,7 +23,7 @@ function adminEmails(): string[] {
     .filter(Boolean);
 }
 
-async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const email = (req.userEmail ?? "").toLowerCase();
   if (!email || !adminEmails().includes(email)) {
     res.status(403).json({ error: "Not authorized." });

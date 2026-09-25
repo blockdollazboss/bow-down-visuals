@@ -16,6 +16,8 @@ import {
 import { EditorCard, Collapsible, Segmented } from "@/components/editor/controls";
 import { EmptyScenes } from "@/components/editor/sections/shared";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 
 /* ── Provider status (fetched from backend — no secrets in frontend) ── */
 interface ProviderStatus {
@@ -268,6 +270,8 @@ export function LipSyncSection({
   const ls = settings.lipSync;
   const ms = settings.musicStudio;
   const { getAccessToken } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
 
   /* ── Provider status (fetched from backend on mount) ── */
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
@@ -633,11 +637,12 @@ export function LipSyncSection({
     setAcapellaError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/music/export", {
+      const res = await confirmedFetch("/api/music/export", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({ exportType: "acapella-mp3", stems: ms.stems, masterVolume: 100 }),
       });
+      if (!res) { setAcapellaExporting(false); return; } // user cancelled the credit confirmation
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) {
         throw new Error(data.error ?? `Export failed: HTTP ${res.status}`);
@@ -839,7 +844,13 @@ export function LipSyncSection({
           /* Save provider job ID immediately — persists even if local polling times out */
           updateClipEdit(sceneId, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
         },
+        fetchImpl: confirmedFetch,
       });
+      if (!result) {
+        // user cancelled the credit confirmation — reset the optimistic status
+        updateClipEdit(sceneId, { lipSyncStatus: null, lipSyncError: null });
+        return;
+      }
 
       updateClipEdit(sceneId, {
         lipSyncUrl:             result.url,
@@ -904,6 +915,15 @@ export function LipSyncSection({
     setApplyError(null);
     setApplyDebug(null);
     setConfirmOpen(null);
+    // One confirmation for the whole batch (3 credits per clip)
+    const okToSpend = await confirmSpend({
+      cost: eligible.length * 3,
+      feature: `Lip Sync ${eligible.length} Clip${eligible.length !== 1 ? "s" : ""}`,
+      details: "Submits a Sync.so lip sync job for every eligible scene.",
+    });
+    if (!okToSpend) return;
+    const skipConfirmFetch: FetchImpl = (url, init) =>
+      confirmedFetch(url, { ...init, skipConfirm: true });
     cancelRef.current = false;
     setProcessState({ running: true, current: 0, total: eligible.length, cancelled: false, lastError: null });
 
@@ -946,7 +966,9 @@ export function LipSyncSection({
           onSyncLabsJobAccepted: (syncLabsJobId) => {
             updateClipEdit(sid, { lipSyncJobId: syncLabsJobId, lipSyncProvider: "sync.so" });
           },
+          fetchImpl: skipConfirmFetch,
         });
+        if (!result) { setApplyError("Cancelled."); return; } // cannot happen (pre-confirmed), defensive
         updateClipEdit(scene.id, {
           lipSyncUrl:         result.url,
           lipSyncStatus:      "done",
@@ -1381,7 +1403,7 @@ export function LipSyncSection({
       const token = await getAccessToken();
 
       /* ── 1. Enqueue the job ── */
-      const startRes = await fetch("/api/lip-sync/scene-test", {
+      const startRes = await confirmedFetch("/api/lip-sync/scene-test", {
         method:  "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
@@ -1392,6 +1414,7 @@ export function LipSyncSection({
           videoOffsetSec,
         }),
       });
+      if (!startRes) { setSceneTestRunning(false); return; } // user cancelled the credit confirmation
 
       if (!startRes.ok) {
         const errBody = await startRes.json().catch(() => ({ error: `HTTP ${startRes.status}` })) as { error?: string };
@@ -3928,6 +3951,8 @@ interface LipSyncBackendRequest {
    *  The client should immediately persist this to the clip so it survives
    *  a local timeout or server restart. */
   onSyncLabsJobAccepted?: (syncLabsJobId: string) => void;
+  /** fetch implementation (for the universal credit confirmation). */
+  fetchImpl?: FetchImpl;
 }
 
 /** Thrown when the backend poll exhausts but the Sync.so job is still running.
@@ -3944,14 +3969,15 @@ interface LipSyncResult {
   provider: string;
 }
 
-async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult> {
+async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncResult | null> {
   const token = await req.getAccessToken();
+  const doFetch: FetchImpl = req.fetchImpl ?? fetch;
 
   /* ── Step 1: POST to enqueue the job — returns in < 1 s ────────────────
      The server validates inputs, starts background processing, and returns
      a jobId immediately. This avoids the Replit proxy timeout (which was
      killing the old synchronous route after ~30–60 s).                     */
-  const startRes = await fetch("/api/lip-sync/preview", {
+  const startRes = await doFetch("/api/lip-sync/preview", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -3971,6 +3997,7 @@ async function callLipSyncBackend(req: LipSyncBackendRequest): Promise<LipSyncRe
     }),
     signal: AbortSignal.timeout(30_000), // 30 s — only for validation + queuing
   });
+  if (!startRes) return null; // user cancelled the credit confirmation
 
   const startCt = startRes.headers.get("content-type") ?? "";
   if (!startCt.includes("application/json")) {

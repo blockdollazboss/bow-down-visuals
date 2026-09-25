@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
@@ -48,6 +49,7 @@ interface RecentSting {
 
 export default function IntrosOutros() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [tagline, setTagline] = useState("");
   const [type, setType] = useState<StingType>("intro");
@@ -101,7 +103,7 @@ export default function IntrosOutros() {
     setOutOfCredits(false);
     setOutputUrl(null);
     try {
-      const res = await fetch("/api/generate-intro-outro", {
+      const res = await confirmedFetch("/api/generate-intro-outro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,6 +113,10 @@ export default function IntrosOutros() {
           referenceImageUrl: logoUrl.trim() || undefined,
         }),
       });
+      if (!res) {
+        setStatus("idle");
+        return;
+      }
       const data: StingResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

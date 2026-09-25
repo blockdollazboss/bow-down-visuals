@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   Mic2, Video, Film, Archive, FolderOpen, Headphones,
   ArrowRight, Zap, AlertCircle, User, RefreshCw,
-  ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal,
+  ChevronRight, ChevronDown, Star, CheckCircle2, Sparkles, SlidersHorizontal, Users,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -275,7 +274,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -461,6 +459,13 @@ export default function Dashboard() {
               description="Continue editing saved songs, videos, and campaigns."
               cta="Open Projects"
               href="/my-projects"
+            />
+            <CreatorCard
+              icon={Users}
+              title="Collab Finder"
+              description="Find creators to team up with — AI match scores, free proposals."
+              cta="Find Collabs"
+              href="/collabs"
             />
           </div>
         </section>

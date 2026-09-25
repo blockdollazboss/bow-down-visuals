@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { getSupabase } from "@/lib/supabase";
 import {
   ARTIST_IMAGE_MODELS,
@@ -31,6 +32,7 @@ interface RecentImage { name: string; url: string; path: string }
 
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const isShoot = mode === "photoshoot";
   const [prompt, setPrompt] = useState(initialPrompt);
   const [model, setModel] = useState<ArtistImageModel>("gpt-image-2.5-sunburst");
@@ -167,7 +169,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
     setShootSaved(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-artist-image", {
+      const res = await confirmedFetch("/api/generate-artist-image", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
@@ -176,7 +178,10 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
           ratio,
           referenceImageUrl: hasReferencePhoto ? referenceImageUrl : null,
         }),
+        overrideCost: effectiveCredits,
+        overrideFeature: "Generate Artist Image",
       });
+      if (!res) { setGenerating(false); return; } // user cancelled the credit confirmation
       const data = await res.json() as { taskId?: string; status?: string; url?: string | null; path?: string | null; error?: string; message?: string };
       if (!res.ok || !data.taskId) {
         throw new Error(data.message ?? data.error ?? `Image API error (HTTP ${res.status})`);
