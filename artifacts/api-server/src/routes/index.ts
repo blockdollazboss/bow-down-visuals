@@ -46,6 +46,7 @@ import hookStudioRouter from "./generate/hook-studio";
 import monetizationCoachRouter from "./generate/monetization-coach";
 import upscaleRouter from "./generate/upscale";
 import watermarkRemovalRouter from "./generate/watermark-removal";
+import llcGuideRouter from "./generate/llc-guide";
 import socialRouter from "./social";
 import jobNotificationsRouter from "./job-notifications";
 
@@ -98,6 +99,8 @@ router.use(hookStudioRouter);
 router.use(monetizationCoachRouter);
 router.use(upscaleRouter);
 router.use(watermarkRemovalRouter);
+router.use(llcGuideRouter);
+router.use(llcGuideRouter);
 router.use(socialRouter);
 router.use(jobNotificationsRouter);
 
