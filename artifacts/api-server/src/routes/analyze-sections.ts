@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../lib/ai-clients";
+import { chatCompletion } from "../lib/ai-clients";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 
@@ -48,8 +48,7 @@ ${lyrics}
 Return ONLY valid JSON. No markdown, no code blocks, no explanation.`;
 
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const response = await chatCompletion({
       messages: [
         {
           role: "system",

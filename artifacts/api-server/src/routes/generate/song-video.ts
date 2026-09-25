@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -230,8 +230,7 @@ Master exclusion list for all AI generations.
 5 ready-to-post captions — mix of hype, story, and CTA.`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

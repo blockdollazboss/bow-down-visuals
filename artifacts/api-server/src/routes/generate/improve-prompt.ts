@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
@@ -112,8 +112,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   }
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userParts.join("\n\n") },

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion, getOpenAI, OPENAI_IMAGE_MODEL } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -117,8 +117,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 }`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,
       response_format: { type: "json_object" },
@@ -156,8 +155,7 @@ Return ONLY valid JSON (no markdown, no commentary) as an array of shot objects:
 Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary camera angles. Keep every shot consistent with the bible.`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [{ role: "user", content: prompt }],
       max_tokens: 3000,
       response_format: { type: "json_object" },
@@ -219,7 +217,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       const lockedPrompt =
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: OPENAI_IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size: "1536x1024",
@@ -228,7 +226,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
       b64 = editResp.data?.[0]?.b64_json;
     } else {
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: OPENAI_IMAGE_MODEL,
         prompt: imagePrompt,
         size: "1536x1024",
         n: 1,

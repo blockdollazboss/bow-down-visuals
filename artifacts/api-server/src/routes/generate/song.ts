@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -158,8 +158,7 @@ Give a one-paragraph cinematic concept for the music video. Describe the setting
 Write 5 ready-to-post captions for social media — mix of hype, storytelling, and call-to-action styles.`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

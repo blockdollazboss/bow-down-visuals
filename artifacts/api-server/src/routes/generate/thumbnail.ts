@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion, getOpenAI, OPENAI_IMAGE_MODEL } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -177,7 +177,7 @@ async function generateThumbnailImage(
         `Using the exact artist/person shown in the reference photo (same face, skin tone, body type — do not change ` +
         `their identity), create this scene: ${imagePrompt}`.slice(0, 4000);
       const editResp = await getOpenAI().images.edit({
-        model: "gpt-image-1",
+        model: OPENAI_IMAGE_MODEL,
         image: referenceFile,
         prompt: lockedPrompt,
         size,
@@ -190,7 +190,7 @@ async function generateThumbnailImage(
         "[generate-thumbnail] no usable reference photo, falling back to text-to-image",
       );
       const imageResp = await getOpenAI().images.generate({
-        model: "gpt-image-1",
+        model: OPENAI_IMAGE_MODEL,
         prompt: imagePrompt.slice(0, 4000),
         size,
         n: 1,
@@ -271,8 +271,7 @@ Write a comprehensive negative prompt — everything to exclude from the image g
 Write 5 alternate thumbnail concepts. For each: a short concept description and a full ready-to-paste AI image prompt. Number them clearly (Alternate 1 through Alternate 5).`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

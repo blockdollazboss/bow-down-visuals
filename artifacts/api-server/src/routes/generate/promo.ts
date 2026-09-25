@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -142,8 +142,7 @@ Write a detailed timing breakdown for a 30-second promo clip. Break it down seco
 Write a specific description of the perfect thumbnail or cover frame for this promo content. Include: exact composition, color palette, what the artist is doing, text overlay (font style and positioning), background/setting, and the overall visual mood. Make it detailed enough to recreate exactly.`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

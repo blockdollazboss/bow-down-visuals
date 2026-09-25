@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
@@ -199,8 +199,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     .join("\n");
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       response_format: { type: "json_object" },
       temperature: 0.8,
       max_tokens: 6000,

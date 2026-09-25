@@ -1,5 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
 import { recordCreditUsage } from "../../lib/payment-record";
@@ -215,8 +216,7 @@ Rules:
 - No markdown, no code fences, JSON only.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const response = await chatCompletion({
       messages: [
         {
           role: "system",

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
 
@@ -137,8 +138,7 @@ router.post("/generate/ai-edit-plan", requireAuth, async (req, res) => {
   ].filter(Boolean).join("\n");
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },

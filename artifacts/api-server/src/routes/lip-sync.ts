@@ -45,8 +45,9 @@ const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
 /* ── Sync Labs ────────────────────────────────────────────────────────────── */
 const SYNC_LABS_BASE = "https://api.sync.so/v2";
 // Upgraded 2026-09-24: sync-1.9.0-beta produced poor lip-sync on song audio.
-// lipsync-2 is the current-gen model (same input shape); override via env if needed.
-const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "lipsync-2";
+// 2026-09-25: sync-3 won the A/B test ("way better") and is the production
+// model — newest available. Override via LIP_SYNC_MODEL if a newer model ships.
+const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "sync-3";
 const SYNC_POLL_INTERVAL_MS = 5_000;
 const SYNC_MAX_POLLS = 72; // 72 × 5s = 6 minutes max
 

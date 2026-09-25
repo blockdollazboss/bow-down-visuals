@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { chatCompletion } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -182,8 +182,7 @@ Describe 5 specific short-form promo clip ideas cut from this video. For each: w
 Write 5 ready-to-post social media captions for promoting this video. Mix hype, story, and CTA styles.`;
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await chatCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
