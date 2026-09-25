@@ -33,7 +33,8 @@ import {
   MapPin,
   ChevronsLeft,
   Library,
-  Radio
+  Radio,
+  GraduationCap
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -77,6 +78,7 @@ export function AppSidebar() {
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/my-clips", label: "My Clips", icon: Library },
     { href: "/go-live", label: "Go Live", icon: Radio },
+    { href: "/academy", label: "Creator Academy", icon: GraduationCap },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
