@@ -33,3 +33,4 @@ export * from "./social-publish-attempts";
 export * from "./locations";
 export * from "./artist-outfits";
 export * from "./discord";
+export * from "./press-kits";

@@ -67,6 +67,8 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
+const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
+const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -229,6 +231,8 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
+          <Route path="/press-kit"><ProtectedRoute><PressKitBuilder /></ProtectedRoute></Route>
+          <Route path="/press/:handle"><PublicPressKit /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
