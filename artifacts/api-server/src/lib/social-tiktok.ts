@@ -248,12 +248,19 @@ export interface InboxInitResult {
 
 const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB — within TikTok's 5–64 MB chunk window
 
-/** Plans chunking per TikTok's rules: total = floor(size/chunk), last chunk
-    absorbs the remainder; files under 5 MB go as a single chunk. */
+/** Plans chunking per TikTok's rules: every chunk must be 5–64 MB and the
+    declared total_chunk_count must equal the number of chunks actually sent.
+    Sizes are rounded down to whole chunks and the final chunk absorbs the
+    remainder; files under 5 MB go as a single chunk. */
 export function planChunks(videoSize: number): { chunkSize: number; totalChunks: number } {
   if (videoSize < 5 * 1024 * 1024) return { chunkSize: videoSize, totalChunks: 1 };
-  const totalChunks = Math.max(1, Math.floor(videoSize / CHUNK_SIZE));
-  return { chunkSize: CHUNK_SIZE, totalChunks };
+  let totalChunks = Math.ceil(videoSize / CHUNK_SIZE);
+  let chunkSize = Math.floor(videoSize / totalChunks);
+  while (chunkSize < 5 * 1024 * 1024 && totalChunks > 1) {
+    totalChunks -= 1;
+    chunkSize = Math.floor(videoSize / totalChunks);
+  }
+  return { chunkSize, totalChunks };
 }
 
 /** POST /post/publish/inbox/video/init/ — drafts tier takes source_info only. */
@@ -368,14 +375,18 @@ export async function uploadDraftToTikTok(
   sleep?: (ms: number) => Promise<void>,
 ): Promise<{ publishId: string }> {
   const size = input.videoBytes.length;
-  const { chunkSize } = planChunks(size);
+  const { chunkSize, totalChunks } = planChunks(size);
   const { publishId, uploadUrl } = await initInboxVideoUpload(input.accessToken, size, fetchImpl);
   if (!uploadUrl) throw new TikTokApiError("TikTok didn't return an upload URL. Please try again.");
+  // Send exactly totalChunks chunks — the count TikTok was told to expect in
+  // init. The final chunk absorbs the remainder (stays within the 5–64 MB
+  // window because chunkSize <= 8 MB and the remainder < chunkSize).
   let offset = 0;
-  while (offset < size) {
-    const chunk = input.videoBytes.subarray(offset, Math.min(offset + chunkSize, size));
+  for (let i = 0; i < totalChunks; i++) {
+    const end = i === totalChunks - 1 ? size : offset + chunkSize;
+    const chunk = input.videoBytes.subarray(offset, end);
     await putVideoChunk(uploadUrl, chunk, offset, size, fetchImpl);
-    offset += chunk.length;
+    offset = end;
   }
   await pollInboxUntilReady(publishId, input.accessToken, fetchImpl, sleep);
   return { publishId };

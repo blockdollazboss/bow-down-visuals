@@ -96,11 +96,25 @@ describe("planChunks", () => {
   it("uploads files under 5 MB as a single chunk", () => {
     expect(planChunks(4 * 1024 * 1024)).toEqual({ chunkSize: 4 * 1024 * 1024, totalChunks: 1 });
   });
-  it("plans 8 MB chunks for larger files, last chunk absorbing the remainder", () => {
+  it("plans 7 whole chunks for a 50 MB file, last chunk absorbing the remainder", () => {
     const { chunkSize, totalChunks } = planChunks(50 * 1024 * 1024);
-    expect(chunkSize).toBe(8 * 1024 * 1024);
-    expect(totalChunks).toBe(6);
-    // non-final chunks are exactly 8MB (>= 5MB minimum), final is 8MB + remainder
+    expect(totalChunks).toBe(7);
+    expect(chunkSize).toBe(7489828); // floor(50MB / 7)
+    expect(chunkSize).toBeGreaterThanOrEqual(5 * 1024 * 1024);
+  });
+  it("plans 2x5 MB for a 10 MB file", () => {
+    expect(planChunks(10 * 1024 * 1024)).toEqual({ chunkSize: 5 * 1024 * 1024, totalChunks: 2 });
+  });
+  it("collapses 8 MB + 1 byte to a single chunk (2 chunks would be under 5 MB each)", () => {
+    const size = 8 * 1024 * 1024 + 1;
+    expect(planChunks(size)).toEqual({ chunkSize: size, totalChunks: 1 });
+  });
+  it("never declares a chunk below the 5 MB minimum for any size", () => {
+    for (const size of [5 * 1024 * 1024, 6 * 1024 * 1024, 9 * 1024 * 1024, 16 * 1024 * 1024, 33 * 1024 * 1024]) {
+      const { chunkSize, totalChunks } = planChunks(size);
+      expect(chunkSize).toBeGreaterThanOrEqual(5 * 1024 * 1024);
+      expect(totalChunks).toBeGreaterThanOrEqual(1);
+    }
   });
 });
 
@@ -122,8 +136,8 @@ describe("initInboxVideoUpload", () => {
     const body = JSON.parse(init.body as string);
     expect(body.source_info.source).toBe("FILE_UPLOAD");
     expect(body.source_info.video_size).toBe(size);
-    expect(body.source_info.chunk_size).toBe(8 * 1024 * 1024);
-    expect(body.source_info.total_chunk_count).toBe(6);
+    expect(body.source_info.chunk_size).toBe(7489828);
+    expect(body.source_info.total_chunk_count).toBe(7);
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer at-1");
   });
 });
@@ -181,6 +195,38 @@ describe("uploadDraftToTikTok", () => {
     const result = await uploadDraftToTikTok({ accessToken: "at-1", videoBytes }, fetchImpl, noSleep);
     expect(result).toEqual({ publishId: "pub-9" });
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it("sends exactly the declared chunk count for a multi-chunk file (50 MB -> 7 chunks)", async () => {
+    const size = 50 * 1024 * 1024;
+    const videoBytes = Buffer.alloc(size);
+    const responses = [
+      {
+        body: {
+          error: { code: "ok", message: "", log_id: "x" },
+          data: { publish_id: "pub-7", upload_url: "https://upload.tiktok.test/u7" },
+        },
+      },
+      ...Array.from({ length: 7 }, () => ({ status: 206, body: {} })),
+      { body: { error: { code: "ok" }, data: { status: "SEND_TO_USER_INBOX" } } },
+    ];
+    const fetchImpl = mockFetch(responses);
+    const result = await uploadDraftToTikTok({ accessToken: "at-1", videoBytes }, fetchImpl, noSleep);
+    expect(result).toEqual({ publishId: "pub-7" });
+    const calls = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls as [string, RequestInit][];
+    const initBody = JSON.parse(calls[0][1].body as string);
+    const declared = initBody.source_info.total_chunk_count;
+    const chunkPuts = calls.filter(([url, init]) => init.method === "PUT");
+    // declared count must equal chunks actually sent — TikTok rejects on mismatch
+    expect(declared).toBe(7);
+    expect(chunkPuts).toHaveLength(declared);
+    // byte ranges are contiguous and cover the whole file
+    const ranges = chunkPuts.map(([, init]) =>
+      (init.headers as Record<string, string>)["Content-Range"].match(/bytes (\d+)-(\d+)\/(\d+)/)!.slice(1).map(Number),
+    );
+    expect(ranges[0][0]).toBe(0);
+    expect(ranges[ranges.length - 1][1]).toBe(size - 1);
+    for (let i = 1; i < ranges.length; i++) expect(ranges[i][0]).toBe(ranges[i - 1][1] + 1);
   });
 
   it("maps rate-limit errors to a plain user message", async () => {

@@ -34,7 +34,7 @@ export const socialAccountsTable = pgTable(
     /* Cross-platform one-row-per-account guard: TikTok rows key on
        provider_user_id (open_id), Instagram rows on ig_user_id. Declared
        here so boot-time drizzle-kit push creates it on fresh DBs — mirrors
-       migrations/0004_social_accounts_provider_id.sql. */
+       migrations/0005_social_accounts_provider_id.sql. */
     uniqueIndex("social_accounts_user_platform_provider_idx").on(t.user_id, t.platform, t.provider_user_id),
   ],
 );
