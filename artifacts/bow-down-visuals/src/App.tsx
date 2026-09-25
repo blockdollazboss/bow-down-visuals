@@ -62,6 +62,7 @@ const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal")
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
+const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -219,6 +220,7 @@ function AppShell() {
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
+          <Route path="/copyright"><CopyrightAssistant /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
