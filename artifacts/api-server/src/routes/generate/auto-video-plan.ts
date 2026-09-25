@@ -1,16 +1,16 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
 const router = Router();
 
 const CREDIT_COST = 2;
 
 /**
- * POST /api/generate/auto-video-plan
+ * POST /api/auto-video-plan
  *
  * The Auto Director: analyzes the song (transcript + section map + duration)
  * and returns a STRUCTURED, timeline-ready music video plan — scenes with exact
@@ -73,6 +73,8 @@ function buildVaultContext(vault: VaultInput | null | undefined): { text: string
 }
 
 const DIRECTOR_SYSTEM_PROMPT = `You are the Auto Director — a world-class music video director AND an elite AI-video prompt engineer specializing in Runway Gen-4. You design complete, shoot-ready music video plans from songs, then write the generation prompts yourself to the highest professional standard.
+
+Hold every frame to the standard of an Oscar-winning cinematographer and director: compositions built for the big screen, camera moves motivated by emotion, lighting that carries feeling. If a shot or prompt wouldn't hold up in a theater, rework it until it would.
 
 YOUR TWO JOBS:
 1. DIRECT: break the song into a scene-by-scene plan where every scene's timing, energy, and story serve the music.
@@ -200,10 +202,10 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       response_format: { type: "json_object" },
       temperature: 0.8,
-      max_tokens: 6000,
+      max_completion_tokens: 6000,
       messages: [
         { role: "system", content: DIRECTOR_SYSTEM_PROMPT },
         { role: "user", content: userBrief },
@@ -282,7 +284,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
 
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -291,11 +293,14 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Auto Director Plan", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({ plan, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {

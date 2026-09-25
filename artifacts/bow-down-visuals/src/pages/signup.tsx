@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const schema = z.object({
   displayName: z.string().min(2, "Enter your artist or display name"),
@@ -26,12 +28,14 @@ const schema = z.object({
 });
 
 export default function Signup() {
+  usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof schema>>({
@@ -49,6 +53,18 @@ export default function Signup() {
     } else {
       setSuccess(true);
       setLoading(false);
+    }
+  }
+
+  async function onGoogleSignUp() {
+    setGoogleLoading(true);
+    setError(null);
+    /* On success the browser leaves for Google's consent screen, so this
+     * only resolves when something failed before the redirect. */
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setError(error);
+      setGoogleLoading(false);
     }
   }
 
@@ -79,6 +95,14 @@ export default function Signup() {
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
+          <GoogleSignInButton
+            onClick={onGoogleSignUp}
+            loading={googleLoading}
+            label="Sign up with Google"
+            testId="btn-google-signup"
+          />
+          <OrDivider />
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
               <FormField control={form.control} name="displayName" render={({ field }) => (

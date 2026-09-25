@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
+import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
 
@@ -80,7 +81,9 @@ function buildFallbackPlan(input: Input): unknown {
   };
 }
 
-const SYSTEM_PROMPT = `You are an expert music video editor AI. Given a project context, generate a complete AI edit plan as valid JSON.
+const SYSTEM_PROMPT = `Edit like an Oscar-winning film editor: every cut earns its place, pacing breathes with the music, and transitions serve the story — never decoration. Think in sequences, not clips; build tension and release like a feature film.
+
+You are an expert music video editor AI. Given a project context, generate a complete AI edit plan as valid JSON.
 
 Available effects: Film Grain, Glow, Blur, Sharpen, Vignette, Black & White, Neon Glow, VHS, Cinematic Bars, Camera Shake, Slow Zoom, Speed Ramp
 Available color grades: Warm Grade, Cool Grade, Teal & Orange, Moody Desaturated, Vibrant Pop
@@ -138,14 +141,14 @@ router.post("/generate/ai-edit-plan", requireAuth, async (req, res) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1800,
+      max_completion_tokens: 1800,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let plan: unknown;

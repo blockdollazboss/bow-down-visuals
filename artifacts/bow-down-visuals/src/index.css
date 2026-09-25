@@ -273,6 +273,19 @@ body::before {
 
 /* ── Caption animations ── */
 @keyframes bdv-fade { from { opacity: 0; } to { opacity: 1; } }
+/* ── Shark King banner — slow ambient ken-burns drift ── */
+@keyframes bdv-banner-drift {
+  0%   { transform: translate3d(-1.5%, 0, 0) scale(1.02); }
+  50%  { transform: translate3d(1.5%, -1%, 0) scale(1.05); }
+  100% { transform: translate3d(-1.5%, 0, 0) scale(1.02); }
+}
+.bdv-banner .bdv-banner-drift {
+  animation: bdv-banner-drift 32s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bdv-banner .bdv-banner-drift { animation: none; }
+  .bdv-banner .shimmer::after { animation: none; opacity: 0; }
+}
 @keyframes bdv-pop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
 @keyframes bdv-bounce { from { opacity: 0; transform: translateY(8px) scale(0.9); } 60% { transform: translateY(-4px) scale(1.04); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes bdv-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -508,4 +521,256 @@ html {
   .lux-shine::after {
     display: none;
   }
+}
+
+/* ─── Grand entrance — artist selection reveal choreography ─── */
+@keyframes bd-entrance-rise {
+  from { opacity: 0; transform: translateY(34px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bd-entrance-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bd-entrance-spotlight {
+  from { opacity: 0; }
+  to { opacity: var(--bd-spotlight-opacity, 1); }
+}
+@keyframes bd-dust-drift {
+  0%, 100% { transform: translateY(0px); opacity: 0.15; }
+  50% { transform: translateY(-16px); opacity: 0.65; }
+}
+@keyframes bd-curtain-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+@keyframes bd-carpet-sheen {
+  0% { transform: translateX(-130%) skewX(-12deg); }
+  55%, 100% { transform: translateX(260%) skewX(-12deg); }
+}
+
+.animate-bd-entrance { animation: bd-entrance-rise 1.05s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-bd-entrance-fade { animation: bd-entrance-fade 1.5s ease both; }
+.animate-bd-spotlight { animation: bd-entrance-spotlight 1.8s ease both; }
+.animate-bd-dust { animation: bd-dust-drift 7s ease-in-out infinite; }
+.animate-bd-curtain { animation: bd-curtain-glow 6s ease-in-out infinite; }
+.animate-bd-carpet-sheen {
+  animation: bd-carpet-sheen 7s ease-in-out infinite;
+  width: 45%;
+  background: linear-gradient(to right, transparent, rgba(255, 248, 220, 0.30), transparent);
+}
+
+/* Woven gold premiere carpet */
+.bd-gold-carpet {
+  background:
+    repeating-linear-gradient(45deg, rgba(120, 85, 10, 0.16) 0 5px, rgba(255, 240, 190, 0.05) 5px 10px),
+    repeating-linear-gradient(-45deg, rgba(120, 85, 10, 0.12) 0 5px, transparent 5px 10px),
+    linear-gradient(to bottom, #8A6B1F 0%, #C9A84C 30%, #E8C96A 50%, #C9A84C 70%, #8A6B1F 100%);
+  box-shadow:
+    inset 0 0 0 3px rgba(90, 64, 8, 0.55),
+    inset 0 0 34px rgba(60, 40, 5, 0.5),
+    0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Carpet fringe on the near edge */
+.bd-carpet-fringe {
+  background: repeating-linear-gradient(to right, #E8C96A 0 4px, #8A6B1F 4px 8px);
+  clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
+  opacity: 0.9;
+}
+
+/* Heavy royal velvet drape folds */
+.bd-drape {
+  background:
+    repeating-linear-gradient(to right, rgba(0, 0, 0, 0.88) 0 14px, rgba(201, 168, 76, 0.10) 14px 22px, rgba(0, 0, 0, 0.92) 22px 38px),
+    linear-gradient(to bottom, #0a0908, #050505);
+  box-shadow: inset -18px 0 30px rgba(0, 0, 0, 0.8);
+}
+.bd-drape-r {
+  box-shadow: inset 18px 0 30px rgba(0, 0, 0, 0.8);
+}
+
+/* Embossed damask texture for the grand lobby walls */
+.bd-damask {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(201, 168, 76, 0.05) 1px, transparent 1.6px),
+    radial-gradient(circle at 25% 25%, rgba(201, 168, 76, 0.028) 1px, transparent 1.6px),
+    radial-gradient(circle at 75% 75%, rgba(201, 168, 76, 0.028) 1px, transparent 1.6px);
+  background-size: 44px 44px, 44px 44px, 44px 44px;
+  background-position: 0 0, 11px 11px, 33px 33px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bd-entrance,
+  .animate-bd-entrance-fade,
+  .animate-bd-spotlight,
+  .animate-bd-dust,
+  .animate-bd-curtain,
+<<<<<<< HEAD
+  .pixel-blink,
+  .pixel-coin-burst,
+  .pixel-overlay-pop {
+=======
+  .animate-bd-carpet-sheen {
+>>>>>>> feature/grand-entrance-gold-carpet
+    animation: none;
+  }
+}
+
+/* ─── 8-bit pixel headlines — retro arcade typography, gold/black luxury ─── */
+.pixel-display {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-weight: 400;
+}
+
+/* Gold gradient pixel text with hard stepped drop shadows (no blur — chunky pixels) */
+.pixel-gold-text {
+  background: linear-gradient(
+    180deg,
+    #f9ecb8 0%,
+    #f5de8e 28%,
+    #e8c96a 45%,
+    #c9a84c 62%,
+    #a07f2e 80%,
+    #8a6b1f 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* hard pixel offsets: black base, then a gold echo */
+  filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.95))
+    drop-shadow(6px 6px 0 rgba(201, 168, 76, 0.22));
+}
+
+/* Plain white pixel text variant (for dark-on-gold or secondary lines) */
+.pixel-white-text {
+  color: #fff;
+  text-shadow:
+    3px 3px 0 rgba(0, 0, 0, 0.9),
+    6px 6px 0 rgba(201, 168, 76, 0.18);
+}
+
+/* Blinking arcade cursor block */
+@keyframes pixel-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.pixel-blink {
+  animation: pixel-blink 1.1s steps(1) infinite;
+  color: #c9a84c;
+}
+
+/* Pixel divider — a row of gold blocks */
+.pixel-divider {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pixel-divider > span {
+  width: 8px;
+  height: 8px;
+  background: #c9a84c;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+.pixel-divider > span:nth-child(3n) { background: #f5de8e; }
+.pixel-divider > span:nth-child(4n) { background: #8a6b1f; }
+
+/* Easter egg: coin burst + overlay pop */
+@keyframes pixel-coin-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--burst-x, 0px), var(--burst-y, -220px)) scale(0.6) rotate(200deg); opacity: 0; }
+}
+.pixel-coin-burst {
+  animation: pixel-coin-burst 1.6s cubic-bezier(0.15, 0.6, 0.4, 1) forwards;
+}
+@keyframes pixel-overlay-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.pixel-overlay-pop {
+  animation: pixel-overlay-pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+@keyframes pixel-crown-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.pixel-crown-bob {
+  animation: pixel-crown-bob 2.2s ease-in-out infinite;
+}
+
+/* Cheat Code Jackpot: wrong-code shake */
+@keyframes jackpot-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+
+/* ── Home of Gamers hub: neon / RGB gaming aesthetic (CSS-only) ─────────── */
+@keyframes gamers-rgb-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.gamers-rgb-text {
+  background: linear-gradient(90deg, #00f0ff, #7c3aed, #ff2bd6, #b6ff2e, #00f0ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gamers-rgb-shift 6s linear infinite;
+}
+@keyframes gamers-glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.gamers-glow-pulse { animation: gamers-glow-pulse 2.6s ease-in-out infinite; }
+@keyframes gamers-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.gamers-ticker-track {
+  animation: gamers-ticker 30s linear infinite;
+}
+.gamers-ticker-track:hover { animation-play-state: paused; }
+.gamers-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+}
+@keyframes gamers-grid-drift {
+  from { background-position: 0 0; }
+  to { background-position: 0 64px; }
+}
+.gamers-grid-floor {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.14) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: gamers-grid-drift 3.2s linear infinite;
+  mask-image: linear-gradient(to top, black 30%, transparent 85%);
+  -webkit-mask-image: linear-gradient(to top, black 30%, transparent 85%);
+}
+@keyframes gamers-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.gamers-float { animation: gamers-float 5s ease-in-out infinite; }
+/* ─── Simple / Advanced mode — site-wide UI gating ─── */
+/* In Simple mode, hide elements marked advanced-only. In Advanced mode, show everything. */
+html[data-user-mode="simple"] .advanced-only {
+  display: none !important;
+}
+/* Optional: mark simple-only helpers (shown only in Simple mode) */
+html[data-user-mode="advanced"] .simple-only {
+  display: none !important;
 }

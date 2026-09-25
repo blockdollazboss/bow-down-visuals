@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordThumbnailHistory } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { recordThumbnailHistory } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, normalizeToStorageRef } from "../../lib/objectStorage";
 import { isAllowedStemUrl } from "../../lib/audioExport";
 
@@ -24,10 +24,12 @@ You help rappers, singers, producers, AI artists, content creators, and labels c
 Think like:
 - a hit songwriter
 - a music video director
-- a cinematographer
+- an Oscar-winning cinematographer and art director
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Art-direct every concept like an Oscar-winning cinematographer: compositions engineered to stop the scroll, lighting with intent, color with emotion. If it wouldn't own a theater poster wall, rework it.
 
 Make everything:
 - original
@@ -272,12 +274,12 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
@@ -289,11 +291,22 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       req.log,
     );
     const creditsUsed = TEXT_CREDIT_COST + (thumbnailImageUrl ? IMAGE_CREDIT_COST : 0);
-    const creditsAfter = currentCredits - creditsUsed;
-
-    /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-    await getSupabaseAdmin().from("profiles").update({ credits: creditsAfter }).eq("id", req.userId!);
-    recordCreditUsage({ userId: req.userId!, action: "Thumbnail Maker", creditsUsed }).catch(() => {});
+    // chargeCredits(): fresh-read deduct + strict ledger write. A ledger
+    // failure rolls the deduction back and throws LedgerWriteError (loud).
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(req.userId!, creditsUsed, { action: "Thumbnail Maker" });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "out_of_credits", message: "You are out of credits. Join the waitlist or upgrade soon to keep creating." });
+        return;
+      }
+      if (chargeErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
+      throw chargeErr;
+    }
     if (thumbnailImageUrl) {
       /* Store the stable storage ref in history (not the short-lived signed
          URL) — the history reader mints a fresh URL on every read. */

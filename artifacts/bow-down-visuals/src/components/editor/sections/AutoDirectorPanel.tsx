@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   Clapperboard, Sparkles, Plus, Trash2, ChevronDown, Pencil, Check, Copy, Loader2, AlertTriangle,
 } from "lucide-react";
@@ -69,6 +70,7 @@ export function AutoDirectorPanel({
   scenes, setScenes, captions, totalDurationSec,
   songTitle, artistName, artistVault, getAccessToken, onMutated,
 }: AutoDirectorPanelProps) {
+  const { confirmedFetch } = useConfirmedApi();
   const [expanded, setExpanded] = useState(true);
   const [videoStyle, setVideoStyle] = useState("Cinematic");
   const [directorNotes, setDirectorNotes] = useState("");
@@ -104,7 +106,7 @@ export function AutoDirectorPanel({
         endSec: timings[i]?.endSec ?? 0,
       }));
 
-      const res = await fetch("/api/generate/auto-video-plan", {
+      const res = await confirmedFetch("/api/auto-video-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -118,6 +120,7 @@ export function AutoDirectorPanel({
           artistVault: (artistVault as Record<string, unknown> | null) ?? undefined,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as {
         plan?: DirectorPlan; error?: string; message?: string;
       };

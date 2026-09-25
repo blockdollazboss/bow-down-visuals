@@ -531,7 +531,92 @@ export interface ClipEdit {
    *  Positive = video starts later (fix mouth moving too early).
    *  Negative = video starts earlier (fix mouth moving too late). */
   lipSyncOffsetSeconds: number;
+  /** Pro video tools (color correction, chroma key, speed, reverse, rotate/flip,
+   *  crop) — the "Pro Tools" tab. Every field maps to an FFmpeg filter for export
+   *  via buildProToolsFilterChain() (server: pro-tools-ffmpeg.ts). */
+  proTools: ProToolsSettings;
 }
+
+/* ── Pro video tools ─────────────────────────────────────────────────── */
+
+/** Manual color correction. All sliders are -100..100, 0 = neutral. */
+export interface ColorCorrectionSettings {
+  /** -100 (dark) .. 100 (bright) */
+  brightness: number;
+  /** -100 (flat) .. 100 (punchy) */
+  contrast: number;
+  /** -100 (B&W) .. 100 (vivid) */
+  saturation: number;
+  /** -100 (cool/blue) .. 100 (warm/orange) */
+  temperature: number;
+  /** -100 (green) .. 100 (magenta) */
+  tint: number;
+  /** -100 (crushed) .. 100 (lifted) highlight rolloff */
+  highlights: number;
+  /** -100 (crushed) .. 100 (lifted) shadow detail */
+  shadows: number;
+  /** -100..100 smart saturation (protects skin tones) */
+  vibrance: number;
+  /** -100 (dark) .. 100 (bright) exposure lift */
+  exposure: number;
+}
+
+export interface ChromaKeySettings {
+  enabled: boolean;
+  /** Hex color string, e.g. "#00ff00" */
+  color: string;
+  /** 0..100 — how close a pixel must be to the key color to be removed */
+  similarity: number;
+  /** 0..100 — edge feathering/smoothing */
+  blend: number;
+  /** Hex background the keyed subject is composited over on export */
+  bgColor: string;
+}
+
+export type CropAspect = "16:9" | "9:16" | "1:1" | "4:5" | "free";
+
+export interface CropSettings {
+  enabled: boolean;
+  aspect: CropAspect;
+  /** Free-crop rect as fractions of the frame (0..1). Used when aspect === "free". */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface ProToolsSettings {
+  colorCorrection: ColorCorrectionSettings;
+  /** Grade preset used as a starting point (null = manual only). */
+  colorGradePreset: string | null;
+  chromaKey: ChromaKeySettings;
+  /** Playback speed 0.25..4 (1 = normal). */
+  speed: number;
+  reverse: boolean;
+  rotation: 0 | 90 | 180 | 270;
+  flipH: boolean;
+  flipV: boolean;
+  crop: CropSettings;
+}
+
+/** Speed presets shown as one-tap chips (the "auto" surface for speed). */
+export const SPEED_PRESETS = [
+  { label: "0.25× Dreamy", value: 0.25 },
+  { label: "0.5× Cinematic", value: 0.5 },
+  { label: "1× Normal", value: 1 },
+  { label: "1.5× Punchy", value: 1.5 },
+  { label: "2× Hyper", value: 2 },
+  { label: "4× Timelapse", value: 4 },
+] as const;
+
+/** Crop aspect presets for the Smart Reframe one-tap button. */
+export const CROP_ASPECTS: { label: string; value: CropAspect; ratio: number | null }[] = [
+  { label: "16:9", value: "16:9", ratio: 16 / 9 },
+  { label: "9:16", value: "9:16", ratio: 9 / 16 },
+  { label: "1:1", value: "1:1", ratio: 1 },
+  { label: "4:5", value: "4:5", ratio: 4 / 5 },
+  { label: "Free", value: "free", ratio: null },
+];
 
 export interface CaptionSettings {
   enabled: boolean;
@@ -888,9 +973,13 @@ export type MasterPlayerSnapPosition =
   | "left-center";
 
 /** The master player is locked in — docked inline in the editor's center column, never a floating overlay. These snap positions are kept for settings compatibility only. */
-export const MASTER_PLAYER_DEFAULT_WIDTH = 260;
+/** Bumped 2026-09-25: the player now fills wide workspace columns (up to
+ *  1152px) instead of capping at 800px — the old cap left large empty gutters
+ *  on desktop. The vertical-band clamp in the player still keeps it inside the
+ *  toolbar↔timeline space, so portrait formats can't overflow the viewport. */
+export const MASTER_PLAYER_DEFAULT_WIDTH = 640;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
-export const MASTER_PLAYER_MAX_WIDTH = 480;
+export const MASTER_PLAYER_MAX_WIDTH = 1152;
 /** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
  *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
  *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
@@ -1088,6 +1177,8 @@ export interface EditorSettings {
   masterPlayerMinimized: boolean;
   /** Whether the floating master player is moved fully off-screen (still mounted, playback continues). */
   masterPlayerHidden: boolean;
+  /** Whether theater mode is on — dims the whole editor around the player with a spotlight effect. */
+  masterPlayerTheater: boolean;
   /** Whether the bottom Timeline Dock is collapsed/hidden to reclaim screen space. */
   timelineDockHidden: boolean;
   /** User-resizable px height of the Timeline Dock's body (ruler + waveform + clip track), set by
@@ -1156,6 +1247,80 @@ export interface LipSyncSettings {
   uploadedVocalStemUrl: string | null;
 }
 
+export function defaultColorCorrection(): ColorCorrectionSettings {
+  return {
+    brightness: 0,
+    contrast: 0,
+    saturation: 0,
+    temperature: 0,
+    tint: 0,
+    highlights: 0,
+    shadows: 0,
+    vibrance: 0,
+    exposure: 0,
+  };
+}
+
+export function defaultChromaKey(): ChromaKeySettings {
+  return { enabled: false, color: "#00ff00", similarity: 30, blend: 20, bgColor: "#000000" };
+}
+
+export function defaultCrop(): CropSettings {
+  return { enabled: false, aspect: "16:9", x: 0, y: 0, w: 1, h: 1 };
+}
+
+export function defaultProTools(): ProToolsSettings {
+  return {
+    colorCorrection: defaultColorCorrection(),
+    colorGradePreset: null,
+    chromaKey: defaultChromaKey(),
+    speed: 1,
+    reverse: false,
+    rotation: 0,
+    flipH: false,
+    flipV: false,
+    crop: defaultCrop(),
+  };
+}
+
+/**
+ * Grade presets as MANUAL color-correction starting points. Values were tuned
+ * to approximate the matching COLOR_GRADES CSS look through the
+ * buildProToolsFilterChain() FFmpeg mapping (eq + colorbalance + vibrance).
+ * Selecting one fills the sliders — the user can then fine-tune.
+ */
+export const GRADE_PRESET_CORRECTIONS: Record<string, ColorCorrectionSettings> = {
+  "Warm Grade":        { ...defaultColorCorrection(), temperature: 45, saturation: 25, brightness: 8 },
+  "Cool Grade":        { ...defaultColorCorrection(), temperature: -50, saturation: 10, brightness: -6 },
+  "Teal & Orange":     { ...defaultColorCorrection(), temperature: 30, tint: -15, saturation: 45, contrast: 12 },
+  "Moody Desaturated": { ...defaultColorCorrection(), saturation: -55, contrast: 18, brightness: -10, shadows: -15 },
+  "Vibrant Pop":       { ...defaultColorCorrection(), saturation: 55, vibrance: 40, brightness: 8, contrast: 8 },
+  "Street Night":      { ...defaultColorCorrection(), temperature: -35, saturation: 30, brightness: -18, contrast: 22, shadows: -10 },
+  "Luxury Gold":       { ...defaultColorCorrection(), temperature: 60, saturation: 40, brightness: 10, contrast: 10, highlights: 15 },
+  "Dark Drill":        { ...defaultColorCorrection(), brightness: -25, contrast: 35, saturation: -40, shadows: -20 },
+  "Cinematic Contrast":{ ...defaultColorCorrection(), contrast: 40, saturation: -10, brightness: -8, highlights: -10, shadows: -10 },
+};
+
+/** True when any pro-tool differs from its neutral default (i.e. export must run the filter pass). */
+export function proToolsActive(pt: ProToolsSettings | null | undefined): boolean {
+  if (!pt) return false;
+  const cc = pt.colorCorrection;
+  const ccActive =
+    cc.brightness !== 0 || cc.contrast !== 0 || cc.saturation !== 0 ||
+    cc.temperature !== 0 || cc.tint !== 0 || cc.highlights !== 0 ||
+    cc.shadows !== 0 || cc.vibrance !== 0 || cc.exposure !== 0;
+  return (
+    ccActive ||
+    pt.chromaKey.enabled ||
+    pt.speed !== 1 ||
+    pt.reverse ||
+    pt.rotation !== 0 ||
+    pt.flipH ||
+    pt.flipV ||
+    pt.crop.enabled
+  );
+}
+
 export function defaultClipEdit(): ClipEdit {
   return {
     trimStart: 0,
@@ -1180,6 +1345,7 @@ export function defaultClipEdit(): ClipEdit {
     lipSyncTimingMismatch: false,
     lipSyncOffsetSeconds: 0,
     manualStartSec: null,
+    proTools: defaultProTools(),
   };
 }
 
@@ -1203,6 +1369,7 @@ export function defaultEditorSettings(): EditorSettings {
     masterPlayerSize: MASTER_PLAYER_DEFAULT_WIDTH,
     masterPlayerMinimized: false,
     masterPlayerHidden: false,
+    masterPlayerTheater: false,
     timelineDockHidden: false,
     timelineDockHeight: TIMELINE_DOCK_DEFAULT_HEIGHT,
     autoEdit: {
@@ -1543,6 +1710,7 @@ export function normalizeEditorSettings(
       : MASTER_PLAYER_DEFAULT_WIDTH,
     masterPlayerMinimized: typeof stored.masterPlayerMinimized === "boolean" ? stored.masterPlayerMinimized : false,
     masterPlayerHidden: typeof stored.masterPlayerHidden === "boolean" ? stored.masterPlayerHidden : false,
+    masterPlayerTheater: typeof stored.masterPlayerTheater === "boolean" ? stored.masterPlayerTheater : false,
     timelineDockHidden: typeof stored.timelineDockHidden === "boolean" ? stored.timelineDockHidden : false,
     timelineDockHeight: typeof stored.timelineDockHeight === "number" && isFinite(stored.timelineDockHeight)
       ? Math.min(TIMELINE_DOCK_MAX_HEIGHT, Math.max(TIMELINE_DOCK_MIN_HEIGHT, stored.timelineDockHeight))

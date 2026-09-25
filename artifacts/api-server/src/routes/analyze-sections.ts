@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../lib/ai-clients";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 
@@ -49,11 +49,11 @@ Return ONLY valid JSON. No markdown, no code blocks, no explanation.`;
 
   try {
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         {
           role: "system",
-          content: "You are an expert music producer and music video director who analyzes song structure and pacing.",
+          content: "You are a Grammy-winning music producer and Oscar-caliber music video director who analyzes song structure and pacing. Analyze with chart-topping instincts: map not just sections but the emotional energy arc — find where the goosebumps live, which 15 seconds would own a stadium, and how the pacing should breathe.",
         },
         { role: "user", content: userPrompt },
       ],

@@ -12,12 +12,14 @@ import {
   Film, Camera, MapPin, ChevronDown, ChevronUp, Save, X,
   FileText, ExternalLink,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { SceneStudio } from "@/components/SceneStudio";
+import { StoryboardReview } from "@/components/StoryboardReview";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -28,6 +30,7 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -195,9 +198,11 @@ const SECTION_META: Record<string, { label: string; icon: React.ElementType }> =
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeVideo() {
+  usePageTitle("Make a Music Video", "Turn your song into a cinematic music video with AI scene generation.");
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [step, setStep] = useState(1);
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -210,6 +215,7 @@ export default function MakeVideo() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
+  const [storyboardApproved, setStoryboardApproved] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [generatingScenesFromAudio, setGeneratingScenesFromAudio] = useState(false);
@@ -289,15 +295,19 @@ export default function MakeVideo() {
     setGeneratingScenesFromAudio(true);
     setAudioSceneError(null);
     try {
-      const { songStructure: structure, scenes: newScenes } = await runAudioSceneFlow({
+      const flow = await runAudioSceneFlow({
         lyrics: watched.lyrics,
         audioUrl,
         audioFile,
         songStructure,
         getAccessToken,
+        fetchImpl: confirmedFetch,
       });
+      if (!flow) { setGeneratingScenesFromAudio(false); return; } // user cancelled the credit confirmation
+      const { songStructure: structure, scenes: newScenes } = flow;
       setSongStructure(structure);
       setScenes(newScenes);
+      setStoryboardApproved(false);
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
     } catch (err) {
@@ -326,7 +336,7 @@ export default function MakeVideo() {
 
     try {
       const token = await getAccessToken();
-      const { rawResult: result, creditsRemaining, genHistoryId: gid } = await callGenerateApi("/api/generate-video-plan", {
+      const genResult = await callGenerateApi("/api/generate-video-plan", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -354,11 +364,15 @@ export default function MakeVideo() {
             }
           : undefined,
         songStructure: songStructure ?? undefined,
-      }, token);
+      }, token, confirmedFetch);
+
+      if (!genResult) { setLoading(false); return; } // user cancelled the credit confirmation
+      const { rawResult: result, creditsRemaining, genHistoryId: gid } = genResult;
 
       setRawResult(result);
       const parsedScenes = parseScenes(extractBreakdownContent(result));
       setScenes(parsedScenes);
+      setStoryboardApproved(false);
       setGenHistoryId(gid ?? null);
       if (creditsRemaining !== undefined) refreshProfile();
       void performSave({ result, sceneData: parsedScenes, ghid: gid ?? null });
@@ -771,9 +785,8 @@ export default function MakeVideo() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
@@ -864,13 +877,13 @@ export default function MakeVideo() {
         <div className="mb-8">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Video className="h-5 w-5 text-primary" />
+              <PixelSprite name="play" pixel={4} />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <PixelHeadline size="section" className="mb-3">
             Make a Music Video
-          </h1>
+          </PixelHeadline>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
             A step-by-step studio — from song setup to a cinematic AI music video plan.
           </p>
@@ -1276,17 +1289,28 @@ export default function MakeVideo() {
               </div>
 
               {scenes.length > 0 ? (
-                <SceneStudio
-                  scenes={scenes}
-                  onScenesChange={handleScenesChange}
-                  artistVault={loadedVault}
-                  videoStyle={videoStyleVal}
-                  platform={platformVal}
-                  manageable
-                  onSave={saveScenes}
-                  saving={savingScenes}
-                  projectId={savedProjectId}
-                />
+                !storyboardApproved ? (
+                  <StoryboardReview
+                    scenes={scenes}
+                    onApprove={(approvedScenes) => {
+                      setScenes(approvedScenes);
+                      setStoryboardApproved(true);
+                      handleScenesChange(approvedScenes);
+                    }}
+                  />
+                ) : (
+                  <SceneStudio
+                    scenes={scenes}
+                    onScenesChange={handleScenesChange}
+                    artistVault={loadedVault}
+                    videoStyle={videoStyleVal}
+                    platform={platformVal}
+                    manageable
+                    onSave={saveScenes}
+                    saving={savingScenes}
+                    projectId={savedProjectId}
+                  />
+                )
               ) : (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-6 py-10 text-center">
                   <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
