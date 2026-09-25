@@ -351,28 +351,62 @@ export const SUPABASE_SIGNED_URL_TTL_SEC = 24 * 60 * 60;
 
 const LEGACY_GCS_URL_PREFIX = "https://storage.googleapis.com/";
 
-/** Idempotent bucket ensure — private bucket, mirrors the lip-sync.ts pattern.
- *  Checks existence first via getBucket so we never depend on the exact
- *  wording of createBucket's "already exists" error. Throws the REAL error
- *  when creation fails so Render logs show the root cause. */
+/** Idempotent bucket ensure — private bucket for generated clips.
+ *
+ *  Uses the Storage REST API directly (like ensureVideoExportsBucket)
+ *  instead of supabase-js: under this service's Node/fetch combination the
+ *  supabase-js bucket helpers can report success without the bucket actually
+ *  being created (seen 2026-09-24 — getBucket said "not found", createBucket
+ *  returned no error, yet the follow-up upload still got NoSuchBucket, which
+ *  surfaces in the video editor as "Bucket not found: generated-clips").
+ *  After creating, we re-read the bucket and throw LOUDLY if it is still
+ *  missing, so an upload can never silently march into a doomed upload. */
 export async function ensureSupabaseClipsBucket(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const { data: existing, error: getErr } = await supabase.storage.getBucket(SUPABASE_CLIPS_BUCKET);
-  if (existing) return;
-  if (getErr) {
-    // getBucket errors when the bucket is missing — that's the expected path
-    // to creation. Log anything unexpected-looking but proceed to create.
-    console.error(
-      `[storage] getBucket("${SUPABASE_CLIPS_BUCKET}") failed before create: ${getErr.message}`,
+  const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured — cannot ensure generated-clips bucket.",
     );
   }
-  const { error } = await supabase.storage.createBucket(SUPABASE_CLIPS_BUCKET, {
-    public: false,
-    fileSizeLimit: 100 * 1024 * 1024, // 100 MB — generated clips are a few MB
+  const headers: Record<string, string> = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const getBucket = () => fetch(`${url}/storage/v1/bucket/${SUPABASE_CLIPS_BUCKET}`, { headers });
+
+  if ((await getBucket()).ok) return; // already exists
+
+  const createRes = await fetch(`${url}/storage/v1/bucket`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      id: SUPABASE_CLIPS_BUCKET,
+      name: SUPABASE_CLIPS_BUCKET,
+      public: false,
+      // NOTE: no file_size_limit — Supabase rejected it with 413 EntityTooLarge
+      // on the video-exports bucket (PR #5). The 80 MB app-level cap in the
+      // upload route is the guard instead.
+    }),
   });
-  if (error) {
+  const createText = await createRes.text().catch(() => "");
+  const alreadyExists = createRes.status === 409 || /already exists/i.test(createText);
+  if (!createRes.ok && !alreadyExists) {
     throw new Error(
-      `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${error.message}`,
+      `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    );
+  }
+
+  // Verify it actually exists now — never silently continue into a doomed upload.
+  const verifyRes = await getBucket();
+  if (!verifyRes.ok) {
+    const verifyText = await verifyRes.text().catch(() => "");
+    throw new Error(
+      `Supabase bucket "${SUPABASE_CLIPS_BUCKET}" still missing after create attempt ` +
+        `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
+        `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
     );
   }
 }
