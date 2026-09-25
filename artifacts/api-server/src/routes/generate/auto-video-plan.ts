@@ -10,7 +10,7 @@ const router = Router();
 const CREDIT_COST = 2;
 
 /**
- * POST /api/generate/auto-video-plan
+ * POST /api/auto-video-plan
  *
  * The Auto Director: analyzes the song (transcript + section map + duration)
  * and returns a STRUCTURED, timeline-ready music video plan — scenes with exact

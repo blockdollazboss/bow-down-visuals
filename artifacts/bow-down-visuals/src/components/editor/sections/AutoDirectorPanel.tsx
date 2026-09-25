@@ -104,7 +104,7 @@ export function AutoDirectorPanel({
         endSec: timings[i]?.endSec ?? 0,
       }));
 
-      const res = await fetch("/api/generate/auto-video-plan", {
+      const res = await fetch("/api/auto-video-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
