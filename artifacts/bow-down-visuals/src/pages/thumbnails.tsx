@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Image as ImageIcon, ArrowLeft, Loader2, Trash2, Download,
@@ -76,7 +75,6 @@ export default function Thumbnails() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>

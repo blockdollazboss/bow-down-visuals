@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
-  Shield, RefreshCw, ChevronDown, ChevronUp,
+  Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
@@ -10,13 +10,16 @@ import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
+import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import { proToolsActive } from "@/lib/editor-settings";
 import { computeManualTimings } from "@/lib/scene-timing";
 import { pollExportJob } from "@/lib/export-job-poll";
 
@@ -135,6 +138,9 @@ interface FinalVideoExportProps {
   rangeInvalidReason?: string;
   /** Per-clip transition overrides: index matches clipUrls, null = Cut */
   clipTransitions?: ({ type: string; duration: number } | null)[];
+  /** Per-clip Pro Tools settings (color/chroma/speed/reverse/rotate/flip/crop):
+   *  index matches clipUrls (pre-manual-layout order), null = neutral. */
+  clipProTools?: (ProToolsSettings | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
   /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
@@ -224,6 +230,7 @@ export function FinalVideoExport({
   rangeInvalid = false,
   rangeInvalidReason,
   clipTransitions,
+  clipProTools,
   overlayItems,
   timelineLayout = "auto",
   clipEdits,
@@ -235,6 +242,7 @@ export function FinalVideoExport({
   fitMode,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
   const isManualLayout = timelineLayout === "manual";
@@ -248,6 +256,7 @@ export function FinalVideoExport({
 
   let selectedScenes = baseSelectedScenes;
   let orderedClipTransitions = clipTransitions;
+  let orderedClipProTools = clipProTools;
   let manualGapsBeforeSec: number[] | null = null;
 
   if (isManualLayout && manualResult) {
@@ -275,6 +284,11 @@ export function FinalVideoExport({
     manualGapsBeforeSec = orderedIndices.map((idx) => {
       const timing = manualResult.timings[idx]!;
       return Math.max(0, timing.gapBeforeSec ?? 0);
+    });
+    // Pro tools follow the same playback-order remap as transitions.
+    orderedClipProTools = orderedIndices.map((idx) => {
+      const scene = scenes[idx]!;
+      return clipProTools?.[baseSelectedScenes.findIndex((s) => s.id === scene.id)] ?? null;
     });
   }
 
@@ -322,6 +336,7 @@ export function FinalVideoExport({
   const [showPostModal, setShowPostModal] = useState(false);
   const [showFacebookPostModal, setShowFacebookPostModal] = useState(false);
   const [showTikTokModal, setShowTikTokModal] = useState(false);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
   const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
@@ -447,7 +462,7 @@ export function FinalVideoExport({
     const token = await getAccessToken();
     const timelineOrder = scenes.map((s) => s.id);
 
-    const res = await fetch("/api/export-final-video", {
+    const res = await confirmedFetch("/api/export-final-video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -477,6 +492,7 @@ export function FinalVideoExport({
         exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
         exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
         clipTransitions:  orderedClipTransitions ?? null,
+        clipProTools:    orderedClipProTools?.some((p) => p && proToolsActive(p)) ? orderedClipProTools : null,
         manualGapsBeforeSec: manualGapsBeforeSec ?? null,
         effects:               effects?.length ? effects : null,
         overlayItems:          overlayItems?.length ? overlayItems : null,
@@ -487,6 +503,7 @@ export function FinalVideoExport({
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
+    if (!res) return null; // user cancelled the credit confirmation
 
     if (!res.ok) {
       const body = await parseJsonResponse<{
@@ -615,6 +632,7 @@ export function FinalVideoExport({
           throw err;
         }
       }
+      if (!result) return; // user cancelled the credit confirmation
 
       const { data, timelineOrder } = result;
 
@@ -781,6 +799,14 @@ export function FinalVideoExport({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowDiscordModal(true)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/[0.08] text-[#8b9bff] hover:bg-[#5865F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Announce to Discord
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
                     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
@@ -827,6 +853,14 @@ export function FinalVideoExport({
             onClose={() => setShowFacebookPostModal(false)}
             videoUrl={exportUrl}
             accounts={socialAccounts.filter((a) => a.platform === "facebook")}
+          />
+        )}
+
+        {showDiscordModal && exportUrl && (
+          <DiscordAnnounceModal
+            open={showDiscordModal}
+            onClose={() => setShowDiscordModal(false)}
+            videoUrl={exportUrl}
           />
         )}
 

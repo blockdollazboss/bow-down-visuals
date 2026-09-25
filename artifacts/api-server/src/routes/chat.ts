@@ -90,7 +90,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
         ...history.map((h) => ({ role: h.role as "user" | "assistant", content: h.content })),
         { role: "user", content: message.trim() },
       ],
-      max_tokens: CHAT_MAX_OUTPUT_TOKENS,
+      max_completion_tokens: CHAT_MAX_OUTPUT_TOKENS,
       temperature: 0.7,
     });
 

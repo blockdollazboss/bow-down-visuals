@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "wouter";
 import {
-  Bot, ChevronRight, Zap, Play, Pause, Volume2, VolumeX,
+  ListMusic, Play, Pause, Volume2, VolumeX,
   Minimize2, ChevronUp, GripHorizontal,
+  Upload, Trash2, Loader2,
 } from "lucide-react";
 import { useThemePlayer } from "@/contexts/ThemePlayerContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Snap geometry ─────────────────────────────────────────── */
 
@@ -91,226 +92,373 @@ function saveSnap(pt: SnapPt) {
   try { localStorage.setItem("bdv-guide-snap", pt); } catch { /* noop */ }
 }
 
-/* ─── Guide content ─────────────────────────────────────────── */
+/* ─── Playlist ─── */
 
-type HelpKey =
-  | "dashboard" | "artist-vault" | "my-projects"
-  | "song-and-video" | "make-song" | "make-video"
-  | "pricing" | "credit-history"
-  | "editor:clips" | "editor:timeline" | "editor:music"
-  | "editor:captions" | "editor:effects" | "editor:branding" | "editor:export"
-  | "video-editor";
+interface PlaylistTrack { name: string; url: string }
 
-interface HelpStep { n: number; title: string; desc: string }
-interface GuideEntry { title: string; steps: HelpStep[]; tips?: string[] }
+/** Filename → readable title ("my-song_final.mp3" → "my song final"). */
+function displayName(name: string): string {
+  const noExt = name.replace(/\.[a-z0-9]+$/i, "");
+  const spaced = noExt.replace(/[_-]+/g, " ").trim();
+  return spaced || name;
+}
 
-const GUIDES: Record<HelpKey, GuideEntry> = {
-  dashboard: {
-    title: "Creator Studio — Getting Started",
-    steps: [
-      { n: 1, title: "Choose your artist",  desc: "Go to Artist Profiles, create your artist, and click Set as Active Artist." },
-      { n: 2, title: "Pick what to create", desc: "Click Make Song + Video, Make Music Video, or Promo Clips from the menu." },
-      { n: 3, title: "Generate with AI",    desc: "Follow the on-screen steps. AI writes lyrics and creates video scene prompts for you." },
-      { n: 4, title: "Save your project",   desc: "Your project saves automatically. Find it in My Projects anytime." },
-      { n: 5, title: "Edit and export",     desc: "Open the Video Editor from My Projects to add effects, captions, and export your video." },
-    ],
-    tips: [
-      "Set an active artist first — it unlocks character consistency across all AI tools.",
-      "Songs, video plans, promos, and thumbnails cost 1–2 credits each. Video clips cost 5 credits.",
-    ],
-  },
-  "artist-vault": {
-    title: "Artist Profiles — Guide",
-    steps: [
-      { n: 1, title: "Fill in your artist details",  desc: "Enter name, type, genre, visual style, hair, tattoos, clothing, and brand colors." },
-      { n: 2, title: "Upload a reference photo",      desc: "Add a front-facing photo so AI tools can match your artist's face and style." },
-      { n: 3, title: "Save your artist profile",      desc: "Click Save Artist Profile. Your profile is stored and reusable across all tools." },
-      { n: 4, title: "Set as Active Artist",           desc: "Click Set as Active Artist to load your artist's style into every creation tool." },
-      { n: 5, title: "Lock character consistency",     desc: "Click Lock Character Consistency to keep your artist looking the same in every clip." },
-    ],
-    tips: [
-      "Use Video Safe mode in the Consistency Lock for Runway clips — reduces distortion.",
-      "The more details you fill in, the better AI matches your artist's look.",
-    ],
-  },
-  "my-projects": {
-    title: "My Projects — Guide",
-    steps: [
-      { n: 1, title: "Open a saved project",     desc: "Click Open Project on any card to load it in the Video Editor." },
-      { n: 2, title: "Check generated clips",    desc: "Switch to the Clips tab in the editor to see all generated video clips." },
-      { n: 3, title: "Check generation history", desc: "Go to Generation History to see every AI generation, credit use, and clip preview." },
-      { n: 4, title: "Continue editing",         desc: "Open any project to continue adding clips, music, captions, or effects." },
-    ],
-    tips: [
-      "Generation history logs every clip even if the project save fails.",
-      "Clip previews appear inline — click Preview Clip to open the full video.",
-    ],
-  },
-  "song-and-video": {
-    title: "Make Song + Video — Guide",
-    steps: [
-      { n: 1, title: "Enter your song details", desc: "Fill in artist name, song title, genre, mood, and any notes about the concept." },
-      { n: 2, title: "Generate lyrics",          desc: "Click Generate Lyrics. AI writes a full song with verses, hooks, and bridge." },
-      { n: 3, title: "Generate video plan",      desc: "Click Generate Video Plan. AI creates a scene-by-scene visual breakdown." },
-      { n: 4, title: "Review and save",          desc: "Review the lyrics and video plan. Edit anything, then click Save Project." },
-      { n: 5, title: "Open in Video Editor",     desc: "Go to My Projects and open your saved project to start generating clips." },
-    ],
-    tips: [
-      "Set an active artist before generating — it adds your character style automatically.",
-      "You can regenerate individual sections you don't like without redoing the whole song.",
-    ],
-  },
-  "make-song": {
-    title: "Make Song — Guide",
-    steps: [
-      { n: 1, title: "Enter your song concept", desc: "Fill in the artist, genre, mood, and any theme or story for the song." },
-      { n: 2, title: "Generate your lyrics",    desc: "Click Generate and AI writes a full song with verses, hook, bridge, and outro." },
-      { n: 3, title: "Review and edit",         desc: "Edit any part of the generated lyrics to match your vision exactly." },
-      { n: 4, title: "Copy or save",            desc: "Copy the lyrics or save them to a project for use in the Video Editor." },
-    ],
-    tips: ["Be specific about mood and theme — detailed inputs give better lyrics."],
-  },
-  "make-video": {
-    title: "Make Music Video — Guide",
-    steps: [
-      { n: 1, title: "Paste your lyrics",         desc: "Paste your song lyrics so AI can plan scenes around your song structure." },
-      { n: 2, title: "Generate a video plan",     desc: "Click Generate Video Plan. AI creates a visual scene breakdown matched to your lyrics." },
-      { n: 3, title: "Review scenes",             desc: "Each scene shows a shot type, location, action, and AI video prompt." },
-      { n: 4, title: "Save and open editor",      desc: "Save the project and open it in the Video Editor to start generating clips." },
-    ],
-    tips: ["Set an active artist before generating to bake in character consistency."],
-  },
-  pricing: {
-    title: "Credits & Pricing — Guide",
-    steps: [
-      { n: 1, title: "What credits are for",     desc: "Credits power every AI generation. Songs, video plans, promos, and thumbnails cost 1–2 credits each; video clips cost 5 credits." },
-      { n: 2, title: "Free vs paid features",    desc: "Creating artist profiles is free. Every AI generation — songs, video plans, promos, thumbnails, and video clips — uses credits." },
-      { n: 3, title: "Buy credits",              desc: "Choose a credit pack below and check out. Credits appear instantly." },
-      { n: 4, title: "Check your balance",       desc: "Your credit balance is always visible in the top bar." },
-    ],
-    tips: [
-      "Credits never expire — they stay in your account until you use them.",
-      "If a clip generation fails, your credits are automatically refunded.",
-    ],
-  },
-  "credit-history": {
-    title: "Credit History — Guide",
-    steps: [
-      { n: 1, title: "View your credit purchases", desc: "See all credit packs you've bought, dates, and amounts in the Purchases section." },
-      { n: 2, title: "View credit usage",          desc: "The Usage table shows every time credits were spent and which action used them." },
-      { n: 3, title: "Refunds",                    desc: "If a video clip generation fails, credits are automatically refunded." },
-      { n: 4, title: "Buy more credits",           desc: "Click Go to Pricing or visit the Pricing page to buy more credit packs." },
-    ],
-    tips: ["Generation History in My Projects also shows per-clip credit usage with clip previews."],
-  },
-  "video-editor": {
-    title: "Video Editor — Getting Started",
-    steps: [
-      { n: 1, title: "Open the Clips tab",        desc: "See all scenes and start generating video clips one by one." },
-      { n: 2, title: "Add your music",            desc: "Go to Music Mixer → upload your song → set it as video audio." },
-      { n: 3, title: "Add captions",              desc: "Go to Captions → paste lyrics → Generate → AI Sync To Vocals." },
-      { n: 4, title: "Add effects and branding",  desc: "Go to Effects and Branding tabs to add visual polish." },
-      { n: 5, title: "Export",                    desc: "Go to Export → choose format → click Export to build your final video." },
-    ],
-    tips: ["The master player on the left previews everything live as you work."],
-  },
-  "editor:clips": {
-    title: "Clips Tab — Guide",
-    steps: [
-      { n: 1, title: "Review scene clips",         desc: "Browse all your scenes. Each card shows the scene prompt and generated clip thumbnail." },
-      { n: 2, title: "Preview in master player",   desc: "Click a clip card to load it into the master player on the left." },
-      { n: 3, title: "Generate missing clips",     desc: "Click Generate Clip on any scene that hasn't been generated yet (costs 5 credits)." },
-      { n: 4, title: "Regenerate if needed",       desc: "If a clip doesn't look right, click Regenerate to try a new version." },
-    ],
-    tips: [
-      "Generate one clip first to check quality before doing all scenes.",
-      "Apply Character Consistency in Artist Profiles before generating.",
-    ],
-  },
-  "editor:timeline": {
-    title: "Timeline Tab — Guide",
-    steps: [
-      { n: 1, title: "Preview your full video",   desc: "The timeline plays all scenes in sequence with your audio track." },
-      { n: 2, title: "Click a scene to jump",     desc: "Click any scene in the list to jump to that clip in the master player." },
-      { n: 3, title: "Check audio sync",          desc: "Play the full timeline to check that captions and audio align." },
-      { n: 4, title: "Go back to adjust",         desc: "If something is off, go to Captions tab to nudge timing or re-run AI Sync." },
-    ],
-    tips: ["Use fullscreen mode in the master player to see the video at full size."],
-  },
-  "editor:music": {
-    title: "Music Mixer Tab — Guide",
-    steps: [
-      { n: 1, title: "Upload your song",       desc: "Click Upload Song to attach your MP3. The player loads it automatically." },
-      { n: 2, title: "Set as video audio",     desc: "In Video Audio, select your uploaded song as the audio source." },
-      { n: 3, title: "Transcribe for lyrics",  desc: "Click Get Lyrics to transcribe your song — this fills in the lyric text." },
-      { n: 4, title: "Send to Captions",       desc: "Click Send Lyrics to Captions to auto-fill the caption text box." },
-    ],
-    tips: [
-      "The transcription limit is 25 MB — use a smaller MP3 if your file is larger.",
-      "After uploading, song duration auto-detects for caption timing.",
-    ],
-  },
-  "editor:captions": {
-    title: "Captions Tab — Guide",
-    steps: [
-      { n: 1, title: "Generate captions",          desc: "Paste lyrics and click Generate Captions From Lyrics to create timed caption lines." },
-      { n: 2, title: "AI Sync to vocals",          desc: "Click AI Sync Captions To Vocals — AI matches each caption to the actual vocal timestamps." },
-      { n: 3, title: "Review red-bordered lines",  desc: "Lines with a red left border need manual review — use nudge controls to fix them." },
-      { n: 4, title: "Preview in master player",   desc: "Select any caption row to see it live in the master player on the left." },
-    ],
-    tips: [
-      "Green = high confidence, Yellow = medium, Orange = low, Red = needs review.",
-      "AI Sync works best when your uploaded lyrics match what's in the song.",
-    ],
-  },
-  "editor:effects": {
-    title: "Effects Tab — Guide",
-    steps: [
-      { n: 1, title: "Browse effects",         desc: "All available visual effects are listed as chips — each one has a live preview." },
-      { n: 2, title: "Click to apply",         desc: "Click any effect chip to toggle it on. The master player updates instantly." },
-      { n: 3, title: "Stack effects",          desc: "You can combine multiple effects — they're all burned into the final export." },
-      { n: 4, title: "Preview the result",     desc: "Watch the master player to see how the effects look on your actual clips." },
-    ],
-    tips: ["Some effects work better on certain visual styles — try a few and compare."],
-  },
-  "editor:branding": {
-    title: "Branding Tab — Guide",
-    steps: [
-      { n: 1, title: "Add an intro card",      desc: "Choose an intro card style to display your artist name at the start of the video." },
-      { n: 2, title: "Add a watermark",        desc: "Upload your logo or enter text to burn a watermark onto every scene." },
-      { n: 3, title: "Add an outro CTA",       desc: "Choose a call-to-action for the end of your video (Stream Now, Follow, etc.)." },
-      { n: 4, title: "Preview",                desc: "The master player shows the intro/outro when you play back your video." },
-    ],
-    tips: ["Watermarks are optional — remove before exporting if you prefer a clean version."],
-  },
-  "editor:export": {
-    title: "Export Tab — Guide",
-    steps: [
-      { n: 1, title: "Check everything first",  desc: "Make sure clips, audio, captions, and effects are all set before exporting." },
-      { n: 2, title: "Choose your format",      desc: "Select 9:16 for TikTok/Reels/Shorts, or 16:9 for YouTube landscape." },
-      { n: 3, title: "Click Export",            desc: "Click Export Video to start building your final video. This takes a few minutes." },
-      { n: 4, title: "Download your video",     desc: "When export finishes, a download link appears. Click it to save your final video." },
-    ],
-    tips: [
-      "Draft quality is faster — use it for a first look before exporting at full quality.",
-      "Export includes all effects, captions, watermarks, intro, and outro.",
-    ],
-  },
-};
+/* Uploadable track list. The built-in theme song lives in ThemePlayerRow
+ * above and is not part of this list. Playback uses one detached Audio
+ * instance (never appended to the DOM) so the theme player's page-media
+ * observer ignores it; starting a track pauses the theme song so the two
+ * never overlap. */
+function PlaylistTracks() {
+  const { getAccessToken } = useAuth();
+  const { playing: themePlaying, togglePlay: toggleThemePlay } = useThemePlayer();
+  const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentName, setCurrentName] = useState<string | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const tracksRef = useRef<PlaylistTrack[]>([]);
+  const currentRef = useRef<string | null>(null);
+  const playingRef = useRef(false);
+  tracksRef.current = tracks;
+  playingRef.current = playing;
 
-function keyFromPath(path: string, editorTab: string | null): HelpKey {
-  if (path.startsWith("/video-editor")) {
-    if (editorTab) return `editor:${editorTab}` as HelpKey;
-    return "video-editor";
-  }
-  if (path.startsWith("/artist-vault"))   return "artist-vault";
-  if (path.startsWith("/my-projects"))    return "my-projects";
-  if (path.startsWith("/song-and-video")) return "song-and-video";
-  if (path.startsWith("/make-song"))      return "make-song";
-  if (path.startsWith("/make-video"))     return "make-video";
-  if (path.startsWith("/pricing"))        return "pricing";
-  if (path.startsWith("/credit-history")) return "credit-history";
-  return "dashboard";
+  const authHeaders = useCallback(async (): Promise<HeadersInit> => {
+    try {
+      const token = await getAccessToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
+  }, [getAccessToken]);
+
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/playlist");
+      if (res.ok) {
+        const data = await res.json();
+        setTracks(Array.isArray(data.tracks) ? data.tracks : []);
+      }
+    } catch {
+      /* keep the previous list */
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Owner-only upload/delete controls.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/status", {
+          headers: await authHeaders(),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          isAdmin?: boolean;
+        };
+        if (!cancelled) setIsAdmin(res.ok && data.isAdmin === true);
+      } catch {
+        /* not the owner — controls stay hidden */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders]);
+
+  // One detached Audio instance for the whole playlist — never in the DOM.
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "none";
+    audioRef.current = audio;
+
+    const beginPlayback = (track: PlaylistTrack) => {
+      if (audio.src !== track.url) audio.src = track.url;
+      void audio
+        .play()
+        .then(() => {
+          currentRef.current = track.name;
+          setCurrentName(track.name);
+          playingRef.current = true;
+          setPlaying(true);
+          setError(null);
+        })
+        .catch(() => {
+          playingRef.current = false;
+          setPlaying(false);
+          setError("Couldn't play that track.");
+        });
+    };
+
+    // Auto-advance to the next track; stop at the end of the list.
+    const onEnded = () => {
+      const list = tracksRef.current;
+      const idx = list.findIndex((t) => t.name === currentRef.current);
+      const next = idx >= 0 ? list[idx + 1] : undefined;
+      if (next) {
+        beginPlayback(next);
+      } else {
+        currentRef.current = null;
+        playingRef.current = false;
+        setCurrentName(null);
+        setPlaying(false);
+      }
+    };
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("ended", onEnded);
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  // Mutual exclusion with the theme song: if it starts, stop the track.
+  useEffect(() => {
+    if (themePlaying && currentRef.current) {
+      audioRef.current?.pause();
+      currentRef.current = null;
+      playingRef.current = false;
+      setCurrentName(null);
+      setPlaying(false);
+    }
+  }, [themePlaying]);
+
+  const playTrack = useCallback(
+    (track: PlaylistTrack) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      setError(null);
+      if (currentRef.current === track.name && playingRef.current) {
+        // Clicking the playing track stops it.
+        audio.pause();
+        currentRef.current = null;
+        playingRef.current = false;
+        setCurrentName(null);
+        setPlaying(false);
+        return;
+      }
+      if (themePlaying) toggleThemePlay(); // never overlap the theme song
+      if (audio.src !== track.url) audio.src = track.url;
+      void audio
+        .play()
+        .then(() => {
+          currentRef.current = track.name;
+          setCurrentName(track.name);
+          playingRef.current = true;
+          setPlaying(true);
+        })
+        .catch(() => setError("Couldn't play that track."));
+    },
+    [themePlaying, toggleThemePlay],
+  );
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      setError(null);
+      try {
+        const form = new FormData();
+        form.append("track", file);
+        const res = await fetch("/api/playlist/upload", {
+          method: "POST",
+          headers: await authHeaders(),
+          body: form,
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        if (!res.ok) throw new Error(data.error || "Upload failed.");
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Upload failed.");
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [authHeaders, refresh],
+  );
+
+  const handleDelete = useCallback(
+    async (name: string) => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/playlist/${encodeURIComponent(name)}`, {
+          method: "DELETE",
+          headers: await authHeaders(),
+        });
+        if (!res.ok) throw new Error("Delete failed.");
+        if (currentRef.current === name) {
+          audioRef.current?.pause();
+          currentRef.current = null;
+          playingRef.current = false;
+          setCurrentName(null);
+          setPlaying(false);
+        }
+        await refresh();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Delete failed.");
+      }
+    },
+    [authHeaders, refresh],
+  );
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">
+        Playlist
+        {loaded && tracks.length > 0 && (
+          <span className="text-yellow-400/60"> · {tracks.length}</span>
+        )}
+      </p>
+
+      {!loaded ? (
+        <div className="flex items-center justify-center py-6 text-white/30">
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </div>
+      ) : tracks.length === 0 ? (
+        <p className="text-[11px] leading-relaxed text-white/40 py-1">
+          No tracks yet — the owner can upload songs here.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {tracks.map((track) => {
+            const isCurrent = currentName === track.name;
+            const isPlaying = isCurrent && playing;
+            return (
+              <div
+                key={track.name}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-xl transition-colors"
+                style={{
+                  background: isCurrent
+                    ? "rgba(218,165,32,0.08)"
+                    : "rgba(255,255,255,0.02)",
+                  border: `1px solid ${
+                    isCurrent
+                      ? "rgba(218,165,32,0.30)"
+                      : "rgba(255,255,255,0.06)"
+                  }`,
+                }}
+              >
+                <button
+                  onClick={() => playTrack(track)}
+                  aria-label={isPlaying ? `Stop ${track.name}` : `Play ${track.name}`}
+                  className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 transition-transform hover:scale-110 active:scale-95"
+                  style={
+                    isCurrent
+                      ? {
+                          background:
+                            "linear-gradient(135deg,#9B7515,#DAA520)",
+                          boxShadow: "0 0 8px rgba(218,165,32,0.50)",
+                        }
+                      : {
+                          background: "rgba(255,255,255,0.06)",
+                          border: "1px solid rgba(255,255,255,0.10)",
+                        }
+                  }
+                >
+                  {isPlaying ? (
+                    <Pause className="h-3 w-3 text-black" fill="black" />
+                  ) : (
+                    <Play
+                      className="h-3 w-3 text-white/70"
+                      fill="currentColor"
+                      style={{ marginLeft: 1 }}
+                    />
+                  )}
+                </button>
+                <p
+                  className="flex-1 min-w-0 text-[11px] font-semibold truncate"
+                  style={{
+                    color: isCurrent
+                      ? "rgba(255,215,0,0.90)"
+                      : "rgba(255,255,255,0.65)",
+                  }}
+                  title={track.name}
+                >
+                  {displayName(track.name)}
+                </p>
+                {isPlaying && (
+                  <div className="flex items-end gap-[2px]" style={{ height: 7 }}>
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        style={{
+                          width: 2,
+                          borderRadius: 1,
+                          background:
+                            "linear-gradient(to top,#9B7515,#FFD700)",
+                          height: 7,
+                          animation: `bdvEq${i} 0.6s ease-in-out ${i * 0.12}s infinite alternate`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => void handleDelete(track.name)}
+                    aria-label={`Delete ${track.name}`}
+                    title="Delete track"
+                    className="h-6 w-6 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400/90 transition-colors shrink-0"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isAdmin && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac"
+            className="hidden"
+            aria-label="Upload a song"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold transition-colors disabled:opacity-50"
+            style={{
+              border: "1px dashed rgba(218,165,32,0.30)",
+              color: "rgba(255,215,0,0.85)",
+              background: "rgba(218,165,32,0.04)",
+            }}
+          >
+            {uploading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            {uploading ? "Uploading…" : "Upload song"}
+          </button>
+        </>
+      )}
+
+      {error && (
+        <p className="text-[11px] text-red-400/80" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /* ─── localStorage open/closed ─── */
@@ -439,11 +587,7 @@ export function BowDownAIGuide() {
   const [isHidden,     setIsHidden]    = useState(false);  // auto-hidden (peeking)
   const [open,         setOpen]        = useState<boolean>(readOpen);
 
-  const [location]   = useLocation();
-  const [editorTab,  setEditorTab] = useState<string | null>(null);
-
-  const { status, playing, muted } = useThemePlayer();
-  const loaded = status === "ready" || status === "playing";
+  const { playing } = useThemePlayer();
 
   /* ── helpers ── */
   function updatePos(p: { x: number; y: number }) {
@@ -490,20 +634,6 @@ export function BowDownAIGuide() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, [currentSnap]);
-
-  /* ── editor tab events ── */
-  useEffect(() => {
-    function onTabChange(e: Event) {
-      const tab = (e as CustomEvent<string>).detail;
-      setEditorTab(typeof tab === "string" ? tab : null);
-    }
-    window.addEventListener("bdv-editor-tab", onTabChange);
-    return () => window.removeEventListener("bdv-editor-tab", onTabChange);
-  }, []);
-
-  useEffect(() => {
-    if (!location.startsWith("/video-editor")) setEditorTab(null);
-  }, [location]);
 
   /* ── drag handlers ── */
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -573,9 +703,6 @@ export function BowDownAIGuide() {
     "transform 0.32s cubic-bezier(0.34,1.56,0.64,1)",
     "opacity 0.20s ease",
   ].filter(Boolean).join(", ");
-
-  const helpKey = keyFromPath(location, editorTab);
-  const guide   = GUIDES[helpKey] ?? GUIDES["dashboard"];
 
   return (
     <>
@@ -663,10 +790,10 @@ export function BowDownAIGuide() {
                     border:     "1px solid rgba(218,165,32,0.30)",
                   }}
                 >
-                  <Bot className="h-3.5 w-3.5 text-yellow-400" />
+                  <ListMusic className="h-3.5 w-3.5 text-yellow-400" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-black text-white leading-none">Bow Down AI Guide</p>
+                  <p className="text-[11px] font-black text-white leading-none">Bow Down Playlist</p>
                   <p className="text-[9px] text-yellow-400/50 leading-none mt-0.5">
                     {SNAP_LABELS[currentSnap]} · active ✓
                   </p>
@@ -675,7 +802,7 @@ export function BowDownAIGuide() {
               <button
                 onClick={toggleOpen}
                 className="flex items-center justify-center h-6 w-6 rounded-lg border border-white/10 bg-white/[0.04] text-white/40 hover:text-white hover:border-white/20 transition-colors"
-                aria-label="Minimize guide"
+                aria-label="Minimize playlist"
               >
                 <Minimize2 className="h-3 w-3" />
               </button>
@@ -688,52 +815,8 @@ export function BowDownAIGuide() {
 
               <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
 
-              {/* Page guide */}
-              <div className="space-y-3">
-                <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{guide.title}</p>
-                <div className="space-y-3">
-                  {guide.steps.map((step) => (
-                    <div key={step.n} className="flex gap-3">
-                      <div
-                        className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 mt-0.5"
-                        style={{ background: "rgba(218,165,32,0.12)", border: "1px solid rgba(218,165,32,0.25)", color: "rgba(218,165,32,0.90)" }}
-                      >
-                        {step.n}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-white/80 leading-tight">{step.title}</p>
-                        <p className="text-[11px] text-white/40 mt-0.5 leading-relaxed">{step.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {guide.tips && guide.tips.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" style={{ color: "rgba(218,165,32,0.45)" }}>
-                    <Zap className="h-3 w-3" /> Tips
-                  </p>
-                  {guide.tips.map((tip, i) => (
-                    <div key={i} className="flex gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <ChevronRight className="h-3 w-3 shrink-0 mt-0.5" style={{ color: "rgba(218,165,32,0.45)" }} />
-                      <p className="text-[11px] text-white/50 leading-relaxed">{tip}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Status */}
-              <div
-                className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 rounded-xl text-[10px] font-mono"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
-              >
-                <span className="text-white/25">Guide: <span className="text-green-400/70">active ✓</span></span>
-                <span className="text-white/25">Theme song: <span className={loaded ? "text-green-400/70" : "text-white/25"}>{loaded ? "loaded ✓" : "loading…"}</span></span>
-                <span className="text-white/25">Playing: <span className={playing ? "text-green-400/70" : "text-white/25"}>{playing ? "yes" : "no"}</span></span>
-                <span className="text-white/25">Muted: <span className={muted ? "text-amber-400/70" : "text-white/25"}>{muted ? "yes" : "no"}</span></span>
-                <span className="text-white/25">Snap: <span className="text-yellow-400/50">{SNAP_LABELS[currentSnap]}</span></span>
-              </div>
+              {/* Playlist */}
+              <PlaylistTracks />
 
             </div>
           </div>
@@ -761,13 +844,13 @@ export function BowDownAIGuide() {
                 boxShadow:      "0 0 20px rgba(218,165,32,0.12), 0 4px 24px rgba(0,0,0,0.60)",
                 cursor:         isDragging ? "grabbing" : "pointer",
               }}
-              aria-label="Open Bow Down AI Guide"
+              aria-label="Open Bow Down Playlist"
             >
               <div
                 className="h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
                 style={{ background: "linear-gradient(135deg,rgba(155,117,21,0.7),rgba(218,165,32,0.4))", border: "1px solid rgba(218,165,32,0.35)" }}
               >
-                <Bot className="h-3.5 w-3.5 text-yellow-400" />
+                <ListMusic className="h-3.5 w-3.5 text-yellow-400" />
               </div>
               {playing && (
                 <div className="flex items-end gap-[1.5px]" style={{ height: 8 }}>

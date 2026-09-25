@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Mic, Upload, X, FileAudio } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 interface Props {
   onTranscript: (text: string) => void;
@@ -16,6 +17,7 @@ const TRANSCRIBE_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "" }: Props) {
   const { getAccessToken } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   /** "uploading" while the file posts, "transcribing" while Whisper works. */
@@ -62,12 +64,13 @@ export function AudioTranscribe({ onTranscript, onFileUrl, onFile, className = "
       const fd = new FormData();
       fd.append("audio", file);
       setPhase("transcribing");
-      const res = await fetch("/api/transcribe", {
+      const res = await confirmedFetch("/api/transcribe", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
         signal: controller.signal,
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => null)) as {
         transcript?: string;
         error?: string;

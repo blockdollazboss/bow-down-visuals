@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -106,6 +107,7 @@ function StyledSelect({
 
 export default function MakeSong() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export default function MakeSong() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-song", {
+      const result = await callGenerateApi("/api/generate-song", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -150,7 +152,9 @@ export default function MakeSong() {
         songLength: values.songLength,
         instructions: values.specialInstructions,
         artistVault: loadedVault,
-      }, token);
+      }, token, confirmedFetch);
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult, creditsRemaining } = result;
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
@@ -167,7 +171,6 @@ export default function MakeSong() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
@@ -186,13 +189,13 @@ export default function MakeSong() {
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Music className="h-5 w-5 text-primary" />
+              <PixelSprite name="note" pixel={4} />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <PixelHeadline size="section" className="mb-3">
             Make a Song
-          </h1>
+          </PixelHeadline>
           <p className="text-white/50 text-lg max-w-2xl">
             Create lyrics, hooks, verses, beat direction, vocal style, and AI music prompts for your next release.
           </p>

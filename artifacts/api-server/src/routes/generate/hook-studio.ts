@@ -126,7 +126,7 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
           { role: "user", content: `Give me 5 first-3-second hooks for a video ${direction}.${topicLine}` },
         ],
         response_format: { type: "json_object" },
-        max_tokens: 600,
+        max_completion_tokens: 600,
         temperature: 0.9,
       });
 
@@ -179,7 +179,7 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
           { role: "user", content: `Write post packaging for this: "${topic}".${toneLine}` },
         ],
         response_format: { type: "json_object" },
-        max_tokens: 800,
+        max_completion_tokens: 800,
         temperature: 0.8,
       });
 
@@ -258,7 +258,7 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1200,
+      max_completion_tokens: 1200,
       temperature: 0.4,
     });
 

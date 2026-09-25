@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Watermark Removal ───────────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface JobResponse {
 
 export default function WatermarkRemoval() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [preset, setPreset] = useState<PresetKey>("bottom-right");
   const [custom, setCustom] = useState({ x: "10", y: "10", w: "20", h: "15" });
@@ -129,7 +131,8 @@ export default function WatermarkRemoval() {
           w: Number(custom.w), h: Number(custom.h),
         }));
       }
-      const res = await fetch("/api/watermark-removal", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/watermark-removal", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: JobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -50,6 +52,7 @@ const GREETING: ChatMessage = {
 const MAX_HISTORY = 6;
 
 export function AiChatWidget() {
+  const { confirmedFetch } = useConfirmedApi();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -88,7 +91,7 @@ export function AiChatWidget() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
+      const res = await confirmedFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,6 +99,7 @@ export function AiChatWidget() {
           history: history.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets loading)
       const data = await res.json().catch(() => ({}));
       if (typeof data.creditCost === "number") setCreditCost(data.creditCost);
       let reply: string;
@@ -141,7 +145,7 @@ export function AiChatWidget() {
                 className="h-10 w-10 rounded-full border-2 border-primary/60 object-cover shadow-[0_0_12px_rgba(212,175,55,0.4)]"
               />
               <div>
-                <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
+                <p className="text-sm font-bold text-primary"><CheatCodeName /> 🦈</p>
                 <p className="text-[11px] text-neutral-400">
                   {creditCost
                     ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
