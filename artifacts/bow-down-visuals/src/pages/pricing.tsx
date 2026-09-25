@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
-import { PixelHeadline, PixelDivider, PixelSprite } from "@/components/pixel-headline";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
@@ -223,6 +223,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 /* ─── page ─── */
 
 export default function Pricing() {
+  usePageTitle("Pricing", "Simple credit-based pricing — pay only for what you create.");
   const [showCancelled, setShowCancelled] = useState(false);
 
   useEffect(() => {
@@ -247,7 +248,7 @@ export default function Pricing() {
       <MarketingNav />
 
       {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-60px] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-yellow-600/10 rounded-full blur-[130px]" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-yellow-900/6 rounded-full blur-[100px]" />
       </div>
@@ -293,15 +294,12 @@ export default function Pricing() {
           <MarketingBadge variant="kicker" className="mb-5 px-4 py-1.5">
             Pricing
           </MarketingBadge>
-          <div className="flex justify-center mb-6">
-            <PixelSprite name="coin" pixel={7} />
-          </div>
-          <PixelHeadline size="page" align="center" className="mb-5">
-            Choose Your
-            <br />
-            Creator Plan
-          </PixelHeadline>
-          <PixelDivider align="center" className="mb-5" />
+          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
+            Choose Your<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
+              Creator Plan
+            </span>
+          </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
             Start with AI songs, video plans, promo clips, artist profiles, and editing tools. Full paid access is coming soon.
           </p>

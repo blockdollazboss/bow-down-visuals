@@ -153,6 +153,7 @@ interface NavLink {
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  tour?: string;
 }
 
 interface NavSection {
@@ -403,7 +404,7 @@ export function AppSidebar() {
                     isActive={location === link.href}
                     className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
                   >
-                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
+                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2" data-tour={link.tour}>
                       <link.icon className="h-5 w-5" />
                       <span className="font-medium">{link.label}</span>
                       {link.href === "/credit-history" && profile && (
@@ -439,6 +440,7 @@ export function AppSidebar() {
             <Link
               href="/credit-history"
               title="View Credit History"
+              data-tour="credits"
               className="flex items-center justify-between rounded-lg px-1 py-0.5 hover:bg-white/[0.03] transition-colors"
             >
               <div className="flex items-center gap-2">

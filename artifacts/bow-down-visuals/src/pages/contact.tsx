@@ -6,8 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function Contact() {
+  usePageTitle("Contact", "Get in touch with the Bow Down Visuals team.");
   const [name, setName]       = useState("");
   const [email, setEmail]     = useState("");
   const [message, setMessage] = useState("");

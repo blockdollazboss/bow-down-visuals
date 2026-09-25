@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 
 interface Payment {
@@ -60,6 +61,7 @@ function fmtMoney(cents: number | null, currency: string | null) {
 }
 
 export default function CreditHistory() {
+  usePageTitle("Credit History", "View your credit balance and transaction history.");
   const { profile, getAccessToken } = useAuth();
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [usage, setUsage] = useState<Usage[] | null>(null);
@@ -158,7 +160,7 @@ export default function CreditHistory() {
                   <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy credits</Link> to get started.
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
@@ -208,7 +210,7 @@ export default function CreditHistory() {
                   No credit activity yet. Start creating to see your transactions here.
                 </div>
               ) : (
-                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">

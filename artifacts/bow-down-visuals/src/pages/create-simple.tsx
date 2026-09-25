@@ -20,6 +20,7 @@ import {
   AI_EDIT_STYLE_DEFS,
   type AiEditPlan,
 } from "@/lib/editor-settings";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /**
  * Simple-mode intake: one field (idea/lyrics), an optional audio upload, one
@@ -43,6 +44,7 @@ const DEFAULTS = {
 };
 
 export default function CreateSimple() {
+  usePageTitle("Create", "Quick-create songs, videos, and promo content with AI.");
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();

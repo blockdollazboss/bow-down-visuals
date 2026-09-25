@@ -510,11 +510,51 @@ html {
   50% { opacity: 0.9; }
 }
 
+@keyframes bd-carpet-sheen {
+  0% { transform: translateX(-130%) skewX(-12deg); }
+  55%, 100% { transform: translateX(260%) skewX(-12deg); }
+}
+
 .animate-bd-entrance { animation: bd-entrance-rise 1.05s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-bd-entrance-fade { animation: bd-entrance-fade 1.5s ease both; }
 .animate-bd-spotlight { animation: bd-entrance-spotlight 1.8s ease both; }
 .animate-bd-dust { animation: bd-dust-drift 7s ease-in-out infinite; }
 .animate-bd-curtain { animation: bd-curtain-glow 6s ease-in-out infinite; }
+.animate-bd-carpet-sheen {
+  animation: bd-carpet-sheen 7s ease-in-out infinite;
+  width: 45%;
+  background: linear-gradient(to right, transparent, rgba(255, 248, 220, 0.30), transparent);
+}
+
+/* Woven gold premiere carpet */
+.bd-gold-carpet {
+  background:
+    repeating-linear-gradient(45deg, rgba(120, 85, 10, 0.16) 0 5px, rgba(255, 240, 190, 0.05) 5px 10px),
+    repeating-linear-gradient(-45deg, rgba(120, 85, 10, 0.12) 0 5px, transparent 5px 10px),
+    linear-gradient(to bottom, #8A6B1F 0%, #C9A84C 30%, #E8C96A 50%, #C9A84C 70%, #8A6B1F 100%);
+  box-shadow:
+    inset 0 0 0 3px rgba(90, 64, 8, 0.55),
+    inset 0 0 34px rgba(60, 40, 5, 0.5),
+    0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Carpet fringe on the near edge */
+.bd-carpet-fringe {
+  background: repeating-linear-gradient(to right, #E8C96A 0 4px, #8A6B1F 4px 8px);
+  clip-path: polygon(0 0, 100% 0, 98% 100%, 2% 100%);
+  opacity: 0.9;
+}
+
+/* Heavy royal velvet drape folds */
+.bd-drape {
+  background:
+    repeating-linear-gradient(to right, rgba(0, 0, 0, 0.88) 0 14px, rgba(201, 168, 76, 0.10) 14px 22px, rgba(0, 0, 0, 0.92) 22px 38px),
+    linear-gradient(to bottom, #0a0908, #050505);
+  box-shadow: inset -18px 0 30px rgba(0, 0, 0, 0.8);
+}
+.bd-drape-r {
+  box-shadow: inset 18px 0 30px rgba(0, 0, 0, 0.8);
+}
 
 /* Embossed damask texture for the grand lobby walls */
 .bd-damask {
@@ -532,9 +572,13 @@ html {
   .animate-bd-spotlight,
   .animate-bd-dust,
   .animate-bd-curtain,
+<<<<<<< HEAD
   .pixel-blink,
   .pixel-coin-burst,
   .pixel-overlay-pop {
+=======
+  .animate-bd-carpet-sheen {
+>>>>>>> feature/grand-entrance-gold-carpet
     animation: none;
   }
 }
