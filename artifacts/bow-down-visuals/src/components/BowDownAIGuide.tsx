@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-<<<<<<< HEAD
   ListMusic, Play, Pause, Volume2, VolumeX,
-=======
   Bot, ChevronRight, Zap,
->>>>>>> feature/homepage-playlist
   Minimize2, ChevronUp, GripHorizontal,
   Upload, Trash2, Loader2,
 } from "lucide-react";
@@ -530,12 +527,9 @@ export function BowDownAIGuide() {
   const [isHidden,     setIsHidden]    = useState(false);  // auto-hidden (peeking)
   const [open,         setOpen]        = useState<boolean>(readOpen);
 
-<<<<<<< HEAD
-=======
   const [location]   = useLocation();
   const [editorTab,  setEditorTab] = useState<string | null>(null);
 
->>>>>>> feature/homepage-playlist
   const { playing } = useThemePlayer();
 
   /* ── helpers ── */
@@ -760,14 +754,13 @@ export function BowDownAIGuide() {
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 
-<<<<<<< HEAD
               <ThemePlayerRow />
 
               <div style={{ height: 1, background: "rgba(255,255,255,0.05)" }} />
 
               {/* Playlist */}
               <PlaylistTracks />
-=======
+
               {/* Page guide */}
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-white/30 uppercase tracking-widest">{guide.title}</p>
@@ -812,7 +805,6 @@ export function BowDownAIGuide() {
                 <span className="text-white/25">Playlist: <span className="text-green-400/70">on homepage ✓</span></span>
                 <span className="text-white/25">Snap: <span className="text-yellow-400/50">{SNAP_LABELS[currentSnap]}</span></span>
               </div>
->>>>>>> feature/homepage-playlist
 
             </div>
           </div>
