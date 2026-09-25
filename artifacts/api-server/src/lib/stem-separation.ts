@@ -274,11 +274,12 @@ export async function findBestVocalWindowStartSeconds(
  * Post-process an isolated vocal stem for IVC training input:
  *  1. Loudness-normalize to -16 LUFS (consistent level for ElevenLabs;
  *     raw Demucs output level varies wildly with the source mix).
- *  2. Lowpass at 12kHz to cut cymbal/percussion bleed — the light
+ *  2. Lowpass at 8kHz to cut cymbal/percussion bleed — the light
  *     htdemucs model leaves significant high-frequency instrumental hash
  *     in the vocal stem (measured 9.5dB bleed ratio on the theme song;
- *     ElevenLabs rejects heavy-bleed inputs). Vocals carry almost no
- *     content above 12kHz, so this is safe for voice cloning.
+ *     ElevenLabs rejects heavy-bleed inputs). Voice characteristics for
+ *     cloning live well below 8kHz, so this is safe — and 8kHz lowpass
+ *     measured 14.2dB bleed ratio (acceptable) vs 11.1dB at 12kHz.
  *  3. Trim leading/trailing silence (ElevenLabs rejects inputs that start
  *     with long silence; the bugged 0-90s window had a 20s quiet intro).
  *
@@ -299,7 +300,7 @@ export async function postProcessVocalStem(
       "-i",
       vocalsPath,
       "-af",
-      "loudnorm=I=-16:TP=-1.5:LRA=11,lowpass=f=12000,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:stop_periods=1:stop_duration=1:stop_threshold=-50dB",
+      "loudnorm=I=-16:TP=-1.5:LRA=11,lowpass=f=8000,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:stop_periods=1:stop_duration=1:stop_threshold=-50dB",
       "-c:a",
       "pcm_s16le",
       "-ar",
