@@ -2391,8 +2391,9 @@ function MasterPreviewPlayer({
           <span className="text-[9px] font-bold uppercase tracking-wider">Show Player</span>
         </button>
       )}
-    {/* ── Theater mode: dim the whole editor with a spotlight on the player.
-        The player wrapper below is raised above this overlay via z-index. ── */}
+    {/* ── Visual mode: true focus mode. The background is essentially blacked out
+        so ONLY the master player is visible. The player wrapper below is raised
+        above this overlay via z-index. ── */}
     {theaterOn && !isHidden && (
       <div
         aria-hidden
@@ -2400,7 +2401,7 @@ function MasterPreviewPlayer({
         style={{
           zIndex: 55,
           background:
-            "radial-gradient(ellipse 62% 58% at 50% 42%, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.94) 78%)",
+            "radial-gradient(ellipse 55% 52% at 50% 42%, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.985) 72%)",
         }}
       />
     )}
