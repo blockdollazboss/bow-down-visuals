@@ -94,7 +94,7 @@ router.post("/randomizer", publicApiLimiter, requireAuth, async (req, res) => {
         { role: "user", content: `Give me 5 fresh ${CATEGORY_DIRECTION[category]}.` },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 600,
+      max_completion_tokens: 600,
       temperature: 0.9,
     });
 

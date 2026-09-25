@@ -129,7 +129,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
       temperature: 0.4,
     });
 

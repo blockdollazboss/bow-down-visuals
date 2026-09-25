@@ -190,7 +190,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 8000,
+      max_completion_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";

@@ -205,7 +205,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
       model: getTextModel(),
       response_format: { type: "json_object" },
       temperature: 0.8,
-      max_tokens: 6000,
+      max_completion_tokens: 6000,
       messages: [
         { role: "system", content: DIRECTOR_SYSTEM_PROMPT },
         { role: "user", content: userBrief },

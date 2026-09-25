@@ -279,7 +279,7 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
