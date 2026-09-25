@@ -34,4 +34,4 @@ export * from "./locations";
 export * from "./artist-outfits";
 export * from "./discord";
 export * from "./scheduled-posts";
-export * from "./merch";
+export * from "./playlist-pitch";
