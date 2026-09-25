@@ -55,20 +55,15 @@ import logoRouter from "./generate/logo";
 import emailListRouter from "./generate/email-list";
 import introOutroRouter from "./generate/intro-outro";
 import llcGuideRouter from "./generate/llc-guide";
-<<<<<<< HEAD
 import coverArtRouter from "./generate/cover-art";
 import shopsRouter from "./generate/shops";
-=======
 import lyricVideoRouter from "./generate/lyric-video";
->>>>>>> tmp-6
+import podcastRouter from "./generate/podcast";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
-<<<<<<< HEAD
 import membershipsRouter from "./generate/memberships";
-=======
 import distributionRouter from "./generate/distribution";
->>>>>>> tmp-7
 
 const router: IRouter = Router();
 
@@ -128,19 +123,14 @@ router.use(logoRouter);
 router.use(emailListRouter);
 router.use(introOutroRouter);
 router.use(llcGuideRouter);
-<<<<<<< HEAD
 router.use(coverArtRouter);
 router.use(shopsRouter);
-=======
 router.use(lyricVideoRouter);
->>>>>>> tmp-6
+router.use(podcastRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
-<<<<<<< HEAD
 router.use(membershipsRouter);
-=======
 router.use(distributionRouter);
->>>>>>> tmp-7
 
 export default router;

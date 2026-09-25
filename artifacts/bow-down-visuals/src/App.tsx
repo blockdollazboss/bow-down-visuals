@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const PodcastStudio = lazyWithRetry(() => import("@/pages/podcast"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 <<<<<<< HEAD
@@ -239,6 +240,7 @@ function AppShell() {
           <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/titles"><TitleStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          <Route path="/podcast"><PodcastStudio /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
 <<<<<<< HEAD
