@@ -44,6 +44,7 @@ import preProductionRouter from "./generate/pre-production";
 import randomizerRouter from "./generate/randomizer";
 import hookStudioRouter from "./generate/hook-studio";
 import monetizationCoachRouter from "./generate/monetization-coach";
+import upscaleRouter from "./generate/upscale";
 import socialRouter from "./social";
 import jobNotificationsRouter from "./job-notifications";
 
@@ -94,6 +95,7 @@ router.use(chatRouter);
 router.use(randomizerRouter);
 router.use(hookStudioRouter);
 router.use(monetizationCoachRouter);
+router.use(upscaleRouter);
 router.use(socialRouter);
 router.use(jobNotificationsRouter);
 
