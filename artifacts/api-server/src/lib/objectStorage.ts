@@ -396,6 +396,8 @@ export async function ensureSupabaseClipsBucket(): Promise<void> {
   if (!createRes.ok && !alreadyExists) {
     throw new Error(
       `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    throw new Error(
+      `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
     );
   }
 
@@ -405,6 +407,63 @@ export async function ensureSupabaseClipsBucket(): Promise<void> {
     const verifyText = await verifyRes.text().catch(() => "");
     throw new Error(
       `Supabase bucket "${SUPABASE_CLIPS_BUCKET}" still missing after create attempt ` +
+        `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
+        `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
+    );
+  }
+}
+
+export const SHOP_PRODUCTS_BUCKET = "shop-products";
+
+/**
+ * Ensure the shop-products bucket exists before AI product-image uploads.
+ * Same proven REST pattern as ensureVideoExportsBucket: create via the
+ * Storage REST API (supabase-js bucket helpers have silently failed before),
+ * then verify-after-create and throw LOUDLY if it is still missing — an
+ * upload must never march into a doomed bucket. Bucket creation failures
+ * are NOT swallowed: the caller refunds the credit.
+ */
+export async function ensureShopProductsBucket(): Promise<void> {
+  const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      "SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured — cannot ensure shop-products bucket.",
+    );
+  }
+  const headers: Record<string, string> = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const getBucket = () => fetch(`${url}/storage/v1/bucket/${SHOP_PRODUCTS_BUCKET}`, { headers });
+
+  if ((await getBucket()).ok) return; // already exists
+
+  const createRes = await fetch(`${url}/storage/v1/bucket`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      id: SHOP_PRODUCTS_BUCKET,
+      name: SHOP_PRODUCTS_BUCKET,
+      public: true, // product images are served on public storefronts
+    }),
+  });
+  const createText = await createRes.text().catch(() => "");
+  const alreadyExists = createRes.status === 409 || /already exists/i.test(createText);
+  if (!createRes.ok && !alreadyExists) {
+    throw new Error(
+      `Failed to create Supabase bucket "${SHOP_PRODUCTS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    );
+  }
+
+  // Verify it actually exists now — never silently continue into a doomed upload.
+  const verifyRes = await getBucket();
+  if (!verifyRes.ok) {
+    const verifyText = await verifyRes.text().catch(() => "");
+    throw new Error(
+      `Supabase bucket "${SHOP_PRODUCTS_BUCKET}" still missing after create attempt ` +
         `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
         `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
     );

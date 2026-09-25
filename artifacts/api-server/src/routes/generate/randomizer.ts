@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -66,12 +66,7 @@ router.post("/randomizer", publicApiLimiter, requireAuth, async (req, res) => {
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await deductCredits(req.userId!, RANDOMIZER_CREDITS);
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Content Randomizer (AI)",
-      creditsUsed: RANDOMIZER_CREDITS,
-    }).catch(() => {});
+    creditsRemaining = await chargeCredits(req.userId!, RANDOMIZER_CREDITS, { action: "Content Randomizer (AI)" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -99,7 +94,7 @@ router.post("/randomizer", publicApiLimiter, requireAuth, async (req, res) => {
         { role: "user", content: `Give me 5 fresh ${CATEGORY_DIRECTION[category]}.` },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 600,
+      max_completion_tokens: 600,
       temperature: 0.9,
     });
 

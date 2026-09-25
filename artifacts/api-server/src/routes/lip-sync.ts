@@ -3,604 +3,79 @@ import express from "express";
 import { randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
+import { mkdtemp, writeFile, rm } from "fs/promises";
 import { existsSync, statSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { requireAuth } from "../middlewares/require-auth";
 import { objectStorageClient } from "../lib/objectStorage";
+import {
+  PROVIDER_LIMIT_SEC,
+  SYNC_LABS_MODEL,
+  SYNC_LABS_REMOVED_FIELDS,
+  detectUrlType,
+  getActiveKeyVar,
+  getLipSyncApiKey,
+  getLipSyncProviderName,
+  getSyncLabsBase,
+  hasMultipleKeys,
+  isLipSyncServerKeyFound,
+  normalizeProviderStatus,
+  probeUrl,
+  signGetUrl,
+  syncLabsStatus,
+  uploadAudioToSupabase,
+} from "../lib/sync-labs";
+import type { UrlType } from "../lib/sync-labs";
+import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
+import { requestPollerTick } from "../lib/job-poller";
+import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordLipSyncHistory } from "../lib/payment-record";
+import { logger } from "../lib/logger";
+import {
+  createExportJob,
+  getExportJob,
+  enqueueExport,
+  type ExportStatusRef,
+} from "../lib/export-jobs";
+import {
+  runExportJobInBackground,
+  EXPORT_CREDIT_COST,
+  type ExportJobContext,
+  type ExportRequestBody,
+} from "./generate/export-video";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-/* ── Server-side secrets (never sent to the browser) ── */
-/* Key resolution: prefer LIP_SYNC_API_KEY; fall back to SYNC_LABS_API_KEY so
-   the app works whichever variable name the user added in Replit Secrets.    */
-const _LIP_SYNC_API_KEY_RAW = process.env["LIP_SYNC_API_KEY"];
-const _SYNC_LABS_API_KEY_RAW = process.env["SYNC_LABS_API_KEY"];
-const LIP_SYNC_API_KEY = _LIP_SYNC_API_KEY_RAW ?? _SYNC_LABS_API_KEY_RAW;
-const ACTIVE_KEY_VAR: string | null = _LIP_SYNC_API_KEY_RAW
-  ? "LIP_SYNC_API_KEY"
-  : _SYNC_LABS_API_KEY_RAW
-    ? "SYNC_LABS_API_KEY"
-    : null;
-const MULTIPLE_KEYS_FOUND = !!(_LIP_SYNC_API_KEY_RAW && _SYNC_LABS_API_KEY_RAW);
-const LIP_SYNC_PROVIDER = (process.env["LIP_SYNC_PROVIDER"] ?? "")
-  .toLowerCase()
-  .trim();
-const SERVER_KEY_FOUND = !!(LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length > 0);
-const PROVIDER_NAME = LIP_SYNC_PROVIDER || (SERVER_KEY_FOUND ? "sync" : null);
-
+/** Replit object-storage bucket id for vocal stems (media prep moved to lib/sync-labs). */
 const STEM_BUCKET = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
-const SIDECAR = "http://127.0.0.1:1106";
 
-/** Sync Labs plan limit in seconds — Hobbyist plan (upgraded 2026-09-24). */
-const PROVIDER_LIMIT_SEC = 60;
-
-/** Supabase storage bucket for temporary lip-sync audio segments */
-const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
-
-/* ── Sync Labs ────────────────────────────────────────────────────────────── */
-const SYNC_LABS_BASE = "https://api.sync.so/v2";
-// Upgraded 2026-09-24: sync-1.9.0-beta produced poor lip-sync on song audio.
-// lipsync-2 is the current-gen model (same input shape); override via env if needed.
-const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "lipsync-2";
-const SYNC_POLL_INTERVAL_MS = 5_000;
-const SYNC_MAX_POLLS = 72; // 72 × 5s = 6 minutes max
-
-interface SyncLabsJob {
-  id: string;
-  status: "pending" | "processing" | "completed" | "failed";
-  outputUrl?: string;
-  error?: string;
-}
-
-/**
- * Fields removed from the Sync Labs payload because they are not part of
- * the v2 API schema. Kept here so /check-inputs can report them to the UI.
- */
-export const SYNC_LABS_REMOVED_FIELDS = ["synergize", "pads"] as const;
-
-/** Build and log the sanitized Sync Labs payload (never logs the API key). */
-function buildSyncLabsPayload(clipUrl: string, audioUrl: string) {
+/* ── Client-facing shape for a durable lip-sync job ──────────────────────
+   Kept identical to the old in-memory record so the frontend keeps polling
+   GET /api/lip-sync/job/:id unchanged: "queued" | "processing" | "done" | "failed". */
+function toClientLipSyncJob(job: LipSyncJob) {
+  const status =
+    job.state === "queued"
+      ? "queued"
+      : job.state === "done"
+        ? "done"
+        : job.state === "failed"
+          ? "failed"
+          : "processing";
+  const durationSec = job.params.sceneEndSec - job.params.sceneStartSec;
   return {
-    model: SYNC_LABS_MODEL,
-    input: [
-      { type: "video", url: clipUrl },
-      { type: "audio", url: audioUrl },
-    ],
-    // NOTE: no "options" block — all previously-sent fields (synergize, pads)
-    // are not part of the Sync Labs v2 API and caused HTTP 422.
+    status,
+    url: job.resultUrl ?? undefined,
+    provider: job.params.provider ?? "sync",
+    error: job.error?.message,
+    code: job.error?.code,
+    durationSec: Number.isFinite(durationSec) ? durationSec : undefined,
+    syncLabsJobId: job.providerJobId ?? undefined,
+    createdAt: new Date(job.createdAt).toISOString(),
+    updatedAt: new Date(job.updatedAt).toISOString(),
   };
-}
-
-async function syncLabsSubmit(
-  clipUrl: string,
-  audioUrl: string,
-  apiKey: string,
-): Promise<string> {
-  const payload = buildSyncLabsPayload(clipUrl, audioUrl);
-
-  // Log the sanitized payload (keys only — no API key, no full URLs in prod)
-  const payloadKeys = [
-    "model",
-    ...payload.input.map((i) => `input[${i.type}]`),
-  ];
-  // logger available via req.log in routes; use console here (non-route context)
-  console.info("[lip-sync] Sync Labs payload keys:", payloadKeys.join(", "));
-  console.info(
-    "[lip-sync] Removed fields:",
-    SYNC_LABS_REMOVED_FIELDS.join(", "),
-  );
-
-  const res = await fetch(`${SYNC_LABS_BASE}/generate`, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(
-      `Sync Labs submit failed: HTTP ${res.status} — ${body.slice(0, 400)}`,
-    );
-  }
-  const data = (await res.json()) as { id?: string };
-  if (!data.id) throw new Error("Sync Labs returned no job ID.");
-  return data.id;
-}
-
-async function syncLabsPoll(jobId: string, apiKey: string): Promise<string> {
-  for (let i = 0; i < SYNC_MAX_POLLS; i++) {
-    await new Promise((r) => setTimeout(r, SYNC_POLL_INTERVAL_MS));
-    const res = await fetch(`${SYNC_LABS_BASE}/generate/${jobId}`, {
-      headers: { "x-api-key": apiKey },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(
-        `Sync Labs poll failed: HTTP ${res.status} — ${body.slice(0, 300)}`,
-      );
-    }
-    const job = (await res.json()) as SyncLabsJob;
-    if (job.status === "completed") {
-      if (!job.outputUrl)
-        throw new Error("Sync Labs job completed but returned no outputUrl.");
-      return job.outputUrl;
-    }
-    if (job.status === "failed") {
-      throw new Error(`Sync Labs job failed: ${job.error ?? "unknown error"}`);
-    }
-  }
-  throw new SyncLabsTimeoutError();
-}
-
-/* ── URL type detection ──────────────────────────────────────────────────── */
-type UrlType =
-  | "public-https"
-  | "supabase"
-  | "replit-storage"
-  | "blob"
-  | "unknown";
-
-function detectUrlType(url: string): UrlType {
-  if (!url) return "unknown";
-  if (url.startsWith("blob:")) return "blob";
-  if (!url.startsWith("http")) return "unknown";
-  const supabaseUrl = process.env["SUPABASE_URL"] ?? "";
-  if (supabaseUrl && url.startsWith(supabaseUrl)) return "supabase";
-  if (
-    url.includes("storage.googleapis.com") ||
-    url.includes("replit-objstore") ||
-    url.includes("127.0.0.1:1106")
-  )
-    return "replit-storage";
-  return "public-https";
-}
-
-/** HEAD-check a URL, return { ok, status, contentType, error } */
-async function probeUrl(
-  url: string,
-  timeoutMs = 15_000,
-): Promise<{
-  ok: boolean;
-  status: number;
-  contentType: string | null;
-  error: string | null;
-}> {
-  try {
-    const res = await fetch(url, {
-      method: "HEAD",
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    return {
-      ok: res.ok,
-      status: res.status,
-      contentType: res.headers.get("content-type"),
-      error: res.ok ? null : `HTTP ${res.status}`,
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      status: 0,
-      contentType: null,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
-}
-
-/* ── Supabase storage for trimmed audio segments ─────────────────────────── */
-
-async function ensureSupabaseBucket(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase.storage.createBucket(LIP_SYNC_AUDIO_BUCKET, {
-    public: false,
-    fileSizeLimit: 50 * 1024 * 1024,
-  });
-  // Ignore "already exists" — any other error propagates
-  if (
-    error &&
-    !error.message?.toLowerCase().includes("already exist") &&
-    error.message !== "Duplicate"
-  ) {
-    // Non-fatal: bucket might exist under a different error wording
-  }
-}
-
-async function uploadAudioToSupabase(
-  buffer: Buffer,
-  objectName: string,
-  contentType = "audio/mpeg",
-): Promise<string> {
-  await ensureSupabaseBucket().catch(() => {
-    /* ignore — bucket likely exists */
-  });
-  const supabase = getSupabaseAdmin();
-
-  const { error: upErr } = await supabase.storage
-    .from(LIP_SYNC_AUDIO_BUCKET)
-    .upload(objectName, buffer, { contentType, upsert: true });
-
-  if (upErr) {
-    throw new Error(
-      `Supabase audio upload failed: ${upErr.message}` +
-        ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
-    );
-  }
-
-  const { data: signData, error: signErr } = await supabase.storage
-    .from(LIP_SYNC_AUDIO_BUCKET)
-    .createSignedUrl(objectName, 7200); // 2-hour TTL
-
-  if (signErr || !signData?.signedUrl) {
-    throw new Error(
-      `Supabase signed URL failed: ${signErr?.message ?? "no URL returned"}` +
-        ` (bucket: ${LIP_SYNC_AUDIO_BUCKET}, path: ${objectName})`,
-    );
-  }
-
-  return signData.signedUrl;
-}
-
-/* ── Replit object storage signed URL (kept for vocal stems) ─────────────── */
-async function signGetUrl(
-  bucketName: string,
-  objectName: string,
-): Promise<string> {
-  const expiresAt = new Date(
-    Date.now() + 30 * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const res = await fetch(`${SIDECAR}/object-storage/signed-object-url`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      bucket_name: bucketName,
-      object_name: objectName,
-      method: "GET",
-      expires_at: expiresAt,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(
-      `Object storage signing failed: HTTP ${res.status}` +
-        ` — bucket: ${bucketName}, path: ${objectName}` +
-        (body ? ` — ${body.slice(0, 200)}` : ""),
-    );
-  }
-  const { signed_url } = (await res.json()) as { signed_url: string };
-  return signed_url;
-}
-
-/* ── Audio segmentation (FFmpeg + Supabase storage) ──────────────────────── */
-async function trimAndUploadAudioSegment(
-  audioUrl: string,
-  startSec: number,
-  endSec: number,
-): Promise<{ segmentUrl: string; durationSec: number }> {
-  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-"));
-  try {
-    /* 1. Download source audio — prefer direct fetch (works for signed HTTPS URLs) */
-    const dlRes = await fetch(audioUrl, {
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!dlRes.ok) {
-      throw new Error(
-        `Audio download failed: HTTP ${dlRes.status}` +
-          ` (url type: ${detectUrlType(audioUrl)})`,
-      );
-    }
-    const ct = dlRes.headers.get("content-type") ?? "";
-    const ext = ct.includes("wav") ? "wav" : ct.includes("ogg") ? "ogg" : "mp3";
-    const inputPath = join(tmpDir, `input.${ext}`);
-    const outputPath = join(tmpDir, "segment.mp3");
-    await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
-
-    /* 2. Trim with FFmpeg
-       IMPORTANT: `timeout` is required here — without it a stalled/hung ffmpeg
-       process (e.g. on a corrupt or unusual input) blocks this await forever,
-       which leaves the job permanently "processing" with no syncLabsJobId to
-       check, and the client's Check-Job-Status button stays disabled with no
-       way to recover except abandoning the job. */
-    let ffmpegStderr = "";
-    await execFileAsync(
-      "ffmpeg",
-      [
-        "-y",
-        "-i",
-        inputPath,
-        "-ss",
-        String(startSec),
-        "-to",
-        String(endSec),
-        "-c:a",
-        "libmp3lame",
-        "-q:a",
-        "2",
-        outputPath,
-      ],
-      { timeout: 60_000 },
-    ).catch((err: Error & { stderr?: string; killed?: boolean }) => {
-      ffmpegStderr = (err as unknown as { stderr?: string }).stderr ?? "";
-      const timedOut = err.killed || /ETIMEDOUT|signal/i.test(err.message);
-      throw new Error(
-        timedOut
-          ? "FFmpeg trim timed out after 60s — the source audio may be malformed or unreachable mid-stream."
-          : `FFmpeg trim failed: ${err.message}${ffmpegStderr ? ` — ${ffmpegStderr.slice(-200)}` : ""}`,
-      );
-    });
-
-    /* 3. Verify actual duration */
-    const { stdout } = await execFileAsync(
-      "ffprobe",
-      [
-        "-v",
-        "error",
-        "-show_entries",
-        "format=duration",
-        "-of",
-        "default=noprint_wrappers=1:nokey=1",
-        outputPath,
-      ],
-      { timeout: 15_000 },
-    );
-    const durationSec = parseFloat(stdout.trim());
-    if (isNaN(durationSec))
-      throw new Error("Could not determine trimmed audio duration.");
-
-    /* 4. Upload trimmed segment to Supabase storage → signed URL */
-    const buffer = await readFile(outputPath);
-    const objectName = `segments/${randomUUID()}.mp3`;
-    const segmentUrl = await uploadAudioToSupabase(buffer, objectName);
-
-    return { segmentUrl, durationSec };
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-
-/* ── Video segmentation (FFmpeg + Supabase storage) ────────────────────────
-   Trims the scene's clip to the same duration as the audio segment so the
-   provider receives a short video + short audio pair. Previously the FULL
-   untrimmed clip was submitted alongside a short audio window, which
-   degraded lip-sync quality (2026-09-24). Downloading server-side also
-   fixes signed-URL expiry: the provider fetches our fresh signed URL
-   instead of a possibly-stale client URL. Falls back to the original
-   clipUrl if trimming fails. */
-async function trimAndUploadVideoSegment(
-  clipUrl: string,
-  durationSec: number,
-): Promise<string> {
-  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-vid-"));
-  try {
-    const dlRes = await fetch(clipUrl, {
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!dlRes.ok) {
-      throw new Error(
-        `Video download failed: HTTP ${dlRes.status}` +
-          ` (url type: ${detectUrlType(clipUrl)})`,
-      );
-    }
-    const inputPath = join(tmpDir, "input.mp4");
-    const outputPath = join(tmpDir, "segment.mp4");
-    await writeFile(inputPath, Buffer.from(await dlRes.arrayBuffer()));
-
-    /* Trim to the audio window duration from the clip start. -an strips the
-       clip's own audio track — the provider receives clean audio separately,
-       so a conflicting embedded track can't confuse the model. Timeout is
-       required: a hung ffmpeg must not wedge the job forever. */
-    await execFileAsync(
-      "ffmpeg",
-      [
-        "-y",
-        "-i",
-        inputPath,
-        "-t",
-        durationSec.toFixed(3),
-        "-c:v",
-        "libx264",
-        "-preset",
-        "veryfast",
-        "-crf",
-        "20",
-        "-pix_fmt",
-        "yuv420p",
-        "-an",
-        "-movflags",
-        "+faststart",
-        outputPath,
-      ],
-      { timeout: 120_000 },
-    ).catch((err: Error & { stderr?: string; killed?: boolean }) => {
-      const timedOut = err.killed || /ETIMEDOUT|signal/i.test(err.message);
-      throw new Error(
-        timedOut
-          ? "FFmpeg video trim timed out after 120s."
-          : `FFmpeg video trim failed: ${err.message}`,
-      );
-    });
-
-    /* Verify the trimmed segment is a valid, non-trivial video file */
-    const { stdout } = await execFileAsync(
-      "ffprobe",
-      [
-        "-v",
-        "error",
-        "-select_streams",
-        "v:0",
-        "-show_entries",
-        "stream=codec_type,width,height",
-        "-of",
-        "default=noprint_wrappers=1",
-        outputPath,
-      ],
-      { timeout: 15_000 },
-    );
-    if (!stdout.toLowerCase().includes("video")) {
-      throw new Error("Trimmed video has no video stream.");
-    }
-    const segBytes = statSync(outputPath).size;
-    if (segBytes < 10 * 1024) {
-      throw new Error(`Trimmed video too small (${segBytes} bytes).`);
-    }
-
-    const buffer = await readFile(outputPath);
-    return await uploadAudioToSupabase(
-      buffer,
-      `segments/${randomUUID()}.mp4`,
-      "video/mp4",
-    );
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
-  }
-}
-
-/* ── In-process async job store ──────────────────────────────────────────
-   Each POST /lip-sync/preview enqueues a job here and returns its ID
-   immediately so the HTTP response completes before the proxy times out.
-   Jobs are pruned after 2 h; the server process is long-running so this
-   is safe for a single-instance dev/prod deployment.                       */
-interface LipSyncJob {
-  status: "queued" | "processing" | "done" | "failed";
-  url?: string;
-  provider?: string;
-  error?: string;
-  code?: string;
-  durationSec?: number;
-  /** Sync.so provider job ID — set immediately after the job is accepted,
-   *  before polling begins, so the client can save it and check later. */
-  syncLabsJobId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/** Thrown by syncLabsPoll when the poll limit is exhausted without a terminal
- *  result.  Caught separately so the job is kept as "processing" rather than
- *  marked "failed" — the Sync.so job may still be running. */
-class SyncLabsTimeoutError extends Error {
-  constructor() {
-    super("Still processing on Sync.so. Check again in a few minutes.");
-    this.name = "SyncLabsTimeoutError";
-  }
-}
-
-interface LipSyncJobParams {
-  clipUrl: string;
-  audioUrl: string;
-  sceneStartSec: number;
-  sceneEndSec: number;
-  /** Who requested this job — used to record a generation_history row on success. */
-  userId?: string | null;
-  projectId?: string | null;
-  sceneId?: string | null;
-}
-
-const lipSyncJobs = new Map<string, LipSyncJob>();
-
-setInterval(
-  () => {
-    const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
-    for (const [id, job] of lipSyncJobs) {
-      if (new Date(job.createdAt).getTime() < cutoffMs) lipSyncJobs.delete(id);
-    }
-  },
-  30 * 60 * 1000,
-).unref();
-
-async function processLipSyncJob(
-  jobId: string,
-  params: LipSyncJobParams,
-): Promise<void> {
-  const now = () => new Date().toISOString();
-  const update = (patch: Partial<LipSyncJob>) => {
-    const j = lipSyncJobs.get(jobId);
-    if (j) lipSyncJobs.set(jobId, { ...j, ...patch, updatedAt: now() });
-  };
-
-  try {
-    update({ status: "processing" });
-
-    const { segmentUrl, durationSec } = await trimAndUploadAudioSegment(
-      params.audioUrl,
-      params.sceneStartSec,
-      params.sceneEndSec,
-    );
-
-    if (durationSec > PROVIDER_LIMIT_SEC) {
-      update({
-        status: "failed",
-        error: `Audio segment is ${durationSec.toFixed(1)}s — exceeds Sync Labs plan limit of ${PROVIDER_LIMIT_SEC}s. Trim the scene or upgrade your plan.`,
-        code: "segment_too_long",
-        durationSec,
-      });
-      return;
-    }
-
-    if (PROVIDER_NAME === "sync") {
-      /* Trim the video to the audio window so the provider gets a short
-         video + short audio pair. Falls back to the full clip if the trim
-         fails — never break a job over an optimization. */
-      let providerClipUrl = params.clipUrl;
-      try {
-        providerClipUrl = await trimAndUploadVideoSegment(
-          params.clipUrl,
-          durationSec,
-        );
-      } catch (vidErr) {
-        console.warn(
-          "[lip-sync] video trim failed, falling back to full clip:",
-          vidErr instanceof Error ? vidErr.message : String(vidErr),
-        );
-      }
-      const syncId = await syncLabsSubmit(
-        providerClipUrl,
-        segmentUrl,
-        LIP_SYNC_API_KEY!,
-      );
-      /* Save the provider job ID immediately so the client can store it and
-         check the Sync.so job status later — even after a local timeout. */
-      update({ syncLabsJobId: syncId });
-
-      const outputUrl = await syncLabsPoll(syncId, LIP_SYNC_API_KEY!);
-      update({ status: "done", url: outputUrl, provider: "sync", durationSec });
-      if (params.userId) {
-        void recordLipSyncHistory({
-          userId:      params.userId,
-          projectId:   params.projectId,
-          sceneId:     params.sceneId,
-          videoUrl:    outputUrl,
-          creditsUsed: 0,
-        });
-      }
-      return;
-    }
-
-    throw new Error(
-      `Provider "${PROVIDER_NAME}" is not wired. Set LIP_SYNC_PROVIDER=sync in Replit Secrets.`,
-    );
-  } catch (err) {
-    if (err instanceof SyncLabsTimeoutError) {
-      /* Keep as "processing" — the Sync.so job may still be running.
-         The client can use the saved syncLabsJobId to check later. */
-      update({
-        status: "processing",
-        error: err.message,
-        code: "still_processing",
-      });
-    } else {
-      update({
-        status: "failed",
-        error: err instanceof Error ? err.message : "Lip sync job failed",
-        code: "provider_error",
-      });
-    }
-  }
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -615,19 +90,21 @@ router.get("/lip-sync/health", (_req, res) => {
    GET /lip-sync/status
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/status", (_req, res) => {
+  const providerName = getLipSyncProviderName();
+  const serverKeyFound = isLipSyncServerKeyFound();
   const missingKeyMessage =
-    PROVIDER_NAME === "sync" && !SERVER_KEY_FOUND
+    providerName === "sync" && !serverKeyFound
       ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
-      : !SERVER_KEY_FOUND
+      : !serverKeyFound
         ? "Lip Sync API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
         : null;
 
   res.json({
-    connected: SERVER_KEY_FOUND,
-    providerName: PROVIDER_NAME ?? null,
-    serverKeyFound: SERVER_KEY_FOUND,
+    connected: serverKeyFound,
+    providerName: providerName ?? null,
+    serverKeyFound,
     frontendKeyExposed: false,
-    mode: SERVER_KEY_FOUND ? "real" : "mock",
+    mode: serverKeyFound ? "real" : "mock",
     missingKeyMessage,
     providerLimitSec: PROVIDER_LIMIT_SEC,
     model: SYNC_LABS_MODEL,
@@ -641,19 +118,22 @@ router.get("/lip-sync/status", (_req, res) => {
    Never exposes full API key — only last 4 chars and env var name.
 ────────────────────────────────────────────────────────────────────────── */
 router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
+  const lipSyncApiKey = getLipSyncApiKey();
+  const activeKeyVar = getActiveKeyVar();
+  const multipleKeysFound = hasMultipleKeys();
   const activeKeyLast4 =
-    LIP_SYNC_API_KEY && LIP_SYNC_API_KEY.length >= 4
-      ? LIP_SYNC_API_KEY.slice(-4)
-      : LIP_SYNC_API_KEY
+    lipSyncApiKey && lipSyncApiKey.length >= 4
+      ? lipSyncApiKey.slice(-4)
+      : lipSyncApiKey
         ? "****"
         : null;
 
-  if (!LIP_SYNC_API_KEY) {
+  if (!lipSyncApiKey) {
     res.json({
       keyPresent: false,
       activeKeyVar: null,
       activeKeyLast4: null,
-      multipleKeysFound: MULTIPLE_KEYS_FOUND,
+      multipleKeysFound,
       providerEndpointConfigured: true,
       accountStatusAvailable: false,
       billingBlocked: null,
@@ -678,8 +158,8 @@ router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
      This is read-only and does not consume credits.                          */
   const PROBE_JOB_ID = "00000000-0000-0000-0000-000000000000";
   try {
-    const r = await fetch(`${SYNC_LABS_BASE}/generate/${PROBE_JOB_ID}`, {
-      headers: { "x-api-key": LIP_SYNC_API_KEY },
+    const r = await fetch(`${getSyncLabsBase()}/generate/${PROBE_JOB_ID}`, {
+      headers: { "x-api-key": lipSyncApiKey },
       signal: AbortSignal.timeout(12_000),
     });
     httpStatus = r.status;
@@ -710,15 +190,15 @@ router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
       err instanceof Error ? err.message : "Network error contacting Sync Labs";
   }
 
-  const message = MULTIPLE_KEYS_FOUND
-    ? `Multiple keys found. Using ${ACTIVE_KEY_VAR} ending in ${activeKeyLast4}`
-    : `Using ${ACTIVE_KEY_VAR} ending in ${activeKeyLast4}`;
+  const message = multipleKeysFound
+    ? `Multiple keys found. Using ${activeKeyVar} ending in ${activeKeyLast4}`
+    : `Using ${activeKeyVar} ending in ${activeKeyLast4}`;
 
   res.json({
     keyPresent: true,
-    activeKeyVar: ACTIVE_KEY_VAR,
+    activeKeyVar,
     activeKeyLast4,
-    multipleKeysFound: MULTIPLE_KEYS_FOUND,
+    multipleKeysFound,
     providerEndpointConfigured: true,
     accountStatusAvailable,
     billingBlocked,
@@ -733,15 +213,16 @@ router.get("/lip-sync/account-check", requireAuth, async (_req, res) => {
    Poll a queued / running / finished lip-sync job.
    Returns the LipSyncJob record directly.
 ────────────────────────────────────────────────────────────────────────── */
-router.get("/lip-sync/job/:id", requireAuth, (req, res) => {
-  const job = lipSyncJobs.get(String(req.params["id"] ?? ""));
-  if (!job) {
+router.get("/lip-sync/job/:id", requireAuth, async (req, res) => {
+  const id = String(req.params["id"] ?? "");
+  const job = await getLipSyncJob(id).catch(() => undefined);
+  if (!job || job.userId !== req.userId) {
     res
       .status(404)
       .json({ error: "Job not found or expired", code: "job_not_found" });
     return;
   }
-  res.json(job);
+  res.json(toClientLipSyncJob(job));
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -760,7 +241,8 @@ router.get(
         .json({ error: "syncJobId is required", code: "missing_param" });
       return;
     }
-    if (!LIP_SYNC_API_KEY) {
+    const apiKey = getLipSyncApiKey();
+    if (!apiKey) {
       res
         .status(503)
         .json({ error: "Lip Sync API key not configured", code: "no_api_key" });
@@ -768,30 +250,24 @@ router.get(
     }
 
     try {
-      const pollRes = await fetch(`${SYNC_LABS_BASE}/generate/${syncJobId}`, {
-        headers: { "x-api-key": LIP_SYNC_API_KEY },
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!pollRes.ok) {
-        const body = await pollRes.text().catch(() => "");
-        res.status(502).json({
-          error: `Sync.so returned HTTP ${pollRes.status}`,
-          detail: body.slice(0, 300),
-          code: "provider_error",
-        });
-        return;
-      }
-      const job = (await pollRes.json()) as SyncLabsJob;
+      const job = await syncLabsStatus(syncJobId, apiKey);
       res.json({
-        status: job.status, // "pending" | "processing" | "completed" | "failed"
+        status: normalizeProviderStatus(job), // "pending" | "processing" | "completed" | "failed"
         outputUrl: job.outputUrl ?? null,
         error: job.error ?? null,
       });
     } catch (err) {
-      res.status(500).json({
-        error: err instanceof Error ? err.message : "Check failed",
-        code: "network_error",
-      });
+      const msg = err instanceof Error ? err.message : "Check failed";
+      const m = /HTTP (\d+)/.exec(msg);
+      if (m) {
+        res.status(502).json({
+          error: `Sync.so returned HTTP ${m[1]}`,
+          detail: msg.slice(0, 300),
+          code: "provider_error",
+        });
+        return;
+      }
+      res.status(500).json({ error: msg, code: "network_error" });
     }
   },
 );
@@ -846,7 +322,7 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
     checkUrl(clipUrl, "clip"),
   ]);
 
-  const readyToSubmit = audio.found && clip.found && SERVER_KEY_FOUND;
+  const readyToSubmit = audio.found && clip.found && isLipSyncServerKeyFound();
 
   /* Payload validation:
      removedFields = fields that WERE in the payload and have been stripped out.
@@ -859,8 +335,8 @@ router.get("/lip-sync/check-inputs", async (req, res) => {
     audio: { url: audioUrl ?? null, ...audio },
     clip: { url: clipUrl ?? null, ...clip },
     provider: {
-      connected: SERVER_KEY_FOUND,
-      providerName: PROVIDER_NAME ?? null,
+      connected: isLipSyncServerKeyFound(),
+      providerName: getLipSyncProviderName() ?? null,
     },
     payload: {
       sanitizedKeys: sanitizedPayloadKeys,
@@ -958,14 +434,16 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       });
       return;
     }
-    if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
+    const apiKey = getLipSyncApiKey();
+    if (!apiKey) {
       const msg =
-        PROVIDER_NAME === "sync"
+        getLipSyncProviderName() === "sync"
           ? "Sync Labs API key missing. Add LIP_SYNC_API_KEY in Replit Secrets."
           : "Lip Sync provider not connected. Add LIP_SYNC_API_KEY in Replit Secrets.";
       res.status(503).json({ error: msg, code: "provider_not_connected" });
       return;
     }
+    void apiKey;
 
     /* ── Pre-flight: verify audio URL is reachable (fast HEAD check) ── */
     const audioProbe = await probeUrl(audioUrl);
@@ -987,27 +465,33 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
       return;
     }
 
-    /* ── Enqueue job and return immediately ────────────────────────────────
-       Background processing (FFmpeg trim + Sync Labs submit/poll) runs after
-       the HTTP response is sent. The client polls GET /api/lip-sync/job/:id
-       every few seconds until status becomes "done" or "failed".           */
-    const jobId = randomUUID();
-    const now = new Date().toISOString();
-    lipSyncJobs.set(jobId, {
-      status: "queued",
-      createdAt: now,
-      updatedAt: now,
-    });
+    const userId = req.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Not authenticated.", code: "unauthorized" });
+      return;
+    }
 
-    void processLipSyncJob(jobId, {
-      clipUrl,
-      audioUrl,
-      sceneStartSec,
-      sceneEndSec,
-      userId: req.userId,
+    /* ── Enqueue a durable server-owned job and return immediately ─────────
+       The job row survives restarts and the background poller drives it
+       through Sync.so's 25–40 minute runs — the tab can close right after
+       this response. The client keeps polling GET /api/lip-sync/job/:id
+       as before until status becomes "done" or "failed".                */
+    const job = await createLipSyncJob({
+      userId,
       projectId: projectId ?? null,
       sceneId: sceneId ?? null,
+      params: {
+        clipUrl,
+        audioUrl,
+        sceneStartSec,
+        sceneEndSec,
+        provider: getLipSyncProviderName(),
+      },
     });
+    const jobId = job.id;
+
+    // Wake the poller so the submit starts within seconds, not on the next tick.
+    requestPollerTick();
 
     req.log.info(
       {
@@ -1015,7 +499,7 @@ router.post("/lip-sync/preview", requireAuth, async (req, res) => {
         clipUrl: clipUrl.slice(0, 80),
         sceneStartSec,
         sceneEndSec,
-        provider: PROVIDER_NAME,
+        provider: getLipSyncProviderName(),
       },
       "[lip-sync] job queued — returning immediately",
     );
@@ -1560,6 +1044,611 @@ router.get("/lip-sync/scene-test/:jobId", requireAuth, (req, res) => {
     return;
   }
   res.json(job);
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ONE-CLICK RUN-ALL — POST /api/lip-sync/run-all
+   Replaces the old DevTools-console workaround script (lipsync-full-run.js).
+   Orchestrates the whole pipeline server-side so the user's browser tab is
+   never in the loop: for each exportable scene → trim the song window →
+   submit to Sync Labs → poll → save the lipSyncUrl onto the scene → run the
+   final export with the lip-sync-first clip URLs.
+
+   ── Robustness note ──
+   A run executes as an in-process async loop and the HTTP response returns
+   immediately with a runId, so the user navigating away (or closing the tab)
+   does NOT affect the run — only their status polling stops; the run keeps
+   going and they can resume watching it later via GET /api/lip-sync/run/:id.
+   Limitation: the orchestration state lives in this process's memory, so a
+   server restart/deploy mid-run kills the orchestration (unlike
+   /api/export-final-video jobs, runs are not persisted and not recovered on
+   boot). The per-scene lip-sync sub-jobs and the final export job themselves
+   live in their own durable/in-process stores and keep their own progress;
+   only the run-all orchestration would need to be re-started.
+   Also note: the captured userSupabase client carries the request's JWT,
+   which can expire on very long runs — the final project save uses the
+   service-role client (ownership verified up front), and the export runs
+   under the export job's own persisted context.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+type RunAllSceneState = "queued" | "syncing" | "done" | "skipped" | "failed";
+
+interface RunAllScene {
+  index: number;
+  sceneId: string | null;
+  state: RunAllSceneState;
+  lipSyncUrl?: string;
+  error?: string;
+}
+
+interface RunAllRecord {
+  runId: string;
+  userId: string;
+  projectId: string;
+  state: "running" | "done" | "failed";
+  scenes: RunAllScene[];
+  exportState: "pending" | "running" | "done" | "failed" | "skipped";
+  exportJobId?: string;
+  videoUrl?: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const lipSyncRuns = new Map<string, RunAllRecord>();
+
+setInterval(
+  () => {
+    const cutoffMs = Date.now() - 2 * 60 * 60 * 1000;
+    for (const [id, run] of lipSyncRuns) {
+      if (new Date(run.createdAt).getTime() < cutoffMs) lipSyncRuns.delete(id);
+    }
+  },
+  30 * 60 * 1000,
+).unref();
+
+/** Scene-timing timestamp parser — mirrors the console script exactly. */
+function parseSceneTimestamp(ts: unknown): { d: number; explicit: boolean } {
+  if (!ts) return { d: 5, explicit: false };
+  const m = String(ts).match(
+    /(\d+):(\d+(?:\.\d+)?)\s*-\s*(\d+):(\d+(?:\.\d+)?)/,
+  );
+  if (m) {
+    const s = Number(m[1]) * 60 + Number(m[2]);
+    const e = Number(m[3]) * 60 + Number(m[4]);
+    if (e > s) return { d: e - s, explicit: true };
+  }
+  return { d: 5, explicit: false };
+}
+
+/** Probe song duration server-side (ffprobe on the remote URL) — the
+ *  server-side equivalent of the script's `new Audio(url)` metadata probe. */
+async function probeAudioDurationSec(url: string): Promise<number | null> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        url,
+      ],
+      { timeout: 20_000 },
+    );
+    const d = parseFloat(stdout.trim());
+    return Number.isFinite(d) && d > 0 ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+const RUN_ALL_SCENE_TIMEOUT_MS = 12 * 60 * 1000; // per scene (matches the server provider poll window)
+const RUN_ALL_EXPORT_TIMEOUT_MS = 35 * 60 * 1000;
+
+/** Poll a durable server-owned lip-sync sub-job until it resolves.
+ *  Rejects on failure/timeout. The tab can close — jobs survive restarts. */
+async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
+  const deadline = Date.now() + RUN_ALL_SCENE_TIMEOUT_MS;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 8000));
+    const job = await getLipSyncJob(subJobId);
+    if (!job) throw new Error("Lip-sync sub-job disappeared.");
+    if (job.state === "done" && job.resultUrl) return job.resultUrl;
+    if (job.state === "failed")
+      throw new Error(job.error?.message ?? "Lip-sync provider failed.");
+    if (Date.now() >= deadline) break;
+  }
+  /* Provider-direct recovery: our poller may have given up while Sync.so is
+     still working. Check the provider job directly before failing the scene. */
+  const syncId = (await getLipSyncJob(subJobId))?.providerJobId;
+  const apiKey = getLipSyncApiKey();
+  if (syncId && apiKey) {
+    const recoverUntil = Date.now() + 10 * 60 * 1000;
+    while (Date.now() < recoverUntil) {
+      await new Promise((r) => setTimeout(r, 15000));
+      try {
+        const pj = await syncLabsStatus(syncId, apiKey);
+        const st = normalizeProviderStatus(pj);
+        if (st === "completed" && pj.outputUrl) {
+          await completeLipSyncJob(subJobId, pj.outputUrl);
+          return pj.outputUrl;
+        }
+        if (st === "failed")
+          throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("Sync Labs job failed"))
+          throw e;
+        /* transient — keep polling */
+      }
+    }
+  }
+  throw new Error("Lip-sync timed out for this scene — keeping the original clip.");
+}
+
+/** Poll the durable export job until it resolves. Returns the video URL. */
+async function waitForExportJob(exportJobId: string): Promise<string> {
+  const deadline = Date.now() + RUN_ALL_EXPORT_TIMEOUT_MS;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 10_000));
+    const job = await getExportJob(exportJobId).catch(() => undefined);
+    if (!job) throw new Error("Export job disappeared.");
+    if (job.state === "done") {
+      const result = (job.result ?? {}) as Record<string, unknown>;
+      const url =
+        typeof result["url"] === "string"
+          ? result["url"]
+          : typeof result["videoUrl"] === "string"
+            ? result["videoUrl"]
+            : null;
+      if (!url) throw new Error("Export finished but returned no video URL.");
+      return url;
+    }
+    if (job.state === "failed") {
+      const err = (job.error ?? {}) as { message?: string; code?: string };
+      throw new Error(err.message ?? "Export failed.");
+    }
+    if (Date.now() >= deadline)
+      throw new Error(
+        "The export did not finish in time. Check the Export tab on the site.",
+      );
+  }
+}
+
+interface RunAllSceneInput {
+  id: string | null;
+  clipUrl: string;
+}
+interface RunAllTiming {
+  start: number;
+  end: number;
+  dur: number;
+}
+interface RunAllContext {
+  userId: string;
+  projectId: string;
+  scenes: RunAllSceneInput[];
+  timings: RunAllTiming[];
+  resolvedAudio: { url: string; src: string; missing: boolean };
+  log: { info: (...args: unknown[]) => void; warn: (...args: unknown[]) => void; error: (...args: unknown[]) => void };
+  userSupabase: unknown;
+  userPlan?: string;
+}
+
+/**
+ * The background orchestrator. Fire-and-forget from the route — never throws
+ * (all failures are recorded on the run record for the status endpoint).
+ */
+async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
+  const now = () => new Date().toISOString();
+  const getRun = () => lipSyncRuns.get(runId);
+  const patchRun = (patch: Partial<RunAllRecord>) => {
+    const r = getRun();
+    if (r) lipSyncRuns.set(runId, { ...r, ...patch, updatedAt: now() });
+  };
+  const patchScene = (index: number, patch: Partial<RunAllScene>) => {
+    const r = getRun();
+    if (!r) return;
+    const scenes = r.scenes.map((s) =>
+      s.index === index ? { ...s, ...patch } : s,
+    );
+    lipSyncRuns.set(runId, { ...r, scenes, updatedAt: now() });
+  };
+
+  /* sceneId → successful lip-sync result; applied to the project in one save */
+  const lipSyncResults = new Map<
+    string,
+    { url: string; jobId: string }
+  >();
+
+  try {
+    /* ── 1. Lip-sync every scene (mirrors script §5) ── */
+    for (let i = 0; i < ctx.scenes.length; i++) {
+      const s = ctx.scenes[i]!;
+      const t = ctx.timings[i]!;
+      patchScene(i, { state: "syncing" });
+
+      if (t.dur > PROVIDER_LIMIT_SEC) {
+        patchScene(i, {
+          state: "skipped",
+          error: `Window is ${t.dur.toFixed(1)}s — exceeds the ${PROVIDER_LIMIT_SEC}s plan limit. Original clip kept.`,
+        });
+        continue;
+      }
+
+      /* Enqueue a durable server-owned job per scene — same pipeline as
+         POST /lip-sync/preview (trim → submit → poll), no duplicated
+         provider-call code. The background poller drives it; this run just
+         waits on the job row. */
+      const subJob = await createLipSyncJob({
+        userId: ctx.userId,
+        projectId: ctx.projectId,
+        sceneId: s.id,
+        params: {
+          clipUrl: s.clipUrl,
+          audioUrl: ctx.resolvedAudio.url,
+          sceneStartSec: t.start,
+          sceneEndSec: t.end,
+          provider: getLipSyncProviderName(),
+        },
+      });
+      const subJobId = subJob.id;
+      requestPollerTick();
+
+      try {
+        const url = await waitForLipSyncSubJob(subJobId);
+        if (s.id) lipSyncResults.set(s.id, { url, jobId: subJobId });
+        patchScene(i, { state: "done", lipSyncUrl: url });
+        ctx.log.info(
+          { runId, scene: i + 1, subJobId },
+          "[run-all] scene lip-synced",
+        );
+      } catch (err) {
+        patchScene(i, {
+          state: "failed",
+          error: err instanceof Error ? err.message : "Lip-sync failed",
+        });
+        ctx.log.warn(
+          { runId, scene: i + 1, err: err instanceof Error ? err.message : err },
+          "[run-all] scene kept original clip",
+        );
+      }
+    }
+
+    /* ── 2. Save the project with the new lip-sync clips (mirrors script §6) ──
+       Re-reads fresh output_data and merges per-scene clip entries instead of
+       wholesale-replacing editorSettings, so edits the user made while the
+       run was in flight are preserved. Uses the service-role client scoped by
+       id + user_id — same approach as PATCH /api/projects/:id. */
+    {
+      const admin = getSupabaseAdmin();
+      const { data: fresh, error: freshErr } = await admin
+        .from("projects")
+        .select("output_data")
+        .eq("id", ctx.projectId)
+        .eq("user_id", ctx.userId)
+        .single();
+      if (freshErr || !fresh)
+        throw new Error("Project not found — it may have been deleted.");
+      const freshOut = ((fresh?.output_data ?? {}) as Record<string, unknown>) as {
+        editorSettings?: Record<string, unknown>;
+      };
+      const freshSettings = (freshOut.editorSettings ?? {}) as Record<string, unknown>;
+      const freshClips = { ...((freshSettings["clips"] ?? {}) as Record<string, unknown>) };
+      for (const [sceneId, r] of lipSyncResults) {
+        freshClips[sceneId] = {
+          ...((freshClips[sceneId] ?? {}) as Record<string, unknown>),
+          useLipSync: true,
+          lipSyncStatus: "done",
+          lipSyncUrl: r.url,
+          lipSyncJobId: r.jobId,
+          lipSyncOffsetSeconds: 0,
+        };
+      }
+      const { error: updErr } = await admin
+        .from("projects")
+        .update({
+          output_data: {
+            ...(fresh?.output_data as Record<string, unknown>),
+            editorSettings: { ...freshSettings, clips: freshClips },
+          },
+        })
+        .eq("id", ctx.projectId)
+        .eq("user_id", ctx.userId);
+      if (updErr) throw new Error(`Project save failed: ${updErr.message}`);
+    }
+
+    const okCount = lipSyncResults.size;
+    ctx.log.info(
+      { runId, okCount, total: ctx.scenes.length },
+      "[run-all] project saved, building final export",
+    );
+
+    /* ── 3. Final export (mirrors script §7 — lip-sync-first clip URLs plus
+       the project's captions / watermark / branding / effects / transitions) ── */
+    patchRun({ exportState: "running" });
+
+    const resolvedClipUrls = ctx.scenes.map((s) => {
+      const r = s.id ? lipSyncResults.get(s.id) : undefined;
+      return r ? r.url : s.clipUrl;
+    });
+
+    /* Re-read settings fresh so the export uses the latest captions, watermark,
+       branding, effects, transitions and overlay choices. */
+    const admin = getSupabaseAdmin();
+    const { data: latest } = await admin
+      .from("projects")
+      .select("output_data")
+      .eq("id", ctx.projectId)
+      .eq("user_id", ctx.userId)
+      .single();
+    const latestOut = ((latest?.output_data ?? {}) as Record<string, unknown>) as {
+      editorSettings?: Record<string, unknown>;
+    };
+    const settings = (latestOut.editorSettings ?? {}) as Record<string, any>;
+    const clips = (settings["clips"] ?? {}) as Record<string, any>;
+    const ms = (settings["musicStudio"] ?? {}) as Record<string, any>;
+    const va = (ms["videoAudio"] ?? {}) as Record<string, any>;
+    const exp = (settings["export"] ?? {}) as Record<string, any>;
+
+    const payload: ExportRequestBody = {
+      projectId: ctx.projectId,
+      clipUrls: resolvedClipUrls,
+      audioUrl: ctx.resolvedAudio.url,
+      aspectRatio: exp["format"] ?? "16:9",
+      fadeAudioInSec: va["fadeIn"] ?? 0,
+      fadeAudioOutSec: va["fadeOut"] ?? 0,
+      loopAudio: va["loopAudio"] ?? false,
+      audioStartSec: va["startSec"] ?? 0,
+      matchVideoLength: va["matchVideoLength"] ?? true,
+      addWatermark:
+        settings["watermarkIncludeInExport"] !== false &&
+        (settings["watermarkType"] || "text") !== "none",
+      customWatermarkUrl: exp["customWatermarkUrl"] ?? null,
+      watermarkPosition: settings["watermarkPosition"] ?? "bottom-right",
+      watermarkSize: settings["watermarkSize"] ?? "medium",
+      watermarkMargin: settings["watermarkMargin"] ?? 16,
+      audioSource: va["source"] || "uploaded",
+      captions: settings["captions"] ?? { lines: [] },
+      branding: settings["branding"] ?? null,
+      exportRangeStart: null,
+      exportRangeEnd: null,
+      clipTransitions: ctx.scenes.map((s) => {
+        const c = (s.id && clips[s.id]) || {};
+        if (!c["transition"] || c["transition"] === "Cut") return null;
+        return {
+          type: c["transition"] as string,
+          duration: (c["transitionDuration"] as number | undefined) ?? 1.0,
+        };
+      }),
+      overlayItems: settings["overlayItems"] ?? [],
+      effects: settings["effects"]?.length ? settings["effects"] : null,
+      overlayEffects: settings["overlays"]?.length ? settings["overlays"] : null,
+      overlayEffectIntensity: settings["overlayIntensity"] ?? null,
+      fitMode: exp["fitMode"] ?? "fill",
+    };
+
+    const exportJob = await createExportJob(ctx.userId, ctx.projectId, payload);
+    patchRun({ exportJobId: exportJob.id });
+
+    const statusRef: ExportStatusRef = { current: null };
+    const exportCtx: ExportJobContext = {
+      body: payload,
+      userId: ctx.userId,
+      userPlan: ctx.userPlan,
+      userSupabase: ctx.userSupabase as ExportJobContext["userSupabase"],
+      log: ctx.log,
+      statusRef,
+    };
+    enqueueExport(() => runExportJobInBackground(exportJob.id, exportCtx));
+
+    const videoUrl = await waitForExportJob(exportJob.id);
+    patchRun({ state: "done", exportState: "done", videoUrl });
+    ctx.log.info({ runId, videoUrl }, "[run-all] DONE");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Run failed";
+    ctx.log.error({ runId, err: message }, "[run-all] failed");
+    patchRun({ state: "failed", error: message });
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   POST /api/lip-sync/run-all
+   One-click: lip-sync every exportable scene, then run the final export.
+   Returns immediately with a runId — the run continues in the background
+   even if the user navigates away. Poll GET /api/lip-sync/run/:runId.
+────────────────────────────────────────────────────────────────────────── */
+router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
+  try {
+    const { projectId } = (req.body ?? {}) as { projectId?: string };
+    if (!projectId || typeof projectId !== "string" || !projectId.trim()) {
+      res
+        .status(400)
+        .json({ error: "projectId is required.", code: "missing_project_id" });
+      return;
+    }
+    if (!isLipSyncServerKeyFound() || !getLipSyncApiKey()) {
+      res.status(503).json({
+        error: "Lip Sync provider not connected.",
+        code: "provider_not_connected",
+      });
+      return;
+    }
+
+    /* Credit gate mirrors POST /api/export-final-video: 5 credits are
+       deducted only when the export actually succeeds. */
+    const isDev = process.env["NODE_ENV"] === "development";
+    if (!isDev && (req.userCredits ?? 0) < EXPORT_CREDIT_COST) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "Not enough credits. Please buy more credits to continue.",
+      });
+      return;
+    }
+
+    /* Fetch the project (ownership-scoped, like PATCH /api/projects/:id). */
+    const { data: project, error: fetchErr } = await req.userSupabase!
+      .from("projects")
+      .select("id, input_data, output_data")
+      .eq("id", projectId.trim())
+      .eq("user_id", req.userId)
+      .single();
+    if (fetchErr || !project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
+    const outputData = (await refreshSupabaseStorageUrlsDeep(
+      (project.output_data ?? {}) as Record<string, unknown>,
+    )) as unknown as {
+      scenes?: unknown[];
+      editorSettings?: Record<string, any>;
+    };
+    const inputData = (project.input_data ?? {}) as Record<string, any>;
+
+    /* ── Scene discovery (mirrors script §2) ── */
+    const allScenes = (outputData.scenes ?? []) as Record<string, any>[];
+    const sceneUrl = (s: Record<string, any>): string | null =>
+      s["demoClipUrl"] || s["videoUrl"] || s["clipUrl"] || s["url"] || s["src"] || null;
+    const scenes = allScenes.filter(
+      (s) => sceneUrl(s) && s["selected"] !== false && s["approved"] !== false,
+    );
+    if (!scenes.length) {
+      res.status(400).json({
+        error: "No exportable scenes found in this project.",
+        code: "no_scenes",
+      });
+      return;
+    }
+
+    const settings = (outputData.editorSettings ?? {}) as Record<string, any>;
+    const clips = (settings["clips"] ?? {}) as Record<string, any>;
+    const ms = (settings["musicStudio"] ?? {}) as Record<string, any>;
+    const va = (ms["videoAudio"] ?? {}) as Record<string, any>;
+    const rawAudioUrl: string | null =
+      inputData["audioUrl"] ||
+      inputData["audio_url"] ||
+      ms["stems"]?.[0]?.["url"] ||
+      null;
+    if (!rawAudioUrl) {
+      res.status(400).json({
+        error: "No song audio URL on the project.",
+        code: "no_audio",
+      });
+      return;
+    }
+
+    /* Resolve the same audio the editor's Export tab would use (script §2). */
+    const src: string = va["source"] || "uploaded";
+    let resolvedAudio = { url: rawAudioUrl, src, missing: false };
+    if (src !== "uploaded" && src !== "none") {
+      const ex = ((ms["exports"] ?? []) as any[]).filter((e) => e && e["url"]);
+      resolvedAudio = ex.length
+        ? { url: ex[ex.length - 1]["url"] as string, src, missing: false }
+        : { url: rawAudioUrl, src, missing: true };
+    }
+
+    /* ── Song duration drives scene timing (script §3) ── */
+    let audioDuration: number | null =
+      (va["duration"] as number | undefined) ??
+      (inputData["songDuration"] as number | undefined) ??
+      (inputData["duration"] as number | undefined) ??
+      null;
+    if (!audioDuration) {
+      audioDuration = await probeAudioDurationSec(resolvedAudio.url);
+    }
+
+    /* ── Per-scene song windows (script §4: explicit timestamps → even song
+       distribution → manual overrides) ── */
+    const raw = scenes.map((s) => parseSceneTimestamp(s["timestamp"]));
+    const allDefault = raw.length > 0 && raw.every((r) => !r.explicit);
+    const durs: number[] =
+      allDefault && (audioDuration ?? 0) > 0
+        ? scenes.map(() => (audioDuration as number) / scenes.length)
+        : raw.map((r) => r.d);
+    const timings: RunAllTiming[] = [];
+    let acc = 0;
+    for (let i = 0; i < scenes.length; i++) {
+      const d = durs[i] ?? 5;
+      let start = acc;
+      if (settings["timelineLayout"] === "manual") {
+        const me = clips[scenes[i]!["id"]]?.["manualStartSec"];
+        if (typeof me === "number" && me >= 0) start = me;
+      }
+      timings.push({ start, end: start + d, dur: d });
+      acc += d;
+    }
+
+    /* ── Create the run record and return immediately ── */
+    const runId = randomUUID();
+    const stamp = new Date().toISOString();
+    lipSyncRuns.set(runId, {
+      runId,
+      userId: req.userId!,
+      projectId: projectId.trim(),
+      state: "running",
+      scenes: scenes.map((s, i) => ({
+        index: i,
+        sceneId: (s["id"] as string | undefined) ?? null,
+        state: "queued" as RunAllSceneState,
+      })),
+      exportState: "pending",
+      createdAt: stamp,
+      updatedAt: stamp,
+    });
+
+    req.log.info(
+      { runId, projectId: projectId.trim(), scenes: scenes.length },
+      "[run-all] started",
+    );
+
+    void processRunAll(runId, {
+      userId: req.userId!,
+      projectId: projectId.trim(),
+      scenes: scenes.map((s) => ({
+        id: (s["id"] as string | undefined) ?? null,
+        clipUrl: sceneUrl(s) as string,
+      })),
+      timings,
+      resolvedAudio,
+      log: req.log ?? logger,
+      userSupabase: req.userSupabase,
+      userPlan: req.userPlan,
+    });
+
+    res.status(202).json({ runId, state: "running", sceneCount: scenes.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Run failed to start";
+    req.log.error({ err }, "[run-all] route error");
+    if (!res.headersSent) res.status(500).json({ error: msg });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────────────────
+   GET /api/lip-sync/run/:runId
+   Poll a one-click run-all job. Returns per-scene progress + export state.
+────────────────────────────────────────────────────────────────────────── */
+router.get("/lip-sync/run/:runId", requireAuth, (req, res) => {
+  const rawId = req.params["runId"];
+  const runId = Array.isArray(rawId) ? (rawId[0] ?? "") : (rawId ?? "");
+  const run = lipSyncRuns.get(runId);
+  if (!run || run.userId !== req.userId) {
+    res.status(404).json({ error: "Run not found or expired", code: "not_found" });
+    return;
+  }
+  res.json({
+    runId: run.runId,
+    projectId: run.projectId,
+    state: run.state,
+    sceneCount: run.scenes.length,
+    scenes: run.scenes,
+    exportState: run.exportState,
+    exportJobId: run.exportJobId ?? null,
+    videoUrl: run.videoUrl ?? null,
+    error: run.error ?? null,
+  });
 });
 
 export default router;

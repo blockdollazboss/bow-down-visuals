@@ -1,3 +1,5 @@
+import type { FetchImpl } from "@/hooks/use-confirmed-api";
+
 export function parseMarkdownSections(text: string): Record<string, string> {
   const sections: Record<string, string> = {};
   const parts = text.split(/^##\s+/m);
@@ -28,16 +30,19 @@ export interface GenerateResult {
 export async function callGenerateApi(
   endpoint: string,
   body: Record<string, unknown>,
-  token?: string | null
-): Promise<GenerateResult> {
+  token?: string | null,
+  /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
+  fetchImpl: FetchImpl = fetch,
+): Promise<GenerateResult | null> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(endpoint, {
+  const res = await fetchImpl(endpoint, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
   });
+  if (!res) return null; // user cancelled the credit confirmation
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Request failed" }));

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Zap, ArrowRight, Plus, Loader2 } from "lucide-react";
+import { Zap, ArrowRight, Plus, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const IS_DEV = import.meta.env.DEV;
 
-export function OutOfCredits() {
+export function OutOfCredits({ onClose }: { onClose?: () => void }) {
   const { getAccessToken, refreshProfile } = useAuth();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -34,7 +34,16 @@ export function OutOfCredits() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center text-center py-12 px-6 space-y-5 max-w-md mx-auto">
+    <div className="relative flex flex-col items-center justify-center text-center py-12 px-6 space-y-5 max-w-md mx-auto">
+      {onClose && (
+        <button
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="absolute top-2 right-2 p-1.5 rounded-full text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
       <div className="h-16 w-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
         <Zap className="h-8 w-8 text-primary" />
       </div>

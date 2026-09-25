@@ -119,7 +119,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
         { role: "system", content: systemPrompt },
         { role: "user", content: userParts.join("\n\n") },
       ],
-      max_tokens: 500,
+      max_completion_tokens: 500,
       temperature: 0.7,
     });
 

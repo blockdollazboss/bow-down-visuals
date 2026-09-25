@@ -3,14 +3,15 @@ import { requireAuth } from "../middlewares/require-auth";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
-import { recordRunwayClipHistory, recordCreditUsage } from "../lib/payment-record";
+import { recordRunwayClipHistory } from "../lib/payment-record";
+import { refundCredits } from "../lib/credits";
 import { chargedTasks } from "./generate/runway-clip";
 import { refreshSupabaseStorageUrl, normalizeToStorageRef } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
-const RUNWAY_CREDIT_COST = 5;
+const RUNWAY_CREDIT_COST = 4;
 
 const SaveClipSchema = z.object({
   projectId:    z.string().uuid().optional().nullable(),
@@ -94,34 +95,21 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
       charge.refunded = true; /* mark immediately to prevent double-refund */
 
       try {
-        const { data: freshProfile } = await req.userSupabase!
-          .from("profiles")
-          .select("credits")
-          .eq("id", req.userId!)
-          .single();
-        const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
-        const refundedCredits = freshCredits + charge.credits;
-
-        /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-        const { error: refundErr } = await getSupabaseAdmin()
-          .from("profiles")
-          .update({ credits: refundedCredits })
-          .eq("id", req.userId!);
-
-        if (refundErr) {
-          req.log.error({ err: refundErr, taskId }, "[generated-clips] refund FAILED — user lost credits");
-        } else {
+        // Refund with a ledger trace: the clip was generated but the save
+        // failed, so the user gets their credits back. refundCredits() restores
+        // the balance and writes a negative ledger entry; a ledger failure is
+        // logged loudly (money is already back — reporting gap, not a loss).
+        try {
+          await refundCredits(req.userId!, charge.credits, {
+            action: "Runway Video Clip — Refund (save failed)",
+            projectId: d.projectId ?? null,
+          });
           req.log.info(
-            { taskId, userId: req.userId, refundedCredits: charge.credits, newTotal: refundedCredits },
+            { taskId, userId: req.userId, refundedCredits: charge.credits },
             "[generated-clips] refund completed",
           );
-          /* Record the refund as a negative credit_usage so Credit History reflects it */
-          recordCreditUsage({
-            userId:      req.userId!,
-            action:      "Runway Video Clip — Refund (save failed)",
-            creditsUsed: -charge.credits,
-            projectId:   d.projectId ?? null,
-          }).catch(() => {});
+        } catch (refundErr) {
+          req.log.error({ err: refundErr, taskId }, "[generated-clips] refund FAILED — user lost credits");
         }
       } catch (refundEx) {
         req.log.error({ err: refundEx, taskId }, "[generated-clips] refund threw — user may have lost credits");

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { SceneData } from "@/lib/scene-parser";
 import type {
   CaptionSettings,
@@ -428,6 +429,7 @@ export function ExportDoctor({
   audioStartSec,
   audioDurationSec,
 }: ExportDoctorProps) {
+  const { confirmedFetch } = useConfirmedApi();
   const { getAccessToken } = useAuth();
 
   // Deduplicate the scenes array by scene id.
@@ -873,12 +875,12 @@ export function ExportDoctor({
     setLastError(null);
     setExportResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export", {
+      const res = await confirmedFetch("/api/export-doctor/export", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ doctorId }),
         signal: AbortSignal.timeout(3 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setExportResult(data);
@@ -895,12 +897,12 @@ export function ExportDoctor({
     setLastError(null);
     setAudioExportResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-audio", {
+      const res = await confirmedFetch("/api/export-doctor/export-audio", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ doctorId, audioUrl: masterAudioUrl ?? null }),
         signal: AbortSignal.timeout(3 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setAudioExportResult(data);
@@ -947,12 +949,12 @@ export function ExportDoctor({
     setBusy(`repair-normalize-${sceneNumber}`);
     setLastError(null);
     try {
-      const res = await fetch("/api/export-doctor/repair-normalize", {
+      const res = await confirmedFetch("/api/export-doctor/repair-normalize", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ multiId, sceneNumber }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<RepairNormalizeResult>(res);
       if (!res.ok)
         throw new Error(
@@ -988,12 +990,12 @@ export function ExportDoctor({
     setBusy(`repair-${sceneNumber}`);
     setLastError(null);
     try {
-      const res = await fetch("/api/export-doctor/repair-clip", {
+      const res = await confirmedFetch("/api/export-doctor/repair-clip", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ multiId, sceneNumber }),
         signal: AbortSignal.timeout(3 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<RepairClipResult>(res);
       if (!res.ok)
         throw new Error(
@@ -1063,12 +1065,12 @@ export function ExportDoctor({
     setLastError(null);
     setExportAllResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-all", {
+      const res = await confirmedFetch("/api/export-doctor/export-all", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({ multiId }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setExportAllResult(data);
@@ -1086,7 +1088,7 @@ export function ExportDoctor({
     setLastError(null);
     setExportAllAudioResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-all-audio", {
+      const res = await confirmedFetch("/api/export-doctor/export-all-audio", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1096,7 +1098,7 @@ export function ExportDoctor({
           syncMode: syncMode ?? "keep-as-is",
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setExportAllAudioResult(data);
@@ -1178,9 +1180,9 @@ export function ExportDoctor({
         CLIENT_TIMEOUT_MS,
       );
 
-      let res: Response;
+      let res: Response | null;
       try {
-        res = await fetch("/api/export-doctor/export-audio-sync-short", {
+        res = await confirmedFetch("/api/export-doctor/export-audio-sync-short", {
           method: "POST",
           headers: await authHeaders(),
           body: JSON.stringify({
@@ -1195,6 +1197,7 @@ export function ExportDoctor({
       } finally {
         clearTimeout(timeoutId);
       }
+      if (!res) return; // user cancelled the credit confirmation
 
       setShortTestDebug((prev) => ({
         ...prev,
@@ -1257,9 +1260,9 @@ export function ExportDoctor({
         CLIENT_TIMEOUT_MS,
       );
 
-      let res: Response;
+      let res: Response | null;
       try {
-        res = await fetch("/api/export-doctor/export-audio-sync-short", {
+        res = await confirmedFetch("/api/export-doctor/export-audio-sync-short", {
           method: "POST",
           headers: await authHeaders(),
           body: JSON.stringify({
@@ -1275,6 +1278,7 @@ export function ExportDoctor({
       } finally {
         clearTimeout(timeoutId);
       }
+      if (!res) return; // user cancelled the credit confirmation
 
       const data = await readJson<
         AudioSyncDiagResult & { lastStep?: string; elapsedMs?: number }
@@ -1299,7 +1303,7 @@ export function ExportDoctor({
     setLastError(null);
     setExportAllCaptionsResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-all-captions", {
+      const res = await confirmedFetch("/api/export-doctor/export-all-captions", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1308,7 +1312,7 @@ export function ExportDoctor({
           captions: captions ?? null,
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       // Persist the body even on non-2xx so the real FFmpeg subtitle error + stderrTail survive.
       setExportAllCaptionsResult(data);
@@ -1330,7 +1334,7 @@ export function ExportDoctor({
     setLastError(null);
     setExportAllEffectsResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-all-effects", {
+      const res = await confirmedFetch("/api/export-doctor/export-all-effects", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1341,7 +1345,7 @@ export function ExportDoctor({
           conflictMode,
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       // Persist the body even on non-2xx so the real FFmpeg error + stderrTail survive.
       setExportAllEffectsResult(data);
@@ -1363,7 +1367,7 @@ export function ExportDoctor({
     setLastError(null);
     setExportAllOverlaysResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-all-overlays", {
+      const res = await confirmedFetch("/api/export-doctor/export-all-overlays", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1381,7 +1385,7 @@ export function ExportDoctor({
           conflictMode,
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       setExportAllOverlaysResult(data);
       if (!res.ok) {
@@ -1402,7 +1406,7 @@ export function ExportDoctor({
     setLastError(null);
     setOverlayMatchResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-overlays-range", {
+      const res = await confirmedFetch("/api/export-doctor/export-overlays-range", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1420,7 +1424,7 @@ export function ExportDoctor({
           durationSec: 3,
         }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       setOverlayMatchResult(data);
       if (!res.ok) {
@@ -1441,7 +1445,7 @@ export function ExportDoctor({
     setLastError(null);
     setEffectMatchResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-effects-range", {
+      const res = await confirmedFetch("/api/export-doctor/export-effects-range", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1454,7 +1458,7 @@ export function ExportDoctor({
           durationSec: 3,
         }),
         signal: AbortSignal.timeout(5 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       setEffectMatchResult(data);
       if (!res.ok) {
@@ -1475,7 +1479,7 @@ export function ExportDoctor({
     setLastError(null);
     setTransitionsResult(null);
     try {
-      const res = await fetch("/api/export-doctor/export-effects-transitions", {
+      const res = await confirmedFetch("/api/export-doctor/export-effects-transitions", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1486,7 +1490,7 @@ export function ExportDoctor({
           transitions: appliedTransitions ?? [],
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
-      });
+      });      if (!res) return; // user cancelled the credit confirmation (finally resets busy state)
       const data = await readJson<ExportResult>(res);
       setTransitionsResult(data);
       if (!res.ok) {
@@ -1590,7 +1594,7 @@ export function ExportDoctor({
         sceneLabel: metaSceneLabel,
       });
 
-      const expRes = await fetch("/api/export-doctor/export-audio", {
+      const expRes = await confirmedFetch("/api/export-doctor/export-audio", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -1602,6 +1606,7 @@ export function ExportDoctor({
         }),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
+      if (!expRes) return; // user cancelled the credit confirmation (finally resets busy state)
       const expData = await readJson<ExportResult>(expRes);
       setLipSyncExportResult(expData);
       const exportErr =

@@ -8,12 +8,13 @@ import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, VIDEO_EXPORTS_BUCKET, SUPABASE_SIGNED_URL_TTL_SEC } from "../../lib/objectStorage";
-import { recordCreditUsage } from "../../lib/payment-record";
+import { recordCreditUsageStrict } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
+import { buildProToolsFilterChain, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
@@ -554,12 +555,74 @@ async function stitchClipsPairwise(args: {
   // waiting for a frame that never comes). The output trim keeps the concat
   // timeline math exact. d is clamped to <= 80% of the clip, so d+0.1 of B-side
   // always exists (and trim just yields what's there in any degenerate case).
+  // ── Custom cinematic transitions ──────────────────────────────────────
+  // xfade's built-in set can't do a real glitch (RGB-split bursts + slice
+  // displacement + noise around a hard cut) or a real light leak (warm bloom
+  // wash + drifting hotspot over a dissolve). Both are built here as bespoke
+  // filter graphs; every other transition type keeps the xfade path below.
+  // All filters used exist in ffmpeg 5.x (Render) — verified against 5.x docs.
+  const buildGlitchTransition = async (j: number, d: number, aPath: string, aDur: number, outPath: string): Promise<void> => {
+    const c = d / 2; // hard cut point: A-tail (c) + B-head (c), glitch bursts around it
+    const fc =
+      `[0:v]trim=start=${f3(Math.max(0, aDur - c))}:end=${f3(aDur)},setpts=PTS-STARTPTS[ah];` +
+      `[1:v]trim=start=0:end=${f3(c)},setpts=PTS-STARTPTS[bh];` +
+      `[ah][bh]concat=n=2:v=1:a=0[base];` +
+      // RGB-split bursts, stepped in intensity toward the cut (gbrp sandwich:
+      // rgbashift is only guaranteed on packed RGB in ffmpeg 5.x)
+      `[base]format=gbrp,` +
+      `rgbashift=rh=14:bh=-14:enable='between(t,${f3(c - 0.35 * d)},${f3(c - 0.20 * d)})',` +
+      `rgbashift=rh=30:rv=8:bh=-30:bv=-8:enable='between(t,${f3(c - 0.14 * d)},${f3(c - 0.02 * d)})',` +
+      `rgbashift=rh=30:bh=-30:enable='between(t,${f3(c + 0.02 * d)},${f3(c + 0.14 * d)})',` +
+      `rgbashift=rh=12:bh=-12:enable='between(t,${f3(c + 0.20 * d)},${f3(c + 0.35 * d)})',` +
+      `format=yuv420p[g4];` +
+      // Film-grain noise across the burst windows
+      `[g4]noise=alls=18:allf=t:enable='between(t,${f3(c - 0.35 * d)},${f3(c - 0.02 * d)})+between(t,${f3(c + 0.02 * d)},${f3(c + 0.35 * d)})'[g5];` +
+      // White flash frame straddling the cut
+      `[g5]eq=brightness=0.35:enable='between(t,${f3(c - 0.03)},${f3(c + 0.03)})'[g6];` +
+      // Displaced slice band during the hot zone
+      `[g6]split=2[g6a][g6b];` +
+      `[g6a]crop=iw:ih*0.22:0:ih*0.39[slice];` +
+      `[g6b][slice]overlay=26:H*0.39:enable='between(t,${f3(c - 0.14 * d)},${f3(c + 0.14 * d)})'[g7];` +
+      `[g7]trim=end=${f3(d)},setpts=PTS-STARTPTS[out]`;
+    log.info({ trans: j, type: "glitch", dur: d }, "[export][phase1] building custom glitch transition");
+    await runFfmpeg(["-threads", "2", "-i", aPath, "-i", clipPaths[j]!, "-filter_complex", fc, "-map", "[out]",
+      ...pieceEncodeTail(outPath)], d * 2 + 1, `Scene ${j + 1} glitch transition`);
+    transPaths[j] = outPath;
+  };
+
+  const buildLightLeakTransition = async (j: number, d: number, aPath: string, aDur: number, outPath: string): Promise<void> => {
+    const fc =
+      `[0:v]trim=start=${f3(Math.max(0, aDur - d - 0.05))},setpts=PTS-STARTPTS[a];` +
+      `[1:v]trim=end=${f3(d + 0.1)},setpts=PTS-STARTPTS[b];` +
+      `[a][b]xfade=transition=fade:duration=${f3(d)}:offset=0[x0];` +
+      `[x0]trim=end=${f3(d)},setpts=PTS-STARTPTS[x];` +
+      // Warm wash: full-frame amber, blurred soft, swells to 42% opacity mid-transition
+      `color=c=0xff7a1a:size=64x36:d=${f3(d)}:r=30,format=rgba[washsrc];` +
+      `[washsrc][x]scale2ref=w=iw:h=ih[washfit][x2];` +
+      `[washfit]gblur=sigma=25,fade=t=in:st=0:d=${f3(d / 2)}:alpha=1,fade=t=out:st=${f3(d / 2)}:d=${f3(d / 2)}:alpha=1,colorchannelmixer=aa=0.42[wash];` +
+      `[x2][wash]overlay=0:0:format=yuv420[xw];` +
+      // Hotspot: soft radial blob (geq falloff — no hard edges), drifts left→right
+      // and upward while swelling to 80% opacity, then decays
+      `nullsrc=size=128x128:d=${f3(d)}:r=30,format=rgba,geq=r='255':g='217':b='176':a='255*exp(-(pow(X-64,2)+pow(Y-64,2))/(2*pow(30,2)))'[hotsrc];` +
+      `[hotsrc][xw]scale2ref=w=iw/2.2:h=ih/2.2[hotfit][xw2];` +
+      `[hotfit]fade=t=in:st=${f3(d * 0.125)}:d=${f3(d * 0.375)}:alpha=1,fade=t=out:st=${f3(d * 0.5)}:d=${f3(d * 0.375)}:alpha=1,colorchannelmixer=aa=0.8[hot];` +
+      `[xw2][hot]overlay='(W-w)*(t/${f3(d)})':'H*0.7*(1-t/${f3(d)})':format=yuv420[leak];` +
+      `[leak]eq=saturation=1.25:brightness=0.03,trim=end=${f3(d)},setpts=PTS-STARTPTS[out]`;
+    log.info({ trans: j, type: "light-leak", dur: d }, "[export][phase1] building custom light-leak transition");
+    await runFfmpeg(["-threads", "2", "-i", aPath, "-i", clipPaths[j]!, "-filter_complex", fc, "-map", "[out]",
+      ...pieceEncodeTail(outPath)], d * 2 + 1, `Scene ${j + 1} light-leak transition`);
+    transPaths[j] = outPath;
+  };
+
   const buildTransition = async (j: number): Promise<void> => {
     const d = transDur[j]!;
     if (!(d > 0)) return; // hard cut — no transition file
     const aPath = piecePath[j - 1]!;
     const aDur = pieceDur[j - 1]!;
     const outPath = track(path.join(tmpDir, `bdv-trans-${exportId}-${j}.mp4`));
+    const tType = transitions[j]?.type ?? "Crossfade";
+    if (tType === "Glitch") { await buildGlitchTransition(j, d, aPath, aDur, outPath); return; }
+    if (tType === "Light Leak") { await buildLightLeakTransition(j, d, aPath, aDur, outPath); return; }
     const fc =
       `[0:v]trim=start=${f3(Math.max(0, aDur - d - 0.05))},setpts=PTS-STARTPTS[a];` +
       `[1:v]trim=end=${f3(d + 0.1)},setpts=PTS-STARTPTS[b];` +
@@ -648,7 +711,8 @@ function cleanup(...files: string[]) {
 }
 
 /* ── POST /api/export-final-video ────────────────────── */
-const EXPORT_CREDIT_COST = 5;
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export const EXPORT_CREDIT_COST = 4;
 
 export interface ExportRequestBody {
     projectId: string;
@@ -689,6 +753,12 @@ export interface ExportRequestBody {
     prepareId?: string | null;
     /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
     clipTransitions?: ({ type: string; duration: number } | null)[] | null;
+    /** Per-clip Pro Tools settings (color correction, chroma key, speed,
+     *  reverse, rotate/flip, crop) — index matches clipUrls. null/absent =
+     *  neutral (no extra filter pass). Applied per clip BEFORE normalization
+     *  so speed-changed durations and crop/rotate dims flow through the
+     *  pipeline's duration probing and concat-compat scaling. */
+    clipProTools?: (ProToolsFilterInput | null)[] | null;
     /** Freeform/manual layout: seconds of freeze-frame padding to hold immediately
      *  BEFORE each clip (index-aligned with clipUrls, already in playback order) —
      *  index 0's value is the leading gap before the first clip ever appears
@@ -728,7 +798,8 @@ export interface ExportRequestBody {
     }[] | null;
 }
 
-interface ExportJobContext {
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export interface ExportJobContext {
   body: ExportRequestBody;
   userId: string;
   userPlan?: string;
@@ -768,6 +839,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     exportRangeEnd,
     prepareId,
     clipTransitions,
+    clipProTools,
     overlayItems,
     manualGapsBeforeSec,
     effects,
@@ -1131,10 +1203,44 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const normPath = path.join(tmpDir, `bdv-norm-${exportId}-${origIdx}.mp4`);
       tmpFiles.push(normPath);
 
+      // ── 1c-i: Pro Tools per-clip filter pass (color correction, chroma key,
+      //    speed, reverse, rotate/flip, crop). Runs BEFORE normalizeClip so
+      //    speed-changed durations are probed correctly downstream and
+      //    crop/rotate dimension changes are absorbed by normalizeClip's
+      //    scale-to-target. Skipped entirely when the clip's tools are neutral.
+      let ptSrcPath = srcPath;
+      const proToolsInput = Array.isArray(clipProTools) ? clipProTools[origIdx] : null;
+      const ptChain = proToolsInput ? buildProToolsFilterChain(proToolsInput) : "";
+      if (ptChain) {
+        const ptPath = path.join(tmpDir, `bdv-protools-${exportId}-${origIdx}.mp4`);
+        tmpFiles.push(ptPath);
+        exportStatus.ffmpegStage = `pro tools clip ${j + 1}/${selectedClipOrigIndices.length}`;
+        ctx.log.info({ scene: origIdx + 1, filter: ptChain }, "[export] applying pro-tools filter chain");
+        try {
+          // Same intermediate encoding as pieceEncodeTail() (libx264 ultrafast,
+          // 90000 timescale) so downstream concat/xfade timebases match.
+          await execFileAsync("ffmpeg", [
+            "-threads", "2", "-i", srcPath,
+            "-filter_complex", ptChain, "-map", "[ptout]",
+            "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
+            "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+            "-an", "-movflags", "+faststart", "-y", ptPath,
+          ], { timeout: 300_000 });
+        } catch (e: unknown) {
+          const err = e as { stderr?: string };
+          ctx.log.error({ stderr: err.stderr ?? String(e) }, "[export] pro-tools pass failed");
+          throw new Error(`Scene ${origIdx + 1} pro-tools filter failed: ${(err.stderr ?? String(e)).slice(-2000)}`);
+        }
+        if (!existsSync(ptPath) || statSync(ptPath).size < 1024) {
+          throw new Error(`Scene ${origIdx + 1} pro-tools pass produced no video — output file missing or empty`);
+        }
+        ptSrcPath = ptPath;
+      }
+
       exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
       ctx.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
 
-      await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
+      await normalizeClip(ptSrcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
 
       if (!existsSync(normPath) || statSync(normPath).size < 1024) {
         throw new Error(`Scene ${origIdx + 1} failed to normalize — output file missing or empty`);
@@ -2306,7 +2412,8 @@ function normalizeJobError(err: unknown): ExportJobError {
 }
 
 /** Run one export job in the background, mirroring render stages onto the job. */
-async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
+/** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
+export async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): Promise<void> {
   // Claim the durable job row first: on a restart this same jobId may be
   // re-queued by boot recovery, and the claim (attempts + 1) is what keeps
   // a poison job from looping forever.
@@ -2340,7 +2447,14 @@ async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): P
       try {
         const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, EXPORT_CREDIT_COST);
         if (charged) {
-          recordCreditUsage({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null }).catch(() => {});
+          // Strict ledger write: the export was delivered, so on failure the
+          // deduction stands and the gap is logged CRITICAL for manual
+          // reconciliation — never silently swallowed.
+          try {
+            await recordCreditUsageStrict({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null });
+          } catch (ledgerErr) {
+            ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
+          }
           ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
         } else {
           ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");

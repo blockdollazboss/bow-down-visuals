@@ -2,14 +2,24 @@ import { useState, useEffect } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
-  Shield, RefreshCw, ChevronDown, ChevronUp,
+  Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle,
 } from "lucide-react";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { FacebookIcon } from "@/components/ui/facebook-icon";
+import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { InstagramPostModal } from "@/components/InstagramPostModal";
+import { FacebookPostModal } from "@/components/FacebookPostModal";
+import { TikTokPostModal } from "@/components/TikTokPostModal";
+import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
+import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
-import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
+import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
+import { proToolsActive } from "@/lib/editor-settings";
 import { computeManualTimings } from "@/lib/scene-timing";
 import { pollExportJob } from "@/lib/export-job-poll";
 
@@ -128,6 +138,9 @@ interface FinalVideoExportProps {
   rangeInvalidReason?: string;
   /** Per-clip transition overrides: index matches clipUrls, null = Cut */
   clipTransitions?: ({ type: string; duration: number } | null)[];
+  /** Per-clip Pro Tools settings (color/chroma/speed/reverse/rotate/flip/crop):
+   *  index matches clipUrls (pre-manual-layout order), null = neutral. */
+  clipProTools?: (ProToolsSettings | null)[];
   /** Structured overlay items to burn in */
   overlayItems?: OverlayItem[];
   /** "manual" enables freeform clip placement — clips are reordered by manualStartSec and
@@ -217,6 +230,7 @@ export function FinalVideoExport({
   rangeInvalid = false,
   rangeInvalidReason,
   clipTransitions,
+  clipProTools,
   overlayItems,
   timelineLayout = "auto",
   clipEdits,
@@ -228,6 +242,7 @@ export function FinalVideoExport({
   fitMode,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
   const isManualLayout = timelineLayout === "manual";
@@ -241,6 +256,7 @@ export function FinalVideoExport({
 
   let selectedScenes = baseSelectedScenes;
   let orderedClipTransitions = clipTransitions;
+  let orderedClipProTools = clipProTools;
   let manualGapsBeforeSec: number[] | null = null;
 
   if (isManualLayout && manualResult) {
@@ -268,6 +284,11 @@ export function FinalVideoExport({
     manualGapsBeforeSec = orderedIndices.map((idx) => {
       const timing = manualResult.timings[idx]!;
       return Math.max(0, timing.gapBeforeSec ?? 0);
+    });
+    // Pro tools follow the same playback-order remap as transitions.
+    orderedClipProTools = orderedIndices.map((idx) => {
+      const scene = scenes[idx]!;
+      return clipProTools?.[baseSelectedScenes.findIndex((s) => s.id === scene.id)] ?? null;
     });
   }
 
@@ -312,6 +333,11 @@ export function FinalVideoExport({
   const [confirmed, setConfirmed]       = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [showFacebookPostModal, setShowFacebookPostModal] = useState(false);
+  const [showTikTokModal, setShowTikTokModal] = useState(false);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
   const [prepareId, setPrepareId]               = useState<string | null>(null);
@@ -436,7 +462,7 @@ export function FinalVideoExport({
     const token = await getAccessToken();
     const timelineOrder = scenes.map((s) => s.id);
 
-    const res = await fetch("/api/export-final-video", {
+    const res = await confirmedFetch("/api/export-final-video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -466,6 +492,7 @@ export function FinalVideoExport({
         exportRangeStart: typeof effectiveExportRangeStart === "number" ? effectiveExportRangeStart : null,
         exportRangeEnd:   typeof effectiveExportRangeEnd   === "number" ? effectiveExportRangeEnd   : null,
         clipTransitions:  orderedClipTransitions ?? null,
+        clipProTools:    orderedClipProTools?.some((p) => p && proToolsActive(p)) ? orderedClipProTools : null,
         manualGapsBeforeSec: manualGapsBeforeSec ?? null,
         effects:               effects?.length ? effects : null,
         overlayItems:          overlayItems?.length ? overlayItems : null,
@@ -476,6 +503,7 @@ export function FinalVideoExport({
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
+    if (!res) return null; // user cancelled the credit confirmation
 
     if (!res.ok) {
       const body = await parseJsonResponse<{
@@ -604,6 +632,7 @@ export function FinalVideoExport({
           throw err;
         }
       }
+      if (!result) return; // user cancelled the credit confirmation
 
       const { data, timelineOrder } = result;
 
@@ -707,21 +736,80 @@ export function FinalVideoExport({
               <p className="text-[11px] text-white/40 leading-relaxed">
                 Share it and tag <span className="text-primary font-bold">@bowdownvisuals</span> for a chance to be featured.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
-                    window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const ig = fresh.find((a) => a.platform === "instagram" && !a.expired);
+                    if (!ig) {
+                      toast({
+                        title: "Connect Instagram first",
+                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowPostModal(true);
                   }}
-                  className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
                 >
-                  𝕏 Post
+                  <InstagramIcon className="h-3.5 w-3.5" />
+                  Post to Instagram
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const tt = fresh.find((a) => a.platform === "tiktok" && !a.expired);
+                    if (!tt) {
+                      toast({
+                        title: "Connect TikTok first",
+                        description: "Head to Settings → Connected Accounts, then send to drafts in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowTikTokModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <TikTokIcon className="h-3.5 w-3.5" />
+                  Post to TikTok
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const fb = fresh.find((a) => a.platform === "facebook" && !a.expired);
+                    if (!fb) {
+                      toast({
+                        title: "Connect Facebook first",
+                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowFacebookPostModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#1877F2]/40 bg-[#1877F2]/[0.08] text-[#6ea8fe] hover:bg-[#1877F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <FacebookIcon className="h-3.5 w-3.5" />
+                  Post to Facebook
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDiscordModal(true)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/[0.08] text-[#8b9bff] hover:bg-[#5865F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Announce to Discord
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    navigator.clipboard?.writeText("Made with Bow Down Visuals 🔥 bowdownvisuals.com");
+                    navigator.clipboard?.writeText("Just made this with @bowdownvisuals 🔥 bowdownvisuals.com");
+                    toast({ title: "Caption copied", description: "Paste it with your post and tag @bowdownvisuals." });
                   }}
                   className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold"
                 >
@@ -730,6 +818,41 @@ export function FinalVideoExport({
               </div>
             </div>
           </div>
+        )}
+
+        {showPostModal && exportUrl && (
+          <InstagramPostModal
+            open={showPostModal}
+            onClose={() => setShowPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts}
+          />
+        )}
+
+        {showTikTokModal && exportUrl && (
+          <TikTokPostModal
+            open={showTikTokModal}
+            onClose={() => setShowTikTokModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts}
+          />
+        )}
+
+        {showFacebookPostModal && exportUrl && (
+          <FacebookPostModal
+            open={showFacebookPostModal}
+            onClose={() => setShowFacebookPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts.filter((a) => a.platform === "facebook")}
+          />
+        )}
+
+        {showDiscordModal && exportUrl && (
+          <DiscordAnnounceModal
+            open={showDiscordModal}
+            onClose={() => setShowDiscordModal(false)}
+            videoUrl={exportUrl}
+          />
         )}
 
         {/* ── Failed ── */}
@@ -801,7 +924,8 @@ export function FinalVideoExport({
 
             {/* Caption export debug */}
             {(() => {
-              const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal"];
+              const KNOWN_PRESETS = ["clean-white", "gold-hiphop", "karaoke", "boxed", "viral-shorts", "minimal",
+                "drill", "luxury", "rnb", "kids", "neon-glow", "pill-pop", "brutalist", "karaoke-word"];
               const captionsFound = !!(captions && captions.lines && captions.lines.length > 0);
               const captionCount = captions?.lines?.length ?? 0;
               const styleFound = KNOWN_PRESETS.includes(captions?.stylePreset ?? "");

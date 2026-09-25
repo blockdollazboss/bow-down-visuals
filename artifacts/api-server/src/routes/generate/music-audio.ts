@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { db, artistVaultsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { swapSongVocalsToVoice } from "../../lib/voice-swap";
 
 const router = Router();
 const BUCKET = "audio-stems";
-const CREDIT_COST = 5;
+const CREDIT_COST = 4;
 const MIN_LENGTH_MS = 10_000;
 const MAX_LENGTH_MS = 300_000;
 const DEFAULT_LENGTH_MS = 60_000;
@@ -55,6 +55,9 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
   }
 
   const musicLengthMs = clampLengthMs(lengthSeconds);
+  // Pin the music model explicitly — the API default can lag behind releases.
+  // Override with ELEVENLABS_MUSIC_MODEL if a newer model ships.
+  const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
 
   try {
     const elevenRes = await fetch("https://api.elevenlabs.io/v1/music", {
@@ -66,6 +69,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
       body: JSON.stringify({
         prompt: prompt.trim().slice(0, 2000),
         music_length_ms: musicLengthMs,
+        model_id: musicModel,
       }),
     });
 
@@ -150,7 +154,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Audio" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -159,12 +163,15 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Generate Audio", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({
       url: data.publicUrl,

@@ -20,7 +20,7 @@ import { promises as fs } from "node:fs";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { recordCreditUsage } from "../lib/payment-record";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
@@ -28,6 +28,7 @@ import {
   parseSupabaseStorageRefBucketed,
 } from "../lib/objectStorage";
 import { separateVocalStems, cleanupWorkdir } from "../lib/stem-separation";
+import { canUseInstantVoiceCloning } from "../lib/elevenlabs";
 
 const router = Router();
 
@@ -252,8 +253,42 @@ router.delete("/artist-vaults/:id/voice", requireAuth, async (req, res) => {
      - a multipart "song" file upload, or
      - { "songId": "<songs-library-id>" }, or
      - { "songUrl": "https://..." }.
-   Costs 2 site credits (Demucs isolation + clone); refunded on failure. */
+   Costs 2 site credits (Demucs isolation + clone); refunded on failure.
+   Before any credits move or any heavy work, the handler checks the
+   ElevenLabs subscription for instant-voice-cloning eligibility: a plan
+   without it can never succeed here, and Demucs on a full song can OOM a
+   small container (2026-09-25 incident). The check fails open.
+   Isolation uses a lighter Demucs model (FROM_SONG_DEMUCS_MODEL, default
+   htdemucs) — the vocals only need to be intelligible IVC input.
+   Before Demucs runs, the song is trimmed to its loudest
+   FROM_SONG_TRIM_SECONDS-second window (default 90): ElevenLabs IVC only
+   needs ~30s of clean vocals, and Demucs on a full-length song timed out
+   after 10 min on the 2GB Render box (2026-09-25 incident). */
 const FROM_SONG_CREDIT_COST = 2;
+const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
+
+/**
+ * Env override for the pre-Demucs window selection strategy: "vocal"
+ * (default — picks the 90s with the most vocal activity, best for IVC)
+ * or "loudest" (legacy — picks the highest-loudness 90s). Exported for tests.
+ */
+export function resolveFromSongWindowStrategy(
+  env: NodeJS.ProcessEnv = process.env,
+): "vocal" | "loudest" {
+  return env["FROM_SONG_WINDOW_STRATEGY"] === "loudest" ? "loudest" : "vocal";
+}
+const FROM_SONG_WINDOW_STRATEGY = resolveFromSongWindowStrategy();
+
+/**
+ * Env override for the pre-Demucs trim window (seconds). Exported for tests.
+ * Falls back to 90 on missing/invalid values — an invalid trim must never
+ * silently disable the protection against full-song Demucs runs.
+ */
+export function resolveFromSongTrimSeconds(env: NodeJS.ProcessEnv = process.env): number {
+  const v = Number(env["FROM_SONG_TRIM_SECONDS"] ?? 90);
+  return Number.isFinite(v) && v > 0 ? v : 90;
+}
+const FROM_SONG_TRIM_SECONDS = resolveFromSongTrimSeconds();
 
 async function loadSongBuffer(
   file: Express.Multer.File | undefined,
@@ -305,42 +340,63 @@ router.post(
       res.status(503).json({ error: "Voice service is not configured on this server." });
       return;
     }
-    const vault = await getOwnedVault(req.params.id as string, req.userId!);
-    if (!vault) {
-      res.status(404).json({ error: "Artist not found." });
-      return;
-    }
 
-    const currentCredits = req.userCredits ?? 0;
-    const isDev = process.env["NODE_ENV"] === "development";
-    if (!isDev && currentCredits < FROM_SONG_CREDIT_COST) {
+    // IVC eligibility BEFORE any credits move or any heavy work. Fail open:
+    // if the check itself errors, proceed as before.
+    const ivcAllowed = await canUseInstantVoiceCloning(apiKey).catch(() => true);
+    if (!ivcAllowed) {
       res.status(402).json({
-        error: "out_of_credits",
-        message: "You are out of credits. Upgrade to keep creating.",
-        required: FROM_SONG_CREDIT_COST,
+        error:
+          "Your ElevenLabs plan does not include instant voice cloning. Upgrade your ElevenLabs plan to use song-based voice cloning.",
+        code: "ivc_not_included",
       });
       return;
     }
-    if (!isDev) {
-      await getSupabaseAdmin()
-        .from("profiles")
-        .update({ credits: currentCredits - FROM_SONG_CREDIT_COST })
-        .eq("id", req.userId!);
-    }
 
-    const refund = () =>
-      !isDev
-        ? getSupabaseAdmin()
-            .from("profiles")
-            .update({ credits: currentCredits })
-            .eq("id", req.userId!)
-            .then(
-              () => {},
-              () => {},
-            )
-        : Promise.resolve();
-
+    // Everything below returns JSON: the vault lookup and credit deduction
+    // live inside the try so a throw can never escape to Express's default
+    // HTML error handler (which is what produced the generic UI message in
+    // the 2026-09-25 OOM incident).
+    let refund: () => PromiseLike<void> = () => Promise.resolve();
     try {
+      const vault = await getOwnedVault(req.params.id as string, req.userId!);
+      if (!vault) {
+        res.status(404).json({ error: "Artist not found." });
+        return;
+      }
+
+      const currentCredits = req.userCredits ?? 0;
+      const isDev = process.env["NODE_ENV"] === "development";
+      if (!isDev && currentCredits < FROM_SONG_CREDIT_COST) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "You are out of credits. Upgrade to keep creating.",
+          required: FROM_SONG_CREDIT_COST,
+        });
+        return;
+      }
+      // chargeCredits(): deduct + strict ledger write. A ledger failure rolls
+      // the deduction back and throws LedgerWriteError (loud) — the 2-credit
+      // loss this route is known for can never be untraceable again.
+      if (!isDev) {
+        try {
+          await chargeCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song" });
+        } catch (chargeErr) {
+          if (chargeErr instanceof LedgerWriteError) {
+            res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+            return;
+          }
+          throw chargeErr;
+        }
+      }
+
+      // Refund with a ledger trace if isolation fails (the failure mode that
+      // lost 2 credits without a trace before this fix).
+      refund = () =>
+        !isDev
+          ? refundCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song — Refund (isolation failure)" })
+          : Promise.resolve();
+
       const file = (req as any).file as Express.Multer.File | undefined;
       const { buffer: songBuffer, label } = await loadSongBuffer(
         file,
@@ -349,8 +405,17 @@ router.post(
       );
       req.log.info({ vaultId: vault.id, label }, "artist-voices: from-song isolation started");
 
-      /* 1 — Strip the song down to its vocals. */
-      const { vocalsPath, workdir } = await separateVocalStems(songBuffer);
+      /* 1 — Trim to the best window, then strip it down to its vocals
+         (lighter model: this runs inside a web request on a small
+         container). */
+      const { vocalsPath, workdir } = await separateVocalStems(songBuffer, {
+        model: FROM_SONG_DEMUCS_MODEL,
+        trimSeconds: FROM_SONG_TRIM_SECONDS,
+        windowStrategy: FROM_SONG_WINDOW_STRATEGY,
+        // Normalize + de-bleed + silence-trim for IVC: ElevenLabs rejects
+        // raw htdemucs output with heavy instrumental bleed (2026-09-25).
+        postProcessVocals: true,
+      });
       let vocalsBuffer: Buffer;
       try {
         vocalsBuffer = await fs.readFile(vocalsPath);
@@ -421,12 +486,7 @@ router.post(
         })
         .where(and(eq(artistVaultsTable.id, vault.id), eq(artistVaultsTable.user_id, req.userId!)));
 
-      recordCreditUsage({
-        userId: req.userId!,
-        action: "Voice From Song",
-        creditsUsed: isDev ? 0 : FROM_SONG_CREDIT_COST,
-      }).catch(() => {});
-
+        // The ledger entry was written atomically by chargeCredits() above.
       res.json({
         voice_id: data.voice_id,
         voice_name: voiceName,

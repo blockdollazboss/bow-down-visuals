@@ -148,7 +148,7 @@ router.post("/generate/ai-edit-plan", requireAuth, async (req, res) => {
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,
-      max_tokens: 1800,
+      max_completion_tokens: 1800,
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let plan: unknown;

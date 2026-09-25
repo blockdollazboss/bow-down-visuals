@@ -4660,6 +4660,357 @@ router.post(
 );
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * POST /export-doctor/export-overlays-range
+ * Render a short window (≤3s) starting at the master playhead with the EXACT
+ * overlay stack the master uses (watermark drawtext + effect stack) — the
+ * "3-Second Overlay Match Test". Mirrors export-effects-range, but applies the
+ * overlay pipeline from export-all-overlays instead of the effects-only path.
+ * ────────────────────────────────────────────────────────────────────────── */
+router.post(
+  "/export-doctor/export-overlays-range",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const {
+        multiId,
+        audioUrl,
+        captions,
+        effects,
+        overlays,
+        overlayIntensity,
+        watermarkText,
+        watermarkType,
+        watermarkPosition,
+        watermarkSize,
+        watermarkIncludeInExport,
+        conflictMode,
+        startSec,
+        durationSec,
+      } = req.body as {
+        multiId?: string;
+        audioUrl?: string;
+        captions?: CaptionBurnConfig | null;
+        effects?: string[] | null;
+        overlays?: string[] | null;
+        overlayIntensity?: Record<string, number> | null;
+        watermarkText?: string;
+        watermarkType?: string;
+        watermarkPosition?: string;
+        watermarkSize?: string;
+        watermarkIncludeInExport?: boolean;
+        conflictMode?: EffectConflictMode;
+        startSec?: number;
+        durationSec?: number;
+      };
+      const session = multiId ? multiSessions.get(multiId) : null;
+      if (!session) {
+        res.status(400).json({
+          error: "No multi-clip session found. Run 'Download All Clips' first.",
+        });
+        return;
+      }
+      const blocker = multiClipsBlocker(session);
+      if (blocker) {
+        res.status(400).json({ error: blocker });
+        return;
+      }
+
+      const totalDurationSec = session.clips.reduce(
+        (sum, c) => sum + (c.duration || 0),
+        0,
+      );
+      const rangeStart = Math.min(
+        Math.max(0, Number(startSec) || 0),
+        Math.max(0, totalDurationSec - 0.5),
+      );
+      const rangeDuration = Math.min(
+        3,
+        Math.max(0.5, Number(durationSec) || 3),
+        Math.max(0.5, totalDurationSec - rangeStart),
+      );
+
+      // Active scene at the playhead (cumulative clip durations).
+      let activeSceneIndex = 0;
+      let cursor = 0;
+      for (let i = 0; i < session.clips.length; i++) {
+        const d = session.clips[i]?.duration || 0;
+        if (rangeStart < cursor + d || i === session.clips.length - 1) {
+          activeSceneIndex = i;
+          break;
+        }
+        cursor += d;
+      }
+
+      /* ── Classify overlays (same taxonomy as export-all-overlays) ── */
+      const ANIMATED = [
+        "Rain",
+        "Smoke",
+        "Sparks",
+        "Dust",
+        "Light Leaks",
+        "Lens Flare",
+        "Animated Waveform",
+      ];
+      const ovList = Array.isArray(overlays) ? overlays : [];
+      const unsupportedOverlays = ovList.filter((o) => ANIMATED.includes(o));
+      const wmType = watermarkType ?? "logo";
+      const wmInclude = watermarkIncludeInExport !== false;
+      /* For "logo" type, burn "Bow Down Visuals" text (image overlay not yet supported in export) */
+      const watermarkTextSafe =
+        wmType === "logo"
+          ? "Bow Down Visuals"
+          : (watermarkText ?? "Bow Down Visuals").trim() || "Bow Down Visuals";
+      const overlaysFound = ovList.length > 0 || wmType !== "none";
+      const watermarkFound = wmType !== "none";
+      const watermarkIncluded = wmType !== "none" && wmInclude;
+      const overlaysIncluded = watermarkIncluded
+        ? [
+            `Watermark (${wmType === "logo" ? "BDV Logo → text fallback" : "text"})`,
+          ]
+        : [];
+
+      if (!overlaysFound && !watermarkIncluded) {
+        res.status(400).json({
+          error:
+            "No overlays or watermark selected — enable at least one overlay or the watermark before the match test.",
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+          watermarkIncluded,
+        });
+        return;
+      }
+
+      /* ── Effects pipeline (same as export-all-overlays, over the range) ── */
+      const effectList = Array.isArray(effects)
+        ? effects.filter((e) => typeof e === "string" && e.trim())
+        : [];
+      const resolvedConflictMode: EffectConflictMode =
+        conflictMode === "bw-only" || conflictMode === "gold-only"
+          ? conflictMode
+          : "blend";
+      const stackResult = buildEffectStack(
+        effectList,
+        rangeDuration,
+        resolvedConflictMode,
+      );
+      const effectFilter = stackResult.filter;
+      const effectsFound = effectList.length > 0;
+      const effectsExportConnected = !!effectFilter && stackResult.stackMatch;
+
+      /* ── Watermark drawtext filter (same construction as export-all-overlays) ── */
+      let combinedFilter = effectFilter ?? null;
+      if (watermarkIncluded) {
+        const fontPath = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+        const wmEsc = watermarkTextSafe
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "'\\''")
+          .replace(/:/g, "\\:")
+          .replace(/,/g, "\\,");
+        const wmOpacity = Math.max(
+          0.1,
+          Math.min(
+            1.0,
+            ((overlayIntensity ?? {})["Logo / Watermark"] ?? 65) / 100,
+          ),
+        );
+        const wmPos = watermarkPosition ?? "bottom-right";
+        const margin = 18;
+        const wmSize = watermarkSize ?? "medium";
+        const fontSize = wmSize === "small" ? 14 : wmSize === "large" ? 26 : 20;
+        const xExpr = wmPos.includes("right")
+          ? `w-tw-${margin}`
+          : String(margin);
+        const yExpr = wmPos.includes("bottom")
+          ? `h-th-${margin}`
+          : String(margin);
+        const drawtextFilter = `drawtext=fontfile='${fontPath}':text='${wmEsc}':fontsize=${fontSize}:fontcolor=white@${wmOpacity.toFixed(2)}:x=${xExpr}:y=${yExpr}:box=1:boxcolor=black@0.42:boxborderw=5`;
+        combinedFilter = effectFilter
+          ? `${effectFilter},${drawtextFilter}`
+          : drawtextFilter;
+      }
+
+      if (
+        !audioUrl ||
+        !audioUrl.startsWith("http") ||
+        !isAllowedAudioUrl(audioUrl)
+      ) {
+        res.status(400).json({
+          error:
+            "A valid, allowed master-player audio URL is required for the match test.",
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+        });
+        return;
+      }
+
+      let target = audioUrl;
+      if (SUPABASE_HOST && target.includes(SUPABASE_HOST)) {
+        const { url: fresh, changed } = await tryFreshSignedUrl(target);
+        if (changed) target = fresh;
+      }
+      const ext = target.includes(".mp3")
+        ? ".mp3"
+        : target.includes(".ogg")
+          ? ".ogg"
+          : target.includes(".wav")
+            ? ".wav"
+            : ".aac";
+      const audioPath = path.join(session.folder, `ovrrange-audio${ext}`);
+      const ar = await fetch(target, { signal: AbortSignal.timeout(120_000) });
+      if (!ar.ok) {
+        res.json({
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+          audioDownloaded: false,
+          error: `Audio download failed (HTTP ${ar.status}).`,
+        });
+        return;
+      }
+      const aws = createWriteStream(audioPath);
+      await pipeline(
+        ar.body as Parameters<typeof pipeline>[0],
+        byteCap(MAX_AUDIO_BYTES),
+        aws,
+      );
+      const audioDownloaded =
+        existsSync(audioPath) && statSync(audioPath).size > 1024;
+
+      // Burn captions shifted into the window so timings still line up at the playhead.
+      let assPath: string | null = null;
+      let captionsBurned = false;
+      const captionsActive = !!captions && captions.mode !== "none";
+      if (captionsActive) {
+        const assContent = buildAssContent(
+          captions!,
+          MULTI_TARGET_W,
+          MULTI_TARGET_H,
+          totalDurationSec,
+          -rangeStart,
+        );
+        if (assContent.trim()) {
+          assPath = path.join(
+            session.folder,
+            `ovrrange-captions-${multiId}.ass`,
+          );
+          writeFileSync(assPath, assContent, "utf8");
+          captionsBurned = true;
+        }
+      }
+
+      let normPaths: string[];
+      try {
+        normPaths = await normalizeAllClips(session);
+      } catch (e) {
+        res.status(500).json({
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+          error: e instanceof Error ? e.message : String(e),
+        });
+        return;
+      }
+
+      req.log.info(
+        {
+          multiId,
+          rangeStart,
+          rangeDuration,
+          activeSceneIndex,
+          watermarkText: watermarkTextSafe,
+          unsupportedOverlays,
+        },
+        "EXPORT DOCTOR 3s overlay match test",
+      );
+      let outputPath: string;
+      try {
+        outputPath = await concatMultiClips(
+          session.folder,
+          normPaths,
+          audioDownloaded ? audioPath : null,
+          "overlay-match-test.mp4",
+          assPath,
+          combinedFilter || null,
+          { start: rangeStart, duration: rangeDuration },
+        );
+      } catch (e) {
+        const stderr = (e as { stderr?: string }).stderr ?? "";
+        res.status(500).json({
+          overlaysFound,
+          unsupportedOverlays,
+          watermarkFound,
+          watermarkIncluded,
+          overlaysIncluded,
+          effectsFound,
+          effectsExportConnected,
+          testExportCreated: false,
+          error: `FFmpeg range export failed: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`,
+          stderrTail: stderr.slice(-800).split("\n").filter(Boolean),
+        });
+        return;
+      }
+
+      if (!existsSync(outputPath) || statSync(outputPath).size < 1024) {
+        res
+          .status(500)
+          .json({ error: "FFmpeg produced no usable match-test file." });
+        return;
+      }
+
+      const probe = await probeMedia(outputPath);
+      const bucketId = process.env["DEFAULT_OBJECT_STORAGE_BUCKET_ID"];
+      if (!bucketId)
+        throw new Error("DEFAULT_OBJECT_STORAGE_BUCKET_ID not set");
+      const objectName = `export-doctor/${multiId}-overlay-match-test.mp4`;
+      await objectStorageClient
+        .bucket(bucketId)
+        .file(objectName)
+        .save(readFileSync(outputPath), {
+          contentType: "video/mp4",
+          resumable: false,
+        });
+      const signedUrl = await signGetUrl(bucketId, objectName);
+
+      res.json({
+        success: true,
+        url: signedUrl,
+        rangeStart,
+        rangeDuration,
+        activeSceneIndex,
+        clipCount: normPaths.length,
+        overlaysFound,
+        unsupportedOverlays,
+        watermarkFound,
+        watermarkIncluded,
+        overlaysIncluded,
+        overlayWatermarkText: watermarkTextSafe,
+        overlayExportConnected: true,
+        effectsFound,
+        effectsExportConnected,
+        effectsPreserved: true,
+        captionsFound: captionsActive,
+        captionsPreserved: captionsBurned,
+        captionsBurned,
+        audioPreserved: probe.hasAudio,
+        audioDownloaded,
+        testExportCreated: true,
+        fileSize: statSync(outputPath).size,
+        duration: probe.duration,
+        width: probe.width,
+        height: probe.height,
+        hasAudio: probe.hasAudio,
+      });
+    } catch (e) {
+      res
+        .status(500)
+        .json({ error: e instanceof Error ? e.message : String(e) });
+    }
+  },
+);
+
+/* ──────────────────────────────────────────────────────────────────────────
  * POST /export-doctor/export-effects-transitions
  * Build an xfade chain from applied transitions + the exact effect stack, and
  * report per-transition support (mirrors the exporter's XFADE_MAP).
