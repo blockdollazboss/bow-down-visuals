@@ -9,8 +9,9 @@ FROM node:22-slim
 # artist voice lock) shell out to Demucs for vocal/instrumental separation.
 # build-essential: diffq ships no prebuilt wheel, so pip compiles it from
 # source during the Docker build — gcc/g++ must be present or the deploy fails.
+# python3-dev: diffq's C extension includes Python.h, which ships in python3-dev.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential \
+  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential python3-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
