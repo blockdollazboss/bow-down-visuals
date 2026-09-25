@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import configRouter from "./config";
 import songRouter from "./generate/song";
 import songsRouter from "./songs";
 import videoRouter from "./generate/video";
@@ -50,7 +49,6 @@ import jobNotificationsRouter from "./job-notifications";
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(configRouter);
 router.use(songRouter);
 router.use(videoRouter);
 router.use(songVideoRouter);
