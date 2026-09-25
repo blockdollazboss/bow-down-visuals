@@ -23,6 +23,7 @@ import {
   Film,
   Clapperboard,
   Image,
+  Images,
   CreditCard,
   Mic2,
   LogOut,
@@ -75,6 +76,7 @@ export function AppSidebar() {
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/my-clips", label: "My Clips", icon: Library },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
+    { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
