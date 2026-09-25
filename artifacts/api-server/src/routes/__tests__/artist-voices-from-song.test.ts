@@ -48,12 +48,19 @@ vi.mock("../../lib/supabase-admin", () => ({
   getSupabaseAdmin: vi.fn(() => {
     const chain: any = {};
     chain.from = vi.fn(() => chain);
+    chain.select = vi.fn(() => chain);
     chain.update = vi.fn((vals: any) => {
       sbState.updates.push(vals);
       return chain;
     });
-    chain.eq = vi.fn(() => Promise.resolve({ data: null, error: null }));
+    chain.eq = vi.fn(() => chain);
+    chain.single = vi.fn(() => Promise.resolve({ data: { credits: 10 }, error: null }));
     return chain;
+  }),
+  // refundCredits() restores via addCreditsToProfile — simulate the credit-back.
+  addCreditsToProfile: vi.fn(async (_userId: string, amount: number) => {
+    sbState.updates.push({ credits: 10 });
+    return { oldCredits: 10 - amount, newCredits: 10, created: false };
   }),
 }));
 
@@ -65,6 +72,7 @@ vi.mock("../../lib/objectStorage", () => ({
 
 vi.mock("../../lib/payment-record", () => ({
   recordCreditUsage: vi.fn(() => Promise.resolve()),
+  recordCreditUsageStrict: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("@workspace/db", () => {
@@ -162,10 +170,13 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
     // Fail-open: the request proceeded past the broken pre-check.
     expect(separateVocalStems).toHaveBeenCalled();
     // Lighter model + pre-Demucs trim window passed through to the isolation step.
-    expect(separateVocalStems).toHaveBeenCalledWith(expect.any(Buffer), {
-      model: "htdemucs",
-      trimSeconds: 90,
-    });
+    expect(separateVocalStems).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.objectContaining({
+        model: "htdemucs",
+        trimSeconds: 90,
+      }),
+    );
     // JSON error body (never an HTML error page), credits refunded.
     expect(status).toBe(500);
     expect(contentType).toContain("application/json");
