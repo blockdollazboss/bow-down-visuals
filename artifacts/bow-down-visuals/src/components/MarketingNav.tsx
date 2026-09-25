@@ -19,11 +19,11 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing" },
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
-  { label: "Channel Audit", href: "/audit" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Scheduler", href: "/scheduler" },
+  { label: "Sponsorship Outreach", href: "/outreach" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
