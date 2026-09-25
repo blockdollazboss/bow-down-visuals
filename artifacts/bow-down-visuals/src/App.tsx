@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
@@ -69,7 +70,6 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
-const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -224,6 +224,7 @@ function AppShell() {
           <Route path="/sounds"><SoundFinder /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          <Route path="/release"><ReleaseChecklist /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
@@ -234,7 +235,6 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
-          <Route path="/shoutouts"><Shoutouts /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
