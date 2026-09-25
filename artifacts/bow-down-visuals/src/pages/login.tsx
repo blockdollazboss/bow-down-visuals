@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { CheatCodeTerminal, useCheatCodeUnlock } from "@/components/CheatCodeTerminal";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -32,6 +33,25 @@ export default function Login() {
   const [resetError, setResetError] = useState<string | null>(null);
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLSpanElement>({ maxDeg: 8, maxShift: 6 });
+
+  /* ── Shark King mascot: eyes follow the cursor ── */
+  const mascotRef = useRef<HTMLDivElement>(null);
+  const [mascotTilt, setMascotTilt] = useState({ x: 0, y: 0 });
+  const onMascotMove = useCallback((e: React.MouseEvent) => {
+    const el = mascotRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = (e.clientX - cx) / r.width;
+    const dy = (e.clientY - cy) / r.height;
+    setMascotTilt({ x: Math.max(-1, Math.min(1, dx)), y: Math.max(-1, Math.min(1, dy)) });
+  }, []);
+  const onMascotLeave = useCallback(() => setMascotTilt({ x: 0, y: 0 }), []);
+
+  /* ── Hidden cheat-code terminal (Konami or type "cheatcode") ── */
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  useCheatCodeUnlock(useCallback(() => setTerminalOpen(true), []));
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -94,7 +114,27 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="flex justify-center mb-6">
+          {/* Shark King mascot — watches your cursor */}
+          <div
+            ref={mascotRef}
+            onMouseMove={onMascotMove}
+            onMouseLeave={onMascotLeave}
+            className="flex justify-center mb-2"
+            aria-hidden
+          >
+            <img
+              src="/shark-king-signin.webp"
+              alt=""
+              width={160}
+              height={160}
+              className="w-36 h-36 md:w-40 md:h-40 object-contain drop-shadow-[0_0_25px_rgba(201,168,76,0.35)] transition-transform duration-150 ease-out select-none pointer-events-none"
+              style={{
+                transform: `translate(${mascotTilt.x * 10}px, ${mascotTilt.y * 8}px) rotate(${mascotTilt.x * 4}deg)`,
+              }}
+              draggable={false}
+            />
+          </div>
+          <div className="flex justify-center mb-4">
             <span ref={logoTilt} className="inline-block rounded-lg">
               <AnimatedLogo className="w-[320px] max-w-full h-auto" />
             </span>
@@ -203,6 +243,9 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      {/* Hidden cheat-code terminal easter egg */}
+      {terminalOpen && <CheatCodeTerminal onClose={() => setTerminalOpen(false)} />}
     </div>
   );
 }
