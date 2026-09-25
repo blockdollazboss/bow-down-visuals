@@ -2644,11 +2644,17 @@ function MasterPreviewPlayer({
             zIndex: 1,
           }}
         >
+          <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          {/* Animated film grain — preview of the export's real grain (see FILM_GRAIN_FFMPEG) */}
+          {activeEffects.includes("Film Grain") && (
+            <div
+              className="absolute inset-0 pointer-events-none bdv-film-grain"
+              style={{ zIndex: 2 }}
+              aria-hidden
+            />
+          )}
           {/* Chroma key preview draws FROM the video element via canvas — the
               video stays mounted (hidden) as the frame source. */}
-          <div style={{ display: chromaActive ? "none" : undefined, width: "100%", height: "100%" }}>
-            <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
-          </div>
           {chromaActive && displayProTools && (
             <div className="absolute inset-0" style={{ zIndex: 2 }}>
               <ChromaKeyPreview

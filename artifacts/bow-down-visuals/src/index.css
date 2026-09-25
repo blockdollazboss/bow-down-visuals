@@ -289,6 +289,41 @@ body::before {
 @keyframes bdv-pop { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: scale(1); } }
 @keyframes bdv-bounce { from { opacity: 0; transform: translateY(8px) scale(0.9); } 60% { transform: translateY(-4px) scale(1.04); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes bdv-slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+/* Stepped glitch for the outgoing scene: slice jumps + chromatic aberration bursts,
+   then the old scene drops away revealing the new one. Mirrors the export's
+   custom glitch transition (RGB-split bursts, displaced slice, cut flash). */
+@keyframes bdv-glitch-slice {
+  0%   { clip-path: inset(0 0 0 0);    transform: translate(0,0);      filter: none; opacity: 1; }
+  7%   { clip-path: inset(8% 0 64% 0); transform: translate(-14px,4px);  filter: hue-rotate(90deg) saturate(3) drop-shadow(6px 0 0 rgba(255,0,80,.75)); }
+  14%  { clip-path: inset(58% 0 10% 0); transform: translate(12px,-6px); filter: none; }
+  21%  { clip-path: inset(28% 0 42% 0); transform: translate(-9px,0);    filter: drop-shadow(-8px 0 0 rgba(0,255,255,.85)) drop-shadow(8px 0 0 rgba(255,0,0,.85)); }
+  30%  { clip-path: inset(0 0 0 0);    transform: translate(0,0);         filter: none; }
+  38%  { clip-path: inset(72% 0 4% 0);  transform: translate(17px,5px);  filter: hue-rotate(-70deg) saturate(4) drop-shadow(-6px 0 0 rgba(0,255,255,.7)); }
+  46%  { clip-path: inset(4% 0 76% 0);  transform: translate(-17px,-4px); filter: drop-shadow(7px 0 0 rgba(255,0,0,.8)); }
+  52%  { clip-path: inset(0 0 0 0);    transform: translate(0,0);         filter: brightness(2.2); opacity: 1; }
+  60%  { clip-path: inset(40% 0 30% 0); transform: translate(10px,0);    filter: drop-shadow(-8px 0 0 rgba(0,255,255,.85)) drop-shadow(8px 0 0 rgba(255,0,0,.85)); }
+  68%  { clip-path: inset(0 0 0 0);    transform: translate(0,0);        filter: none; opacity: 1; }
+  100% { clip-path: inset(0 0 0 0);    transform: translate(0,0);        filter: none; opacity: 0; }
+}
+/* Animated film grain overlay for the master player preview.
+   Mirrors the export's real grain (noise=alls=7:allf=t in effects-ffmpeg.ts):
+   SVG turbulence texture, position jumped with steps() so it shimmers like
+   real grain instead of sitting still. */
+.bdv-film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+  opacity: 0.45;
+  mix-blend-mode: overlay;
+  animation: bdv-grain-shift 0.5s steps(1) infinite;
+}
+@keyframes bdv-grain-shift {
+  0%   { background-position: 0 0; }
+  20%  { background-position: -70px 40px; }
+  40%  { background-position: 50px -60px; }
+  60%  { background-position: -40px -80px; }
+  80%  { background-position: 60px 70px; }
+  100% { background-position: 0 0; }
+}
 .bdv-caption-fade     { animation: bdv-fade     0.3s ease forwards; }
 .bdv-caption-pop      { animation: bdv-pop      0.28s cubic-bezier(0.34,1.56,0.64,1) forwards; }
 .bdv-caption-bounce   { animation: bdv-bounce   0.4s ease forwards; }
