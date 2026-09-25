@@ -7,7 +7,9 @@
  * fabricated), the AI prompt summarizer, the zod body schemas, and the
  * 1-credit AI pricing constants.
  */
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, beforeAll, afterAll } from "vitest";
+import express from "express";
+import type { AddressInfo } from "node:net";
 
 vi.mock("../../lib/credits", () => ({
   chargeCredits: vi.fn(),
@@ -16,7 +18,56 @@ vi.mock("../../lib/credits", () => ({
   LedgerWriteError: class LedgerWriteError extends Error {},
 }));
 
-import {
+/* Shared mutable state for the endpoint-level refund tests (mocked AI
+   client rejects, auth + credit balance knobs). */
+const aiState = vi.hoisted(() => ({
+  createCompletion: vi.fn(),
+  authedUserId: "user-1",
+  userCredits: 10,
+}));
+
+vi.mock("../../lib/ai-clients", () => ({
+  getOpenAI: () => ({ chat: { completions: { create: aiState.createCompletion } } }),
+  getTextModel: () => "gpt-6-sol",
+}));
+
+vi.mock("../../middlewares/require-auth", () => ({
+  requireAuth: (req: any, _res: any, next: any) => {
+    req.userId = aiState.authedUserId;
+    req.userCredits = aiState.userCredits;
+    next();
+  },
+}));
+
+vi.mock("../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
+}));
+
+vi.mock("../../lib/payment-record", () => ({
+  recordCreditUsageStrict: vi.fn(async () => undefined),
+}));
+
+vi.mock("../../lib/social-crypto", () => ({
+  decryptToken: vi.fn(),
+  encryptToken: vi.fn(),
+}));
+
+vi.mock("../../lib/social-tiktok", () => ({
+  refreshTikTokTokens: vi.fn(),
+  TikTokApiError: class TikTokApiError extends Error {},
+}));
+
+vi.mock("../../lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock("@workspace/db", () => ({
+  db: {},
+  socialAccountsTable: {},
+  socialStatSnapshotsTable: {},
+}));
+
+import router, {
   ANALYTICS_INSIGHTS_CREDITS,
   ANALYTICS_SUGGESTIONS_CREDITS,
   AnalyticsProviderError,
@@ -27,6 +78,10 @@ import {
   summarizeStatsForAI,
   type FetchImpl,
 } from "../analytics";
+import { chargeCredits, refundCredits } from "../../lib/credits";
+
+const mockCharge = vi.mocked(chargeCredits);
+const mockRefund = vi.mocked(refundCredits);
 
 function mockFetch(handler: (url: string) => { ok: boolean; status: number; body: any }): FetchImpl {
   return (async (url: string) => {
@@ -209,5 +264,154 @@ describe("aiBodySchema", () => {
       ],
     };
     expect(aiBodySchema.safeParse(many).success).toBe(false);
+  });
+});
+/* ── AI endpoint refund-on-failure (HTTP level) ──────────────────────────
+   The real Express router runs against an ephemeral local server with the
+   AI client mocked. Charges go through the mocked chargeCredits; a failing
+   provider must trigger refundCredits so the user never pays for an AI
+   answer they didn't get. */
+
+let server: any;
+let baseUrl: string;
+
+beforeAll(async () => {
+  const app = express();
+  app.use(express.json());
+  app.use("/api", router);
+  server = app.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => server.on("listening", resolve));
+  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/api`;
+});
+
+afterAll(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+});
+
+const validAiBody = {
+  platforms: [
+    {
+      platform: "instagram",
+      stats: { followers: 100, following: 50, mediaCount: 10, totalLikes: null },
+      topContent: [],
+    },
+  ],
+  niche: "music",
+};
+
+function postJson(path: string, body: unknown) {
+  return fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+describe("AI endpoints — refund on provider failure", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    aiState.authedUserId = "user-1";
+    aiState.userCredits = 10;
+    /* The mock ledger: charge subtracts, refund restores. */
+    mockCharge.mockImplementation(async (_userId: string, credits: number) => {
+      aiState.userCredits -= credits;
+      return aiState.userCredits;
+    });
+    mockRefund.mockImplementation(async (_userId: string, amount: number) => {
+      aiState.userCredits += amount;
+    });
+    aiState.createCompletion.mockResolvedValue({ choices: [] });
+  });
+
+  it("refunds the insights credit when the provider call rejects", async () => {
+    aiState.createCompletion.mockRejectedValueOnce(new Error("OpenAI down"));
+    const res = await postJson("/analytics/insights", validAiBody);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("insights_failed");
+    expect(body.message).toMatch(/refunded/i);
+    expect(mockCharge).toHaveBeenCalledTimes(1);
+    expect(mockRefund).toHaveBeenCalledTimes(1);
+    expect(mockRefund).toHaveBeenCalledWith("user-1", ANALYTICS_INSIGHTS_CREDITS, {
+      action: expect.stringContaining("Refund"),
+    });
+    /* Balance restored — user paid nothing for the failure. */
+    expect(aiState.userCredits).toBe(10);
+  });
+
+  it("refunds the insights credit when the model returns malformed JSON", async () => {
+    aiState.createCompletion.mockResolvedValueOnce({
+      choices: [{ message: { content: "this is not json" } }],
+    });
+    const res = await postJson("/analytics/insights", validAiBody);
+    expect(res.status).toBe(500);
+    expect(mockRefund).toHaveBeenCalledTimes(1);
+    expect(mockRefund).toHaveBeenCalledWith("user-1", ANALYTICS_INSIGHTS_CREDITS, expect.anything());
+    expect(aiState.userCredits).toBe(10);
+  });
+
+  it("refunds the suggestions credit when the provider call rejects", async () => {
+    aiState.createCompletion.mockRejectedValueOnce(new Error("OpenAI down"));
+    const res = await postJson("/analytics/suggestions", validAiBody);
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBe("suggestions_failed");
+    expect(body.message).toMatch(/refunded/i);
+    expect(mockRefund).toHaveBeenCalledTimes(1);
+    expect(mockRefund).toHaveBeenCalledWith("user-1", ANALYTICS_SUGGESTIONS_CREDITS, {
+      action: expect.stringContaining("Refund"),
+    });
+    expect(aiState.userCredits).toBe(10);
+  });
+
+  it("does NOT refund on a successful insights call (no double-credit)", async () => {
+    aiState.createCompletion.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              headline: "momentum up",
+              movers: [],
+              bestWindow: "evenings",
+              recommendations: ["post the hook first"],
+            }),
+          },
+        },
+      ],
+    });
+    const res = await postJson("/analytics/insights", validAiBody);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.creditsUsed).toBe(ANALYTICS_INSIGHTS_CREDITS);
+    expect(mockCharge).toHaveBeenCalledTimes(1);
+    expect(mockRefund).not.toHaveBeenCalled();
+    expect(aiState.userCredits).toBe(9);
+  });
+
+  it("does NOT refund on a successful suggestions call", async () => {
+    aiState.createCompletion.mockResolvedValueOnce({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              suggestions: [{ title: "idea", format: "reel", why: "data", hook: "watch" }],
+            }),
+          },
+        },
+      ],
+    });
+    const res = await postJson("/analytics/suggestions", validAiBody);
+    expect(res.status).toBe(200);
+    expect(mockRefund).not.toHaveBeenCalled();
+    expect(aiState.userCredits).toBe(9);
+  });
+
+  it("returns 402 with no charge and no refund when the balance is insufficient", async () => {
+    aiState.userCredits = 0;
+    const res = await postJson("/analytics/insights", validAiBody);
+    expect(res.status).toBe(402);
+    expect(mockCharge).not.toHaveBeenCalled();
+    expect(mockRefund).not.toHaveBeenCalled();
+    expect(aiState.createCompletion).not.toHaveBeenCalled();
   });
 });

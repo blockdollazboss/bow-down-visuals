@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq, desc } from "drizzle-orm";
 import { db, socialAccountsTable, socialStatSnapshotsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, OutOfCreditsError } from "../lib/credits";
+import { chargeCredits, refundCredits, OutOfCreditsError } from "../lib/credits";
 import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { decryptToken, encryptToken } from "../lib/social-crypto";
 import { refreshTikTokTokens, TikTokApiError } from "../lib/social-tiktok";
@@ -589,9 +589,18 @@ router.post(
       });
     } catch (err) {
       logger.error({ err }, "[analytics] insights generation failed");
-      res.status(502).json({
+      /* Refund: the user paid for an AI answer they didn't get. */
+      try {
+        await refundCredits(req.userId!, ANALYTICS_INSIGHTS_CREDITS, {
+          action: "Analytics AI Insights — Refund (provider failed)",
+        });
+      } catch (refundErr) {
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      res.status(500).json({
         error: "insights_failed",
-        message: "The AI couldn't analyze your stats right now. Your credit was still used — try again in a bit.",
+        message: "The AI couldn't analyze your stats right now. Your credit was refunded — try again in a bit.",
       });
     }
   },
@@ -661,9 +670,18 @@ router.post(
       });
     } catch (err) {
       logger.error({ err }, "[analytics] suggestions generation failed");
-      res.status(502).json({
+      /* Refund: the user paid for AI ideas they didn't get. */
+      try {
+        await refundCredits(req.userId!, ANALYTICS_SUGGESTIONS_CREDITS, {
+          action: "Analytics AI Suggestions — Refund (provider failed)",
+        });
+      } catch (refundErr) {
+        // Logged inside refundCredits; don't mask the original failure.
+        void refundErr;
+      }
+      res.status(500).json({
         error: "suggestions_failed",
-        message: "The AI couldn't cook up ideas right now. Your credit was still used — try again in a bit.",
+        message: "The AI couldn't cook up ideas right now. Your credit was refunded — try again in a bit.",
       });
     }
   },
