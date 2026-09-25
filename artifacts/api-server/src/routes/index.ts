@@ -49,6 +49,7 @@ import streamPackRouter from "./generate/stream-pack";
 import watermarkRemovalRouter from "./generate/watermark-removal";
 import logoRouter from "./generate/logo";
 import introOutroRouter from "./generate/intro-outro";
+import llcGuideRouter from "./generate/llc-guide";
 import socialRouter from "./social";
 import jobNotificationsRouter from "./job-notifications";
 
@@ -104,6 +105,7 @@ router.use(watermarkRemovalRouter);
 router.use(streamPackRouter);
 router.use(logoRouter);
 router.use(introOutroRouter);
+router.use(llcGuideRouter);
 router.use(socialRouter);
 router.use(jobNotificationsRouter);
 
