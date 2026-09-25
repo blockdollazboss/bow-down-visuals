@@ -12,15 +12,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
-<<<<<<< HEAD
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
-=======
-import { SOCIAL_SHARE_TARGETS } from "@/components/social-icons";
->>>>>>> feature/social-share-and-links
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit, ProToolsSettings } from "@/lib/editor-settings";
 import { proToolsActive } from "@/lib/editor-settings";
@@ -740,7 +736,6 @@ export function FinalVideoExport({
               <p className="text-[11px] text-white/40 leading-relaxed">
                 Share it and tag <span className="text-primary font-bold">@bowdownvisuals</span> for a chance to be featured.
               </p>
-<<<<<<< HEAD
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -810,21 +805,6 @@ export function FinalVideoExport({
                   <MessageCircle className="h-3.5 w-3.5" />
                   Announce to Discord
                 </button>
-=======
-              <div className="flex gap-2">
-                {SOCIAL_SHARE_TARGETS.map(({ label, href, Icon }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => window.open(href, "_blank", "noopener,noreferrer")}
-                    title={`Share on ${label}`}
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </button>
-                ))}
->>>>>>> feature/social-share-and-links
                 <button
                   type="button"
                   onClick={() => {

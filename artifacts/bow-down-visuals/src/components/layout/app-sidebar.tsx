@@ -357,28 +357,7 @@ export function AppSidebar() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
-<<<<<<< HEAD
   const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
-=======
-  const links: { href: string; label: string; icon: typeof Home; tour?: string }[] = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
-    { href: "/make-song", label: "Make a Song", icon: Music },
-    { href: "/songs", label: "Songs", icon: Music2 },
-    { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/make-video", label: "Make a Music Video", icon: Video, tour: "nav-make-video" },
-    { href: "/video-editor", label: "Video Editor", icon: Clapperboard, tour: "nav-video-editor" },
-    { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
-    { href: "/my-clips", label: "My Clips", icon: Library },
-    { href: "/go-live", label: "Go Live", icon: Radio },
-    { href: "/academy", label: "Creator Academy", icon: GraduationCap },
-    { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
-    { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
-    { href: "/pricing", label: "Pricing", icon: CreditCard },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
-  ];
->>>>>>> feature/onboarding-tour
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -457,15 +436,12 @@ export function AppSidebar() {
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
         {user && profile ? (
           <>
-<<<<<<< HEAD
             <Link
               href="/credit-history"
               title="View Credit History"
+              data-tour="credits"
               className="flex items-center justify-between rounded-lg px-1 py-0.5 hover:bg-white/[0.03] transition-colors"
             >
-=======
-            <div className="flex items-center justify-between" data-tour="credits">
->>>>>>> feature/onboarding-tour
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
                 <span className="text-sm text-sidebar-foreground/70 font-medium">Credits</span>
