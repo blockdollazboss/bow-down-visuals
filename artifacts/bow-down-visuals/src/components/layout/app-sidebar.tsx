@@ -30,7 +30,8 @@ import {
   Coins,
   ShieldCheck,
   MapPin,
-  ChevronsLeft
+  ChevronsLeft,
+  Library
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -72,6 +73,7 @@ export function AppSidebar() {
     { href: "/make-video", label: "Make a Music Video", icon: Video },
     { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
+    { href: "/my-clips", label: "My Clips", icon: Library },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),

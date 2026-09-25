@@ -181,7 +181,7 @@ export function ConnectedAccounts() {
           <div className="flex-1">
             <p className="text-sm font-bold text-white">Instagram</p>
             <p className="text-xs text-white/40 mt-0.5">
-              Needs a Business or Creator account linked to a Facebook Page.
+              Sign in with Instagram Login — a Business or Creator account works best. No Facebook Page needed.
             </p>
           </div>
           <Button

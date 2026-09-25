@@ -33,7 +33,7 @@ export default function Settings() {
         title: msg.title,
         description:
           social === "error" && params.get("reason") === "oauth_failed"
-            ? "Instagram refused the connection — check the account is Business/Creator and linked to a Facebook Page."
+            ? "Instagram refused the connection — make sure you're signing in with a Business or Creator Instagram account, then try again."
             : msg.description,
         variant: msg.destructive ? "destructive" : "default",
       });
