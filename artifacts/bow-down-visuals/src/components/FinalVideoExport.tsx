@@ -4,10 +4,13 @@ import {
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
   Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { InstagramPostModal } from "@/components/InstagramPostModal";
+import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
 import { computeManualTimings } from "@/lib/scene-timing";
@@ -312,6 +315,8 @@ export function FinalVideoExport({
   const [confirmed, setConfirmed]       = useState(false);
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
   const [prepareId, setPrepareId]               = useState<string | null>(null);
@@ -710,6 +715,26 @@ export function FinalVideoExport({
               <div className="flex gap-2">
                 <button
                   type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const ig = fresh.find((a) => a.platform === "instagram" && !a.expired);
+                    if (!ig) {
+                      toast({
+                        title: "Connect Instagram first",
+                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowPostModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <InstagramIcon className="h-3.5 w-3.5" />
+                  Post to Instagram
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
                     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
@@ -730,6 +755,15 @@ export function FinalVideoExport({
               </div>
             </div>
           </div>
+        )}
+
+        {showPostModal && exportUrl && (
+          <InstagramPostModal
+            open={showPostModal}
+            onClose={() => setShowPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts}
+          />
         )}
 
         {/* ── Failed ── */}
