@@ -396,6 +396,8 @@ export async function ensureSupabaseClipsBucket(): Promise<void> {
   if (!createRes.ok && !alreadyExists) {
     throw new Error(
       `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    throw new Error(
+      `Failed to create Supabase bucket "${SUPABASE_CLIPS_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
     );
   }
 
