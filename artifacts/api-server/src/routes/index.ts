@@ -47,6 +47,7 @@ import monetizationCoachRouter from "./generate/monetization-coach";
 import upscaleRouter from "./generate/upscale";
 import watermarkRemovalRouter from "./generate/watermark-removal";
 import socialRouter from "./social";
+import analyticsRouter from "./analytics";
 import jobNotificationsRouter from "./job-notifications";
 
 const router: IRouter = Router();
@@ -99,6 +100,7 @@ router.use(monetizationCoachRouter);
 router.use(upscaleRouter);
 router.use(watermarkRemovalRouter);
 router.use(socialRouter);
+router.use(analyticsRouter);
 router.use(jobNotificationsRouter);
 
 export default router;

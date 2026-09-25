@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -213,6 +214,7 @@ function AppShell() {
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/analytics"><Analytics /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}

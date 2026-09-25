@@ -18,6 +18,7 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./stripe-payments";
+export * from "./social-stat-snapshots";
 export * from "./credit-usage";
 export * from "./artist-vaults";
 export * from "./generated-clips";
