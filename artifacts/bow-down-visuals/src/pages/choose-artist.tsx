@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles } from "lucide-react";
+import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star, Aperture, Camera } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,24 +49,47 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
+  /* Top 3 featured (active artist first, then most recent), max 10 total. */
+  const sortedVaults = [...vaults].sort((a, b) => {
+    if (a.id === activeArtist?.id) return -1;
+    if (b.id === activeArtist?.id) return 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  const featuredVaults = sortedVaults.slice(0, 3);
+  const remainingVaults = sortedVaults.slice(3, 10);
+  const hiddenCount = sortedVaults.length - 10;
+
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white overflow-hidden">
       <TopBar />
 
+      {/* Photography studio lighting — overhead softbox beams */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-white/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] -rotate-12 origin-top" />
+        <div className="absolute top-0 right-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] rotate-12 origin-top" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/[0.03] rounded-full blur-[100px]" />
+        {/* Studio floor reflection */}
+        <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-[#C9A84C]/[0.04] to-transparent" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-16">
         <div className="text-center mb-10">
-          <div className="h-14 w-14 rounded-2xl bg-white/[0.07] border border-white/[0.18] flex items-center justify-center mx-auto mb-5">
-            <User className="h-6 w-6 text-zinc-300" />
+          {/* ON SET indicator */}
+          <div className="inline-flex items-center gap-2 mb-5 rounded-full border border-red-500/40 bg-red-500/10 px-4 py-1.5">
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">On set</span>
           </div>
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 border border-[#C9A84C]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(201,168,76,0.25)]">
+            <Aperture className="h-7 w-7 text-[#C9A84C]" />
+          </div>
+          <p className="text-[#C9A84C] text-xs font-bold uppercase tracking-[0.3em] mb-3">
+            Bow Down Visuals Studio
+          </p>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Who Are You Creating For?
+            Who's In Front of the Camera?
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick an artist profile — we'll automatically match your sound, look, and brand across everything you create. You can skip this and add one later.
+            Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.
           </p>
         </div>
 
@@ -85,8 +108,17 @@ export default function ChooseArtist() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            {vaults.map((vault) => {
+          <>
+            {/* Featured top 3 — studio spotlight */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Camera className="h-4 w-4 text-[#C9A84C]" />
+              <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
+                In the spotlight
+              </p>
+              <Camera className="h-4 w-4 text-[#C9A84C]" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
               const G = (o: number) => `rgba(201,168,76,${o})`;
               const GOLD = "#C9A84C";
@@ -135,6 +167,32 @@ export default function ChooseArtist() {
                     </div>
                   )}
 
+                  {/* VIP rank badge */}
+                  <div style={{
+                    position: "absolute", top: 10, left: 10, zIndex: 3,
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.08))",
+                    border: `1px solid ${G(0.6)}`,
+                    borderRadius: 8, padding: "4px 10px",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: `0 0 15px ${G(0.3)}`,
+                  }}>
+                    <Crown className="h-3 w-3" style={{ color: GOLD }} />
+                    <span style={{ fontSize: 9, fontWeight: 900, color: GOLD, letterSpacing: "0.12em" }}>
+                      #{index + 1} SPOTLIGHT
+                    </span>
+                  </div>
+
+                  {/* Viewfinder focus corners */}
+                  {[
+                    { top: 8, left: 8, borderTop: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderTopLeftRadius: 6 },
+                    { top: 8, right: 8, borderTop: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderTopRightRadius: 6 },
+                    { bottom: 8, left: 8, borderBottom: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderBottomLeftRadius: 6 },
+                    { bottom: 8, right: 8, borderBottom: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderBottomRightRadius: 6 },
+                  ].map((corner, ci) => (
+                    <div key={ci} style={{ position: "absolute", width: 22, height: 22, zIndex: 2, pointerEvents: "none", ...corner }} />
+                  ))}
+
                   {/* SELECTED badge */}
                   {isSelected && (
                     <div style={{
@@ -180,7 +238,54 @@ export default function ChooseArtist() {
                 </button>
               );
             })}
-          </div>
+            </div>
+
+            {/* Remaining artists (up to 7 more, max 10 total) */}
+            {remainingVaults.length > 0 && (
+              <>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  More artists
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                  {remainingVaults.map((vault) => {
+                    const isSelected = selectedId === vault.id;
+                    const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
+                    return (
+                      <button
+                        key={vault.id}
+                        type="button"
+                        onClick={() => setSelectedId(isSelected ? null : vault.id)}
+                        className={`rounded-xl border p-3 text-left transition ${
+                          isSelected
+                            ? "border-primary/60 bg-primary/[0.08]"
+                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          {vault.reference_image_url ? (
+                            <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                          ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-sm font-bold text-white/50">
+                              {initials}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">{vault.artist_name}</p>
+                            {vault.genre && <p className="truncate text-xs text-white/40">{vault.genre}</p>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {hiddenCount > 0 && (
+              <p className="mb-6 text-center text-sm text-white/35">
+                +{hiddenCount} more artist{hiddenCount === 1 ? "" : "s"} — showing your top 10
+              </p>
+            )}
+          </>
         )}
 
         {/* Action buttons */}
