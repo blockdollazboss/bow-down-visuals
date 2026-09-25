@@ -25,3 +25,4 @@ export * from "./project-drafts";
 export * from "./generation-history";
 export * from "./contact-messages";
 export * from "./export-jobs";
+export * from "./songs";
