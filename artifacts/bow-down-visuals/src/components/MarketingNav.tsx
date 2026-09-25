@@ -27,6 +27,7 @@ const NAV_LINKS = [
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Beats", href: "/beats" },
   { label: "Branding Shop", href: "/branding-shop" },
+  { label: "Collabs", href: "/collabs" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
