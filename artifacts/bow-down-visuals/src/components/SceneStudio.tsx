@@ -62,12 +62,13 @@ const IMPROVE_FAILURE_STYLE: Record<ImprovePromptErrorType, { label: string; cla
    anchors the artist's face/look, so we use a short identity note and let the
    scene description dominate (gen4.5 image-to-video caps promptText at ~1000
    chars). Without a photo we fall back to the full text-only consistency block. */
-function buildConsistencyPrefix(vault: ArtistVault): string {
+function buildConsistencyPrefix(vault: ArtistVault, outfitLabel?: string | null): string {
   if (hasReferencePhoto(vault)) {
     const parts: string[] = [
       `SAME ARTIST AS REFERENCE PHOTO: ${vault.artist_name}. Keep the exact same face, skin tone, hairstyle and identity from the reference image. Do NOT create a new person.`,
     ];
-    if (vault.clothing_style)      parts.push(`Clothing: ${vault.clothing_style}`);
+    if (outfitLabel) parts.push(`Outfit: ${outfitLabel} — dress the artist in this exact outfit.`);
+    else if (vault.clothing_style) parts.push(`Clothing: ${vault.clothing_style}`);
     if (vault.do_not_change_rules) parts.push(`Do Not Change: ${vault.do_not_change_rules}`);
     parts.push("---");
     return parts.join("\n");
@@ -96,8 +97,10 @@ function hasUsableClip(url: string | null | undefined): boolean {
   return !!url && /^https:\/\//i.test(url);
 }
 
-/* ─── Inline Runway clip generator ─────────────────────────── */
-export interface RunwayGeneratorProps {
+/* Wardrobe outfit as returned by GET /api/artist-vaults/:vaultId/outfits */
+interface WardrobeOutfit { id: string; label: string; image_url: string; is_default: boolean; }
+
+/* ─── Inline Runway clip generator ─────────────────────────── */export interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
   artistVault?: ArtistVault | null;
@@ -132,6 +135,43 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  /* ── Wardrobe: the artist's outfits, picked per scene. The picked outfit's
+        image becomes the visual reference for generation (instead of the base
+        vault photo), so the character wears that outfit in the clip. ── */
+  const [outfits, setOutfits] = useState<WardrobeOutfit[]>([]);
+  const [pickedOutfitId, setPickedOutfitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOutfits([]);
+    setPickedOutfitId(null);
+    const vaultId = artistVault?.id;
+    if (!vaultId) return;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/artist-vaults/${vaultId}/outfits`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list: WardrobeOutfit[] = data.outfits ?? [];
+        setOutfits(list);
+        const def = list.find((o) => o.is_default);
+        if (def) setPickedOutfitId(def.id);
+      } catch {
+        /* wardrobe is optional — generation works without it */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id]);
+
+  const pickedOutfit = outfits.find((o) => o.id === pickedOutfitId) ?? null;
+  const outfitRefUrl = pickedOutfit && /^https:\/\//i.test(pickedOutfit.image_url)
+    ? pickedOutfit.image_url
+    : null;
+
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
 
@@ -157,7 +197,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       "cinematic music video scene, dramatic lighting, luxury aesthetic";
 
     if (artistVault) {
-      const prefix = buildConsistencyPrefix(artistVault);
+      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null);
       return `${prefix}\n${basePrompt}`;
     }
     return basePrompt;
@@ -260,9 +300,10 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
           referenceImageUrl:
-            artistVault && hasReferencePhoto(artistVault)
+            outfitRefUrl ??
+            (artistVault && hasReferencePhoto(artistVault)
               ? artistVault.reference_image_url
-              : null,
+              : null),
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
           durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
@@ -429,6 +470,48 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   return (
     <div className="space-y-3">
       {/* Reference/consistency badge — scene-chain takes priority over the vault photo */}
+      {/* Wardrobe outfit picker — per scene. The picked outfit's photo becomes
+          the visual reference so the artist wears it in this scene's clip. */}
+      {hasArtist && outfits.length > 0 && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="outfit-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            👔 Outfit for this scene
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setPickedOutfitId(null)}
+              title="Use the artist's base vault photo"
+              className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                pickedOutfitId === null ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+              }`}
+            >
+              {artistVault!.reference_image_url ? (
+                <img src={artistVault!.reference_image_url} alt="Base look" className="h-full w-full object-cover object-top" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-white/10 text-[9px] text-white/50 font-bold">Base</span>
+              )}
+            </button>
+            {outfits.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setPickedOutfitId(o.id)}
+                title={o.label}
+                className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                  pickedOutfitId === o.id ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img src={o.image_url} alt={o.label} className="h-full w-full object-cover object-top" loading="lazy" />
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/40 mt-1.5">
+            {pickedOutfit ? <>Wearing: <span className="text-white/70 font-semibold">{pickedOutfit.label}</span></> : "Base vault look"}
+          </p>
+        </div>
+      )}
+
       {willChain ? (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20" data-testid="text-reference-source">
           <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -450,9 +533,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             </p>
             <p className="text-[10px] text-white/40 leading-snug">
               {artistVault!.artist_name} will be used as the main character.
-              {hasReferencePhoto(artistVault!)
-                ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
-                : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
+              {pickedOutfit
+                ? ` Outfit "${pickedOutfit.label}" is used as the visual reference for this scene.`
+                : hasReferencePhoto(artistVault!)
+                  ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
+                  : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
             </p>
           </div>
         </div>
