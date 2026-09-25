@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   buildAuthUrl,
+  exchangeCodeForLongLivedToken,
+  fetchInstagramProfile,
   createReelContainer,
   pollContainerUntilFinished,
   publishReelToInstagram,
@@ -25,16 +27,60 @@ function mockFetch(queue: Array<{ status?: number; body: unknown }>): FetchImpl 
 const noSleep = async () => {};
 
 describe("buildAuthUrl", () => {
-  it("includes app id, redirect, scopes, and state", () => {
+  it("uses Instagram Login with the business scopes", () => {
     const url = buildAuthUrl(
       { appId: "123", appSecret: "shh", redirectUri: "https://x.test/cb" },
       "state-abc",
     );
-    expect(url).toContain("facebook.com/v21.0/dialog/oauth");
+    expect(url).toContain("https://www.instagram.com/oauth/authorize");
     expect(url).toContain("client_id=123");
     expect(url).toContain("state=state-abc");
+    expect(url).toContain("enable_fb_login=0");
+    expect(url).toContain(encodeURIComponent("instagram_business_basic"));
     expect(url).toContain(encodeURIComponent("instagram_business_content_publish"));
-    expect(url).toContain(encodeURIComponent("pages_show_list"));
+    expect(url).not.toContain("facebook.com");
+    expect(url).not.toContain("pages_show_list");
+  });
+});
+
+describe("exchangeCodeForLongLivedToken", () => {
+  const cfg = { appId: "ig-app-1", appSecret: "ig-secret", redirectUri: "https://x.test/cb" };
+
+  it("exchanges code → short-lived → long-lived and returns the IG user id", async () => {
+    const fetchImpl = mockFetch([
+      { body: { access_token: "short-lived", user_id: 987654321 } }, // api.instagram.com token
+      { body: { access_token: "long-lived", expires_in: 5184000 } }, // ig_exchange_token
+    ]);
+    const result = await exchangeCodeForLongLivedToken(cfg, "auth-code", fetchImpl);
+    expect(result).toEqual({
+      accessToken: "long-lived",
+      expiresInSec: 5184000,
+      igUserId: "987654321",
+    });
+    const [tokenUrl, tokenInit] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+    expect(tokenUrl).toContain("api.instagram.com/oauth/access_token");
+    const body = new URLSearchParams(tokenInit.body as string);
+    expect(body.get("grant_type")).toBe("authorization_code");
+    expect(body.get("code")).toBe("auth-code");
+    expect(body.get("client_id")).toBe("ig-app-1");
+  });
+
+  it("throws MetaApiError when the code exchange fails", async () => {
+    const fetchImpl = mockFetch([
+      { status: 400, body: { error: { message: "Invalid code", code: 100 } } },
+    ]);
+    await expect(exchangeCodeForLongLivedToken(cfg, "bad-code", fetchImpl)).rejects.toThrow(MetaApiError);
+  });
+});
+
+describe("fetchInstagramProfile", () => {
+  it("returns the IG user id and username from /me", async () => {
+    const fetchImpl = mockFetch([{ body: { id: "987654321", username: "bowdownvisuals" } }]);
+    const profile = await fetchInstagramProfile("tok", fetchImpl);
+    expect(profile).toEqual({ igUserId: "987654321", username: "bowdownvisuals" });
+    const [url] = (fetchImpl as ReturnType<typeof vi.fn>).mock.calls[0] as [string];
+    expect(url).toContain("graph.instagram.com");
+    expect(url).toContain("/me");
   });
 });
 

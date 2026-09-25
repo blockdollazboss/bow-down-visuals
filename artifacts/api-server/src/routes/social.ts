@@ -12,8 +12,7 @@ import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
   buildAuthUrl,
   exchangeCodeForLongLivedToken,
-  findInstagramPage,
-  fetchInstagramUsername,
+  fetchInstagramProfile,
   publishReelToInstagram,
   MetaApiError,
   type MetaOAuthConfig,
@@ -44,14 +43,17 @@ const router = Router();
 const INSTAGRAM_POST_CREDITS = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 2;
 
 function metaConfig(): MetaOAuthConfig {
-  const appId = process.env["META_APP_ID"] ?? "";
-  const appSecret = process.env["META_APP_SECRET"] ?? "";
+  /* Instagram Login credentials: the Instagram app ID/secret from the Meta
+     app's Instagram product (API setup with Instagram login) — NOT the
+     Facebook app ID (META_APP_ID), which belongs to the legacy flow. */
+  const appId = process.env["INSTAGRAM_APP_ID"] ?? "";
+  const appSecret = process.env["INSTAGRAM_APP_SECRET"] ?? "";
   const redirectUri =
     process.env["META_REDIRECT_URI"] ??
     "https://bowdownvisuals.com/api/social/instagram/callback";
   if (!appId || !appSecret) {
     throw new MetaApiError(
-      "Instagram auto-post isn't configured yet. The site owner needs to set META_APP_ID and META_APP_SECRET.",
+      "Instagram auto-post isn't configured yet. The site owner needs to set INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET.",
     );
   }
   return { appId, appSecret, redirectUri };
@@ -124,10 +126,10 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
 
   try {
     const cfg = metaConfig();
-    const { accessToken, expiresInSec } = await exchangeCodeForLongLivedToken(cfg, code);
-    const page = await findInstagramPage(accessToken);
-    const username = await fetchInstagramUsername(page.igUserId, page.pageAccessToken).catch(() => "");
-    const encrypted = encryptToken(page.pageAccessToken); // fail closed when SOCIAL_TOKEN_KEY unset
+    const { accessToken, expiresInSec, igUserId } = await exchangeCodeForLongLivedToken(cfg, code);
+    const profile = await fetchInstagramProfile(accessToken).catch(() => ({ igUserId, username: "" }));
+    const username = profile.username || "";
+    const encrypted = encryptToken(accessToken); // fail closed when SOCIAL_TOKEN_KEY unset
     const expiresAt = new Date(Date.now() + expiresInSec * 1000);
 
     await db
@@ -135,9 +137,9 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
       .values({
         user_id: userId,
         platform: "instagram",
-        ig_user_id: page.igUserId,
+        ig_user_id: igUserId,
         username: username || null,
-        page_id: page.pageId,
+        page_id: null,
         access_token_encrypted: encrypted,
         token_expires_at: expiresAt,
       })
@@ -145,14 +147,14 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
         target: [socialAccountsTable.user_id, socialAccountsTable.platform, socialAccountsTable.ig_user_id],
         set: {
           username: username || null,
-          page_id: page.pageId,
+          page_id: null,
           access_token_encrypted: encrypted,
           token_expires_at: expiresAt,
           updated_at: new Date(),
         },
       });
 
-    logger.info({ userId, igUserId: page.igUserId }, "[social] Instagram account connected");
+    logger.info({ userId, igUserId }, "[social] Instagram account connected");
     res.redirect(`${siteOrigin}/settings?social=instagram_connected`);
   } catch (err) {
     const message = err instanceof MetaApiError ? err.userMessage : "Instagram connection failed. Try again.";
