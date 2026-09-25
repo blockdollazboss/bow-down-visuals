@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star } from "lucide-react";
+import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star, Aperture, Camera } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,26 +60,36 @@ export default function ChooseArtist() {
   const hiddenCount = sortedVaults.length - 10;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white overflow-hidden">
       <TopBar />
 
+      {/* Photography studio lighting — overhead softbox beams */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-white/[0.04] rounded-full blur-[120px]" />
+        <div className="absolute top-0 left-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] -rotate-12 origin-top" />
+        <div className="absolute top-0 right-[15%] w-[300px] h-[500px] bg-gradient-to-b from-[#C9A84C]/[0.07] to-transparent blur-[60px] rotate-12 origin-top" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-white/[0.03] rounded-full blur-[100px]" />
+        {/* Studio floor reflection */}
+        <div className="absolute bottom-0 left-0 right-0 h-[200px] bg-gradient-to-t from-[#C9A84C]/[0.04] to-transparent" />
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-16">
         <div className="text-center mb-10">
+          {/* ON SET indicator */}
+          <div className="inline-flex items-center gap-2 mb-5 rounded-full border border-red-500/40 bg-red-500/10 px-4 py-1.5">
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-red-400 text-[11px] font-bold uppercase tracking-[0.25em]">On set</span>
+          </div>
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 border border-[#C9A84C]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(201,168,76,0.25)]">
-            <Crown className="h-7 w-7 text-[#C9A84C]" />
+            <Aperture className="h-7 w-7 text-[#C9A84C]" />
           </div>
           <p className="text-[#C9A84C] text-xs font-bold uppercase tracking-[0.3em] mb-3">
-            VIP Artist Lounge
+            Bow Down Visuals Studio
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Who's Taking the Stage?
+            Who's In Front of the Camera?
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Your artist, your sound, your empire — pick who you're creating for and we'll match everything to their brand.
+            Pick your artist — lights, camera, and we'll match their look, sound, and brand across everything you create.
           </p>
         </div>
 
@@ -99,13 +109,13 @@ export default function ChooseArtist() {
           </div>
         ) : (
           <>
-            {/* Featured top 3 — VIP spotlight */}
+            {/* Featured top 3 — studio spotlight */}
             <div className="flex items-center justify-center gap-2 mb-4">
-              <Star className="h-4 w-4 text-[#C9A84C]" />
+              <Camera className="h-4 w-4 text-[#C9A84C]" />
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
-                Your headliners
+                In the spotlight
               </p>
-              <Star className="h-4 w-4 text-[#C9A84C]" />
+              <Camera className="h-4 w-4 text-[#C9A84C]" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {featuredVaults.map((vault, index) => {
@@ -169,9 +179,19 @@ export default function ChooseArtist() {
                   }}>
                     <Crown className="h-3 w-3" style={{ color: GOLD }} />
                     <span style={{ fontSize: 9, fontWeight: 900, color: GOLD, letterSpacing: "0.12em" }}>
-                      #{index + 1} HEADLINER
+                      #{index + 1} SPOTLIGHT
                     </span>
                   </div>
+
+                  {/* Viewfinder focus corners */}
+                  {[
+                    { top: 8, left: 8, borderTop: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderTopLeftRadius: 6 },
+                    { top: 8, right: 8, borderTop: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderTopRightRadius: 6 },
+                    { bottom: 8, left: 8, borderBottom: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderBottomLeftRadius: 6 },
+                    { bottom: 8, right: 8, borderBottom: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderBottomRightRadius: 6 },
+                  ].map((corner, ci) => (
+                    <div key={ci} style={{ position: "absolute", width: 22, height: 22, zIndex: 2, pointerEvents: "none", ...corner }} />
+                  ))}
 
                   {/* SELECTED badge */}
                   {isSelected && (
