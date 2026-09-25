@@ -85,6 +85,8 @@ const Beats = lazyWithRetry(() => import("@/pages/beats"));
 const ThumbnailTest = lazyWithRetry(() => import("@/pages/thumbnail-test"));
 const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
 const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
+const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
+const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -262,6 +264,8 @@ function AppShell() {
           <Route path="/beats"><Beats /></Route>
           <Route path="/thumbnail-test"><ThumbnailTest /></Route>
           <Route path="/caption-styler"><CaptionStyler /></Route>
+          <Route path="/press-kit"><ProtectedRoute><PressKitBuilder /></ProtectedRoute></Route>
+          <Route path="/press/:handle"><PublicPressKit /></Route>
 
           <Route path="/script-writer"><ScriptWriter /></Route>
           {/* Protected app pages — inside the sidebar layout */}

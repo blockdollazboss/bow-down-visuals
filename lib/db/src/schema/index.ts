@@ -39,3 +39,4 @@ export * from "./branding-orders";
 export * from "./customer-shops";
 export * from "./beats";
 export * from "./fan-memberships";
+export * from "./press-kits";
