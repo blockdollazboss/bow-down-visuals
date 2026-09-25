@@ -24,7 +24,7 @@ interface Usage {
 }
 
 interface CreditHistory {
-  purchases: Purchase[];
+  purchases: Payment[];
   usage: Usage[];
 }
 
