@@ -21,9 +21,11 @@ const NAV_LINKS = [
   { label: "Hook Studio", href: "/hooks" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Script Writer", href: "/script-writer" },
+  { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Beats", href: "/beats" },
+  { label: "Branding Shop", href: "/branding-shop" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

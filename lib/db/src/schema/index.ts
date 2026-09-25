@@ -34,3 +34,4 @@ export * from "./locations";
 export * from "./artist-outfits";
 export * from "./discord";
 export * from "./beats";
+export * from "./branding-orders";

@@ -57,6 +57,7 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
+const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
@@ -70,6 +71,7 @@ const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
+const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -222,6 +224,7 @@ function AppShell() {
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
+          <Route path="/titles"><TitleStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
@@ -235,6 +238,7 @@ function AppShell() {
           <Route path="/llc-guide"><LlcGuide /></Route>
           <Route path="/script-writer"><ScriptWriter /></Route>
           <Route path="/beats"><Beats /></Route>
+          <Route path="/branding-shop"><BrandingShop /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
