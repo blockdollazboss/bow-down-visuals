@@ -39,6 +39,7 @@ import generationHistoryRouter from "./generation-history";
 import lipSyncRouter from "./lip-sync";
 import chatRouter from "./chat";
 import preProductionRouter from "./generate/pre-production";
+import randomizerRouter from "./generate/randomizer";
 
 const router: IRouter = Router();
 
@@ -82,5 +83,6 @@ router.use(generationHistoryRouter);
 router.use(lipSyncRouter);
 router.use(preProductionRouter);
 router.use(chatRouter);
+router.use(randomizerRouter);
 
 export default router;
