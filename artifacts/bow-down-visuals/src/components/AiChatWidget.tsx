@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { AnimatedSharkIcon } from "@/components/AnimatedSharkIcon";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -139,11 +140,9 @@ export function AiChatWidget() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
             <div className="flex items-center gap-3">
-              <img
-                src="/cheat-code-avatar.webp"
-                alt="Thy Cheat Code avatar"
-                className="h-10 w-10 rounded-full border-2 border-primary/60 object-cover shadow-[0_0_12px_rgba(212,175,55,0.4)]"
-              />
+              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/60 shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+                <AnimatedSharkIcon className="h-full w-full" />
+              </div>
               <div>
                 <p className="text-sm font-bold text-primary"><CheatCodeName /> 🦈</p>
                 <p className="text-[11px] text-neutral-400">
@@ -179,11 +178,9 @@ export function AiChatWidget() {
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "assistant" && (
-                  <img
-                    src="/cheat-code-avatar.webp"
-                    alt="Thy Cheat Code"
-                    className="mr-2 h-7 w-7 shrink-0 rounded-full border border-primary/50 object-cover"
-                  />
+                  <div className="mr-2 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-primary/50">
+                    <AnimatedSharkIcon className="h-full w-full" />
+                  </div>
                 )}
                 <div
                   className={
@@ -255,11 +252,7 @@ export function AiChatWidget() {
         {open ? (
           <X className="h-6 w-6 text-primary" />
         ) : (
-          <img
-            src="/cheat-code-avatar.webp"
-            alt="Chat with Thy Cheat Code"
-            className="h-full w-full object-cover"
-          />
+          <AnimatedSharkIcon className="h-full w-full" />
         )}
       </button>
     </div>
