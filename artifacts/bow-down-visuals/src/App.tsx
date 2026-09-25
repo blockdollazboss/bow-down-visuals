@@ -65,6 +65,7 @@ const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
+const StemSplitter = lazyWithRetry(() => import("@/pages/stems"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
@@ -235,6 +236,7 @@ function AppShell() {
           <Route path="/sponsors"><SponsorMarketplace /></Route>
           <Route path="/outreach"><SponsorshipOutreach /></Route>
           <Route path="/upscale"><Upscale /></Route>
+          <Route path="/stems"><StemSplitter /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
