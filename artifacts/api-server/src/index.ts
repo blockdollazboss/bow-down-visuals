@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
+import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -23,4 +24,9 @@ app.listen(port, (err) => {
   recoverInterruptedExportJobs().catch((recoveryErr) =>
     logger.error({ recoveryErr }, "Export job recovery failed"),
   );
+
+  // Sweep Instagram publish attempts orphaned by a previous process
+  // (deploy/restart/crash): fails them and refunds the deducted credits.
+  // Runs once shortly after boot, then on SOCIAL_SWEEP_INTERVAL_MS.
+  startPublishAttemptSweeper();
 });
