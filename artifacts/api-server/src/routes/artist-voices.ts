@@ -405,15 +405,15 @@ router.post(
       );
       req.log.info({ vaultId: vault.id, label }, "artist-voices: from-song isolation started");
 
-      /* 1 — Trim to the loudest window, then strip it down to its vocals
+      /* 1 — Trim to the best window, then strip it down to its vocals
          (lighter model: this runs inside a web request on a small
          container). */
       const { vocalsPath, workdir } = await separateVocalStems(songBuffer, {
         model: FROM_SONG_DEMUCS_MODEL,
         trimSeconds: FROM_SONG_TRIM_SECONDS,
         windowStrategy: FROM_SONG_WINDOW_STRATEGY,
-        // Normalize + silence-trim for IVC: ElevenLabs rejects inputs with
-        // wild level swings or long leading silence (2026-09-25 incident).
+        // Normalize + de-bleed + silence-trim for IVC: ElevenLabs rejects
+        // raw htdemucs output with heavy instrumental bleed (2026-09-25).
         postProcessVocals: true,
       });
       let vocalsBuffer: Buffer;
