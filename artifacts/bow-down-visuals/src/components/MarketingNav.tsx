@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing" },
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
+  { label: "Sound Finder", href: "/sounds" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
