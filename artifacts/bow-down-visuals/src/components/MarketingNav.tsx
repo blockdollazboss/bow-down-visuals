@@ -23,10 +23,8 @@ const NAV_LINKS = [
   { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
-  { label: "Press Kits", href: "/press-kit" },
-  { label: "Release Planner", href: "/release" },
-  { label: "Samples", href: "/samples" },
   { label: "Sponsorship Outreach", href: "/outreach" },
+  { label: "Clip Maker", href: "/clip-maker" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
