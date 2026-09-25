@@ -26,3 +26,5 @@ export * from "./generation-history";
 export * from "./contact-messages";
 export * from "./export-jobs";
 export * from "./songs";
+export * from "./social-accounts";
+export * from "./social-publish-attempts";

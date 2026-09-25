@@ -53,6 +53,7 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -210,6 +211,7 @@ function AppShell() {
                 <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
                 <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
+                <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
                 <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
