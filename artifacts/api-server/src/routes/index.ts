@@ -47,6 +47,8 @@ import monetizationCoachRouter from "./generate/monetization-coach";
 import upscaleRouter from "./generate/upscale";
 import streamPackRouter from "./generate/stream-pack";
 import watermarkRemovalRouter from "./generate/watermark-removal";
+import logoRouter from "./generate/logo";
+import introOutroRouter from "./generate/intro-outro";
 import socialRouter from "./social";
 import jobNotificationsRouter from "./job-notifications";
 
@@ -100,6 +102,8 @@ router.use(monetizationCoachRouter);
 router.use(upscaleRouter);
 router.use(watermarkRemovalRouter);
 router.use(streamPackRouter);
+router.use(logoRouter);
+router.use(introOutroRouter);
 router.use(socialRouter);
 router.use(jobNotificationsRouter);
 
