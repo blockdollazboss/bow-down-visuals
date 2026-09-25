@@ -17,10 +17,14 @@ RUN apt-get update \
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
 # DEMUCS_PYTHON points the server at this interpreter; DEMUCS_MODEL can
 # override the model (default mdx_extra_q).
+# yt-dlp: the Media Importer shells out to it for platform downloads
+# (YouTube, SoundCloud, TikTok, Instagram, X, Vimeo). Pinned to the
+# system python3 so `python3 -m yt_dlp` works as a fallback.
 RUN python3 -m venv /opt/demucs-venv \
   && /opt/demucs-venv/bin/pip install --no-cache-dir --upgrade pip \
   && /opt/demucs-venv/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
-  && /opt/demucs-venv/bin/pip install --no-cache-dir demucs numpy diffq
+  && /opt/demucs-venv/bin/pip install --no-cache-dir demucs numpy diffq \
+  && python3 -m pip install --no-cache-dir --upgrade yt-dlp --break-system-packages
 ENV DEMUCS_PYTHON=/opt/demucs-venv/bin/python
 
 RUN corepack enable
