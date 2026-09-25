@@ -35,3 +35,4 @@ export * from "./artist-outfits";
 export * from "./discord";
 export * from "./scheduled-posts";
 export * from "./playlist-pitch";
+export * from "./fan-shoutouts";
