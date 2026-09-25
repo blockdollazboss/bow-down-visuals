@@ -72,6 +72,186 @@ function GoldDust() {
   );
 }
 
+/** Royal velvet drapes framing the lobby — heavy black folds, gold inner trim, tie-back medallions. */
+function RoyalDrapes() {
+  const drape = (side: "left" | "right") => {
+    const isLeft = side === "left";
+    return (
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-y-0 ${isLeft ? "left-0" : "right-0"} z-[1] hidden w-24 md:block lg:w-32`}
+      >
+        {/* folded velvet */}
+        <div className={`bd-drape absolute inset-0 ${isLeft ? "" : "bd-drape-r"}`} />
+        {/* gold inner trim */}
+        <div
+          className={`absolute inset-y-0 ${isLeft ? "right-0" : "left-0"} w-[3px] bg-gradient-to-b from-[#F5DE8E] via-[#C9A84C] to-[#8A6B1F] shadow-[0_0_12px_rgba(201,168,76,0.5)]`}
+        />
+        {/* top cornice */}
+        <div className="absolute inset-x-0 top-0 h-3 bg-gradient-to-b from-[#F5DE8E]/70 to-[#8A6B1F]/70" />
+        {/* tie-back sash */}
+        <div className="absolute left-0 right-0 top-[58%] h-9 -translate-y-1/2 bg-gradient-to-b from-[#E8C96A] via-[#C9A84C] to-[#8A6B1F] shadow-[0_2px_14px_rgba(0,0,0,0.7)]" />
+        <div className="absolute left-1/2 top-[58%] h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#F5DE8E]/70 bg-[radial-gradient(circle_at_35%_30%,#F5DE8E,#C9A84C_55%,#8A6B1F)] shadow-[0_0_18px_rgba(201,168,76,0.6)]" />
+        {/* gathered skirt below the tie-back */}
+        <div className="absolute inset-x-0 top-[calc(58%+18px)] bottom-0 bg-[radial-gradient(ellipse_at_top,rgba(201,168,76,0.10),transparent_60%)]" />
+      </div>
+    );
+  };
+  return (
+    <>
+      {drape("left")}
+      {drape("right")}
+    </>
+  );
+}
+
+/** Gold stanchion post — ball top, pole, round base. */
+function Stanchion({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute flex w-9 flex-col items-center ${className}`}
+      style={style}
+    >
+      <div className="h-3.5 w-3.5 rounded-full bg-[radial-gradient(circle_at_35%_30%,#F5DE8E,#C9A84C_60%,#8A6B1F)] shadow-[0_0_10px_rgba(201,168,76,0.7)]" />
+      <div className="h-11 w-[5px] bg-gradient-to-b from-[#E8C96A] via-[#C9A84C] to-[#8A6B1F]" />
+      <div className="h-2 w-9 rounded-[50%] bg-[radial-gradient(ellipse_at_center,#E8C96A,#8A6B1F)] shadow-[0_2px_6px_rgba(0,0,0,0.7)]" />
+    </div>
+  );
+}
+
+/** Gold carpet aisle — a golden premiere carpet in perspective, flanked by velvet-rope stanchions. */
+function GoldCarpetAisle() {
+  return (
+    <div
+      className="animate-bd-entrance relative mx-auto mb-8 mt-2 max-w-2xl px-8"
+      style={{ animationDelay: "0.5s" }}
+      aria-hidden="true"
+    >
+      <div className="relative h-44 md:h-56">
+        {/* the carpet */}
+        <div
+          className="bd-gold-carpet absolute inset-y-0 left-1/2 w-[48%] -translate-x-1/2 overflow-hidden md:w-[42%]"
+          style={{ clipPath: "polygon(31% 0, 69% 0, 100% 100%, 0 100%)" }}
+        >
+          <div className="animate-bd-carpet-sheen absolute inset-y-0" />
+        </div>
+        {/* fringe on the near edge */}
+        <div className="bd-carpet-fringe absolute bottom-0 left-1/2 h-3 w-[48%] -translate-x-1/2 md:w-[42%]" />
+        {/* velvet ropes along both sides */}
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="bd-rope" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#F5DE8E" />
+              <stop offset="0.5" stopColor="#C9A84C" />
+              <stop offset="1" stopColor="#8A6B1F" />
+            </linearGradient>
+          </defs>
+          <path d="M 40.5,5 Q 32,45 26.5,84" fill="none" stroke="#3a2c07" strokeWidth="3.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0.7" />
+          <path d="M 40.5,5 Q 32,45 26.5,84" fill="none" stroke="url(#bd-rope)" strokeWidth="2.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <path d="M 59.5,5 Q 68,45 73.5,84" fill="none" stroke="#3a2c07" strokeWidth="3.4" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity="0.7" />
+          <path d="M 59.5,5 Q 68,45 73.5,84" fill="none" stroke="url(#bd-rope)" strokeWidth="2.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* stanchions at the rope ends */}
+        <Stanchion className="left-[40.5%] top-[3%]" style={{ transform: "translateX(-50%)" }} />
+        <Stanchion className="left-[59.5%] top-[3%]" style={{ transform: "translateX(-50%)" }} />
+        <Stanchion className="left-[26.5%] top-[80%]" style={{ transform: "translateX(-50%)" }} />
+        <Stanchion className="left-[73.5%] top-[80%]" style={{ transform: "translateX(-50%)" }} />
+      </div>
+    </div>
+  );
+}
+
+/** Black-and-gold throne on a stepped dais — the seat awaiting the chosen artist. */
+function ThroneDais() {
+  return (
+    <div
+      className="animate-bd-entrance relative mx-auto mb-6 mt-4 flex max-w-xl flex-col items-center"
+      style={{ animationDelay: "0.62s" }}
+      aria-hidden="true"
+    >
+      {/* halo glow */}
+      <div className="absolute left-1/2 top-4 h-72 w-72 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(201,168,76,0.22)_0%,transparent_65%)] blur-2xl" />
+      <svg
+        viewBox="0 0 440 500"
+        className="relative h-auto w-60 drop-shadow-[0_18px_40px_rgba(0,0,0,0.8)] md:w-72"
+        role="img"
+        aria-label="Black and gold throne"
+      >
+        <defs>
+          <linearGradient id="bd-throne-gold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#F5DE8E" />
+            <stop offset="0.45" stopColor="#C9A84C" />
+            <stop offset="1" stopColor="#7A5F16" />
+          </linearGradient>
+          <radialGradient id="bd-throne-velvet" cx="0.5" cy="0.35" r="0.9">
+            <stop offset="0" stopColor="#232019" />
+            <stop offset="1" stopColor="#0B0A08" />
+          </radialGradient>
+          <pattern id="bd-throne-tuft" width="30" height="30" patternUnits="userSpaceOnUse">
+            <rect width="30" height="30" fill="#100F0D" />
+            <path d="M15 7 L23 15 L15 23 L7 15 Z" fill="none" stroke="rgba(201,168,76,0.4)" strokeWidth="1.4" />
+            <circle cx="15" cy="15" r="2.4" fill="#C9A84C" />
+          </pattern>
+        </defs>
+
+        {/* dais steps */}
+        <rect x="70" y="452" width="300" height="20" rx="3" fill="url(#bd-throne-gold)" opacity="0.85" />
+        <rect x="95" y="432" width="250" height="20" rx="3" fill="url(#bd-throne-gold)" opacity="0.6" />
+        <rect x="120" y="414" width="200" height="18" rx="3" fill="url(#bd-throne-gold)" opacity="0.4" />
+
+        {/* legs */}
+        <rect x="138" y="372" width="26" height="46" fill="#0B0A08" stroke="url(#bd-throne-gold)" strokeWidth="3" />
+        <rect x="276" y="372" width="26" height="46" fill="#0B0A08" stroke="url(#bd-throne-gold)" strokeWidth="3" />
+        {/* paw feet */}
+        <path d="M132 418 h38 l6 12 h-50 Z" fill="url(#bd-throne-gold)" />
+        <path d="M270 418 h38 l6 12 h-50 Z" fill="url(#bd-throne-gold)" />
+
+        {/* seat base + cushion */}
+        <rect x="112" y="344" width="216" height="34" rx="6" fill="url(#bd-throne-velvet)" stroke="url(#bd-throne-gold)" strokeWidth="4" />
+        <rect x="122" y="326" width="196" height="24" rx="10" fill="#171512" stroke="url(#bd-throne-gold)" strokeWidth="2.5" />
+
+        {/* armrests with orb finials */}
+        <rect x="70" y="262" width="36" height="96" rx="14" fill="url(#bd-throne-velvet)" stroke="url(#bd-throne-gold)" strokeWidth="4" />
+        <rect x="334" y="262" width="36" height="96" rx="14" fill="url(#bd-throne-velvet)" stroke="url(#bd-throne-gold)" strokeWidth="4" />
+        <circle cx="88" cy="248" r="15" fill="url(#bd-throne-gold)" />
+        <circle cx="352" cy="248" r="15" fill="url(#bd-throne-gold)" />
+        <circle cx="88" cy="243" r="5" fill="#FFF3C4" opacity="0.7" />
+        <circle cx="352" cy="243" r="5" fill="#FFF3C4" opacity="0.7" />
+
+        {/* backrest */}
+        <path
+          d="M120 344 L120 110 Q120 60 170 60 L270 60 Q320 60 320 110 L320 344 Z"
+          fill="url(#bd-throne-velvet)"
+          stroke="url(#bd-throne-gold)"
+          strokeWidth="6"
+        />
+        {/* tufted inner panel */}
+        <path
+          d="M138 326 L138 118 Q138 78 178 78 L262 78 Q302 78 302 118 L302 326 Z"
+          fill="url(#bd-throne-tuft)"
+        />
+        {/* studded inner border */}
+        <path
+          d="M138 326 L138 118 Q138 78 178 78 L262 78 Q302 78 302 118 L302 326 Z"
+          fill="none"
+          stroke="#C9A84C"
+          strokeWidth="7"
+          strokeDasharray="0.1 16"
+          strokeLinecap="round"
+          opacity="0.9"
+        />
+        {/* crown crest */}
+        <path d="M196 60 L204 30 L214 48 L220 26 L226 48 L236 30 L244 60 Z" fill="url(#bd-throne-gold)" />
+        <circle cx="220" cy="20" r="7" fill="url(#bd-throne-gold)" />
+      </svg>
+      <p className="relative mt-3 text-center text-[10px] font-bold uppercase tracking-[0.4em] text-[#C9A84C]/70">
+        The throne awaits
+      </p>
+    </div>
+  );
+}
+
 export default function ChooseArtist() {
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
@@ -124,7 +304,7 @@ export default function ChooseArtist() {
   const remainingVaults = sortedVaults.slice(3, 10);
   const hiddenCount = sortedVaults.length - 10;
 
-  const cardDelay = (i: number) => ({ animationDelay: `${0.45 + i * 0.14}s` } as React.CSSProperties);
+  const cardDelay = (i: number) => ({ animationDelay: `${0.85 + i * 0.14}s` } as React.CSSProperties);
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative">
@@ -145,6 +325,7 @@ export default function ChooseArtist() {
         <div className="absolute inset-0 shadow-[inset_0_0_220px_rgba(0,0,0,0.9)]" />
         <GoldDust />
       </div>
+      <RoyalDrapes />
 
       <div className="relative z-10 max-w-6xl mx-auto px-5 md:px-8 pt-14 md:pt-20 pb-20">
         {/* ── The marquee ── */}
@@ -181,6 +362,10 @@ export default function ChooseArtist() {
           </p>
         </div>
 
+        {/* ── Gold carpet aisle + the throne — the walk to the spotlight ── */}
+        <GoldCarpetAisle />
+        <ThroneDais />
+
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-8 w-8 animate-spin text-[#C9A84C]/60" />
@@ -212,7 +397,7 @@ export default function ChooseArtist() {
         ) : (
           <>
             {/* ── In the spotlight — featured top 3 ── */}
-            <div className="animate-bd-entrance text-center mb-6" style={{ animationDelay: "0.5s" }}>
+            <div className="animate-bd-entrance text-center mb-6" style={{ animationDelay: "0.78s" }}>
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.35em] mb-4">
                 In the Spotlight
               </p>
@@ -340,7 +525,7 @@ export default function ChooseArtist() {
 
             {/* ── The ensemble — remaining artists ── */}
             {remainingVaults.length > 0 && (
-              <div className="animate-bd-entrance" style={{ animationDelay: "0.95s" }}>
+              <div className="animate-bd-entrance" style={{ animationDelay: "1.3s" }}>
                 <div className="text-center mb-6">
                   <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.35em] mb-4">
                     The Ensemble
@@ -398,7 +583,7 @@ export default function ChooseArtist() {
         )}
 
         {/* ── The doors — actions ── */}
-        <div className="animate-bd-entrance max-w-xl mx-auto space-y-4 mt-4" style={{ animationDelay: vaults.length > 0 ? "1.1s" : "0.7s" }}>
+        <div className="animate-bd-entrance max-w-xl mx-auto space-y-4 mt-4" style={{ animationDelay: vaults.length > 0 ? "1.45s" : "0.85s" }}>
           <RopeDivider width="w-24" />
 
           <Button
