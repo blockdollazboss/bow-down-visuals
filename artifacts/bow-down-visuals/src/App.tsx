@@ -78,14 +78,41 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
-const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
 const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const Gamers = lazyWithRetry(() => import("@/pages/gamers"));
+/* ── Orphaned feature pages wired up (site organization) ── */
+const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
+const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
+const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
+const Translate = lazyWithRetry(() => import("@/pages/translate"));
+const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
+const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
+const Trends = lazyWithRetry(() => import("@/pages/trends"));
+const ThumbnailTest = lazyWithRetry(() => import("@/pages/thumbnail-test"));
+const VocalRemoval = lazyWithRetry(() => import("@/pages/vocal-removal"));
+const Voiceover = lazyWithRetry(() => import("@/pages/voiceover"));
+const PressKit = lazyWithRetry(() => import("@/pages/press-kit"));
+const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
+const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
+const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
+const Sponsors = lazyWithRetry(() => import("@/pages/sponsors"));
+const Contests = lazyWithRetry(() => import("@/pages/contests"));
+const Titles = lazyWithRetry(() => import("@/pages/titles"));
+const Community = lazyWithRetry(() => import("@/pages/community"));
+const Mastering = lazyWithRetry(() => import("@/pages/mastering"));
+const Stems = lazyWithRetry(() => import("@/pages/stems"));
+const Sfx = lazyWithRetry(() => import("@/pages/sfx"));
+const Samples = lazyWithRetry(() => import("@/pages/samples"));
+const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
+const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
+const Join = lazyWithRetry(() => import("@/pages/join"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -260,6 +287,9 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
+          {/* Public press kit view + email-list join landing (fan-facing) */}
+          <Route path="/press/:id"><PressPublic /></Route>
+          <Route path="/join/:handle"><Join /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
@@ -290,14 +320,39 @@ function AppShell() {
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/thumbnail-maker"><ProtectedRoute><ThumbnailMaker /></ProtectedRoute></Route>
                 <Route path="/merch"><ProtectedRoute><Merch /></ProtectedRoute></Route>
-                <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
                 <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
                 <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
-                <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
+                <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
+                {/* ── Wired-up orphaned pages (site organization) ── */}
+                <Route path="/caption-styler"><ProtectedRoute><CaptionStyler /></ProtectedRoute></Route>
+                <Route path="/cover-art"><ProtectedRoute><CoverArt /></ProtectedRoute></Route>
+                <Route path="/lyric-video"><ProtectedRoute><LyricVideo /></ProtectedRoute></Route>
+                <Route path="/translate"><ProtectedRoute><Translate /></ProtectedRoute></Route>
+                <Route path="/script-writer"><ProtectedRoute><ScriptWriter /></ProtectedRoute></Route>
+                <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
+                <Route path="/trends"><ProtectedRoute><Trends /></ProtectedRoute></Route>
+                <Route path="/thumbnail-test"><ProtectedRoute><ThumbnailTest /></ProtectedRoute></Route>
+                <Route path="/vocal-removal"><ProtectedRoute><VocalRemoval /></ProtectedRoute></Route>
+                <Route path="/voiceover"><ProtectedRoute><Voiceover /></ProtectedRoute></Route>
+                <Route path="/press-kit"><ProtectedRoute><PressKit /></ProtectedRoute></Route>
+                <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
+                <Route path="/collabs"><ProtectedRoute><Collabs /></ProtectedRoute></Route>
+                <Route path="/sponsors"><ProtectedRoute><Sponsors /></ProtectedRoute></Route>
+                <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
+                <Route path="/titles"><ProtectedRoute><Titles /></ProtectedRoute></Route>
+                <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>
+                <Route path="/mastering"><ProtectedRoute><Mastering /></ProtectedRoute></Route>
+                <Route path="/stems"><ProtectedRoute><Stems /></ProtectedRoute></Route>
+                <Route path="/sfx"><ProtectedRoute><Sfx /></ProtectedRoute></Route>
+                <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
+                <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
+                <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
