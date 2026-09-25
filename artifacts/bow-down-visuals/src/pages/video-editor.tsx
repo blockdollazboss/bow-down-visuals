@@ -33,11 +33,11 @@ import {
   MASTER_PLAYER_MIN_WIDTH,
   MASTER_PLAYER_MAX_WIDTH,
   MASTER_PLAYER_DEFAULT_WIDTH,
-  MASTER_PLAYER_MIN_HEIGHT,
   type EditorSettings,
   type VideoFormat,
   type FitMode,
 } from "@/lib/editor-settings";
+import { computeMasterPlayerFit } from "@/lib/master-player-size";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
 import {
   COMPARE_POS_DEFAULT,
@@ -1589,8 +1589,7 @@ const CYCLE_FORMATS: VideoFormat[] = ["9:16", "16:9", "1:1", "4:5"];
 /** Ordered list for Fit Mode cycling. */
 const CYCLE_FIT_MODES: FitMode[] = ["fill", "fit", "blur"];
 
-/** Margin (px) around the pinned player in the workspace column, and the fixed width of the minimized chip. */
-const FLOAT_PLAYER_MARGIN = 16;
+/** Fixed width of the minimized player chip. (Fit margin lives in lib/master-player-size.ts.) */
 const MINIMIZED_CHIP_WIDTH = 96;
 
 /** Docked-player aspect ratio from the project's export format. */
@@ -1663,6 +1662,24 @@ function MasterPreviewPlayer({
   const chromeHeaderRef = useRef<HTMLDivElement | null>(null);
   const chromeFooterRef = useRef<HTMLDivElement | null>(null);
   const [chromeHeight, setChromeHeight] = useState(0);
+  /* ── Measure the center-column content width the player sits in (the
+   *    `w-full max-w-6xl` wrapper above the player). The fit math clamps the
+   *    video width to this so the wrapper's `max-width: 100%` never engages —
+   *    without it, narrow layouts silently clamp the width while the canvas
+   *    keeps its fixed height, distorting the aspect box and letterboxing the
+   *    video tiny inside it. Observing the PARENT (not the player itself)
+   *    avoids a measurement feedback loop. ── */
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const [columnWidth, setColumnWidth] = useState(0);
+  useEffect(() => {
+    const parent = outerRef.current?.parentElement;
+    if (!parent) return;
+    const update = () => setColumnWidth(parent.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(parent);
+    return () => ro.disconnect();
+  }, []);
   const [isFullscreen,       setIsFullscreen      ] = useState(false);
   const [pipActive,          setPipActive         ] = useState(false);
   const [pipError,           setPipError          ] = useState<string | null>(null);
@@ -1694,26 +1711,28 @@ function MasterPreviewPlayer({
 
   const savedWidth = Math.min(MASTER_PLAYER_MAX_WIDTH, Math.max(MASTER_PLAYER_MIN_WIDTH, settings.masterPlayerSize || MASTER_PLAYER_DEFAULT_WIDTH));
   const rawFloatWidth = isMinimized ? MINIMIZED_CHIP_WIDTH : (resizeWidth ?? savedWidth);
-  /* The vertical band the player is allowed to occupy — strictly between the top toolbar and
-   * the timeline dock, with the usual float margin on both ends. `chromeHeight` (the drag-handle
-   * header + transport rows measured live below) is subtracted so it's the VIDEO height that's
-   * bounded, not just the whole float box, matching how `floatTotalHeight` is computed below. */
-  const availableBandHeight = typeof window !== "undefined"
-    ? Math.max(1, window.innerHeight - headerHeight - dockHeight - FLOAT_PLAYER_MARGIN * 2 - chromeHeight)
-    : Infinity;
-  /* For wide/landscape formats (e.g. 16:9), the stored width alone can produce a very short,
-   * easy-to-miss player (480px wide -> ~270px tall). Grow the effective width so the rendered
-   * height never drops below MASTER_PLAYER_MIN_HEIGHT, capped at MASTER_PLAYER_MAX_WIDTH so it
-   * never overflows past the normal max footprint. It's also capped by `availableBandHeight` —
-   * converted to an equivalent max width via the locked aspect ratio — so the player's rendered
-   * size can never be taller than the space between the top toolbar and the timeline dock,
-   * regardless of aspect ratio (a portrait 9:16 player at a wide width can otherwise be taller
-   * than a short viewport's usable vertical band). */
-  const maxWidthForBand = Math.max(MASTER_PLAYER_MIN_WIDTH, availableBandHeight * aspect);
-  const floatWidth = isMinimized
-    ? rawFloatWidth
-    : Math.min(MASTER_PLAYER_MAX_WIDTH, maxWidthForBand, Math.max(rawFloatWidth, MASTER_PLAYER_MIN_HEIGHT * aspect));
-  const floatHeight = Math.round(floatWidth / aspect);
+  /* ── Master player fit — every aspect ratio, every viewport.
+   *    computeMasterPlayerFit (src/lib/master-player-size.ts, unit-tested) guarantees:
+   *      · video height + chrome (drag header + transport rows, measured live)
+   *        never exceeds the band between the top toolbar and the timeline dock,
+   *        so transport controls are ALWAYS fully visible — never cut off;
+   *      · video width never exceeds the measured center-column width, so the
+   *        canvas aspect-ratio box stays exact (no silent max-width clamp
+   *        distorting the box and letterboxing the video tiny inside it);
+   *      · landscape formats still grow to a readable height when space allows.
+   *    The old inline math floored the width at MASTER_PLAYER_MIN_WIDTH even when
+   *    the band couldn't fit that height (short viewport + 9:16), pushing the
+   *    transport rows below the fold. Fit now always wins over the minimum. */
+  const { width: floatWidth, height: floatHeight } = computeMasterPlayerFit({
+    viewportHeight: typeof window !== "undefined" ? window.innerHeight : 1080,
+    headerHeight,
+    dockHeight,
+    chromeHeight,
+    columnWidth,
+    aspect,
+    savedWidth: rawFloatWidth,
+    minimized: isMinimized,
+  });
 
   const toggleMinimize = () => {
     setSettings({ ...settings, masterPlayerMinimized: !settings.masterPlayerMinimized });
@@ -1760,12 +1779,6 @@ function MasterPreviewPlayer({
     };
   }, [isResizingFloat, settings, setSettings]);
 
-  /* Total on-screen footprint = the video's own target height (floatHeight) PLUS the
-   * natural height of the surrounding chrome (drag-handle header + transport rows below),
-   * measured live via ResizeObserver. Without this, a fixed container height equal to just
-   * floatHeight would force the flex layout to steal space from — and can collapse to
-   * zero — the video canvas to make room for the header/controls. */
-  const floatTotalHeight = floatHeight + chromeHeight;
   /* Locked in: the player lives in the normal page flow inside the center column —
    * no fixed positioning, no floating over the top bar or rail. When hidden we keep
    * the (empty) container mounted with display:none so the video element persists. */
@@ -2456,6 +2469,7 @@ function MasterPreviewPlayer({
       />
     )}
     <div
+      ref={outerRef}
       style={floatStyle}
       className={`relative mb-6 ${theaterOn && !isHidden ? "z-[60]" : ""}`}
     >
