@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
+const TrendPredictor = lazyWithRetry(() => import("@/pages/trends"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
@@ -225,6 +226,7 @@ function AppShell() {
           <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/titles"><TitleStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
+          <Route path="/trends"><TrendPredictor /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/tips"><Tips /></Route>
