@@ -23,6 +23,7 @@ const NAV_LINKS = [
   { label: "Script Writer", href: "/script-writer" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
+  { label: "Beats", href: "/beats" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
