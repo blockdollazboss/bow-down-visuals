@@ -1855,6 +1855,7 @@ function MasterPreviewPlayer({
 
     let raf: number;
     const syncTime = () => {
+      syncSrc(); // re-attach src if a mirror layer remounted (minimize/fullscreen/fit-mode)
       for (const v of targets()) {
         if (v.readyState >= 2 && Math.abs(v.currentTime - main.currentTime) > 0.15) {
           v.currentTime = main.currentTime;
