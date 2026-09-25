@@ -64,6 +64,7 @@ const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
+const Merch = lazyWithRetry(() => import("@/pages/merch"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
@@ -227,6 +228,7 @@ function AppShell() {
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
+          <Route path="/merch"><Merch /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>

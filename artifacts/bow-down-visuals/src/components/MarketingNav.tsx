@@ -23,6 +23,7 @@ const NAV_LINKS = [
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Scheduler", href: "/scheduler" },
+  { label: "Merch", href: "/merch" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
