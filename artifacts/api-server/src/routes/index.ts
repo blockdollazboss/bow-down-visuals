@@ -43,6 +43,7 @@ import chatRouter from "./chat";
 import preProductionRouter from "./generate/pre-production";
 import randomizerRouter from "./generate/randomizer";
 import hookStudioRouter from "./generate/hook-studio";
+import channelAuditRouter from "./generate/channel-audit";
 import monetizationCoachRouter from "./generate/monetization-coach";
 import academyRouter from "./generate/academy";
 import commentRepliesRouter from "./generate/comment-replies";
@@ -57,7 +58,6 @@ import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 import schedulerRouter from "./scheduler";
-import playlistPitchRouter from "./generate/playlist-pitch";
 
 const router: IRouter = Router();
 
@@ -105,6 +105,7 @@ router.use(preProductionRouter);
 router.use(chatRouter);
 router.use(randomizerRouter);
 router.use(hookStudioRouter);
+router.use(channelAuditRouter);
 router.use(monetizationCoachRouter);
 router.use(academyRouter);
 router.use(commentRepliesRouter);
@@ -119,6 +120,5 @@ router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
 router.use(schedulerRouter);
-router.use(playlistPitchRouter);
 
 export default router;
