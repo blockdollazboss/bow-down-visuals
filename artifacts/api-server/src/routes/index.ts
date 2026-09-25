@@ -59,6 +59,13 @@ import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 import schedulerRouter from "./scheduler";
+import merchRouter from "./generate/merch";
+import playlistPitchRouter from "./generate/playlist-pitch";
+import channelAuditRouter from "./generate/channel-audit";
+import sponsorshipOutreachRouter from "./generate/sponsorship-outreach";
+import shoutoutsRouter from "./generate/shoutouts";
+import releaseChecklistRouter from "./generate/release-checklist";
+import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
 
 const router: IRouter = Router();
 
@@ -122,5 +129,12 @@ router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
 router.use(schedulerRouter);
+router.use(merchRouter);
+router.use(playlistPitchRouter);
+router.use(channelAuditRouter);
+router.use(sponsorshipOutreachRouter);
+router.use(shoutoutsRouter);
+router.use(releaseChecklistRouter);
+router.use(thumbnailGeneratorRouter);
 
 export default router;

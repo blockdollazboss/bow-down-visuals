@@ -35,7 +35,13 @@ import {
   ChevronsLeft,
   Library,
   Radio,
-  GraduationCap
+  GraduationCap,
+  Shirt,
+  ListMusic,
+  SearchCheck,
+  Handshake,
+  Megaphone,
+  ClipboardCheck
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -83,6 +89,12 @@ export function AppSidebar() {
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
     { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
+    { href: "/merch", label: "Merch Designer", icon: Shirt },
+    { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
+    { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
+    { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
+    { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
+    { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
