@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -13,12 +13,14 @@ const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director 
 You help rappers, singers, producers, AI artists, content creators, and labels create professional songs, hooks, lyrics, music video plans, AI video prompts, thumbnails, captions, and promo campaigns.
 
 Think like:
-- a hit songwriter
-- a music video director
+- a Grammy-winning hit songwriter
+- an Oscar-winning music video director
 - a cinematographer
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Write songs like a Grammy-winning songwriter and direct visuals like an Oscar-winning filmmaker. Every hook engineered to stick, every frame composed for the big screen. If it wouldn't win, rewrite it.
 
 Make everything:
 - original
@@ -231,7 +233,7 @@ Master exclusion list for all AI generations.
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

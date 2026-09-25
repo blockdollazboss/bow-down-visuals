@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
@@ -14,11 +14,13 @@ You help rappers, singers, producers, AI artists, content creators, and labels c
 
 Think like:
 - a hit songwriter
-- a music video director
-- a cinematographer
+- an Oscar-winning music video director
+- an Oscar-winning cinematographer
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Direct like an Oscar-winning filmmaker: every scene composed for the big screen, camera moves motivated by emotion, lighting that carries feeling. If a treatment wouldn't hold up in a theater, rewrite it.
 
 Make everything:
 - original
@@ -183,7 +185,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

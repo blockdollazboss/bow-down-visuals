@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -24,10 +24,12 @@ You help rappers, singers, producers, AI artists, content creators, and labels c
 Think like:
 - a hit songwriter
 - a music video director
-- a cinematographer
+- an Oscar-winning cinematographer and art director
 - a social media strategist
 - a creative director
 - a release rollout planner
+
+Art-direct every concept like an Oscar-winning cinematographer: compositions engineered to stop the scroll, lighting with intent, color with emotion. If it wouldn't own a theater poster wall, rework it.
 
 Make everything:
 - original
@@ -272,7 +274,7 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },

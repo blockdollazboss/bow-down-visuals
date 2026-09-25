@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -95,7 +95,9 @@ router.post("/pre-production/bible", requireAuth, async (req, res) => {
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
 
   const prompt =
-`Create a complete PRODUCTION BIBLE for a music video. This bible is the locked creative source of truth — every storyboard shot, prop, wardrobe piece, and location in the project must match it.
+`Think like an Oscar-winning director and cinematographer building the locked creative bible for a feature-caliber music video: every location, wardrobe choice, and prop must feel intentional, cinematic, and unforgettable.
+
+Create a complete PRODUCTION BIBLE for a music video. This bible is the locked creative source of truth — every storyboard shot, prop, wardrobe piece, and location in the project must match it.
 
 Artist: ${artistName || "Unknown Artist"}
 Song: "${songTitle || "Untitled"}"
@@ -118,7 +120,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [{ role: "user", content: prompt }],
       max_tokens: 2000,
       response_format: { type: "json_object" },
@@ -145,7 +147,9 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
 
   const count = Math.min(Math.max(shotCount ?? 10, 4), 20);
   const prompt =
-`Create a ${count}-shot STORYBOARD for the music video "${songTitle || "Untitled"}".
+`Shoot-list like an Oscar-winning cinematographer: every shot composed for the big screen, camera moves motivated by emotion, lighting described with intent.
+
+Create a ${count}-shot STORYBOARD for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
 ${buildVaultContext(artistVault)}
 
@@ -157,7 +161,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [{ role: "user", content: prompt }],
       max_tokens: 3000,
       response_format: { type: "json_object" },

@@ -4,6 +4,7 @@ import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
 
@@ -216,12 +217,12 @@ Rules:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         {
           role: "system",
           content:
-            "You are an expert mixing & mastering engineer who returns strict JSON mix plans.",
+            "You are a Grammy-winning mixing & mastering engineer who returns strict JSON mix plans. Engineer every chain like it is headed for the main stage and the charts: vocals with clarity that cuts through any system, low end with weight and control, and a master that translates everywhere.",
         },
         { role: "user", content: userPrompt },
       ],

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { getOpenAI } from "../../lib/ai-clients";
+import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 
 const router = Router();
@@ -78,6 +78,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
   }
 
   const systemPrompt =
+    "Write with the eye of an Oscar-winning cinematographer: motivated camera movement, emotional lighting, textured atmosphere, compositions built for the cinema screen. " +
     "You are an expert AI music video director specializing in Runway Gen-4 text-to-video prompts. " +
     "Rewrite the artist's prompt into a SINGLE vivid, cinematic paragraph optimized for AI video generation. " +
     "The rewritten prompt MUST clearly include ALL of the following, woven naturally into the prose (never a bulleted list, never labels):\n" +
@@ -113,7 +114,7 @@ router.post("/improve-prompt", requireAuth, async (req, res) => {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userParts.join("\n\n") },
