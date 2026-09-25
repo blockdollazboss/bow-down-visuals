@@ -10,6 +10,7 @@ import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
+import { AiChatWidget } from "@/components/AiChatWidget";
 
 import { SiteFooter } from "@/components/layout/footer";
 
@@ -147,6 +148,7 @@ function AppShell() {
     <>
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
+      {typeof window !== "undefined" && <AiChatWidget />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
         <Switch>

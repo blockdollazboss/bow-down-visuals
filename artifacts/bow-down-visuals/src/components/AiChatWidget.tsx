@@ -1,0 +1,176 @@
+import { useState, useRef, useEffect } from "react";
+import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+
+/* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
+   Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
+   available on every page. Talks to POST /api/chat (no auth required —
+   chat is free by default; see CHAT_CREDIT_COST on the server). */
+
+type ChatRole = "user" | "assistant";
+interface ChatMessage { role: ChatRole; content: string }
+
+const QUICK_PROMPTS = [
+  "What can this site build?",
+  "How do credits work?",
+  "How much does a song cost?",
+];
+
+const GREETING: ChatMessage = {
+  role: "assistant",
+  content:
+    "Hey, I'm Thy Cheat Code 🦈 — the King Shark. Ask me anything about Bow Down Visuals: tools, credits, pricing, or how to make your next hit.",
+};
+
+const MAX_HISTORY = 6;
+
+export function AiChatWidget() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, loading, open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open ]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+    const userMsg: ChatMessage = { role: "user", content: trimmed };
+    const history = [...messages, userMsg]
+      .filter((m) => m !== GREETING)
+      .slice(-MAX_HISTORY);
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          history: history.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      const reply: string =
+        data.reply ||
+        data.error ||
+        "My fins slipped — could you ask that again? 🦈";
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Couldn't reach the surface — check your connection and try again. 🦈" },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-[9995] flex flex-col items-end gap-3">
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Chat with Thy Cheat Code"
+          className="flex w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-primary/40 bg-black shadow-[0_8px_40px_rgba(0,0,0,0.7),0_0_24px_rgba(212,175,55,0.15)]"
+          style={{ height: "min(70vh, 560px)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
+            <div>
+              <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
+              <p className="text-[11px] text-neutral-400">AI assistant — ask me about the site</p>
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close chat"
+              className="rounded-full p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[85%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-sm font-medium text-black"
+                      : "max-w-[85%] rounded-2xl rounded-bl-md border border-primary/25 bg-[#14100a] px-3.5 py-2.5 text-sm text-neutral-100"
+                  }
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-primary/25 bg-[#14100a] px-4 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:150ms]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:300ms]" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick prompts */}
+          {messages.length <= 1 && !loading && (
+            <div className="flex flex-wrap gap-2 px-4 pb-2">
+              {QUICK_PROMPTS.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => send(q)}
+                  className="rounded-full border border-primary/40 px-3 py-1.5 text-xs text-primary transition hover:bg-primary hover:text-black"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="flex items-center gap-2 border-t border-primary/25 bg-[#0d0b06] p-3">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
+              placeholder="Ask about tools, credits, pricing…"
+              maxLength={2000}
+              aria-label="Chat message"
+              className="min-w-0 flex-1 rounded-full border border-white/10 bg-black px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-primary/60 focus:outline-none"
+            />
+            <button
+              onClick={() => send(input)}
+              disabled={loading || !input.trim()}
+              aria-label="Send message"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-black transition hover:brightness-110 disabled:opacity-40"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Launcher */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close AI chat" : "Chat with Thy Cheat Code"}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_20px_rgba(212,175,55,0.45)] transition hover:scale-105 active:scale-95"
+      >
+        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+      </button>
+    </div>
+  );
+}
