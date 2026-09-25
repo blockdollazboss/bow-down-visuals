@@ -69,7 +69,6 @@ const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
-const Mastering = lazyWithRetry(() => import("@/pages/mastering"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
@@ -90,6 +89,7 @@ const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
 const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
 const Translate = lazyWithRetry(() => import("@/pages/translate"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
+const TextToSfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -254,7 +254,6 @@ function AppShell() {
           <Route path="/memberships"><Memberships /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
-          <Route path="/mastering"><Mastering /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
@@ -272,6 +271,7 @@ function AppShell() {
           <Route path="/press/:handle"><PublicPressKit /></Route>
           <Route path="/translate"><Translate /></Route>
           <Route path="/live-shopping"><LiveShopping /></Route>
+          <Route path="/sfx"><TextToSfx /></Route>
 
           <Route path="/script-writer"><ScriptWriter /></Route>
           {/* Protected app pages — inside the sidebar layout */}
