@@ -538,7 +538,7 @@ export default function Beats() {
         </div>
       )}
 
-      {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
+      {outOfCredits && <OutOfCredits />}
 
       <SiteFooter />
     </div>
