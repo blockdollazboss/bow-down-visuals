@@ -2,6 +2,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
+import { startJobPoller } from "./lib/job-poller";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -29,4 +30,8 @@ app.listen(port, (err) => {
   // (deploy/restart/crash): fails them and refunds the deducted credits.
   // Runs once shortly after boot, then on SOCIAL_SWEEP_INTERVAL_MS.
   startPublishAttemptSweeper();
+
+  // Server-owned background poller: drives lip-sync jobs through Sync.so's
+  // long runs and raises exactly-once completion notifications — no tab needed.
+  startJobPoller();
 });
