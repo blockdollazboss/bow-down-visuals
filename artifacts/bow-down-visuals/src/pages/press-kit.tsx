@@ -315,7 +315,7 @@ export default function PressKitBuilder() {
           achievements, press quotes, and booking contact — published at your own shareable URL.
         </p>
 
-        {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
+        {outOfCredits && <OutOfCredits />}
         {error && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
         )}
