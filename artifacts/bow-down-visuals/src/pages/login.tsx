@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { CheatCodeTerminal, useCheatCodeUnlock } from "@/components/CheatCodeTerminal";
+import { SharkKingEyes } from "@/components/SharkKingEyes";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -34,20 +35,7 @@ export default function Login() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLSpanElement>({ maxDeg: 8, maxShift: 6 });
 
-  /* ── Shark King mascot: eyes follow the cursor ── */
-  const mascotRef = useRef<HTMLDivElement>(null);
-  const [mascotTilt, setMascotTilt] = useState({ x: 0, y: 0 });
-  const onMascotMove = useCallback((e: React.MouseEvent) => {
-    const el = mascotRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const dx = (e.clientX - cx) / r.width;
-    const dy = (e.clientY - cy) / r.height;
-    setMascotTilt({ x: Math.max(-1, Math.min(1, dx)), y: Math.max(-1, Math.min(1, dy)) });
-  }, []);
-  const onMascotLeave = useCallback(() => setMascotTilt({ x: 0, y: 0 }), []);
+
 
   /* ── Hidden cheat-code terminal (Konami or type "cheatcode") ── */
   const [terminalOpen, setTerminalOpen] = useState(false);
@@ -114,27 +102,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          {/* Shark King mascot — watches your cursor */}
-          <div
-            ref={mascotRef}
-            onMouseMove={onMascotMove}
-            onMouseLeave={onMascotLeave}
-            className="flex justify-center mb-2"
-            aria-hidden
-          >
-            <img
-              src="/shark-king-signin.webp"
-              alt=""
-              width={160}
-              height={160}
-              className="w-36 h-36 md:w-40 md:h-40 object-contain drop-shadow-[0_0_25px_rgba(201,168,76,0.35)] transition-transform duration-150 ease-out select-none pointer-events-none"
-              style={{
-                transform: `translate(${mascotTilt.x * 10}px, ${mascotTilt.y * 8}px) rotate(${mascotTilt.x * 4}deg)`,
-              }}
-              draggable={false}
-            />
-          </div>
-          <div className="flex justify-center mb-4">
+          {/* Shark King + logo lockup — one unit, eyes follow your cursor */}
+          <div className="flex flex-col items-center mb-4">
+            <SharkKingEyes className="w-28 h-28 md:w-32 md:h-32 -mb-3 relative z-10 drop-shadow-[0_0_25px_rgba(201,168,76,0.35)]" />
             <span ref={logoTilt} className="inline-block rounded-lg">
               <AnimatedLogo className="w-[320px] max-w-full h-auto" />
             </span>
