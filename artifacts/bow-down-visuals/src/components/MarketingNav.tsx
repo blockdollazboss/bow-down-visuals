@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: "Sound Finder", href: "/sounds" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
+  { label: "Rate Calculator", href: "/brand-calculator" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Scheduler", href: "/scheduler" },
   { label: "Tip Jar", href: "/tips" },  { label: "Tour Planner", href: "/tour" },  { label: "Tools", href: "/dashboard" },  { label: "Setlist Builder", href: "/setlist" },
