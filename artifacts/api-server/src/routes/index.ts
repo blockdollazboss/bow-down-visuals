@@ -59,6 +59,7 @@ import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 import distributionRouter from "./generate/distribution";
+import streamerClipsRouter from "./generate/streamer-clips";
 
 const router: IRouter = Router();
 
@@ -122,5 +123,6 @@ router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
 router.use(distributionRouter);
+router.use(streamerClipsRouter);
 
 export default router;
