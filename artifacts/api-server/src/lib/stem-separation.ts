@@ -6,6 +6,10 @@
  *     the full mix on the finished video.
  *  2. Artist voice lock: isolate vocals from a generated song so they can be
  *     swapped to the artist's locked ElevenLabs voice, then remixed.
+ *  3. Voice from-song cloning: isolate vocals as IVC training input. This
+ *     path runs inside a web request on a small container, so it uses a
+ *     lighter/faster model (see FROM_SONG_DEMUCS_MODEL) — the vocals only
+ *     need to be intelligible, and ElevenLabs runs its own noise removal.
  *
  * Demucs runs on CPU via a Python venv. In production (Docker) the venv lives
  * at /opt/demucs-venv and DEMUCS_PYTHON points at it. Set DEMUCS_MODEL to
@@ -29,7 +33,16 @@ export interface VocalStems {
   workdir: string;
 }
 
-function runDemucs(songPath: string, outDir: string): Promise<void> {
+export interface SeparateVocalStemsOptions {
+  /**
+   * Demucs model name for this run. Defaults to DEMUCS_MODEL
+   * (mdx_extra_q). Callers on a tight CPU/RAM budget (e.g. the from-song
+   * clone path inside a web request) should pass a lighter model.
+   */
+  model?: string;
+}
+
+function runDemucs(songPath: string, outDir: string, model: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
       DEMUCS_PYTHON,
@@ -39,7 +52,7 @@ function runDemucs(songPath: string, outDir: string): Promise<void> {
         "--two-stems",
         "vocals",
         "-n",
-        DEMUCS_MODEL,
+        model,
         "-d",
         "cpu",
         "--out",
@@ -73,15 +86,19 @@ function runDemucs(songPath: string, outDir: string): Promise<void> {
  * Split a song buffer into vocals + instrumental wavs.
  * Throws on failure — callers decide whether to fall back to the original mix.
  */
-export async function separateVocalStems(songBuffer: Buffer): Promise<VocalStems> {
+export async function separateVocalStems(
+  songBuffer: Buffer,
+  opts?: SeparateVocalStemsOptions,
+): Promise<VocalStems> {
+  const model = opts?.model ?? DEMUCS_MODEL;
   const workdir = await fs.mkdtemp(join(tmpdir(), "stems-"));
   try {
     const songPath = join(workdir, "song.mp3");
     await fs.writeFile(songPath, songBuffer);
     const outDir = join(workdir, "demucs-out");
-    await runDemucs(songPath, outDir);
+    await runDemucs(songPath, outDir, model);
     // Demucs layout: <outDir>/<model>/<input-basename>/{vocals.wav,no_vocals.wav}
-    const stemDir = join(outDir, DEMUCS_MODEL, "song");
+    const stemDir = join(outDir, model, "song");
     const vocalsPath = join(stemDir, "vocals.wav");
     const instrumentalPath = join(stemDir, "no_vocals.wav");
     await fs.access(vocalsPath);
