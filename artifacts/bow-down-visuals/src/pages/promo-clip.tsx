@@ -20,6 +20,7 @@ import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultS
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -180,6 +181,7 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function PromoClip() {
+  usePageTitle("Promo Clip Maker", "Turn any song into scroll-stopping promo clips for TikTok, Reels, and Shorts.");
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
 

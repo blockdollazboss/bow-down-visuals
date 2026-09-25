@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 
 interface Payment {
@@ -60,6 +61,7 @@ function fmtMoney(cents: number | null, currency: string | null) {
 }
 
 export default function CreditHistory() {
+  usePageTitle("Credit History", "View your credit balance and transaction history.");
   const { profile, getAccessToken } = useAuth();
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [usage, setUsage] = useState<Usage[] | null>(null);

@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -47,6 +48,7 @@ interface RecentSting {
 }
 
 export default function IntrosOutros() {
+  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
   const { user } = useAuth();
   const [channelName, setChannelName] = useState("");
   const [tagline, setTagline] = useState("");

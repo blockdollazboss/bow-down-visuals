@@ -14,6 +14,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { vaultToPayload } from "@/lib/prompt-improve";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface FormValues {
   artistName: string;
@@ -50,6 +51,7 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 }
 
 export default function Thumbnail() {
+  usePageTitle("Thumbnail Maker", "AI thumbnail designer — click-magnet thumbnails for every video.");
   const { getAccessToken, refreshProfile } = useAuth();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);

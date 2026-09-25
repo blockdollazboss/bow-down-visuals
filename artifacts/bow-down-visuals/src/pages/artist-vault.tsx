@@ -21,6 +21,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -1270,6 +1271,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
+  usePageTitle("Artist Vault", "Your creative identity — artist profiles, photos, voice, and brand assets in one vault.");
   const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);

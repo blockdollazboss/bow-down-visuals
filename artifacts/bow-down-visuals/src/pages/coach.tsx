@@ -10,6 +10,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
    The money end of the creator loop: eligibility tracking for each
@@ -93,6 +94,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function MonetizationCoach() {
+  usePageTitle("Money Coach", "AI monetization coach — turn your content into revenue with a personalized money plan.");
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [niche, setNiche] = useState("Music");

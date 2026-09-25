@@ -27,6 +27,7 @@ import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scen
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
 import { vaultToPayload } from "@/lib/prompt-improve";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
 
@@ -255,6 +256,7 @@ function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = f
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function SongAndVideo() {
+  usePageTitle("Make Song + Video", "The full package — generate a song and its music video in one flow.");
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();

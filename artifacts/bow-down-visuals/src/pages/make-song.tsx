@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -105,6 +106,7 @@ function StyledSelect({
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeSong() {
+  usePageTitle("Make a Song", "Generate full songs with AI — lyrics, melody, and production in minutes.");
   const { getAccessToken, refreshProfile } = useAuth();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

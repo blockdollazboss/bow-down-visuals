@@ -17,6 +17,7 @@ import {
   clearReplyHistory,
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Comment Reply Assistant ────────────────────────────
    Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
@@ -52,6 +53,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function CommentReplies() {
+  usePageTitle("Comment Replies", "AI-generated replies to your fans' comments — stay engaged without the grind.");
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [commentsText, setCommentsText] = useState("");
   const [tone, setTone] = useState<ToneKey>("hype");

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface LibraryThumbnail {
   id: string;
@@ -26,6 +27,7 @@ function formatDate(iso: string) {
 }
 
 export default function Thumbnails() {
+  usePageTitle("Thumbnail Library", "Browse and manage your generated thumbnails.");
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [thumbnails, setThumbnails] = useState<LibraryThumbnail[]>([]);

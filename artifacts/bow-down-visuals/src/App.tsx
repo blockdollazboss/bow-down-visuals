@@ -68,6 +68,7 @@ const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
+const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 
 /**
  * lazy() with a retry for chunk-load failures.
@@ -253,6 +254,7 @@ function AppShell() {
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
+                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>

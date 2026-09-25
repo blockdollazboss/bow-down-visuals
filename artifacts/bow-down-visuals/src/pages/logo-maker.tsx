@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Logo Maker ──────────────────────────────────────────────────────────
    AI brand logos for creators: channel name + style preset → generated
@@ -51,6 +52,7 @@ interface RecentLogo {
 }
 
 export default function LogoMaker() {
+  usePageTitle("Logo Maker", "AI logo designer for creators — professional brand marks in seconds.");
   const { user } = useAuth();
   const [brandName, setBrandName] = useState("");
   const [tagline, setTagline] = useState("");

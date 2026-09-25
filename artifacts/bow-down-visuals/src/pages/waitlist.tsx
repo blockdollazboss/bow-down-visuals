@@ -11,6 +11,7 @@ import {
   Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Mail,
 } from "lucide-react";
 import { JsonLd } from "@/components/seo/json-ld";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
@@ -65,6 +66,7 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function Waitlist() {
+  usePageTitle("Join the Waitlist", "Be first in line for new Bow Down Visuals features.");
   const [form, setForm] = useState<FormValues>({
     name: "", email: "", artistType: "", wantToCreate: "", socialHandle: "", message: "",
   });

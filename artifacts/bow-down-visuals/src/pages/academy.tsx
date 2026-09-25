@@ -15,6 +15,7 @@ import {
   type AcademyCourse,
   type AcademyLevel,
 } from "@/lib/academy-courses";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Creator Academy ─────────────────────────────────────────────────────
    The education hub for creators: a free-to-browse course catalog with
@@ -126,6 +127,7 @@ async function postAcademy<T>(path: string, body: unknown, token: string | null)
 }
 
 export default function CreatorAcademy() {
+  usePageTitle("Creator Academy", "Free courses and tutorials to grow as a content creator — video, music, and branding masterclasses.");
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* navigation: catalog → course detail */

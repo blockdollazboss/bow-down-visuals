@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
@@ -222,6 +223,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 /* ─── page ─── */
 
 export default function Pricing() {
+  usePageTitle("Pricing", "Simple credit-based pricing — pay only for what you create.");
   const [showCancelled, setShowCancelled] = useState(false);
 
   useEffect(() => {

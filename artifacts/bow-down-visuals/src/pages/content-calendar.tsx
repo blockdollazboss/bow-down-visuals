@@ -17,6 +17,7 @@ import {
   postingCount,
   type CalendarPlatformKey,
 } from "@/lib/content-calendar";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
    Creators pick a niche + platforms, GPT-6 builds a 30-day posting
@@ -88,6 +89,7 @@ const inputClass =
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ContentCalendar() {
+  usePageTitle("Content Calendar", "Plan your releases and posts with an AI-powered content calendar.");
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [niche, setNiche] = useState("Music");

@@ -9,6 +9,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
    Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -88,6 +89,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function HookStudio() {
+  usePageTitle("Hook Studio", "AI hook generator and virality pre-flight check — make every post stop the scroll.");
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>("hooks");
 

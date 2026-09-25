@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface GeneratedClip {
   id: string;
@@ -481,6 +482,7 @@ function ClipCard({
 
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
 export default function MyClips() {
+  usePageTitle("My Clips", "Your generated promo clips library.");
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 

@@ -9,6 +9,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Thy Cheat Code's Content Randomizer ─────────────────────────────────
    Public teaser page: the free dice roll is 100% client-side (zero server
@@ -176,6 +177,7 @@ function pickRandom<T>(items: T[], except?: T): T {
 }
 
 export default function Randomizer() {
+  usePageTitle("Content Randomizer", "Beat creator's block — spin the wheel for fresh content ideas.");
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [activeKey, setActiveKey] = useState<CategoryKey>("video-ideas");
   const [freeIdea, setFreeIdea] = useState<string | null>(null);

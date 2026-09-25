@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function ChooseArtist() {
+  usePageTitle("Choose Artist", "Pick the artist profile you're creating for.");
   const { getAccessToken } = useAuth();
   const { activeArtist, setActiveArtist } = useActiveArtist();
   const [, setLocation] = useLocation();

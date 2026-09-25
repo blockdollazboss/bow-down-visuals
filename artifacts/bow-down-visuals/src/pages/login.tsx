@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -20,6 +21,7 @@ const schema = z.object({
 });
 
 export default function Login() {
+  usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
   const { signIn, signInWithGoogle, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);

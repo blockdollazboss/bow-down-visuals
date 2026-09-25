@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { StudioPipeline } from "@/components/StudioPipeline";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -140,6 +141,7 @@ function RecentProjectRow({ project, onOpen }: { project: Project; onOpen: (id: 
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function Dashboard() {
+  usePageTitle("Dashboard", "Your creator command center — every AI tool in one place.");
   const { profile, user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { setMode, isSimple } = useUserMode();

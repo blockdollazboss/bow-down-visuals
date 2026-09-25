@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Video Upscaler ──────────────────────────────────────────────────────
    Honest CPU upscaling: ffmpeg Lanczos resampling to 1080p or 4K.
@@ -38,6 +39,7 @@ interface UpscaleJobResponse {
 }
 
 export default function Upscale() {
+  usePageTitle("Video Upscaler", "Upscale your videos to crisp HD and 4K quality with AI.");
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<TargetKey>("1080p");

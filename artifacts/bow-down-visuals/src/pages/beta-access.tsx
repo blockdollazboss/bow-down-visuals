@@ -10,6 +10,7 @@ import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
   Mic2, Archive, ArrowRight, Star, Users, Globe, Lock, Headphones,
 } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
@@ -63,6 +64,7 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function BetaAccess() {
+  usePageTitle("Beta Access", "Get early access to Bow Down Visuals — the AI content creation studio for music creators.");
   const [form, setForm] = useState<FormValues>({
     name: "", email: "", creatorName: "", artistType: "", wantToMake: "", socialHandle: "", message: "",
   });

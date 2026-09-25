@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Watermark Removal ───────────────────────────────────────────────────
    Removes a static watermark/logo from your own video with ffmpeg's delogo
@@ -41,6 +42,7 @@ interface JobResponse {
 }
 
 export default function WatermarkRemoval() {
+  usePageTitle("Watermark Removal", "Clean watermarks from your own content — pristine exports, no logos.");
   const { user } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [preset, setPreset] = useState<PresetKey>("bottom-right");
