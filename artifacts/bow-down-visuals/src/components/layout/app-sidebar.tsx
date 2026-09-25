@@ -49,8 +49,7 @@ import {
   Zap,
   Settings,
   HelpCircle,
-  Wand2,
-  SlidersHorizontal,
+  Star,
   Plus,
   Loader2
 } from "lucide-react";
@@ -60,40 +59,52 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const IS_DEV = import.meta.env.DEV;
 
-/** Simple / Advanced mode switch — ported from the old TopBar so the
- *  toolbar's mode control lives in the sidebar now. */
+/** Creator Level — GTA-style 6-star wanted level.
+ *  1 star = simplest AI-driven flow, 6 stars = full manual controls. */
 function ModeToggle() {
-  const { mode, setMode } = useUserMode();
+  const { stars, setStars } = useUserMode();
   return (
-    <div
-      className="inline-flex w-full items-center rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5"
-      role="tablist"
-      aria-label="Simple or Advanced mode"
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={mode === "simple"}
-        onClick={() => setMode("simple")}
-        className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-          mode === "simple" ? "bg-primary text-black" : "text-white/45 hover:text-white"
-        }`}
-        title="Simple mode — one-click AI-driven creation"
-      >
-        <Wand2 className="h-3.5 w-3.5" /> Simple
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={mode === "advanced"}
-        onClick={() => setMode("advanced")}
-        className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-          mode === "advanced" ? "bg-primary text-black" : "text-white/45 hover:text-white"
-        }`}
-        title="Advanced mode — full manual controls"
-      >
-        <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced
-      </button>
+    <div className="w-full space-y-1.5" role="radiogroup" aria-label="Creator level">
+      <div className="flex items-center justify-between px-0.5">
+        <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
+          Creator Level
+        </span>
+        <span className="text-[10px] font-black text-primary">
+          {stars <= 2 ? "CHILL" : stars <= 4 ? "HEATING UP" : "MOST WANTED"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-1">
+        {([1, 2, 3, 4, 5, 6] as const).map((s) => {
+          const active = s <= stars;
+          return (
+            <button
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={stars === s}
+              aria-label={`${s} star${s > 1 ? "s" : ""} — ${s <= 3 ? "simple" : "advanced"}`}
+              onClick={() => setStars(s)}
+              className="flex-1 flex justify-center py-1 transition-transform hover:scale-125 active:scale-95"
+              title={s <= 2 ? "Simple — AI does the work" : s <= 4 ? "Balanced" : "Advanced — full manual control"}
+            >
+              <Star
+                className={`h-5 w-5 transition-colors ${
+                  active
+                    ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
+                    : "fill-transparent text-white/20 hover:text-white/40"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-white/35 px-0.5">
+        {stars <= 2
+          ? "AI auto-pilot. Just create."
+          : stars <= 4
+            ? "AI + your tweaks."
+            : "Every knob, every setting."}
+      </p>
     </div>
   );
 }

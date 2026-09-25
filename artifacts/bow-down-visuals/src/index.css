@@ -686,3 +686,12 @@ html {
   50% { transform: translateY(-12px); }
 }
 .gamers-float { animation: gamers-float 5s ease-in-out infinite; }
+/* ─── Simple / Advanced mode — site-wide UI gating ─── */
+/* In Simple mode, hide elements marked advanced-only. In Advanced mode, show everything. */
+html[data-user-mode="simple"] .advanced-only {
+  display: none !important;
+}
+/* Optional: mark simple-only helpers (shown only in Simple mode) */
+html[data-user-mode="advanced"] .simple-only {
+  display: none !important;
+}
