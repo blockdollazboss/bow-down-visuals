@@ -78,6 +78,7 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
+const JewelryStudio = lazyWithRetry(() => import("@/pages/jewelry"));
 const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
 const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
@@ -288,6 +289,7 @@ function AppShell() {
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/thumbnail-maker"><ProtectedRoute><ThumbnailMaker /></ProtectedRoute></Route>
                 <Route path="/merch"><ProtectedRoute><Merch /></ProtectedRoute></Route>
+                <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
                 <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
                 <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
