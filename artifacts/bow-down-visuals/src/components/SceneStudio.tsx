@@ -301,6 +301,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           ratio: "720:1280",
           referenceImageUrl:
             outfitRefUrl ??
+            scene.locationImageUrl ??
             (artistVault && hasReferencePhoto(artistVault)
               ? artistVault.reference_image_url
               : null),
