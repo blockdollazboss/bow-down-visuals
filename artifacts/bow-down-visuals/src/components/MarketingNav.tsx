@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Title Studio", href: "/titles" },
   { label: "Voiceover", href: "/voiceover" },
+  { label: "Script Writer", href: "/script-writer" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Distribute", href: "/distribute" },

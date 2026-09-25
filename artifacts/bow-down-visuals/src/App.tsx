@@ -83,6 +83,7 @@ const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
 const ThumbnailTest = lazyWithRetry(() => import("@/pages/thumbnail-test"));
 const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
+const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -260,6 +261,7 @@ function AppShell() {
           <Route path="/thumbnail-test"><ThumbnailTest /></Route>
           <Route path="/caption-styler"><CaptionStyler /></Route>
 
+          <Route path="/script-writer"><ScriptWriter /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
