@@ -5,7 +5,7 @@ import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { useToast } from "@/hooks/use-toast";
 
 /* Account settings. The social OAuth callbacks redirect here with
-   ?social=instagram_connected / ?social=facebook_connected
+   ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
    (or ?social=error&reason=...). */
 
 const REASON_MESSAGES: Record<string, string> = {
@@ -26,6 +26,10 @@ const SOCIAL_MESSAGES: Record<string, { title: string; description: string; dest
     title: "Instagram connected",
     description: "Your account is ready — post exports straight to Reels.",
   },
+  tiktok_connected: {
+    title: "TikTok connected",
+    description: "Your account is ready — exports go to your TikTok drafts.",
+  },
   facebook_connected: {
     title: "Facebook connected",
     description: "Your Pages are ready — post exports straight to Facebook as Reels.",
@@ -33,6 +37,11 @@ const SOCIAL_MESSAGES: Record<string, { title: string; description: string; dest
   error: {
     title: "Connection failed",
     description: "The connection didn't complete. Try again.",
+    destructive: true,
+  },
+  tiktok_error: {
+    title: "TikTok connection failed",
+    description: "The connection didn't complete. Try again, and make sure you approved the upload permission.",
     destructive: true,
   },
 };
