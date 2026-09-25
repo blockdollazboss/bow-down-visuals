@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
+import { startJobPoller } from "./lib/job-poller";
 
 const rawPort = process.env["PORT"] ?? "8080";
 
@@ -23,4 +24,8 @@ app.listen(port, (err) => {
   recoverInterruptedExportJobs().catch((recoveryErr) =>
     logger.error({ recoveryErr }, "Export job recovery failed"),
   );
+
+  // Server-owned background poller: drives lip-sync jobs through Sync.so's
+  // long runs and raises exactly-once completion notifications — no tab needed.
+  startJobPoller();
 });
