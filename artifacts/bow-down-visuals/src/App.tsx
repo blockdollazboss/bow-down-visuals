@@ -62,6 +62,7 @@ const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
+const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const Mastering = lazyWithRetry(() => import("@/pages/mastering"));
@@ -232,6 +233,7 @@ function AppShell() {
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
+          <Route path="/community"><CommunityManager /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/mastering"><Mastering /></Route>

@@ -28,6 +28,7 @@ const NAV_LINKS = [
   { label: "Beats", href: "/beats" },
   { label: "Branding Shop", href: "/branding-shop" },
   { label: "Collabs", href: "/collabs" },
+  { label: "Community", href: "/community" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
