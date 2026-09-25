@@ -17,6 +17,8 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
+import { GenerateArtistImageModal } from "@/components/GenerateArtistImageModal";
+import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -625,6 +627,7 @@ export default function ArtistVault() {
   const [photoPath, setPhotoPath] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [showGenModal, setShowGenModal] = useState(false);
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
@@ -869,6 +872,21 @@ export default function ArtistVault() {
         />
       )}
 
+      <GenerateArtistImageModal
+        open={showGenModal}
+        onClose={() => setShowGenModal(false)}
+        onGenerated={(url, path) => {
+          setPhotoUrl(url);
+          setPhotoPath(path);
+          setPhotoError(null);
+          setShowGenModal(false);
+        }}
+        initialPrompt={buildArtistImagePrompt(watch())}
+        hasReferencePhoto={!!photoUrl}
+        referenceImageUrl={photoUrl}
+        userId={user?.id ?? null}
+      />
+
       <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
 
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
@@ -1050,6 +1068,14 @@ export default function ArtistVault() {
                         <X className="h-4 w-4" /> Remove
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setShowGenModal(true)}
+                      data-testid="btn-generate-artist-image"
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors"
+                    >
+                      <Sparkles className="h-4 w-4" /> Generate with AI
+                    </button>
                   </div>
                   {photoError && <p className="text-xs text-red-400">{photoError}</p>}
                 </div>
