@@ -169,14 +169,14 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
 
     // Fail-open: the request proceeded past the broken pre-check.
     expect(separateVocalStems).toHaveBeenCalled();
-    // Lighter model + pre-Demucs trim window passed through to the isolation step.
-    expect(separateVocalStems).toHaveBeenCalledWith(
-      expect.any(Buffer),
-      expect.objectContaining({
-        model: "htdemucs",
-        trimSeconds: 90,
-      }),
-    );
+    // Lighter model + pre-Demucs trim window + vocal strategy + IVC
+    // post-processing passed through to the isolation step.
+    expect(separateVocalStems).toHaveBeenCalledWith(expect.any(Buffer), {
+      model: "htdemucs",
+      trimSeconds: 90,
+      windowStrategy: "vocal",
+      postProcessVocals: true,
+    });
     // JSON error body (never an HTML error page), credits refunded.
     expect(status).toBe(500);
     expect(contentType).toContain("application/json");

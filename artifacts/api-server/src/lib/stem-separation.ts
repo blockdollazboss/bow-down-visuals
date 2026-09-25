@@ -43,7 +43,7 @@ export interface SeparateVocalStemsOptions {
    */
   model?: string;
   /**
-   * When set (> 0), the input is first trimmed to its loudest
+   * When set (> 0), the input is first trimmed to its best
    * `trimSeconds`-second window via ffmpeg BEFORE Demucs runs, so Demucs
    * only ever processes a short slice. ElevenLabs IVC only needs ~30s of
    * clean vocals — isolating a full-length song is wasted work and can
@@ -52,6 +52,20 @@ export interface SeparateVocalStemsOptions {
    * (lip-sync, voice-swap) must NOT set this.
    */
   trimSeconds?: number;
+  /**
+   * Window selection strategy for the pre-trim: "vocal" picks the window
+   * with the most vocal activity (best for voice cloning), "loudest"
+   * picks the highest-loudness window (legacy). Defaults to "vocal".
+   */
+  windowStrategy?: "vocal" | "loudest";
+  /**
+   * When true, the isolated vocal stem is loudness-normalized,
+   * de-bleeded, and silence-trimmed for IVC training input. Recommended
+   * for the from-song clone path; pipelines that remix the vocals
+   * (voice-swap) must NOT set this (normalization would change the
+   * remix balance).
+   */
+  postProcessVocals?: boolean;
 }
 
 /**
@@ -143,7 +157,11 @@ export async function findLoudestWindowStartSeconds(
         "-map",
         "0:a",
         "-af",
-        "ebur128=peak=true:framelog=quiet",
+        // NOTE: do NOT add framelog=quiet here — on ffmpeg 8+ it suppresses
+        // the per-frame logs this parser reads, yielding zero blocks and a
+        // silent fallback to window start 0 (2026-09-25 incident: from-song
+        // clones were isolating the first 90s, not the loudest 90s).
+        "ebur128=peak=true",
         "-f",
         "null",
         "-",
@@ -183,6 +201,118 @@ export async function findLoudestWindowStartSeconds(
   }
 }
 
+/**
+ * Find the `windowSeconds`-long window with the most vocal activity,
+ * returned as seconds from the start. Uses center-channel energy in the
+ * vocal band (200Hz–4kHz): lead vocals are almost always center-panned,
+ * while instrumental beds spread wider. For ElevenLabs IVC training, the
+ * most-vocal window beats the merely-loudest — a loud instrumental drop
+ * has high ebur128 loudness but zero cloneable vocals.
+ *
+ * Same decode-speed single ffmpeg pass as findLoudestWindowStartSeconds.
+ * Falls back to 0 on scan failure.
+ */
+export async function findBestVocalWindowStartSeconds(
+  inputPath: string,
+  windowSeconds: number,
+): Promise<number> {
+  try {
+    const { stderr } = await runProcess(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-nostats",
+        "-i",
+        inputPath,
+        "-map",
+        "0:a",
+        "-af",
+        // Mid (center) channel only, band-limited to the vocal range, then
+        // ebur128 momentary loudness per frame. Do NOT add framelog=quiet
+        // (see note in findLoudestWindowStartSeconds).
+        "pan=mono|c0=0.5*c0+0.5*c1,highpass=f=200,lowpass=f=4000,ebur128=peak=true",
+        "-f",
+        "null",
+        "-",
+      ],
+      TRIM_STEP_TIMEOUT_MS,
+      4_000_000,
+    );
+    const blocks: Array<{ t: number; m: number }> = [];
+    for (const line of stderr.split("\n")) {
+      const m = /t:\s*([\d.]+)\s+.*M:\s*(-inf|[-+\d.eE]+)/.exec(line);
+      if (!m) continue;
+      const t = Number(m[1]);
+      const loud = m[2] === "-inf" ? -70 : Number(m[2]);
+      if (Number.isFinite(t) && Number.isFinite(loud)) blocks.push({ t, m: loud });
+    }
+    if (blocks.length === 0) return 0;
+    blocks.sort((a, b) => a.t - b.t);
+    let bestStart = 0;
+    let bestMean = -Infinity;
+    for (let i = 0; i < blocks.length; i++) {
+      const start = blocks[i].t;
+      const end = start + windowSeconds;
+      let sum = 0;
+      let n = 0;
+      for (let j = i; j < blocks.length && blocks[j].t < end; j++) {
+        sum += blocks[j].m;
+        n++;
+      }
+      if (n > 0 && sum / n > bestMean) {
+        bestMean = sum / n;
+        bestStart = start;
+      }
+    }
+    return bestStart;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Post-process an isolated vocal stem for IVC training input:
+ *  1. Loudness-normalize to -16 LUFS (consistent level for ElevenLabs;
+ *     raw Demucs output level varies wildly with the source mix).
+ *  2. Lowpass at 12kHz to cut cymbal/percussion bleed — the light
+ *     htdemucs model leaves significant high-frequency instrumental hash
+ *     in the vocal stem (measured 9.5dB bleed ratio on the theme song;
+ *     ElevenLabs rejects heavy-bleed inputs). Vocals carry almost no
+ *     content above 12kHz, so this is safe for voice cloning.
+ *  3. Trim leading/trailing silence (ElevenLabs rejects inputs that start
+ *     with long silence; the bugged 0-90s window had a 20s quiet intro).
+ *
+ * Returns the path to the processed file (in the same workdir).
+ */
+export async function postProcessVocalStem(
+  vocalsPath: string,
+  workdir: string,
+): Promise<string> {
+  const outPath = join(workdir, "vocals-ivc.wav");
+  await runProcess(
+    "ffmpeg",
+    [
+      "-y",
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      vocalsPath,
+      "-af",
+      "loudnorm=I=-16:TP=-1.5:LRA=11,lowpass=f=12000,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:stop_periods=1:stop_duration=1:stop_threshold=-50dB",
+      "-c:a",
+      "pcm_s16le",
+      "-ar",
+      "44100",
+      "-ac",
+      "1",
+      outPath,
+    ],
+    TRIM_STEP_TIMEOUT_MS,
+  );
+  return outPath;
+}
+
 async function trimAudioToWindow(
   inputPath: string,
   outPath: string,
@@ -215,16 +345,19 @@ async function trimAudioToWindow(
 }
 
 /**
- * Trim `inputPath` down to its loudest `windowSeconds`-second window so
- * Demucs only processes what IVC actually needs. Returns the path Demucs
- * should read: the trimmed wav, or `inputPath` unchanged when the audio
- * is already short enough (or the duration probe fails — Demucs then sees
- * the original file, i.e. the pre-trim behavior).
+ * Trim `inputPath` down to its best `windowSeconds`-second window so
+ * Demucs only processes what IVC actually needs. The window strategy is
+ * "vocal" (most vocal activity — default, best for voice cloning) or
+ * "loudest" (highest ebur128 loudness — legacy behavior).
+ * Returns the path Demucs should read: the trimmed wav, or `inputPath`
+ * unchanged when the audio is already short enough (or the duration probe
+ * fails — Demucs then sees the original file, i.e. the pre-trim behavior).
  */
-export async function trimSongToLoudestWindow(
+export async function trimSongToBestWindow(
   inputPath: string,
   workdir: string,
   windowSeconds: number,
+  strategy: "vocal" | "loudest" = "vocal",
 ): Promise<string> {
   let duration: number;
   try {
@@ -233,12 +366,25 @@ export async function trimSongToLoudestWindow(
     return inputPath;
   }
   if (duration <= windowSeconds) return inputPath;
-  const start = await findLoudestWindowStartSeconds(inputPath, windowSeconds);
+  const start =
+    strategy === "vocal"
+      ? await findBestVocalWindowStartSeconds(inputPath, windowSeconds)
+      : await findLoudestWindowStartSeconds(inputPath, windowSeconds);
   const clamped = Math.min(Math.max(0, start), Math.max(0, duration - windowSeconds));
   const outPath = join(workdir, "song-trim.wav");
   await trimAudioToWindow(inputPath, outPath, clamped, Math.min(windowSeconds, duration - clamped));
   return outPath;
 }
+
+/**
+ * Backwards-compatible alias: trims to the loudest window.
+ * Prefer trimSongToBestWindow for new callers.
+ */
+export const trimSongToLoudestWindow = (
+  inputPath: string,
+  workdir: string,
+  windowSeconds: number,
+): Promise<string> => trimSongToBestWindow(inputPath, workdir, windowSeconds, "loudest");
 
 function runDemucs(songPath: string, outDir: string, model: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -290,6 +436,7 @@ export async function separateVocalStems(
 ): Promise<VocalStems> {
   const model = opts?.model ?? DEMUCS_MODEL;
   const trimSeconds = opts?.trimSeconds;
+  const windowStrategy = opts?.windowStrategy ?? "vocal";
   const workdir = await fs.mkdtemp(join(tmpdir(), "stems-"));
   try {
     const songPath = join(workdir, "song.mp3");
@@ -298,16 +445,20 @@ export async function separateVocalStems(
     // cloning): Demucs only ever sees a short slice instead of a full song.
     const demucsInput =
       trimSeconds && trimSeconds > 0
-        ? await trimSongToLoudestWindow(songPath, workdir, trimSeconds)
+        ? await trimSongToBestWindow(songPath, workdir, trimSeconds, windowStrategy)
         : songPath;
     const outDir = join(workdir, "demucs-out");
     await runDemucs(demucsInput, outDir, model);
     // Demucs layout: <outDir>/<model>/<input-basename>/{vocals.wav,no_vocals.wav}
     const stemDir = join(outDir, model, basename(demucsInput, extname(demucsInput)));
-    const vocalsPath = join(stemDir, "vocals.wav");
+    let vocalsPath = join(stemDir, "vocals.wav");
     const instrumentalPath = join(stemDir, "no_vocals.wav");
     await fs.access(vocalsPath);
     await fs.access(instrumentalPath);
+    // Normalize + de-bleed + silence-trim for IVC training input.
+    if (opts?.postProcessVocals) {
+      vocalsPath = await postProcessVocalStem(vocalsPath, workdir);
+    }
     return { vocalsPath, instrumentalPath, workdir };
   } catch (err) {
     await cleanupWorkdir(workdir);
