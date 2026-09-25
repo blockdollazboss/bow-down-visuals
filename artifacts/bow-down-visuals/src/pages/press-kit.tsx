@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { slugifyHandle } from "@/lib/press-kit";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
    Electronic press kits (EPKs): artists generate an AI-written bio and
@@ -58,6 +59,7 @@ const inputCls =
 
 export default function PressKitBuilder() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [vaults, setVaults] = useState<Vault[]>([]);
   const [kits, setKits] = useState<PressKit[]>([]);
   const [selectedKit, setSelectedKit] = useState<PressKit | null>(null);
@@ -170,10 +172,12 @@ export default function PressKitBuilder() {
     }
     setGenerating(true);
     try {
-      const res = await fetch("/api/press-kit/generate", {
+      const res = await confirmedFetch("/api/press-kit/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        overrideCost: FALLBACK_GENERATE_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideFeature: "Press Kit Generator",
         body: JSON.stringify({
           handle: slugifyHandle(handle),
           artist_name: artistName.trim(),
@@ -193,6 +197,7 @@ export default function PressKitBuilder() {
           artist_vault_id: vaultId || undefined,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
       if (!res.ok) { setError(data.message || data.error || "Generation failed."); return; }
@@ -254,12 +259,15 @@ export default function PressKitBuilder() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await fetch(`/api/press-kit/${selectedKit.id}/regenerate-bio`, {
+      const res = await confirmedFetch(`/api/press-kit/${selectedKit.id}/regenerate-bio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        overrideCost: FALLBACK_REFRESH_COST, // not in the credit registry; backend charges 1
+        overrideFeature: "Press Kit Bio Refresh",
         body: JSON.stringify({ achievements: cleanList(achievements), tone }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
       if (!res.ok) { setError(data.message || data.error || "Bio refresh failed."); return; }

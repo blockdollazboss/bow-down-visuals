@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing" },
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
+  { label: "Sound Finder", href: "/sounds" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
@@ -27,8 +28,8 @@ const NAV_LINKS = [
   { label: "Samples", href: "/samples" },
   { label: "Sponsorship Outreach", href: "/outreach" },
   { label: "Clip Maker", href: "/clip-maker" },
-  { label: "Text-to-SFX", href: "/sfx" },
-  { label: "Tools", href: "/dashboard" },
+  { label: "Text-to-SFX", href: "/sfx" },  { label: "Scheduler", href: "/scheduler" },
+  { label: "Tip Jar", href: "/tips" },  { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
 

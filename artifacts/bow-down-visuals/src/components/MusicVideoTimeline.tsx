@@ -26,6 +26,7 @@
     import type { SceneData } from "@/lib/scene-parser";
     import { useAuth } from "@/contexts/AuthContext";
     import { useToast } from "@/hooks/use-toast";
+    import { useConfirmedApi } from "@/hooks/use-confirmed-api";
     import { OutOfCredits } from "@/components/OutOfCredits";
     import {
       requestImprovedPrompt,
@@ -123,12 +124,12 @@
     }: RunwayClipProps) {
       const { getAccessToken, refreshProfile } = useAuth();
       const { toast } = useToast();
+      const { confirmedFetch } = useConfirmedApi();
 
       const [isPolling, setIsPolling] = useState(false);
       const [taskId, setTaskId] = useState<string | null>(null);
       const [progress, setProgress] = useState<number | null>(null);
       const [error, setError] = useState<string | null>(null);
-      const [showRegenConfirm, setShowRegenConfirm] = useState(false);
       const [urlError, setUrlError] = useState(false);
       const [outOfCredits, setOutOfCredits] = useState(false);
 
@@ -287,14 +288,13 @@
         setIsPolling(true);
         setError(null);
         setProgress(null);
-        setShowRegenConfirm(false);
         setUrlError(false);
         onGeneratingStart();
 
         try {
           const token = await getAccessToken();
 
-          const res = await fetch("/api/generate-runway-clip", {
+          const res = await confirmedFetch("/api/generate-runway-clip", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -306,6 +306,7 @@
               ratio: "720:1280",
             }),
           });
+          if (!res) { setIsPolling(false); return; } // user cancelled
 
           const data = (await res.json()) as {
             taskId?: string;
@@ -350,7 +351,6 @@
         setTaskId(null);
         setError(null);
         setProgress(null);
-        setShowRegenConfirm(false);
         setUrlError(false);
 
         onUpdateRef.current({
@@ -493,29 +493,7 @@
             </div>
           )}
 
-          {showRegenConfirm && !isPolling && (
-            <div className="flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-xl border border-yellow-500/25 bg-yellow-500/5">
-              <span className="text-[11px] text-yellow-300/80 font-medium flex-1">
-                This will use Runway API credits. Continue?
-              </span>
-
-              <button
-                onClick={doGenerate}
-                className="px-3 py-1 rounded-lg bg-primary/20 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/30 transition-colors"
-              >
-                Yes, Regenerate
-              </button>
-
-              <button
-                onClick={() => setShowRegenConfirm(false)}
-                className="px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-white/40 text-xs font-bold hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-
-          {!isPolling && !showRegenConfirm && (
+          {!isPolling && (
             <div className="flex flex-wrap gap-2">
               {!scene.demoClipUrl && (
                 <button
@@ -541,7 +519,7 @@
 
               {scene.demoClipUrl && (
                 <button
-                  onClick={() => setShowRegenConfirm(true)}
+                  onClick={doGenerate}
                   disabled={isLocked}
                   title={
                     isLocked
@@ -651,6 +629,7 @@
     }: TimelineRowProps) {
       const { getAccessToken } = useAuth();
       const { toast } = useToast();
+      const { confirmedFetch } = useConfirmedApi();
 
       const [editing, setEditing] = useState(false);
       const [editedPrompt, setEditedPrompt] = useState(scene.aiVideoPrompt ?? "");
@@ -687,7 +666,9 @@
           const token = await getAccessToken();
           const improvedPrompt = await requestImprovedPrompt({
             token, prompt: seed, scene, artistVault, videoStyle, platform,
+            fetchImpl: confirmedFetch,
           });
+          if (!improvedPrompt) return; // user cancelled
           onUpdate({ aiVideoPrompt: improvedPrompt });
           setEditedPrompt(improvedPrompt);
           toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
@@ -1092,6 +1073,7 @@
                 const improved = await requestImprovedPrompt({
                   token, prompt: sceneSeedPrompt(scene), scene, artistVault, videoStyle, platform,
                 });
+                if (!improved) { fail++; return; } // user cancelled
                 working = working.map((s) => (s.id === scene.id ? { ...s, aiVideoPrompt: improved } : s));
                 onScenesChange(working);
                 void persistScenesInBackground(working);

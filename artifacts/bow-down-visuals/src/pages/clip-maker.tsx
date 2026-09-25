@@ -6,6 +6,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatClipTimestamp, buildTimestampExport } from "@/lib/clip-maker";
 
@@ -79,6 +80,7 @@ const inputClass =
 
 export default function ClipMaker() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* source + preferences */
   const [file, setFile] = useState<File | null>(null);
@@ -109,9 +111,14 @@ export default function ClipMaker() {
     };
   }, []);
 
-  async function authedFetch(url: string, init: RequestInit) {
+  /* Authenticated fetch that routes SPENDING calls through the credit
+     confirmation popup. Status/health polls must pass skipConfirm: true. */
+  async function authedFetch(
+    url: string,
+    init: RequestInit & { skipConfirm?: boolean; overrideCost?: number; overrideFeature?: string },
+  ) {
     const token = await getAccessToken();
-    return fetch(url, {
+    return confirmedFetch(url, {
       ...init,
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -142,7 +149,7 @@ export default function ClipMaker() {
     setJob(null);
     setJobId(null);
     try {
-      let res: Response;
+      let res: Response | null;
       if (file) {
         const form = new FormData();
         form.append("video", file);
@@ -157,6 +164,7 @@ export default function ClipMaker() {
           body: JSON.stringify({ videoUrl: videoUrl.trim(), clipLength, maxClips, vibe }),
         });
       }
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as AnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.highlights) || data.highlights.length === 0) {
@@ -215,7 +223,10 @@ export default function ClipMaker() {
           videoRef: analysis.videoRef,
           clips: picks.map((h) => ({ startSec: h.startSec, endSec: h.endSec, title: h.title })),
         }),
+        overrideCost: picks.length * CUT_COST_PER_CLIP,
+        overrideFeature: "Cut Stream Clip",
       });
+      if (!res) { setCutting(false); return; } // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as CutJobResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.jobId) {
@@ -234,7 +245,8 @@ export default function ClipMaker() {
     if (pollRef.current) window.clearInterval(pollRef.current);
     const tick = async () => {
       try {
-        const res = await authedFetch(`/api/streamer-clips/cut/${id}`, { method: "GET" });
+        const res = await authedFetch(`/api/streamer-clips/cut/${id}`, { method: "GET", skipConfirm: true });
+        if (!res) return; // unreachable with skipConfirm, keeps TS happy
         const data = (await res.json().catch(() => ({}))) as CutJobResponse;
         if (!res.ok) throw new Error(data.error || "Job lookup failed.");
         setJob(data);

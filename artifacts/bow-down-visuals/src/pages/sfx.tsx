@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   loadSfxLibrary,
@@ -18,6 +19,7 @@ import {
   sfxSlug,
   type SfxItem,
 } from "@/lib/sfx";
+import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Text-to-SFX ──────────────────────────────────────────
    Describe a sound effect in words — AI generates it. POST /api/generate-sfx
@@ -100,6 +102,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 export default function TextToSfx() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [category, setCategory] = useState("impacts");
   const [duration, setDuration] = useState(3);
@@ -161,7 +164,7 @@ export default function TextToSfx() {
     setResult(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-sfx", {
+      const res = await confirmedFetch("/api/generate-sfx", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -173,6 +176,7 @@ export default function TextToSfx() {
           category,
         }),
       });
+      if (!res) { setLoading(false); return; } // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
@@ -282,7 +286,7 @@ export default function TextToSfx() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's audio tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> audio tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Text-to-<span className="text-primary">SFX</span>

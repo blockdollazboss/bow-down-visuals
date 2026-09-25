@@ -10,6 +10,8 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
+import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Sponsor Marketplace ───────────────────────────────────────────────
    Brands post paid sponsorship deals, creators apply with a pitch —
@@ -57,6 +59,7 @@ function daysLeft(deadline: string): string {
 
 export default function Sponsors() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [deals, setDeals] = useState<Deal[]>([]);
   const [dealsLoading, setDealsLoading] = useState(true);
@@ -157,9 +160,11 @@ export default function Sponsors() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await fetch("/api/sponsors/deals", {
+      const res = await confirmedFetch("/api/sponsors/deals", {
         method: "POST",
         headers: await authHeaders(),
+        overrideCost: POST_COST, // not in the credit registry; backend + UI agree on 5
+        overrideFeature: "Post Sponsor Deal",
         body: JSON.stringify({
           brandName: brandName.trim().slice(0, 120),
           budgetMin: min,
@@ -170,6 +175,7 @@ export default function Sponsors() {
           deadline: new Date(deadline).toISOString(),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as { deal?: Deal; error?: string; message?: string };
       if (res.status === 402 || data.error === "out_of_credits") {
         handle402();
@@ -224,7 +230,7 @@ export default function Sponsors() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await fetch("/api/sponsors/pitch", {
+      const res = await confirmedFetch("/api/sponsors/pitch", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -237,6 +243,7 @@ export default function Sponsors() {
           tone,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as { pitch?: string; subject?: string; error?: string; message?: string };
       if (res.status === 402 || data.error === "out_of_credits") {
         handle402();
@@ -264,7 +271,7 @@ export default function Sponsors() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await fetch("/api/sponsors/match", {
+      const res = await confirmedFetch("/api/sponsors/match", {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({
@@ -273,6 +280,7 @@ export default function Sponsors() {
           platforms: matchPlatforms.split(",").map((p) => p.trim()).filter(Boolean).slice(0, 5),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as { matches?: Match[]; note?: string; error?: string; message?: string };
       if (res.status === 402 || data.error === "out_of_credits") {
         handle402();
@@ -315,7 +323,7 @@ export default function Sponsors() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Handshake className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+            <Handshake className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Sponsor <span className="text-primary">Marketplace</span>
@@ -663,7 +671,7 @@ export default function Sponsors() {
 
         <p className="relative mt-8 text-center text-sm text-white/40">
           Closed a deal? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <CheatCodeName /> 🦈{" "}
           in the chat bubble for content ideas that over-deliver for the brand.
         </p>
       </main>

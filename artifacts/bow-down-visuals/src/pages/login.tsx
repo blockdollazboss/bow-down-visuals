@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import { AnimatedLogo } from "@/components/AnimatedLogo";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -13,6 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
+import { CheatCodeTerminal, useCheatCodeUnlock } from "@/components/CheatCodeTerminal";
+import { SharkKingEyes } from "@/components/SharkKingEyes";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -32,6 +34,12 @@ export default function Login() {
   const [resetError, setResetError] = useState<string | null>(null);
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLSpanElement>({ maxDeg: 8, maxShift: 6 });
+
+
+
+  /* ── Hidden cheat-code terminal (Konami or type "cheatcode") ── */
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  useCheatCodeUnlock(useCallback(() => setTerminalOpen(true), []));
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -94,7 +102,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="flex justify-center mb-6">
+          {/* Shark King + logo lockup — one unit, eyes follow your cursor */}
+          <div className="flex flex-col items-center mb-4">
+            <SharkKingEyes className="w-28 h-28 md:w-32 md:h-32 -mb-3 relative z-10 drop-shadow-[0_0_25px_rgba(201,168,76,0.35)]" />
             <span ref={logoTilt} className="inline-block rounded-lg">
               <AnimatedLogo className="w-[320px] max-w-full h-auto" />
             </span>
@@ -203,6 +213,9 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      {/* Hidden cheat-code terminal easter egg */}
+      {terminalOpen && <CheatCodeTerminal onClose={() => setTerminalOpen(false)} />}
     </div>
   );
 }

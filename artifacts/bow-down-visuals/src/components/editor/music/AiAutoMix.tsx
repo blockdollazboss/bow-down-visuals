@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   MIX_PRESETS, INTENSITIES, REVERB_AMOUNTS, AUTOTUNE_STYLES, LOUDNESS_TARGETS,
   applyAiMixToStems,
@@ -29,6 +30,7 @@ const autotuneOpts = AUTOTUNE_STYLES.map((a) => ({ value: a as AutotuneStyle, la
 export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoMixProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [generating, setGenerating]       = useState(false);
   const [outOfCredits, setOutOfCredits]   = useState(false);
   const [rendering, setRendering]         = useState(false);
@@ -94,7 +96,11 @@ export function AiAutoMix({ settings, onChange, artistName, songTitle }: AiAutoM
           effects: s.effects,
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
-      });
+      }, confirmedFetch);
+      if (!resp) {
+        setRendering(false);
+        return;
+      }
       const record = buildExportRecord(
         { ...btn, label: "AI Mix Render — Full MP3" },
         resp,
