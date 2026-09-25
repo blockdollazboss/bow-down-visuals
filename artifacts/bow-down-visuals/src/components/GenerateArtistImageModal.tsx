@@ -1,12 +1,18 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Loader2, Sparkles, ImageIcon, Check } from "lucide-react";
+import { X, Loader2, Sparkles, ImageIcon, Check, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import {
   ARTIST_IMAGE_MODELS,
   ARTIST_IMAGE_RATIOS,
+  SHOOT_POSES,
+  SHOOT_OUTFITS,
+  SHOOT_BACKGROUNDS,
+  composePhotoShootBrief,
 } from "./generate-artist-image";
 import type { ArtistImageModel, ArtistImageRatio } from "./generate-artist-image";
+
+export type ArtistImageModalMode = "generate" | "photoshoot";
 
 interface Props {
   open: boolean;
@@ -17,12 +23,15 @@ interface Props {
   hasReferencePhoto: boolean;
   referenceImageUrl: string | null;
   userId: string | null;
+  /** "photoshoot" locks identity (Turbo + face reference) and offers wardrobe/pose/backdrop presets. */
+  mode?: ArtistImageModalMode;
 }
 
 interface RecentImage { name: string; url: string; path: string }
 
-export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId }: Props) {
+export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId, mode = "generate" }: Props) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const isShoot = mode === "photoshoot";
   const [prompt, setPrompt] = useState(initialPrompt);
   const [model, setModel] = useState<ArtistImageModel>("gpt-image-2.5-sunburst");
   const [ratio, setRatio] = useState<ArtistImageRatio>("1080:1920");
@@ -30,18 +39,33 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentImage[]>([]);
+  const [poseId, setPoseId] = useState(SHOOT_POSES[0].id);
+  const [outfit, setOutfit] = useState(SHOOT_OUTFITS[0].text);
+  const [background, setBackground] = useState(SHOOT_BACKGROUNDS[0].text);
+  const [shootSaved, setShootSaved] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /* Refresh the pre-filled prompt + recents each time the modal opens. */
   useEffect(() => {
     if (open) {
-      setPrompt(initialPrompt);
+      if (isShoot) {
+        const p = SHOOT_POSES[0].id;
+        const o = SHOOT_OUTFITS[0].text;
+        const b = SHOOT_BACKGROUNDS[0].text;
+        setPoseId(p);
+        setOutfit(o);
+        setBackground(b);
+        setPrompt(composePhotoShootBrief(p, o, b));
+      } else {
+        setPrompt(initialPrompt);
+      }
       setError(null);
       setProgress(null);
+      setShootSaved(false);
       void loadRecent();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open ]);
+  }, [open, mode ]);
 
   useEffect(() => () => stopPolling(), []);
 
@@ -70,9 +94,30 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
   }
 
   const selectedModel = ARTIST_IMAGE_MODELS.find((m) => m.id === model)!;
-  /* Turbo requires a reference photo (API constraint) — fall back to Gen4. */
-  const effectiveModel: ArtistImageModel = model === "gen4_image_turbo" && !hasReferencePhoto ? "gen4_image" : model;
+  /* Photo Shoot always runs Turbo with the face reference (identity lock).
+     Portrait mode falls back to Gen4 when Turbo is picked without a photo. */
+  const effectiveModel: ArtistImageModel = isShoot
+    ? "gen4_image_turbo"
+    : model === "gen4_image_turbo" && !hasReferencePhoto ? "gen4_image" : model;
   const effectiveCredits = ARTIST_IMAGE_MODELS.find((m) => m.id === effectiveModel)!.credits;
+
+  const chipClass = (active: boolean) =>
+    `px-3.5 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+      active
+        ? "border-primary/60 bg-primary/15 text-primary"
+        : "border-white/10 bg-white/5 text-white/50 hover:text-white/80"
+    } disabled:opacity-50`;
+
+  /** Photo-shoot chips fill the brief; the brief textarea stays editable. */
+  function applyShootChange(next: { poseId?: string; outfit?: string; background?: string }) {
+    const p = next.poseId ?? poseId;
+    const o = next.outfit ?? outfit;
+    const b = next.background ?? background;
+    setPoseId(p);
+    setOutfit(o);
+    setBackground(b);
+    setPrompt(composePhotoShootBrief(p, o, b));
+  }
 
   function startPolling(taskId: string) {
     stopPolling();
@@ -89,6 +134,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
           if (data.url) {
             refreshProfile();
             void loadRecent();
+            if (isShoot) setShootSaved(true);
             onGenerated(data.url, data.path ?? null);
           } else {
             setError("Generation finished but returned no image. Credits were not charged.");
@@ -110,9 +156,15 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
 
   async function startGeneration() {
     if (!prompt.trim()) { setError("Describe the look first."); return; }
+    /* Photo shoots are identity-locked: no face reference, no shoot. */
+    if (isShoot && !hasReferencePhoto) {
+      setError("Save an Artist Photo first — photo shoots need your locked face to keep the same identity.");
+      return;
+    }
     setGenerating(true);
     setError(null);
     setProgress(null);
+    setShootSaved(false);
     try {
       const token = await getAccessToken();
       const res = await fetch("/api/generate-artist-image", {
@@ -134,6 +186,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         setGenerating(false);
         refreshProfile();
         void loadRecent();
+        if (isShoot) setShootSaved(true);
         onGenerated(data.url, data.path ?? null);
         return;
       }
@@ -153,7 +206,9 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
       <div className="relative w-full max-w-lg rounded-2xl border border-white/10 bg-[#0c0c0e] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-black text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> Generate Artist Photo
+            {isShoot
+              ? (<><Camera className="h-5 w-5 text-primary" /> Artist Photo Shoot</>)
+              : (<><Sparkles className="h-5 w-5 text-primary" /> Generate Artist Photo</>)}
           </h3>
           {!generating && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -162,48 +217,133 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
           )}
         </div>
         <p className="text-xs text-white/40 mb-5">
-          {hasReferencePhoto
-            ? "Your uploaded photo is used as a face reference, so the generated look keeps your artist's identity."
-            : "No photo uploaded yet — describe the look and the AI will create it from scratch."}
+          {isShoot
+            ? (hasReferencePhoto
+              ? "Your saved Artist Photo locks the face — pick a wardrobe, pose, and backdrop for a brand-new look with the same identity."
+              : "Photo shoots need a locked face. Save an Artist Photo first, then come back to change up the outfits.")
+            : (hasReferencePhoto
+              ? "Your uploaded photo is used as a face reference, so the generated look keeps your artist's identity."
+              : "No photo uploaded yet — describe the look and the AI will create it from scratch.")}
         </p>
 
+        {isShoot && !hasReferencePhoto && (
+          <p className="mb-5 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-2.5">
+            No Artist Photo saved yet. Upload or generate one first — the shoot keeps that exact face while changing the outfit.
+          </p>
+        )}
+
+        {/* Photo Shoot: wardrobe / pose / backdrop presets */}
+        {isShoot && (
+          <>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Wardrobe</p>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {SHOOT_OUTFITS.map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  disabled={generating}
+                  onClick={() => applyShootChange({ outfit: o.text })}
+                  className={chipClass(outfit === o.text)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <input
+              value={outfit}
+              onChange={(e) => applyShootChange({ outfit: e.target.value })}
+              disabled={generating}
+              placeholder="Or describe a custom outfit…"
+              className="w-full rounded-xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+            />
+
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-4 mb-2">Pose</p>
+            <div className="flex gap-2 flex-wrap">
+              {SHOOT_POSES.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={generating}
+                  onClick={() => applyShootChange({ poseId: p.id })}
+                  className={chipClass(poseId === p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-4 mb-2">Backdrop</p>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {SHOOT_BACKGROUNDS.map((b) => (
+                <button
+                  key={b.label}
+                  type="button"
+                  disabled={generating}
+                  onClick={() => applyShootChange({ background: b.text })}
+                  className={chipClass(background === b.text)}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
+            <input
+              value={background}
+              onChange={(e) => applyShootChange({ background: e.target.value })}
+              disabled={generating}
+              placeholder="Or describe a custom backdrop…"
+              className="w-full rounded-xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-primary/50 disabled:opacity-50"
+            />
+          </>
+        )}
+
         {/* Prompt */}
-        <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Look description</label>
+        <div className={isShoot ? "mt-4" : undefined}>
+        <label className="text-[10px] font-bold text-white/40 uppercase tracking-wider">{isShoot ? "Shoot brief" : "Look description"}</label>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           disabled={generating}
-          rows={4}
+          rows={isShoot ? 3 : 4}
           className="mt-1.5 w-full rounded-xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-primary/50 disabled:opacity-50"
-          placeholder="e.g. cinematic hip-hop artist portrait, gold chains, dark studio lighting…"
+          placeholder={isShoot ? "Your shoot brief — the chips above fill this in, edit it freely…" : "e.g. cinematic hip-hop artist portrait, gold chains, dark studio lighting…"}
         />
-
-        {/* Model */}
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-4 mb-2">Model</p>
-        <div className="flex gap-2 flex-wrap">
-          {ARTIST_IMAGE_MODELS.map((m) => {
-            const disabled = m.id === "gen4_image_turbo" && !hasReferencePhoto;
-            const active = effectiveModel === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                disabled={disabled || generating}
-                onClick={() => setModel(m.id)}
-                title={disabled ? "Turbo needs an uploaded photo as a face reference" : m.hint}
-                data-testid={`artist-model-${m.id}`}
-                className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-colors ${
-                  active
-                    ? "border-primary/60 bg-primary/15 text-primary"
-                    : "border-white/10 bg-white/5 text-white/50 hover:text-white/80"
-                } ${disabled ? "opacity-40 cursor-not-allowed" : ""} disabled:opacity-50`}
-              >
-                {m.label} · {m.credits} credits
-                <span className="block text-[10px] font-medium opacity-70">{disabled ? "needs photo" : m.hint}</span>
-              </button>
-            );
-          })}
         </div>
+
+        {/* Model — locked to Turbo (identity lock) in Photo Shoot mode */}
+        {isShoot ? (
+          <p className="mt-4 text-xs text-white/50 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5">
+            <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+            Identity lock on — your Artist Photo is the face reference. Turbo · 2 credits per shoot.
+          </p>
+        ) : (
+          <>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-4 mb-2">Model</p>
+            <div className="flex gap-2 flex-wrap">
+              {ARTIST_IMAGE_MODELS.map((m) => {
+                const disabled = m.id === "gen4_image_turbo" && !hasReferencePhoto;
+                const active = effectiveModel === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={disabled || generating}
+                    onClick={() => setModel(m.id)}
+                    title={disabled ? "Turbo needs an uploaded photo as a face reference" : m.hint}
+                    data-testid={`artist-model-${m.id}`}
+                    className={`px-3.5 py-2 rounded-xl border text-xs font-bold transition-colors ${
+                      active
+                        ? "border-primary/60 bg-primary/15 text-primary"
+                        : "border-white/10 bg-white/5 text-white/50 hover:text-white/80"
+                    } ${disabled ? "opacity-40 cursor-not-allowed" : ""} disabled:opacity-50`}
+                  >
+                    {m.label} · {m.credits} credits
+                    <span className="block text-[10px] font-medium opacity-70">{disabled ? "needs photo" : m.hint}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Ratio */}
         <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mt-4 mb-2">Shape</p>
@@ -235,8 +375,9 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
           <button
             type="button"
             onClick={startGeneration}
-            disabled={generating || !prompt.trim()}
+            disabled={generating || !prompt.trim() || (isShoot && !hasReferencePhoto)}
             data-testid="btn-generate-artist-image"
+            title={isShoot && !hasReferencePhoto ? "Save an Artist Photo first" : undefined}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition-all disabled:opacity-50 gold-glow"
           >
             {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating…{progress !== null ? ` ${Math.round(progress * 100)}%` : ""}</>) : (<><Sparkles className="h-4 w-4" /> Generate · {effectiveCredits} credits</>)}
@@ -247,14 +388,29 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
             </button>
           )}
         </div>
+        {isShoot && shootSaved && !generating && (
+          <p className="mt-3 text-xs text-primary bg-primary/10 border border-primary/20 rounded-xl px-3.5 py-2.5">
+            Look saved to your shoot results below — roll another outfit!
+          </p>
+        )}
         {generating && <p className="mt-2 text-[11px] text-white/30">Usually takes 30–90 seconds. You can close this and come back — use the recent list below.</p>}
 
         {/* Recent generations */}
         {recent.length > 0 && (
           <div className="mt-6">
-            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">Recent generations</p>
+            <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-2">
+              {isShoot ? "Photo shoot results" : "Recent generations"}
+            </p>
             <div className="grid grid-cols-4 gap-2">
-              {recent.map((img) => (
+              {recent.map((img) => isShoot ? (
+                <div
+                  key={img.path}
+                  className="relative aspect-[3/4] rounded-lg overflow-hidden border border-white/10"
+                  title="Photo shoot result"
+                >
+                  <img src={img.url} alt="Photo shoot result" className="h-full w-full object-cover" loading="lazy" />
+                </div>
+              ) : (
                 <button
                   key={img.path}
                   type="button"
