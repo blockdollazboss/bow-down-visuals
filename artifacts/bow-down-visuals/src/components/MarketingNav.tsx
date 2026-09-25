@@ -34,6 +34,7 @@ const NAV_LINKS = [
   { label: "Lyric Video", href: "/lyric-video" },
   { label: "Beats", href: "/beats" },
   { label: "Community", href: "/community" },
+  { label: "Memberships", href: "/memberships" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

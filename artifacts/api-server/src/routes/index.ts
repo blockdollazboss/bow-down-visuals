@@ -72,6 +72,7 @@ import jobNotificationsRouter from "./job-notifications";
 import distributionRouter from "./generate/distribution";
 import streamerClipsRouter from "./generate/streamer-clips";
 import beatsRouter from "./generate/beats";
+import membershipsRouter from "./generate/memberships";
 
 const router: IRouter = Router();
 
@@ -148,5 +149,6 @@ router.use(jobNotificationsRouter);
 router.use(distributionRouter);
 router.use(streamerClipsRouter);
 router.use(beatsRouter);
+router.use(membershipsRouter);
 
 export default router;
