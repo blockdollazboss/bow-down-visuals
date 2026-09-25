@@ -21,7 +21,10 @@ const NAV_LINKS = [
   { label: "Hook Studio", href: "/hooks" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
+<<<<<<< HEAD
   { label: "Content Calendar", href: "/content-calendar" },
+  { label: "Beats", href: "/beats" },
+>>>>>>> 93a6b30 (Beat Marketplace: producers list beats free, artists license (Basic/Premium/Exclusive), AI tag suggester (1cr))
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
