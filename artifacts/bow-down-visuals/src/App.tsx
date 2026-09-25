@@ -14,8 +14,7 @@ import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
-import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
-
+import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
@@ -237,8 +236,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
-        <MobileSidebarTrigger />
-      </div>
+        <MobileSidebarTrigger />        {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
 }

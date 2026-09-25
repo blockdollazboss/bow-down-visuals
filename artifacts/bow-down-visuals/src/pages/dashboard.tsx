@@ -439,6 +439,7 @@ export default function Dashboard() {
               cta="Create Promo Clips"
               href="/promo-clip"
             />
+            <div data-tour="card-artist-vault" className="h-full">
             <CreatorCard
               icon={Archive}
               title="Artist Profiles"
@@ -446,6 +447,7 @@ export default function Dashboard() {
               cta="Choose Artist"
               href="/artist-vault"
             />
+            </div>
             <CreatorCard
               icon={Headphones}
               title="Music Mixer"
