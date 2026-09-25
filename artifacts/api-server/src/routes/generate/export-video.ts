@@ -648,7 +648,7 @@ function cleanup(...files: string[]) {
 }
 
 /* ── POST /api/export-final-video ────────────────────── */
-const EXPORT_CREDIT_COST = 5;
+const EXPORT_CREDIT_COST = 4;
 
 export interface ExportRequestBody {
     projectId: string;

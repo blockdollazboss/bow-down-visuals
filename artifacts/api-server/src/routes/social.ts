@@ -56,8 +56,8 @@ const router = Router();
 
 /* 2 credits per Instagram post — env-overridable without a deploy. The Meta
    API itself is free, so this is pure margin at ~$1.00 retail per post. */
-const INSTAGRAM_POST_CREDITS = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 2;
-const FACEBOOK_POST_CREDITS = Number(process.env["FACEBOOK_POST_CREDITS"]) || 2;
+const INSTAGRAM_POST_CREDITS = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 1;
+const FACEBOOK_POST_CREDITS = Number(process.env["FACEBOOK_POST_CREDITS"]) || 1;
 
 function metaConfig(): MetaOAuthConfig {
   /* Instagram Login credentials: the Instagram app ID/secret from the Meta
@@ -647,7 +647,7 @@ const tiktokPublishSchema = z.object({
 
 /* 2 credits per TikTok draft — env-overridable without a deploy. TikTok's
    API itself is free, so this is pure margin at ~$1.00 retail per upload. */
-const TIKTOK_POST_CREDITS = Number(process.env["TIKTOK_POST_CREDITS"]) || 2;
+const TIKTOK_POST_CREDITS = Number(process.env["TIKTOK_POST_CREDITS"]) || 1;
 
 /* Hard server-side download cap (TikTok allows far more; our clips don't
    need it, and this keeps memory bounded on the 2GB box). */

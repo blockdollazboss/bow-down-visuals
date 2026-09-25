@@ -11,7 +11,7 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 
 const router = Router();
 
-const RUNWAY_CREDIT_COST = 5;
+const RUNWAY_CREDIT_COST = 4;
 
 const SaveClipSchema = z.object({
   projectId:    z.string().uuid().optional().nullable(),
