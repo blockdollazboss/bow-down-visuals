@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
+import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -19,10 +20,11 @@ const schema = z.object({
 });
 
 export default function Login() {
-  const { signIn, user, loading: authLoading } = useAuth();
+  const { signIn, signInWithGoogle, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -52,6 +54,18 @@ export default function Login() {
       setLoading(false);
     } else {
       setLocation("/choose-artist");
+    }
+  }
+
+  async function onGoogleSignIn() {
+    setGoogleLoading(true);
+    setError(null);
+    /* On success the browser leaves for Google's consent screen, so this
+     * only resolves when something failed before the redirect. */
+    const { error } = await signInWithGoogle();
+    if (error) {
+      setError(error);
+      setGoogleLoading(false);
     }
   }
 
@@ -89,6 +103,13 @@ export default function Login() {
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
+          <GoogleSignInButton
+            onClick={onGoogleSignIn}
+            loading={googleLoading}
+            label="Continue with Google"
+          />
+          <OrDivider />
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField control={form.control} name="email" render={({ field }) => (
