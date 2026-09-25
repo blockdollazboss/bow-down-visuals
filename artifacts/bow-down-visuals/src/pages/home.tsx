@@ -1,5 +1,6 @@
-import { useState, useRef, forwardRef } from "react";
-import { Link } from "wouter";
+import { useState, useRef, forwardRef, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
@@ -920,10 +921,23 @@ function MusicVideoTeaser() {
 
 export default function Home() {
   const waitlistRef = useRef<HTMLElement>(null);
+  const { user, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  /* Signed-in users go straight to artist selection — the first thing
+     after sign-in is picking who they're creating for. */
+  useEffect(() => {
+    if (!authLoading && user) {
+      setLocation("/choose-artist");
+    }
+  }, [authLoading, user, setLocation]);
 
   function scrollToWaitlist() {
     waitlistRef.current?.scrollIntoView({ behavior: "smooth" });
   }
+
+  /* Don't flash the marketing page while the redirect fires. */
+  if (authLoading || user) return null;
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
