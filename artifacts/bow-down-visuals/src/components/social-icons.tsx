@@ -4,6 +4,7 @@
  * All use currentColor so they inherit text color.
  */
 export { InstagramIcon } from "@/components/ui/instagram-icon";
+import { InstagramIcon } from "@/components/ui/instagram-icon";
 
 type IconProps = { className?: string };
 

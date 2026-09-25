@@ -153,6 +153,7 @@ interface NavLink {
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  tour?: string;
 }
 
 interface NavSection {
