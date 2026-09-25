@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * The site takes a cut of closed deals (handled at payout time, not here).
- * Must stay in sync with lib/db/migrations/0008_sponsor_deals.sql
+ * Must stay in sync with lib/db/migrations/0010_sponsor_deals.sql
  * (boot-time `drizzle-kit push` derives the same shape from this schema). */
 
 export const sponsorDealsTable = pgTable("sponsor_deals", {
