@@ -71,6 +71,7 @@ const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
+const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -237,6 +238,7 @@ function AppShell() {
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
+          <Route path="/branding-shop"><BrandingShop /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}

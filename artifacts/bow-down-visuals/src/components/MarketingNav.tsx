@@ -25,6 +25,7 @@ const NAV_LINKS = [
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Distribute", href: "/distribute" },
   { label: "Clip Maker", href: "/clip-maker" },
+  { label: "Branding Shop", href: "/branding-shop" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
