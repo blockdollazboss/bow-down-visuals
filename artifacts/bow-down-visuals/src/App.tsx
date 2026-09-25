@@ -56,6 +56,7 @@ const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
+const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
@@ -210,6 +211,7 @@ function AppShell() {
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
+          <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
