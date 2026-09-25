@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
 import { z } from "zod";
+import { getTextModel } from "../../lib/ai-clients";
 
 const router = Router();
 
@@ -162,12 +163,12 @@ Rules:
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: getTextModel(),
       messages: [
         {
           role: "system",
           content:
-            "You are an expert music-video editor who plans beat-synced edits and returns strict JSON.",
+            "You are an expert music-video editor who plans beat-synced edits and returns strict JSON. Edit with the instincts of an Oscar-winning film editor: cuts land on the music's emotional beats, not just the metronome, and pacing arcs across the whole piece with real tension and release.",
         },
         { role: "user", content: userPrompt },
       ],
