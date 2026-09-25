@@ -35,7 +35,7 @@ export interface ArtistVault {
 
 export type SubjectType = "artist" | "actor" | "actress" | "character";
 
-export type VaultContext = "music" | "video" | "movie" | "promo" | "thumbnail";
+export type VaultContext = "music" | "video" | "movie" | "series" | "promo" | "thumbnail";
 
 export function normalizeSubjectType(value: string | null | undefined): SubjectType {
   const v = (value ?? "").trim().toLowerCase();
@@ -88,6 +88,7 @@ const CONTEXT_PRIORITY: Record<VaultContext, Record<SubjectType, number>> = {
   music: { artist: 0, character: 1, actor: 2, actress: 2 },
   video: { artist: 0, character: 1, actor: 2, actress: 2 },
   movie: { actor: 0, actress: 0, character: 1, artist: 2 },
+  series: { character: 0, actor: 1, actress: 1, artist: 2 },
   promo: { artist: 0, actor: 1, actress: 1, character: 2 },
   thumbnail: { artist: 0, actor: 1, actress: 1, character: 2 },
 };
