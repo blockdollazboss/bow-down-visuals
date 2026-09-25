@@ -12,7 +12,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
-import { recordCreditUsage } from "../lib/payment-record";
+import { recordCreditUsageStrict } from "../lib/payment-record";
 
 const router = Router();
 
@@ -70,11 +70,26 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
       .eq("id", targetUserId);
     if (updateErr) throw updateErr;
 
-    recordCreditUsage({
-      userId: targetUserId,
-      action: "Admin Credit Grant",
-      creditsUsed: -parsed.data.amount,
-    }).catch(() => {});
+    // Strict ledger write: a grant must never land without a ledger trace.
+    // On failure, roll the grant back and fail loudly (500).
+    try {
+      await recordCreditUsageStrict({
+        userId: targetUserId,
+        action: "Admin Credit Grant",
+        creditsUsed: -parsed.data.amount,
+      });
+    } catch (ledgerErr) {
+      req.log.error({ err: ledgerErr, targetUserId }, "admin: ledger write failed after grant — rolling back the grant");
+      try {
+        await supabase
+          .from("profiles")
+          .update({ credits: profile.credits ?? 0 })
+          .eq("id", targetUserId);
+      } catch (rollbackErr) {
+        req.log.error({ err: rollbackErr, targetUserId }, "admin: CRITICAL — grant ledger failed AND rollback failed, manual reconciliation required");
+      }
+      throw ledgerErr;
+    }
 
     req.log.info(
       { admin: req.userEmail, targetUserId, amount: parsed.data.amount, newBalance },

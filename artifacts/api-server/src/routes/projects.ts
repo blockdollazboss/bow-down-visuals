@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
-import { markGenerationHistorySaved, markGenerationHistoryRefunded, recordCreditUsage } from "../lib/payment-record";
+import { markGenerationHistorySaved, markGenerationHistoryRefunded } from "../lib/payment-record";
+import { refundCredits } from "../lib/credits";
 import { db, generatedClipsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { refreshSupabaseStorageUrlsDeep, normalizeToStorageRef } from "../lib/objectStorage";
@@ -57,18 +58,12 @@ router.post("/projects", requireAuth, async (req, res) => {
       const refundedAmount = await markGenerationHistoryRefunded(d.genHistoryId).catch(() => 0);
       if (refundedAmount > 0) {
         try {
-          const { data: freshProfile } = await req.userSupabase!
-            .from("profiles").select("credits").eq("id", req.userId!).single();
-          const currentCredits = (freshProfile?.credits as number | null) ?? 0;
-          /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-          await getSupabaseAdmin().from("profiles")
-            .update({ credits: currentCredits + refundedAmount })
-            .eq("id", req.userId!);
-          recordCreditUsage({
-            userId:      req.userId!,
-            action:      "Refund — project save failed",
-            creditsUsed: -refundedAmount,
-          }).catch(() => {});
+          // refundCredits(): restores the balance and writes a negative ledger
+          // entry. A ledger failure is logged loudly (money is already back —
+          // reporting gap, not a loss).
+          await refundCredits(req.userId!, refundedAmount, {
+            action: "Refund — project save failed",
+          });
           refunded = true;
         } catch { /* non-fatal — user can contact support */ }
       }

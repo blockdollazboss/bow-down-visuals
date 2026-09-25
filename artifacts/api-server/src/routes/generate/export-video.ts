@@ -8,7 +8,7 @@ import path from "path";
 import os from "os";
 import { requireAuth } from "../../middlewares/require-auth";
 import { ensureVideoExportsBucket, uploadFileStreamToSupabaseStorage, VIDEO_EXPORTS_BUCKET, SUPABASE_SIGNED_URL_TTL_SEC } from "../../lib/objectStorage";
-import { recordCreditUsage } from "../../lib/payment-record";
+import { recordCreditUsageStrict } from "../../lib/payment-record";
 import { getPreparedExport, deletePreparedExport, acquirePreparedExport, releasePreparedExport } from "../../lib/prepared-exports";
 import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
@@ -2340,7 +2340,14 @@ async function runExportJobInBackground(jobId: string, ctx: ExportJobContext): P
       try {
         const { charged, creditsAfter } = await chargeCreditsForJob(jobId, ctx.userId, EXPORT_CREDIT_COST);
         if (charged) {
-          recordCreditUsage({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null }).catch(() => {});
+          // Strict ledger write: the export was delivered, so on failure the
+          // deduction stands and the gap is logged CRITICAL for manual
+          // reconciliation — never silently swallowed.
+          try {
+            await recordCreditUsageStrict({ userId: ctx.userId, action: "Final Video Export", creditsUsed: EXPORT_CREDIT_COST, projectId: ctx.body.projectId ?? null });
+          } catch (ledgerErr) {
+            ctx.log.error({ err: ledgerErr, jobId }, "[export] CRITICAL: ledger write failed after deduction — export delivered, charge has no ledger trace");
+          }
           ctx.log.info({ userId: ctx.userId, creditsAfter }, "[export] credits deducted");
         } else {
           ctx.log.warn({ jobId }, "[export] credits already charged for job; skipping duplicate deduction");
