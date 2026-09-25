@@ -8,7 +8,7 @@ import { swapSongVocalsToVoice } from "../../lib/voice-swap";
 
 const router = Router();
 const BUCKET = "audio-stems";
-const CREDIT_COST = 5;
+const CREDIT_COST = 4;
 const MIN_LENGTH_MS = 10_000;
 const MAX_LENGTH_MS = 300_000;
 const DEFAULT_LENGTH_MS = 60_000;

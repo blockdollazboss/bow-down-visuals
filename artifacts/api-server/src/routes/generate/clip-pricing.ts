@@ -8,8 +8,8 @@ export type ClipResolution = "720p" | "1080p";
 /** The four Seedance 2.5 ratios this route ever requests. */
 export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
 
-export const GEN45_CREDIT_COST = 5;
-export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 2;
+export const GEN45_CREDIT_COST = 4;
+export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 1.5;
 export const SEEDANCE_MIN_DURATION_SEC = 3;
 export const SEEDANCE_MAX_DURATION_SEC = 30;
 
