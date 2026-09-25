@@ -31,6 +31,9 @@ export interface SceneData {
   /** Set by "Use existing clip": this scene intentionally reuses another
    *  scene's clip URL. Export's duplicate-URL check exempts these. */
   clipReusedIntentionally?: boolean;
+  /** Image URL of the location picked from the user's Locations library
+   *  (visual reference for the scene's setting; label goes in `location`). */
+  locationImageUrl?: string | null;
 }
 
 /** Strip markdown bold/italic wrappers and leading bullet/dash from a line */
