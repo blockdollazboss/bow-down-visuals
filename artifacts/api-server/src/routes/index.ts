@@ -53,11 +53,11 @@ import watermarkRemovalRouter from "./generate/watermark-removal";
 import logoRouter from "./generate/logo";
 import introOutroRouter from "./generate/intro-outro";
 import llcGuideRouter from "./generate/llc-guide";
-import merchRouter from "./generate/merch";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 import schedulerRouter from "./scheduler";
+import playlistPitchRouter from "./generate/playlist-pitch";
 
 const router: IRouter = Router();
 
@@ -115,10 +115,10 @@ router.use(streamPackRouter);
 router.use(logoRouter);
 router.use(introOutroRouter);
 router.use(llcGuideRouter);
-router.use(merchRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
 router.use(schedulerRouter);
+router.use(playlistPitchRouter);
 
 export default router;
