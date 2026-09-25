@@ -24,6 +24,7 @@ const NAV_LINKS = [
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Tip Jar", href: "/tips" },
+  { label: "Translate", href: "/translate" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
