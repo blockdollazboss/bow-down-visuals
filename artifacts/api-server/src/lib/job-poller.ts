@@ -3,6 +3,7 @@ import { logger } from "./logger";
 import {
   claimQueuedJobs,
   completeLipSyncJob,
+  deferSubmitJob,
   failLipSyncJob,
   getJobsDueForPoll,
   markHistoryRecorded,
@@ -17,9 +18,12 @@ import {
   notifyTerminalExportJobs,
 } from "./job-notifications";
 import {
+  MAX_SUBMIT_DEFERRALS,
   PROVIDER_LIMIT_SEC,
+  classifySubmitError,
   getLipSyncApiKey,
   normalizeProviderStatus,
+  submitDeferralBackoffMs,
   syncLabsStatus,
   syncLabsSubmit,
   trimAndUploadAudioSegment,
@@ -44,7 +48,10 @@ import { recordLipSyncHistory } from "./payment-record";
  * pasted snippet is ever required for a job to finish. A provider-reported
  * FAILED is terminal (no silent re-submits that would spend the user's
  * Sync.so budget); repeated poll *transport* failures (5 in a row) also
- * fail the job with the last error surfaced.
+ * fail the job with the last error surfaced. Transient submit rejections
+ * (HTTP 429 / plan-concurrency limit) defer with a 5→10→20→40-minute
+ * backoff instead of burning the submit attempts — slots free up, the job
+ * waits, nobody babysits.
  *
  * Started once from index.ts after the server begins listening.
  */
@@ -177,6 +184,55 @@ async function runSubmitWorker(job: LipSyncJob, apiKey: string): Promise<void> {
     logger.info({ jobId: job.id, syncId }, "[job-poller] lip-sync submitted to Sync.so");
   } catch (err) {
     const message = err instanceof Error ? err.message : "Lip-sync submit failed";
+    const kind = classifySubmitError(err);
+
+    if (kind === "transient") {
+      /* Sync.so plan-concurrency limit (or a 5xx): provider slots free up
+         over 25–40 minutes. Wait with a long backoff instead of burning all
+         submit attempts in ~2 minutes. Transient waits don't touch the
+         attempts budget — deferSubmitJob neutralizes the claim's +1. */
+      const backoffMs = submitDeferralBackoffMs(job.submitDeferrals);
+      const deferred = await deferSubmitJob(job.id, backoffMs, MAX_SUBMIT_DEFERRALS).catch(() => null);
+      if (!deferred) {
+        logger.error({ jobId: job.id, err: message }, "[job-poller] deferred submit target vanished; dropping");
+        return;
+      }
+      if (deferred.failed) {
+        await createJobNotification({
+          jobType: "lip_sync",
+          jobId: job.id,
+          userId: job.userId,
+          projectId: job.projectId,
+          status: "failed",
+          title: "Lip sync failed",
+          message: truncate(
+            "Sync.so stayed at its plan concurrency limit for about a day, so this job was never submitted. Try again later or upgrade the Sync.so plan.",
+            500,
+          ),
+        });
+        logger.error(
+          { jobId: job.id, deferrals: deferred.deferrals },
+          "[job-poller] submit deferred past the limit; marked failed",
+        );
+      } else {
+        logger.warn(
+          { jobId: job.id, deferrals: deferred.deferrals, backoffMs, err: message },
+          "[job-poller] provider busy; submit deferred with backoff",
+        );
+      }
+      return;
+    }
+
+    if (kind === "permanent") {
+      /* 4xx (validation, auth, bad input): deterministic — retrying is
+         pointless and every retry re-trims media. Fail fast, notify once. */
+      await fail(message, "provider_rejected");
+      logger.error({ jobId: job.id, err: message }, "[job-poller] submit permanently rejected by provider");
+      return;
+    }
+
+    /* Transport failures (timeouts, DNS, resets): the request may never have
+       reached Sync.so — re-queue against the normal attempts budget. */
     const attempts = await requeueSubmitJob(job.id, MAX_SUBMIT_ATTEMPTS).catch(() => MAX_SUBMIT_ATTEMPTS);
     if (attempts >= MAX_SUBMIT_ATTEMPTS) {
       // requeueSubmitJob already marked it failed; notify once.
@@ -233,6 +289,14 @@ async function pollOneJob(job: LipSyncJob, apiKey: string): Promise<void> {
     remote = await syncLabsStatus(job.providerJobId!, apiKey);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Provider poll failed";
+    if (classifySubmitError(err) === "transient") {
+      /* A 429/5xx on the status check means we REACHED Sync.so and it's just
+         busy — not a transport failure. Don't count it toward the
+         consecutive-error budget; check again on the normal backoff. */
+      await recordJobPoll(job.id, { ok: true, nextPollInMs: pollBackoffMs(job.polls) });
+      logger.warn({ jobId: job.id, err: message }, "[job-poller] provider busy on status check; backing off");
+      return;
+    }
     const errors = job.consecutivePollErrors + 1;
     if (errors >= MAX_POLL_ERRORS) {
       await fail(

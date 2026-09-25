@@ -60,8 +60,8 @@ const SIDECAR = "http://127.0.0.1:1106";
 /** Sync Labs plan limit in seconds — Hobbyist plan (upgraded 2026-09-24). */
 export const PROVIDER_LIMIT_SEC = 60;
 
-/** Supabase storage bucket for temporary lip-sync audio segments */
-const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
+/** Supabase storage bucket for temporary lip-sync audio segments (exported for tests) */
+export const LIP_SYNC_AUDIO_BUCKET = "lip-sync-temp";
 
 /* ── Sync Labs ────────────────────────────────────────────────────────────── */
 const SYNC_LABS_BASE = process.env["SYNC_LABS_BASE_URL"] ?? "https://api.sync.so/v2";
@@ -83,6 +83,68 @@ export interface SyncLabsJob {
   outputUrl?: string;
   error?: string;
 }
+
+/**
+ * Typed provider error: carries the HTTP status so callers can distinguish
+ * transient rejections (429 / plan-concurrency limit — wait and retry) from
+ * permanent ones (422 validation, 401 auth — fail fast). Message text is
+ * kept identical to the old plain-Error strings.
+ */
+export class SyncLabsError extends Error {
+  readonly status: number | null;
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "SyncLabsError";
+    this.status = status;
+  }
+}
+
+/** How a submit failure should be treated by the background poller. */
+export type SubmitErrorKind =
+  /** 429 / plan-concurrency / 5xx: wait with long backoff, don't burn attempts. */
+  | "transient"
+  /** Network timeout / DNS / reset: may not have reached the provider; re-queue normally. */
+  | "transport"
+  /** 4xx (other than 429), validation, auth: fail the job immediately. */
+  | "permanent";
+
+const TRANSIENT_MESSAGE_RE =
+  /concurren|plan.{0,24}limit|rate.?limit|too many|capacity|overloaded|temporar|try again|busy|throttl/i;
+
+/**
+ * Classify a syncLabsSubmit failure. Transient rejections (the Sync.so plan
+ * only allows N concurrent generations — exactly what blocks submits for
+ * 25–40 min while slots free up) must back off for minutes, not burn all
+ * submit attempts in ~2 minutes.
+ */
+export function classifySubmitError(err: unknown): SubmitErrorKind {
+  const status = err instanceof SyncLabsError ? err.status : null;
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  if (
+    status === 429 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    TRANSIENT_MESSAGE_RE.test(message)
+  ) {
+    return "transient";
+  }
+  if (status !== null && status >= 400) return "permanent";
+  // A SyncLabsError means the provider answered (or failed in a
+  // provider-shaped way). Anything not explicitly transient is
+  // deterministic — retrying the identical request won't help.
+  if (err instanceof SyncLabsError) return "permanent";
+  return "transport"; // network timeouts, DNS, connection resets — may not have reached the provider
+}
+
+/** Transient submit backoff schedule: 5 → 10 → 20 → 40 min (capped). */
+export function submitDeferralBackoffMs(deferrals: number): number {
+  const minutes = [5, 10, 20, 40];
+  return minutes[Math.min(Math.max(deferrals, 0), minutes.length - 1)] * 60_000;
+}
+
+/** Consecutive transient deferrals before the job fails (~24h at the capped backoff). */
+export const MAX_SUBMIT_DEFERRALS = 36;
 
 /** Normalized provider status: "pending" | "processing" | "completed" | "failed". */
 export function normalizeProviderStatus(job: SyncLabsJob): string {
@@ -132,8 +194,9 @@ export async function syncLabsSubmit(
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(
+    throw new SyncLabsError(
       `Sync Labs submit failed: HTTP ${res.status} — ${body.slice(0, 400)}`,
+      res.status,
     );
   }
   const data = (await res.json()) as { id?: string };
@@ -153,7 +216,10 @@ export async function syncLabsStatus(jobId: string, apiKey: string): Promise<Syn
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`Sync Labs status check failed: HTTP ${res.status} — ${text.slice(0, 300)}`);
+    throw new SyncLabsError(
+      `Sync Labs status check failed: HTTP ${res.status} — ${text.slice(0, 300)}`,
+      res.status,
+    );
   }
   return (await res.json()) as SyncLabsJob;
 }
@@ -214,19 +280,65 @@ export async function probeUrl(
 
 /* ── Supabase storage for trimmed audio segments ─────────────────────────── */
 
-async function ensureSupabaseBucket(): Promise<void> {
-  const supabase = getSupabaseAdmin();
-  const { error } = await supabase.storage.createBucket(LIP_SYNC_AUDIO_BUCKET, {
-    public: false,
-    fileSizeLimit: 50 * 1024 * 1024,
+/** Idempotent bucket ensure — private bucket for trimmed lip-sync audio.
+ *
+ *  Uses the Storage REST API directly (same pattern as
+ *  ensureSupabaseClipsBucket / ensureVideoExportsBucket in
+ *  lib/objectStorage.ts) instead of supabase-js: under this service's
+ *  Node/fetch combination the supabase-js bucket helpers can report success
+ *  without the bucket actually being created, and file_size_limit in the
+ *  create body gets rejected with 413 EntityTooLarge (seen on the
+ *  video-exports bucket, PR #5). After creating, we re-read the bucket and
+ *  throw LOUDLY if it is still missing, so an upload can never silently
+ *  march into a doomed upload.
+ *
+ *  Exported for the $0 verification suite. */
+export async function ensureSupabaseBucket(): Promise<void> {
+  const url = (process.env["SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "").replace(/\/$/, "");
+  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  if (!url || !serviceRoleKey) {
+    throw new Error(
+      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured — cannot ensure "lip-sync-temp" bucket.',
+    );
+  }
+  const headers: Record<string, string> = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const getBucket = () => fetch(`${url}/storage/v1/bucket/${LIP_SYNC_AUDIO_BUCKET}`, { headers });
+
+  if ((await getBucket()).ok) return; // already exists
+
+  const createRes = await fetch(`${url}/storage/v1/bucket`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      id: LIP_SYNC_AUDIO_BUCKET,
+      name: LIP_SYNC_AUDIO_BUCKET,
+      public: false,
+      // NOTE: no file_size_limit — Supabase rejected it with 413 EntityTooLarge
+      // on the video-exports bucket (PR #5). Trimmed audio segments are tiny.
+    }),
   });
-  // Ignore "already exists" — any other error propagates
-  if (
-    error &&
-    !error.message?.toLowerCase().includes("already exist") &&
-    error.message !== "Duplicate"
-  ) {
-    // Non-fatal: bucket might exist under a different error wording
+  const createText = await createRes.text().catch(() => "");
+  const alreadyExists = createRes.status === 409 || /already exists/i.test(createText);
+  if (!createRes.ok && !alreadyExists) {
+    throw new Error(
+      `Failed to create Supabase bucket "${LIP_SYNC_AUDIO_BUCKET}": ${createRes.status} ${createText.slice(0, 300)}`,
+    );
+  }
+
+  // Verify it actually exists now — never silently continue into a doomed upload.
+  const verifyRes = await getBucket();
+  if (!verifyRes.ok) {
+    const verifyText = await verifyRes.text().catch(() => "");
+    throw new Error(
+      `Supabase bucket "${LIP_SYNC_AUDIO_BUCKET}" still missing after create attempt ` +
+        `(create: ${createRes.status} ${createText.slice(0, 120)}; ` +
+        `verify: ${verifyRes.status} ${verifyText.slice(0, 120)})`,
+    );
   }
 }
 
@@ -235,9 +347,10 @@ export async function uploadAudioToSupabase(
   objectName: string,
   contentType = "audio/mpeg",
 ): Promise<string> {
-  await ensureSupabaseBucket().catch(() => {
-    /* ignore — bucket likely exists */
-  });
+  // Fail fast here: ensureSupabaseBucket verifies the bucket exists after
+  // creation and throws loudly if it is still missing — never silently
+  // march into a doomed upload.
+  await ensureSupabaseBucket();
   const supabase = getSupabaseAdmin();
 
   const { error: upErr } = await supabase.storage

@@ -45,6 +45,19 @@ export const lipSyncJobsTable = pgTable("lip_sync_jobs", {
   consecutive_poll_errors: integer("consecutive_poll_errors").notNull().default(0),
   /** When the poller should next check the provider (backoff schedule). */
   next_poll_at: timestamp("next_poll_at", { withTimezone: true }),
+  /**
+   * When a transient provider rejection (HTTP 429 / plan-concurrency limit)
+   * deferred this job's next submit attempt. Submit claims skip rows whose
+   * window has not elapsed yet — slots free up over 25–40 min, so the job
+   * waits instead of burning its submit attempts in ~2 minutes.
+   */
+  next_attempt_at: timestamp("next_attempt_at", { withTimezone: true }),
+  /**
+   * Consecutive transient submit deferrals. Backoff grows 5→10→20→40 min
+   * (capped); the job fails with provider_busy_timeout after 36 (~24h).
+   * Unlike `attempts`, deferrals are not poison — they are just waiting.
+   */
+  submit_deferrals: integer("submit_deferrals").notNull().default(0),
   /** Idempotency flag: generation_history is written only on the false→true transition. */
   history_recorded: boolean("history_recorded").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

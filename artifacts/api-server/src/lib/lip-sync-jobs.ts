@@ -53,6 +53,10 @@ export interface LipSyncJob {
   polls: number;
   consecutivePollErrors: number;
   nextPollAt: number | null;
+  /** Not-before timestamp for the next submit attempt after a transient provider rejection. */
+  nextAttemptAt: number | null;
+  /** Consecutive transient submit deferrals (429/plan-limit); backoff grows 5→10→20→40 min. */
+  submitDeferrals: number;
   historyRecorded: boolean;
   createdAt: number;
   updatedAt: number;
@@ -84,7 +88,7 @@ function db(): DrizzleDb {
   return _dbOverride ?? drizzle(getPool());
 }
 
-const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, state, params, provider_job_id, result_url, error, attempts, polls, consecutive_poll_errors, next_poll_at, history_recorded, created_at, updated_at`;
+const JOB_COLUMNS = sql`id, user_id, project_id, scene_id, state, params, provider_job_id, result_url, error, attempts, polls, consecutive_poll_errors, next_poll_at, next_attempt_at, submit_deferrals, history_recorded, created_at, updated_at`;
 
 function asRecord(v: unknown): Record<string, unknown> | null {
   if (v == null) return null;
@@ -115,6 +119,8 @@ function toLipSyncJob(row: Record<string, unknown>): LipSyncJob {
     polls: Number(row["polls"] ?? 0),
     consecutivePollErrors: Number(row["consecutive_poll_errors"] ?? 0),
     nextPollAt: row["next_poll_at"] != null ? new Date(row["next_poll_at"] as string).getTime() : null,
+    nextAttemptAt: row["next_attempt_at"] != null ? new Date(row["next_attempt_at"] as string).getTime() : null,
+    submitDeferrals: Number(row["submit_deferrals"] ?? 0),
     historyRecorded: row["history_recorded"] === true,
     createdAt: new Date(row["created_at"] as string).getTime(),
     updatedAt: new Date(row["updated_at"] as string).getTime(),
@@ -169,13 +175,14 @@ export async function claimJobForSubmit(id: string): Promise<LipSyncJob | undefi
     UPDATE lip_sync_jobs
     SET state = 'submitting', attempts = attempts + 1, updated_at = now()
     WHERE id = ${id} AND state = 'queued'
+      AND (next_attempt_at IS NULL OR next_attempt_at <= now())
     RETURNING ${JOB_COLUMNS}
   `);
   const row = res.rows[0] as Record<string, unknown> | undefined;
   return row ? toLipSyncJob(row) : undefined;
 }
 
-/** Claim up to `limit` queued jobs for submit workers (oldest first). */
+/** Claim up to `limit` queued jobs for submit workers (oldest first). Skips jobs in a transient-rejection backoff window. */
 export async function claimQueuedJobs(limit: number): Promise<LipSyncJob[]> {
   const res = await db().execute(sql`
     UPDATE lip_sync_jobs
@@ -183,6 +190,7 @@ export async function claimQueuedJobs(limit: number): Promise<LipSyncJob[]> {
     WHERE id IN (
       SELECT id FROM lip_sync_jobs
       WHERE state = 'queued'
+        AND (next_attempt_at IS NULL OR next_attempt_at <= now())
       ORDER BY created_at ASC
       LIMIT ${limit}
     )
@@ -290,6 +298,51 @@ export async function requeueSubmitJob(id: string, maxAttempts: number): Promise
 }
 
 /**
+ * Defer a job after a TRANSIENT provider rejection (HTTP 429 / plan-concurrency
+ * limit): submitting → queued with a not-before timestamp, so the poller skips
+ * it until the backoff window elapses. Transient waits do NOT burn the submit
+ * attempts budget (the claim's +1 is neutralized) — they are waiting, not
+ * failing. After `maxDeferrals` consecutive deferrals (~24h at the capped
+ * 40-minute backoff) the job fails with provider_busy_timeout.
+ *
+ * Single atomic UPDATE — exactly one outcome per call. Returns null when the
+ * job is not in `submitting` (nothing was deferred).
+ */
+export async function deferSubmitJob(
+  id: string,
+  backoffMs: number,
+  maxDeferrals: number,
+): Promise<{ deferrals: number; failed: boolean } | null> {
+  const nextAttemptAt = new Date(Date.now() + Math.max(backoffMs, 0)).toISOString();
+  const timeoutError: LipSyncJobError = {
+    message:
+      "Sync.so was at its plan concurrency limit for ~24 hours and the job was not submitted. Try again later or upgrade the Sync.so plan.",
+    code: "provider_busy_timeout",
+  };
+  const res = await db().execute(sql`
+    UPDATE lip_sync_jobs
+    SET state = CASE WHEN submit_deferrals + 1 >= ${maxDeferrals} THEN 'failed' ELSE 'queued' END,
+        next_attempt_at = CASE
+          WHEN submit_deferrals + 1 >= ${maxDeferrals} THEN NULL
+          ELSE ${nextAttemptAt}::timestamptz END,
+        submit_deferrals = submit_deferrals + 1,
+        attempts = GREATEST(attempts - 1, 0),
+        error = CASE
+          WHEN submit_deferrals + 1 >= ${maxDeferrals} THEN ${JSON.stringify(timeoutError)}::jsonb
+          ELSE error END,
+        updated_at = now()
+    WHERE id = ${id} AND state = 'submitting'
+    RETURNING submit_deferrals, state
+  `);
+  const row = res.rows[0] as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return {
+    deferrals: Number(row["submit_deferrals"] ?? 0),
+    failed: String(row["state"]) === "failed",
+  };
+}
+
+/**
  * Idempotency gate for the generation_history insert: only the worker that
  * flips history_recorded false→true proceeds. A recovered job can never
  * attach its video to the project twice.
@@ -344,9 +397,15 @@ export async function recoverInterruptedLipSyncJobs(maxAttempts: number): Promis
           logger.info({ jobId: job.id, attempts: job.attempts }, "[lip-sync-jobs] re-queued interrupted submit");
         }
       } else if (job.state === "polling") {
+        // Resume polling immediately: clamp a future next_poll_at back to now.
+        // (Written as CASE WHEN rather than LEAST(…, now()) — identical on
+        // Postgres, and pg-mem cannot resolve LEAST on timestamptz.)
         await db().execute(sql`
           UPDATE lip_sync_jobs
-          SET next_poll_at = LEAST(next_poll_at, now()), updated_at = now()
+          SET next_poll_at = CASE
+                WHEN next_poll_at IS NULL OR next_poll_at > now() THEN now()
+                ELSE next_poll_at END,
+              updated_at = now()
           WHERE id = ${job.id}
         `);
         logger.info({ jobId: job.id }, "[lip-sync-jobs] resumed polling interrupted job");

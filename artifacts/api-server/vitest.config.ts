@@ -18,5 +18,6 @@ export default defineConfig({
       DATABASE_URL: "postgres://localhost:5432/bowdown_test",
       ELEVENLABS_API_KEY: "test-key",
     },
+    setupFiles: ["src/lib/__tests__/setup.ts"],
   },
 });
