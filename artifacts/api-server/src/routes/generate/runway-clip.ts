@@ -15,16 +15,28 @@ import {
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import {
   GEN45_CREDIT_COST,
-  SEEDANCE_CREDITS_PER_SEC_FALLBACK,
+  SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT,
+  SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT,
+  SEEDANCE_PRICING_APPROVED,
+  SEEDANCE_PRICING_VERSION,
   resolveClipPlan,
 } from "./clip-pricing";
 import { getLockedPack } from "./pre-production";
 import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
-/* Site credits charged per second of Seedance 2.5 video. Env-overridable so
-   the rate can be tuned without a deploy; the client mirrors this default. */
-const SEEDANCE_CREDITS_PER_SEC = Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) || SEEDANCE_CREDITS_PER_SEC_FALLBACK;
+/* Site credits charged per second of Seedance 2.5 video, per resolution tier.
+   Env-overridable so the rate can be tuned without a deploy; the client
+   mirrors these defaults. A legacy flat SEEDANCE_CREDITS_PER_SEC is still
+   honored as a fallback for both tiers when the per-tier vars are unset. */
+const SEEDANCE_CREDITS_PER_SEC_720P =
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC_720P"]) ||
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) ||
+  SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT;
+const SEEDANCE_CREDITS_PER_SEC_1080P =
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC_1080P"]) ||
+  Number(process.env["SEEDANCE_CREDITS_PER_SEC"]) ||
+  SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT;
 
 /**
  * Tracks submitted Runway tasks so credits are only charged on SUCCEEDED.
@@ -194,13 +206,35 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     model: effectiveModel,
     durationSec: effectiveDuration,
     resolution,
-    ratio: effectiveRatio,
-    creditsPerSec: SEEDANCE_CREDITS_PER_SEC,
+    ratio,
+    creditsPerSec720p: SEEDANCE_CREDITS_PER_SEC_720P,
+    creditsPerSec1080p: SEEDANCE_CREDITS_PER_SEC_1080P,
   });
   const useSeedance = plan.useSeedance;
   const resolvedDurationSec = plan.durationSec;
   /* Duration-proportional pricing for the premium model; flat 5 for gen4.5. */
   const creditCost = plan.creditCost;
+
+  /* ── Seedance pricing approval gate ──────────────────────────────────────
+     The per-scene Seedance price is a proposal until the user approves it.
+     Refuse here — BEFORE reference resolution, the Runway submission, the
+     credit pre-check, and pending-task tracking — so no scene generation can
+     run and no credits can move until the price is approved. Flip
+     SEEDANCE_PRICING_APPROVED in clip-pricing.ts (reviewed commit) after the
+     user's explicit approval. */
+  if (useSeedance && !SEEDANCE_PRICING_APPROVED) {
+    req.log.warn(
+      { userId: req.userId, pricingVersion: SEEDANCE_PRICING_VERSION },
+      "[runway-clip] Seedance submission BLOCKED — pricing pending user approval",
+    );
+    res.status(402).json({
+      error: "seedance_pricing_pending_approval",
+      message:
+        "Seedance 2.5 scene pricing is pending approval, so generations are paused. No credits were charged and no video was generated.",
+      pricingVersion: SEEDANCE_PRICING_VERSION,
+    });
+    return;
+  }
 
   /* ── Reference image resolution ──────────────────────────────────────────
      Priority: 1) last frame of the previous scene's clip (continuity chain),
