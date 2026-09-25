@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ensureSupabaseClipsBucket,
   SUPABASE_CLIPS_BUCKET,
+  ensureShopProductsBucket,
+  SHOP_PRODUCTS_BUCKET,
 } from "../objectStorage";
 
 type MockResp = { status: number; body?: unknown };
@@ -131,5 +133,43 @@ describe("ensureSupabaseClipsBucket", () => {
     delete process.env["VITE_SUPABASE_URL"];
     delete process.env["SUPABASE_SERVICE_ROLE_KEY"];
     await expect(ensureSupabaseClipsBucket()).rejects.toThrow(/not configured/);
+  });
+});
+
+describe("ensureShopProductsBucket", () => {
+  it("returns early when the bucket already exists (no create call)", async () => {
+    const calls = mockFetchSequence([{ status: 200, body: { id: SHOP_PRODUCTS_BUCKET } }]);
+    await ensureShopProductsBucket();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain(`/storage/v1/bucket/${SHOP_PRODUCTS_BUCKET}`);
+  });
+
+  it("creates the bucket PUBLIC (product images serve on public storefronts)", async () => {
+    const calls = mockFetchSequence([
+      { status: 404, body: { message: "Bucket not found" } },
+      { status: 200, body: { id: SHOP_PRODUCTS_BUCKET } },
+      { status: 200, body: { id: SHOP_PRODUCTS_BUCKET } },
+    ]);
+    await ensureShopProductsBucket();
+    expect(calls).toHaveLength(3);
+    const createBody = JSON.parse(calls[1].body ?? "{}");
+    expect(createBody.id).toBe(SHOP_PRODUCTS_BUCKET);
+    expect(createBody.public).toBe(true);
+  });
+
+  it("throws when the bucket is still missing after create (silent-create failure)", async () => {
+    mockFetchSequence([
+      { status: 404, body: { message: "Bucket not found" } },
+      { status: 200, body: { id: SHOP_PRODUCTS_BUCKET } },
+      { status: 404, body: { message: "Bucket not found" } }, // verify
+    ]);
+    await expect(ensureShopProductsBucket()).rejects.toThrow(/still missing after create attempt/);
+  });
+
+  it("throws when SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured", async () => {
+    delete process.env["SUPABASE_URL"];
+    delete process.env["VITE_SUPABASE_URL"];
+    delete process.env["SUPABASE_SERVICE_ROLE_KEY"];
+    await expect(ensureShopProductsBucket()).rejects.toThrow(/not configured/);
   });
 });
