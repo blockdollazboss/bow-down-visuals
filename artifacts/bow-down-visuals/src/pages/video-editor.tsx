@@ -8,12 +8,12 @@ import {
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
-  Theater, Repeat, StepBack, StepForward, RotateCcw,
+  Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { TopBar } from "@/components/layout/top-bar";
+import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +38,17 @@ import {
   type FitMode,
 } from "@/lib/editor-settings";
 import { TransitionCompositor, type TransitionState } from "@/components/TransitionCompositor";
+import {
+  COMPARE_POS_DEFAULT,
+  COMPARE_POS_MIN,
+  COMPARE_POS_MAX,
+  COMPARE_KEY_STEP,
+  COMPARE_KEY_STEP_LARGE,
+  clampComparePos,
+  compareClipPath,
+  comparePosFromClientX,
+  hasActiveVisualEffects,
+} from "@/lib/compare-slider";
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
@@ -130,7 +141,7 @@ export default function VideoEditor() {
   const { toast } = useToast();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
   const { isSimple } = useUserMode();
-  /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
+  /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
   const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
 
@@ -765,7 +776,7 @@ export default function VideoEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
-      <TopBar onHeightChange={setHeaderHeight} />
+      <VideoBanner onHeightChange={setHeaderHeight} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">Back to Projects</Link>
@@ -1178,7 +1189,7 @@ export default function VideoEditor() {
                     Sticky + solid background so it stays fixed in view while the
                     panels below scroll; it never drifts or pops out while editing. ── */}
                 <div className="shrink-0 sticky top-0 z-20 bg-black flex justify-center p-4 md:p-6">
-                  <div className="w-full max-w-4xl">
+                  <div className="w-full max-w-6xl">
                     {/* ── MASTER PREVIEW PLAYER — one player, above all tabs ── */}
                     <MasterPreviewPlayer
                       eng={previewEngineState}
@@ -1209,7 +1220,7 @@ export default function VideoEditor() {
 
                   </div>
                 </div>
-                <div className="shrink-0 px-4 md:px-6 pb-4 space-y-3 w-full max-w-4xl mx-auto">
+                <div className="shrink-0 px-4 md:px-6 pb-4 space-y-3 w-full max-w-6xl mx-auto">
                   {/* Active Artist pill */}
                   {activeArtist && (() => {
                     const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
@@ -2254,6 +2265,113 @@ function MasterPreviewPlayer({
 
   const testText = testEffectActive ? "EFFECT TEST ACTIVE" : null;
 
+  /* ── Before/after compare slider ──────────────────────────────────
+   * When on, a raw mirror of the live video (no filters, no overlays, no
+   * test badges) renders underneath the effected composition; the effected
+   * layer is clipped to the right of a draggable split so both sides stay
+   * frame-synced. LEFT = before (raw), RIGHT = after (effected). */
+  const [compareOn, setCompareOn] = useState(false);
+  const [comparePos, setComparePos] = useState(COMPARE_POS_DEFAULT);
+  const compareVideoRef = useRef<HTMLVideoElement | null>(null);
+  const compareTrackRef = useRef<HTMLDivElement | null>(null);
+  const compareDraggingRef = useRef(false);
+
+  /* Mirror the live video into the "before" layer — same pattern as the
+   * ambient-glow sync: re-attach src on remount, chase currentTime each
+   * frame, mirror play/pause. Only runs while compare mode is on. */
+  useEffect(() => {
+    if (!compareOn) return;
+    const main = liveVideoRef.current;
+    const mirror = compareVideoRef.current;
+    if (!main || !mirror) return;
+
+    const syncSrc = () => {
+      if (mirror.src !== main.src) {
+        mirror.src = main.src;
+        mirror.load();
+      }
+    };
+    syncSrc();
+    main.addEventListener("emptied", syncSrc);
+    main.addEventListener("loadedmetadata", syncSrc);
+
+    let raf = 0;
+    const tick = () => {
+      syncSrc(); // re-attach src if the mirror remounted
+      if (mirror.readyState >= 2 && Math.abs(mirror.currentTime - main.currentTime) > 0.15) {
+        mirror.currentTime = main.currentTime;
+      }
+      if (main.paused !== mirror.paused) {
+        if (main.paused) mirror.pause();
+        else mirror.play().catch(() => { /* main is already playing; ignore */ });
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      main.removeEventListener("emptied", syncSrc);
+      main.removeEventListener("loadedmetadata", syncSrc);
+    };
+  }, [compareOn, liveVideoRef]);
+
+  const setPosFromClientX = useCallback((clientX: number) => {
+    const el = compareTrackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setComparePos(comparePosFromClientX(clientX, rect.left, rect.width));
+  }, []);
+
+  const handleCompareDown = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    compareDraggingRef.current = true;
+    setPosFromClientX(e.clientX);
+  }, [setPosFromClientX]);
+
+  const handleCompareMove = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!compareDraggingRef.current) return;
+    setPosFromClientX(e.clientX);
+  }, [setPosFromClientX]);
+
+  const endCompareDrag = useCallback(() => {
+    compareDraggingRef.current = false;
+  }, []);
+
+  const handleCompareKeyDown = useCallback((e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const step = e.shiftKey ? COMPARE_KEY_STEP_LARGE : COMPARE_KEY_STEP;
+    if (e.key === "ArrowLeft") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos((p) => clampComparePos(p - step));
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos((p) => clampComparePos(p + step));
+    } else if (e.key === "Home") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos(COMPARE_POS_MIN);
+    } else if (e.key === "End") {
+      e.preventDefault(); e.stopPropagation();
+      setComparePos(COMPARE_POS_MAX);
+    }
+  }, []);
+
+  /* The compare toggle only appears when at least one visual effect is
+   * actually altering the picture — otherwise it's clutter. */
+  const showCompareToggle = hasActiveVisualEffects({
+    testEffectActive,
+    testOverlayActive,
+    effectCount: activeEffects.length,
+    overlayChipCount: activeOverlayChips.length,
+    soloPreviewOverlay: settings.soloPreviewOverlay ?? null,
+  });
+
+  /* If the last effect is removed while comparing, drop out of compare mode
+   * (the toggle is gone, so the user couldn't exit otherwise). */
+  useEffect(() => {
+    if (!showCompareToggle && compareOn) setCompareOn(false);
+  }, [showCompareToggle, compareOn]);
+
   /* ── Cinema transport button styles ── */
   const tBtnSm = "flex items-center justify-center h-7 w-7 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/55 hover:text-white hover:bg-white/[0.09] hover:border-[#C9A84C]/30 transition-colors shrink-0";
 
@@ -2332,6 +2450,24 @@ function MasterPreviewPlayer({
             {!isMinimized && "Master Player"}
           </span>
           <span className="flex items-center gap-0.5">
+            {/* Before/after compare — only when an effect is actually altering the picture */}
+            {showCompareToggle && (
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setCompareOn((v) => !v)}
+                data-testid="master-player-compare-toggle"
+                title={compareOn ? "Exit before/after compare" : "Compare before/after effects"}
+                aria-pressed={compareOn}
+                className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
+                  compareOn
+                    ? "text-[#f7dd7f] bg-[#C9A84C]/20"
+                    : "text-white/50 hover:text-white hover:bg-white/[0.1]"
+                }`}
+              >
+                <Columns2 className="h-3 w-3" />
+              </button>
+            )}
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
@@ -2376,6 +2512,7 @@ function MasterPreviewPlayer({
         const canvas = (
       <div
         data-testid="master-player-canvas"
+        ref={compareTrackRef}
         className="bg-black relative overflow-hidden shrink-0 [container-type:size]"
         style={{ aspectRatio: arCss, height: isFullscreen ? "100%" : floatHeight, maxWidth: "100%" }}
       >
@@ -2395,6 +2532,29 @@ function MasterPreviewPlayer({
           </div>
         )}
 
+        {/* ── BEFORE layer (compare mode): a raw mirror of the live video —
+            no CSS filters, no zoom, no overlays, no test badges. It stays in
+            sync with the main video via the compare rAF loop above. ── */}
+        {compareOn && (
+          <div className="absolute inset-0" style={{ zIndex: 1 }} aria-hidden="true">
+            <video
+              ref={compareVideoRef}
+              playsInline
+              muted
+              data-testid="master-player-compare-before-video"
+              className={`w-full h-full ${fitMode === "fill" ? "object-cover" : "object-contain"}`}
+            />
+          </div>
+        )}
+
+        {/* ── AFTER layer: the full effected composition. In compare mode it is
+            clipped to the right of the split (LEFT = before, RIGHT = after);
+            otherwise it fills the canvas exactly as it always has. ── */}
+        <div
+          className="absolute inset-0"
+          data-testid="master-player-after-layer"
+          style={compareOn ? { clipPath: compareClipPath(comparePos), zIndex: 2 } : { zIndex: 2 }}
+        >
         {/* ── Effects-wrapped video layer — filter + zoom applied here only ── */}
         <div
           className="absolute inset-0"
@@ -2468,6 +2628,48 @@ function MasterPreviewPlayer({
               {testText}
             </div>
           </div>
+        )}
+        </div>{/* ── end AFTER layer ── */}
+
+        {/* ── Compare split handle + Before/After tags ── */}
+        {compareOn && (
+          <>
+            {/* split line */}
+            <div
+              className="absolute inset-y-0 pointer-events-none"
+              style={{ left: `${clampComparePos(comparePos)}%`, zIndex: 30 }}
+              aria-hidden="true"
+            >
+              <div className="absolute inset-y-0 w-[2px] -translate-x-1/2 bg-[#f7dd7f] shadow-[0_0_14px_rgba(201,168,76,0.9)]" />
+            </div>
+            {/* drag handle — pointer drag + full keyboard support */}
+            <button
+              type="button"
+              role="slider"
+              aria-label="Before and after compare position"
+              aria-valuemin={COMPARE_POS_MIN}
+              aria-valuemax={COMPARE_POS_MAX}
+              aria-valuenow={clampComparePos(comparePos)}
+              aria-valuetext={`${clampComparePos(comparePos)} percent after`}
+              data-testid="master-player-compare-handle"
+              onPointerDown={handleCompareDown}
+              onPointerMove={handleCompareMove}
+              onPointerUp={endCompareDrag}
+              onPointerCancel={endCompareDrag}
+              onKeyDown={handleCompareKeyDown}
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-30 h-10 w-10 rounded-full bg-black/85 border-2 border-[#f7dd7f] text-[#f7dd7f] flex items-center justify-center cursor-ew-resize touch-none shadow-[0_0_18px_rgba(201,168,76,0.5)] hover:scale-105 transition-transform"
+              style={{ left: `${clampComparePos(comparePos)}%` }}
+            >
+              <ChevronsLeftRight className="h-4 w-4" />
+            </button>
+            {/* Before / After tags */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-black/70 border border-white/15 text-[10px] font-black uppercase tracking-widest text-white/80">
+              Before
+            </div>
+            <div className="absolute top-1/2 -translate-y-1/2 right-2 z-30 pointer-events-none px-2 py-0.5 rounded-md bg-[#C9A84C]/90 text-[10px] font-black uppercase tracking-widest text-black">
+              After
+            </div>
+          </>
         )}
 
         {/* No-clip placeholder — over the (empty) video */}

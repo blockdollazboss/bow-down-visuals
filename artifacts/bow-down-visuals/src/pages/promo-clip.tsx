@@ -11,7 +11,6 @@ import {
   FolderOpen, Music, Video, Mic2, Image as ImageIcon, Wand2,
   Megaphone, Check, Search,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -365,7 +364,6 @@ export default function PromoClip() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
