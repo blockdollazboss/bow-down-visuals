@@ -2473,7 +2473,7 @@ function MasterPreviewPlayer({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={toggleTheater}
               data-testid="master-player-theater-toggle"
-              title={theaterOn ? "Exit theater mode (T)" : "Theater mode (T)"}
+              title={theaterOn ? "Exit visual mode (T)" : "Visual mode (T)"}
               className={`flex items-center justify-center h-5 w-5 rounded transition-colors ${
                 theaterOn
                   ? "text-[#f7dd7f] bg-[#C9A84C]/20"
