@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Dices } from "lucide-react";
+import { X, Send, Loader2, Dices } from "lucide-react";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -134,13 +134,20 @@ export function AiChatWidget() {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
-            <div>
-              <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
-              <p className="text-[11px] text-neutral-400">
-                {creditCost
-                  ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
-                  : "AI assistant — ask me about the site"}
-              </p>
+            <div className="flex items-center gap-3">
+              <img
+                src="/cheat-code-avatar.webp"
+                alt="Thy Cheat Code avatar"
+                className="h-10 w-10 rounded-full border-2 border-primary/60 object-cover shadow-[0_0_12px_rgba(212,175,55,0.4)]"
+              />
+              <div>
+                <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
+                <p className="text-[11px] text-neutral-400">
+                  {creditCost
+                    ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
+                    : "AI assistant — ask me about the site"}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => {
@@ -167,6 +174,13 @@ export function AiChatWidget() {
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "assistant" && (
+                  <img
+                    src="/cheat-code-avatar.webp"
+                    alt="Thy Cheat Code"
+                    className="mr-2 h-7 w-7 shrink-0 rounded-full border border-primary/50 object-cover"
+                  />
+                )}
                 <div
                   className={
                     m.role === "user"
@@ -232,9 +246,17 @@ export function AiChatWidget() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close AI chat" : "Chat with Thy Cheat Code"}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_20px_rgba(212,175,55,0.45)] transition hover:scale-105 active:scale-95"
+        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-primary/70 bg-black shadow-[0_4px_20px_rgba(212,175,55,0.45)] transition hover:scale-105 active:scale-95"
       >
-        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {open ? (
+          <X className="h-6 w-6 text-primary" />
+        ) : (
+          <img
+            src="/cheat-code-avatar.webp"
+            alt="Chat with Thy Cheat Code"
+            className="h-full w-full object-cover"
+          />
+        )}
       </button>
     </div>
   );
