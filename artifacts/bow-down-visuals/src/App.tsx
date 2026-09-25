@@ -76,6 +76,7 @@ const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
+const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -271,6 +272,7 @@ function AppShell() {
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
