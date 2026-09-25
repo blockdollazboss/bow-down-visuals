@@ -10,11 +10,17 @@ import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/s
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
   buildAuthUrl,
+  buildFacebookAuthUrl,
   exchangeCodeForLongLivedToken,
+  exchangeFacebookCodeForLongLivedToken,
   fetchInstagramProfile,
+  listPages,
   publishReelToInstagram,
+  publishVideoToPage,
   MetaApiError,
+  type FacebookOAuthConfig,
   type MetaOAuthConfig,
+  type PageConnection,
 } from "../lib/social-meta";
 import {
   claimPublishAttempt,
@@ -50,6 +56,7 @@ const router = Router();
 /* 2 credits per Instagram post — env-overridable without a deploy. The Meta
    API itself is free, so this is pure margin at ~$1.00 retail per post. */
 const INSTAGRAM_POST_CREDITS = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 2;
+const FACEBOOK_POST_CREDITS = Number(process.env["FACEBOOK_POST_CREDITS"]) || 2;
 
 function metaConfig(): MetaOAuthConfig {
   /* Instagram Login credentials: the Instagram app ID/secret from the Meta
@@ -68,16 +75,34 @@ function metaConfig(): MetaOAuthConfig {
   return { appId, appSecret, redirectUri };
 }
 
+/* Facebook Pages uses the Facebook app ID/secret (META_APP_ID /
+   META_APP_SECRET) -- a different product on the same Meta app than the
+   Instagram credentials metaConfig() reads. Never derive this from
+   metaConfig(): the Instagram Login token can't hit graph.facebook.com. */
+function facebookConfig(): FacebookOAuthConfig {
+  const appId = process.env["META_APP_ID"] ?? "";
+  const appSecret = process.env["META_APP_SECRET"] ?? "";
+  const redirectUri =
+    process.env["META_FACEBOOK_REDIRECT_URI"] ??
+    "https://bowdownvisuals.com/api/social/facebook/callback";
+  if (!appId || !appSecret) {
+    throw new MetaApiError(
+      "Facebook auto-post isn't configured yet. The site owner needs to set META_APP_ID and META_APP_SECRET.",
+    );
+  }
+  return { appId, appSecret, redirectUri };
+}
+
 /* OAuth `state` bound to the user, kept in memory with a 10-minute TTL.
    (Matches the codebase's in-memory job stores; a deploy invalidates
    in-flight logins, which is acceptable — the user just reconnects.)
    Shared by the Instagram and TikTok callbacks; the platform is checked on
    consume so a state minted for one platform can't be replayed on the other. */
-interface PendingLogin { userId: string; platform: "instagram" | "tiktok"; expiresAt: number }
+interface PendingLogin { userId: string; platform: "instagram" | "tiktok" | "facebook"; expiresAt: number }
 const pendingLogins = new Map<string, PendingLogin>();
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function createLoginState(userId: string, platform: "instagram" | "tiktok"): string {
+function createLoginState(userId: string, platform: "instagram" | "tiktok" | "facebook"): string {
   const state = randomBytes(24).toString("hex");
   pendingLogins.set(state, { userId, platform, expiresAt: Date.now() + STATE_TTL_MS });
   if (pendingLogins.size > 1000) {
@@ -87,7 +112,7 @@ function createLoginState(userId: string, platform: "instagram" | "tiktok"): str
   return state;
 }
 
-function consumeLoginState(state: string, platform: "instagram" | "tiktok"): string | null {
+function consumeLoginState(state: string, platform: "instagram" | "tiktok" | "facebook"): string | null {
   const entry = pendingLogins.get(state);
   pendingLogins.delete(state);
   if (!entry || entry.expiresAt < Date.now() || entry.platform !== platform) return null;
@@ -98,6 +123,44 @@ function maskUsername(username: string | null): string | null {
   if (!username) return null;
   if (username.length <= 4) return `${username[0] ?? ""}•••`;
   return `${username.slice(0, 3)}•••${username.slice(-1)}`;
+}
+
+/* Stores one platform='facebook' row per Page (delete-then-insert keeps
+   reconnects idempotent without depending on the partial unique index).
+   Page tokens minted from a long-lived user token effectively never expire,
+   so token_expires_at stays NULL — a dead token surfaces as Meta code 190
+   at publish time, which tells the user to reconnect. */
+async function upsertFacebookPages(
+  userId: string,
+  pages: PageConnection[],
+  log: typeof logger,
+): Promise<number> {
+  let stored = 0;
+  for (const page of pages) {
+    const encrypted = encryptToken(page.pageAccessToken); // fail closed when SOCIAL_TOKEN_KEY unset
+    await db
+      .delete(socialAccountsTable)
+      .where(
+        and(
+          eq(socialAccountsTable.user_id, userId),
+          eq(socialAccountsTable.platform, "facebook"),
+          eq(socialAccountsTable.page_id, page.pageId),
+        ),
+      );
+    await db.insert(socialAccountsTable).values({
+      user_id: userId,
+      platform: "facebook",
+      ig_user_id: null,
+      username: page.pageName,
+      page_id: page.pageId,
+      page_name: page.pageName,
+      access_token_encrypted: encrypted,
+      token_expires_at: null,
+    });
+    stored++;
+  }
+  log.info({ userId, stored }, "[social] Facebook Pages connected");
+  return stored;
 }
 
 /* ── 1. OAuth authorize URL ───────────────────────────────────────────── */
@@ -176,6 +239,59 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
   }
 });
 
+router.get("/social/facebook/auth-url", requireAuth, (_req: Request, res: Response) => {
+  try {
+    const cfg = facebookConfig();
+    if (!isSocialTokenKeyConfigured()) {
+      res.status(503).json({
+        error: "not_configured",
+        message: "Facebook auto-post isn't configured yet (missing token encryption key).",
+      });
+      return;
+    }
+    const state = createLoginState(_req.userId!, "facebook");
+    res.json({ authUrl: buildFacebookAuthUrl(cfg, state) });
+  } catch (err) {
+    const message = err instanceof MetaApiError ? err.userMessage : "Facebook auto-post isn't configured yet.";
+    res.status(503).json({ error: "not_configured", message });
+  }
+});
+
+/* ── 2c. Facebook OAuth callback (public — validates `state`) ───────────
+   For users without an Instagram Business account: connects every Page they
+   admin as a publishable target. No Instagram permission is requested. */
+router.get("/social/facebook/callback", async (req: Request, res: Response) => {
+  let siteOrigin = "https://bowdownvisuals.com";
+  try {
+    siteOrigin = new URL(
+      process.env["META_FACEBOOK_REDIRECT_URI"] ??
+        "https://bowdownvisuals.com/api/social/facebook/callback",
+    ).origin;
+  } catch { /* keep default */ }
+  const fail = (reason: string) =>
+    res.redirect(`${siteOrigin}/settings?social=error&reason=${encodeURIComponent(reason)}`);
+
+  const { code, state } = req.query as { code?: string; state?: string };
+  if (typeof code !== "string" || typeof state !== "string") return fail("facebook_missing_params");
+  const userId = consumeLoginState(state, "facebook");
+  if (!userId) return fail("facebook_bad_state");
+
+  try {
+    const cfg = facebookConfig();
+    const { accessToken } = await exchangeFacebookCodeForLongLivedToken(cfg, code);
+    const stored = await upsertFacebookPages(userId, await listPages(accessToken), logger);
+    if (stored === 0) {
+      fail("facebook_no_pages");
+      return;
+    }
+    res.redirect(`${siteOrigin}/settings?social=facebook_connected`);
+  } catch (err) {
+    const message = err instanceof MetaApiError ? err.userMessage : "Facebook connection failed. Try again.";
+    logger.warn({ err: message }, "[social] Facebook OAuth callback failed");
+    fail("facebook_oauth_failed");
+  }
+});
+
 /* ── 3. List connected accounts (no tokens) ───────────────────────────── */
 router.get("/social/accounts", requireAuth, async (req: Request, res: Response) => {
   const rows = await db
@@ -183,6 +299,7 @@ router.get("/social/accounts", requireAuth, async (req: Request, res: Response) 
       id: socialAccountsTable.id,
       platform: socialAccountsTable.platform,
       username: socialAccountsTable.username,
+      page_name: socialAccountsTable.page_name,
       token_expires_at: socialAccountsTable.token_expires_at,
       refresh_token_encrypted: socialAccountsTable.refresh_token_encrypted,
       created_at: socialAccountsTable.created_at,
@@ -200,6 +317,7 @@ router.get("/social/accounts", requireAuth, async (req: Request, res: Response) 
         id: r.id,
         platform: r.platform,
         username: r.username,
+        pageName: r.page_name,
         usernameMasked: maskUsername(r.username),
         expired,
         connectedAt: r.created_at,
@@ -743,6 +861,189 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
     }
     logger.error({ err, userId: req.userId }, "[social] TikTok publish failed");
     res.status(500).json({ error: "publish_failed", message: "Couldn't send the video to TikTok. Your credits were refunded." });
+  }
+});
+
+/* ── 6. Publish a video to a Facebook Page (2 credits, idempotent) ────
+   POST /{page-id}/videos with file_url + description on graph-video.facebook.com.
+   That POST *is* the publish (no second step like Instagram); we poll only
+   until Meta finishes processing so the permalink is real. Since June 2025
+   every Facebook video surfaces as a Reel — reflected in the copy.
+   Idempotency mirrors the Instagram route: the client sends one idempotencyKey
+   per publish intent, the server claims a publish-attempt row for
+   (user_id, idempotencyKey) BEFORE charging or calling Meta, so a double-click,
+   two tabs, or a retry after a timeout can never post twice or charge twice. */
+const facebookPublishSchema = z.object({
+  accountId: z.string().uuid(),
+  videoUrl: z.string().min(1, "videoUrl is required.").max(2000),
+  caption: z.string().max(5000, "Facebook descriptions cap at 5,000 characters.").default(""),
+  /* Client-generated per publish intent; required so every publish is
+     protected — an unkeyed request can never be deduplicated. */
+  idempotencyKey: z.string().min(8, "idempotencyKey is required.").max(128),
+});
+
+router.post("/social/facebook/publish", requireAuth, async (req: Request, res: Response) => {
+  const parsed = facebookPublishSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid publish request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { accountId, caption, idempotencyKey } = parsed.data;
+  let videoUrl: string = parsed.data.videoUrl;
+
+  /* Completed exports persist a supabase:// storage ref; Meta needs a real
+     URL, so resolve to a fresh signed URL before the credit deduction. */
+  if (videoUrl.startsWith("supabase://")) {
+    videoUrl = await refreshSupabaseStorageUrl(videoUrl);
+  }
+  if (!/^https:\/\//.test(videoUrl)) {
+    res.status(400).json({
+      error: "Invalid publish request.",
+      details: [{ field: "videoUrl", message: "Couldn't resolve a public https URL for this video." }],
+    });
+    return;
+  }
+
+  /* Credit pre-check BEFORE claiming the attempt (chat/hook-studio pattern).
+     deductCredits() re-checks against a fresh read, so this is just the
+     fast 402 path. */
+  const balance = req.userCredits ?? 0;
+  if (balance < FACEBOOK_POST_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: `Posting to Facebook costs ${FACEBOOK_POST_CREDITS} credits — top up to publish.`,
+    });
+    return;
+  }
+
+  /* Idempotency claim — before any charging or Meta call. */
+  const attemptStore = createDrizzleAttemptStore();
+  const claim = await claimPublishAttempt(attemptStore, {
+    userId: req.userId!,
+    platform: "facebook",
+    idempotencyKey,
+    accountId,
+  });
+  if (claim.outcome === "replay") {
+    /* This key already published successfully: return the stored result
+       without posting to Facebook or charging again. */
+    const r = claim.result;
+    res.json({ videoId: r.mediaId, permalink: r.permalink, creditsUsed: r.creditsUsed, creditsRemaining: r.creditsRemaining, deduped: true });
+    return;
+  }
+  if (claim.outcome === "in_progress") {
+    res.status(409).json({
+      error: "publish_in_progress",
+      message: "This post is already publishing. Give it a minute, then check your Facebook Page.",
+    });
+    return;
+  }
+  const attemptId = claim.attemptId;
+
+  let creditsRemaining: number;
+  if (claim.creditsAlreadyDeducted) {
+    /* Reclaimed a stale processing attempt whose original run already
+       charged: do NOT deduct again — just read the current balance for the
+       response. */
+    logger.info({ userId: req.userId }, "[social] reclaimed stale Facebook publish attempt, skipping duplicate charge");
+    creditsRemaining = await readCreditBalance(req.userId!);
+  } else {
+    try {
+      creditsRemaining = await deductCredits(req.userId!, FACEBOOK_POST_CREDITS);
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: `Posting to Facebook costs ${FACEBOOK_POST_CREDITS} credits — top up to publish.`,
+        });
+        return;
+      }
+      throw err;
+    }
+    /* Mark the deduction immediately so a reclaimed retry after a crash
+       knows not to charge again. A failure here is logged, not fatal — the
+       money is already taken, so the publish must proceed. */
+    try {
+      await attemptStore.markCreditsDeducted(attemptId);
+    } catch (markErr) {
+      logger.error({ userId: req.userId, err: markErr }, "[social] FAILED to mark Facebook publish attempt as charged");
+    }
+  }
+
+  const failAttempt = async (message: string) => {
+    try {
+      await attemptStore.failAttempt(attemptId, message);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt failure");
+    }
+  };
+
+  const refund = async () => {
+    try {
+      await addCreditsToProfile(req.userId!, FACEBOOK_POST_CREDITS);
+      logger.info({ userId: req.userId }, "[social] refunded Facebook post credits after Meta failure");
+    } catch (refundErr) {
+      logger.error({ userId: req.userId, err: refundErr }, "[social] FAILED to refund Facebook post credits");
+    }
+  };
+
+  try {
+    const rows = await db
+      .select()
+      .from(socialAccountsTable)
+      .where(
+        and(
+          eq(socialAccountsTable.id, accountId),
+          eq(socialAccountsTable.user_id, req.userId!),
+          eq(socialAccountsTable.platform, "facebook"),
+        ),
+      );
+    const account = rows[0];
+    if (!account?.access_token_encrypted || !account.page_id) {
+      await failAttempt("account_not_found");
+      await refund();
+      res.status(404).json({ error: "account_not_found", message: "That Facebook Page isn't connected anymore." });
+      return;
+    }
+    const accessToken = decryptToken(account.access_token_encrypted); // fail closed
+
+    const { videoId, permalink } = await publishVideoToPage({
+      pageId: account.page_id,
+      accessToken,
+      videoUrl,
+      description: caption,
+    });
+
+    const result: PublishAttemptResult = {
+      mediaId: videoId,
+      permalink,
+      creditsUsed: FACEBOOK_POST_CREDITS,
+      creditsRemaining,
+    };
+    try {
+      await attemptStore.completeAttempt(attemptId, result);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt success");
+    }
+    recordCreditUsage({
+      userId: req.userId!,
+      action: "Facebook Auto-Post",
+      creditsUsed: FACEBOOK_POST_CREDITS,
+    }).catch(() => {});
+    res.json({ videoId, permalink, creditsUsed: FACEBOOK_POST_CREDITS, creditsRemaining });
+  } catch (err) {
+    const message = err instanceof MetaApiError ? err.userMessage : "Couldn't publish to Facebook.";
+    await failAttempt(message);
+    await refund();
+    if (err instanceof MetaApiError) {
+      res.status(502).json({ error: "facebook_error", message: err.userMessage });
+      return;
+    }
+    logger.error({ err, userId: req.userId }, "[social] Facebook publish failed");
+    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Facebook. Your credits were refunded." });
   }
 });
 

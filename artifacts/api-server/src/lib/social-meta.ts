@@ -82,10 +82,90 @@ async function graphPost<T>(
   return body as T;
 }
 
+/* Facebook Graph API base — separate from the Instagram base above, because
+   Facebook Pages calls must go to graph.facebook.com, not graph.instagram.com. */
+const GRAPH_FB = `https://graph.facebook.com/${GRAPH_VERSION}`;
+
+/** Same contract as graphGet, but against the Facebook Graph API (Pages).
+   Errors get the Facebook-flavored user message. */
+async function graphFacebookGet<T>(
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchImpl,
+): Promise<T> {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetchImpl(`${GRAPH_FB}${path}?${qs}`);
+  const body = (await res.json().catch(() => ({}))) as MetaErrorBody & T;
+  if (!res.ok || body.error) {
+    const code = body.error?.code;
+    const msg = body.error?.message ?? `HTTP ${res.status}`;
+    logger.warn({ path, metaCode: code }, "[social-meta] Facebook Graph API error");
+    throw new MetaApiError(userMessageForFacebook(code, msg), code, `HTTP ${res.status}`);
+  }
+  return body as T;
+}
+
 export interface MetaOAuthConfig {
   appId: string; // Instagram app ID (from the Meta app's Instagram product)
   appSecret: string; // Instagram app secret
   redirectUri: string;
+}
+
+/** Facebook OAuth config: the Facebook app ID/secret (META_APP_ID /
+   META_APP_SECRET), NOT the Instagram ones — the two products use different
+   credentials on the same Meta app. */
+export interface FacebookOAuthConfig {
+  appId: string; // Facebook app ID (META_APP_ID)
+  appSecret: string; // Facebook app secret (META_APP_SECRET)
+  redirectUri: string;
+}
+
+interface FacebookCodeExchange {
+  access_token: string;
+  expires_in?: number;
+  token_type?: string;
+}
+
+/** Facebook Login code exchange: code → short-lived user token → 60-day
+   long-lived user token via graph.facebook.com/oauth/access_token with
+   fb_exchange_token. This is the Facebook flow — do NOT reuse the
+   Instagram-only exchangeCodeForLongLivedToken for Facebook callbacks. */
+export async function exchangeFacebookCodeForLongLivedToken(
+  cfg: FacebookOAuthConfig,
+  code: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<{ accessToken: string; expiresInSec: number }> {
+  const shortQs = new URLSearchParams({
+    client_id: cfg.appId,
+    client_secret: cfg.appSecret,
+    redirect_uri: cfg.redirectUri,
+    code,
+  }).toString();
+  const shortRes = await fetchImpl(`${GRAPH_FB}/oauth/access_token?${shortQs}`);
+  const shortBody = (await shortRes.json().catch(() => ({}))) as MetaErrorBody & FacebookCodeExchange;
+  if (!shortRes.ok || shortBody.error || !shortBody.access_token) {
+    const msg = shortBody.error?.message ?? `HTTP ${shortRes.status}`;
+    logger.warn({ metaCode: shortBody.error?.code }, "[social-meta] Facebook code exchange failed");
+    throw new MetaApiError(userMessageForFacebook(shortBody.error?.code, msg), shortBody.error?.code);
+  }
+
+  const longQs = new URLSearchParams({
+    grant_type: "fb_exchange_token",
+    client_id: cfg.appId,
+    client_secret: cfg.appSecret,
+    fb_exchange_token: shortBody.access_token,
+  }).toString();
+  const longRes = await fetchImpl(`${GRAPH_FB}/oauth/access_token?${longQs}`);
+  const longBody = (await longRes.json().catch(() => ({}))) as MetaErrorBody & FacebookCodeExchange;
+  if (!longRes.ok || longBody.error || !longBody.access_token) {
+    const msg = longBody.error?.message ?? `HTTP ${longRes.status}`;
+    logger.warn({ metaCode: longBody.error?.code }, "[social-meta] Facebook long-lived exchange failed");
+    throw new MetaApiError(userMessageForFacebook(longBody.error?.code, msg), longBody.error?.code);
+  }
+  return {
+    accessToken: longBody.access_token,
+    expiresInSec: longBody.expires_in ?? 60 * 24 * 3600,
+  };
 }
 
 /* Instagram Login authorize URL. `enable_fb_login=0` forces the pure
@@ -159,6 +239,7 @@ export async function exchangeCodeForLongLivedToken(
     igUserId,
   };
 }
+
 
 export interface InstagramProfile {
   igUserId: string;
@@ -282,4 +363,168 @@ export async function publishReelToInstagram(
   const mediaId = await publishContainer(input.igUserId, input.accessToken, containerId, fetchImpl);
   const permalink = await fetchPermalink(mediaId, input.accessToken, fetchImpl);
   return { mediaId, permalink };
+}
+
+/* ── Facebook Pages video publishing ─────────────────────────────────────
+   POST https://graph-video.facebook.com/v21.0/{page-id}/videos
+   with file_url + description (verified against Meta docs, Sept 2026).
+   Unlike Instagram there is no second publish step — the POST *is* the
+   publish; Meta then processes the video asynchronously. Since June 2025
+   all Facebook videos surface as Reels — we say so in the UI, never claim
+   a classic "video post". */
+
+const GRAPH_VIDEO = `https://graph-video.facebook.com/${GRAPH_VERSION}`;
+
+/** Builds the Facebook OAuth authorize URL (page posting scopes only — no
+   Instagram permission, so users without an IG Business account can still
+   connect their Pages). */
+export function buildFacebookAuthUrl(cfg: MetaOAuthConfig, state: string): string {
+  const scopes = ["pages_manage_posts", "pages_read_engagement", "pages_show_list"].join(",");
+  const qs = new URLSearchParams({
+    client_id: cfg.appId,
+    redirect_uri: cfg.redirectUri,
+    scope: scopes,
+    state,
+    response_type: "code",
+  });
+  return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${qs.toString()}`;
+}
+
+export interface PageConnection {
+  pageId: string;
+  pageName: string;
+  pageAccessToken: string;
+  /** Linked IG Business/Creator id, or null when the Page has none. */
+  igUserId: string | null;
+}
+
+/** Lists ALL of the user's Pages (with per-page access tokens). */
+export async function listPages(
+  longLivedToken: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<PageConnection[]> {
+  const pages = await graphFacebookGet<{ data?: Array<{ id: string; name: string; access_token: string }> }>(
+    "/me/accounts",
+    { access_token: longLivedToken },
+    fetchImpl,
+  );
+  const out: PageConnection[] = [];
+  for (const page of pages.data ?? []) {
+    if (!page.access_token) continue;
+    const detail = await graphFacebookGet<{ instagram_business_account?: { id: string } }>(
+      `/${page.id}`,
+      { fields: "instagram_business_account", access_token: longLivedToken },
+      fetchImpl,
+    );
+    out.push({
+      pageId: page.id,
+      pageName: page.name,
+      pageAccessToken: page.access_token,
+      igUserId: detail.instagram_business_account?.id ?? null,
+    });
+  }
+  return out;
+}
+
+/** Finds the user's first Page with a linked Instagram Business/Creator account. */
+function userMessageForFacebook(metaCode: number | undefined, metaMessage: string): string {
+  if (metaCode === 190) {
+    return "Your Facebook connection expired. Reconnect it in Settings → Connected Accounts.";
+  }
+  if (metaCode === 200 || metaCode === 10) {
+    return "Facebook refused the post — the Page may lack posting permission. Reconnect it in Settings.";
+  }
+  return metaMessage
+    ? `Facebook said: ${metaMessage.slice(0, 180)}`
+    : "Facebook returned an error. Please try again.";
+}
+
+async function graphVideoPost<T>(
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchImpl,
+): Promise<T> {
+  const res = await fetchImpl(`${GRAPH_VIDEO}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params).toString(),
+  });
+  const body = (await res.json().catch(() => ({}))) as MetaErrorBody & T;
+  if (!res.ok || body.error) {
+    const code = body.error?.code;
+    const msg = body.error?.message ?? `HTTP ${res.status}`;
+    logger.warn({ path, metaCode: code }, "[social-meta] graph-video API error");
+    throw new MetaApiError(userMessageForFacebook(code, msg), code, `HTTP ${res.status}`);
+  }
+  return body as T;
+}
+
+/* Defensive read of the video node's processing state. The Video reference
+   exposes `status` (with video_status); we accept any clear "ready" signal
+   and only hard-fail on an explicit error, so a doc-shape drift degrades to
+   "keep waiting" rather than a false failure. */
+type PageVideoStatus = "READY" | "PROCESSING" | "ERROR";
+
+function readPageVideoStatus(body: unknown): PageVideoStatus {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const status = b.status;
+  const nested =
+    typeof status === "object" && status !== null
+      ? (status as Record<string, unknown>).video_status
+      : undefined;
+  const raw = String(
+    nested ?? b.video_status ?? (typeof status === "string" ? status : ""),
+  ).toLowerCase();
+  if (/error|fail/.test(raw)) return "ERROR";
+  if (/ready|complete|published/.test(raw)) return "READY";
+  return "PROCESSING";
+}
+
+const PAGE_POLL_INTERVAL_MS = 15_000;
+const PAGE_POLL_MAX_TRIES = 12; // ~3 minutes
+
+/** Uploads the video to the Page and waits until Meta finishes processing.
+   Unlike Instagram there is no second publish call — a successful POST means
+   the video is on the Page; the poll only gates the permalink fetch. On
+   timeout we return anyway (the post exists; processing finishes async). */
+export async function publishVideoToPage(
+  input: { pageId: string; accessToken: string; videoUrl: string; description: string },
+  fetchImpl: FetchImpl = defaultFetch,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)),
+): Promise<{ videoId: string; permalink: string }> {
+  const created = await graphVideoPost<{ id?: string }>(
+    `/${input.pageId}/videos`,
+    {
+      file_url: input.videoUrl,
+      description: input.description,
+      access_token: input.accessToken,
+    },
+    fetchImpl,
+  );
+  if (!created.id) throw new MetaApiError("Facebook didn't accept the video. Please try again.");
+  const videoId = created.id;
+
+  for (let i = 0; i < PAGE_POLL_MAX_TRIES; i++) {
+    const res = await graphFacebookGet<unknown>(
+      `/${videoId}`,
+      { fields: "status", access_token: input.accessToken },
+      fetchImpl,
+    ).catch(() => null);
+    const status = readPageVideoStatus(res);
+    logger.info({ videoId, status, try: i + 1 }, "[social-meta] page video poll");
+    if (status === "READY") break;
+    if (status === "ERROR") {
+      throw new MetaApiError("Facebook couldn't process the video. Try a different export, then repost.");
+    }
+    await sleep(PAGE_POLL_INTERVAL_MS);
+  }
+
+  const permalink = await graphFacebookGet<{ permalink_url?: string }>(
+    `/${videoId}`,
+    { fields: "permalink_url", access_token: input.accessToken },
+    fetchImpl,
+  )
+    .then((r) => r.permalink_url ?? "")
+    .catch(() => "");
+  return { videoId, permalink };
 }

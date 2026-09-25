@@ -2,11 +2,12 @@ import { useEffect, useState, type JSX } from "react";
 import { Loader2, Link2Off, AlertTriangle, BadgeCheck } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
+import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
-/* Connected social accounts for auto-posting (Instagram Reels + TikTok drafts).
+/* Connected social accounts for auto-posting (Instagram Reels + TikTok drafts + Facebook Pages).
    Lives on the Settings page. OAuth runs as a full-page redirect because both
    providers require it — the API callback lands back on /settings. */
 
@@ -14,6 +15,7 @@ export interface SocialAccountInfo {
   id: string;
   platform: string;
   username: string | null;
+  pageName: string | null;
   usernameMasked: string | null;
   expired: boolean;
   connectedAt: string;
@@ -71,7 +73,7 @@ export function useSocialAccounts() {
 }
 
 interface PlatformConfig {
-  platform: "instagram" | "tiktok";
+  platform: "instagram" | "tiktok" | "facebook";
   name: string;
   authPath: string;
   connectBlurb: string;
@@ -98,6 +100,15 @@ const PLATFORMS: PlatformConfig[] = [
     readyBlurb: "Ready to send to TikTok drafts · 2 credits per upload",
     Icon: TikTokIcon,
     iconBadgeClass: "bg-black border border-white/20",
+  },
+  {
+    platform: "facebook",
+    name: "Facebook",
+    authPath: "/api/social/facebook/auth-url",
+    connectBlurb: "Connect your Facebook Pages — exports post as Reels.",
+    readyBlurb: "Ready to post to Facebook Pages as Reels · 2 credits per post",
+    Icon: FacebookIcon,
+    iconBadgeClass: "bg-[#1877F2]",
   },
 ];
 
@@ -154,7 +165,7 @@ export function ConnectedAccounts() {
       <div>
         <h2 className="text-lg font-bold text-white">Connected Accounts</h2>
         <p className="text-sm text-white/40 mt-1">
-          Connect Instagram to post exports straight to Reels, or TikTok to send them to your TikTok drafts — 2 credits per post.
+          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — 2 credits per post.
         </p>
       </div>
 
@@ -174,7 +185,9 @@ export function ConnectedAccounts() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-white flex items-center gap-1.5">
-                    @{account.usernameMasked ?? account.username ?? cfg.platform}
+                    {cfg.platform === "facebook" && account.pageName
+                      ? account.pageName
+                      : `@${account.usernameMasked ?? account.username ?? cfg.platform}`}
                     {!account.expired && <BadgeCheck className="h-4 w-4 text-primary" />}
                   </p>
                   {account.expired ? (

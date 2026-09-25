@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /* Connected third-party social accounts for auto-posting (Instagram MVP,
-   TikTok drafts tier). OAuth tokens are stored AES-256-GCM encrypted (see
+   TikTok drafts tier, Facebook Pages). OAuth tokens are stored AES-256-GCM encrypted (see
    social-crypto.ts) — never plaintext, never logged. user_id references the
    Supabase auth user (no DB-level FK: auth lives in Supabase, this table in
    Render Postgres).
@@ -22,6 +22,7 @@ export const socialAccountsTable = pgTable(
     provider_user_id: text("provider_user_id"),
     username: text("username"),
     page_id: text("page_id"),
+    page_name: text("page_name"),
     access_token_encrypted: text("access_token_encrypted"),
     refresh_token_encrypted: text("refresh_token_encrypted"),
     token_expires_at: timestamp("token_expires_at", { withTimezone: true }),
