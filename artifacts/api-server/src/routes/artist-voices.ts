@@ -28,6 +28,7 @@ import {
   parseSupabaseStorageRefBucketed,
 } from "../lib/objectStorage";
 import { separateVocalStems, cleanupWorkdir } from "../lib/stem-separation";
+import { canUseInstantVoiceCloning } from "../lib/elevenlabs";
 
 const router = Router();
 
@@ -252,8 +253,15 @@ router.delete("/artist-vaults/:id/voice", requireAuth, async (req, res) => {
      - a multipart "song" file upload, or
      - { "songId": "<songs-library-id>" }, or
      - { "songUrl": "https://..." }.
-   Costs 2 site credits (Demucs isolation + clone); refunded on failure. */
+   Costs 2 site credits (Demucs isolation + clone); refunded on failure.
+   Before any credits move or any heavy work, the handler checks the
+   ElevenLabs subscription for instant-voice-cloning eligibility: a plan
+   without it can never succeed here, and Demucs on a full song can OOM a
+   small container (2026-09-25 incident). The check fails open.
+   Isolation uses a lighter Demucs model (FROM_SONG_DEMUCS_MODEL, default
+   htdemucs) — the vocals only need to be intelligible IVC input. */
 const FROM_SONG_CREDIT_COST = 2;
+const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
 
 async function loadSongBuffer(
   file: Express.Multer.File | undefined,
@@ -305,42 +313,60 @@ router.post(
       res.status(503).json({ error: "Voice service is not configured on this server." });
       return;
     }
-    const vault = await getOwnedVault(req.params.id as string, req.userId!);
-    if (!vault) {
-      res.status(404).json({ error: "Artist not found." });
-      return;
-    }
 
-    const currentCredits = req.userCredits ?? 0;
-    const isDev = process.env["NODE_ENV"] === "development";
-    if (!isDev && currentCredits < FROM_SONG_CREDIT_COST) {
+    // IVC eligibility BEFORE any credits move or any heavy work. Fail open:
+    // if the check itself errors, proceed as before.
+    const ivcAllowed = await canUseInstantVoiceCloning(apiKey).catch(() => true);
+    if (!ivcAllowed) {
       res.status(402).json({
-        error: "out_of_credits",
-        message: "You are out of credits. Upgrade to keep creating.",
-        required: FROM_SONG_CREDIT_COST,
+        error:
+          "Your ElevenLabs plan does not include instant voice cloning. Upgrade your ElevenLabs plan to use song-based voice cloning.",
+        code: "ivc_not_included",
       });
       return;
     }
-    if (!isDev) {
-      await getSupabaseAdmin()
-        .from("profiles")
-        .update({ credits: currentCredits - FROM_SONG_CREDIT_COST })
-        .eq("id", req.userId!);
-    }
 
-    const refund = () =>
-      !isDev
-        ? getSupabaseAdmin()
-            .from("profiles")
-            .update({ credits: currentCredits })
-            .eq("id", req.userId!)
-            .then(
-              () => {},
-              () => {},
-            )
-        : Promise.resolve();
-
+    // Everything below returns JSON: the vault lookup and credit deduction
+    // live inside the try so a throw can never escape to Express's default
+    // HTML error handler (which is what produced the generic UI message in
+    // the 2026-09-25 OOM incident).
+    let refund: () => PromiseLike<void> = () => Promise.resolve();
     try {
+      const vault = await getOwnedVault(req.params.id as string, req.userId!);
+      if (!vault) {
+        res.status(404).json({ error: "Artist not found." });
+        return;
+      }
+
+      const currentCredits = req.userCredits ?? 0;
+      const isDev = process.env["NODE_ENV"] === "development";
+      if (!isDev && currentCredits < FROM_SONG_CREDIT_COST) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: "You are out of credits. Upgrade to keep creating.",
+          required: FROM_SONG_CREDIT_COST,
+        });
+        return;
+      }
+      if (!isDev) {
+        await getSupabaseAdmin()
+          .from("profiles")
+          .update({ credits: currentCredits - FROM_SONG_CREDIT_COST })
+          .eq("id", req.userId!);
+      }
+
+      refund = () =>
+        !isDev
+          ? getSupabaseAdmin()
+              .from("profiles")
+              .update({ credits: currentCredits })
+              .eq("id", req.userId!)
+              .then(
+                () => {},
+                () => {},
+              )
+          : Promise.resolve();
+
       const file = (req as any).file as Express.Multer.File | undefined;
       const { buffer: songBuffer, label } = await loadSongBuffer(
         file,
@@ -349,8 +375,11 @@ router.post(
       );
       req.log.info({ vaultId: vault.id, label }, "artist-voices: from-song isolation started");
 
-      /* 1 — Strip the song down to its vocals. */
-      const { vocalsPath, workdir } = await separateVocalStems(songBuffer);
+      /* 1 — Strip the song down to its vocals (lighter model: this runs
+         inside a web request on a small container). */
+      const { vocalsPath, workdir } = await separateVocalStems(songBuffer, {
+        model: FROM_SONG_DEMUCS_MODEL,
+      });
       let vocalsBuffer: Buffer;
       try {
         vocalsBuffer = await fs.readFile(vocalsPath);

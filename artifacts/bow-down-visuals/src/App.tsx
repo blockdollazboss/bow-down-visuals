@@ -11,8 +11,11 @@ import { UserModeProvider } from "@/contexts/UserModeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
+import { HelpPanel } from "@/components/HelpPanel";
 
 import { SiteFooter } from "@/components/layout/footer";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 
 /*
  * Marketing pages are imported eagerly so they land in the initial bundle
@@ -136,10 +139,27 @@ function ScrollToTop() {
 }
 
 function RouteFallback() {
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
+  );
+}
+
+/**
+ * Authenticated app layout: persistent sidebar navigation (with the
+ * admin-only Admin link) beside the page content. The video editor keeps
+ * its full-viewport studio surface and stays outside this layout.
+ */
+function AuthedLayout({ children }: { children: ReactNode }) {
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-svh w-full">
+        <AppSidebar />
+        <main className="min-w-0 flex-1">{children}</main>
+      </div>
+    </SidebarProvider>
   );
 }
 
@@ -153,6 +173,7 @@ function AppShell() {
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
       {typeof window !== "undefined" && <AiChatWidget />}
+      {typeof window !== "undefined" && <HelpPanel />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
         <Switch>
@@ -173,27 +194,31 @@ function AppShell() {
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
 
-          {/* Protected app pages */}
-          <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
-          <Route path="/choose-artist"><ProtectedRoute><ChooseArtist /></ProtectedRoute></Route>
-          <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
-          <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
-
-          {/* Protected tool pages */}
-          <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
-          <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
-          <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
-          <Route path="/create"><ProtectedRoute><CreateSimple /></ProtectedRoute></Route>
-          <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
-          <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
+          {/* Protected app pages — inside the sidebar layout */}
+          {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
-          <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
-          <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
-          <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
-          <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
-          <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
-
-          <Route component={NotFound} />
+          <Route>
+            <AuthedLayout>
+              <Switch>
+                <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
+                <Route path="/choose-artist"><ProtectedRoute><ChooseArtist /></ProtectedRoute></Route>
+                <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
+                <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
+                <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
+                <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>
+                <Route path="/song-and-video"><ProtectedRoute><SongAndVideo /></ProtectedRoute></Route>
+                <Route path="/create"><ProtectedRoute><CreateSimple /></ProtectedRoute></Route>
+                <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
+                <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
+                <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
+                <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
+                <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
+                <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
+                <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
+                <Route component={NotFound} />
+              </Switch>
+            </AuthedLayout>
+          </Route>
         </Switch>
         </RouteErrorBoundary>
       </Suspense>
