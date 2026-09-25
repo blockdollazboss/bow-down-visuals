@@ -5,6 +5,7 @@ import {
   AlertTriangle, RefreshCw, Info, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Logo-to-Luxury Studio ───────────────────────────────────────────────
@@ -61,6 +62,7 @@ const money = (n: number) => "$" + Math.round(n).toLocaleString();
 
 export default function JewelryStudio() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<"jewelry" | "apparel">("jewelry");
@@ -141,9 +143,10 @@ export default function JewelryStudio() {
       fd.append("category", category);
       const opts = category === "jewelry" ? jOpts : aOpts;
       for (const [k, v] of Object.entries(opts)) fd.append(k, String(v));
-      const res = await fetch("/api/jewelry/design", {
+      const res = await confirmedFetch("/api/jewelry/design", {
         method: "POST", headers: await authed(), body: fd,
       });
+      if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
       if (!res.ok) throw new Error(data.error || "Preview failed");
@@ -167,9 +170,10 @@ export default function JewelryStudio() {
       fd.append("logo", logoFile);
       fd.append("category", "jewelry");
       for (const [k, v] of Object.entries(jOpts)) fd.append(k, String(v));
-      const res = await fetch("/api/jewelry/export-stl", {
+      const res = await confirmedFetch("/api/jewelry/export-stl", {
         method: "POST", headers: await authed(), body: fd,
       });
+      if (!res) return;
       const data = await res.json();
       if (res.status === 402) { handleOutOfCredits(); return; }
       if (!res.ok) throw new Error(data.error || "STL export failed");

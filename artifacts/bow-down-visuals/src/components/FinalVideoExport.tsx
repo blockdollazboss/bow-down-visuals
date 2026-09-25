@@ -10,6 +10,7 @@ import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
@@ -241,6 +242,7 @@ export function FinalVideoExport({
   fitMode,
 }: FinalVideoExportProps) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
 
   const isManualLayout = timelineLayout === "manual";
@@ -460,7 +462,7 @@ export function FinalVideoExport({
     const token = await getAccessToken();
     const timelineOrder = scenes.map((s) => s.id);
 
-    const res = await fetch("/api/export-final-video", {
+    const res = await confirmedFetch("/api/export-final-video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -501,6 +503,7 @@ export function FinalVideoExport({
       }),
       signal: AbortSignal.timeout(60 * 1000),
     });
+    if (!res) return null; // user cancelled the credit confirmation
 
     if (!res.ok) {
       const body = await parseJsonResponse<{
@@ -629,6 +632,7 @@ export function FinalVideoExport({
           throw err;
         }
       }
+      if (!result) return; // user cancelled the credit confirmation
 
       const { data, timelineOrder } = result;
 

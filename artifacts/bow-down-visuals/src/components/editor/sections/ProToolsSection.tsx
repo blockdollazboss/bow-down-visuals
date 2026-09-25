@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   SlidersHorizontal, Sparkles, RotateCw, FlipHorizontal2, FlipVertical2,
   Gauge, Scissors, Droplets, Pipette, RefreshCw, Loader2, Wand2,
@@ -106,6 +107,7 @@ export function ProToolsSection({
   videoRef: React.RefObject<HTMLVideoElement | null>;
 }) {
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [grading, setGrading] = useState(false);
   const [keying, setKeying] = useState(false);
@@ -147,11 +149,12 @@ export function ProToolsSection({
     }
     setGrading(true);
     try {
-      const res = await fetch("/api/pro-tools/auto-grade", {
+      const res = await confirmedFetch("/api/pro-tools/auto-grade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ frameDataUrl: frame ?? "", look: look.trim() }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const body = await res.json().catch(() => ({}));
       if (res.status === 402) {
         toast({ title: "Out of credits", description: "Top up to use AI Auto-Grade.", variant: "destructive" });

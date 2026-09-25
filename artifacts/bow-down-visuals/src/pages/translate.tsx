@@ -6,6 +6,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   TARGET_LANGUAGES,
@@ -38,6 +39,7 @@ const goldBtn =
 
 export default function Translate() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* step 1: video */
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -183,11 +185,14 @@ export default function Translate() {
       form.append("voiceId", voiceId);
       if (durationSec) form.append("durationSec", String(Math.round(durationSec)));
 
-      const res = await fetch("/api/video-translator/translate", {
+      const res = await confirmedFetch("/api/video-translator/translate", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,
+        overrideCost: estimate.credits,
+        overrideFeature: "Video Translator",
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as {
         jobId?: string; error?: string; message?: string; creditsRequired?: number;
       };

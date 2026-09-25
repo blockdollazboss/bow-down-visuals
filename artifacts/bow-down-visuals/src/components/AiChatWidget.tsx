@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName } from "@/components/pixel-headline";
 
@@ -51,6 +52,7 @@ const GREETING: ChatMessage = {
 const MAX_HISTORY = 6;
 
 export function AiChatWidget() {
+  const { confirmedFetch } = useConfirmedApi();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -89,7 +91,7 @@ export function AiChatWidget() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
+      const res = await confirmedFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -97,6 +99,7 @@ export function AiChatWidget() {
           history: history.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets loading)
       const data = await res.json().catch(() => ({}));
       if (typeof data.creditCost === "number") setCreditCost(data.creditCost);
       let reply: string;

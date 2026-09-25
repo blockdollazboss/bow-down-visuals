@@ -8,6 +8,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Trend Predictor ────────────────────────────────────────────────────
    Get ahead of trends instead of chasing them. AI analyzes the creator's
@@ -100,6 +101,7 @@ function loadWatchlist(): TrackedTrend[] {
 
 export default function TrendPredictor() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [niche, setNiche] = useState("Music");
   const [customNiche, setCustomNiche] = useState("");
@@ -171,18 +173,21 @@ export default function TrendPredictor() {
     setIdeas([]);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/trend-predictor/forecast", {
+      const res = await confirmedFetch("/api/trend-predictor/forecast", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        overrideCost: FORECAST_CREDITS, // registry is stale at 1; backend + UI agree on 2
+        overrideFeature: "Trend Predictor",
         body: JSON.stringify({
           niche: finalNiche,
           platforms,
           audienceSize: audience,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as ForecastResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
@@ -213,7 +218,7 @@ export default function TrendPredictor() {
     setIdeasLoading(true);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/trend-predictor/ideas", {
+      const res = await confirmedFetch("/api/trend-predictor/ideas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -225,6 +230,7 @@ export default function TrendPredictor() {
           trendWhy: trend.reasoning,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as IdeasResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setIdeasError("Out of credits — top up to get content ideas.");

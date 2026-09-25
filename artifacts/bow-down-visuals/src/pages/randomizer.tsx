@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Content Randomizer ─────────────────────────────────
    Public teaser page: the free dice roll is 100% client-side (zero server
@@ -178,6 +179,7 @@ function pickRandom<T>(items: T[], except?: T): T {
 
 export default function Randomizer() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [activeKey, setActiveKey] = useState<CategoryKey>("video-ideas");
   const [freeIdea, setFreeIdea] = useState<string | null>(null);
   const [aiIdeas, setAiIdeas] = useState<string[]>([]);
@@ -208,7 +210,7 @@ export default function Randomizer() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/randomizer", {
+      const res = await confirmedFetch("/api/randomizer", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -216,6 +218,7 @@ export default function Randomizer() {
         },
         body: JSON.stringify({ category: activeKey }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as RandomizerResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

@@ -11,6 +11,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
    The money end of the creator loop: eligibility tracking for each
@@ -95,6 +96,7 @@ const inputClass =
 
 export default function MonetizationCoach() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [niche, setNiche] = useState("Music");
   const [customNiche, setCustomNiche] = useState("");
@@ -140,7 +142,7 @@ export default function MonetizationCoach() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/monetization-coach", {
+      const res = await confirmedFetch("/api/monetization-coach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -157,6 +159,7 @@ export default function MonetizationCoach() {
           cadence: cadenceNum,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as CoachResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

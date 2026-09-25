@@ -18,6 +18,7 @@ import {
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Comment Reply Assistant ────────────────────────────
    Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
@@ -54,6 +55,7 @@ const inputClass =
 
 export default function CommentReplies() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [commentsText, setCommentsText] = useState("");
   const [tone, setTone] = useState<ToneKey>("hype");
   const [voiceNotes, setVoiceNotes] = useState("");
@@ -94,7 +96,7 @@ export default function CommentReplies() {
     setCopiedAll(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/comment-replies", {
+      const res = await confirmedFetch("/api/comment-replies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -106,6 +108,7 @@ export default function CommentReplies() {
           voiceNotes: voiceNotes.trim(),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as RepliesResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

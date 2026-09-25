@@ -11,6 +11,7 @@ import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -106,6 +107,7 @@ function StyledSelect({
 
 export default function MakeSong() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +140,7 @@ export default function MakeSong() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-song", {
+      const result = await callGenerateApi("/api/generate-song", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -150,7 +152,9 @@ export default function MakeSong() {
         songLength: values.songLength,
         instructions: values.specialInstructions,
         artistVault: loadedVault,
-      }, token);
+      }, token, confirmedFetch);
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult, creditsRemaining } = result;
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {

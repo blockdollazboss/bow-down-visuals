@@ -8,6 +8,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   estimatePodcastCost,
@@ -141,6 +142,7 @@ function VoicePicker({
 
 export default function PodcastStudio() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(true);
@@ -220,7 +222,7 @@ export default function PodcastStudio() {
     setResult(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/podcast/generate", {
+      const res = await confirmedFetch("/api/podcast/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -238,7 +240,10 @@ export default function PodcastStudio() {
           coHostVoiceId: coHostVoiceId || undefined,
           musicBed,
         }),
+        overrideCost: estimate.credits,
+        overrideFeature: "Generate Podcast",
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

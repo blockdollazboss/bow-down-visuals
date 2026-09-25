@@ -18,6 +18,7 @@ import {
   type CalendarPlatformKey,
 } from "@/lib/content-calendar";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
    Creators pick a niche + platforms, GPT-6 builds a 30-day posting
@@ -90,6 +91,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ContentCalendar() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [niche, setNiche] = useState("Music");
   const [customNiche, setCustomNiche] = useState("");
@@ -155,7 +157,7 @@ export default function ContentCalendar() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/content-calendar", {
+      const res = await confirmedFetch("/api/content-calendar", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -168,6 +170,7 @@ export default function ContentCalendar() {
           startDate,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as CalendarResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

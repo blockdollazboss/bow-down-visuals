@@ -4,6 +4,7 @@ import type {
   StemEffects,
   VideoAudioSource,
 } from "@/lib/editor-settings";
+import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
 export type AudioExportType = "full-mp3" | "full-wav" | "instrumental-mp3" | "acapella-mp3";
 
@@ -157,10 +158,12 @@ function throwFriendly(code: string | undefined, fallback: string): never {
 export async function requestAudioExport(
   token: string,
   payload: AudioExportRequest,
-): Promise<AudioExportResponse> {
-  let res: Response;
+  /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
+  fetchImpl: FetchImpl = fetch,
+): Promise<AudioExportResponse | null> {
+  let res: Response | null;
   try {
-    res = await fetch("/api/music/export", {
+    res = await fetchImpl("/api/music/export", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -168,6 +171,7 @@ export async function requestAudioExport(
   } catch {
     throw new Error("Network error during export. Please try again.");
   }
+  if (!res) return null; // user cancelled the credit confirmation
 
   let data: (Partial<{ jobId: string }> & { error?: string; code?: string }) | null = null;
   try {
@@ -247,10 +251,12 @@ export async function requestPreviewRender(
     masterSettings?: MasterBusPayload;
     previewSeconds?: number;
   },
-): Promise<PreviewRenderResult> {
-  let res: Response;
+  /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
+  fetchImpl: FetchImpl = fetch,
+): Promise<PreviewRenderResult | null> {
+  let res: Response | null;
   try {
-    res = await fetch("/api/music/preview-render", {
+    res = await fetchImpl("/api/music/preview-render", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -258,6 +264,7 @@ export async function requestPreviewRender(
   } catch {
     throw new Error("Network error while rendering the preview. Please try again.");
   }
+  if (!res) return null; // user cancelled the credit confirmation
 
   if (!res.ok) {
     let data: { error?: string; code?: string } | null = null;

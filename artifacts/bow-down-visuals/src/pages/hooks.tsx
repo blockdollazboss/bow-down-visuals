@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
    Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -90,6 +91,7 @@ const inputClass =
 
 export default function HookStudio() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<TabKey>("hooks");
 
   /* hook generator state */
@@ -125,7 +127,7 @@ export default function HookStudio() {
 
   async function authedPost(body: Record<string, unknown>) {
     const token = await getAccessToken();
-    return fetch("/api/hook-studio", {
+    return confirmedFetch("/api/hook-studio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -151,6 +153,7 @@ export default function HookStudio() {
     setOutOfCredits(false);
     try {
       const res = await authedPost({ mode: "hooks", videoType, topic: topic.trim() });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as HooksResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
@@ -184,6 +187,7 @@ export default function HookStudio() {
         platform: capPlatform,
         tone: capTone.trim(),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as CaptionsResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.captions) || data.captions.length === 0) {
@@ -218,6 +222,7 @@ export default function HookStudio() {
         hashtags: hashtags.trim(),
         description: description.trim(),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as PreflightResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.checks) || data.checks.length === 0) {

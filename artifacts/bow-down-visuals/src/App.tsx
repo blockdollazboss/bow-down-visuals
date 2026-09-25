@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
+import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
@@ -381,9 +382,11 @@ function App({ ssrPath }: { ssrPath?: string }) {
           <ThemePlayerProvider>
             <AuthProvider>
               <UserModeProvider>
-                <ActiveArtistProvider>
-                  <AppShell />
-                </ActiveArtistProvider>
+                <CreditConfirmProvider>
+                  <ActiveArtistProvider>
+                    <AppShell />
+                  </ActiveArtistProvider>
+                </CreditConfirmProvider>
               </UserModeProvider>
             </AuthProvider>
           </ThemePlayerProvider>

@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
@@ -97,6 +98,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function SponsorshipOutreach() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* creator profile */
   const [creatorName, setCreatorName] = useState("");
@@ -147,12 +149,14 @@ export default function SponsorshipOutreach() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/outreach", {
+      const res = await confirmedFetch("/api/outreach", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideFeature: "Outreach",
         body: JSON.stringify({
           creatorName: creatorName.trim(),
           niche: niche.trim(),
@@ -166,6 +170,7 @@ export default function SponsorshipOutreach() {
           contactName: contactName.trim(),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as OutreachResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

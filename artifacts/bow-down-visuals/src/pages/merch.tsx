@@ -8,6 +8,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Merch Designer ──────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ function fmt(cents: number | null | undefined): string {
 
 export default function Merch() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<"design" | "store">("design");
 
   /* ── Design studio state ── */
@@ -123,7 +125,7 @@ export default function Merch() {
     setBatchMeta(null);
     setSavedIds(new Set());
     try {
-      const res = await fetch("/api/merch/design", {
+      const res = await confirmedFetch("/api/merch/design", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,6 +135,7 @@ export default function Merch() {
           title: title.trim(),
         }),
       });
+      if (!res) return;
       const data: DesignResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);
