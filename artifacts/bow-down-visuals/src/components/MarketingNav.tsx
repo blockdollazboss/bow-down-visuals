@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
+  { label: "Podcast Studio", href: "/podcast" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
