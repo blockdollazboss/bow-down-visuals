@@ -4,17 +4,27 @@ import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { useToast } from "@/hooks/use-toast";
 
-/* Account settings. The Instagram OAuth callback redirects here with
-   ?social=instagram_connected (or ?social=error&reason=...). */
+/* Account settings. The Instagram/TikTok OAuth callbacks redirect here with
+   ?social=instagram_connected or ?social=tiktok_connected
+   (or ?social=tiktok_error / ?social=error &reason=...). */
 
 const SOCIAL_MESSAGES: Record<string, { title: string; description: string; destructive?: boolean }> = {
   instagram_connected: {
     title: "Instagram connected",
     description: "Your account is ready — post exports straight to Reels.",
   },
+  tiktok_connected: {
+    title: "TikTok connected",
+    description: "Your account is ready — exports go to your TikTok drafts.",
+  },
   error: {
     title: "Instagram connection failed",
     description: "The connection didn't complete. Try again.",
+    destructive: true,
+  },
+  tiktok_error: {
+    title: "TikTok connection failed",
+    description: "The connection didn't complete. Try again, and make sure you approved the upload permission.",
     destructive: true,
   },
 };

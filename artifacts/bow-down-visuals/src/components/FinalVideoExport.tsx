@@ -5,11 +5,13 @@ import {
   Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
+import { TikTokPostModal } from "@/components/TikTokPostModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
@@ -316,6 +318,7 @@ export function FinalVideoExport({
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showTikTokModal, setShowTikTokModal] = useState(false);
   const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
@@ -735,6 +738,26 @@ export function FinalVideoExport({
                 </button>
                 <button
                   type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const tt = fresh.find((a) => a.platform === "tiktok" && !a.expired);
+                    if (!tt) {
+                      toast({
+                        title: "Connect TikTok first",
+                        description: "Head to Settings → Connected Accounts, then send to drafts in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowTikTokModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/[0.15] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <TikTokIcon className="h-3.5 w-3.5" />
+                  Post to TikTok
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
                     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
@@ -761,6 +784,15 @@ export function FinalVideoExport({
           <InstagramPostModal
             open={showPostModal}
             onClose={() => setShowPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts}
+          />
+        )}
+
+        {showTikTokModal && exportUrl && (
+          <TikTokPostModal
+            open={showTikTokModal}
+            onClose={() => setShowTikTokModal(false)}
             videoUrl={exportUrl}
             accounts={socialAccounts}
           />
