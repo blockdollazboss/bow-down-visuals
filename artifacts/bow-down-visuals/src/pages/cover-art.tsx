@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   COVER_ART_STYLES,
@@ -27,6 +28,7 @@ interface GenerateResponse extends CoverArtResult {
 
 export default function CoverArt() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
   const [mood, setMood] = useState("");
@@ -48,7 +50,7 @@ export default function CoverArt() {
     setError(null);
     setOutOfCredits(false);
     try {
-      const res = await fetch("/api/cover-art", {
+      const res = await confirmedFetch("/api/cover-art", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -60,6 +62,7 @@ export default function CoverArt() {
           tier,
         }),
       });
+      if (!res) return;
       const data = (await res.json()) as GenerateResponse;
       if (res.status === 402) {
         setOutOfCredits(true);

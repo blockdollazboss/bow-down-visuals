@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── AI Mastering ─────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ function fmtLufs(v: number | null | undefined): string {
 
 export default function Mastering() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [preset, setPreset] = useState<PresetKey>("streaming");
@@ -150,7 +152,8 @@ export default function Mastering() {
       const form = new FormData();
       form.append("audio", file);
       form.append("preset", preset);
-      const res = await fetch("/api/mastering", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/mastering", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: MasteringJobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

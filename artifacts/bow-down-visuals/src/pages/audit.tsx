@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Channel Audit ────────────────────────────────────────────────────────
    AI channel audit: creator shares niche, handle, bio, cadence + recent
@@ -101,6 +102,7 @@ const labelClass =
 
 export default function ChannelAudit() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [niche, setNiche] = useState("");
   const [handle, setHandle] = useState("");
@@ -129,12 +131,14 @@ export default function ChannelAudit() {
         .map((p) => p.trim())
         .filter((p) => p.length > 0)
         .slice(0, 10);
-      const res = await fetch("/api/channel-audit", {
+      const res = await confirmedFetch("/api/channel-audit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideFeature: "Channel Audit",
         body: JSON.stringify({
           niche: niche.trim(),
           handle: handle.trim(),
@@ -144,6 +148,7 @@ export default function ChannelAudit() {
           recentPosts: posts,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json()) as AuditResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

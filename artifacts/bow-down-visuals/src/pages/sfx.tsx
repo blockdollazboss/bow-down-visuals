@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   loadSfxLibrary,
@@ -101,6 +102,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 export default function TextToSfx() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [category, setCategory] = useState("impacts");
   const [duration, setDuration] = useState(3);
@@ -162,7 +164,7 @@ export default function TextToSfx() {
     setResult(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-sfx", {
+      const res = await confirmedFetch("/api/generate-sfx", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -174,6 +176,7 @@ export default function TextToSfx() {
           category,
         }),
       });
+      if (!res) { setLoading(false); return; } // user cancelled the credit confirmation
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

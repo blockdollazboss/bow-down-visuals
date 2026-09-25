@@ -18,6 +18,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface GeneratedImage {
@@ -75,6 +76,7 @@ const textareaClass =
 
 export default function ThumbnailMaker() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
   const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
@@ -138,11 +140,12 @@ export default function ThumbnailMaker() {
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       setProgress("Rendering variation 1 of 4…");
-      const res = await fetch("/api/thumbnail-generator", {
+      const res = await confirmedFetch("/api/thumbnail-generator", {
         method: "POST",
         headers,
         body: form,
       });
+      if (!res) return;
 
       if (res.status === 402) {
         setOutOfCredits(true);

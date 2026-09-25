@@ -18,6 +18,7 @@ import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { ClipSequencePlayer } from "@/components/ClipSequencePlayer";
 import { TimelinePreviewPlayer, type SharedPreviewState, type TimelinePlayerHandle } from "@/components/TimelinePreviewPlayer";
@@ -147,6 +148,7 @@ export default function VideoEditor() {
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
   const { isSimple } = useUserMode();
   /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
@@ -477,13 +479,20 @@ export default function VideoEditor() {
     setAutoSceneStatus("generating");
     setAutoSceneError(null);
     try {
-      const { scenes: newScenes } = await runAudioSceneFlow({
+      const flow = await runAudioSceneFlow({
         lyrics: lyricsForCaptions ?? "",
         audioUrl: previewAudioUrl,
         audioFile: null,
         songStructure: null,
         getAccessToken,
+        fetchImpl: confirmedFetch,
       });
+      if (!flow) {
+        // User cancelled the credit confirmation — reset the status and bail out
+        setAutoSceneStatus("idle");
+        return;
+      }
+      const { scenes: newScenes } = flow;
       scenesRef.current = newScenes;
       setScenes(newScenes);
       setAutoSceneStatus("idle");

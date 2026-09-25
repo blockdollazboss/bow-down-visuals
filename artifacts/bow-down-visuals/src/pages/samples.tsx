@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   PACK_SIZE_OPTIONS, creditsForSize, originBadge, formatDuration,
@@ -60,6 +61,7 @@ function genreLabel(g: string): string {
 
 export default function SamplePack() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [genre, setGenre] = useState("trap");
   const [bpm, setBpm] = useState(140);
@@ -130,7 +132,7 @@ export default function SamplePack() {
     setSamples([]);
     setProgress("Charging credits and warming up the studio…");
     try {
-      const res = await fetch("/api/sample-pack/generate", {
+      const res = await confirmedFetch("/api/sample-pack/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -141,6 +143,7 @@ export default function SamplePack() {
           types: selectedTypes.size > 0 ? [...selectedTypes] : undefined,
         }),
       });
+      if (!res) return;
       if (res.status === 402) {
         setOutOfCredits(true);
         return;

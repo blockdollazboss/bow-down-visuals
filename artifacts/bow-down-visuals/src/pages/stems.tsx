@@ -8,6 +8,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ interface StemJobResponse {
 
 export default function StemSplitter() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<JobStatus>("idle");
@@ -172,7 +174,8 @@ export default function StemSplitter() {
     try {
       const form = new FormData();
       form.append("audio", file);
-      const res = await fetch("/api/stems", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/stems", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: StemJobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

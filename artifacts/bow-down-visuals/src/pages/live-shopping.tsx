@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { buildAlertText } from "@/lib/live-shopping";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Live Shopping ─────────────────────────────────────────────────────
    Sell products during live streams: a product catalog, a live overlay
@@ -87,6 +88,7 @@ type Tab = "products" | "overlay" | "dashboard";
 
 export default function LiveShopping() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<Tab>("products");
   const [products, setProducts] = useState<Product[]>([]);
   const [streams, setStreams] = useState<Stream[]>([]);
@@ -252,11 +254,12 @@ export default function LiveShopping() {
     setError(null);
     try {
       const headers = await authHeaders();
-      const res = await fetch("/api/live-shopping/ai-description", {
+      const res = await confirmedFetch("/api/live-shopping/ai-description", {
         method: "POST",
         headers,
         body: JSON.stringify({ name: name.trim(), selling_points: description.trim() || undefined }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (res.status === 402) {
         setOutOfCredits(true);
         return;

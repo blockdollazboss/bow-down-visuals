@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
   EMOTIONS,
@@ -55,6 +56,7 @@ const pillClass = (active: boolean) =>
 
 export default function VoiceoverStudio() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* voices */
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -136,7 +138,7 @@ export default function VoiceoverStudio() {
     setResult(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/voiceover/generate", {
+      const res = await confirmedFetch("/api/voiceover/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,7 +151,10 @@ export default function VoiceoverStudio() {
           format,
           speed,
         }),
+        overrideCost: estimate.credits,
+        overrideFeature: "AI Voiceover",
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

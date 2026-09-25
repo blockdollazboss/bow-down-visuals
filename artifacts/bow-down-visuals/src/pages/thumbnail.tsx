@@ -9,6 +9,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { Image as ImageIcon, ArrowLeft, Loader2, ChevronRight } from "lucide-react";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -50,6 +51,7 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 
 export default function Thumbnail() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -98,7 +100,7 @@ export default function Thumbnail() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining, creditsUsed: used, thumbnailImageUrl: imageUrl, imageError: imgErr } = await callGenerateApi("/api/generate-thumbnail", {
+      const result = await callGenerateApi("/api/generate-thumbnail", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         platform: values.platform,
@@ -108,7 +110,9 @@ export default function Thumbnail() {
         featuredText: values.featuredText,
         requests: values.specialRequests,
         artistVault: loadedVault ? vaultToPayload(loadedVault) : null,
-      }, token);
+      }, token, confirmedFetch);
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult, creditsRemaining, creditsUsed: used, thumbnailImageUrl: imageUrl, imageError: imgErr } = result;
       setRawResult(rawResult);
       setThumbnailImageUrl(imageUrl ?? null);
       setImageError(imgErr ?? null);

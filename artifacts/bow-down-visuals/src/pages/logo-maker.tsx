@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Logo Maker ──────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ interface RecentLogo {
 
 export default function LogoMaker() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [brandName, setBrandName] = useState("");
   const [tagline, setTagline] = useState("");
   const [style, setStyle] = useState<LogoStyleKey>("luxury-gold");
@@ -104,11 +106,15 @@ export default function LogoMaker() {
     setOutOfCredits(false);
     setOutputUrl(null);
     try {
-      const res = await fetch("/api/generate-logo", {
+      const res = await confirmedFetch("/api/generate-logo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandName: brandName.trim(), style, tagline: tagline.trim() || undefined, model }),
       });
+      if (!res) {
+        setStatus("idle");
+        return;
+      }
       const data: LogoResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

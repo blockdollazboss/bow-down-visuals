@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
    High-retention video scripts: platform-optimized hooks, timestamped beats
@@ -71,6 +72,7 @@ const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [platform, setPlatform] = useState<Platform>("youtube");
   const [length, setLength] = useState<Length>("medium");
   const [topic, setTopic] = useState("");
@@ -102,9 +104,11 @@ export default function ScriptWriter() {
     setResult(null);
     setShowTeleprompter(false);
     try {
-      const res = await fetch("/api/script-writer", {
+      const res = await confirmedFetch("/api/script-writer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 2
+        overrideFeature: "Script Writer",
         body: JSON.stringify({
           platform,
           length,
@@ -114,6 +118,7 @@ export default function ScriptWriter() {
           ctaGoal: ctaGoal.trim(),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json()) as ScriptResult & { error?: string };
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

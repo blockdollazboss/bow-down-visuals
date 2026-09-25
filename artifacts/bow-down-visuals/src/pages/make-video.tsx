@@ -15,6 +15,7 @@ import {
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { SceneStudio } from "@/components/SceneStudio";
@@ -199,6 +200,7 @@ export default function MakeVideo() {
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [step, setStep] = useState(1);
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -291,13 +293,16 @@ export default function MakeVideo() {
     setGeneratingScenesFromAudio(true);
     setAudioSceneError(null);
     try {
-      const { songStructure: structure, scenes: newScenes } = await runAudioSceneFlow({
+      const flow = await runAudioSceneFlow({
         lyrics: watched.lyrics,
         audioUrl,
         audioFile,
         songStructure,
         getAccessToken,
+        fetchImpl: confirmedFetch,
       });
+      if (!flow) { setGeneratingScenesFromAudio(false); return; } // user cancelled the credit confirmation
+      const { songStructure: structure, scenes: newScenes } = flow;
       setSongStructure(structure);
       setScenes(newScenes);
       setStoryboardApproved(false);
@@ -329,7 +334,7 @@ export default function MakeVideo() {
 
     try {
       const token = await getAccessToken();
-      const { rawResult: result, creditsRemaining, genHistoryId: gid } = await callGenerateApi("/api/generate-video-plan", {
+      const genResult = await callGenerateApi("/api/generate-video-plan", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -357,7 +362,10 @@ export default function MakeVideo() {
             }
           : undefined,
         songStructure: songStructure ?? undefined,
-      }, token);
+      }, token, confirmedFetch);
+
+      if (!genResult) { setLoading(false); return; } // user cancelled the credit confirmation
+      const { rawResult: result, creditsRemaining, genHistoryId: gid } = genResult;
 
       setRawResult(result);
       const parsedScenes = parseScenes(extractBreakdownContent(result));

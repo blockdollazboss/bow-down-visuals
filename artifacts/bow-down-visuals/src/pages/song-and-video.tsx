@@ -25,6 +25,7 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
@@ -257,6 +258,7 @@ export default function SongAndVideo() {
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [, setLocation] = useLocation();
 
   const [step, setStep] = useState(1);
@@ -401,7 +403,7 @@ export default function SongAndVideo() {
 
     try {
       const token = await getAccessToken();
-      const { rawResult: res, creditsRemaining, genHistoryId: gid } = await callGenerateApi(
+      const result = await callGenerateApi(
         "/api/generate-song-video",
         {
           artistName:        watched.artistName,
@@ -422,7 +424,10 @@ export default function SongAndVideo() {
           songStructure:     songStructure ?? undefined,
         },
         token,
+        confirmedFetch,
       );
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult: res, creditsRemaining, genHistoryId: gid } = result;
       setRawResult(res);
       const parsedScenes = parseScenes(extractBreakdownContent(res));
       setScenes(parsedScenes);

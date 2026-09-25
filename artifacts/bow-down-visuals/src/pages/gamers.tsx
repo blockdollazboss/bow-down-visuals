@@ -10,6 +10,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Home of Gamers ──────────────────────────────────────────────────────
    The gaming wing of Bow Down Visuals: dark arena background, neon/RGB
@@ -196,6 +197,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function GamersHub() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* ── AI generator state (pre-filled so nothing waits on the user) ── */
   const [game, setGame] = useState("Valorant");
@@ -211,7 +213,7 @@ export default function GamersHub() {
 
   async function authedPost(body: Record<string, unknown>) {
     const token = await getAccessToken().catch(() => null);
-    return fetch("/api/gamers/ideas", {
+    return confirmedFetch("/api/gamers/ideas", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -232,6 +234,7 @@ export default function GamersHub() {
     setOutOfCredits(false);
     try {
       const res = await authedPost({ game: game.trim(), niche: niche.trim(), contentType });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as IdeasResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
