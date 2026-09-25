@@ -354,8 +354,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const willChain = hasUsableClip(previousClipUrl);
 
   /* Site-credit cost for the current picker selection. The per-second rate
-     must match the server's SEEDANCE_CREDITS_PER_SEC default (2). */
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT = 2;
+     must match the server's SEEDANCE_CREDITS_PER_SEC default (1.5). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT = 1.5;
   const clipCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT : 5;
   const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 

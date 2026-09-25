@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SceneStudio } from "@/components/SceneStudio";
+import { StoryboardReview } from "@/components/StoryboardReview";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -210,6 +211,7 @@ export default function MakeVideo() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scenes, setScenes] = useState<SceneData[]>([]);
+  const [storyboardApproved, setStoryboardApproved] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [generatingScenesFromAudio, setGeneratingScenesFromAudio] = useState(false);
@@ -298,6 +300,7 @@ export default function MakeVideo() {
       });
       setSongStructure(structure);
       setScenes(newScenes);
+      setStoryboardApproved(false);
       setStep(5);
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 40);
     } catch (err) {
@@ -359,6 +362,7 @@ export default function MakeVideo() {
       setRawResult(result);
       const parsedScenes = parseScenes(extractBreakdownContent(result));
       setScenes(parsedScenes);
+      setStoryboardApproved(false);
       setGenHistoryId(gid ?? null);
       if (creditsRemaining !== undefined) refreshProfile();
       void performSave({ result, sceneData: parsedScenes, ghid: gid ?? null });
@@ -1276,17 +1280,28 @@ export default function MakeVideo() {
               </div>
 
               {scenes.length > 0 ? (
-                <SceneStudio
-                  scenes={scenes}
-                  onScenesChange={handleScenesChange}
-                  artistVault={loadedVault}
-                  videoStyle={videoStyleVal}
-                  platform={platformVal}
-                  manageable
-                  onSave={saveScenes}
-                  saving={savingScenes}
-                  projectId={savedProjectId}
-                />
+                !storyboardApproved ? (
+                  <StoryboardReview
+                    scenes={scenes}
+                    onApprove={(approvedScenes) => {
+                      setScenes(approvedScenes);
+                      setStoryboardApproved(true);
+                      handleScenesChange(approvedScenes);
+                    }}
+                  />
+                ) : (
+                  <SceneStudio
+                    scenes={scenes}
+                    onScenesChange={handleScenesChange}
+                    artistVault={loadedVault}
+                    videoStyle={videoStyleVal}
+                    platform={platformVal}
+                    manageable
+                    onSave={saveScenes}
+                    saving={savingScenes}
+                    projectId={savedProjectId}
+                  />
+                )
               ) : (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-6 py-10 text-center">
                   <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
