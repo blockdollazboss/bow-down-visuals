@@ -23,11 +23,15 @@ const NAV_LINKS = [
   { label: "Title Studio", href: "/titles" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
+<<<<<<< HEAD
   { label: "Cover Art", href: "/cover-art" },
   { label: "My Shop", href: "/my-shop" },
   { label: "Email List", href: "/email-list" },
   { label: "Memberships", href: "/memberships" },
   { label: "Lyric Video", href: "/lyric-video" },
+=======
+  { label: "Distribute", href: "/distribute" },
+>>>>>>> tmp-7
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

@@ -64,7 +64,11 @@ import lyricVideoRouter from "./generate/lyric-video";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
+<<<<<<< HEAD
 import membershipsRouter from "./generate/memberships";
+=======
+import distributionRouter from "./generate/distribution";
+>>>>>>> tmp-7
 
 const router: IRouter = Router();
 
@@ -133,6 +137,10 @@ router.use(lyricVideoRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
+<<<<<<< HEAD
 router.use(membershipsRouter);
+=======
+router.use(distributionRouter);
+>>>>>>> tmp-7
 
 export default router;

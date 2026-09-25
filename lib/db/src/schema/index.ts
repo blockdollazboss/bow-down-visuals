@@ -36,3 +36,4 @@ export * from "./discord";
 export * from "./customer-shops";
 export * from "./email-lists";
 export * from "./fan-memberships";
+export * from "./distribution-releases";
