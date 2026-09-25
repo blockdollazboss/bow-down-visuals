@@ -269,8 +269,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           resolution: clipRes,
         }),
       });
-      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
-      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
+      const data = await res.json() as { taskId?: string; error?: string; message?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
+      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? `Runway API error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
       setTaskId(data.taskId);
@@ -311,10 +311,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const hasArtist = !!artistVault;
   const willChain = hasUsableClip(previousClipUrl);
 
-  /* Site-credit cost for the current picker selection. The per-second rate
-     must match the server's SEEDANCE_CREDITS_PER_SEC default (2). */
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT = 2;
-  const clipCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT : 5;
+  /* Site-credit cost for the current picker selection. The per-second rates
+     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 3;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 6;
+  const clipCost = clipModel === "seedance2_5"
+    ? clipDuration * (clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
+    : 5;
   const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 
   /* Human-readable label for whichever reference the last/next generation used or will use. */
