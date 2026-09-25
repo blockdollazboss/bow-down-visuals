@@ -9,6 +9,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Copyright Filing Assistant ────────────────────────────────────────────
    AI-powered guided page for U.S. copyright registration prep (music creators).
@@ -91,6 +92,7 @@ function uid(): string {
 }
 
 export default function CopyrightAssistant() {
+  usePageTitle("Copyright Assistant", "Protect your music — guided copyright registration help for creators.");
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* ── free guided form ── */

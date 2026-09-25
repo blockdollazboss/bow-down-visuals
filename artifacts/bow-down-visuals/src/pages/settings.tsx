@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { Link, useSearch } from "wouter";
-import { ArrowLeft, Settings as SettingsIcon, Sparkles } from "lucide-react";
+import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { useToast } from "@/hooks/use-toast";
-import { requestOnboardingTour } from "@/lib/onboarding";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* Account settings. The social OAuth callbacks redirect here with
    ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
@@ -49,6 +49,7 @@ const SOCIAL_MESSAGES: Record<string, { title: string; description: string; dest
 };
 
 export default function Settings() {
+  usePageTitle("Settings", "Manage your account, preferences, and connected accounts.");
   const search = useSearch();
   const { toast } = useToast();
 
@@ -96,30 +97,6 @@ export default function Settings() {
         </div>
 
         <ConnectedAccounts />
-
-        {/* Walkthrough replay */}
-        <section className="rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.08] to-transparent p-5 md:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Guided walkthrough</h2>
-                <p className="text-sm text-white/40 mt-0.5">
-                  Replay the first-visit tour of credits, tools, and the editor.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={requestOnboardingTour}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-black transition hover:brightness-110"
-            >
-              <Sparkles className="h-4 w-4" /> Replay tour
-            </button>
-          </div>
-        </section>
 
         <DiscordWebhookSettings />
       </div>

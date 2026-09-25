@@ -15,6 +15,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -106,6 +107,7 @@ function StyledSelect({
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeSong() {
+  usePageTitle("Make a Song", "Generate full songs with AI — lyrics, melody, and production in minutes.");
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
@@ -173,7 +175,7 @@ export default function MakeSong() {
     <div className="min-h-screen bg-black text-white">
 
       {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 

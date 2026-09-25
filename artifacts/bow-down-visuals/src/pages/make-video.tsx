@@ -30,6 +30,7 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -197,6 +198,7 @@ const SECTION_META: Record<string, { label: string; icon: React.ElementType }> =
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeVideo() {
+  usePageTitle("Make a Music Video", "Turn your song into a cinematic music video with AI scene generation.");
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
@@ -784,7 +786,7 @@ export default function MakeVideo() {
   return (
     <div className="min-h-screen bg-black text-white">
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 

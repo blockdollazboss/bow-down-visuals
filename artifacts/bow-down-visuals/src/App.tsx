@@ -114,7 +114,6 @@ const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const Join = lazyWithRetry(() => import("@/pages/join"));
-
 /**
  * lazy() with a retry for chunk-load failures.
  *
@@ -353,8 +352,7 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
-                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
-                <Route component={NotFound} />
+                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>                <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
           </Route>

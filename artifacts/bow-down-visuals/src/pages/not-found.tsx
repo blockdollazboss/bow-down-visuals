@@ -2,14 +2,16 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Home, FolderOpen } from "lucide-react";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function NotFound() {
+  usePageTitle("Page Not Found", "This page doesn't exist — let's get you back to creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-black text-white px-5">
       {/* Ambient gold glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-yellow-600/10 rounded-full blur-[120px]" />
       </div>
 

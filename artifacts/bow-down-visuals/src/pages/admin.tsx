@@ -3,8 +3,10 @@ import { Link } from "wouter";
 import { Loader2, Coins, ShieldCheck, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function AdminPage() {
+  usePageTitle("Admin", "Site administration.");
   const { getAccessToken, profile, refreshProfile } = useAuth();
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
