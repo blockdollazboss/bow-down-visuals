@@ -615,10 +615,10 @@ html {
   .animate-bd-spotlight,
   .animate-bd-dust,
   .animate-bd-curtain,
-.pixel-blink,
+  .pixel-blink,
   .pixel-coin-burst,
-  .pixel-overlay-pop {
-.animate-bd-carpet-sheen {
+  .pixel-overlay-pop,
+  .animate-bd-carpet-sheen {
     animation: none;
   }
 }
