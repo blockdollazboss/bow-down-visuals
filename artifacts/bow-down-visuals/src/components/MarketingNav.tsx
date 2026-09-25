@@ -27,10 +27,14 @@ const NAV_LINKS = [
   { label: "Rate Calculator", href: "/brand-calculator" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Scheduler", href: "/scheduler" },
-  { label: "Tip Jar", href: "/tips" },  { label: "Tour Planner", href: "/tour" },  { label: "Tools", href: "/dashboard" },  { label: "Setlist Builder", href: "/setlist" },
-  { label: "Tools", href: "/dashboard" },  { label: "Waitlist", href: "/waitlist" },  { label: "Interview Prep", href: "/interview-prep" },
+  { label: "Tip Jar", href: "/tips" },
+  { label: "Tour Planner", href: "/tour" },
+  { label: "Setlist Builder", href: "/setlist" },
+  { label: "Interview Prep", href: "/interview-prep" },
+  { label: "Media Importer", href: "/import" },
   { label: "Tools", href: "/dashboard" },
-  { label: "Waitlist", href: "/waitlist" },];
+  { label: "Waitlist", href: "/waitlist" },
+];
 
 const DESKTOP_LINK =
   "lux-nav-link px-3.5 py-1.5 rounded-lg text-sm font-medium text-white/45 hover:text-white hover:bg-white/[0.04] transition-colors";

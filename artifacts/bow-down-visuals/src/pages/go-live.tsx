@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Go Live — Discord stream dashboard ──────────────────────────────────
    The user's community hub is their Discord server (they stream via Go Live).
@@ -38,6 +39,7 @@ interface Stream {
 }
 
 export default function GoLive() {
+  usePageTitle("Go Live", "Stream dashboard — announce your Discord streams and hype your community.");
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
   const [status, setStatus] = useState<DiscordStatus | null>(null);

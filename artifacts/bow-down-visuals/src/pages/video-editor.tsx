@@ -144,6 +144,7 @@ function canAutoPiP(v: HTMLVideoElement | null | undefined): v is HTMLVideoEleme
 }
 
 export default function VideoEditor() {
+  usePageTitle("Video Editor", "Professional video editor — cut, caption, and polish your content.");
   const search = useSearch();
   const projectId = new URLSearchParams(search).get("project");
   const { user, getAccessToken } = useAuth();
@@ -1513,6 +1514,7 @@ function MasterVideoElement({
 
 /* ── Caption overlay style builder ── */
 import type { CaptionSettings } from "@/lib/editor-settings";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 function buildCaptionOverlayStyle(cs: CaptionSettings): {
   containerStyle: React.CSSProperties;

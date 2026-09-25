@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -48,6 +49,7 @@ interface RecentSting {
 }
 
 export default function IntrosOutros() {
+  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");

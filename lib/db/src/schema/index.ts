@@ -18,6 +18,7 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./stripe-payments";
+export * from "./social-stat-snapshots";
 export * from "./credit-usage";
 export * from "./artist-vaults";
 export * from "./generated-clips";
@@ -49,4 +50,6 @@ export * from "./fan-shoutouts";
 export * from "./collab";
 export * from "./email-lists";
 export * from "./royalties";
-export * from "./cheat-code-events";export * from "./tour";
+export * from "./cheat-code-events";
+export * from "./tour";
+export * from "./preproduction-packs";

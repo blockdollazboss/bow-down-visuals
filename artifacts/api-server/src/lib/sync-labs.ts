@@ -74,7 +74,7 @@ export function getSyncLabsBase(): string {
 // lipsync-2 is the current-gen model (same input shape); override via env if needed.
 export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "lipsync-2";
 const SYNC_POLL_INTERVAL_MS = 5_000;
-const SYNC_MAX_POLLS = 72; // 72 × 5s = 6 minutes max
+const SYNC_MAX_POLLS = 144; // 144 × 5s = 12 minutes max — provider queues can be slow; the client recovers directly past this
 
 export interface SyncLabsJob {
   id: string;
