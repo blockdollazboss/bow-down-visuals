@@ -36,6 +36,7 @@ const NAV_LINKS = [
   { label: "Community", href: "/community" },
   { label: "Memberships", href: "/memberships" },
   { label: "Press Kits", href: "/press-kit" },
+  { label: "Translate", href: "/translate" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
