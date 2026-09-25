@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Dices } from "lucide-react";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -13,6 +13,32 @@ const QUICK_PROMPTS = [
   "What can this site build?",
   "How do credits work?",
   "How much does a song cost?",
+];
+
+/* Curated starter prompts for the 🎲 Surprise me button — spans video ideas,
+   hooks, thumbnails, pricing/credits questions, and workflows. Pure
+   client-side: the pick is sent as the user's chat message. */
+const SURPRISE_PROMPTS = [
+  "Give me a random video idea for my next release",
+  "What's a killer hook for a TikTok promo clip?",
+  "How do credits work on this site?",
+  "How much does a song cost to make?",
+  "Give me a thumbnail concept for a music video",
+  "Walk me through making a music video here",
+  "Give me a random song concept to write about",
+  "What's the cheapest way to promote my music here?",
+  "Give me a content challenge for this week",
+  "How does the Artist Vault work?",
+  "Give me a random niche I could own as a creator",
+  "What does a promo clip cost in credits?",
+  "Give me 3 opening lines for my next video",
+  "How do I lock my artist's voice for songs?",
+  "Surprise me with a thumbnail idea",
+  "What's the fastest workflow from song to finished video?",
+  "Give me a random video idea — make it weird",
+  "How do lip-sync videos work here?",
+  "What can I build with 10 credits?",
+  "Give me a hook idea for a behind-the-scenes clip",
 ];
 
 const GREETING: ChatMessage = {
@@ -89,6 +115,18 @@ export function AiChatWidget() {
               <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
               <p className="text-[11px] text-neutral-400">AI assistant — ask me about the site</p>
             </div>
+            <button
+              onClick={() => {
+                const pick = SURPRISE_PROMPTS[Math.floor(Math.random() * SURPRISE_PROMPTS.length)];
+                send(pick);
+              }}
+              disabled={loading}
+              aria-label="Surprise me with a random question"
+              title="Surprise me 🎲"
+              className="rounded-full p-1.5 text-primary/80 transition hover:bg-primary/15 hover:text-primary disabled:opacity-40"
+            >
+              <Dices className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setOpen(false)}
               aria-label="Close chat"
