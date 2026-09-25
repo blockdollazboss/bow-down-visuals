@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { buildArtistImagePrompt, ARTIST_IMAGE_MODELS, ARTIST_IMAGE_RATIOS } from "./generate-artist-image";
+import {
+  buildArtistImagePrompt,
+  ARTIST_IMAGE_MODELS,
+  ARTIST_IMAGE_RATIOS,
+  SHOOT_POSES,
+  SHOOT_OUTFITS,
+  SHOOT_BACKGROUNDS,
+  composePhotoShootBrief,
+} from "./generate-artist-image";
 
 const base = {
   visualStyle: "",
@@ -55,5 +63,28 @@ describe("artist image model catalog", () => {
 
   it("offers portrait, square, and landscape ratios with portrait first", () => {
     expect(ARTIST_IMAGE_RATIOS.map((r) => r.id)).toEqual(["1080:1920", "1080:1080", "1920:1080"]);
+  });
+});
+
+describe("photo shoot presets", () => {
+  it("offers 4 poses, 6 wardrobe presets, and 4 backdrops", () => {
+    expect(SHOOT_POSES.map((p) => p.label)).toEqual(["Portrait", "Full body", "Throne pose", "Action"]);
+    expect(SHOOT_OUTFITS).toHaveLength(6);
+    expect(SHOOT_BACKGROUNDS.map((b) => b.label)).toEqual(["Keep as reference", "Studio", "Stage", "Throne room"]);
+  });
+
+  it("composes a brief from pose, outfit, and backdrop", () => {
+    const brief = composePhotoShootBrief("throne", "black streetwear", "in a studio");
+    expect(brief).toContain("seated on a golden throne");
+    expect(brief).toContain("wearing black streetwear");
+    expect(brief).toContain("in a studio");
+    expect(brief).toContain("Photorealistic");
+  });
+
+  it("falls back to the first pose for an unknown pose id and skips an empty outfit", () => {
+    const brief = composePhotoShootBrief("nope", "  ", "on a stage");
+    expect(brief).toContain("upper-body portrait");
+    expect(brief).not.toContain("wearing .");
+    expect(brief).toContain("on a stage");
   });
 });

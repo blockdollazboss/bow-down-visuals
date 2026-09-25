@@ -49,3 +49,42 @@ export function buildArtistImagePrompt(v: ArtistProfileFormLike): string {
   if (v.doNotChangeRules) p += ` Strict rules: ${v.doNotChangeRules}`;
   return p.slice(0, 900);
 }
+
+/* ── Photo Shoot mode: identity-locked outfit/pose/backdrop variations ── */
+
+export interface ShootPose { id: string; label: string; fragment: string }
+export interface ShootPreset { label: string; text: string }
+
+export const SHOOT_POSES: ShootPose[] = [
+  { id: "portrait", label: "Portrait", fragment: "upper-body portrait, looking directly at camera" },
+  { id: "fullbody", label: "Full body", fragment: "full-body shot, head to toe, confident stance" },
+  { id: "throne", label: "Throne pose", fragment: "seated on a golden throne, powerful regal pose" },
+  { id: "action", label: "Action", fragment: "dynamic action pose, mid-movement, dramatic energy" },
+];
+
+export const SHOOT_OUTFITS: ShootPreset[] = [
+  { label: "Signature gold robe", text: "signature dark robe with gold trim, gold bead necklace with fish-skeleton pendant, gold crown" },
+  { label: "Black streetwear", text: "black streetwear — oversized black hoodie, black cargo pants, chunky gold chain" },
+  { label: "Gold-trimmed suit", text: "tailored black suit with gold trim, gold pocket square, luxury watch" },
+  { label: "Stage performer", text: "stage performer outfit — black leather jacket with gold embroidery, dark jeans, boots" },
+  { label: "Casual luxury", text: "casual luxury — cream knit sweater, gold bracelets, designer sunglasses" },
+  { label: "Red-carpet", text: "red-carpet look — all-black tuxedo with gold lapel pin, polished shoes" },
+];
+
+export const SHOOT_BACKGROUNDS: ShootPreset[] = [
+  { label: "Keep as reference", text: "same setting and background as the reference photo" },
+  { label: "Studio", text: "in a professional photo studio with a dark backdrop and softbox lighting" },
+  { label: "Stage", text: "on a concert stage with dramatic spotlights and crowd bokeh" },
+  { label: "Throne room", text: "in a golden throne room, opulent palace interior" },
+];
+
+/** Composes the photo-shoot brief from the selected pose, outfit, and backdrop. */
+export function composePhotoShootBrief(poseId: string, outfit: string, background: string): string {
+  const pose = SHOOT_POSES.find((p) => p.id === poseId) ?? SHOOT_POSES[0];
+  const parts = [
+    `Professional photo shoot photograph, ${pose.fragment}`,
+    outfit.trim() ? `wearing ${outfit.trim()}` : null,
+    background.trim() || null,
+  ].filter(Boolean);
+  return `${parts.join(". ")}. Photorealistic, ultra detailed, sharp focus, cinematic lighting.`;
+}

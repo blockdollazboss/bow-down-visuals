@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
-  Lock, Copy, Sparkles, User, Video, Zap, Film,
+  Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
 } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +17,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
-import { GenerateArtistImageModal } from "@/components/GenerateArtistImageModal";
+import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
@@ -947,6 +947,7 @@ export default function ArtistVault() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [showGenModal, setShowGenModal] = useState(false);
+  const [genModalMode, setGenModalMode] = useState<ArtistImageModalMode>("generate");
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
@@ -1204,12 +1205,15 @@ export default function ArtistVault() {
       <GenerateArtistImageModal
         open={showGenModal}
         onClose={() => setShowGenModal(false)}
-        onGenerated={(url, path) => {
-          setPhotoUrl(url);
-          setPhotoPath(path);
-          setPhotoError(null);
-          setShowGenModal(false);
-        }}
+        mode={genModalMode}
+        onGenerated={genModalMode === "photoshoot"
+          ? () => { /* shoot results stay in the modal's gallery; identity photo untouched */ }
+          : (url, path) => {
+            setPhotoUrl(url);
+            setPhotoPath(path);
+            setPhotoError(null);
+            setShowGenModal(false);
+          }}
         initialPrompt={buildArtistImagePrompt(watch())}
         hasReferencePhoto={!!photoUrl}
         referenceImageUrl={photoUrl}
@@ -1399,11 +1403,20 @@ export default function ArtistVault() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setShowGenModal(true)}
+                      onClick={() => { setGenModalMode("generate"); setShowGenModal(true); }}
                       data-testid="btn-generate-artist-image"
                       className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors"
                     >
                       <Sparkles className="h-4 w-4" /> Generate with AI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setGenModalMode("photoshoot"); setShowGenModal(true); }}
+                      data-testid="btn-artist-photo-shoot"
+                      title={photoUrl ? "Photo shoot with your locked identity — change outfits, keep the face" : "Save an Artist Photo first to unlock photo shoots"}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-black bg-primary hover:brightness-110 transition-all gold-glow"
+                    >
+                      <Camera className="h-4 w-4" /> Photo Shoot
                     </button>
                   </div>
                   {photoError && <p className="text-xs text-red-400">{photoError}</p>}
