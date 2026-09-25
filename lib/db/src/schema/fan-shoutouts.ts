@@ -6,7 +6,7 @@ import { pgTable, uuid, text, timestamp, integer, uniqueIndex, index } from "dri
    "pending_payment" and no money moves until payment integration ships.
    The UI and API never fake a transaction (status is never "paid" or
    "completed" in v1). A 10% platform fee is recorded as intent only.
-   See migrations/0009_fan_shoutouts.sql — the schema here must stay in
+   See migrations/0020_fan_shoutouts.sql — the schema here must stay in
    sync with it so boot-time `drizzle-kit push` matches the migration. */
 
 export const shoutoutSettingsTable = pgTable(

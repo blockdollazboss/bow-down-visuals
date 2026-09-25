@@ -5,7 +5,7 @@ import { pgTable, uuid, text, timestamp, integer, jsonb, index, uniqueIndex } fr
    processing is "coming soon" — the members table tracks manual/imported
    subscribers until Stripe billing lands. Never fake a transaction.
    Platform fee (10%) is recorded as intent on tiers; no money moves in v1.
-   See migrations/0008_fan_memberships.sql — the schema here must stay in
+   See migrations/0016_fan_memberships.sql — the schema here must stay in
    sync with it so boot-time `drizzle-kit push` matches the migration. */
 
 export const fanTiersTable = pgTable(

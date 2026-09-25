@@ -32,7 +32,7 @@ import {
  *
  * user_id references the Supabase auth user (no DB-level FK: auth lives in
  * Supabase, this table in Render Postgres). See
- * migrations/0009_content_scheduler.sql — the schema here must stay in
+ * migrations/0019_content_scheduler.sql — the schema here must stay in
  * sync with it so boot-time `drizzle-kit push` matches the migration. */
 
 export type ScheduledPostStatus =
