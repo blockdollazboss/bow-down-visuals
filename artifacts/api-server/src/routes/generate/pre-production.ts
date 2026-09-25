@@ -115,7 +115,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
       response_format: { type: "json_object" },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -165,7 +165,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
     const completion = await getOpenAI().chat.completions.create({
       model: getTextModel(),
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
       response_format: { type: "json_object" },
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";

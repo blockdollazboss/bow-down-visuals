@@ -150,7 +150,7 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 4500,
+      max_completion_tokens: 4500,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";

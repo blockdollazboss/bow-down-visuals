@@ -166,7 +166,7 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 4000,
+      max_completion_tokens: 4000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";

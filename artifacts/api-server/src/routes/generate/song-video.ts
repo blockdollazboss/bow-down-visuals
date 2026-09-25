@@ -238,7 +238,7 @@ Master exclusion list for all AI generations.
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 6000,
+      max_completion_tokens: 6000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
