@@ -28,6 +28,7 @@ const dbState = vi.hoisted(() => ({
   authedUserId: "user-1",
   cryptoReady: true,
   savedCiphertext: "",
+  credits: 10,
 }));
 
 const fetchState = vi.hoisted(() => ({
@@ -42,6 +43,7 @@ vi.mock("../../middlewares/require-auth", () => ({
       return;
     }
     req.userId = dbState.authedUserId;
+    req.userCredits = dbState.credits;
     next();
   },
 }));
@@ -61,6 +63,39 @@ vi.mock("../../lib/social-crypto", () => ({
 
 vi.mock("../../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+const creditsState = vi.hoisted(() => ({
+  charged: [] as Array<{ userId: string; amount: number }>,
+  refunded: [] as Array<{ userId: string; amount: number }>,
+  chargeImpl: null as null | ((userId: string, amount: number) => Promise<number>),
+}));
+
+vi.mock("../../lib/credits", () => ({
+  chargeCredits: vi.fn((userId: string, amount: number) => {
+    if (creditsState.chargeImpl) return creditsState.chargeImpl(userId, amount);
+    creditsState.charged.push({ userId, amount });
+    return Promise.resolve(dbState.credits - amount);
+  }),
+  refundCredits: vi.fn((userId: string, amount: number) => {
+    creditsState.refunded.push({ userId, amount });
+    return Promise.resolve();
+  }),
+  OutOfCreditsError: class OutOfCreditsError extends Error {},
+  LedgerWriteError: class LedgerWriteError extends Error {},
+}));
+
+const aiState = vi.hoisted(() => ({
+  create: vi.fn(),
+}));
+
+vi.mock("../../lib/ai-clients", () => ({
+  getOpenAI: () => ({ chat: { completions: { create: aiState.create } } }),
+  getTextModel: () => "gpt-6-sol-test",
+}));
+
+vi.mock("../../lib/rate-limit", () => ({
+  publicApiLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 vi.mock("@workspace/db", () => {
@@ -169,8 +204,25 @@ beforeEach(() => {
   dbState.authedUserId = "user-1";
   dbState.cryptoReady = true;
   dbState.savedCiphertext = "";
+  dbState.credits = 10;
+  creditsState.charged = [];
+  creditsState.refunded = [];
+  creditsState.chargeImpl = null;
   fetchState.calls = [];
   fetchState.nextStatus = 204;
+  aiState.create.mockReset();
+  aiState.create.mockResolvedValue({
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            title: "🔴 LIVE NOW — Friday Beat Night",
+            message: "The King Shark is live! Beat-making, vibes, and gold. Pull up 🦈",
+          }),
+        },
+      },
+    ],
+  });
 });
 
 afterEach(() => {
@@ -312,13 +364,112 @@ describe("POST /discord/announce", () => {
     expect(json.error).toMatch(/deleted/);
   });
 
-  it("announcing is free — no credit deduction path exists", async () => {
-    // The announce handler never imports the credits module; assert the
-    // route file has no charge/deduct reference (regression guard).
+  it("announcing stays free — only the AI assistant path may charge", async () => {
+    // Posting to Discord is pure integration (free). The AI announcement
+    // assistant is the single paid endpoint in this file (1 credit, refunded
+    // on failure). Split the source at the paid section marker to keep the
+    // free-half guarantee precise instead of file-wide.
     const src = await import("node:fs").then((fs) =>
       fs.readFileSync(new URL("../discord.ts", import.meta.url), "utf8"),
     );
-    expect(src).not.toMatch(/chargeCredits|deductCredits|OutOfCredits/);
+    const freeMarker = "/* ── Announce (free — pure integration, no AI compute)";
+    const paidMarker = "/* ── AI announcement assistant (paid";
+    const freeIdx = src.indexOf(freeMarker);
+    const paidIdx = src.indexOf(paidMarker);
+    expect(freeIdx).toBeGreaterThan(-1);
+    expect(paidIdx).toBeGreaterThan(freeIdx);
+    // The announce handler block itself must never touch the credit ledger
+    // (imports at the top legitimately name the credits module for the paid
+    // endpoint below).
+    const announceBlock = src.slice(freeIdx, paidIdx);
+    expect(announceBlock).not.toMatch(/chargeCredits|deductCredits|OutOfCredits/);
+    // The paid path must charge and must refund when the model fails —
+    // money back if the user got no announcement copy.
+    const paidBlock = src.slice(paidIdx);
+    expect(paidBlock).toMatch(/chargeCredits/);
+    expect(paidBlock).toMatch(/refundCredits/);
+  });
+});
+
+describe("POST /discord/ai-announcement", () => {
+  it("402s when out of credits and charges nothing", async () => {
+    dbState.credits = 0;
+    const { status, json } = await post("/discord/ai-announcement", {
+      type: "live",
+      topic: "beat night",
+    });
+    expect(status).toBe(402);
+    expect(json.error).toBe("out_of_credits");
+    expect(creditsState.charged).toHaveLength(0);
+    expect(aiState.create).not.toHaveBeenCalled();
+  });
+
+  it("402s when the charge itself hits OutOfCreditsError", async () => {
+    const { OutOfCreditsError } = await import("../../lib/credits");
+    creditsState.chargeImpl = () =>
+      Promise.reject(new (OutOfCreditsError as new () => Error)());
+    const { status, json } = await post("/discord/ai-announcement", {
+      type: "video",
+      topic: "new drop",
+    });
+    expect(status).toBe(402);
+    expect(json.error).toBe("out_of_credits");
+    expect(aiState.create).not.toHaveBeenCalled();
+  });
+
+  it("400s on missing topic and on an invalid type", async () => {
+    const missing = await post("/discord/ai-announcement", { type: "live" });
+    expect(missing.status).toBe(400);
+    const badType = await post("/discord/ai-announcement", { type: "party", topic: "x" });
+    expect(badType.status).toBe(400);
+    // Bad input never touches the credit ledger or the model.
+    expect(creditsState.charged).toHaveLength(0);
+    expect(aiState.create).not.toHaveBeenCalled();
+  });
+
+  it("generates a title + message for 1 credit", async () => {
+    const { status, json } = await post("/discord/ai-announcement", {
+      type: "live",
+      topic: "Friday beat-making stream",
+      game: "Studio session",
+    });
+    expect(status).toBe(200);
+    expect(json.title).toContain("LIVE NOW");
+    expect(json.message).toContain("live");
+    expect(json.creditsUsed).toBe(1);
+    expect(json.creditsRemaining).toBe(9);
+    expect(creditsState.charged).toEqual([{ userId: "user-1", amount: 1 }]);
+    // Uses the centralized text model (mocked) — never a hardcoded model id.
+    expect(aiState.create.mock.calls[0][0].model).toBe("gpt-6-sol-test");
+  });
+
+  it("refunds the credit when the provider fails", async () => {
+    aiState.create.mockRejectedValueOnce(new Error("provider exploded"));
+    const { status, json } = await post("/discord/ai-announcement", {
+      type: "schedule",
+      topic: "album listening party",
+    });
+    expect(status).toBe(502);
+    expect(json.error).toMatch(/refunded/);
+    expect(creditsState.charged).toHaveLength(1);
+    expect(creditsState.refunded).toEqual([{ userId: "user-1", amount: 1 }]);
+  });
+
+  it("refunds when the model returns unusable output", async () => {
+    aiState.create.mockResolvedValueOnce({ choices: [{ message: { content: "{}" } }] });
+    const { status } = await post("/discord/ai-announcement", {
+      type: "live",
+      topic: "x",
+    });
+    expect(status).toBe(502);
+    expect(creditsState.charged).toHaveLength(1);
+    expect(creditsState.refunded).toHaveLength(1);
+  });
+
+  it("requires auth", async () => {
+    dbState.authedUserId = "";
+    const { status } = await post("/discord/ai-announcement", { type: "live", topic: "x" });
+    expect(status).toBe(401);
   });
 });
 
