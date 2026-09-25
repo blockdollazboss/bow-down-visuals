@@ -41,6 +41,7 @@ const Signup        = lazyWithRetry(() => import("@/pages/signup"));
 const NotFound      = lazyWithRetry(() => import("@/pages/not-found"));
 const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
 const MyClips       = lazyWithRetry(() => import("@/pages/my-clips"));
+const Admin         = lazyWithRetry(() => import("@/pages/admin"));
 const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
@@ -178,6 +179,7 @@ function AppShell() {
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
           <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
           <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
+          <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
 
           <Route component={NotFound} />
         </Switch>
