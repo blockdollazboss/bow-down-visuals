@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { label: "Hook Studio", href: "/hooks" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Title Studio", href: "/titles" },
+  { label: "Voiceover", href: "/voiceover" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Distribute", href: "/distribute" },
