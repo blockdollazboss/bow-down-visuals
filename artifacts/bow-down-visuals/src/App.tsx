@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
@@ -214,6 +215,7 @@ function AppShell() {
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/go-live"><GoLive /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
