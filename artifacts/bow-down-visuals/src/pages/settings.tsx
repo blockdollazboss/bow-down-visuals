@@ -4,16 +4,34 @@ import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { useToast } from "@/hooks/use-toast";
 
-/* Account settings. The Instagram OAuth callback redirects here with
-   ?social=instagram_connected (or ?social=error&reason=...). */
+/* Account settings. The social OAuth callbacks redirect here with
+   ?social=instagram_connected / ?social=facebook_connected
+   (or ?social=error&reason=...). */
+
+const REASON_MESSAGES: Record<string, string> = {
+  oauth_failed:
+    "Instagram refused the connection — check the account is Business/Creator and linked to a Facebook Page.",
+  facebook_oauth_failed:
+    "Facebook refused the connection — try again, or reconnect from a browser where you're logged into Facebook.",
+  facebook_no_pages:
+    "No Facebook Pages were found on that account — create a Page first, then connect.",
+  facebook_bad_state:
+    "The login session expired before Facebook finished. Try connecting again.",
+  facebook_missing_params:
+    "Facebook didn't send back a complete response. Try connecting again.",
+};
 
 const SOCIAL_MESSAGES: Record<string, { title: string; description: string; destructive?: boolean }> = {
   instagram_connected: {
     title: "Instagram connected",
     description: "Your account is ready — post exports straight to Reels.",
   },
+  facebook_connected: {
+    title: "Facebook connected",
+    description: "Your Pages are ready — post exports straight to Facebook as Reels.",
+  },
   error: {
-    title: "Instagram connection failed",
+    title: "Connection failed",
     description: "The connection didn't complete. Try again.",
     destructive: true,
   },
@@ -29,12 +47,10 @@ export default function Settings() {
     if (!social) return;
     const msg = SOCIAL_MESSAGES[social] ?? SOCIAL_MESSAGES["error"];
     if (msg) {
+      const reason = params.get("reason") ?? "";
       toast({
         title: msg.title,
-        description:
-          social === "error" && params.get("reason") === "oauth_failed"
-            ? "Instagram refused the connection — check the account is Business/Creator and linked to a Facebook Page."
-            : msg.description,
+        description: REASON_MESSAGES[reason] ?? msg.description,
         variant: msg.destructive ? "destructive" : "default",
       });
     }

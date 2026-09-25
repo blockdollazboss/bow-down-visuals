@@ -5,11 +5,13 @@ import {
   Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
+import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
+import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
@@ -316,6 +318,7 @@ export function FinalVideoExport({
   const [progressStep, setProgressStep] = useState<string>("");
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showFacebookPostModal, setShowFacebookPostModal] = useState(false);
   const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
@@ -712,7 +715,7 @@ export function FinalVideoExport({
               <p className="text-[11px] text-white/40 leading-relaxed">
                 Share it and tag <span className="text-primary font-bold">@bowdownvisuals</span> for a chance to be featured.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={async () => {
@@ -732,6 +735,26 @@ export function FinalVideoExport({
                 >
                   <InstagramIcon className="h-3.5 w-3.5" />
                   Post to Instagram
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const fresh = await reloadSocialAccounts();
+                    const fb = fresh.find((a) => a.platform === "facebook" && !a.expired);
+                    if (!fb) {
+                      toast({
+                        title: "Connect Facebook first",
+                        description: "Head to Settings → Connected Accounts, then post in one tap.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    setShowFacebookPostModal(true);
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#1877F2]/40 bg-[#1877F2]/[0.08] text-[#6ea8fe] hover:bg-[#1877F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <FacebookIcon className="h-3.5 w-3.5" />
+                  Post to Facebook
                 </button>
                 <button
                   type="button"
@@ -763,6 +786,15 @@ export function FinalVideoExport({
             onClose={() => setShowPostModal(false)}
             videoUrl={exportUrl}
             accounts={socialAccounts}
+          />
+        )}
+
+        {showFacebookPostModal && exportUrl && (
+          <FacebookPostModal
+            open={showFacebookPostModal}
+            onClose={() => setShowFacebookPostModal(false)}
+            videoUrl={exportUrl}
+            accounts={socialAccounts.filter((a) => a.platform === "facebook")}
           />
         )}
 
