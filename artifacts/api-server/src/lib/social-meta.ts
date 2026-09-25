@@ -1,12 +1,18 @@
 import { logger } from "./logger";
 
-/* Thin Meta Graph API client for the Instagram auto-post MVP.
+/* Thin Instagram Platform API client for the Instagram auto-post MVP.
+   Uses Instagram Login (instagram.com/oauth/authorize) — the auth flow Meta
+   requires for newly created apps. No Facebook Page is involved: the token
+   exchange returns the Instagram user ID directly, and publishing goes to
+   graph.instagram.com with the same long-lived user token.
    All functions take an optional `fetchImpl` so tests can inject a mock —
    production call sites omit it and use the global fetch.
    No tokens are ever logged here; error messages are sanitized. */
 
 const GRAPH_VERSION = "v21.0";
-const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const GRAPH = `https://graph.instagram.com/${GRAPH_VERSION}`;
+const OAUTH_AUTHORIZE = "https://www.instagram.com/oauth/authorize";
+const OAUTH_TOKEN = "https://api.instagram.com/oauth/access_token";
 
 export type FetchImpl = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -76,82 +82,182 @@ async function graphPost<T>(
   return body as T;
 }
 
+/* Facebook Graph API base — separate from the Instagram base above, because
+   Facebook Pages calls must go to graph.facebook.com, not graph.instagram.com. */
+const GRAPH_FB = `https://graph.facebook.com/${GRAPH_VERSION}`;
+
+/** Same contract as graphGet, but against the Facebook Graph API (Pages).
+   Errors get the Facebook-flavored user message. */
+async function graphFacebookGet<T>(
+  path: string,
+  params: Record<string, string>,
+  fetchImpl: FetchImpl,
+): Promise<T> {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetchImpl(`${GRAPH_FB}${path}?${qs}`);
+  const body = (await res.json().catch(() => ({}))) as MetaErrorBody & T;
+  if (!res.ok || body.error) {
+    const code = body.error?.code;
+    const msg = body.error?.message ?? `HTTP ${res.status}`;
+    logger.warn({ path, metaCode: code }, "[social-meta] Facebook Graph API error");
+    throw new MetaApiError(userMessageForFacebook(code, msg), code, `HTTP ${res.status}`);
+  }
+  return body as T;
+}
+
 export interface MetaOAuthConfig {
-  appId: string;
-  appSecret: string;
+  appId: string; // Instagram app ID (from the Meta app's Instagram product)
+  appSecret: string; // Instagram app secret
   redirectUri: string;
 }
 
-/** Builds the Meta OAuth authorize URL (Facebook Login for Business). */
+/** Facebook OAuth config: the Facebook app ID/secret (META_APP_ID /
+   META_APP_SECRET), NOT the Instagram ones — the two products use different
+   credentials on the same Meta app. */
+export interface FacebookOAuthConfig {
+  appId: string; // Facebook app ID (META_APP_ID)
+  appSecret: string; // Facebook app secret (META_APP_SECRET)
+  redirectUri: string;
+}
+
+interface FacebookCodeExchange {
+  access_token: string;
+  expires_in?: number;
+  token_type?: string;
+}
+
+/** Facebook Login code exchange: code → short-lived user token → 60-day
+   long-lived user token via graph.facebook.com/oauth/access_token with
+   fb_exchange_token. This is the Facebook flow — do NOT reuse the
+   Instagram-only exchangeCodeForLongLivedToken for Facebook callbacks. */
+export async function exchangeFacebookCodeForLongLivedToken(
+  cfg: FacebookOAuthConfig,
+  code: string,
+  fetchImpl: FetchImpl = defaultFetch,
+): Promise<{ accessToken: string; expiresInSec: number }> {
+  const shortQs = new URLSearchParams({
+    client_id: cfg.appId,
+    client_secret: cfg.appSecret,
+    redirect_uri: cfg.redirectUri,
+    code,
+  }).toString();
+  const shortRes = await fetchImpl(`${GRAPH_FB}/oauth/access_token?${shortQs}`);
+  const shortBody = (await shortRes.json().catch(() => ({}))) as MetaErrorBody & FacebookCodeExchange;
+  if (!shortRes.ok || shortBody.error || !shortBody.access_token) {
+    const msg = shortBody.error?.message ?? `HTTP ${shortRes.status}`;
+    logger.warn({ metaCode: shortBody.error?.code }, "[social-meta] Facebook code exchange failed");
+    throw new MetaApiError(userMessageForFacebook(shortBody.error?.code, msg), shortBody.error?.code);
+  }
+
+  const longQs = new URLSearchParams({
+    grant_type: "fb_exchange_token",
+    client_id: cfg.appId,
+    client_secret: cfg.appSecret,
+    fb_exchange_token: shortBody.access_token,
+  }).toString();
+  const longRes = await fetchImpl(`${GRAPH_FB}/oauth/access_token?${longQs}`);
+  const longBody = (await longRes.json().catch(() => ({}))) as MetaErrorBody & FacebookCodeExchange;
+  if (!longRes.ok || longBody.error || !longBody.access_token) {
+    const msg = longBody.error?.message ?? `HTTP ${longRes.status}`;
+    logger.warn({ metaCode: longBody.error?.code }, "[social-meta] Facebook long-lived exchange failed");
+    throw new MetaApiError(userMessageForFacebook(longBody.error?.code, msg), longBody.error?.code);
+  }
+  return {
+    accessToken: longBody.access_token,
+    expiresInSec: longBody.expires_in ?? 60 * 24 * 3600,
+  };
+}
+
+/* Instagram Login authorize URL. `enable_fb_login=0` forces the pure
+   Instagram consent screen instead of routing through Facebook Login. */
 export function buildAuthUrl(cfg: MetaOAuthConfig, state: string): string {
-  const scopes = [
-    "instagram_business_content_publish",
-    "pages_read_engagement",
-    "pages_show_list",
-  ].join(",");
+  const scopes = ["instagram_business_basic", "instagram_business_content_publish"].join(",");
   const qs = new URLSearchParams({
+    enable_fb_login: "0",
     client_id: cfg.appId,
     redirect_uri: cfg.redirectUri,
     scope: scopes,
-    state,
     response_type: "code",
+    state,
   });
-  return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${qs.toString()}`;
+  return `${OAUTH_AUTHORIZE}?${qs.toString()}`;
 }
 
-/** code → short-lived token → 60-day long-lived user token. */
+interface InstagramCodeExchange {
+  access_token: string;
+  user_id?: number | string;
+}
+
+interface InstagramLongLived {
+  access_token: string;
+  expires_in?: number;
+  token_type?: string;
+}
+
+/** code → short-lived token → 60-day long-lived token via Instagram's own
+   OAuth endpoints. Returns the Instagram user ID from the first exchange. */
 export async function exchangeCodeForLongLivedToken(
   cfg: MetaOAuthConfig,
   code: string,
   fetchImpl: FetchImpl = defaultFetch,
-): Promise<{ accessToken: string; expiresInSec: number }> {
-  const short = await graphGet<{ access_token: string }>(
-    "/oauth/access_token",
-    {
+): Promise<{ accessToken: string; expiresInSec: number; igUserId: string }> {
+  const shortRes = await fetchImpl(OAUTH_TOKEN, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
       client_id: cfg.appId,
       client_secret: cfg.appSecret,
+      grant_type: "authorization_code",
       redirect_uri: cfg.redirectUri,
       code,
-    },
-    fetchImpl,
-  );
-  if (!short.access_token) throw new MetaApiError("Instagram login didn't return a token. Try again.");
-  const long = await graphGet<{ access_token: string; expires_in: number }>(
-    "/oauth/access_token",
-    {
-      grant_type: "fb_exchange_token",
-      client_id: cfg.appId,
-      client_secret: cfg.appSecret,
-      fb_exchange_token: short.access_token,
-    },
-    fetchImpl,
-  );
-  if (!long.access_token) throw new MetaApiError("Instagram login didn't return a token. Try again.");
-  return { accessToken: long.access_token, expiresInSec: long.expires_in ?? 60 * 24 * 3600 };
+    }).toString(),
+  });
+  const shortBody = (await shortRes.json().catch(() => ({}))) as MetaErrorBody & InstagramCodeExchange;
+  if (!shortRes.ok || shortBody.error || !shortBody.access_token) {
+    const msg = shortBody.error?.message ?? `HTTP ${shortRes.status}`;
+    logger.warn({ metaCode: shortBody.error?.code }, "[social-meta] Instagram code exchange failed");
+    throw new MetaApiError(userMessageFor(shortBody.error?.code, msg), shortBody.error?.code);
+  }
+  const igUserId = String(shortBody.user_id ?? "");
+  if (!igUserId) throw new MetaApiError("Instagram login didn't return an account. Try again.");
+
+  const longQs = new URLSearchParams({
+    grant_type: "ig_exchange_token",
+    client_secret: cfg.appSecret,
+    access_token: shortBody.access_token,
+  }).toString();
+  const longRes = await fetchImpl(`${GRAPH}/access_token?${longQs}`);
+  const longBody = (await longRes.json().catch(() => ({}))) as MetaErrorBody & InstagramLongLived;
+  if (!longRes.ok || longBody.error || !longBody.access_token) {
+    const msg = longBody.error?.message ?? `HTTP ${longRes.status}`;
+    logger.warn({ metaCode: longBody.error?.code }, "[social-meta] Instagram long-lived exchange failed");
+    throw new MetaApiError(userMessageFor(longBody.error?.code, msg), longBody.error?.code);
+  }
+  return {
+    accessToken: longBody.access_token,
+    expiresInSec: longBody.expires_in ?? 60 * 24 * 3600,
+    igUserId,
+  };
 }
 
-export interface ConnectedPage {
-  pageId: string;
-  pageName: string;
-  pageAccessToken: string;
+
+export interface InstagramProfile {
   igUserId: string;
+  username: string;
 }
 
-/* NOTE: findInstagramPage is defined below in the Facebook Pages section —
-   it is implemented on top of listPages() so both OAuth flows share the
-   Page enumeration. */
-
-export async function fetchInstagramUsername(
-  igUserId: string,
-  pageAccessToken: string,
+/** Resolves the connected Business/Creator account's username. The user ID
+   comes straight from the token exchange — no Facebook Pages lookup needed. */
+export async function fetchInstagramProfile(
+  accessToken: string,
   fetchImpl: FetchImpl = defaultFetch,
-): Promise<string> {
-  const res = await graphGet<{ username?: string }>(
-    `/${igUserId}`,
-    { fields: "username", access_token: pageAccessToken },
+): Promise<InstagramProfile> {
+  const res = await graphGet<{ id?: string | number; username?: string }>(
+    "/me",
+    { fields: "id,username", access_token: accessToken },
     fetchImpl,
   );
-  return res.username ?? "";
+  return { igUserId: String(res.id ?? ""), username: res.username ?? "" };
 }
 
 /* ── Reels publishing ─────────────────────────────────────────────────── */
@@ -297,7 +403,7 @@ export async function listPages(
   longLivedToken: string,
   fetchImpl: FetchImpl = defaultFetch,
 ): Promise<PageConnection[]> {
-  const pages = await graphGet<{ data?: Array<{ id: string; name: string; access_token: string }> }>(
+  const pages = await graphFacebookGet<{ data?: Array<{ id: string; name: string; access_token: string }> }>(
     "/me/accounts",
     { access_token: longLivedToken },
     fetchImpl,
@@ -305,7 +411,7 @@ export async function listPages(
   const out: PageConnection[] = [];
   for (const page of pages.data ?? []) {
     if (!page.access_token) continue;
-    const detail = await graphGet<{ instagram_business_account?: { id: string } }>(
+    const detail = await graphFacebookGet<{ instagram_business_account?: { id: string } }>(
       `/${page.id}`,
       { fields: "instagram_business_account", access_token: longLivedToken },
       fetchImpl,
@@ -321,26 +427,6 @@ export async function listPages(
 }
 
 /** Finds the user's first Page with a linked Instagram Business/Creator account. */
-export async function findInstagramPage(
-  longLivedToken: string,
-  fetchImpl: FetchImpl = defaultFetch,
-): Promise<ConnectedPage> {
-  for (const page of await listPages(longLivedToken, fetchImpl)) {
-    if (page.igUserId) {
-      return {
-        pageId: page.pageId,
-        pageName: page.pageName,
-        pageAccessToken: page.pageAccessToken,
-        igUserId: page.igUserId,
-      };
-    }
-  }
-  throw new MetaApiError(
-    "No Instagram Business or Creator account is linked to your Facebook Pages. " +
-      "Link one in the Instagram app (Settings → Account type and tools), then try again.",
-  );
-}
-
 function userMessageForFacebook(metaCode: number | undefined, metaMessage: string): string {
   if (metaCode === 190) {
     return "Your Facebook connection expired. Reconnect it in Settings → Connected Accounts.";
@@ -419,7 +505,7 @@ export async function publishVideoToPage(
   const videoId = created.id;
 
   for (let i = 0; i < PAGE_POLL_MAX_TRIES; i++) {
-    const res = await graphGet<unknown>(
+    const res = await graphFacebookGet<unknown>(
       `/${videoId}`,
       { fields: "status", access_token: input.accessToken },
       fetchImpl,
@@ -433,7 +519,7 @@ export async function publishVideoToPage(
     await sleep(PAGE_POLL_INTERVAL_MS);
   }
 
-  const permalink = await graphGet<{ permalink_url?: string }>(
+  const permalink = await graphFacebookGet<{ permalink_url?: string }>(
     `/${videoId}`,
     { fields: "permalink_url", access_token: input.accessToken },
     fetchImpl,
