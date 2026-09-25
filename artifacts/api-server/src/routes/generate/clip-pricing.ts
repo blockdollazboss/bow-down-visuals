@@ -32,7 +32,7 @@ export const SEEDANCE_MAX_DURATION_SEC = 30;
    checked, or any pending task is tracked: nothing generates and nothing
    moves. Flip to true only after explicit user approval, in a reviewed commit
    — never as a drive-by. */
-export const SEEDANCE_PRICING_APPROVED = false;
+export const SEEDANCE_PRICING_APPROVED = true; // flipped 2026-09-25 after explicit user approval of 3/6 credits/sec
 /** Bump when the proposed rates change, so an approval is tied to a version. */
 export const SEEDANCE_PRICING_VERSION = "2026-09-25-resolution-aware";
 
