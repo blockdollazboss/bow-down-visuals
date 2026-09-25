@@ -71,6 +71,9 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
+const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
+const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
+const RoyaltyTracker = lazyWithRetry(() => import("@/pages/royalties"));
 const SamplePack = lazyWithRetry(() => import("@/pages/samples"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const TextToSfx = lazyWithRetry(() => import("@/pages/sfx"));
@@ -240,6 +243,9 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
+          <Route path="/press-kit"><ProtectedRoute><PressKitBuilder /></ProtectedRoute></Route>
+          <Route path="/press/:handle"><PublicPressKit /></Route>
+          <Route path="/royalties"><RoyaltyTracker /></Route>
           <Route path="/samples"><SamplePack /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/sfx"><TextToSfx /></Route>
