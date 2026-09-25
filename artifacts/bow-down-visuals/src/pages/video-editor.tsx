@@ -9,6 +9,7 @@ import {
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -61,6 +62,13 @@ import { LipSyncSection } from "@/components/editor/sections/LipSyncSection";
 import { PreProductionSection } from "@/components/editor/sections/PreProductionSection";
 import { TimelineSection } from "@/components/editor/sections/TimelineSection";
 import { StudioEditorSection } from "@/components/editor/sections/StudioEditorSection";
+import { ProToolsSection } from "@/components/editor/sections/ProToolsSection";
+import { ChromaKeyPreview } from "@/components/editor/ChromaKeyPreview";
+import {
+  buildProToolsCssFilter,
+  buildProToolsTransform,
+  buildProToolsClipPath,
+} from "@/lib/pro-tools-preview";
 import { TimelineDock } from "@/components/editor/TimelineDock";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
@@ -75,7 +83,7 @@ import {
   VIDEO_AUDIO_SOURCE_LABELS,
 } from "@/lib/resolve-video-audio-url";
 
-type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production";
+type EditorTab = "clips" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
 
 /* ── CSS filter maps for effects live preview ── */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
@@ -832,6 +840,7 @@ export default function VideoEditor() {
                     { id: "pre-production", label: "Pre-Pro", icon: <BookOpen className="h-5 w-5" />, testId: "rail-pre-production" },
                     { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
+                    { id: "pro-tools", label: "Pro Tools", icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
                   ]
                     .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
@@ -867,6 +876,7 @@ export default function VideoEditor() {
                       "pre-production": "Pre-Pro",
                       export: "Export",
                       studio: "Advanced",
+                      "pro-tools": "Pro Tools",
                     }[tab]}
                   </h2>
                 </div>
@@ -1178,6 +1188,15 @@ export default function VideoEditor() {
                       onGoToMusic={() => setTab("music")}
                       selectedIdx={selectedIdx}
                       setSelectedIdx={setSelectedIdx}
+                    />
+                  )}
+
+                  {tab === "pro-tools" && (
+                    <ProToolsSection
+                      scenes={resolvedScenes}
+                      settings={settings}
+                      setSettings={setSettings}
+                      videoRef={liveVideoRef}
                     />
                   )}
                 </div>
@@ -2259,6 +2278,37 @@ function MasterPreviewPlayer({
 
   const effectsTransform = testEffectActive ? "scale(1.25)" : undefined;
 
+  /* ── Pro Tools live preview (per-clip) ──
+   * Mirrors the server-side buildProToolsFilterChain() so the preview matches
+   * the burned export. Chroma key uses a canvas (CSS can't key a color). */
+  const displayProTools = useMemo(() => {
+    if (!displayScene) return null;
+    return getClipEdit(settings, displayScene.id).proTools;
+  }, [displayScene, settings]);
+
+  const proToolsCssFilter = displayProTools
+    ? buildProToolsCssFilter(displayProTools.colorCorrection)
+    : "";
+  const proToolsTransform = displayProTools
+    ? buildProToolsTransform(displayProTools)
+    : "";
+  const proToolsClipPath = displayProTools
+    ? buildProToolsClipPath(displayProTools, null)
+    : undefined;
+  const chromaActive = displayProTools?.chromaKey.enabled ?? false;
+
+  const combinedCssFilter = [effectsCssFilter, proToolsCssFilter].filter(Boolean).join(" ") || undefined;
+  const combinedTransform = [effectsTransform, proToolsTransform].filter(Boolean).join(" ") || undefined;
+
+  /* Speed preview: match the clip's playback rate on the master player. */
+  useEffect(() => {
+    const v = liveVideoRef.current;
+    if (v && displayProTools) {
+      const rate = Math.min(4, Math.max(0.25, displayProTools.speed || 1));
+      if (v.playbackRate !== rate) v.playbackRate = rate;
+    }
+  }, [displayProTools?.speed, displayScene?.id]);
+
   const overlayColor = testEffectActive
     ? "rgba(220,30,30,0.55)"
     : null;
@@ -2556,18 +2606,32 @@ function MasterPreviewPlayer({
           data-testid="master-player-after-layer"
           style={compareOn ? { clipPath: compareClipPath(comparePos), zIndex: 2 } : { zIndex: 2 }}
         >
-        {/* ── Effects-wrapped video layer — filter + zoom applied here only ── */}
+        {/* ── Effects-wrapped video layer — filter + zoom applied here only.
+            Pro Tools per-clip grade/geometry/crop layer in on top of effects. ── */}
         <div
           className="absolute inset-0"
           style={{
-            filter: effectsCssFilter || undefined,
-            transform: effectsTransform,
+            filter: combinedCssFilter,
+            transform: combinedTransform,
+            clipPath: proToolsClipPath,
             transformOrigin: "center center",
             transition: "filter 0.3s ease, transform 0.4s ease",
             zIndex: 1,
           }}
         >
-          <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          {/* Chroma key preview draws FROM the video element via canvas — the
+              video stays mounted (hidden) as the frame source. */}
+          <div style={{ display: chromaActive ? "none" : undefined, width: "100%", height: "100%" }}>
+            <MasterVideoElement videoRef={liveVideoRef} fitMode={fitMode} />
+          </div>
+          {chromaActive && displayProTools && (
+            <div className="absolute inset-0" style={{ zIndex: 2 }}>
+              <ChromaKeyPreview
+                videoRef={liveVideoRef}
+                settings={displayProTools.chromaKey}
+              />
+            </div>
+          )}
           {/* Outgoing video + CSS transition overlay */}
           <TransitionCompositor
             outgoingVideoRef={outgoingVideoRef}
@@ -2631,6 +2695,17 @@ function MasterPreviewPlayer({
           </div>
         )}
         </div>{/* ── end AFTER layer ── */}
+
+        {/* ── Pro Tools reverse badge — reverse playback can't be previewed in
+            HTML video; the flip happens at export time. ── */}
+        {displayProTools?.reverse && (
+          <div className="absolute top-3 left-3 pointer-events-none" style={{ zIndex: 30 }}>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest
+              bg-black/70 border border-[#C9A84C]/50 text-[#C9A84C]">
+              <Repeat className="h-3 w-3" /> Reversed on export
+            </div>
+          </div>
+        )}
 
         {/* ── Compare split handle + Before/After tags ── */}
         {compareOn && (
