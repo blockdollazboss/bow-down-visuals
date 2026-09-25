@@ -8,6 +8,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── AI Caption Styler ───────────────────────────────────────────────────
    Upload a video → AI transcribes with word-level timestamps → animated
@@ -55,6 +56,7 @@ interface StylerJobResponse {
 
 export default function CaptionStyler() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [style, setStyle] = useState<StyleKey>("hormozi");
   const [position, setPosition] = useState<PositionKey>("bottom");
@@ -130,7 +132,13 @@ export default function CaptionStyler() {
       form.append("position", position);
       form.append("fontSize", fontSize);
       form.append("withEmoji", withEmoji ? "true" : "false");
-      const res = await fetch("/api/caption-styler", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/caption-styler", {
+        method: "POST",
+        body: form,
+        overrideCost: CREDIT_COST, // registry is stale at 1; backend + UI agree on 3
+        overrideFeature: "Caption Styler",
+      });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: StylerJobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

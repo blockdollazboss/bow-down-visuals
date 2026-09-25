@@ -17,6 +17,8 @@ import {
   clearReplyHistory,
 } from "@/lib/comment-replies";
 import type { ToneKey, ReplyBatch } from "@/lib/comment-replies";
+import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Comment Reply Assistant ────────────────────────────
    Paste 1-10 fan comments, pick a tone, add optional voice notes — GPT-6
@@ -53,6 +55,7 @@ const inputClass =
 
 export default function CommentReplies() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [commentsText, setCommentsText] = useState("");
   const [tone, setTone] = useState<ToneKey>("hype");
   const [voiceNotes, setVoiceNotes] = useState("");
@@ -93,7 +96,7 @@ export default function CommentReplies() {
     setCopiedAll(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/comment-replies", {
+      const res = await confirmedFetch("/api/comment-replies", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -105,6 +108,7 @@ export default function CommentReplies() {
           voiceNotes: voiceNotes.trim(),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as RepliesResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
@@ -190,7 +194,7 @@ export default function CommentReplies() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's engagement tools
+            <Sparkles className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> engagement tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Comment Reply <span className="text-primary">Assistant</span>

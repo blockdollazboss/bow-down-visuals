@@ -8,6 +8,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Stream Pack Generator ───────────────────────────────────────────────
@@ -56,6 +57,7 @@ const FALLBACK_CREDIT_COST = 1;
 
 export default function StreamPack() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
   const [assets, setAssets] = useState<AssetInfo[]>([]);
@@ -126,11 +128,15 @@ export default function StreamPack() {
       return next;
     });
     try {
-      const res = await fetch("/api/stream-pack/generate", {
+      const res = await confirmedFetch("/api/stream-pack/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelName: channelName.trim(), theme: themeId, asset: assetKey }),
       });
+      if (!res) {
+        setStates((s) => ({ ...s, [assetKey]: "pending" }));
+        return false;
+      }
       const data = await res.json() as {
         url?: string; path?: string | null; label?: string; error?: string; message?: string;
       };

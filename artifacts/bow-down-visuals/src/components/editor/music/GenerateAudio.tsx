@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { defaultStemEffects, type EditorSettings, type AudioStem } from "@/lib/editor-settings";
 
 interface GenerateAudioProps {
@@ -27,6 +28,7 @@ const LENGTH_OPTIONS = [
 export function GenerateAudio({ settings, onChange, artistName, songTitle, artistVaultId }: GenerateAudioProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const ms = settings.musicStudio;
 
   const [prompt, setPrompt] = useState("");
@@ -52,7 +54,8 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
         artistName,
         songTitle,
         artistVaultId,
-      });
+      }, confirmedFetch);
+      if (!resp) return; // user cancelled the credit confirmation
 
       const stem: AudioStem = {
         id: `stem-${Date.now()}-${Math.random().toString(36).slice(2)}`,

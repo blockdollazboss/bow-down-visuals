@@ -1,3 +1,5 @@
+import type { FetchImpl } from "@/hooks/use-confirmed-api";
+
 export interface GenerateMusicAudioRequest {
   prompt: string;
   /** Desired length in seconds (server clamps to 10–300, default 60). */
@@ -27,10 +29,12 @@ const FRIENDLY_ERRORS: Record<string, string> = {
 export async function generateMusicAudio(
   token: string,
   payload: GenerateMusicAudioRequest,
-): Promise<GenerateMusicAudioResponse> {
-  let res: Response;
+  /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
+  fetchImpl: FetchImpl = fetch,
+): Promise<GenerateMusicAudioResponse | null> {
+  let res: Response | null;
   try {
-    res = await fetch("/api/generate-music-audio", {
+    res = await fetchImpl("/api/generate-music-audio", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -38,6 +42,7 @@ export async function generateMusicAudio(
   } catch {
     throw new Error("Network error while generating audio. Please try again.");
   }
+  if (!res) return null; // user cancelled the credit confirmation
 
   let data: (Partial<GenerateMusicAudioResponse> & { error?: string; code?: string }) | null = null;
   try {

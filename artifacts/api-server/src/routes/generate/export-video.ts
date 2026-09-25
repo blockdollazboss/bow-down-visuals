@@ -14,6 +14,7 @@ import { buildAssContent, type CaptionBurnConfig } from "../../lib/caption-ass";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { OutOfCreditsError } from "../../lib/credits";
 import { buildEffectStack } from "./effects-ffmpeg";
+import { buildProToolsFilterChain, type ProToolsFilterInput } from "./pro-tools-ffmpeg";
 import { fileURLToPath } from "url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "../../lib/logger";
@@ -689,6 +690,12 @@ export interface ExportRequestBody {
     prepareId?: string | null;
     /** Per-clip transition — index matches clipUrls. null/absent = Cut. */
     clipTransitions?: ({ type: string; duration: number } | null)[] | null;
+    /** Per-clip Pro Tools settings (color correction, chroma key, speed,
+     *  reverse, rotate/flip, crop) — index matches clipUrls. null/absent =
+     *  neutral (no extra filter pass). Applied per clip BEFORE normalization
+     *  so speed-changed durations and crop/rotate dims flow through the
+     *  pipeline's duration probing and concat-compat scaling. */
+    clipProTools?: (ProToolsFilterInput | null)[] | null;
     /** Freeform/manual layout: seconds of freeze-frame padding to hold immediately
      *  BEFORE each clip (index-aligned with clipUrls, already in playback order) —
      *  index 0's value is the leading gap before the first clip ever appears
@@ -768,6 +775,7 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
     exportRangeEnd,
     prepareId,
     clipTransitions,
+    clipProTools,
     overlayItems,
     manualGapsBeforeSec,
     effects,
@@ -1131,10 +1139,44 @@ async function executeExport(ctx: ExportJobContext): Promise<Record<string, unkn
       const normPath = path.join(tmpDir, `bdv-norm-${exportId}-${origIdx}.mp4`);
       tmpFiles.push(normPath);
 
+      // ── 1c-i: Pro Tools per-clip filter pass (color correction, chroma key,
+      //    speed, reverse, rotate/flip, crop). Runs BEFORE normalizeClip so
+      //    speed-changed durations are probed correctly downstream and
+      //    crop/rotate dimension changes are absorbed by normalizeClip's
+      //    scale-to-target. Skipped entirely when the clip's tools are neutral.
+      let ptSrcPath = srcPath;
+      const proToolsInput = Array.isArray(clipProTools) ? clipProTools[origIdx] : null;
+      const ptChain = proToolsInput ? buildProToolsFilterChain(proToolsInput) : "";
+      if (ptChain) {
+        const ptPath = path.join(tmpDir, `bdv-protools-${exportId}-${origIdx}.mp4`);
+        tmpFiles.push(ptPath);
+        exportStatus.ffmpegStage = `pro tools clip ${j + 1}/${selectedClipOrigIndices.length}`;
+        ctx.log.info({ scene: origIdx + 1, filter: ptChain }, "[export] applying pro-tools filter chain");
+        try {
+          // Same intermediate encoding as pieceEncodeTail() (libx264 ultrafast,
+          // 90000 timescale) so downstream concat/xfade timebases match.
+          await execFileAsync("ffmpeg", [
+            "-threads", "2", "-i", srcPath,
+            "-filter_complex", ptChain, "-map", "[ptout]",
+            "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast", "-crf", "18",
+            "-pix_fmt", "yuv420p", "-video_track_timescale", "90000",
+            "-an", "-movflags", "+faststart", "-y", ptPath,
+          ], { timeout: 300_000 });
+        } catch (e: unknown) {
+          const err = e as { stderr?: string };
+          ctx.log.error({ stderr: err.stderr ?? String(e) }, "[export] pro-tools pass failed");
+          throw new Error(`Scene ${origIdx + 1} pro-tools filter failed: ${(err.stderr ?? String(e)).slice(-2000)}`);
+        }
+        if (!existsSync(ptPath) || statSync(ptPath).size < 1024) {
+          throw new Error(`Scene ${origIdx + 1} pro-tools pass produced no video — output file missing or empty`);
+        }
+        ptSrcPath = ptPath;
+      }
+
       exportStatus.ffmpegStage = `normalizing clip ${j + 1}/${selectedClipOrigIndices.length}`;
       ctx.log.info({ scene: origIdx + 1, normPath }, "[export] normalizing clip");
 
-      await normalizeClip(srcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
+      await normalizeClip(ptSrcPath, normPath, TARGET_W, TARGET_H, TARGET_FPS, fitMode ?? undefined);
 
       if (!existsSync(normPath) || statSync(normPath).size < 1024) {
         throw new Error(`Scene ${origIdx + 1} failed to normalize — output file missing or empty`);

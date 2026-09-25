@@ -17,6 +17,8 @@ import {
   postingCount,
   type CalendarPlatformKey,
 } from "@/lib/content-calendar";
+import { CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
    Creators pick a niche + platforms, GPT-6 builds a 30-day posting
@@ -89,6 +91,7 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ContentCalendar() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [niche, setNiche] = useState("Music");
   const [customNiche, setCustomNiche] = useState("");
@@ -154,7 +157,7 @@ export default function ContentCalendar() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/content-calendar", {
+      const res = await confirmedFetch("/api/content-calendar", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -167,6 +170,7 @@ export default function ContentCalendar() {
           startDate,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as CalendarResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
@@ -217,7 +221,7 @@ export default function ContentCalendar() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <CalendarDays className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's planning tools
+            <CalendarDays className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> planning tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             AI Content <span className="text-primary">Calendar</span>

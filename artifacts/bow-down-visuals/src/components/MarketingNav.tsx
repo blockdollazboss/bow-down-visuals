@@ -29,8 +29,9 @@ const NAV_LINKS = [
   { label: "Branding Shop", href: "/branding-shop" },
   { label: "Collabs", href: "/collabs" },
   { label: "Community", href: "/community" },
-  { label: "Repurposer", href: "/repurpose" },
-  { label: "Tools", href: "/dashboard" },
+  { label: "Repurposer", href: "/repurpose" },  { label: "Sound Finder", href: "/sounds" },
+  { label: "Scheduler", href: "/scheduler" },
+  { label: "Tip Jar", href: "/tips" },  { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
 

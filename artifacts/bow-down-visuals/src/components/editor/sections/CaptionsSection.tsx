@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
   Captions, Plus, Trash2, Wand2, RotateCcw, Eye, EyeOff,
   CheckCircle2, AlertCircle, Info, Pencil,
@@ -599,6 +600,7 @@ const SPLIT_STYLE_DEFS = [
 ] as const;
 
 export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption, audioUrl, getAccessToken }: Props) {
+  const { confirmedFetch } = useConfirmedApi();
   /* Vocal offset — seconds before the first word is sung */
   const [vocalOffsetInput, setVocalOffsetInput] = useState("0");
   const c = settings.captions;
@@ -716,7 +718,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
     try {
       const token = await getAccessToken?.().catch(() => undefined);
-      const res = await fetch("/api/transcribe-url", {
+      const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -725,6 +727,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         body: JSON.stringify({ audioUrl }),
       });
 
+      if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
         throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
@@ -974,7 +977,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
     try {
       const token = await getAccessToken?.().catch(() => undefined);
-      const res = await fetch("/api/transcribe-url", {
+      const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -983,6 +986,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
         body: JSON.stringify({ audioUrl }),
       });
 
+      if (!res) return; // user cancelled the credit confirmation
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Transcription failed" })) as { error?: string; message?: string };
         throw new Error(err.message ?? err.error ?? `HTTP ${res.status}`);
