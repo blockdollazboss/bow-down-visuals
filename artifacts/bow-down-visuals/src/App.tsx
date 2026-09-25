@@ -70,6 +70,7 @@ const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 <<<<<<< HEAD
+<<<<<<< HEAD
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
@@ -77,6 +78,9 @@ const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const EmailListBuilder = lazyWithRetry(() => import("@/pages/email-list"));
 const JoinList = lazyWithRetry(() => import("@/pages/join"));
 >>>>>>> tmp-3
+=======
+const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
+>>>>>>> tmp-6
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -242,12 +246,16 @@ function AppShell() {
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
 <<<<<<< HEAD
+<<<<<<< HEAD
           <Route path="/cover-art"><CoverArt /></Route>
           <Route path="/shop/:handle"><ShopStorefront /></Route>
 =======
           <Route path="/email-list"><EmailListBuilder /></Route>
           <Route path="/join/:handle"><JoinList /></Route>
 >>>>>>> tmp-3
+=======
+          <Route path="/lyric-video"><LyricVideo /></Route>
+>>>>>>> tmp-6
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
