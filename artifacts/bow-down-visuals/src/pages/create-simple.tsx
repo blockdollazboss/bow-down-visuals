@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Sparkles, Loader2, Music, ArrowLeft, SlidersHorizontal } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ const DEFAULTS = {
 export default function CreateSimple() {
   const [, setLocation] = useLocation();
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const { activeArtist } = useActiveArtist();
   const { setMode } = useUserMode();
   const { toast } = useToast();
@@ -86,11 +87,12 @@ export default function CreateSimple() {
       const token = await getAccessToken();
       const fd = new FormData();
       fd.append("audio", file);
-      const res = await fetch("/api/transcribe", {
+      const res = await confirmedFetch("/api/transcribe", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) throw new Error("Transcription failed");
       const data = (await res.json()) as { transcript: string };
       setTranscript(data.transcript);
@@ -130,7 +132,9 @@ export default function CreateSimple() {
           audioFile,
           songStructure: null,
           getAccessToken,
+          fetchImpl: confirmedFetch,
         });
+        if (!flow) { setBusy(false); return; } // user cancelled the credit confirmation
         scenes = flow.scenes;
         songStructure = flow.songStructure;
         rawResult = effectiveLyrics;
@@ -139,7 +143,7 @@ export default function CreateSimple() {
          * generation with AI-picked defaults for every field. */
         setStatusMsg("Writing your song and video plan…");
         const combinedTopic = idea.trim() || "A new song";
-        const { rawResult: res, creditsRemaining, genHistoryId: gid } = await callGenerateApi(
+        const genResult = await callGenerateApi(
           "/api/generate-song-video",
           {
             artistName,
@@ -157,7 +161,10 @@ export default function CreateSimple() {
             existingLyrics: effectiveLyrics.trim() || undefined,
           },
           token,
+          confirmedFetch,
         );
+        if (!genResult) { setBusy(false); return; } // user cancelled the credit confirmation
+        const { rawResult: res, creditsRemaining, genHistoryId: gid } = genResult;
         rawResult = res;
         genHistoryId = gid ?? null;
         scenes = parseScenes(extractBreakdownContent(res));
@@ -179,7 +186,7 @@ export default function CreateSimple() {
         const sceneDescriptions = scenes.map((s, i) =>
           [s.section, s.lyricLine, s.action, s.mood].filter(Boolean).join(" · ") || `Scene ${i + 1}`,
         );
-        const planRes = await fetch("/api/generate/ai-edit-plan", {
+        const planRes = await confirmedFetch("/api/generate/ai-edit-plan", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
           body: JSON.stringify({
@@ -198,7 +205,7 @@ export default function CreateSimple() {
           }),
           signal: AbortSignal.timeout(60_000),
         });
-        if (planRes.ok) {
+        if (planRes && planRes.ok) {
           const data = (await planRes.json()) as { plan: AiEditPlan };
           editorSettings = {
             ...editorSettings,
@@ -256,7 +263,6 @@ export default function CreateSimple() {
   if (outOfCredits) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <TopBar />
         <div className="max-w-xl mx-auto px-5 py-16">
           <OutOfCredits />
         </div>
@@ -266,7 +272,6 @@ export default function CreateSimple() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-primary/[0.08] rounded-full blur-[120px]" />
       </div>

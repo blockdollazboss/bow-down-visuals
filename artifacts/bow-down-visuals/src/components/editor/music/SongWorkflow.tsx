@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EditorCard } from "@/components/editor/controls";
 import type { CaptionLine, EditorSettings } from "@/lib/editor-settings";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /** Backstop against infinite spin — the server times out first (4 min) with a clearer message. */
 const TRANSCRIBE_TIMEOUT_MS = 5 * 60 * 1000;
@@ -77,6 +78,7 @@ export function SongWorkflow({
   const [sentToCaptions, setSentToCaptions] = useState(false);
   const [localTranscript, setLocalTranscript] = useState<string | null>(null);
   const [localSegments, setLocalSegments] = useState<WhisperSegment[] | null>(null);
+  const { confirmedFetch } = useConfirmedApi();
   const [songDuration, setSongDuration] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cancelledRef = useRef(false);
@@ -127,7 +129,7 @@ export function SongWorkflow({
     const timeout = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/transcribe-url", {
+      const res = await confirmedFetch("/api/transcribe-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -136,6 +138,7 @@ export function SongWorkflow({
         body: JSON.stringify({ audioUrl }),
         signal: controller.signal,
       });
+      if (!res) { setTxState("idle"); return; } // user cancelled the credit confirmation
       const data = (await res.json()) as {
         transcript?: string;
         segments?: WhisperSegment[];

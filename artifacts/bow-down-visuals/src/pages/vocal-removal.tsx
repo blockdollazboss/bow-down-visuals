@@ -8,6 +8,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── AI Vocal Remover ──────────────────────────────────────────────────
@@ -42,6 +43,7 @@ interface JobResponse {
 
 export default function VocalRemover() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [karaoke, setKaraoke] = useState(true);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -157,7 +159,8 @@ export default function VocalRemover() {
       const form = new FormData();
       form.append("audio", file);
       form.append("karaoke", String(karaoke));
-      const res = await fetch("/api/vocal-removal", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/vocal-removal", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: JobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

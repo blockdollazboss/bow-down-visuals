@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import songRouter from "./generate/song";
 import songsRouter from "./songs";
+import playlistRouter from "./playlist";
 import videoRouter from "./generate/video";
 import songVideoRouter from "./generate/song-video";
 import autoVideoPlanRouter from "./generate/auto-video-plan";
@@ -43,6 +44,10 @@ import chatRouter from "./chat";
 import preProductionRouter from "./generate/pre-production";
 import randomizerRouter from "./generate/randomizer";
 import hookStudioRouter from "./generate/hook-studio";
+=======
+import gamersRouter from "./generate/gamers";
+import proToolsAiRouter from "./generate/pro-tools-ai";
+>>>>>>> origin/main
 import soundFinderRouter from "./generate/sound-finder";
 import monetizationCoachRouter from "./generate/monetization-coach";
 import trendPredictorRouter from "./generate/trend-predictor";
@@ -50,7 +55,8 @@ import academyRouter from "./generate/academy";
 import commentRepliesRouter from "./generate/comment-replies";
 import contentCalendarRouter from "./generate/content-calendar";
 import tipJarRouter from "./generate/tip-jar";
-import titleStudioRouter from "./generate/title-studio";
+<<<<<<< HEAD
+import titleStudioRouter from "./generate/title-studio";>>>>>>> origin/main
 import upscaleRouter from "./generate/upscale";
 import streamPackRouter from "./generate/stream-pack";
 import thumbnailTestRouter from "./generate/thumbnail-test";
@@ -64,9 +70,17 @@ import voiceoverRouter from "./generate/voiceover";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
-
+import schedulerRouter from "./scheduler";
+import merchRouter from "./generate/merch";
+import jewelryRouter from "./generate/jewelry";
+import playlistPitchRouter from "./generate/playlist-pitch";
+import channelAuditRouter from "./generate/channel-audit";
+import sponsorshipOutreachRouter from "./generate/sponsorship-outreach";
+import shoutoutsRouter from "./generate/shoutouts";
+import releaseChecklistRouter from "./generate/release-checklist";
+import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
+import cheatCodeRouter from "./cheat-code";
 const router: IRouter = Router();
-
 router.use(healthRouter);
 router.use(songRouter);
 router.use(videoRouter);
@@ -80,6 +94,7 @@ router.use(artistVoicesRouter);
 router.use(locationsRouter);
 router.use(artistOutfitsRouter);
 router.use(songsRouter);
+router.use(playlistRouter);
 router.use(waitlistRouter);
 router.use(contactRouter);
 router.use(transcribeRouter);
@@ -111,14 +126,18 @@ router.use(preProductionRouter);
 router.use(chatRouter);
 router.use(randomizerRouter);
 router.use(hookStudioRouter);
-router.use(soundFinderRouter);
+router.use(gamersRouter);
+router.use(proToolsAiRouter);router.use(soundFinderRouter);
 router.use(monetizationCoachRouter);
 router.use(trendPredictorRouter);
 router.use(academyRouter);
 router.use(commentRepliesRouter);
 router.use(contentCalendarRouter);
 router.use(tipJarRouter);
+<<<<<<< HEAD
 router.use(titleStudioRouter);
+=======
+>>>>>>> origin/main
 router.use(upscaleRouter);
 router.use(watermarkRemovalRouter);
 router.use(videoTranslatorRouter);
@@ -132,5 +151,15 @@ router.use(voiceoverRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
+router.use(schedulerRouter);
+router.use(merchRouter);
+router.use(jewelryRouter);
+router.use(playlistPitchRouter);
+router.use(channelAuditRouter);
+router.use(sponsorshipOutreachRouter);
+router.use(shoutoutsRouter);
+router.use(releaseChecklistRouter);
+router.use(thumbnailGeneratorRouter);
+router.use(cheatCodeRouter);
 
 export default router;

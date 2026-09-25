@@ -3,6 +3,7 @@ import { ListMusic, SlidersHorizontal, Wand2, Disc3, Download, Info, Save, Clapp
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AUDIO_EXPORT_FORMATS, EQ_TONES, LOUDNESS_TARGETS,
@@ -48,6 +49,7 @@ export function ManualDAW({
 }: ManualDAWProps) {
   const { toast } = useToast();
   const { getAccessToken } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<DawTab>("tracks");
   const [exporting, setExporting] = useState<AudioExportType | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -123,7 +125,19 @@ export function ManualDAW({
           effects: s.effects,
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
-      });
+      }, confirmedFetch);
+      if (!resp) {
+        /* User cancelled the credit confirmation — abort quietly. */
+        if (isDirectRequest) {
+          onDirectExportStatusChange?.({
+            status: "error",
+            exportType: btn.id,
+            label: btn.label,
+            message: "Export cancelled before spending credits.",
+          });
+        }
+        return;
+      }
       const record = buildExportRecord(btn, resp, {
         masterVolume: ms.master.volume,
         stems: ms.stems.map((s) => ({ name: s.name, volume: s.volume, muted: s.muted })),
@@ -220,7 +234,12 @@ export function ManualDAW({
           effects: s.effects,
           ...(s.durationSec != null ? { durationSec: s.durationSec } : {}),
         })),
-      });
+      }, confirmedFetch);
+      if (!result) {
+        /* User cancelled the credit confirmation — abort quietly. */
+        setRendering(false);
+        return;
+      }
       setRenderedPreview((prev) => {
         if (prev) URL.revokeObjectURL(prev.url);
         return result;

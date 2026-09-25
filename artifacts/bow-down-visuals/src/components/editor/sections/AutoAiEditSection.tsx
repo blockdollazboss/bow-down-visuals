@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import type { SceneData } from "@/lib/scene-parser";
 import {
   AI_EDIT_STYLE_DEFS,
@@ -66,6 +67,7 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
   const aiEdit = settings.aiEdit;
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transitionError, setTransitionError] = useState<string | null>(null);
@@ -100,12 +102,13 @@ export function AutoAiEditSection({ scenes, settings, setSettings, audioUrl, onT
         songTitle: settings.branding.titleOverlay?.songTitleText ?? "",
         lyricsText: settings.captions.lyricsText ?? "",
       };
-      const res = await fetch("/api/generate/ai-edit-plan", {
+      const res = await confirmedFetch("/api/generate/ai-edit-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(60_000),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       if (!res.ok) {
         const j = (await res.json()) as { error?: string };
         throw new Error(j.error ?? `HTTP ${res.status}`);

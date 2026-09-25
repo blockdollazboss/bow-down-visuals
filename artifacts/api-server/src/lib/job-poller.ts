@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { publishDueScheduledPosts } from "./scheduler-jobs";
 import {
   claimQueuedJobs,
   completeLipSyncJob,
@@ -132,6 +133,10 @@ export async function runPollerTick(): Promise<void> {
     await pollDueJobs().catch((err) => logger.error({ err }, "[job-poller] poll phase failed"));
     await notifyTerminalExportJobs().catch((err) =>
       logger.error({ err }, "[job-poller] export notification backfill failed"),
+    );
+    /* Content Scheduler: fire due scheduled social posts (DB-backed, restart-safe). */
+    await publishDueScheduledPosts().catch((err) =>
+      logger.error({ err }, "[job-poller] scheduler phase failed"),
     );
   } finally {
     tickInFlight = false;

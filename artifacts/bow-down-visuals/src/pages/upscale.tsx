@@ -7,6 +7,7 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* ─── Video Upscaler ──────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ interface UpscaleJobResponse {
 
 export default function Upscale() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [target, setTarget] = useState<TargetKey>("1080p");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -109,7 +111,8 @@ export default function Upscale() {
       const form = new FormData();
       form.append("video", file);
       form.append("target", target);
-      const res = await fetch("/api/upscale", { method: "POST", body: form });
+      const res = await confirmedFetch("/api/upscale", { method: "POST", body: form });
+      if (!res) { setStatus("idle"); return; } // user cancelled the credit confirmation
       const data: UpscaleJobResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);

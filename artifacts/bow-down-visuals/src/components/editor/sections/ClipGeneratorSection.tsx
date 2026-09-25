@@ -25,6 +25,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { sceneHasClip, getClipEdit, type EditorSettings } from "@/lib/editor-settings";
 import { computeSceneTimings, withSceneDurationSet, formatClock, type SceneTiming } from "@/lib/scene-timing";
 import { AutoDirectorPanel } from "@/components/editor/sections/AutoDirectorPanel";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 
 const CONSISTENCY_MARKER = "[CHARACTER CONSISTENCY:";
 
@@ -128,6 +129,7 @@ export function ClipGeneratorSection({
   songTitle = "",
 }: ClipGeneratorSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirmSpend } = useCreditConfirm();
 
   /* "Create All" runs scenes sequentially so each later scene can chain from
      the previous scene's freshly-generated last frame. `createAllQueue` holds
@@ -247,9 +249,16 @@ export function ClipGeneratorSection({
     else setCreateAllTotal(0);
   }, [scenes, createAllQueue]);
 
-  function startCreateAll() {
+  async function startCreateAll() {
     const ids = scenesWithoutClip.map((s) => s.id);
     if (ids.length === 0) return;
+    // One confirmation for the whole batch (~5 credits per clip)
+    const ok = await confirmSpend({
+      cost: ids.length * 5,
+      feature: `Generate ${ids.length} Video Clips`,
+      details: "Creates clips for every scene without one, sequentially.",
+    });
+    if (!ok) return;
     setCreateAllQueue(ids);
     setCreateAllTotal(ids.length);
     setCreateAllTrigger((n) => n + 1);
