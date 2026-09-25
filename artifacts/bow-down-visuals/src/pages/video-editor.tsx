@@ -156,6 +156,29 @@ export default function VideoEditor() {
     if (isSimple && !SIMPLE_VISIBLE_TABS.includes(tab)) setTab("clips");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSimple, tab]);
+  /* Voiceover Studio handoff: if the user clicked "Use in video editor" on
+     /voiceover, surface the finished narration here so it can be layered
+     under the project. The key is cleared after pickup (one-shot). */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv_voiceover_handoff");
+      if (!raw) return;
+      localStorage.removeItem("bdv_voiceover_handoff");
+      const handoff = JSON.parse(raw) as {
+        audioUrl?: string;
+        format?: string;
+        wordCount?: number;
+      };
+      if (!handoff.audioUrl) return;
+      toast({
+        title: "Voiceover ready",
+        description: `Your AI narration (${handoff.wordCount ?? "?"} words, ${String(handoff.format ?? "mp3").toUpperCase()}) is ready. Download it from the Voiceover Studio or paste this URL into your audio layer: ${handoff.audioUrl}`,
+      });
+    } catch {
+      /* malformed handoff — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [previewSceneId, setPreviewSceneId] = useState<string | null>(null);
   /** Current rendered height of the bottom TimelineDock (0 when no project is loaded), so the pinned
    *  master player's height clamp clears it instead of running underneath it. */
