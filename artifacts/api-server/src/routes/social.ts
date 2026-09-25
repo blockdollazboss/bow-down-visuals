@@ -4,8 +4,9 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db, socialAccountsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
-import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
-import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { chargeCredits, refundCredits, deductCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
+import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
+import { recordCreditUsageStrict as recordCreditUsage } from "../lib/payment-record";
 import { encryptToken, decryptToken, isSocialTokenKeyConfigured } from "../lib/social-crypto";
 import { refreshSupabaseStorageUrl } from "../lib/objectStorage";
 import {
