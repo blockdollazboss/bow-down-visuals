@@ -1024,16 +1024,13 @@ export default function ArtistVault() {
     }
   }
 
-  async function removePhoto() {
-    if (!photoUrl || !user) { setPhotoUrl(null); setPhotoPath(null); return; }
-    try {
-      const sb = getSupabase();
-      const pathToRemove = photoPath ?? (() => {
-        const url = new URL(photoUrl);
-        return url.pathname.split(`/${PHOTO_BUCKET}/`)[1] ?? null;
-      })();
-      if (pathToRemove) await sb.storage.from(PHOTO_BUCKET).remove([pathToRemove]);
-    } catch { /* best-effort delete */ }
+  function removePhoto() {
+    // Intentionally non-destructive: this only clears the form. It must NOT
+    // delete the file from Supabase storage — that permanently destroyed paid
+    // AI generations (e.g. 2-credit artist images) when users just wanted to
+    // clear an unsaved form. Orphaned uploads are cheap; regenerating deleted
+    // images costs credits. Saved-vault deletion (deleteVault) still removes
+    // its file, behind an explicit confirmation.
     setPhotoUrl(null);
     setPhotoPath(null);
   }
