@@ -7,8 +7,10 @@ FROM node:22-slim
 # probes clip duration/resolution/codec; the render step runs ffmpeg).
 # python3-venv: the vocal-isolation pipelines (lip-sync vocal-only input,
 # artist voice lock) shell out to Demucs for vocal/instrumental separation.
+# build-essential: diffq ships no prebuilt wheel, so pip compiles it from
+# source during the Docker build — gcc/g++ must be present or the deploy fails.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv \
+  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential \
   && rm -rf /var/lib/apt/lists/*
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
