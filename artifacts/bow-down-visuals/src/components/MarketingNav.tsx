@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { label: "Randomizer", href: "/randomizer" },
   { label: "Hook Studio", href: "/hooks" },
   { label: "Comment Replies", href: "/comment-replies" },
+  { label: "Script Writer", href: "/script-writer" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Tools", href: "/dashboard" },
