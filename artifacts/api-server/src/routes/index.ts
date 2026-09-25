@@ -56,6 +56,7 @@ import llcGuideRouter from "./generate/llc-guide";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
+import samplePackRouter from "./generate/sample-pack";
 
 const router: IRouter = Router();
 
@@ -116,5 +117,6 @@ router.use(llcGuideRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
+router.use(samplePackRouter);
 
 export default router;
