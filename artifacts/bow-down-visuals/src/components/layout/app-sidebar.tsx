@@ -43,6 +43,7 @@ import {
   Handshake,
   Megaphone,
   ClipboardCheck,
+  Gamepad2,
   FolderOpen,
   Zap,
   Settings,
@@ -160,6 +161,7 @@ export function AppSidebar() {
     { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
     { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
     { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
+    { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },
     { href: "/pricing", label: "Pricing", icon: CreditCard },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];

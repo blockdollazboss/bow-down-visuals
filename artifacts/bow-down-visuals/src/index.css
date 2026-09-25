@@ -629,3 +629,60 @@ html {
   60% { transform: translateX(-6px); }
   80% { transform: translateX(4px); }
 }
+
+/* ── Home of Gamers hub: neon / RGB gaming aesthetic (CSS-only) ─────────── */
+@keyframes gamers-rgb-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.gamers-rgb-text {
+  background: linear-gradient(90deg, #00f0ff, #7c3aed, #ff2bd6, #b6ff2e, #00f0ff);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gamers-rgb-shift 6s linear infinite;
+}
+@keyframes gamers-glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.gamers-glow-pulse { animation: gamers-glow-pulse 2.6s ease-in-out infinite; }
+@keyframes gamers-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.gamers-ticker-track {
+  animation: gamers-ticker 30s linear infinite;
+}
+.gamers-ticker-track:hover { animation-play-state: paused; }
+.gamers-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 0, 0, 0.22) 4px
+  );
+}
+@keyframes gamers-grid-drift {
+  from { background-position: 0 0; }
+  to { background-position: 0 64px; }
+}
+.gamers-grid-floor {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.14) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: gamers-grid-drift 3.2s linear infinite;
+  mask-image: linear-gradient(to top, black 30%, transparent 85%);
+  -webkit-mask-image: linear-gradient(to top, black 30%, transparent 85%);
+}
+@keyframes gamers-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+.gamers-float { animation: gamers-float 5s ease-in-out infinite; }
