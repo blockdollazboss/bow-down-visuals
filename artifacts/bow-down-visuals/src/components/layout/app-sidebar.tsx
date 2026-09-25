@@ -6,7 +6,6 @@ import {
   SidebarHeader,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Home,
   LayoutDashboard,
@@ -34,24 +34,63 @@ import {
   ShieldCheck,
   MapPin,
   ChevronsLeft,
+  ChevronsUpDown,
   Library,
   Radio,
   GraduationCap,
   Shirt,
-  Gem,
   ListMusic,
   SearchCheck,
   Handshake,
   Megaphone,
   ClipboardCheck,
-  Gamepad2,
   FolderOpen,
   Zap,
   Settings,
   HelpCircle,
-  Star,
+  Wand2,
+  SlidersHorizontal,
   Plus,
-  Loader2
+  Loader2,
+  Scissors,
+  Lightbulb,
+  PenLine,
+  Dices,
+  Captions,
+  Disc3,
+  AudioWaveform,
+  Languages,
+  Type,
+  CalendarDays,
+  Clock,
+  MessageSquareReply,
+  TrendingUp,
+  Repeat,
+  DollarSign,
+  HeartHandshake,
+  Store,
+  Newspaper,
+  Mail,
+  Users,
+  Trophy,
+  Copyright,
+  Scale,
+  UsersRound,
+  Maximize,
+  Eraser,
+  MicOff,
+  Split,
+  Volume2,
+  Package,
+  Palette,
+  Tv,
+  FlaskConical,
+  Podcast,
+  PlaySquare,
+  Gamepad2,
+  Gem,
+  Star,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -59,8 +98,8 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const IS_DEV = import.meta.env.DEV;
 
-/** Creator Level — GTA-style 6-star wanted level.
- *  1 star = simplest AI-driven flow, 6 stars = full manual controls. */
+/** Simple / Advanced mode switch — ported from the old TopBar so the
+ *  toolbar's mode control lives in the sidebar now. */
 function ModeToggle() {
   const { stars, setStars } = useUserMode();
   return (
@@ -109,6 +148,174 @@ function ModeToggle() {
   );
 }
 
+interface NavLink {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  adminOnly?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  links: NavLink[];
+}
+
+/* ── Grouped navigation: every routed page reachable, no dead links ── */
+const SECTIONS: NavSection[] = [
+  {
+    title: "Home",
+    links: [
+      { href: "/", label: "Home", icon: Home },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "Create",
+    links: [
+      { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
+      { href: "/make-song", label: "Make a Song", icon: Music },
+      { href: "/make-video", label: "Make a Music Video", icon: Video },
+      { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
+      { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
+      { href: "/clip-maker", label: "AI Streamer Clips", icon: Scissors },
+      { href: "/create", label: "Quick Create", icon: Zap },
+      { href: "/my-projects", label: "My Projects", icon: FolderOpen },
+      { href: "/my-clips", label: "My Clips", icon: Library },
+      { href: "/songs", label: "Songs", icon: Music2 },
+      { href: "/artist-vault", label: "Artist Vault", icon: ShieldCheck },
+      { href: "/locations", label: "Locations", icon: MapPin },
+      { href: "/jewelry", label: "Logo-to-Luxury Studio", icon: Gem },
+      { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },
+    ],
+  },
+  {
+    title: "AI Studio",
+    links: [
+      { href: "/hooks", label: "Hook Studio", icon: Lightbulb },
+      { href: "/script-writer", label: "Script Writer", icon: PenLine },
+      { href: "/randomizer", label: "Content Randomizer", icon: Dices },
+      { href: "/caption-styler", label: "Caption Styler", icon: Captions },
+      { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
+      { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
+      { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
+      { href: "/cover-art", label: "Cover Art", icon: Disc3 },
+      { href: "/lyric-video", label: "Lyric Video Maker", icon: AudioWaveform },
+      { href: "/voiceover", label: "Voiceover Studio", icon: Mic2 },
+      { href: "/translate", label: "Translator", icon: Languages },
+      { href: "/titles", label: "Title Studio", icon: Type },
+    ],
+  },
+  {
+    title: "Grow",
+    links: [
+      { href: "/content-calendar", label: "Content Calendar", icon: CalendarDays },
+      { href: "/scheduler", label: "Scheduler", icon: Clock },
+      { href: "/comment-replies", label: "Comment Replies", icon: MessageSquareReply },
+      { href: "/trends", label: "Trend Predictor", icon: TrendingUp },
+      { href: "/repurpose", label: "Content Repurposer", icon: Repeat },
+      { href: "/sounds", label: "Sound Finder", icon: AudioWaveform },
+      { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
+      { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
+      { href: "/go-live", label: "Go Live", icon: Radio },
+    ],
+  },
+  {
+    title: "Monetize",
+    links: [
+      { href: "/coach", label: "Monetization Coach", icon: DollarSign },
+      { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
+      { href: "/sponsors", label: "Sponsors", icon: Users },
+      { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
+      { href: "/tips", label: "Tips", icon: HeartHandshake },
+      { href: "/merch", label: "Merch Designer", icon: Shirt },
+      { href: "/my-shop", label: "My Shop", icon: Store },
+      { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
+      { href: "/press-kit", label: "Press Kit", icon: Newspaper },
+      { href: "/email-list", label: "Email List", icon: Mail },
+      { href: "/collabs", label: "Collabs", icon: UsersRound },
+      { href: "/contests", label: "Contests", icon: Trophy },
+    ],
+  },
+  {
+    title: "Learn",
+    links: [
+      { href: "/academy", label: "Creator Academy", icon: GraduationCap },
+      { href: "/copyright", label: "Copyright", icon: Copyright },
+      { href: "/llc-guide", label: "LLC Guide", icon: Scale },
+      { href: "/community", label: "Community", icon: UsersRound },
+    ],
+  },
+  {
+    title: "Tools",
+    links: [
+      { href: "/upscale", label: "Upscale", icon: Maximize },
+      { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
+      { href: "/vocal-removal", label: "Vocal Removal", icon: MicOff },
+      { href: "/stems", label: "Stem Splitter", icon: Split },
+      { href: "/mastering", label: "AI Mastering", icon: SlidersHorizontal },
+      { href: "/sfx", label: "SFX Generator", icon: Volume2 },
+      { href: "/samples", label: "Sample Packs", icon: Package },
+      { href: "/logo-maker", label: "Logo Maker", icon: Palette },
+      { href: "/intros-outros", label: "Intros & Outros", icon: PlaySquare },
+      { href: "/stream-pack", label: "Stream Pack", icon: Tv },
+      { href: "/thumbnail-test", label: "Thumbnail A/B Test", icon: FlaskConical },
+      { href: "/podcast", label: "Podcast Studio", icon: Podcast },
+    ],
+  },
+];
+
+const FOOTER_LINKS: NavLink[] = [
+  { href: "/pricing", label: "Pricing", icon: CreditCard },
+  { href: "/credit-history", label: "Credit History", icon: Zap },
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
+];
+
+function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
+  const [open, setOpen] = useState(true);
+  const links = section.links.filter((l) => !l.adminOnly || isAdmin);
+  if (links.length === 0) return null;
+  const hasActive = links.some((l) => location === l.href);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarGroup className="p-0">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-[10px] uppercase tracking-widest transition-colors hover:text-white ${
+              hasActive ? "text-primary" : "text-white/30"
+            }`}
+          >
+            <span>{section.title}</span>
+            <ChevronsUpDown className={`h-3.5 w-3.5 transition-transform ${open ? "" : "-rotate-90"}`} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {links.map((link) => (
+                <SidebarMenuItem key={link.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === link.href}
+                    className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
+                  >
+                    <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
+                      <link.icon className="h-5 w-5" />
+                      <span className="font-medium">{link.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  );
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
@@ -150,39 +357,7 @@ export function AppSidebar() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
-  const links = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/my-projects", label: "My Projects", icon: FolderOpen },
-    { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
-    { href: "/make-song", label: "Make a Song", icon: Music },
-    { href: "/songs", label: "Songs", icon: Music2 },
-    { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/make-video", label: "Make a Music Video", icon: Video },
-    { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
-    { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
-    { href: "/my-clips", label: "My Clips", icon: Library },
-    { href: "/go-live", label: "Go Live", icon: Radio },
-    { href: "/academy", label: "Creator Academy", icon: GraduationCap },
-    { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
-    { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
-    { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
-    { href: "/merch", label: "Merch Designer", icon: Shirt },
-    { href: "/jewelry", label: "Logo-to-Luxury Studio", icon: Gem },
-    { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
-    { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
-    { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
-    { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
-    { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
-    { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },
-    { href: "/pricing", label: "Pricing", icon: CreditCard },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
-  ];
-
-  const accountLinks = [
-    { href: "/credit-history", label: "Credit History", icon: Zap },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ];
+  const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -212,11 +387,16 @@ export function AppSidebar() {
         {user && <ModeToggle />}
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
+      <SidebarContent className="gap-1 px-2">
+        {SECTIONS.map((section) => (
+          <SidebarSection key={section.title} section={section} location={location} isAdmin={isAdmin} />
+        ))}
+
+        {/* Footer links: pricing, account, admin — always visible */}
+        <SidebarGroup className="p-0 mt-2 border-t border-white/[0.06] pt-2">
           <SidebarGroupContent>
             <SidebarMenu>
-              {links.map((link) => (
+              {footerLinks.map((link) => (
                 <SidebarMenuItem key={link.href}>
                   <SidebarMenuButton
                     asChild
@@ -226,42 +406,16 @@ export function AppSidebar() {
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
                       <link.icon className="h-5 w-5" />
                       <span className="font-medium">{link.label}</span>
+                      {link.href === "/credit-history" && profile && (
+                        <span className="ml-auto text-xs font-black text-primary">
+                          {profile.credits}
+                        </span>
+                      )}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Account — every destination the old toolbar's user menu + mobile
-            menu offered, now one tap away in the sidebar. */}
-        {user && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-white/30">
-              Account
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {accountLinks.map((link) => (
-                  <SidebarMenuItem key={link.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={location === link.href}
-                      className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
-                    >
-                      <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
-                        <link.icon className="h-5 w-5" />
-                        <span className="font-medium">{link.label}</span>
-                        {link.href === "/credit-history" && profile && (
-                          <span className="ml-auto text-xs font-black text-primary">
-                            {profile.credits}
-                          </span>
-                        )}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              {user && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => window.dispatchEvent(new CustomEvent("open-help-panel"))}
@@ -273,10 +427,10 @@ export function AppSidebar() {
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
