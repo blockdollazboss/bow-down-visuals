@@ -10,7 +10,7 @@ FROM node:22-slim
 # artifacts/api-server/src/lib/fonts.ts) is downloaded here so the
 # exported video uses the exact same faces as the web preview.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg fontconfig curl \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig curl \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p /usr/share/fonts/bdv \
   && cd /usr/share/fonts/bdv \
