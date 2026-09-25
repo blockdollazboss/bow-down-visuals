@@ -27,17 +27,19 @@ import {
   uploadAudioToSupabase,
 } from "../lib/sync-labs";
 import type { UrlType } from "../lib/sync-labs";
-import { createLipSyncJob, getLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
+import { createLipSyncJob, getLipSyncJob, completeLipSyncJob, type LipSyncJob } from "../lib/lip-sync-jobs";
 import { requestPollerTick } from "../lib/job-poller";
 import { refreshSupabaseStorageUrlsDeep } from "../lib/objectStorage";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordLipSyncHistory } from "../lib/payment-record";
 import { logger } from "../lib/logger";
+import {
   createExportJob,
   getExportJob,
   enqueueExport,
   type ExportStatusRef,
 } from "../lib/export-jobs";
+import {
   runExportJobInBackground,
   EXPORT_CREDIT_COST,
   type ExportJobContext,
@@ -1146,44 +1148,36 @@ async function probeAudioDurationSec(url: string): Promise<number | null> {
 const RUN_ALL_SCENE_TIMEOUT_MS = 12 * 60 * 1000; // per scene (matches the server provider poll window)
 const RUN_ALL_EXPORT_TIMEOUT_MS = 35 * 60 * 1000;
 
-/** Poll an in-process lip-sync sub-job until it resolves. Rejects on failure/timeout. */
+/** Poll a durable server-owned lip-sync sub-job until it resolves.
+ *  Rejects on failure/timeout. The tab can close — jobs survive restarts. */
 async function waitForLipSyncSubJob(subJobId: string): Promise<string> {
   const deadline = Date.now() + RUN_ALL_SCENE_TIMEOUT_MS;
   for (;;) {
     await new Promise((r) => setTimeout(r, 8000));
-    const job = lipSyncJobs.get(subJobId);
+    const job = await getLipSyncJob(subJobId);
     if (!job) throw new Error("Lip-sync sub-job disappeared.");
-    if (job.status === "done" && job.url) return job.url;
-    if (job.status === "failed")
-      throw new Error(job.error ?? "Lip-sync provider failed.");
+    if (job.state === "done" && job.resultUrl) return job.resultUrl;
+    if (job.state === "failed")
+      throw new Error(job.error?.message ?? "Lip-sync provider failed.");
     if (Date.now() >= deadline) break;
   }
   /* Provider-direct recovery: our poller may have given up while Sync.so is
      still working. Check the provider job directly before failing the scene. */
-  const syncId = lipSyncJobs.get(subJobId)?.syncLabsJobId;
-  if (syncId && LIP_SYNC_API_KEY) {
+  const syncId = (await getLipSyncJob(subJobId))?.providerJobId;
+  const apiKey = getLipSyncApiKey();
+  if (syncId && apiKey) {
     const recoverUntil = Date.now() + 10 * 60 * 1000;
     while (Date.now() < recoverUntil) {
       await new Promise((r) => setTimeout(r, 15000));
       try {
-        const res = await fetch(`${SYNC_LABS_BASE}/generate/${syncId}`, {
-          headers: { "x-api-key": LIP_SYNC_API_KEY },
-          signal: AbortSignal.timeout(30_000),
-        });
-        if (res.ok) {
-          const pj = (await res.json()) as SyncLabsJob;
-          if (pj.status === "completed" && pj.outputUrl) {
-            const job = lipSyncJobs.get(subJobId);
-            if (job) {
-              job.status = "done";
-              job.url = pj.outputUrl;
-              job.updatedAt = new Date().toISOString();
-            }
-            return pj.outputUrl;
-          }
-          if (pj.status === "failed")
-            throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
+        const pj = await syncLabsStatus(syncId, apiKey);
+        const st = normalizeProviderStatus(pj);
+        if (st === "completed" && pj.outputUrl) {
+          await completeLipSyncJob(subJobId, pj.outputUrl);
+          return pj.outputUrl;
         }
+        if (st === "failed")
+          throw new Error(`Sync Labs job failed: ${pj.error ?? "unknown error"}`);
       } catch (e) {
         if (e instanceof Error && e.message.startsWith("Sync Labs job failed"))
           throw e;
@@ -1284,24 +1278,24 @@ async function processRunAll(runId: string, ctx: RunAllContext): Promise<void> {
         continue;
       }
 
-      /* Reuse the exact per-scene pipeline as POST /lip-sync/preview
-         (trim → submit → poll) — no duplicated provider-call code. */
-      const subJobId = randomUUID();
-      const stamp = now();
-      lipSyncJobs.set(subJobId, {
-        status: "queued",
-        createdAt: stamp,
-        updatedAt: stamp,
-      });
-      void processLipSyncJob(subJobId, {
-        clipUrl: s.clipUrl,
-        audioUrl: ctx.resolvedAudio.url,
-        sceneStartSec: t.start,
-        sceneEndSec: t.end,
+      /* Enqueue a durable server-owned job per scene — same pipeline as
+         POST /lip-sync/preview (trim → submit → poll), no duplicated
+         provider-call code. The background poller drives it; this run just
+         waits on the job row. */
+      const subJob = await createLipSyncJob({
         userId: ctx.userId,
         projectId: ctx.projectId,
         sceneId: s.id,
+        params: {
+          clipUrl: s.clipUrl,
+          audioUrl: ctx.resolvedAudio.url,
+          sceneStartSec: t.start,
+          sceneEndSec: t.end,
+          provider: getLipSyncProviderName(),
+        },
       });
+      const subJobId = subJob.id;
+      requestPollerTick();
 
       try {
         const url = await waitForLipSyncSubJob(subJobId);
@@ -1475,7 +1469,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
         .json({ error: "projectId is required.", code: "missing_project_id" });
       return;
     }
-    if (!SERVER_KEY_FOUND || !LIP_SYNC_API_KEY) {
+    if (!isLipSyncServerKeyFound() || !getLipSyncApiKey()) {
       res.status(503).json({
         error: "Lip Sync provider not connected.",
         code: "provider_not_connected",
