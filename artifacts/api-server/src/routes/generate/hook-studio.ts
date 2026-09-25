@@ -46,14 +46,23 @@ const preflightSchema = z.object({
   description: z.string().max(1000).optional().default(""),
 });
 
-const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSchema]);
+const PLATFORMS = ["tiktok", "instagram", "youtube", "twitter"] as const;
+
+const captionsSchema = z.object({
+  mode: z.literal("captions"),
+  topic: z.string().min(1, "Tell us what the post is about.").max(500),
+  platform: z.enum(PLATFORMS).default("tiktok"),
+  tone: z.string().max(100).optional().default(""),
+});
+
+const hookStudioSchema = z.discriminatedUnion("mode", [hooksSchema, preflightSchema, captionsSchema]);
 
 /* Text model: centralized in getTextModel() (default gpt-6-sol, env-overridable
    via OPENAI_TEXT_MODEL). Called per-request like every other route —
    do not hardcode model IDs. */
 
-/* POST /api/hook-studio { mode, ... } → 200 { hooks | scorecard, creditsUsed, creditsRemaining }
-   Paid: 1 credit per generation (both modes). Auth required; credits are
+/* POST /api/hook-studio { mode, ... } → 200 { hooks | scorecard | captions, creditsUsed, creditsRemaining }
+   Paid: 1 credit per generation (all modes). Auth required; credits are
    deducted BEFORE the model call using the same pre-check + deductCredits +
    recordCreditUsage pattern as the randomizer and chat paid mode. */
 router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
@@ -75,8 +84,12 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
     return;
   }
   let creditsRemaining = balance;
+  const actionName =
+    parsed.data.mode === "hooks" ? "Hook Generator"
+    : parsed.data.mode === "captions" ? "Caption & Hashtag Generator"
+    : "Virality Pre-flight";
   try {
-    creditsRemaining = await chargeCredits(req.userId!, HOOK_STUDIO_CREDITS, { action: parsed.data.mode === "hooks" ? "Hook Generator" : "Virality Pre-flight" });
+    creditsRemaining = await chargeCredits(req.userId!, HOOK_STUDIO_CREDITS, { action: actionName });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -135,6 +148,78 @@ router.post("/hook-studio", publicApiLimiter, requireAuth, async (req, res) => {
       }
 
       res.json({ hooks, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining });
+      return;
+    }
+
+    /* ── captions mode: captions + hashtags + CTA ────────────────────────────
+       Generates ready-to-post packaging: 3 caption options, tiered hashtags
+       (niche / broad / trending), and a call-to-action. */
+    if (parsed.data.mode === "captions") {
+      const { topic, platform, tone } = parsed.data;
+      const toneLine = tone.trim() ? ` Tone/vibe: "${tone.trim()}".` : "";
+
+      const completion = await getOpenAI().chat.completions.create({
+        model: getTextModel(),
+        messages: [
+          {
+            role: "system",
+            content:
+              `You are a social media copywriter for independent music creators. ` +
+              `Write post packaging for ${platform}. ` +
+              `Generate: (1) exactly 3 caption options — each 1-3 punchy lines, written in the creator's ` +
+              `voice, with personality and zero corporate speak; (2) hashtags in 3 tiers — 5 niche tags ` +
+              `(specific to the content, under 500K posts), 5 broad tags (1M+ posts, high discovery), ` +
+              `3 trending-style tags (current formats/challenges energy); (3) one call-to-action line ` +
+              `that drives comments, saves, or shares. ` +
+              `Every hashtag WITHOUT the # symbol (frontend adds it). No duplicates across tiers. ` +
+              `Return ONLY JSON: {"captions": ["...", "...", "..."], ` +
+              `"hashtags": {"niche": ["..."], "broad": ["..."], "trending": ["..."]}, ` +
+              `"cta": "..."}.`,
+          },
+          { role: "user", content: `Write post packaging for this: "${topic}".${toneLine}` },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 800,
+        temperature: 0.8,
+      });
+
+      const raw = completion.choices[0]?.message?.content ?? "{}";
+      let captions: string[] = [];
+      let hashtags = { niche: [] as string[], broad: [] as string[], trending: [] as string[] };
+      let cta = "";
+      try {
+        const parsedJson = JSON.parse(raw) as {
+          captions?: unknown; hashtags?: unknown; cta?: unknown;
+        };
+        if (Array.isArray(parsedJson.captions)) {
+          captions = parsedJson.captions
+            .filter((c): c is string => typeof c === "string" && c.trim().length > 0)
+            .map((c) => c.trim())
+            .slice(0, 3);
+        }
+        const h = parsedJson.hashtags as { niche?: unknown; broad?: unknown; trending?: unknown } | undefined;
+        if (h) {
+          for (const tier of ["niche", "broad", "trending"] as const) {
+            const arr = h[tier];
+            if (Array.isArray(arr)) {
+              hashtags[tier] = arr
+                .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+                .map((t) => t.trim().replace(/^#+/, ""))
+                .slice(0, 8);
+            }
+          }
+        }
+        if (typeof parsedJson.cta === "string" && parsedJson.cta.trim()) {
+          cta = parsedJson.cta.trim();
+        }
+      } catch {
+        /* fall through to the empty check below */
+      }
+      if (captions.length === 0) {
+        throw new Error("Model returned no usable captions");
+      }
+
+      res.json({ captions, hashtags, cta, creditsUsed: HOOK_STUDIO_CREDITS, creditsRemaining });
       return;
     }
 
