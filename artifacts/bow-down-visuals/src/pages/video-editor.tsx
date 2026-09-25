@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Link, useSearch } from "wouter";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
   Check, CloudOff, Save, Film, ListVideo, Music2, Captions, Wand2, Download,
@@ -8,11 +8,12 @@ import {
   Volume2, VolumeX, Rewind, FastForward, SkipForward,
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
-  Theater, Repeat, StepBack, StepForward, RotateCcw,
+  Theater, Repeat, StepBack, StepForward, RotateCcw, Undo2, Redo2,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -98,6 +99,14 @@ function buildEffectFilter(effects: string[]): string {
     .join(" ");
 }
 
+/** Stable JSON key of the editor state for unsaved-changes detection.
+ *  Volatile fields (e.g. `updatedAt`, written at save time but never into
+ *  local state) are excluded so a fresh save compares equal to live state. */
+function editorStateKey(scenes: SceneData[], settings: EditorSettings): string {
+  const { updatedAt: _ignored, ...stable } = settings as EditorSettings & { updatedAt?: unknown };
+  return JSON.stringify({ scenes, settings: stable });
+}
+
 interface LoadedProject {
   id: string;
   title: string;
@@ -138,8 +147,8 @@ export default function VideoEditor() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [project, setProject] = useState<LoadedProject | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
-  const [scenes, setScenes] = useState<SceneData[]>([]);
-  const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
+  const [scenes, setScenesState] = useState<SceneData[]>([]);
+  const [settings, setSettingsState] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setRawTab] = useState<EditorTab>("clips");
   const [requestedAudioExport, setRequestedAudioExport] = useState<AudioExportType | null>(null);
@@ -263,7 +272,6 @@ export default function VideoEditor() {
   }
 
   const hydrated  = useRef(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Always-current ref so persist() never uses a stale scenes closure
   const scenesRef = useRef<SceneData[]>([]);
   /** Imperative handle into TimelinePreviewPlayer — lets master player control audio */
@@ -294,14 +302,23 @@ export default function VideoEditor() {
         setRawResult(savedResult);
         const savedScenes = data.project.output_data?.scenes ?? [];
         // Auto-parse scenes from saved result text when none were persisted
+        const normalizedSettings = normalizeEditorSettings(data.project.output_data?.editorSettings);
+        let loadedScenes: SceneData[];
         if (savedScenes.length === 0 && savedResult) {
           const parsed = parseScenes(extractBreakdownContent(savedResult));
-          setScenes(parsed);
+          loadedScenes = parsed;
           if (parsed.length > 0) setRebuildStatus("done");
         } else {
-          setScenes(savedScenes);
+          loadedScenes = savedScenes;
         }
-        setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
+        // Raw setters: initial load is not an undoable edit
+        setScenesState(loadedScenes);
+        setSettingsState(normalizedSettings);
+        scenesRef.current = loadedScenes;
+        settingsRef.current = normalizedSettings;
+        lastSavedKeyRef.current = editorStateKey(loadedScenes, normalizedSettings);
+        resetHistory();
+        setSaveEpoch((e) => e + 1);
         setTranscriptText(data.project.output_data?.transcriptText ?? null);
         hydrated.current = true;
       } catch (err) {
@@ -318,16 +335,151 @@ export default function VideoEditor() {
   /* ── Keep scenesRef in sync so persist() is never stale ── */
   useEffect(() => { scenesRef.current = scenes; }, [scenes]);
 
-  /* ── Debounced autosave on scenes / settings change ── */
+  /** Always-current ref for settings (mirrors scenesRef) — lets undo/redo
+   *  snapshots and the dirty-check read the latest value outside render. */
+  const settingsRef = useRef<EditorSettings>(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  /* ── Undo/redo history over {scenes, settings} ─────────────────────────
+   * The wrapped setScenes/setSettings below snapshot the pre-change state
+   * before applying. Child sections receive the wrapped setters, so every
+   * editor edit — clip attach, reorder, captions, effects, branding, music —
+   * is undoable. Rapid bursts (typing, slider drags) coalesce into one step. */
+  interface EditorSnapshot { scenes: SceneData[]; settings: EditorSettings; }
+  const undoHistoryApi = useUndoRedo<EditorSnapshot>({ maxHistory: 50, coalesceMs: 800 });
+  const { push: pushHistory, undo: undoStep, redo: redoStep, reset: resetHistory } = undoHistoryApi;
+  const canUndo = undoHistoryApi.canUndo;
+  const canRedo = undoHistoryApi.canRedo;
+
+  const snapshotNow = useCallback((): EditorSnapshot => ({
+    scenes: scenesRef.current,
+    settings: settingsRef.current,
+  }), []);
+
+  const setScenes = useCallback((update: SetStateAction<SceneData[]>) => {
+    const prev = scenesRef.current;
+    const next = typeof update === "function" ? (update as (p: SceneData[]) => SceneData[])(prev) : update;
+    if (next === prev) return;
+    pushHistory(snapshotNow());
+    scenesRef.current = next;
+    setScenesState(next);
+  }, [pushHistory, snapshotNow]);
+
+  const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
+    const prev = settingsRef.current;
+    const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
+    if (next === prev) return;
+    pushHistory(snapshotNow());
+    settingsRef.current = next;
+    setSettingsState(next);
+  }, [pushHistory, snapshotNow]);
+
+  const handleUndo = useCallback(() => {
+    const snap = undoStep(snapshotNow());
+    if (!snap) return;
+    scenesRef.current = snap.scenes;
+    settingsRef.current = snap.settings;
+    setScenesState(snap.scenes);
+    setSettingsState(snap.settings);
+  }, [undoStep, snapshotNow]);
+
+  const handleRedo = useCallback(() => {
+    const snap = redoStep(snapshotNow());
+    if (!snap) return;
+    scenesRef.current = snap.scenes;
+    settingsRef.current = snap.settings;
+    setScenesState(snap.scenes);
+    setSettingsState(snap.settings);
+  }, [redoStep, snapshotNow]);
+
+  /* Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — skipped inside text fields so native
+   * field-level undo keeps working there; the toolbar buttons always work. */
   useEffect(() => {
-    if (loading || !project) return;
-    if (!hydrated.current) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    setSaveState("saving");
-    saveTimer.current = setTimeout(() => { void persist(); }, 1200);
-    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scenes, settings, loading, project]);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      else if (key === "y" || (key === "z" && e.shiftKey)) { e.preventDefault(); handleRedo(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo, handleRedo]);
+
+  /* ── Unsaved-changes tracking ──────────────────────────────────────────
+   * Projects do NOT auto-save. `lastSavedKeyRef` holds the editor-state key
+   * from the last successful save; any divergence is "dirty". Generations
+   * (clips) persist themselves directly to the backend when they complete. */
+  const lastSavedKeyRef = useRef<string | null>(null);
+  const [saveEpoch, setSaveEpoch] = useState(0); // bumped after each save so `isDirty` recomputes
+  const isDirty = useMemo(() => {
+    if (!hydrated.current || !project || lastSavedKeyRef.current == null) return false;
+    return editorStateKey(scenes, settings) !== lastSavedKeyRef.current;
+  }, [scenes, settings, saveEpoch, project]);
+  const isDirtyRef = useRef(false);
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
+
+  function markSaved() {
+    lastSavedKeyRef.current = editorStateKey(scenesRef.current, settingsRef.current);
+    setSaveEpoch((e) => e + 1);
+  }
+
+  /* Warn on tab close / refresh with unsaved changes (browser-native prompt). */
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  /* In-app navigation: intercept internal link clicks while dirty and offer
+   * Save / Don't Save / Cancel. wouter has no navigation blocker, so link
+   * clicks are captured in the capture phase before routing happens. */
+  const [, navigate] = useLocation();
+  const [pendingNav, setPendingNav] = useState<string | null>(null);
+  useEffect(() => {
+    const onClickCapture = (e: MouseEvent) => {
+      if (!isDirtyRef.current || pendingNav) return;
+      const el = e.target as HTMLElement | null;
+      const anchor = el?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      const href = anchor.getAttribute("href") ?? "";
+      if (!href || href.startsWith("#")) return;
+      if (/^(https?:|mailto:|tel:|blob:|data:)/i.test(href)) return;
+      let dest: URL;
+      try { dest = new URL(href, window.location.href); } catch { return; }
+      if (dest.origin !== window.location.origin) return;
+      if (dest.pathname === window.location.pathname && dest.search === window.location.search && !dest.hash) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setPendingNav(dest.pathname + dest.search + dest.hash);
+    };
+    window.addEventListener("click", onClickCapture, true);
+    return () => window.removeEventListener("click", onClickCapture, true);
+  }, [pendingNav]);
+
+  async function confirmNavSave() {
+    const dest = pendingNav;
+    setPendingNav(null);
+    if (!dest) return;
+    const ok = await saveNow();
+    // Only leave on a successful save — if it failed, stay so the user keeps
+    // their unsaved changes and can retry instead of losing them.
+    if (ok) navigate(dest);
+  }
+  function confirmNavDiscard() {
+    const dest = pendingNav;
+    setPendingNav(null);
+    if (dest) navigate(dest);
+  }
+
+  /* Projects do NOT auto-save — the user saves explicitly via the Save button
+   * (or the leave-page dialog). Generations persist themselves directly to
+   * the backend the moment they complete, so clips are never lost. */
 
   /* ── Auto-select first scene with clip for preview ── */
   useEffect(() => {
@@ -351,6 +503,7 @@ export default function VideoEditor() {
       });
       if (!res.ok) throw new Error("Save failed");
       setSaveState("saved");
+      markSaved();
       return true;
     } catch {
       setSaveState("error");
@@ -359,7 +512,6 @@ export default function VideoEditor() {
   }
 
   async function saveNow() {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
     const ok = await persist();
     toast(
@@ -367,6 +519,7 @@ export default function VideoEditor() {
         ? { title: "Saved", description: "Editor changes saved to your project." }
         : { title: "Save failed", description: "Could not save your changes. Please try again.", variant: "destructive" },
     );
+    return ok;
   }
 
   async function rebuildScenesFromPlan() {
@@ -395,9 +548,7 @@ export default function VideoEditor() {
         return;
       }
 
-      // Update the ref BEFORE setScenes so the autosave timer
-      // that will fire ~1.2 s later gets the fresh array, not stale []
-      scenesRef.current = parsed;
+      // Wrapped setScenes snapshots for undo and keeps scenesRef current
       setScenes(parsed);
       setRebuildStatus("done");
 
@@ -412,6 +563,7 @@ export default function VideoEditor() {
           });
           if (patchRes.ok) {
             setSaveState("saved");
+            markSaved();
 
             // Verify: re-fetch the project and confirm the scenes are there (best-effort)
             try {
@@ -521,6 +673,8 @@ export default function VideoEditor() {
           title: `${recovered} clip${recovered !== 1 ? "s" : ""} recovered!`,
           description: "Your clips were restored from storage and should now play.",
         });
+        // Recovered clips are generations — persist immediately
+        void persist();
         return;
       }
       /* Update local scenes state from the server response */
@@ -534,6 +688,8 @@ export default function VideoEditor() {
         title: `${synced} clip${synced !== 1 ? "s" : ""} synced!`,
         description: "Scenes updated with your generated clips. Clip Ready will now appear.",
       });
+      // Synced clips are generations — persist immediately (no autosave otherwise)
+      void persist();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setSyncState("error");
@@ -794,8 +950,35 @@ export default function VideoEditor() {
                 <Clapperboard className="h-4 w-4 text-primary shrink-0" />
                 <h1 className="text-sm font-bold text-white tracking-tight truncate">{project?.title || "Untitled project"}</h1>
               </div>
-              <SaveIndicator state={saveState} />
+              <SaveIndicator state={saveState} dirty={isDirty} />
               <div className="flex-1" />
+              <div className="flex items-center gap-0.5" role="toolbar" aria-label="Undo and redo">
+                <Button
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  size="sm"
+                  variant="ghost"
+                  title="Undo (Ctrl+Z)"
+                  aria-label="Undo"
+                  data-testid="btn-undo"
+                  className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/5 disabled:opacity-25 disabled:pointer-events-none"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  size="sm"
+                  variant="ghost"
+                  title="Redo (Ctrl+Shift+Z)"
+                  aria-label="Redo"
+                  data-testid="btn-redo"
+                  className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/5 disabled:opacity-25 disabled:pointer-events-none"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="w-px h-5 bg-white/10" aria-hidden="true" />
               <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> Save
               </Button>
@@ -1433,6 +1616,47 @@ export default function VideoEditor() {
           setSelectedIdx={setSelectedIdx}
           onHeightChange={setDockHeight}
         />
+      )}
+
+      {/* ── Unsaved-changes dialog (in-app navigation while dirty) ── */}
+      {pendingNav && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Unsaved changes"
+          data-testid="unsaved-changes-dialog"
+        >
+          <div className="w-[380px] max-w-[calc(100vw-2rem)] rounded-2xl border border-primary/25 bg-[#0c0c0c] p-6 shadow-2xl">
+            <h2 className="text-base font-black text-white">Unsaved changes</h2>
+            <p className="mt-2 text-sm text-white/55">You have unsaved changes. Save before leaving?</p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button
+                onClick={() => void confirmNavSave()}
+                className="bg-primary text-black hover:bg-primary/90 font-bold gap-2 w-full"
+                data-testid="unsaved-save"
+              >
+                <Save className="h-4 w-4" /> Save
+              </Button>
+              <Button
+                onClick={confirmNavDiscard}
+                variant="ghost"
+                className="text-white/60 hover:text-white hover:bg-white/5 w-full"
+                data-testid="unsaved-dont-save"
+              >
+                Don&rsquo;t Save
+              </Button>
+              <Button
+                onClick={() => setPendingNav(null)}
+                variant="ghost"
+                className="text-white/60 hover:text-white hover:bg-white/5 w-full"
+                data-testid="unsaved-cancel"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2874,10 +3098,11 @@ function MasterPreviewPlayer({
 
 /* ─────────────────────── SAVE INDICATOR ─────────────────────── */
 
-function SaveIndicator({ state }: { state: SaveState }) {
+function SaveIndicator({ state, dirty }: { state: SaveState; dirty: boolean }) {
   if (state === "saving") return <span className="flex items-center gap-1.5 text-xs text-white/40"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</span>;
-  if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> Saved</span>;
   if (state === "error") return <span className="flex items-center gap-1.5 text-xs text-red-400/80"><CloudOff className="h-3.5 w-3.5" /> Save failed</span>;
+  if (dirty) return <span className="flex items-center gap-1.5 text-xs text-amber-400/90"><span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" /> Unsaved changes</span>;
+  if (state === "saved") return <span className="flex items-center gap-1.5 text-xs text-green-400/80"><Check className="h-3.5 w-3.5" /> Saved</span>;
   return null;
 }
 
