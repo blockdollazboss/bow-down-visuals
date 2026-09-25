@@ -30,6 +30,7 @@ const NAV_LINKS = [
   { label: "My Shop", href: "/my-shop" },
   { label: "Cover Art", href: "/cover-art" },
   { label: "Repurposer", href: "/repurpose" },
+  { label: "Lyric Video", href: "/lyric-video" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

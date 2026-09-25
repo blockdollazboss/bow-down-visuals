@@ -10,8 +10,11 @@ FROM node:22-slim
 # build-essential: diffq ships no prebuilt wheel, so pip compiles it from
 # source during the Docker build — gcc/g++ must be present or the deploy fails.
 # python3-dev: diffq's C extension includes Python.h, which ships in python3-dev.
+# fonts-dejavu-core: the lyric-video renderer burns ASS karaoke subtitles with
+# ffmpeg's ass filter, which needs a real font via fontconfig — without this
+# the text renders as tofu boxes (or libass fails outright).
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential python3-dev \
+  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential python3-dev fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
