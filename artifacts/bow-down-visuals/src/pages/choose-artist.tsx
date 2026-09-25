@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles } from "lucide-react";
+import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star } from "lucide-react";
 import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,14 +69,17 @@ export default function ChooseArtist() {
 
       <div className="relative z-10 max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-16">
         <div className="text-center mb-10">
-          <div className="h-14 w-14 rounded-2xl bg-white/[0.07] border border-white/[0.18] flex items-center justify-center mx-auto mb-5">
-            <User className="h-6 w-6 text-zinc-300" />
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#C9A84C]/20 to-[#C9A84C]/5 border border-[#C9A84C]/40 flex items-center justify-center mx-auto mb-5 shadow-[0_0_30px_rgba(201,168,76,0.25)]">
+            <Crown className="h-7 w-7 text-[#C9A84C]" />
           </div>
+          <p className="text-[#C9A84C] text-xs font-bold uppercase tracking-[0.3em] mb-3">
+            VIP Artist Lounge
+          </p>
           <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Who Are You Creating For?
+            Who's Taking the Stage?
           </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Pick an artist profile — we'll automatically match your sound, look, and brand across everything you create. You can skip this and add one later.
+            Your artist, your sound, your empire — pick who you're creating for and we'll match everything to their brand.
           </p>
         </div>
 
@@ -96,12 +99,16 @@ export default function ChooseArtist() {
           </div>
         ) : (
           <>
-            {/* Featured top 3 */}
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              Your top artists
-            </p>
+            {/* Featured top 3 — VIP spotlight */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Star className="h-4 w-4 text-[#C9A84C]" />
+              <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
+                Your headliners
+              </p>
+              <Star className="h-4 w-4 text-[#C9A84C]" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              {featuredVaults.map((vault) => {
+              {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
               const G = (o: number) => `rgba(201,168,76,${o})`;
               const GOLD = "#C9A84C";
@@ -149,6 +156,22 @@ export default function ChooseArtist() {
                       </div>
                     </div>
                   )}
+
+                  {/* VIP rank badge */}
+                  <div style={{
+                    position: "absolute", top: 10, left: 10, zIndex: 3,
+                    display: "flex", alignItems: "center", gap: 5,
+                    background: "linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.08))",
+                    border: `1px solid ${G(0.6)}`,
+                    borderRadius: 8, padding: "4px 10px",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: `0 0 15px ${G(0.3)}`,
+                  }}>
+                    <Crown className="h-3 w-3" style={{ color: GOLD }} />
+                    <span style={{ fontSize: 9, fontWeight: 900, color: GOLD, letterSpacing: "0.12em" }}>
+                      #{index + 1} HEADLINER
+                    </span>
+                  </div>
 
                   {/* SELECTED badge */}
                   {isSelected && (
