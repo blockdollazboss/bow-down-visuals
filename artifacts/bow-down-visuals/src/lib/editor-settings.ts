@@ -888,9 +888,13 @@ export type MasterPlayerSnapPosition =
   | "left-center";
 
 /** The master player is locked in — docked inline in the editor's center column, never a floating overlay. These snap positions are kept for settings compatibility only. */
-export const MASTER_PLAYER_DEFAULT_WIDTH = 480;
+/** Bumped 2026-09-25: the player now fills wide workspace columns (up to
+ *  1152px) instead of capping at 800px — the old cap left large empty gutters
+ *  on desktop. The vertical-band clamp in the player still keeps it inside the
+ *  toolbar↔timeline space, so portrait formats can't overflow the viewport. */
+export const MASTER_PLAYER_DEFAULT_WIDTH = 640;
 export const MASTER_PLAYER_MIN_WIDTH = 180;
-export const MASTER_PLAYER_MAX_WIDTH = 800;
+export const MASTER_PLAYER_MAX_WIDTH = 1152;
 /** Minimum on-screen height (px) the floating player is allowed to render at, regardless of
  *  aspect ratio. Sizing the player purely off `masterPlayerSize` (a width) makes wide formats
  *  like 16:9 collapse into a thin, easy-to-miss strip at the default/min width — this floor
