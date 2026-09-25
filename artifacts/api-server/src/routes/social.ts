@@ -523,15 +523,22 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
   }
 });
 
-/* ── 6. Publish a video to a Facebook Page (2 credits) ────────────────
+/* ── 6. Publish a video to a Facebook Page (2 credits, idempotent) ────
    POST /{page-id}/videos with file_url + description on graph-video.facebook.com.
    That POST *is* the publish (no second step like Instagram); we poll only
    until Meta finishes processing so the permalink is real. Since June 2025
-   every Facebook video surfaces as a Reel — reflected in the copy. */
+   every Facebook video surfaces as a Reel — reflected in the copy.
+   Idempotency mirrors the Instagram route: the client sends one idempotencyKey
+   per publish intent, the server claims a publish-attempt row for
+   (user_id, idempotencyKey) BEFORE charging or calling Meta, so a double-click,
+   two tabs, or a retry after a timeout can never post twice or charge twice. */
 const facebookPublishSchema = z.object({
   accountId: z.string().uuid(),
   videoUrl: z.string().min(1, "videoUrl is required.").max(2000),
   caption: z.string().max(5000, "Facebook descriptions cap at 5,000 characters.").default(""),
+  /* Client-generated per publish intent; required so every publish is
+     protected — an unkeyed request can never be deduplicated. */
+  idempotencyKey: z.string().min(8, "idempotencyKey is required.").max(128),
 });
 
 router.post("/social/facebook/publish", requireAuth, async (req: Request, res: Response) => {
@@ -543,7 +550,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     });
     return;
   }
-  const { accountId, caption } = parsed.data;
+  const { accountId, caption, idempotencyKey } = parsed.data;
   let videoUrl: string = parsed.data.videoUrl;
 
   /* Completed exports persist a supabase:// storage ref; Meta needs a real
@@ -559,7 +566,9 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     return;
   }
 
-  /* Credit pre-check + deduction BEFORE the Meta call (chat/hook-studio pattern). */
+  /* Credit pre-check BEFORE claiming the attempt (chat/hook-studio pattern).
+     deductCredits() re-checks against a fresh read, so this is just the
+     fast 402 path. */
   const balance = req.userCredits ?? 0;
   if (balance < FACEBOOK_POST_CREDITS) {
     res.status(402).json({
@@ -568,19 +577,68 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     });
     return;
   }
-  let creditsRemaining = balance;
-  try {
-    creditsRemaining = await deductCredits(req.userId!, FACEBOOK_POST_CREDITS);
-  } catch (err) {
-    if (err instanceof OutOfCreditsError) {
-      res.status(402).json({
-        error: "out_of_credits",
-        message: `Posting to Facebook costs ${FACEBOOK_POST_CREDITS} credits — top up to publish.`,
-      });
-      return;
-    }
-    throw err;
+
+  /* Idempotency claim — before any charging or Meta call. */
+  const attemptStore = createDrizzleAttemptStore();
+  const claim = await claimPublishAttempt(attemptStore, {
+    userId: req.userId!,
+    platform: "facebook",
+    idempotencyKey,
+    accountId,
+  });
+  if (claim.outcome === "replay") {
+    /* This key already published successfully: return the stored result
+       without posting to Facebook or charging again. */
+    const r = claim.result;
+    res.json({ videoId: r.mediaId, permalink: r.permalink, creditsUsed: r.creditsUsed, creditsRemaining: r.creditsRemaining, deduped: true });
+    return;
   }
+  if (claim.outcome === "in_progress") {
+    res.status(409).json({
+      error: "publish_in_progress",
+      message: "This post is already publishing. Give it a minute, then check your Facebook Page.",
+    });
+    return;
+  }
+  const attemptId = claim.attemptId;
+
+  let creditsRemaining: number;
+  if (claim.creditsAlreadyDeducted) {
+    /* Reclaimed a stale processing attempt whose original run already
+       charged: do NOT deduct again — just read the current balance for the
+       response. */
+    logger.info({ userId: req.userId }, "[social] reclaimed stale Facebook publish attempt, skipping duplicate charge");
+    creditsRemaining = await readCreditBalance(req.userId!);
+  } else {
+    try {
+      creditsRemaining = await deductCredits(req.userId!, FACEBOOK_POST_CREDITS);
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: `Posting to Facebook costs ${FACEBOOK_POST_CREDITS} credits — top up to publish.`,
+        });
+        return;
+      }
+      throw err;
+    }
+    /* Mark the deduction immediately so a reclaimed retry after a crash
+       knows not to charge again. A failure here is logged, not fatal — the
+       money is already taken, so the publish must proceed. */
+    try {
+      await attemptStore.markCreditsDeducted(attemptId);
+    } catch (markErr) {
+      logger.error({ userId: req.userId, err: markErr }, "[social] FAILED to mark Facebook publish attempt as charged");
+    }
+  }
+
+  const failAttempt = async (message: string) => {
+    try {
+      await attemptStore.failAttempt(attemptId, message);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt failure");
+    }
+  };
 
   const refund = async () => {
     try {
@@ -604,6 +662,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
       );
     const account = rows[0];
     if (!account?.access_token_encrypted || !account.page_id) {
+      await failAttempt("account_not_found");
       await refund();
       res.status(404).json({ error: "account_not_found", message: "That Facebook Page isn't connected anymore." });
       return;
@@ -617,6 +676,17 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
       description: caption,
     });
 
+    const result: PublishAttemptResult = {
+      mediaId: videoId,
+      permalink,
+      creditsUsed: FACEBOOK_POST_CREDITS,
+      creditsRemaining,
+    };
+    try {
+      await attemptStore.completeAttempt(attemptId, result);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record Facebook publish attempt success");
+    }
     recordCreditUsage({
       userId: req.userId!,
       action: "Facebook Auto-Post",
@@ -624,6 +694,8 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
     }).catch(() => {});
     res.json({ videoId, permalink, creditsUsed: FACEBOOK_POST_CREDITS, creditsRemaining });
   } catch (err) {
+    const message = err instanceof MetaApiError ? err.userMessage : "Couldn't publish to Facebook.";
+    await failAttempt(message);
     await refund();
     if (err instanceof MetaApiError) {
       res.status(502).json({ error: "facebook_error", message: err.userMessage });
