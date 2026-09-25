@@ -78,6 +78,7 @@ const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
 const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
 const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
+const Beats = lazyWithRetry(() => import("@/pages/beats"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -249,6 +250,7 @@ function AppShell() {
           <Route path="/shop/:handle"><ShopStorefront /></Route>
           <Route path="/cover-art"><CoverArt /></Route>
           <Route path="/lyric-video"><LyricVideo /></Route>
+          <Route path="/beats"><Beats /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}

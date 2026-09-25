@@ -31,6 +31,7 @@ const NAV_LINKS = [
   { label: "Cover Art", href: "/cover-art" },
   { label: "Repurposer", href: "/repurpose" },
   { label: "Lyric Video", href: "/lyric-video" },
+  { label: "Beats", href: "/beats" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];

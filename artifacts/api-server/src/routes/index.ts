@@ -66,6 +66,7 @@ import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
 import distributionRouter from "./generate/distribution";
 import streamerClipsRouter from "./generate/streamer-clips";
+import beatsRouter from "./generate/beats";
 
 const router: IRouter = Router();
 
@@ -136,5 +137,6 @@ router.use(discordRouter);
 router.use(jobNotificationsRouter);
 router.use(distributionRouter);
 router.use(streamerClipsRouter);
+router.use(beatsRouter);
 
 export default router;

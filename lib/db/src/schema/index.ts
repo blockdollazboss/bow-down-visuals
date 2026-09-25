@@ -37,3 +37,4 @@ export * from "./sponsor-deals";
 export * from "./distribution-releases";
 export * from "./branding-orders";
 export * from "./customer-shops";
+export * from "./beats";
