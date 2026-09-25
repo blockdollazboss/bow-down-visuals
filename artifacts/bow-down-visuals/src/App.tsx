@@ -59,6 +59,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
+const VoiceoverStudio = lazyWithRetry(() => import("@/pages/voiceover"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const TrendPredictor = lazyWithRetry(() => import("@/pages/trends"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
@@ -229,6 +230,7 @@ function AppShell() {
           <Route path="/sounds"><SoundFinder /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/titles"><TitleStudio /></Route>
+          <Route path="/voiceover"><VoiceoverStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/trends"><TrendPredictor /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>

@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { label: "Sound Finder", href: "/sounds" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Title Studio", href: "/titles" },
+  { label: "Voiceover", href: "/voiceover" },
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Tip Jar", href: "/tips" },
