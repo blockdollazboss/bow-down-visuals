@@ -59,6 +59,7 @@ import shopsRouter from "./generate/shops";
 import socialRouter from "./social";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
+import membershipsRouter from "./generate/memberships";
 
 const router: IRouter = Router();
 
@@ -122,5 +123,6 @@ router.use(shopsRouter);
 router.use(socialRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
+router.use(membershipsRouter);
 
 export default router;
