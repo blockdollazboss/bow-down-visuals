@@ -22,6 +22,16 @@ import {
   createDrizzleAttemptStore,
   type PublishAttemptResult,
 } from "../lib/social-idempotency";
+import {
+  buildTikTokAuthUrl,
+  exchangeCodeForTikTokTokens,
+  refreshTikTokTokens,
+  fetchTikTokUserInfo,
+  uploadDraftToTikTok,
+  downloadVideoBytes,
+  TikTokApiError,
+  type TikTokOAuthConfig,
+} from "../lib/social-tiktok";
 import { logger } from "../lib/logger";
 
 /* ── Instagram auto-post MVP ─────────────────────────────────────────────
@@ -61,14 +71,16 @@ function metaConfig(): MetaOAuthConfig {
 
 /* OAuth `state` bound to the user, kept in memory with a 10-minute TTL.
    (Matches the codebase's in-memory job stores; a deploy invalidates
-   in-flight logins, which is acceptable — the user just reconnects.) */
-interface PendingLogin { userId: string; expiresAt: number }
+   in-flight logins, which is acceptable — the user just reconnects.)
+   Shared by the Instagram and TikTok callbacks; the platform is checked on
+   consume so a state minted for one platform can't be replayed on the other. */
+interface PendingLogin { userId: string; platform: "instagram" | "tiktok"; expiresAt: number }
 const pendingLogins = new Map<string, PendingLogin>();
 const STATE_TTL_MS = 10 * 60 * 1000;
 
-function createLoginState(userId: string): string {
+function createLoginState(userId: string, platform: "instagram" | "tiktok"): string {
   const state = randomBytes(24).toString("hex");
-  pendingLogins.set(state, { userId, expiresAt: Date.now() + STATE_TTL_MS });
+  pendingLogins.set(state, { userId, platform, expiresAt: Date.now() + STATE_TTL_MS });
   if (pendingLogins.size > 1000) {
     const now = Date.now();
     for (const [k, v] of pendingLogins) if (v.expiresAt < now) pendingLogins.delete(k);
@@ -76,10 +88,10 @@ function createLoginState(userId: string): string {
   return state;
 }
 
-function consumeLoginState(state: string): string | null {
+function consumeLoginState(state: string, platform: "instagram" | "tiktok"): string | null {
   const entry = pendingLogins.get(state);
   pendingLogins.delete(state);
-  if (!entry || entry.expiresAt < Date.now()) return null;
+  if (!entry || entry.expiresAt < Date.now() || entry.platform !== platform) return null;
   return entry.userId;
 }
 
@@ -100,7 +112,7 @@ router.get("/social/instagram/auth-url", requireAuth, (_req: Request, res: Respo
       });
       return;
     }
-    const state = createLoginState(_req.userId!);
+    const state = createLoginState(_req.userId!, "instagram");
     res.json({ authUrl: buildAuthUrl(cfg, state) });
   } catch (err) {
     const message = err instanceof MetaApiError ? err.userMessage : "Instagram auto-post isn't configured yet.";
@@ -121,7 +133,7 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
 
   const { code, state } = req.query as { code?: string; state?: string };
   if (typeof code !== "string" || typeof state !== "string") return fail("missing_params");
-  const userId = consumeLoginState(state);
+  const userId = consumeLoginState(state, "instagram");
   if (!userId) return fail("bad_state");
 
   try {
@@ -138,6 +150,7 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
         user_id: userId,
         platform: "instagram",
         ig_user_id: igUserId,
+        provider_user_id: igUserId,
         username: username || null,
         page_id: null,
         access_token_encrypted: encrypted,
@@ -146,6 +159,7 @@ router.get("/social/instagram/callback", async (req: Request, res: Response) => 
       .onConflictDoUpdate({
         target: [socialAccountsTable.user_id, socialAccountsTable.platform, socialAccountsTable.ig_user_id],
         set: {
+          provider_user_id: igUserId,
           username: username || null,
           page_id: null,
           access_token_encrypted: encrypted,
@@ -171,19 +185,27 @@ router.get("/social/accounts", requireAuth, async (req: Request, res: Response) 
       platform: socialAccountsTable.platform,
       username: socialAccountsTable.username,
       token_expires_at: socialAccountsTable.token_expires_at,
+      refresh_token_encrypted: socialAccountsTable.refresh_token_encrypted,
       created_at: socialAccountsTable.created_at,
     })
     .from(socialAccountsTable)
     .where(eq(socialAccountsTable.user_id, req.userId!));
   res.json({
-    accounts: rows.map((r) => ({
-      id: r.id,
-      platform: r.platform,
-      username: r.username,
-      usernameMasked: maskUsername(r.username),
-      expired: r.token_expires_at ? r.token_expires_at.getTime() < Date.now() : false,
-      connectedAt: r.created_at,
-    })),
+    accounts: rows.map((r) => {
+      /* TikTok access tokens live ~24h but refresh silently server-side, so a
+         TikTok row with a stored refresh token is never "expired" for UI
+         purposes — the publish route refreshes it on demand. */
+      const tokenExpired = r.token_expires_at ? r.token_expires_at.getTime() < Date.now() : false;
+      const expired = r.platform === "tiktok" && r.refresh_token_encrypted ? false : tokenExpired;
+      return {
+        id: r.id,
+        platform: r.platform,
+        username: r.username,
+        usernameMasked: maskUsername(r.username),
+        expired,
+        connectedAt: r.created_at,
+      };
+    }),
   });
 });
 
@@ -403,6 +425,325 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
     }
     logger.error({ err, userId: req.userId }, "[social] Instagram publish failed");
     res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Instagram. Your credits were refunded." });
+  }
+});
+
+
+/* ── TikTok (drafts tier) ────────────────────────────────────────────────────
+   GET  /api/social/tiktok/auth-url   (authed)  — TikTok Login Kit URL
+   GET  /api/social/tiktok/callback   (public)  — OAuth code exchange
+   POST /api/social/tiktok/publish    (authed)  — upload video to TikTok inbox
+
+   Drafts-tier honesty contract: the response says the video was SENT TO THE
+   USER'S TIKTOK INBOX for them to finish publishing — never "published". */
+
+function tiktokConfig(): TikTokOAuthConfig {
+  const clientKey = (process.env.TIKTOK_CLIENT_KEY || "").trim();
+  const clientSecret = (process.env.TIKTOK_CLIENT_SECRET || "").trim();
+  const redirectUri = (process.env.TIKTOK_REDIRECT_URI || "").trim();
+  if (!clientKey || !clientSecret || !redirectUri) {
+    throw new TikTokApiError("TikTok isn't configured on this server yet (TIKTOK_CLIENT_KEY/SECRET/REDIRECT_URI).");
+  }
+  return { clientKey, clientSecret, redirectUri };
+}
+
+router.get("/social/tiktok/auth-url", requireAuth, (_req: Request, res: Response) => {
+  try {
+    const cfg = tiktokConfig();
+    if (!isSocialTokenKeyConfigured()) {
+      res.status(500).json({ error: "tiktok_not_configured", message: "TikTok auto-post isn't configured on this server yet." });
+      return;
+    }
+    const state = createLoginState(_req.userId!, "tiktok");
+    res.json({ authUrl: buildTikTokAuthUrl(cfg, state) });
+  } catch (err) {
+    logger.warn({ err }, "[social] tiktok auth-url failed");
+    res.status(400).json({ error: "tiktok_not_configured", message: (err as Error).message });
+  }
+});
+
+router.get("/social/tiktok/callback", async (req: Request, res: Response) => {
+  let siteOrigin = "https://bowdownvisuals.com";
+  try {
+    siteOrigin = new URL(
+      process.env["TIKTOK_REDIRECT_URI"] ?? "https://bowdownvisuals.com/api/social/tiktok/callback",
+    ).origin;
+  } catch { /* keep default */ }
+  const fail = (reason: string) =>
+    res.redirect(302, `${siteOrigin}/settings?social=tiktok_error&reason=${encodeURIComponent(reason)}`);
+
+  try {
+    const { code, state } = req.query as { code?: string; state?: string };
+    if (typeof code !== "string" || typeof state !== "string") return fail("missing_params");
+    const userId = consumeLoginState(state, "tiktok");
+    if (!userId) return fail("bad_state");
+
+    const cfg = tiktokConfig();
+    const tokens = await exchangeCodeForTikTokTokens(cfg, code);
+    const info = await fetchTikTokUserInfo(tokens.accessToken);
+    const encryptedAccess = encryptToken(tokens.accessToken); // fail closed
+    const encryptedRefresh = encryptToken(tokens.refreshToken);
+    const expiresAt = new Date(Date.now() + tokens.expiresInSec * 1000);
+
+    await db
+      .insert(socialAccountsTable)
+      .values({
+        user_id: userId,
+        platform: "tiktok",
+        provider_user_id: info.openId,
+        username: info.displayName || null,
+        access_token_encrypted: encryptedAccess,
+        refresh_token_encrypted: encryptedRefresh,
+        token_expires_at: expiresAt,
+      })
+      .onConflictDoUpdate({
+        target: [socialAccountsTable.user_id, socialAccountsTable.platform, socialAccountsTable.provider_user_id],
+        set: {
+          username: info.displayName || null,
+          access_token_encrypted: encryptedAccess,
+          refresh_token_encrypted: encryptedRefresh,
+          token_expires_at: expiresAt,
+          updated_at: new Date(),
+        },
+      });
+
+    logger.info({ userId }, "[social] tiktok account connected");
+    res.redirect(302, `${siteOrigin}/settings?social=tiktok_connected`);
+  } catch (err) {
+    logger.error({ err }, "[social] tiktok callback failed");
+    return fail("tiktok_error");
+  }
+});
+
+/* ── 6. Send to TikTok drafts (2 credits) ───────────────────────────────── */
+const tiktokPublishSchema = z.object({
+  accountId: z.string().uuid(),
+  /* https URL, or a supabase:// storage ref from a completed export —
+     storage refs are resolved to a fresh signed URL server-side. */
+  videoUrl: z.string().min(1, "videoUrl is required.").max(2000),
+  caption: z.string().max(2200, "TikTok captions cap at 2,200 characters.").default(""),
+  /* Client-generated per upload intent; required so every upload is
+     protected — an unkeyed request can never be deduplicated. */
+  idempotencyKey: z.string().min(8, "idempotencyKey is required.").max(128),
+});
+
+/* 2 credits per TikTok draft — env-overridable without a deploy. TikTok's
+   API itself is free, so this is pure margin at ~$1.00 retail per upload. */
+const TIKTOK_POST_CREDITS = Number(process.env["TIKTOK_POST_CREDITS"]) || 2;
+
+/* Hard server-side download cap (TikTok allows far more; our clips don't
+   need it, and this keeps memory bounded on the 2GB box). */
+const TIKTOK_MAX_BYTES = 128 * 1024 * 1024;
+
+router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Response) => {
+  const parsed = tiktokPublishSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid upload request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+  const { accountId, idempotencyKey } = parsed.data;
+  let videoUrl: string = parsed.data.videoUrl;
+
+  /* Completed exports persist a supabase:// storage ref; resolve to a fresh
+     signed URL before the credit deduction. */
+  if (videoUrl.startsWith("supabase://")) {
+    try {
+      videoUrl = await refreshSupabaseStorageUrl(videoUrl);
+    } catch (err) {
+      logger.warn({ err }, "[social] tiktok publish: supabase url refresh failed, using raw url");
+    }
+  }
+  if (!/^https:\/\//.test(videoUrl)) {
+    res.status(400).json({
+      error: "Invalid upload request.",
+      details: [{ field: "videoUrl", message: "Couldn't resolve a public https URL for this video." }],
+    });
+    return;
+  }
+
+  /* Credit pre-check BEFORE claiming the attempt (chat/hook-studio pattern).
+     deductCredits() re-checks against a fresh read, so this is just the
+     fast 402 path. */
+  const balance = req.userCredits ?? 0;
+  if (balance < TIKTOK_POST_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: `Sending to TikTok costs ${TIKTOK_POST_CREDITS} credits — top up to continue.`,
+    });
+    return;
+  }
+
+  /* Idempotency claim — before any charging or TikTok call. A double-click,
+     two tabs, or a retry after a timeout can never upload twice or charge
+     twice: replays return the stored result, and a still-running first
+     attempt answers 409 instead of starting a duplicate. */
+  const attemptStore = createDrizzleAttemptStore();
+  const claim = await claimPublishAttempt(attemptStore, {
+    userId: req.userId!,
+    platform: "tiktok",
+    idempotencyKey,
+    accountId,
+  });
+  if (claim.outcome === "replay") {
+    /* This key already delivered to the TikTok inbox: return the stored
+       result without uploading or charging again. */
+    res.json({ ...claim.result, deduped: true });
+    return;
+  }
+  if (claim.outcome === "in_progress") {
+    res.status(409).json({
+      error: "publish_in_progress",
+      message: "This video is already uploading. Give it a minute, then check your TikTok drafts.",
+    });
+    return;
+  }
+  const attemptId = claim.attemptId;
+
+  let creditsRemaining: number;
+  if (claim.creditsAlreadyDeducted) {
+    /* Reclaimed a stale processing attempt whose original run already
+       charged: do NOT deduct again — just read the current balance for the
+       response. */
+    logger.info({ userId: req.userId }, "[social] reclaimed stale tiktok attempt, skipping duplicate charge");
+    creditsRemaining = await readCreditBalance(req.userId!);
+  } else {
+    try {
+      creditsRemaining = await deductCredits(req.userId!, TIKTOK_POST_CREDITS);
+    } catch (err) {
+      if (err instanceof OutOfCreditsError) {
+        res.status(402).json({
+          error: "out_of_credits",
+          message: `Sending to TikTok costs ${TIKTOK_POST_CREDITS} credits — top up to continue.`,
+        });
+        return;
+      }
+      throw err;
+    }
+    /* Mark the deduction immediately so a reclaimed retry after a crash
+       knows not to charge again. A failure here is logged, not fatal — the
+       money is already taken, so the upload must proceed. */
+    try {
+      await attemptStore.markCreditsDeducted(attemptId);
+    } catch (markErr) {
+      logger.error({ userId: req.userId, err: markErr }, "[social] FAILED to mark tiktok attempt as charged");
+    }
+  }
+
+  const failAttempt = async (message: string) => {
+    try {
+      await attemptStore.failAttempt(attemptId, message);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record tiktok attempt failure");
+    }
+  };
+
+  const refund = async () => {
+    try {
+      await addCreditsToProfile(req.userId!, TIKTOK_POST_CREDITS);
+      logger.info({ userId: req.userId }, "[social] refunded TikTok draft credits after TikTok failure");
+    } catch (refundErr) {
+      logger.error({ userId: req.userId, err: refundErr }, "[social] FAILED to refund TikTok draft credits");
+    }
+  };
+
+  try {
+    const rows = await db
+      .select()
+      .from(socialAccountsTable)
+      .where(
+        and(
+          eq(socialAccountsTable.id, accountId),
+          eq(socialAccountsTable.user_id, req.userId!),
+          eq(socialAccountsTable.platform, "tiktok"),
+        ),
+      );
+    const account = rows[0];
+    if (!account?.access_token_encrypted) {
+      await failAttempt("account_not_found");
+      await refund();
+      res.status(404).json({ error: "account_not_found", message: "That TikTok account isn't connected anymore." });
+      return;
+    }
+    let accessToken = decryptToken(account.access_token_encrypted); // fail closed
+
+    /* TikTok user tokens live ~24h and the refresh token ROTATES — refresh
+       when expired and persist both new values. */
+    if (account.token_expires_at && account.token_expires_at.getTime() < Date.now() + 60_000) {
+      if (!account.refresh_token_encrypted) {
+        await failAttempt("token_expired");
+        await refund();
+        res.status(409).json({
+          error: "token_expired",
+          message: "Your TikTok connection expired. Reconnect it in Settings → Connected Accounts.",
+        });
+        return;
+      }
+      try {
+        const refreshed = await refreshTikTokTokens(tiktokConfig(), decryptToken(account.refresh_token_encrypted));
+        accessToken = refreshed.accessToken;
+        await db
+          .update(socialAccountsTable)
+          .set({
+            access_token_encrypted: encryptToken(refreshed.accessToken),
+            refresh_token_encrypted: encryptToken(refreshed.refreshToken),
+            token_expires_at: new Date(Date.now() + refreshed.expiresInSec * 1000),
+            updated_at: new Date(),
+          })
+          .where(eq(socialAccountsTable.id, accountId));
+      } catch (refreshErr) {
+        logger.warn({ err: refreshErr }, "[social] tiktok token refresh failed");
+        await failAttempt("token_expired");
+        await refund();
+        const msg =
+          refreshErr instanceof TikTokApiError
+            ? refreshErr.userMessage
+            : "Your TikTok connection expired. Reconnect it in Settings → Connected Accounts.";
+        res.status(409).json({ error: "token_expired", message: msg });
+        return;
+      }
+    }
+
+    /* Drafts-tier flow: download the export, upload to the TikTok inbox. */
+    const videoBytes = await downloadVideoBytes(videoUrl, TIKTOK_MAX_BYTES);
+    const { publishId } = await uploadDraftToTikTok({ accessToken, videoBytes });
+
+    const result: PublishAttemptResult = {
+      mediaId: publishId,
+      permalink: null,
+      creditsUsed: TIKTOK_POST_CREDITS,
+      creditsRemaining,
+    };
+    try {
+      await attemptStore.completeAttempt(attemptId, result);
+    } catch (err) {
+      logger.error({ userId: req.userId, err }, "[social] FAILED to record tiktok attempt success");
+    }
+    recordCreditUsage({
+      userId: req.userId!,
+      action: "TikTok Auto-Post",
+      creditsUsed: TIKTOK_POST_CREDITS,
+    }).catch(() => {});
+    logger.info({ userId: req.userId }, "[social] tiktok draft delivered to inbox");
+    res.json({
+      publishId,
+      status: "sent_to_tiktok_inbox",
+      message: "Your video was sent to your TikTok drafts. Open TikTok to finish posting.",
+      creditsUsed: TIKTOK_POST_CREDITS,
+      creditsRemaining,
+    });
+  } catch (err) {
+    const message = err instanceof TikTokApiError ? err.userMessage : "Couldn't send the video to TikTok.";
+    await failAttempt(message);
+    await refund();
+    if (err instanceof TikTokApiError) {
+      res.status(502).json({ error: "tiktok_error", message: err.userMessage });
+      return;
+    }
+    logger.error({ err, userId: req.userId }, "[social] TikTok publish failed");
+    res.status(500).json({ error: "publish_failed", message: "Couldn't send the video to TikTok. Your credits were refunded." });
   }
 });
 
