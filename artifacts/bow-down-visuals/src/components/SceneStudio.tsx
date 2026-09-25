@@ -122,6 +122,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const [showConfirm, setShowConfirm]   = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
+  /* Video model selection — Seedance 2.5 is the premium option with longer
+     scenes and higher resolution, priced per second. */
+  const [clipModel, setClipModel]     = useState<"gen4.5" | "seedance2_5">("gen4.5");
+  const [clipDuration, setClipDuration] = useState(5);
+  const [clipRes, setClipRes]         = useState<"720p" | "1080p">("720p");
   const [referenceSource, setReferenceSource] = useState<"previous_scene" | "vault_photo" | "none" | null>(
     scene.referenceSource ?? null,
   );
@@ -259,6 +264,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               ? artistVault.reference_image_url
               : null,
           previousClipUrl: chaining ? previousClipUrl : null,
+          model: clipModel,
+          durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
+          resolution: clipRes,
         }),
       });
       const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
@@ -303,6 +311,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const hasArtist = !!artistVault;
   const willChain = hasUsableClip(previousClipUrl);
 
+  /* Site-credit cost for the current picker selection. The per-second rate
+     must match the server's SEEDANCE_CREDITS_PER_SEC default (2). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT = 2;
+  const clipCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT : 5;
+  const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
+
   /* Human-readable label for whichever reference the last/next generation used or will use. */
   function referenceLabel(source: "previous_scene" | "vault_photo" | "none" | null): string | null {
     if (source === "previous_scene") return "Chained from previous scene's final frame";
@@ -323,7 +337,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               <ShieldCheck className="h-3 w-3" /> {label}
             </p>
           )}
-          <p className="text-[11px] text-white/30 mt-0.5">Usually takes 30–90 seconds</p>
+          <p className="text-[11px] text-white/30 mt-0.5">{genTimeHint}</p>
           {progress !== null && (
             <div className="mt-2 h-1 w-full rounded-full bg-white/10 overflow-hidden">
               <div
@@ -461,10 +475,74 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         )}
       </div>
 
+      {/* Model + duration picker */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Model</span>
+          {([
+            { id: "gen4.5", label: "Gen-4.5" },
+            { id: "seedance2_5", label: "Seedance 2.5" },
+          ] as const).map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setClipModel(m.id)}
+              data-testid={`model-pick-${m.id}`}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                clipModel === m.id
+                  ? "border-primary/60 bg-primary/15 text-primary"
+                  : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+              }`}
+            >
+              {m.label}
+              {m.id === "seedance2_5" && (
+                <span className="ml-1 text-[9px] font-black uppercase tracking-wide text-primary/80">Pro</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {clipModel === "seedance2_5" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Length</span>
+            {[5, 10, 15, 30].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setClipDuration(d)}
+                data-testid={`duration-pick-${d}s`}
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                  clipDuration === d
+                    ? "border-primary/60 bg-primary/15 text-primary"
+                    : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+                }`}
+              >
+                {d}s
+              </button>
+            ))}
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider ml-2">Quality</span>
+            {(["720p", "1080p"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setClipRes(r)}
+                data-testid={`res-pick-${r}`}
+                className={`text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
+                  clipRes === r
+                    ? "border-primary/60 bg-primary/15 text-primary"
+                    : "border-white/10 bg-white/5 text-white/40 hover:text-white/70"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Generate controls */}
       {showConfirm ? (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-white/50">Generate costs 5 credits.</span>
+          <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
           <Button size="sm" onClick={startGeneration} className="gold-glow h-7 text-xs gap-1.5">
             <Video className="h-3.5 w-3.5" /> Yes, Generate
           </Button>
