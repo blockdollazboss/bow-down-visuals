@@ -70,6 +70,7 @@ const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
@@ -280,6 +281,7 @@ function AppShell() {
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/analytics"><Analytics /></Route>
           <Route path="/import"><MediaImport /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
@@ -289,7 +291,6 @@ function AppShell() {
           {/* Public press kit view + email-list join landing (fan-facing) */}
           <Route path="/press/:id"><PressPublic /></Route>
           <Route path="/join/:handle"><Join /></Route>
-
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
