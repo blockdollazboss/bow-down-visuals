@@ -23,6 +23,27 @@ interface Usage {
   projectId: string | null;
 }
 
+interface CreditHistory {
+  purchases: Purchase[];
+  usage: Usage[];
+}
+
+/**
+ * Derive a human-readable transaction type + signed display amount from a
+ * ledger row. Grants/refunds are stored with negative creditsUsed (a credit
+ * back to the user); charges are positive. This fixes the "−−2" display bug
+ * where a grant of -2 rendered as "−−2".
+ */
+function describeUsage(u: Usage): { type: string; amount: string; tone: "charge" | "credit" | "free" } {
+  const n = u.creditsUsed;
+  if (n < 0) {
+    const label = /grant/i.test(u.action) ? "Grant" : /refund/i.test(u.action) ? "Refund" : "Credit back";
+    return { type: label, amount: `+${Math.abs(n)}`, tone: "credit" };
+  }
+  if (n === 0) return { type: "Free", amount: "0", tone: "free" };
+  return { type: "Charge", amount: `−${n}`, tone: "charge" };
+}
+
 function fmt(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
     month: "short",
@@ -172,19 +193,19 @@ export default function CreditHistory() {
               )}
             </section>
 
-            {/* Section 3: Credits Used */}
+            {/* Section 3: Credit Activity (charges, refunds, grants) */}
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
-                <h2 className="text-lg font-bold">Credits Used</h2>
-                {usage.length > 0 && (
-                  <span className="ml-auto text-xs text-white/30">{usage.length} action{usage.length !== 1 ? "s" : ""}</span>
+                <h2 className="text-lg font-bold">Credit Activity</h2>
+                {history.usage.length > 0 && (
+                  <span className="ml-auto text-xs text-white/30">{history.usage.length} transaction{history.usage.length !== 1 ? "s" : ""}</span>
                 )}
               </div>
 
               {usage.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
-                  No credits spent yet. Start creating to see your usage here.
+                  No credit activity yet. Start creating to see your transactions here.
                 </div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-hidden">
@@ -193,21 +214,42 @@ export default function CreditHistory() {
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Date</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Action</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Credits Used</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">Type</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">Amount</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {[...usage].reverse().map((u) => (
-                        <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
-                          <td className="px-4 py-3 text-white/50">{fmt(u.createdAt)}</td>
-                          <td className="px-4 py-3 text-white/80">{u.action}</td>
-                          <td className="px-4 py-3">
-                            <span className="flex items-center gap-1 text-white/50 font-semibold">
-                              <Zap className="h-3.5 w-3.5" />−{u.creditsUsed}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {[...history.usage].reverse().map((u) => {
+                        const d = describeUsage(u);
+                        return (
+                          <tr key={u.id} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors">
+                            <td className="px-4 py-3 text-white/50">{fmt(u.createdAt)}</td>
+                            <td className="px-4 py-3 text-white/80">{u.action}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+                                  d.tone === "credit"
+                                    ? "bg-green-500/10 text-green-400 border-green-500/20"
+                                    : d.tone === "free"
+                                      ? "bg-white/[0.04] text-white/40 border-white/10"
+                                      : "bg-white/[0.04] text-white/60 border-white/10"
+                                }`}
+                              >
+                                {d.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`flex items-center gap-1 font-semibold ${
+                                  d.tone === "credit" ? "text-green-400" : "text-white/50"
+                                }`}
+                              >
+                                <Zap className="h-3.5 w-3.5" />{d.amount}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
