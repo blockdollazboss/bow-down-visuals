@@ -1,5 +1,6 @@
 import type { SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
 /** Payload shape the `/api/improve-prompt` endpoint expects for Artist Vault context. */
 export interface ArtistVaultPayload {
@@ -103,11 +104,13 @@ export async function requestImprovedPrompt(params: {
   artistVault?: ArtistVaultPayload | null;
   videoStyle?: string;
   platform?: string;
-}): Promise<string> {
-  const { token, prompt, scene, artistVault, videoStyle, platform } = params;
-  let res: Response;
+  /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
+  fetchImpl?: FetchImpl;
+}): Promise<string | null> {
+  const { token, prompt, scene, artistVault, videoStyle, platform, fetchImpl = fetch } = params;
+  let res: Response | null;
   try {
-    res = await fetch("/api/improve-prompt", {
+    res = await fetchImpl("/api/improve-prompt", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
       body: JSON.stringify({
@@ -129,6 +132,7 @@ export async function requestImprovedPrompt(params: {
   } catch {
     throw new ImprovePromptError("Could not reach the server — check your connection and try again.", "unknown", null);
   }
+  if (!res) return null; // user cancelled the credit confirmation
 
   if (!res.ok) {
     let body: { error?: string; errorType?: string } = {};

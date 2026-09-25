@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Upload, Music2, Sparkles, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface SongRecord {
   id: string;
@@ -26,6 +27,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 export default function SongsPage() {
+  usePageTitle("My Songs", "Your AI-generated song library.");
   const { getAccessToken } = useAuth();
   const [songs, setSongs] = useState<SongRecord[]>([]);
   const [loading, setLoading] = useState(true);

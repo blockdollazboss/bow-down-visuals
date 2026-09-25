@@ -9,7 +9,9 @@ import {
 
 const router = Router();
 
-/** Keep uploads well under the bucket's 100 MB fileSizeLimit. */
+/** Cap user uploads at 80 MB. Enforced here at the app level — the bucket
+ *  itself carries no file_size_limit (Supabase rejected it with 413, see
+ *  PR #5), so this multer cap is the guard. */
 const UPLOAD_CLIP_MAX_BYTES = 80 * 1024 * 1024;
 
 const upload = multer({

@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Dices } from "lucide-react";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { X, Send, Loader2, Dices } from "lucide-react";
+import { CheatCodeName } from "@/components/pixel-headline";
+import { AnimatedSharkIcon } from "@/components/AnimatedSharkIcon";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -50,6 +53,7 @@ const GREETING: ChatMessage = {
 const MAX_HISTORY = 6;
 
 export function AiChatWidget() {
+  const { confirmedFetch } = useConfirmedApi();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -88,7 +92,7 @@ export function AiChatWidget() {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
+      const res = await confirmedFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -96,6 +100,7 @@ export function AiChatWidget() {
           history: history.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets loading)
       const data = await res.json().catch(() => ({}));
       if (typeof data.creditCost === "number") setCreditCost(data.creditCost);
       let reply: string;
@@ -134,13 +139,18 @@ export function AiChatWidget() {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
-            <div>
-              <p className="text-sm font-bold text-primary">Thy Cheat Code 🦈</p>
-              <p className="text-[11px] text-neutral-400">
-                {creditCost
-                  ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
-                  : "AI assistant — ask me about the site"}
-              </p>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/60 shadow-[0_0_12px_rgba(212,175,55,0.4)]">
+                <AnimatedSharkIcon className="h-full w-full" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-primary"><CheatCodeName /> 🦈</p>
+                <p className="text-[11px] text-neutral-400">
+                  {creditCost
+                    ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
+                    : "AI assistant — ask me about the site"}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => {
@@ -167,6 +177,11 @@ export function AiChatWidget() {
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "assistant" && (
+                  <div className="mr-2 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-primary/50">
+                    <AnimatedSharkIcon className="h-full w-full" />
+                  </div>
+                )}
                 <div
                   className={
                     m.role === "user"
@@ -232,9 +247,13 @@ export function AiChatWidget() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close AI chat" : "Chat with Thy Cheat Code"}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] text-black shadow-[0_4px_20px_rgba(212,175,55,0.45)] transition hover:scale-105 active:scale-95"
+        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-primary/70 bg-black shadow-[0_4px_20px_rgba(212,175,55,0.45)] transition hover:scale-105 active:scale-95"
       >
-        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {open ? (
+          <X className="h-6 w-6 text-primary" />
+        ) : (
+          <AnimatedSharkIcon className="h-full w-full" />
+        )}
       </button>
     </div>
   );

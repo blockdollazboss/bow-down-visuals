@@ -9,6 +9,8 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
    Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -17,7 +19,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
    generation on GPT-6 Sol. Video-type keys must stay in sync with the
    backend route's VIDEO_TYPES enum. */
 
-type TabKey = "hooks" | "preflight";
+type TabKey = "hooks" | "preflight" | "captions";
 
 type VideoTypeKey = "music-promo" | "behind-the-scenes" | "tutorial" | "announcement";
 
@@ -62,6 +64,16 @@ interface PreflightResponse {
   message?: string;
 }
 
+interface CaptionsResponse {
+  captions?: string[];
+  hashtags?: { niche?: string[]; broad?: string[]; trending?: string[] };
+  cta?: string;
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
 function scoreColor(score: number): string {
   if (score >= 75) return "text-emerald-400";
   if (score >= 50) return "text-amber-400";
@@ -79,6 +91,7 @@ const inputClass =
 
 export default function HookStudio() {
   const { user, getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<TabKey>("hooks");
 
   /* hook generator state */
@@ -95,6 +108,13 @@ export default function HookStudio() {
   const [scorecard, setScorecard] = useState<PreflightResponse | null>(null);
   const [preflightLoading, setPreflightLoading] = useState(false);
 
+  /* captions state */
+  const [capTopic, setCapTopic] = useState("");
+  const [capPlatform, setCapPlatform] = useState<"tiktok" | "instagram" | "youtube" | "twitter">("tiktok");
+  const [capTone, setCapTone] = useState("");
+  const [capResult, setCapResult] = useState<CaptionsResponse | null>(null);
+  const [capLoading, setCapLoading] = useState(false);
+
   /* shared */
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
@@ -107,7 +127,7 @@ export default function HookStudio() {
 
   async function authedPost(body: Record<string, unknown>) {
     const token = await getAccessToken();
-    return fetch("/api/hook-studio", {
+    return confirmedFetch("/api/hook-studio", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -133,6 +153,7 @@ export default function HookStudio() {
     setOutOfCredits(false);
     try {
       const res = await authedPost({ mode: "hooks", videoType, topic: topic.trim() });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as HooksResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.hooks) || data.hooks.length === 0) {
@@ -147,6 +168,40 @@ export default function HookStudio() {
       setError(err instanceof Error ? err.message : "Hook generation failed — try again.");
     } finally {
       setHooksLoading(false);
+    }
+  }
+
+  async function generateCaptions() {
+    if (capLoading || !user) return;
+    if (!capTopic.trim()) {
+      setError("Tell us what the post is about first.");
+      return;
+    }
+    setCapLoading(true);
+    setError(null);
+    setOutOfCredits(false);
+    try {
+      const res = await authedPost({
+        mode: "captions",
+        topic: capTopic.trim(),
+        platform: capPlatform,
+        tone: capTone.trim(),
+      });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
+      const data = (await res.json().catch(() => ({}))) as CaptionsResponse;
+      if (handlePaidFailure(res, data)) return;
+      if (!res.ok || !Array.isArray(data.captions) || data.captions.length === 0) {
+        throw new Error(data.message || data.error || "Caption generation failed — try again.");
+      }
+      setCapResult(data);
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("captions-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Caption generation failed — try again.");
+    } finally {
+      setCapLoading(false);
     }
   }
 
@@ -167,6 +222,7 @@ export default function HookStudio() {
         hashtags: hashtags.trim(),
         description: description.trim(),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as PreflightResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !Array.isArray(data.checks) || data.checks.length === 0) {
@@ -199,11 +255,15 @@ export default function HookStudio() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Zap className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
+            <Zap className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
           </p>
-          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Hook <span className="text-primary">Studio</span>
-          </h1>
+          <div className="flex justify-center mb-5">
+            <PixelSprite name="bolt" pixel={6} />
+          </div>
+          <PixelHeadline size="page" align="center">
+            Hook Studio
+          </PixelHeadline>
+          <PixelDivider align="center" className="mt-5" />
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             Your money is made in the first 3 seconds. Generate scroll-stopping
             openers — then run your post through the pre-flight before you ship it.
@@ -215,6 +275,7 @@ export default function HookStudio() {
           {(
             [
               { key: "hooks", label: "Hook Generator", icon: Zap },
+              { key: "captions", label: "Captions & Hashtags", icon: Megaphone },
               { key: "preflight", label: "Virality Pre-flight", icon: Gauge },
             ] as { key: TabKey; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => {
@@ -360,6 +421,143 @@ export default function HookStudio() {
                   <Wrench className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
                   Tip: say it in the first second, show it on screen too.
                 </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CAPTIONS & HASHTAGS ────────────────────────────────────── */}
+        {tab === "captions" && (
+          <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+                <Megaphone className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="text-xl font-bold">Captions & Hashtags</h2>
+                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 credit.</p>
+              </div>
+            </div>
+
+            <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+              What's the post about?
+            </p>
+            <textarea
+              value={capTopic}
+              onChange={(e) => setCapTopic(e.target.value)}
+              placeholder="e.g. My new single 'Midnight Gold' just dropped — luxury rap anthem"
+              rows={3}
+              className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
+            />
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["tiktok", "instagram", "youtube", "twitter"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setCapPlatform(p)}
+                      className={`rounded-lg px-3 py-2.5 text-sm font-semibold capitalize transition ${
+                        capPlatform === p
+                          ? "bg-primary text-black"
+                          : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
+                      }`}
+                    >
+                      {p === "twitter" ? "X / Twitter" : p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                  Tone / vibe <span className="normal-case font-normal text-white/30">(optional)</span>
+                </p>
+                <input
+                  value={capTone}
+                  onChange={(e) => setCapTone(e.target.value)}
+                  placeholder="e.g. confident, playful, luxury"
+                  className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={generateCaptions}
+              disabled={capLoading || !capTopic.trim()}
+              className="mt-8 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {capLoading ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
+              ) : (
+                <><Sparkles className="h-5 w-5" /> Generate — 1 credit</>
+              )}
+            </button>
+
+            {capResult && (
+              <div id="captions-results" className="mt-8 space-y-6">
+                <div>
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Captions — pick your favorite</p>
+                  <div className="space-y-3">
+                    {capResult.captions?.map((c, i) => (
+                      <div key={i} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-white/90 whitespace-pre-wrap">{c}</p>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(c)}
+                          className="mt-2 text-xs font-semibold text-primary hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {capResult.hashtags && (
+                  <div>
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-white/40">Hashtags</p>
+                      <button
+                        onClick={() => {
+                          const all = [
+                            ...(capResult.hashtags?.niche ?? []),
+                            ...(capResult.hashtags?.broad ?? []),
+                            ...(capResult.hashtags?.trending ?? []),
+                          ].map((t) => `#${t}`).join(" ");
+                          navigator.clipboard.writeText(all);
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Copy all
+                      </button>
+                    </div>
+                    {(["niche", "broad", "trending"] as const).map((tier) => {
+                      const tags = capResult.hashtags?.[tier] ?? [];
+                      if (tags.length === 0) return null;
+                      return (
+                        <div key={tier} className="mb-3">
+                          <p className="mb-1.5 text-xs font-semibold capitalize text-white/50">
+                            {tier === "niche" ? "🎯 Niche (targeted reach)" : tier === "broad" ? "🌊 Broad (discovery)" : "🔥 Trending energy"}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tags.map((t, i) => (
+                              <span key={i} className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary">
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {capResult.cta && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4">
+                    <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-white/40">Call to action</p>
+                    <p className="text-white/90">{capResult.cta}</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -538,7 +736,7 @@ export default function HookStudio() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Hooks in hand? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <CheatCodeName /> 🦈{" "}
           in the chat bubble to build the full video plan around them.
         </p>
       </main>

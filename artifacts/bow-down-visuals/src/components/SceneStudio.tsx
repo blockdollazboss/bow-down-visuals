@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
@@ -62,12 +64,13 @@ const IMPROVE_FAILURE_STYLE: Record<ImprovePromptErrorType, { label: string; cla
    anchors the artist's face/look, so we use a short identity note and let the
    scene description dominate (gen4.5 image-to-video caps promptText at ~1000
    chars). Without a photo we fall back to the full text-only consistency block. */
-function buildConsistencyPrefix(vault: ArtistVault): string {
+function buildConsistencyPrefix(vault: ArtistVault, outfitLabel?: string | null): string {
   if (hasReferencePhoto(vault)) {
     const parts: string[] = [
       `SAME ARTIST AS REFERENCE PHOTO: ${vault.artist_name}. Keep the exact same face, skin tone, hairstyle and identity from the reference image. Do NOT create a new person.`,
     ];
-    if (vault.clothing_style)      parts.push(`Clothing: ${vault.clothing_style}`);
+    if (outfitLabel) parts.push(`Outfit: ${outfitLabel} — dress the artist in this exact outfit.`);
+    else if (vault.clothing_style) parts.push(`Clothing: ${vault.clothing_style}`);
     if (vault.do_not_change_rules) parts.push(`Do Not Change: ${vault.do_not_change_rules}`);
     parts.push("---");
     return parts.join("\n");
@@ -96,8 +99,10 @@ function hasUsableClip(url: string | null | undefined): boolean {
   return !!url && /^https:\/\//i.test(url);
 }
 
-/* ─── Inline Runway clip generator ─────────────────────────── */
-export interface RunwayGeneratorProps {
+/* Wardrobe outfit as returned by GET /api/artist-vaults/:vaultId/outfits */
+interface WardrobeOutfit { id: string; label: string; image_url: string; is_default: boolean; }
+
+/* ─── Inline Runway clip generator ─────────────────────────── */export interface RunwayGeneratorProps {
   scene: SceneData;
   onUpdate: (patch: Partial<SceneData>) => void;
   artistVault?: ArtistVault | null;
@@ -114,12 +119,13 @@ export interface RunwayGeneratorProps {
 export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger, previousClipUrl }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [taskId, setTaskId]             = useState<string | null>(null);
   const [progress, setProgress]         = useState<number | null>(null);
   const [error, setError]               = useState<string | null>(null);
-  const [showConfirm, setShowConfirm]   = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
   /* Video model selection — Seedance 2.5 is the premium option with longer
@@ -131,6 +137,43 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     scene.referenceSource ?? null,
   );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* ── Wardrobe: the artist's outfits, picked per scene. The picked outfit's
+        image becomes the visual reference for generation (instead of the base
+        vault photo), so the character wears that outfit in the clip. ── */
+  const [outfits, setOutfits] = useState<WardrobeOutfit[]>([]);
+  const [pickedOutfitId, setPickedOutfitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOutfits([]);
+    setPickedOutfitId(null);
+    const vaultId = artistVault?.id;
+    if (!vaultId) return;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/artist-vaults/${vaultId}/outfits`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list: WardrobeOutfit[] = data.outfits ?? [];
+        setOutfits(list);
+        const def = list.find((o) => o.is_default);
+        if (def) setPickedOutfitId(def.id);
+      } catch {
+        /* wardrobe is optional — generation works without it */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id]);
+
+  const pickedOutfit = outfits.find((o) => o.id === pickedOutfitId) ?? null;
+  const outfitRefUrl = pickedOutfit && /^https:\/\//i.test(pickedOutfit.image_url)
+    ? pickedOutfit.image_url
+    : null;
 
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
@@ -145,7 +188,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   useEffect(() => {
     if (!createAllTrigger) return;
     if (hasClipForTrigger || isGenerating || outOfCredits) return;
-    void startGeneration();
+    void startGeneration({ skipConfirm: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createAllTrigger]);
 
@@ -157,7 +200,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       "cinematic music video scene, dramatic lighting, luxury aesthetic";
 
     if (artistVault) {
-      const prefix = buildConsistencyPrefix(artistVault);
+      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null);
       return `${prefix}\n${basePrompt}`;
     }
     return basePrompt;
@@ -236,14 +279,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     }, 5000);
   }
 
-  async function startGeneration() {
+  async function startGeneration(opts?: { skipConfirm?: boolean }) {
     const finalPrompt = buildFinalPrompt();
     const chaining = hasUsableClip(previousClipUrl);
 
     setIsGenerating(true);
     setError(null);
     setProgress(null);
-    setShowConfirm(false);
     /* Optimistic guess for the "generating…" badge — server confirms/corrects
        via the response's referenceSource once the extraction actually runs. */
     setReferenceSource(
@@ -252,7 +294,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-runway-clip", {
+      const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
@@ -260,17 +302,23 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
           referenceImageUrl:
-            artistVault && hasReferencePhoto(artistVault)
+            outfitRefUrl ??
+            scene.locationImageUrl ??
+            (artistVault && hasReferencePhoto(artistVault)
               ? artistVault.reference_image_url
-              : null,
+              : null),
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
           durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
           resolution: clipRes,
         }),
+        overrideCost: clipCost,
+        overrideFeature: "Generate Video Clip",
+        skipConfirm: opts?.skipConfirm,
       });
-      const data = await res.json() as { taskId?: string; error?: string; message?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
-      if (!res.ok || !data.taskId) throw new Error(data.message ?? data.error ?? `Runway API error (HTTP ${res.status})`);
+      if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
+      const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
+      if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
       setReferenceSource(resolvedSource);
       setTaskId(data.taskId);
@@ -294,7 +342,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setTaskId(null);
     setError(null);
     setProgress(null);
-    setShowConfirm(false);
+    setShowRemoveConfirm(false);
     onUpdateRef.current({
       demoClipUrl: null,
       generationStatus: null,
@@ -372,7 +420,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <p className="text-[11px] text-red-400/70 mt-0.5 break-words">{error}</p>
         </div>
         <button
-          onClick={() => { setError(null); setShowConfirm(false); }}
+          onClick={() => { setError(null); }}
           className="text-white/30 hover:text-white/60 transition-colors shrink-0"
         >
           <X className="h-4 w-4" />
@@ -397,7 +445,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               <ShieldCheck className="h-2.5 w-2.5" /> {referenceLabel(scene.referenceSource ?? referenceSource)}
             </span>
           )}
-          {showConfirm ? (
+          {showRemoveConfirm ? (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-white/40">Remove clip?</span>
               <button
@@ -405,13 +453,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors"
               >Yes</button>
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={() => setShowRemoveConfirm(false)}
                 className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
               >No</button>
             </div>
           ) : (
             <button
-              onClick={() => setShowConfirm(true)}
+              onClick={() => setShowRemoveConfirm(true)}
               className="text-[10px] text-white/25 hover:text-white/50 transition-colors flex items-center gap-1"
             >
               <RotateCcw className="h-2.5 w-2.5" /> Re-generate
@@ -432,6 +480,48 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   return (
     <div className="space-y-3">
       {/* Reference/consistency badge — scene-chain takes priority over the vault photo */}
+      {/* Wardrobe outfit picker — per scene. The picked outfit's photo becomes
+          the visual reference so the artist wears it in this scene's clip. */}
+      {hasArtist && outfits.length > 0 && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="outfit-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            👔 Outfit for this scene
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setPickedOutfitId(null)}
+              title="Use the artist's base vault photo"
+              className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                pickedOutfitId === null ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+              }`}
+            >
+              {artistVault!.reference_image_url ? (
+                <img src={artistVault!.reference_image_url} alt="Base look" className="h-full w-full object-cover object-top" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-white/10 text-[9px] text-white/50 font-bold">Base</span>
+              )}
+            </button>
+            {outfits.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setPickedOutfitId(o.id)}
+                title={o.label}
+                className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                  pickedOutfitId === o.id ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                }`}
+              >
+                <img src={o.image_url} alt={o.label} className="h-full w-full object-cover object-top" loading="lazy" />
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-white/40 mt-1.5">
+            {pickedOutfit ? <>Wearing: <span className="text-white/70 font-semibold">{pickedOutfit.label}</span></> : "Base vault look"}
+          </p>
+        </div>
+      )}
+
       {willChain ? (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/8 border border-primary/20" data-testid="text-reference-source">
           <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -453,9 +543,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
             </p>
             <p className="text-[10px] text-white/40 leading-snug">
               {artistVault!.artist_name} will be used as the main character.
-              {hasReferencePhoto(artistVault!)
-                ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
-                : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
+              {pickedOutfit
+                ? ` Outfit "${pickedOutfit.label}" is used as the visual reference for this scene.`
+                : hasReferencePhoto(artistVault!)
+                  ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
+                  : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
             </p>
           </div>
         </div>
@@ -542,25 +634,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         )}
       </div>
 
-      {/* Generate controls */}
-      {showConfirm ? (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
-          <Button size="sm" onClick={startGeneration} className="gold-glow h-7 text-xs gap-1.5">
-            <Video className="h-3.5 w-3.5" /> Yes, Generate
-          </Button>
-          <Button
-            size="sm" variant="outline"
-            onClick={() => setShowConfirm(false)}
-            className="h-7 text-xs border-white/10 bg-white/5 text-white/50"
-          >
-            Cancel
-          </Button>
-        </div>
-      ) : (
+      {/* Generate controls — credit confirmation handled by the universal popup */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
         <Button
           size="sm"
-          onClick={() => setShowConfirm(true)}
+          onClick={() => startGeneration()}
           className="gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs h-8"
           variant="outline"
           data-testid={`btn-generate-runway`}
@@ -568,6 +647,139 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <Video className="h-3.5 w-3.5" />
           Generate Runway Clip
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Location picker ───────────────────────────────────────────
+   Visual picker for the user's Locations library (/locations). Picking sets
+   the scene's location label + locationImageUrl; clearing restores free text.
+   The library is fetched once per page load and shared across scene cards. */
+interface LibraryLocation {
+  id: string;
+  label: string;
+  image_url: string;
+}
+
+let locationsCache: LibraryLocation[] | null = null;
+let locationsFetch: Promise<LibraryLocation[]> | null = null;
+
+function fetchLocationsLibrary(getAccessToken: () => Promise<string | null>): Promise<LibraryLocation[]> {
+  if (locationsCache) return Promise.resolve(locationsCache);
+  if (!locationsFetch) {
+    locationsFetch = (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/locations", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await res.json()) as { locations?: LibraryLocation[] };
+        locationsCache = res.ok ? (data.locations ?? []) : [];
+      } catch {
+        locationsCache = [];
+      }
+      return locationsCache;
+    })();
+  }
+  return locationsFetch;
+}
+
+function LocationPicker({ scene, onPick }: {
+  scene: SceneData;
+  onPick: (patch: Partial<SceneData>) => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [locations, setLocations] = useState<LibraryLocation[] | null>(null);
+
+  useEffect(() => {
+    if (open && locations === null) {
+      void fetchLocationsLibrary(getAccessToken).then(setLocations);
+    }
+  }, [open, locations, getAccessToken]);
+
+  const picked = scene.locationImageUrl
+    ? locations?.find((l) => l.image_url === scene.locationImageUrl) ?? null
+    : null;
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+          <MapPin className="h-2.5 w-2.5" /> Location
+        </span>
+        {scene.locationImageUrl ? (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.07] pl-1 pr-2 py-1">
+            <img
+              src={scene.locationImageUrl}
+              alt={scene.location || "Scene location"}
+              className="h-8 w-12 rounded-lg object-cover"
+            />
+            <span className="text-xs font-semibold text-white/80 max-w-[160px] truncate">
+              {picked?.label ?? scene.location ?? "Location"}
+            </span>
+            <button
+              onClick={() => onPick({ locationImageUrl: null })}
+              className="text-white/40 hover:text-white/80 transition-colors"
+              title="Clear location image (keeps the text)"
+              aria-label="Clear location image"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            {scene.location ? `“${scene.location}” — pick image` : "Pick a location"}
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
+
+      {open && !scene.locationImageUrl && (
+        <div className="absolute z-30 mt-2 w-[320px] max-w-[80vw] rounded-xl border border-white/10 bg-zinc-950 p-3 shadow-2xl shadow-black/60">
+          {locations === null ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            </div>
+          ) : locations.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-xs text-white/50 mb-2">No locations saved yet.</p>
+              <a href="/locations" className="text-xs font-bold text-primary hover:text-primary/80">
+                Add some in your Locations library →
+              </a>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
+              {locations.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => {
+                    onPick({ location: l.label, locationImageUrl: l.image_url });
+                    setOpen(false);
+                  }}
+                  className="group rounded-lg overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-left"
+                  title={`Use “${l.label}” for this scene`}
+                >
+                  <img src={l.image_url} alt={l.label} className="h-16 w-full object-cover" loading="lazy" />
+                  <p className="px-2 py-1.5 text-[11px] font-semibold text-white/70 group-hover:text-white truncate">
+                    {l.label}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+          <a
+            href="/locations"
+            className="block mt-2 text-center text-[11px] font-bold text-white/40 hover:text-primary transition-colors"
+          >
+            Manage locations →
+          </a>
+        </div>
       )}
     </div>
   );
@@ -593,6 +805,7 @@ interface SceneCardProps {
 function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, projectId, externalImproving, improveFailure, previousClipUrl }: SceneCardProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [collapsed, setCollapsed]         = useState(false);
   const [showPrompt, setShowPrompt]       = useState(false);
@@ -630,7 +843,9 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
         token, prompt: seed, scene,
         artistVault: artistVault ? vaultToPayload(artistVault) : null,
         videoStyle, platform,
+        fetchImpl: confirmedFetch,
       });
+      if (!improvedPrompt) return; // user cancelled the credit confirmation
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
       toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
@@ -782,6 +997,9 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             )}
           </div>
 
+          {/* Location picker — visual pick from the user's Locations library */}
+          <LocationPicker scene={scene} onPick={handleUpdate} />
+
           {/* AI Video Prompt & scene details (collapsed by default) */}
           {showPrompt && (
             <div className="space-y-4 pt-1">
@@ -796,6 +1014,14 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                       <p className="text-xs text-white/60 leading-relaxed">
                         <span className="text-white/30">Location: </span>{scene.location}
                       </p>
+                    )}
+                    {scene.locationImageUrl && (
+                      <img
+                        src={scene.locationImageUrl}
+                        alt={scene.location || "Scene location"}
+                        className="mt-1.5 h-16 w-28 rounded-lg object-cover border border-white/10"
+                        loading="lazy"
+                      />
                     )}
                     {scene.action && (
                       <p className="text-xs text-white/60 leading-relaxed flex items-start gap-1.5">
@@ -910,6 +1136,8 @@ export function SceneStudio({
 }: SceneStudioProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
   const [improvingIds, setImprovingIds] = useState<Set<string>>(new Set());
   const [improveAllTotal, setImproveAllTotal] = useState(0);
   const improveAllActive = improveAllTotal > 0;
@@ -964,6 +1192,12 @@ export function SceneStudio({
     async (targets: SceneData[], opts?: { isRetry?: boolean }) => {
       if (improveAllActive || targets.length === 0) return;
 
+      // One confirmation for the whole batch (1 credit per prompt)
+      const okToSpend = await confirmSpend({ cost: targets.length, feature: "Improve Prompts" });
+      if (!okToSpend) return;
+      const skipConfirmFetch: typeof confirmedFetch = (url, init) =>
+        confirmedFetch(url, { ...init, skipConfirm: true });
+
       setImproveAllTotal(targets.length);
       setImprovingIds(new Set(targets.map((s) => s.id)));
 
@@ -980,7 +1214,9 @@ export function SceneStudio({
                 token, prompt: sceneSeedPrompt(scene), scene,
                 artistVault: artistVault ? vaultToPayload(artistVault) : null,
                 videoStyle, platform,
+                fetchImpl: skipConfirmFetch,
               });
+              if (!improved) throw new Error("cancelled");
               working = working.map((s) => (s.id === scene.id ? { ...s, aiVideoPrompt: improved } : s));
               onScenesChange(working);
               ok++;

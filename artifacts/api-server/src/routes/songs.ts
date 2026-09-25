@@ -17,7 +17,7 @@ import { randomUUID } from "crypto";
 import { db, songsTable, artistVaultsTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { recordCreditUsage } from "../lib/payment-record";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
@@ -178,11 +178,22 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
   }
 
   // Charge upfront: the Demucs + STS work starts immediately.
+  // chargeCredits(): deduct + strict ledger write. A ledger failure rolls the
+  // deduction back and throws LedgerWriteError (loud) — no untraceable charge.
   if (!isDev) {
-    await getSupabaseAdmin()
-      .from("profiles")
-      .update({ credits: currentCredits - REMIX_CREDIT_COST })
-      .eq("id", req.userId!);
+    try {
+      await chargeCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix" });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) {
+        res.status(402).json({ error: "out_of_credits", message: `Remixing a song costs ${REMIX_CREDIT_COST} credits — top up to remix.` });
+        return;
+      }
+      if (chargeErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+        return;
+      }
+      throw chargeErr;
+    }
   }
 
   try {
@@ -210,25 +221,16 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
       })
       .returning();
 
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Song Remix",
-      creditsUsed: isDev ? 0 : REMIX_CREDIT_COST,
-    }).catch(() => {});
-
+    // The ledger entry was written atomically by chargeCredits() above.
     res.json({ song: remix, creditsAfter: isDev ? currentCredits : currentCredits - REMIX_CREDIT_COST });
   } catch (err) {
     req.log.error({ err }, "songs: remix failed");
-    // Refund: the remix produced nothing.
+    // Refund with a ledger trace: the remix produced nothing.
     if (!isDev) {
-      await getSupabaseAdmin()
-        .from("profiles")
-        .update({ credits: currentCredits })
-        .eq("id", req.userId!)
-        .then(
-          () => {},
-          () => {},
-        );
+      await refundCredits(req.userId!, REMIX_CREDIT_COST, { action: "Song Remix — Refund (provider failure)" })
+        .catch((refundErr) => {
+          req.log.error({ userId: req.userId, err: refundErr }, "[songs] failed to refund remix credits");
+        });
     }
     res.status(500).json({
       error: "Remix failed — your credits were refunded. Please try again.",

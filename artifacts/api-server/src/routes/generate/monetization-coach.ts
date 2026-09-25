@@ -5,7 +5,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordCreditUsage } from "../../lib/payment-record";
 
 const router = Router();
@@ -69,12 +69,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
   }
   let creditsRemaining = balance;
   try {
-    creditsRemaining = await deductCredits(req.userId!, COACH_CREDITS);
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Monetization Coach",
-      creditsUsed: COACH_CREDITS,
-    }).catch(() => {});
+    creditsRemaining = await chargeCredits(req.userId!, COACH_CREDITS, { action: "Monetization Coach" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
@@ -134,7 +129,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
       temperature: 0.4,
     });
 

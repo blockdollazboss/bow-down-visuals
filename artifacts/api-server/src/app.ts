@@ -55,15 +55,53 @@ const frontendDist =
 
 if (fs.existsSync(path.join(frontendDist, "index.html"))) {
   app.use(express.static(frontendDist));
+  /* Known client-side routes (mirrors the route map in
+     artifacts/bow-down-visuals/src — the SPA's router). These serve
+     index.html with 200 so crawlers, link unfurlers, and uptime monitors
+     see real pages. Anything else falls through to the 404 handler below,
+     where the client router renders the app's own 404 page. */
+  const CLIENT_ROUTES = new Set([
+    "/",
+    "/pricing",
+    "/waitlist",
+    "/beta-access",
+    "/contact",
+    "/terms",
+    "/privacy",
+    "/refund-policy",
+    "/randomizer",
+    "/hooks",
+    "/coach",
+    "/dashboard",
+    "/choose-artist",
+    "/my-projects",
+    "/artist-vault",
+    "/make-song",
+    "/make-video",
+    "/song-and-video",
+    "/create",
+    "/promo-clip",
+    "/thumbnail",
+    "/video-editor",
+    "/credit-history",
+    "/my-clips",
+    "/admin",
+    "/songs",
+    "/login",
+    "/signup",
+    "/live-shopping",
+  ]);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {
       return next();
     }
-    /* Unknown client-side route — serve index.html with 404 so crawlers and
-       HTTP clients see "not found" while the client router still renders the
-       app (e.g. a 404 page) in the browser. Prerendered routes are served by
-       express.static with 200 and never reach this handler. */
-    res.status(404).sendFile(path.join(frontendDist, "index.html"), (err) => {
+    const normalized = req.path.endsWith("/") && req.path.length > 1
+      ? req.path.slice(0, -1)
+      : req.path;
+    const status = CLIENT_ROUTES.has(normalized) ? 200 : 404;
+    /* Serve index.html with 200 for known pages, 404 for unknown routes —
+       the client router renders the app (or its 404 page) in both cases. */
+    res.status(status).sendFile(path.join(frontendDist, "index.html"), (err) => {
       if (err) {
         next(err);
       }

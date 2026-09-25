@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { Image as ImageIcon, ArrowLeft, Loader2, ChevronRight } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
@@ -51,6 +51,7 @@ function StyledSelect({ name, placeholder, options, value, onChange }: {
 
 export default function Thumbnail() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [thumbnailImageUrl, setThumbnailImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -59,6 +60,25 @@ export default function Thumbnail() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [loadedVault, setLoadedVault] = useState<ArtistVault | null>(null);
+  const [recentThumbs, setRecentThumbs] = useState<Array<{ id: string; thumbnail_url: string | null; song_title: string | null }>>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch("/api/thumbnails", { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setRecentThumbs((data.thumbnails ?? []).slice(0, 8));
+      } catch {
+        /* Library strip is a nicety — never block the maker on it. */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [getAccessToken, thumbnailImageUrl]);
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     defaultValues: { artistName: "", songTitle: "", platform: "", artStyle: "", colorTheme: "", mood: "", featuredText: "", specialRequests: "" },
   });
@@ -80,7 +100,7 @@ export default function Thumbnail() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining, creditsUsed: used, thumbnailImageUrl: imageUrl, imageError: imgErr } = await callGenerateApi("/api/generate-thumbnail", {
+      const result = await callGenerateApi("/api/generate-thumbnail", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         platform: values.platform,
@@ -90,7 +110,9 @@ export default function Thumbnail() {
         featuredText: values.featuredText,
         requests: values.specialRequests,
         artistVault: loadedVault ? vaultToPayload(loadedVault) : null,
-      }, token);
+      }, token, confirmedFetch);
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult, creditsRemaining, creditsUsed: used, thumbnailImageUrl: imageUrl, imageError: imgErr } = result;
       setRawResult(rawResult);
       setThumbnailImageUrl(imageUrl ?? null);
       setImageError(imgErr ?? null);
@@ -110,7 +132,6 @@ export default function Thumbnail() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
@@ -186,6 +207,35 @@ export default function Thumbnail() {
         </div>
 
         {outOfCredits && <OutOfCredits />}
+
+        {recentThumbs.length > 0 && (
+          <div className="mt-10">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">Your recent thumbnails</h2>
+              <Link href="/thumbnails" className="text-xs font-semibold text-primary hover:underline">
+                View full library
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {recentThumbs.map((t) => (
+                <Link
+                  key={t.id}
+                  href="/thumbnails"
+                  className="shrink-0 w-44 rounded-xl border border-white/[0.07] bg-white/[0.02] overflow-hidden hover:border-primary/40 transition-colors"
+                >
+                  {t.thumbnail_url ? (
+                    <img src={t.thumbnail_url} alt={t.song_title ?? "Thumbnail"} className="w-44 aspect-video object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-44 aspect-video flex items-center justify-center bg-black/40">
+                      <ImageIcon className="h-6 w-6 text-white/15" />
+                    </div>
+                  )}
+                  <p className="px-2.5 py-2 text-xs text-white/60 truncate">{t.song_title ?? "Untitled"}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="mt-6 p-4 rounded-xl border border-red-500/20 bg-red-500/5">

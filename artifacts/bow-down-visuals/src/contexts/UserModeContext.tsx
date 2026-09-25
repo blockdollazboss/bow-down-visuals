@@ -2,29 +2,38 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Site-wide Simple / Advanced mode.
+ * Site-wide Creator Level — GTA-style 6-star wanted level.
  *
- * Simple mode = one-click AI-driven flow (dashboard hero + streamlined editor).
- * Advanced mode = today's full dashboard + full editor, unchanged.
+ * 1 star = Simplest — one-click AI-driven flow, minimal UI.
+ * 6 stars = Most wanted — full manual controls, everything exposed.
  *
- * Persisted in localStorage, scoped per signed-in user (falls back to a shared
- * anonymous key before auth resolves). New users default to "simple".
+ * Stars 1-3 map to "simple", stars 4-6 map to "advanced" for existing consumers.
+ * Persisted in localStorage, scoped per signed-in user. New users default to 1 star.
  */
 export type UserMode = "simple" | "advanced";
+export type StarLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 const ANON_KEY = "bdv_user_mode_anon";
 const keyFor = (userId: string | null | undefined) => (userId ? `bdv_user_mode_${userId}` : ANON_KEY);
 
-function readMode(userId: string | null | undefined): UserMode {
+function readStars(userId: string | null | undefined): StarLevel {
   try {
     const raw = localStorage.getItem(keyFor(userId));
-    if (raw === "simple" || raw === "advanced") return raw;
+    // Migrate old binary values
+    if (raw === "simple") return 1;
+    if (raw === "advanced") return 6;
+    const n = parseInt(raw ?? "", 10);
+    if (n >= 1 && n <= 6) return n as StarLevel;
   } catch { /* ignore */ }
-  return "simple";
+  return 1;
 }
+
+const starsToMode = (s: StarLevel): UserMode => (s <= 3 ? "simple" : "advanced");
 
 interface UserModeContextValue {
   mode: UserMode;
+  stars: StarLevel;
+  setStars: (s: StarLevel) => void;
   setMode: (m: UserMode) => void;
   toggleMode: () => void;
   isSimple: boolean;
@@ -35,28 +44,39 @@ const UserModeContext = createContext<UserModeContextValue | null>(null);
 export function UserModeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const [mode, setModeState] = useState<UserMode>(() => readMode(null));
+  const [stars, setStarsState] = useState<StarLevel>(() => readStars(null));
+  const mode = starsToMode(stars);
 
-  /* Re-read the persisted mode once we know who's signed in (auth resolves async). */
+  /* Re-read the persisted level once we know who's signed in (auth resolves async). */
   useEffect(() => {
-    setModeState(readMode(userId));
+    setStarsState(readStars(userId));
   }, [userId]);
 
-  function setMode(m: UserMode) {
-    setModeState(m);
+  /* Reflect the mode + stars on the document root so CSS can show/hide UI site-wide. */
+  useEffect(() => {
+    document.documentElement.dataset.userMode = mode;
+    document.documentElement.dataset.starLevel = String(stars);
+  }, [mode, stars]);
+
+  function setStars(s: StarLevel) {
+    setStarsState(s);
     try {
-      localStorage.setItem(keyFor(userId), m);
+      localStorage.setItem(keyFor(userId), String(s));
     } catch { /* ignore */ }
   }
 
+  function setMode(m: UserMode) {
+    setStars(m === "simple" ? 1 : 6);
+  }
+
   function toggleMode() {
-    setMode(mode === "simple" ? "advanced" : "simple");
+    setStars(mode === "simple" ? 6 : 1);
   }
 
   const value = useMemo(
-    () => ({ mode, setMode, toggleMode, isSimple: mode === "simple" }),
+    () => ({ mode, stars, setStars, setMode, toggleMode, isSimple: mode === "simple" }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, userId],
+    [mode, stars, userId],
   );
 
   return <UserModeContext.Provider value={value}>{children}</UserModeContext.Provider>;

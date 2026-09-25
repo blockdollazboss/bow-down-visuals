@@ -1,9 +1,9 @@
-import { useState, useRef, forwardRef } from "react";
-import { Link } from "wouter";
+import { useState, useRef, forwardRef, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
-import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -27,6 +27,7 @@ import {
   Lock,
   AlertCircle,
 } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -919,17 +920,30 @@ function MusicVideoTeaser() {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
+  usePageTitle("Create Songs, Music Videos & Promo Clips With AI", "Tell us your artist, genre, and idea. Bow Down Visuals generates lyrics, video treatments, promo content, and more — in seconds.");
   const waitlistRef = useRef<HTMLElement>(null);
+  const { user, loading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  /* Signed-in users go straight to artist selection — the first thing
+     after sign-in is picking who they're creating for. */
+  useEffect(() => {
+    if (!authLoading && user) {
+      setLocation("/choose-artist");
+    }
+  }, [authLoading, user, setLocation]);
 
   function scrollToWaitlist() {
     waitlistRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
+  /* Don't flash the marketing page while the redirect fires. */
+  if (authLoading || user) return null;
+
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
-      <MarketingNav />
       <HeroSection onWaitlist={scrollToWaitlist} />
       <CheatCodeTicker />
       <MusicVideoTeaser />

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { X, Bot, Zap, ChevronRight } from "lucide-react";
+import { X, Bot, Zap, ChevronRight, Sparkles } from "lucide-react";
+import { requestOnboardingTour } from "@/lib/onboarding";
 
 /* ─── Types ─── */
 
@@ -290,6 +291,19 @@ export function HelpPanel() {
                   </div>
                 </div>
               )}
+
+              {/* Replay the full onboarding tour */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenPersist(false);
+                  requestOnboardingTour();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary text-xs font-bold transition hover:bg-primary/[0.16]"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Replay full walkthrough
+              </button>
 
               {/* Footer note */}
               <p className="text-[10px] text-white/20 leading-relaxed pb-2">

@@ -86,6 +86,34 @@ export async function recordCreditUsage(record: CreditUsageRecord): Promise<void
 }
 
 /**
+ * Record a credit ledger event, THROWING on failure.
+ *
+ * This is the money-integrity path: charge sites must use this (via
+ * chargeCredits() in lib/credits.ts) so a failed ledger insert can never
+ * silently leave a balance deduction without a ledger trace. Retries
+ * transient failures 3 times with brief backoff before giving up.
+ */
+export async function recordCreditUsageStrict(record: CreditUsageRecord): Promise<void> {
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await db.insert(creditUsageTable).values({
+        userId:      record.userId,
+        action:      record.action,
+        creditsUsed: record.creditsUsed,
+        projectId:   record.projectId ?? null,
+      });
+      return;
+    } catch (err) {
+      lastErr = err;
+      logger.warn({ err, attempt, ...record }, "recordCreditUsageStrict: insert failed, retrying");
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 150 * attempt));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(`recordCreditUsageStrict: insert failed: ${String(lastErr)}`);
+}
+
+/**
  * Fetch all credit usage records for a user, newest first.
  */
 export async function getCreditUsage(userId: string) {

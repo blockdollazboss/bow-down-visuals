@@ -5,22 +5,41 @@ FROM node:22-slim
 
 # ffmpeg + ffprobe: the export pipeline shells out to both (prepare step
 # probes clip duration/resolution/codec; the render step runs ffmpeg).
-# python3-venv: the vocal-isolation pipelines (lip-sync vocal-only input,
-# artist voice lock) shell out to Demucs for vocal/instrumental separation.
-# build-essential: diffq ships no prebuilt wheel, so pip compiles it from
-# source during the Docker build — gcc/g++ must be present or the deploy fails.
-# python3-dev: diffq's C extension includes Python.h, which ships in python3-dev.
+# fontconfig + curl: caption burn-in uses libass, which resolves ASS
+# Fontname through fontconfig. The caption font library (see
+# artifacts/api-server/src/lib/fonts.ts) is downloaded here so the
+# exported video uses the exact same faces as the web preview.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ffmpeg python3 python3-venv build-essential python3-dev \
-  && rm -rf /var/lib/apt/lists/*
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig curl \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /usr/share/fonts/bdv \
+  && cd /usr/share/fonts/bdv \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/alfaslabone/AlfaSlabOne-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf \
+  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/barlowcondensed/BarlowCondensed-Bold.ttf" \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bungee/Bungee-Regular.ttf \
+  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf" \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/luckiestguy/LuckiestGuy-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/permanentmarker/PermanentMarker-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf \
+  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/titanone/TitanOne-Regular.ttf \
+  && fc-cache -f /usr/share/fonts/bdv \
+  && echo "caption fonts installed: $(fc-list /usr/share/fonts/bdv file 2>/dev/null | wc -l)"
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
 # DEMUCS_PYTHON points the server at this interpreter; DEMUCS_MODEL can
 # override the model (default mdx_extra_q).
+# yt-dlp: the Media Importer shells out to it for platform downloads
+# (YouTube, SoundCloud, TikTok, Instagram, X, Vimeo). Pinned to the
+# system python3 so `python3 -m yt_dlp` works as a fallback.
 RUN python3 -m venv /opt/demucs-venv \
   && /opt/demucs-venv/bin/pip install --no-cache-dir --upgrade pip \
   && /opt/demucs-venv/bin/pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
-  && /opt/demucs-venv/bin/pip install --no-cache-dir demucs numpy diffq
+  && /opt/demucs-venv/bin/pip install --no-cache-dir demucs numpy diffq \
+  && python3 -m pip install --no-cache-dir --upgrade yt-dlp --break-system-packages
 ENV DEMUCS_PYTHON=/opt/demucs-venv/bin/python
 
 RUN corepack enable

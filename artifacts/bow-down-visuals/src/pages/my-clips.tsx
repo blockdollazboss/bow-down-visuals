@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import {
   Video, ArrowLeft, Loader2, Trash2, Copy, Check,
@@ -9,6 +8,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface GeneratedClip {
   id: string;
@@ -481,6 +481,7 @@ function ClipCard({
 
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
 export default function MyClips() {
+  usePageTitle("My Clips", "Your generated promo clips library.");
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
@@ -525,9 +526,8 @@ export default function MyClips() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-yellow-600/6 rounded-full blur-[100px]" />
       </div>
 

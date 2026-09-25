@@ -127,6 +127,7 @@ export function cssToFfmpegChain(combinedCss: string): string {
  * whenever Black & White was also active). */
 export const BW_NAME = "Black & White";
 export const LUXURY_GOLD_NAME = "Luxury Gold";
+export const FILM_GRAIN_NAME = "Film Grain";
 
 /** Pure desaturation — export-safe Black & White. */
 export const BW_FFMPEG = "eq=saturation=0.0";
@@ -140,6 +141,12 @@ export const LUXURY_GOLD_FFMPEG =
  *  effects are visibly present (low saturation + strong warm gold cast). */
 export const BW_GOLD_BLEND_FFMPEG =
   "eq=saturation=0.18,colorbalance=rm=0.10:gm=0.05:bm=-0.10:rh=0.16:gh=0.08:bh=-0.16,eq=contrast=1.12:brightness=0.02";
+
+/** Real animated film grain — the old CSS-path translation ("contrast 108% /
+ *  brightness 97%") contained no actual grain, so the export never looked like
+ *  film. Temporal uniform noise + a whisper of the original contrast grade. */
+export const FILM_GRAIN_FFMPEG =
+  "noise=alls=7:allf=t,eq=contrast=1.08:brightness=-0.015";
 
 /** Effects treated as color grades (vs. plain filters) for the comparison panel. */
 export const COLOR_GRADE_NAMES = new Set<string>([
@@ -197,6 +204,8 @@ export function ffmpegForEffect(name: string): {
     return { ffmpeg: BW_FFMPEG, supported: true, type: "color-grade" };
   if (name === LUXURY_GOLD_NAME)
     return { ffmpeg: LUXURY_GOLD_FFMPEG, supported: true, type: "color-grade" };
+  if (name === FILM_GRAIN_NAME)
+    return { ffmpeg: FILM_GRAIN_FFMPEG, supported: true, type: "filter" };
   const css = EFFECT_CSS_FILTERS[name];
   if (!css) return { ffmpeg: "", supported: false, type: "filter" };
   const ffmpeg = cssToFfmpegChain(css);

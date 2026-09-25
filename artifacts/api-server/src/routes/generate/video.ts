@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
 const router = Router();
 
@@ -190,7 +190,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: prompt },
       ],
-      max_tokens: 8000,
+      max_completion_tokens: 8000,
     });
 
     const content = completion.choices[0]?.message?.content ?? "";
@@ -210,7 +210,7 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Make a Music Video" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -219,12 +219,15 @@ Write 5 ready-to-post social media captions for promoting this video. Mix hype, 
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
     // Step 3: Fire-and-forget — mark charged + log usage
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Make a Music Video", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({ result: content, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {

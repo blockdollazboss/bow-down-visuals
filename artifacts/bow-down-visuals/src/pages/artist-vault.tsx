@@ -10,8 +10,9 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
+  AlertTriangle,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
+import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
@@ -19,6 +20,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -564,6 +566,7 @@ function LockedVoiceSection({ vault, onChanged }: {
           </Button>
         </div>
       ) : (
+        <>
         <div className="flex flex-wrap gap-2">
           <label
             className={`inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.04] px-4 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
@@ -618,10 +621,17 @@ function LockedVoiceSection({ vault, onChanged }: {
             From my songs
           </Button>
         </div>
+        <p className="mt-3 flex items-start gap-2 text-xs text-primary/80">
+          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            <span className="font-semibold">From a song needs clear, prominent lead vocals.</span>{" "}
+            Heavy effects, buried or doubled vocals, and instrumental-heavy tracks may fail or clone poorly.
+          </span>
+        </p>
+        </>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-
+      {/* Single section-level error display (kept at the bottom of the section). */}
       {busy && stage && (
         <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -633,6 +643,7 @@ function LockedVoiceSection({ vault, onChanged }: {
         <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
           <p className="px-3 py-2 text-xs text-white/40">
             Pick a song — its vocals get stripped and cloned into the locked voice (2 credits).
+            Best with clear lead vocals; heavy effects or buried vocals may fail.
           </p>
           {songs.map((s) => (
             <button
@@ -685,9 +696,316 @@ function LockedVoiceSection({ vault, onChanged }: {
   );
 }
 
-function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged }: {
+/* ─────────────────────────── WARDROBE ─────────────────────────── */
+
+interface WardrobeOutfit {
+  id: string;
+  label: string;
+  image_url: string;
+  image_path: string | null;
+  is_default: boolean;
+}
+
+/** Must match MAX_OUTFITS_PER_ARTIST in the outfits API route. */
+const MAX_OUTFITS = 5;
+
+function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOutfit }: {
+  vaultId: string;
+  hasReferencePhoto: boolean;
+  refreshKey: number;
+  onGenerateOutfit: () => void;
+}) {
+  const { getAccessToken, user } = useAuth();
+  const [outfits, setOutfits] = useState<WardrobeOutfit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [label, setLabel] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+
+  const fetchOutfits = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/outfits`, {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load wardrobe");
+      setOutfits(data.outfits ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load wardrobe");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchOutfits(); }, [vaultId, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const wardrobeFull = outfits.length >= MAX_OUTFITS;
+
+  const addOutfit = async (outfitLabel: string, url: string, path: string | null) => {
+    if (wardrobeFull) {
+      setError(`Each artist can save up to ${MAX_OUTFITS} outfits — remove one to add another.`);
+      return;
+    }
+    if (!outfitLabel.trim() || !/^https?:\/\//i.test(url.trim())) {
+      setError("Give the outfit a name and a valid image URL.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/outfits`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ label: outfitLabel.trim(), image_url: url.trim(), image_path: path }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to add outfit");
+      setLabel("");
+      setImageUrl("");
+      setShowAdd(false);
+      await fetchOutfits();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add outfit");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const uploadOutfitImage = async (file: File, outfitLabel: string) => {
+    if (!user) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const sb = getSupabase();
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const filePath = `${user.id}/${vaultId}/wardrobe/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await sb.storage
+        .from("artist-references")
+        .upload(filePath, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
+      await addOutfit(outfitLabel.trim() || "Custom Outfit", publicUrl, filePath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const setDefault = async (id: string) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/outfits/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ is_default: true }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to set default");
+      await fetchOutfits();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to set default");
+    }
+  };
+
+  const saveLabel = async (id: string) => {
+    if (!editLabel.trim()) { setEditingId(null); return; }
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/outfits/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ label: editLabel.trim() }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to rename");
+      setEditingId(null);
+      await fetchOutfits();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to rename");
+    }
+  };
+
+  const removeOutfit = async (id: string) => {
+    setError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${vaultId}/outfits/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Failed to remove");
+      await fetchOutfits();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove");
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-white/30 uppercase tracking-wider">👔 Wardrobe</p>
+          {wardrobeFull && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-primary/80 bg-primary/10 border border-primary/25">
+              {outfits.length} of {MAX_OUTFITS} outfits
+            </span>
+          )}
+        </div>
+        {!wardrobeFull && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onGenerateOutfit}
+              disabled={!hasReferencePhoto}
+              title={hasReferencePhoto ? "Generate a new outfit with your locked identity — face stays the same" : "Save an Artist Photo first to unlock outfit generation"}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:brightness-110 transition-all disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Camera className="h-3.5 w-3.5" /> Generate outfit
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAdd((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add outfit
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showAdd && !wardrobeFull && (
+        <div className="rounded-lg border border-white/[0.08] bg-black/30 p-3 mb-3 space-y-2">
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Outfit name — e.g. Gold Ceremonial Robe"
+            className="bg-white/[0.04] border-white/[0.10] text-white text-sm"
+          />
+          <div className="flex gap-2">
+            <Input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="Image URL (https://…)"
+              className="bg-white/[0.04] border-white/[0.10] text-white text-sm flex-1"
+            />
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => addOutfit(label, imageUrl, null)}
+              className="shrink-0 font-bold rounded-lg"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+            </Button>
+          </div>
+          <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${uploading ? "opacity-50 pointer-events-none" : "bg-white/[0.06] hover:bg-white/[0.10] text-white/80 hover:text-white border border-white/[0.10]"}`}>
+            {uploading ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</> : <><Upload className="h-3.5 w-3.5" /> Upload image</>}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              aria-label="Upload outfit image"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) uploadOutfitImage(file, label);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-white/40 py-4 text-center">Loading wardrobe…</p>
+      ) : outfits.length === 0 ? (
+        <p className="text-sm text-white/40 py-4 text-center">
+          No outfits yet. Generate one with AI or add your own — then pick it when creating scenes.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {outfits.map((o) => (
+            <div key={o.id} className="rounded-xl overflow-hidden border border-white/[0.08] bg-black/40">
+              <div className="relative aspect-square bg-white/[0.03]">
+                <img src={o.image_url} alt={o.label} className="h-full w-full object-cover object-top" loading="lazy" />
+                {o.is_default && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide text-black bg-primary">
+                    Default
+                  </span>
+                )}
+              </div>
+              <div className="p-2.5">
+                {editingId === o.id ? (
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveLabel(o.id); if (e.key === "Escape") setEditingId(null); }}
+                      className="bg-white/[0.04] border-white/[0.10] text-white text-xs h-8"
+                      autoFocus
+                    />
+                    <button type="button" onClick={() => saveLabel(o.id)} className="text-primary hover:brightness-110 shrink-0" title="Save name">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-1.5">
+                    <p className="text-xs font-bold text-white truncate" title={o.label}>{o.label}</p>
+                    <button
+                      type="button"
+                      onClick={() => { setEditingId(o.id); setEditLabel(o.label); }}
+                      className="text-white/30 hover:text-white shrink-0 transition-colors"
+                      title="Rename outfit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 mt-2">
+                  {!o.is_default && (
+                    <button
+                      type="button"
+                      onClick={() => setDefault(o.id)}
+                      className="flex-1 px-2 py-1 rounded-lg text-[11px] font-bold text-primary border border-primary/30 bg-primary/10 hover:bg-primary/20 transition-colors"
+                    >
+                      Set default
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeOutfit(o.id)}
+                    title="Removes from wardrobe only — the image file is kept"
+                    className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {!hasReferencePhoto && (
+        <p className="mt-2 text-[11px] text-white/30">Save an Artist Photo to unlock AI outfit generation.</p>
+      )}
+    </div>
+  );
+}
+
+function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
   vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
   onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
+  wardrobeRefreshKey: number; onGenerateOutfit: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
@@ -746,6 +1064,13 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onV
 
         <LockedVoiceSection vault={vault} onChanged={onVoiceChanged} />
 
+        <WardrobeSection
+          vaultId={vault.id}
+          hasReferencePhoto={!!vault.reference_image_url}
+          refreshKey={wardrobeRefreshKey}
+          onGenerateOutfit={onGenerateOutfit}
+        />
+
         <div className="flex flex-wrap gap-2.5 mt-6 pt-4 border-t border-white/[0.06]">
           <Button
             onClick={onSetActive}
@@ -784,8 +1109,17 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
   const G = (o: number) => `rgba(201,168,76,${o})`;
   const GOLD = "#C9A84C";
   const initials = vault.artist_name.split(" ").slice(0, 2).map(w => w[0]?.toUpperCase() ?? "").join("");
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   return (
+    <>
+    {lightboxOpen && vault.reference_image_url && (
+      <PhotoLightbox
+        photoUrl={vault.reference_image_url}
+        artistName={vault.artist_name}
+        onClose={() => setLightboxOpen(false)}
+      />
+    )}
     <div style={{
       borderRadius: 20,
       border: isActive ? `2px solid ${G(0.55)}` : "1px solid rgba(255,255,255,0.07)",
@@ -794,8 +1128,10 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
       transition: "all 0.2s ease",
       background: isActive ? "#0d0900" : "#0a0a0a",
     }}>
-      {/* Full-photo top section */}
-      <div style={{
+      {/* Full-photo top section — click to enlarge */}
+      <div
+        onClick={() => vault.reference_image_url && setLightboxOpen(true)}
+        style={{
         height: 220,
         background: vault.reference_image_url
           ? `url(${vault.reference_image_url}) top center/cover no-repeat`
@@ -803,6 +1139,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
             ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
             : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
         position: "relative",
+        cursor: vault.reference_image_url ? "zoom-in" : "default",
       }}>
         {/* Initials avatar (no photo) */}
         {!vault.reference_image_url && (
@@ -926,12 +1263,14 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
         </div>
       </div>
     </div>
+    </>
   );
 }
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
+  usePageTitle("Artist Vault", "Your creative identity — artist profiles, photos, voice, and brand assets in one vault.");
   const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);
@@ -948,6 +1287,8 @@ export default function ArtistVault() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [showGenModal, setShowGenModal] = useState(false);
   const [genModalMode, setGenModalMode] = useState<ArtistImageModalMode>("generate");
+  const [wardrobeGenVaultId, setWardrobeGenVaultId] = useState<string | null>(null);
+  const [wardrobeRefreshKey, setWardrobeRefreshKey] = useState(0);
   const [detailLevel, setDetailLevel] = useState<DetailLevel>("video_safe");
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
@@ -1170,9 +1511,8 @@ export default function ArtistVault() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
@@ -1189,6 +1529,12 @@ export default function ArtistVault() {
             const fresh = vaults.find((v) => v.id === openVault?.id);
             if (fresh) setOpenVault(fresh);
           }}
+          wardrobeRefreshKey={wardrobeRefreshKey}
+          onGenerateOutfit={() => {
+            setWardrobeGenVaultId(openVault.id);
+            setGenModalMode("photoshoot");
+            setShowGenModal(true);
+          }}
         />
       )}
 
@@ -1201,19 +1547,48 @@ export default function ArtistVault() {
 
       <GenerateArtistImageModal
         open={showGenModal}
-        onClose={() => setShowGenModal(false)}
+        onClose={() => { setShowGenModal(false); setWardrobeGenVaultId(null); }}
         mode={genModalMode}
-        onGenerated={genModalMode === "photoshoot"
-          ? () => { /* shoot results stay in the modal's gallery; identity photo untouched */ }
-          : (url, path) => {
-            setPhotoUrl(url);
-            setPhotoPath(path);
-            setPhotoError(null);
-            setShowGenModal(false);
-          }}
-        initialPrompt={buildArtistImagePrompt(watch())}
-        hasReferencePhoto={!!photoUrl}
-        referenceImageUrl={photoUrl}
+        onGenerated={wardrobeGenVaultId
+          ? async (url, path) => {
+              // Wardrobe flow: a photo-shoot generation becomes a wardrobe outfit.
+              const vid = wardrobeGenVaultId;
+              setWardrobeGenVaultId(null);
+              setShowGenModal(false);
+              try {
+                const token = await getAccessToken();
+                await fetch(`/api/artist-vaults/${vid}/outfits`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+                  body: JSON.stringify({ label: "Photo Shoot Look", image_url: url, image_path: path }),
+                });
+                setWardrobeRefreshKey((k) => k + 1);
+              } catch {
+                /* generation succeeded; the wardrobe section surfaces load errors */
+              }
+            }
+          : genModalMode === "photoshoot"
+            ? () => { /* shoot results stay in the modal's gallery; identity photo untouched */ }
+            : (url, path) => {
+              setPhotoUrl(url);
+              setPhotoPath(path);
+              setPhotoError(null);
+              setShowGenModal(false);
+            }}
+        initialPrompt={(() => {
+          const wv = wardrobeGenVaultId ? (vaults.find((v) => v.id === wardrobeGenVaultId) ?? openVault) : null;
+          return wv
+            ? `Full-body studio photo of ${wv.artist_name} wearing a brand new signature outfit — keep the exact same face, identity and art style as the reference photo`
+            : buildArtistImagePrompt(watch());
+        })()}
+        hasReferencePhoto={(() => {
+          const wv = wardrobeGenVaultId ? (vaults.find((v) => v.id === wardrobeGenVaultId) ?? openVault) : null;
+          return wv ? !!wv.reference_image_url : !!photoUrl;
+        })()}
+        referenceImageUrl={(() => {
+          const wv = wardrobeGenVaultId ? (vaults.find((v) => v.id === wardrobeGenVaultId) ?? openVault) : null;
+          return wv ? (wv.reference_image_url ?? null) : photoUrl;
+        })()}
         userId={user?.id ?? null}
       />
 

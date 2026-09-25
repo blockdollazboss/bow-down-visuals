@@ -6,9 +6,9 @@
 export type ClipModel = "gen4.5" | "seedance2_5";
 export type ClipResolution = "720p" | "1080p";
 /** The four Seedance 2.5 ratios this route ever requests. */
-export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
-
-export const GEN45_CREDIT_COST = 5;
+ortpe SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
+export const GEN45_CREDIT_COST = 
+      4;
 /* Resolution-aware Seedance 2.5 site-credit rates (credits per output second).
    Grounded in the Runway Dev API rate card (docs.dev.runwayml.com/guides/pricing):
    seedance2_5 bills 30 credits/sec at 720p and 68 credits/sec at 1080p, with API
@@ -21,7 +21,7 @@ export const SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT = 3;
 export const SEEDANCE_1080P_CREDITS_PER_SEC_DEFAULT = 6;
 /** Legacy flat fallback (pre-resolution-aware pricing). Kept exported so old
     imports keep compiling; do not use for new code. */
-export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 2;
+export const SEEDANCE_CREDITS_PER_SEC_FALLBACK = 1.5;
 export const SEEDANCE_MIN_DURATION_SEC = 3;
 export const SEEDANCE_MAX_DURATION_SEC = 30;
 

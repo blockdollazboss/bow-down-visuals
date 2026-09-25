@@ -7,15 +7,15 @@ export type ArtistImageModel = "gen4_image" | "gen4_image_turbo" | "gpt-image-2.
 /** The three output shapes offered for artist images. */
 export type ArtistImageRatio = "1080:1920" | "1080:1080" | "1920:1080";
 
-export const GEN4_IMAGE_CREDIT_COST = 3;
-export const GEN4_IMAGE_TURBO_CREDIT_COST = 2;
+export const GEN4_IMAGE_CREDIT_COST = 2;
+export const GEN4_IMAGE_TURBO_CREDIT_COST = 1;
 /**
  * Draft credit price for GPT Image 2.5 Sunburst (best quality).
  * Real-world cost for a high-quality portrait is roughly $0.07–$0.15, so
  * 2 credits (~$1.00) holds a healthy margin. Verify against actual
  * OpenAI invoices and tune via ARTIST_IMAGE_SUNBURST_CREDITS.
  */
-export const GPT_IMAGE_25_SUNBURST_CREDIT_COST = 2;
+export const GPT_IMAGE_25_SUNBURST_CREDIT_COST = 1;
 
 export interface ArtistImagePlan {
   model: ArtistImageModel;
