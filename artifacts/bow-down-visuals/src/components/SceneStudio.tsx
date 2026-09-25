@@ -570,6 +570,139 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   );
 }
 
+/* ─── Location picker ───────────────────────────────────────────
+   Visual picker for the user's Locations library (/locations). Picking sets
+   the scene's location label + locationImageUrl; clearing restores free text.
+   The library is fetched once per page load and shared across scene cards. */
+interface LibraryLocation {
+  id: string;
+  label: string;
+  image_url: string;
+}
+
+let locationsCache: LibraryLocation[] | null = null;
+let locationsFetch: Promise<LibraryLocation[]> | null = null;
+
+function fetchLocationsLibrary(getAccessToken: () => Promise<string | null>): Promise<LibraryLocation[]> {
+  if (locationsCache) return Promise.resolve(locationsCache);
+  if (!locationsFetch) {
+    locationsFetch = (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/locations", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await res.json()) as { locations?: LibraryLocation[] };
+        locationsCache = res.ok ? (data.locations ?? []) : [];
+      } catch {
+        locationsCache = [];
+      }
+      return locationsCache;
+    })();
+  }
+  return locationsFetch;
+}
+
+function LocationPicker({ scene, onPick }: {
+  scene: SceneData;
+  onPick: (patch: Partial<SceneData>) => void;
+}) {
+  const { getAccessToken } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [locations, setLocations] = useState<LibraryLocation[] | null>(null);
+
+  useEffect(() => {
+    if (open && locations === null) {
+      void fetchLocationsLibrary(getAccessToken).then(setLocations);
+    }
+  }, [open, locations, getAccessToken]);
+
+  const picked = scene.locationImageUrl
+    ? locations?.find((l) => l.image_url === scene.locationImageUrl) ?? null
+    : null;
+
+  return (
+    <div className="relative">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] font-black text-white/25 uppercase tracking-widest flex items-center gap-1.5 shrink-0">
+          <MapPin className="h-2.5 w-2.5" /> Location
+        </span>
+        {scene.locationImageUrl ? (
+          <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/[0.07] pl-1 pr-2 py-1">
+            <img
+              src={scene.locationImageUrl}
+              alt={scene.location || "Scene location"}
+              className="h-8 w-12 rounded-lg object-cover"
+            />
+            <span className="text-xs font-semibold text-white/80 max-w-[160px] truncate">
+              {picked?.label ?? scene.location ?? "Location"}
+            </span>
+            <button
+              onClick={() => onPick({ locationImageUrl: null })}
+              className="text-white/40 hover:text-white/80 transition-colors"
+              title="Clear location image (keeps the text)"
+              aria-label="Clear location image"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 bg-white/[0.03] text-white/50 text-xs font-bold hover:text-white/80 hover:border-white/20 transition-colors"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            {scene.location ? `“${scene.location}” — pick image` : "Pick a location"}
+            {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
+
+      {open && !scene.locationImageUrl && (
+        <div className="absolute z-30 mt-2 w-[320px] max-w-[80vw] rounded-xl border border-white/10 bg-zinc-950 p-3 shadow-2xl shadow-black/60">
+          {locations === null ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+            </div>
+          ) : locations.length === 0 ? (
+            <div className="text-center py-4">
+              <p className="text-xs text-white/50 mb-2">No locations saved yet.</p>
+              <a href="/locations" className="text-xs font-bold text-primary hover:text-primary/80">
+                Add some in your Locations library →
+              </a>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto">
+              {locations.map((l) => (
+                <button
+                  key={l.id}
+                  onClick={() => {
+                    onPick({ location: l.label, locationImageUrl: l.image_url });
+                    setOpen(false);
+                  }}
+                  className="group rounded-lg overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-left"
+                  title={`Use “${l.label}” for this scene`}
+                >
+                  <img src={l.image_url} alt={l.label} className="h-16 w-full object-cover" loading="lazy" />
+                  <p className="px-2 py-1.5 text-[11px] font-semibold text-white/70 group-hover:text-white truncate">
+                    {l.label}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+          <a
+            href="/locations"
+            className="block mt-2 text-center text-[11px] font-bold text-white/40 hover:text-primary transition-colors"
+          >
+            Manage locations →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Scene card ────────────────────────────────────────────── */
 interface SceneCardProps {
   scene: SceneData;
@@ -779,6 +912,9 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
             )}
           </div>
 
+          {/* Location picker — visual pick from the user's Locations library */}
+          <LocationPicker scene={scene} onPick={handleUpdate} />
+
           {/* AI Video Prompt & scene details (collapsed by default) */}
           {showPrompt && (
             <div className="space-y-4 pt-1">
@@ -793,6 +929,14 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
                       <p className="text-xs text-white/60 leading-relaxed">
                         <span className="text-white/30">Location: </span>{scene.location}
                       </p>
+                    )}
+                    {scene.locationImageUrl && (
+                      <img
+                        src={scene.locationImageUrl}
+                        alt={scene.location || "Scene location"}
+                        className="mt-1.5 h-16 w-28 rounded-lg object-cover border border-white/10"
+                        loading="lazy"
+                      />
                     )}
                     {scene.action && (
                       <p className="text-xs text-white/60 leading-relaxed flex items-start gap-1.5">

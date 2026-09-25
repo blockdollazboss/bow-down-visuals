@@ -47,6 +47,7 @@ const CreditHistory = lazyWithRetry(() => import("@/pages/credit-history"));
 const MyClips       = lazyWithRetry(() => import("@/pages/my-clips"));
 const Admin         = lazyWithRetry(() => import("@/pages/admin"));
 const Songs         = lazyWithRetry(() => import("@/pages/songs"));
+const Locations     = lazyWithRetry(() => import("@/pages/locations"));
 const Terms         = lazyWithRetry(() => import("@/pages/terms"));
 const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
@@ -215,6 +216,7 @@ function AppShell() {
                 <Route path="/my-clips"><ProtectedRoute><MyClips /></ProtectedRoute></Route>
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
+                <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>

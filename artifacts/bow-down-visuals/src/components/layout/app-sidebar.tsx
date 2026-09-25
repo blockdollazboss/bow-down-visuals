@@ -27,7 +27,8 @@ import {
   LogOut,
   LogIn,
   Coins,
-  ShieldCheck
+  ShieldCheck,
+  MapPin
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -64,6 +65,7 @@ export function AppSidebar() {
     { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
     { href: "/make-song", label: "Make a Song", icon: Music },
     { href: "/songs", label: "Songs", icon: Music2 },
+    { href: "/locations", label: "Locations", icon: MapPin },
     { href: "/make-video", label: "Make a Music Video", icon: Video },
     { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
