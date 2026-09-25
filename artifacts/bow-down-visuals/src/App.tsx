@@ -73,6 +73,7 @@ const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
+const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
@@ -285,6 +286,7 @@ function AppShell() {
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>

@@ -24,8 +24,8 @@ const NAV_LINKS = [
   { label: "Money Coach", href: "/coach" },
   { label: "Content Calendar", href: "/content-calendar" },
   { label: "Scheduler", href: "/scheduler" },
-  { label: "Tip Jar", href: "/tips" },  { label: "Tour Planner", href: "/tour" },  { label: "Tools", href: "/dashboard" },
-  { label: "Waitlist", href: "/waitlist" },
+  { label: "Tip Jar", href: "/tips" },  { label: "Tour Planner", href: "/tour" },  { label: "Tools", href: "/dashboard" },  { label: "Setlist Builder", href: "/setlist" },
+  { label: "Tools", href: "/dashboard" },  { label: "Waitlist", href: "/waitlist" },
 ];
 
 const DESKTOP_LINK =
