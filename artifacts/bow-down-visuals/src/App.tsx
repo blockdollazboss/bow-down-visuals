@@ -88,7 +88,7 @@ const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
 const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
 const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
 const Translate = lazyWithRetry(() => import("@/pages/translate"));
-const CollabFinder = lazyWithRetry(() => import("@/pages/collabs"));
+const SamplePack = lazyWithRetry(() => import("@/pages/samples"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -269,7 +269,7 @@ function AppShell() {
           <Route path="/press-kit"><ProtectedRoute><PressKitBuilder /></ProtectedRoute></Route>
           <Route path="/press/:handle"><PublicPressKit /></Route>
           <Route path="/translate"><Translate /></Route>
-          <Route path="/collabs"><CollabFinder /></Route>
+          <Route path="/samples"><SamplePack /></Route>
 
           <Route path="/script-writer"><ScriptWriter /></Route>
           {/* Protected app pages — inside the sidebar layout */}
