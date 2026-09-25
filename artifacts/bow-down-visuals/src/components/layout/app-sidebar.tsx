@@ -32,7 +32,8 @@ import {
   ShieldCheck,
   MapPin,
   ChevronsLeft,
-  Library
+  Library,
+  Radio
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -75,6 +76,7 @@ export function AppSidebar() {
     { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
     { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
     { href: "/my-clips", label: "My Clips", icon: Library },
+    { href: "/go-live", label: "Go Live", icon: Radio },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
     { href: "/pricing", label: "Pricing", icon: CreditCard },

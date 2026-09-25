@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Download, Film, Loader2, AlertTriangle, CheckCircle2, XCircle,
   Clapperboard, ExternalLink, Check, Minus, Volume2, VolumeX,
-  Shield, RefreshCw, ChevronDown, ChevronUp,
+  Shield, RefreshCw, ChevronDown, ChevronUp, MessageCircle,
 } from "lucide-react";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { FacebookIcon } from "@/components/ui/facebook-icon";
@@ -14,6 +14,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { InstagramPostModal } from "@/components/InstagramPostModal";
 import { FacebookPostModal } from "@/components/FacebookPostModal";
 import { TikTokPostModal } from "@/components/TikTokPostModal";
+import { DiscordAnnounceModal } from "@/components/DiscordAnnounceModal";
 import { useSocialAccounts } from "@/components/ConnectedAccounts";
 import type { SceneData } from "@/lib/scene-parser";
 import type { VideoAudioSource, VideoFormat, ExportResolution, CaptionSettings, BrandingSettings, CaptionExportMode, OverlayItem, ClipEdit } from "@/lib/editor-settings";
@@ -322,6 +323,7 @@ export function FinalVideoExport({
   const [showPostModal, setShowPostModal] = useState(false);
   const [showFacebookPostModal, setShowFacebookPostModal] = useState(false);
   const [showTikTokModal, setShowTikTokModal] = useState(false);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
   const { accounts: socialAccounts, reload: reloadSocialAccounts } = useSocialAccounts();
 
   const [prepareState, setPrepareState]         = useState<"idle" | "running" | "done" | "failed">("idle");
@@ -781,6 +783,14 @@ export function FinalVideoExport({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setShowDiscordModal(true)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-[#5865F2]/40 bg-[#5865F2]/[0.08] text-[#8b9bff] hover:bg-[#5865F2]/[0.16] transition-colors text-xs font-bold inline-flex items-center justify-center gap-1.5"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  Announce to Discord
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     const text = encodeURIComponent("Just made this with @bowdownvisuals 🔥");
                     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
@@ -827,6 +837,14 @@ export function FinalVideoExport({
             onClose={() => setShowFacebookPostModal(false)}
             videoUrl={exportUrl}
             accounts={socialAccounts.filter((a) => a.platform === "facebook")}
+          />
+        )}
+
+        {showDiscordModal && exportUrl && (
+          <DiscordAnnounceModal
+            open={showDiscordModal}
+            onClose={() => setShowDiscordModal(false)}
+            videoUrl={exportUrl}
           />
         )}
 
