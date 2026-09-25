@@ -24,7 +24,7 @@ interface RecentImage { name: string; url: string; path: string }
 export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPrompt, hasReferencePhoto, referenceImageUrl, userId }: Props) {
   const { getAccessToken, refreshProfile } = useAuth();
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [model, setModel] = useState<ArtistImageModel>("gen4_image");
+  const [model, setModel] = useState<ArtistImageModel>("gpt-image-2.5-sunburst");
   const [ratio, setRatio] = useState<ArtistImageRatio>("1080:1920");
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -125,9 +125,17 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
           referenceImageUrl: hasReferencePhoto ? referenceImageUrl : null,
         }),
       });
-      const data = await res.json() as { taskId?: string; error?: string; message?: string };
+      const data = await res.json() as { taskId?: string; status?: string; url?: string | null; path?: string | null; error?: string; message?: string };
       if (!res.ok || !data.taskId) {
         throw new Error(data.message ?? data.error ?? `Image API error (HTTP ${res.status})`);
+      }
+      /* GPT Image 2.5 returns synchronously — no polling needed. */
+      if (data.status === "succeeded" && data.url) {
+        setGenerating(false);
+        refreshProfile();
+        void loadRecent();
+        onGenerated(data.url, data.path ?? null);
+        return;
       }
       startPolling(data.taskId);
     } catch (e) {
