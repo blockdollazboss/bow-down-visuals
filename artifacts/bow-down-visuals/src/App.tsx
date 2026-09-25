@@ -56,9 +56,9 @@ const Privacy       = lazyWithRetry(() => import("@/pages/privacy"));
 const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
+const ChannelAudit  = lazyWithRetry(() => import("@/pages/audit"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
-const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
@@ -220,9 +220,9 @@ function AppShell() {
           <Route path="/refund-policy"><RefundPolicy /></Route>
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
+          <Route path="/audit"><ChannelAudit /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
-          <Route path="/playlist-pitch"><PlaylistPitcher /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
