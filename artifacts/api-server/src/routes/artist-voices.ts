@@ -20,7 +20,7 @@ import { promises as fs } from "node:fs";
 import { db, artistVaultsTable, songsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
-import { recordCreditUsage } from "../lib/payment-record";
+import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import {
   uploadMediaToSupabaseStorage,
@@ -268,6 +268,18 @@ const FROM_SONG_CREDIT_COST = 2;
 const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
 
 /**
+ * Env override for the pre-Demucs window selection strategy: "vocal"
+ * (default — picks the 90s with the most vocal activity, best for IVC)
+ * or "loudest" (legacy — picks the highest-loudness 90s). Exported for tests.
+ */
+export function resolveFromSongWindowStrategy(
+  env: NodeJS.ProcessEnv = process.env,
+): "vocal" | "loudest" {
+  return env["FROM_SONG_WINDOW_STRATEGY"] === "loudest" ? "loudest" : "vocal";
+}
+const FROM_SONG_WINDOW_STRATEGY = resolveFromSongWindowStrategy();
+
+/**
  * Env override for the pre-Demucs trim window (seconds). Exported for tests.
  * Falls back to 90 on missing/invalid values — an invalid trim must never
  * silently disable the protection against full-song Demucs runs.
@@ -363,23 +375,26 @@ router.post(
         });
         return;
       }
+      // chargeCredits(): deduct + strict ledger write. A ledger failure rolls
+      // the deduction back and throws LedgerWriteError (loud) — the 2-credit
+      // loss this route is known for can never be untraceable again.
       if (!isDev) {
-        await getSupabaseAdmin()
-          .from("profiles")
-          .update({ credits: currentCredits - FROM_SONG_CREDIT_COST })
-          .eq("id", req.userId!);
+        try {
+          await chargeCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song" });
+        } catch (chargeErr) {
+          if (chargeErr instanceof LedgerWriteError) {
+            res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+            return;
+          }
+          throw chargeErr;
+        }
       }
 
+      // Refund with a ledger trace if isolation fails (the failure mode that
+      // lost 2 credits without a trace before this fix).
       refund = () =>
         !isDev
-          ? getSupabaseAdmin()
-              .from("profiles")
-              .update({ credits: currentCredits })
-              .eq("id", req.userId!)
-              .then(
-                () => {},
-                () => {},
-              )
+          ? refundCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song — Refund (isolation failure)" })
           : Promise.resolve();
 
       const file = (req as any).file as Express.Multer.File | undefined;
@@ -396,6 +411,10 @@ router.post(
       const { vocalsPath, workdir } = await separateVocalStems(songBuffer, {
         model: FROM_SONG_DEMUCS_MODEL,
         trimSeconds: FROM_SONG_TRIM_SECONDS,
+        windowStrategy: FROM_SONG_WINDOW_STRATEGY,
+        // Normalize + silence-trim for IVC: ElevenLabs rejects inputs with
+        // wild level swings or long leading silence (2026-09-25 incident).
+        postProcessVocals: true,
       });
       let vocalsBuffer: Buffer;
       try {
@@ -467,12 +486,7 @@ router.post(
         })
         .where(and(eq(artistVaultsTable.id, vault.id), eq(artistVaultsTable.user_id, req.userId!)));
 
-      recordCreditUsage({
-        userId: req.userId!,
-        action: "Voice From Song",
-        creditsUsed: isDev ? 0 : FROM_SONG_CREDIT_COST,
-      }).catch(() => {});
-
+        // The ledger entry was written atomically by chargeCredits() above.
       res.json({
         voice_id: data.voice_id,
         voice_name: voiceName,

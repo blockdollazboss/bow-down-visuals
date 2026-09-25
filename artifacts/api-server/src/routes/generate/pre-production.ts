@@ -3,8 +3,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 
 const router = Router();
@@ -70,12 +69,6 @@ function buildBibleContext(bible: BibleInput | null | undefined): string {
   return lines.join("\n");
 }
 
-async function deductCredits(userId: string, current: number, cost: number): Promise<number> {
-  const after = current - cost;
-  await getSupabaseAdmin().from("profiles").update({ credits: after }).eq("id", userId);
-  return after;
-}
-
 function outOfCredits(res: any, required: number) {
   res.status(402).json({
     error: "out_of_credits",
@@ -127,8 +120,17 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const bible = JSON.parse(raw);
-    const after = await deductCredits(req.userId!, currentCredits, TEXT_CREDIT_COST);
-    recordCreditUsage({ userId: req.userId!, action: "Production Bible", creditsUsed: TEXT_CREDIT_COST }).catch(() => {});
+    let after: number;
+    try {
+      after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Production Bible" });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+      if (chargeErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
+      throw chargeErr;
+    }
     res.json({ bible, creditsAfter: after });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Bible generation failed." });
@@ -169,8 +171,17 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
     const shots = Array.isArray(parsed) ? parsed : parsed.shots ?? [];
-    const after = await deductCredits(req.userId!, currentCredits, TEXT_CREDIT_COST);
-    recordCreditUsage({ userId: req.userId!, action: "Storyboard", creditsUsed: TEXT_CREDIT_COST }).catch(() => {});
+    let after: number;
+    try {
+      after = await chargeCredits(req.userId!, TEXT_CREDIT_COST, { action: "Storyboard" });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
+      if (chargeErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
+      throw chargeErr;
+    }
     res.json({ shots, creditsAfter: after });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Storyboard generation failed." });
@@ -247,12 +258,19 @@ Style: ultra-detailed cinematic still, professional music video production quali
     const storageRef = await uploadMediaToSupabaseStorage(objectName, buffer, "image/png");
     const url = await refreshSupabaseStorageUrl(storageRef);
 
-    const after = await deductCredits(req.userId!, currentCredits, IMAGE_CREDIT_COST);
-    recordCreditUsage({
-      userId: req.userId!,
-      action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame",
-      creditsUsed: IMAGE_CREDIT_COST,
-    }).catch(() => {});
+    let after: number;
+    try {
+      after = await chargeCredits(req.userId!, IMAGE_CREDIT_COST, {
+        action: kind === "asset" ? "Production Asset" : kind === "endframe" ? "Storyboard End Frame" : "Storyboard Start Frame",
+      });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
+      if (chargeErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
+      throw chargeErr;
+    }
     res.json({ imageUrl: url, creditsAfter: after });
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Image generation failed." });

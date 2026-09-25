@@ -12,8 +12,7 @@ import {
   refreshSupabaseStorageUrl,
   parseSupabaseStorageRef,
 } from "../../lib/objectStorage";
-import { recordCreditUsage } from "../../lib/payment-record";
-import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import {
   GEN45_CREDIT_COST,
   SEEDANCE_CREDITS_PER_SEC_FALLBACK,
@@ -386,7 +385,7 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
       /* ── Charge credits (only once, guarded by pendingTasks presence) ── */
       if (pending && pending.userId === req.userId) {
         /* Duration-proportional cost for Seedance, flat 5 for gen4.5. */
-        const chargeCredits = pending.credits ?? GEN45_CREDIT_COST;
+        const cost = pending.credits ?? GEN45_CREDIT_COST;
         /* Fresh credit read to avoid stale middleware value */
         const { data: freshProfile } = await req.userSupabase!
           .from("profiles")
@@ -396,39 +395,37 @@ router.get("/generate-runway-clip/:taskId", requireAuth, async (req, res) => {
 
         const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
         req.log.info(
-          { taskId, userId: req.userId, freshCredits, requiredCredits: chargeCredits },
+          { taskId, userId: req.userId, freshCredits, requiredCredits: cost },
           "[runway-clip] current credits before deduction",
         );
 
-        const creditsAfter = Math.max(0, freshCredits - chargeCredits);
-        /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
-        const { error: deductErr } = await getSupabaseAdmin()
-          .from("profiles")
-          .update({ credits: creditsAfter })
-          .eq("id", req.userId!);
-
-        if (deductErr) {
-          req.log.error({ err: deductErr, taskId }, "[runway-clip] credit deduction FAILED — clip delivered without charge");
-        } else {
+        // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The
+        // clip was already delivered, so on ledger failure the deduction
+        // stands (rollback disabled) and the gap is logged CRITICAL — never
+        // silent.
+        /* Record credit_usage */
+        const projectId = pending.projectId ?? null;
+        try {
+          const creditsAfter = await chargeCreditsAtomic(
+            req.userId!,
+            cost,
+            { action: "Runway Video Clip", projectId },
+            { rollbackOnLedgerFailure: false },
+          );
           req.log.info(
-            { taskId, userId: req.userId, creditsAfter, deducted: chargeCredits },
+            { taskId, userId: req.userId, creditsAfter, deducted: cost },
             "[runway-clip] credits deducted",
           );
 
-          /* Record credit_usage */
-          const projectId = pending.projectId ?? null;
-          recordCreditUsage({
-            userId:      req.userId!,
-            action:      "Runway Video Clip",
-            creditsUsed: chargeCredits,
-            projectId,
-          })
-            .then(() => req.log.info({ taskId, userId: req.userId }, "[runway-clip] credit_usage saved"))
-            .catch((e) => req.log.warn({ err: e }, "[runway-clip] credit_usage save failed (non-fatal)"));
-
           /* Track for possible refund if the subsequent save fails */
-          chargedTasks.set(taskId, { userId: req.userId!, credits: chargeCredits, refunded: false });
+          chargedTasks.set(taskId, { userId: req.userId!, credits: cost, refunded: false });
           setTimeout(() => chargedTasks.delete(taskId), 60 * 60 * 1000); /* expire after 1 h */
+        } catch (err) {
+          if (err instanceof LedgerWriteError) {
+            req.log.error({ err, taskId }, "[runway-clip] CRITICAL: ledger write failed after deduction — clip delivered, charge has no ledger trace");
+          } else {
+            req.log.error({ err, taskId }, "[runway-clip] credit deduction FAILED — clip delivered without charge");
+          }
         }
 
         pendingTasks.delete(taskId);

@@ -7,7 +7,7 @@ import os from "os";
 import RunwayML from "@runwayml/sdk";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { recordCreditUsage } from "../../lib/payment-record";
+import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import {
   GEN4_IMAGE_CREDIT_COST,
@@ -62,28 +62,24 @@ async function chargeForImage(req: {
   userSupabase?: ReturnType<typeof getSupabaseAdmin>;
   log: { info: (...a: unknown[]) => void; error: (...a: unknown[]) => void; warn: (...a: unknown[]) => void };
 }, credits: number): Promise<void> {
-  const { data: freshProfile } = await req.userSupabase!
-    .from("profiles")
-    .select("credits")
-    .eq("id", req.userId!)
-    .single();
-  const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
-  const creditsAfter = Math.max(0, freshCredits - credits);
-  const { error: deductErr } = await getSupabaseAdmin()
-    .from("profiles")
-    .update({ credits: creditsAfter })
-    .eq("id", req.userId!);
-
-  if (deductErr) {
-    req.log.error({ err: deductErr }, "[artist-image] credit deduction FAILED — image delivered without charge");
-  } else {
+  // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The image
+  // was already delivered, so on ledger failure the deduction stands (rollback
+  // disabled) and the gap is logged CRITICAL for manual reconciliation —
+  // never silent.
+  try {
+    const creditsAfter = await chargeCreditsAtomic(
+      req.userId!,
+      credits,
+      { action: "Artist Image (GPT Image 2.5)" },
+      { rollbackOnLedgerFailure: false },
+    );
     req.log.info({ userId: req.userId, creditsAfter, deducted: credits }, "[artist-image] credits deducted (OpenAI)");
-    recordCreditUsage({
-      userId: req.userId!,
-      action: "Artist Image (GPT Image 2.5)",
-      creditsUsed: credits,
-      projectId: null,
-    }).catch((e) => req.log.warn({ err: e }, "[artist-image] credit_usage save failed (non-fatal)"));
+  } catch (err) {
+    if (err instanceof LedgerWriteError) {
+      req.log.error({ err }, "[artist-image] CRITICAL: ledger write failed after deduction — image delivered, charge has no ledger trace");
+    } else {
+      req.log.error({ err }, "[artist-image] credit deduction FAILED — image delivered without charge");
+    }
   }
 }
 
@@ -277,29 +273,25 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
 
       /* ── Charge credits (only once, guarded by pendingImageTasks presence) ── */
       if (pending && pending.userId === req.userId) {
-        const chargeCredits = pending.credits ?? GEN4_IMAGE_CREDIT_COST;
-        const { data: freshProfile } = await req.userSupabase!
-          .from("profiles")
-          .select("credits")
-          .eq("id", req.userId!)
-          .single();
-        const freshCredits: number = (freshProfile as { credits?: number } | null)?.credits ?? 0;
-        const creditsAfter = Math.max(0, freshCredits - chargeCredits);
-        const { error: deductErr } = await getSupabaseAdmin()
-          .from("profiles")
-          .update({ credits: creditsAfter })
-          .eq("id", req.userId!);
-
-        if (deductErr) {
-          req.log.error({ err: deductErr, taskId }, "[artist-image] credit deduction FAILED — image delivered without charge");
-        } else {
-          req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: chargeCredits }, "[artist-image] credits deducted");
-          recordCreditUsage({
-            userId: req.userId!,
-            action: "Artist Image",
-            creditsUsed: chargeCredits,
-            projectId: null,
-          }).catch((e) => req.log.warn({ err: e }, "[artist-image] credit_usage save failed (non-fatal)"));
+        const cost = pending.credits ?? GEN4_IMAGE_CREDIT_COST;
+        // chargeCreditsAtomic(): fresh-read deduct + strict ledger write. The
+        // image was already delivered, so on ledger failure the deduction
+        // stands (rollback disabled) and the gap is logged CRITICAL — never
+        // silent.
+        try {
+          const creditsAfter = await chargeCreditsAtomic(
+            req.userId!,
+            cost,
+            { action: "Artist Image" },
+            { rollbackOnLedgerFailure: false },
+          );
+          req.log.info({ taskId, userId: req.userId, creditsAfter, deducted: cost }, "[artist-image] credits deducted");
+        } catch (err) {
+          if (err instanceof LedgerWriteError) {
+            req.log.error({ err, taskId }, "[artist-image] CRITICAL: ledger write failed after deduction — image delivered, charge has no ledger trace");
+          } else {
+            req.log.error({ err, taskId }, "[artist-image] credit deduction FAILED — image delivered without charge");
+          }
         }
         pendingImageTasks.delete(taskId);
       } else if (!pending) {

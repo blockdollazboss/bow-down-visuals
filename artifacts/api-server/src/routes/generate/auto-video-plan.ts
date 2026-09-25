@@ -2,8 +2,8 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
-import { deductCredits, OutOfCreditsError } from "../../lib/credits";
-import { recordCreditUsage, recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
+import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
 const router = Router();
 
@@ -284,7 +284,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
 
     let creditsAfter: number;
     try {
-      creditsAfter = await deductCredits(req.userId!, CREDIT_COST);
+      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Auto Director Plan" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
@@ -293,11 +293,14 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
         });
         return;
       }
+      if (deductErr instanceof LedgerWriteError) {
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        return;
+      }
       throw deductErr;
     }
 
     markGenerationHistoryCharged(genHistoryId).catch(() => {});
-    recordCreditUsage({ userId: req.userId!, action: "Auto Director Plan", creditsUsed: CREDIT_COST }).catch(() => {});
 
     res.json({ plan, creditsRemaining: creditsAfter, genHistoryId });
   } catch (err: unknown) {
