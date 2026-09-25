@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { label: "Hook Studio", href: "/hooks" },
   { label: "Comment Replies", href: "/comment-replies" },
   { label: "Money Coach", href: "/coach" },
+  { label: "Content Calendar", href: "/content-calendar" },
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
