@@ -8,7 +8,16 @@ import type { SocialAccountInfo } from "./ConnectedAccounts";
 
 /* Caption composer + publisher for the Instagram auto-post MVP.
    Opens from FinalVideoExport after a successful export. Publishing costs
-   2 credits (charged by the backend, refunded if Instagram fails). */
+   2 credits (charged by the backend, refunded if Instagram fails).
+
+   Idempotency: one key is generated per composer session (when the modal
+   opens) and reused for every publish click within it, so a double-click or
+   a retry after a timeout replays the same server-side attempt instead of
+   posting/charging twice. The key is also stashed in sessionStorage per
+   video, so closing and reopening the composer in the same tab keeps
+   reusing it — a lost success response still replays instead of double
+   posting. A genuinely new post (reopened composer after a confirmed
+   success) gets a fresh key. */
 
 interface Props {
   open: boolean;
@@ -38,6 +47,9 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  /* Idempotency key for this composer session — stable across retries so a
+     double-click or a retry after a timeout replays one server attempt. */
+  const idempotencyKey = useRef("");
 
   const usable = accounts.filter((a) => !a.expired);
 
@@ -51,6 +63,24 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
       setPermalink(null);
       setError(null);
       setOutOfCredits(false);
+      /* Reuse a pending key for this video if the composer was closed
+         mid-publish; otherwise mint a fresh one for this session. */
+      const storageKey = `ig-publish-key:${videoUrl}`;
+      let key = "";
+      try {
+        key = sessionStorage.getItem(storageKey) ?? "";
+      } catch {
+        key = "";
+      }
+      if (!key) {
+        key = crypto.randomUUID();
+        try {
+          sessionStorage.setItem(storageKey, key);
+        } catch {
+          /* private mode — the in-memory ref still dedupes this session */
+        }
+      }
+      idempotencyKey.current = key;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open ]);
@@ -118,7 +148,12 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ accountId, videoUrl, caption: caption.trim() }),
+        body: JSON.stringify({
+          accountId,
+          videoUrl,
+          caption: caption.trim(),
+          idempotencyKey: idempotencyKey.current,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 402 || data.error === "out_of_credits") {
@@ -126,10 +161,23 @@ export function InstagramPostModal({ open, onClose, videoUrl, accounts }: Props)
         refreshProfile();
         return;
       }
+      if (res.status === 409 && data.error === "publish_in_progress") {
+        /* Another attempt with this key is still running (double-click or a
+           retry that raced the first request) — not an error, just wait. */
+        setError("This post is already publishing — give it a minute, then check your Instagram.");
+        return;
+      }
       if (!res.ok) {
         throw new Error(data.message || "Couldn't publish to Instagram.");
       }
       setPermalink(data.permalink || null);
+      /* Confirmed success: this intent is done, so a later composer session
+         for the same video mints a fresh key (a deliberate repost). */
+      try {
+        sessionStorage.removeItem(`ig-publish-key:${videoUrl}`);
+      } catch {
+        /* ignore */
+      }
       refreshProfile();
       toast({ title: "Posted to Instagram", description: "Your reel is live." });
     } catch (err) {

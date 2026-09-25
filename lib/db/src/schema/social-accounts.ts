@@ -1,12 +1,17 @@
-import { pgTable, uuid, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 /* Connected third-party social accounts for auto-posting (Instagram MVP).
    OAuth tokens are stored AES-256-GCM encrypted (see social-crypto.ts) —
    never plaintext, never logged. user_id references the Supabase auth user
-   (no DB-level FK: auth lives in Supabase, this table in Render Postgres). */
-export const socialAccountsTable = pgTable("social_accounts", {
+   (no DB-level FK: auth lives in Supabase, this table in Render Postgres).
+   Indexes mirror migrations/0002_social_accounts.sql so boot-time
+   `drizzle-kit push` on a fresh DB creates exactly what the migration does —
+   the unique index is what the connect upsert's ON CONFLICT arbiter needs. */
+export const socialAccountsTable = pgTable(
+  "social_accounts",
+  {
   id: uuid("id").primaryKey().defaultRandom(),
   user_id: uuid("user_id").notNull(),
   platform: text("platform").notNull().default("instagram"),
@@ -17,7 +22,12 @@ export const socialAccountsTable = pgTable("social_accounts", {
   token_expires_at: timestamp("token_expires_at", { withTimezone: true }),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+  },
+  (t) => [
+    index("social_accounts_user_id_idx").on(t.user_id),
+    uniqueIndex("social_accounts_user_platform_ig_idx").on(t.user_id, t.platform, t.ig_user_id),
+  ],
+);
 
 export const insertSocialAccountSchema = createInsertSchema(socialAccountsTable).omit({
   id: true,
