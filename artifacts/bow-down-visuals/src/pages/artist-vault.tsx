@@ -620,8 +620,7 @@ function LockedVoiceSection({ vault, onChanged }: {
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-
+      {/* Single section-level error display (kept at the bottom of the section). */}
       {busy && stage && (
         <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
           <Loader2 className="h-3 w-3 animate-spin" />
