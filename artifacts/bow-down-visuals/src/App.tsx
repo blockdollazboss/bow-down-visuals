@@ -68,6 +68,7 @@ const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
+const StemSplitter = lazyWithRetry(() => import("@/pages/stems"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
@@ -253,6 +254,7 @@ function AppShell() {
           <Route path="/community"><CommunityManager /></Route>
           <Route path="/memberships"><Memberships /></Route>
           <Route path="/upscale"><Upscale /></Route>
+          <Route path="/stems"><StemSplitter /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
