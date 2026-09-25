@@ -37,7 +37,6 @@ const SongAndVideo  = lazyWithRetry(() => import("@/pages/song-and-video"));
 const CreateSimple  = lazyWithRetry(() => import("@/pages/create-simple"));
 const PromoClip     = lazyWithRetry(() => import("@/pages/promo-clip"));
 const Thumbnail     = lazyWithRetry(() => import("@/pages/thumbnail"));
-const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Thumbnails    = lazyWithRetry(() => import("@/pages/thumbnails"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
 const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
@@ -58,16 +57,10 @@ const RefundPolicy  = lazyWithRetry(() => import("@/pages/refund-policy"));
 const Randomizer    = lazyWithRetry(() => import("@/pages/randomizer"));
 const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
-const TitleStudio   = lazyWithRetry(() => import("@/pages/titles"));
-const VoiceoverStudio = lazyWithRetry(() => import("@/pages/voiceover"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
-const TrendPredictor = lazyWithRetry(() => import("@/pages/trends"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
-const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
-const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
-const CommunityManager = lazyWithRetry(() => import("@/pages/community"));
-const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
+const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
@@ -75,22 +68,6 @@ const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
 const CopyrightAssistant = lazyWithRetry(() => import("@/pages/copyright"));
 const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
-const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
-const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
-const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
-const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
-const CoverArt = lazyWithRetry(() => import("@/pages/cover-art"));
-const Repurpose = lazyWithRetry(() => import("@/pages/repurpose"));
-const LyricVideo = lazyWithRetry(() => import("@/pages/lyric-video"));
-const Beats = lazyWithRetry(() => import("@/pages/beats"));
-const ThumbnailTest = lazyWithRetry(() => import("@/pages/thumbnail-test"));
-const CaptionStyler = lazyWithRetry(() => import("@/pages/caption-styler"));
-const ScriptWriter = lazyWithRetry(() => import("@/pages/script-writer"));
-const PressKitBuilder = lazyWithRetry(() => import("@/pages/press-kit"));
-const PublicPressKit = lazyWithRetry(() => import("@/pages/press-public"));
-const Translate = lazyWithRetry(() => import("@/pages/translate"));
-const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
-const TextToSfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 
 /**
@@ -243,16 +220,10 @@ function AppShell() {
           <Route path="/randomizer"><Randomizer /></Route>
           <Route path="/hooks"><HookStudio /></Route>
           <Route path="/comment-replies"><CommentReplies /></Route>
-          <Route path="/titles"><TitleStudio /></Route>
-          <Route path="/voiceover"><VoiceoverStudio /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
-          <Route path="/trends"><TrendPredictor /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
-          <Route path="/sponsors"><SponsorMarketplace /></Route>
-          <Route path="/distribute"><Distribute /></Route>
-          <Route path="/community"><CommunityManager /></Route>
-          <Route path="/memberships"><Memberships /></Route>
+          <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
@@ -260,21 +231,7 @@ function AppShell() {
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
           <Route path="/llc-guide"><LlcGuide /></Route>
-          <Route path="/clip-maker"><ClipMaker /></Route>
-          <Route path="/branding-shop"><BrandingShop /></Route>
-          <Route path="/shop/:handle"><ShopStorefront /></Route>
-          <Route path="/cover-art"><CoverArt /></Route>
-          <Route path="/lyric-video"><LyricVideo /></Route>
-          <Route path="/beats"><Beats /></Route>
-          <Route path="/thumbnail-test"><ThumbnailTest /></Route>
-          <Route path="/caption-styler"><CaptionStyler /></Route>
-          <Route path="/press-kit"><ProtectedRoute><PressKitBuilder /></ProtectedRoute></Route>
-          <Route path="/press/:handle"><PublicPressKit /></Route>
-          <Route path="/translate"><Translate /></Route>
-          <Route path="/live-shopping"><LiveShopping /></Route>
-          <Route path="/sfx"><TextToSfx /></Route>
 
-          <Route path="/script-writer"><ScriptWriter /></Route>
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
@@ -291,7 +248,6 @@ function AppShell() {
                 <Route path="/create"><ProtectedRoute><CreateSimple /></ProtectedRoute></Route>
                 <Route path="/promo-clip"><ProtectedRoute><PromoClip /></ProtectedRoute></Route>
                 <Route path="/thumbnail"><ProtectedRoute><Thumbnail /></ProtectedRoute></Route>
-                <Route path="/thumbnail-maker"><ProtectedRoute><ThumbnailMaker /></ProtectedRoute></Route>
                 <Route path="/thumbnails"><ProtectedRoute><Thumbnails /></ProtectedRoute></Route>
                 <Route path="/credit-history"><ProtectedRoute><CreditHistory /></ProtectedRoute></Route>
                 <Route path="/settings"><ProtectedRoute><Settings /></ProtectedRoute></Route>
@@ -299,8 +255,6 @@ function AppShell() {
                 <Route path="/admin"><ProtectedRoute><Admin /></ProtectedRoute></Route>
                 <Route path="/songs"><ProtectedRoute><Songs /></ProtectedRoute></Route>
                 <Route path="/locations"><ProtectedRoute><Locations /></ProtectedRoute></Route>
-                <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
-                <Route path="/repurpose"><ProtectedRoute><Repurpose /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
