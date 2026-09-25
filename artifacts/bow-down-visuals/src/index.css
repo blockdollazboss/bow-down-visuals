@@ -474,3 +474,51 @@ html {
     display: none;
   }
 }
+
+/* ─── Grand entrance — artist selection reveal choreography ─── */
+@keyframes bd-entrance-rise {
+  from { opacity: 0; transform: translateY(34px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bd-entrance-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bd-entrance-spotlight {
+  from { opacity: 0; }
+  to { opacity: var(--bd-spotlight-opacity, 1); }
+}
+@keyframes bd-dust-drift {
+  0%, 100% { transform: translateY(0px); opacity: 0.15; }
+  50% { transform: translateY(-16px); opacity: 0.65; }
+}
+@keyframes bd-curtain-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.9; }
+}
+
+.animate-bd-entrance { animation: bd-entrance-rise 1.05s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-bd-entrance-fade { animation: bd-entrance-fade 1.5s ease both; }
+.animate-bd-spotlight { animation: bd-entrance-spotlight 1.8s ease both; }
+.animate-bd-dust { animation: bd-dust-drift 7s ease-in-out infinite; }
+.animate-bd-curtain { animation: bd-curtain-glow 6s ease-in-out infinite; }
+
+/* Embossed damask texture for the grand lobby walls */
+.bd-damask {
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(201, 168, 76, 0.05) 1px, transparent 1.6px),
+    radial-gradient(circle at 25% 25%, rgba(201, 168, 76, 0.028) 1px, transparent 1.6px),
+    radial-gradient(circle at 75% 75%, rgba(201, 168, 76, 0.028) 1px, transparent 1.6px);
+  background-size: 44px 44px, 44px 44px, 44px 44px;
+  background-position: 0 0, 11px 11px, 33px 33px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-bd-entrance,
+  .animate-bd-entrance-fade,
+  .animate-bd-spotlight,
+  .animate-bd-dust,
+  .animate-bd-curtain {
+    animation: none;
+  }
+}
