@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Coins, ShieldCheck } from "lucide-react";
+import { Link } from "wouter";
+import { Loader2, Coins, ShieldCheck, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
@@ -74,6 +75,7 @@ export default function AdminPage() {
       ) : !isAdmin ? (
         <p className="text-sm text-white/40 py-8 text-center">Not authorized.</p>
       ) : (
+        <>
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
           <div className="flex items-center gap-2 mb-1">
             <Coins className="h-4 w-4 text-primary" />
@@ -105,6 +107,18 @@ export default function AdminPage() {
             Grants are logged as "Admin Credit Grant" in the credit ledger.
           </p>
         </div>
+
+        <Link
+          href="/featured-songs"
+          className="mt-4 flex items-center justify-between rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 hover:border-yellow-500/30 transition-colors"
+        >
+          <div>
+            <p className="text-sm font-semibold text-white">Featured Songs playlist</p>
+            <p className="text-xs text-white/40 mt-0.5">Upload and order the homepage playlist tracks.</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-white/30" />
+        </Link>
+        </>
       )}
     </div>
   );

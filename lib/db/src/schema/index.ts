@@ -49,4 +49,4 @@ export * from "./fan-shoutouts";
 export * from "./collab";
 export * from "./email-lists";
 export * from "./royalties";
-export * from "./cheat-code-events";
+export * from "./cheat-code-events";export * from "./featured-songs";
