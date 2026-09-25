@@ -85,7 +85,7 @@ vi.mock("@workspace/db", () => {
   };
 });
 
-import router from "../artist-voices";
+import router, { resolveFromSongTrimSeconds } from "../artist-voices";
 import { canUseInstantVoiceCloning } from "../../lib/elevenlabs";
 import { separateVocalStems } from "../../lib/stem-separation";
 
@@ -161,8 +161,11 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
 
     // Fail-open: the request proceeded past the broken pre-check.
     expect(separateVocalStems).toHaveBeenCalled();
-    // Lighter model passed through to the isolation step.
-    expect(separateVocalStems).toHaveBeenCalledWith(expect.any(Buffer), { model: "htdemucs" });
+    // Lighter model + pre-Demucs trim window passed through to the isolation step.
+    expect(separateVocalStems).toHaveBeenCalledWith(expect.any(Buffer), {
+      model: "htdemucs",
+      trimSeconds: 90,
+    });
     // JSON error body (never an HTML error page), credits refunded.
     expect(status).toBe(500);
     expect(contentType).toContain("application/json");
@@ -181,5 +184,22 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
     expect(contentType).toContain("application/json");
     expect(json.error).toBe("db down");
     expect(sbState.updates).toHaveLength(0);
+  });
+});
+
+describe("resolveFromSongTrimSeconds (FROM_SONG_TRIM_SECONDS env)", () => {
+  it("defaults to 90 seconds when unset", () => {
+    expect(resolveFromSongTrimSeconds({})).toBe(90);
+  });
+
+  it("respects the env override", () => {
+    expect(resolveFromSongTrimSeconds({ FROM_SONG_TRIM_SECONDS: "45" })).toBe(45);
+    expect(resolveFromSongTrimSeconds({ FROM_SONG_TRIM_SECONDS: "120" })).toBe(120);
+  });
+
+  it("falls back to 90 on missing/invalid values (never silently disables the trim)", () => {
+    expect(resolveFromSongTrimSeconds({ FROM_SONG_TRIM_SECONDS: "0" })).toBe(90);
+    expect(resolveFromSongTrimSeconds({ FROM_SONG_TRIM_SECONDS: "-5" })).toBe(90);
+    expect(resolveFromSongTrimSeconds({ FROM_SONG_TRIM_SECONDS: "abc" })).toBe(90);
   });
 });
