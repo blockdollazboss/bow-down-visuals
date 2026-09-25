@@ -13,7 +13,7 @@ import {
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { TopBar } from "@/components/layout/top-bar";
+import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -141,7 +141,7 @@ export default function VideoEditor() {
   const { toast } = useToast();
   const { activeArtist, consistencyPrompt } = useActiveArtist();
   const { isSimple } = useUserMode();
-  /** Simple mode hides the technical/advanced panels behind the top-bar mode toggle;
+  /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
   const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
 
@@ -776,7 +776,7 @@ export default function VideoEditor() {
 
   return (
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
-      <TopBar onHeightChange={setHeaderHeight} />
+      <VideoBanner onHeightChange={setHeaderHeight} />
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <Link href="/my-projects" className="sr-only">Back to Projects</Link>

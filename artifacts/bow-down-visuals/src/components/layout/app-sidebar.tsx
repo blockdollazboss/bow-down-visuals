@@ -6,6 +6,7 @@ import {
   SidebarHeader,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -35,16 +36,66 @@ import {
   ChevronsLeft,
   Library,
   Radio,
-  GraduationCap
+  GraduationCap,
+  FolderOpen,
+  Zap,
+  Settings,
+  HelpCircle,
+  Wand2,
+  SlidersHorizontal,
+  Plus,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+
+const IS_DEV = import.meta.env.DEV;
+
+/** Simple / Advanced mode switch — ported from the old TopBar so the
+ *  toolbar's mode control lives in the sidebar now. */
+function ModeToggle() {
+  const { mode, setMode } = useUserMode();
+  return (
+    <div
+      className="inline-flex w-full items-center rounded-full border border-white/[0.08] bg-white/[0.03] p-0.5"
+      role="tablist"
+      aria-label="Simple or Advanced mode"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === "simple"}
+        onClick={() => setMode("simple")}
+        className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+          mode === "simple" ? "bg-primary text-black" : "text-white/45 hover:text-white"
+        }`}
+        title="Simple mode — one-click AI-driven creation"
+      >
+        <Wand2 className="h-3.5 w-3.5" /> Simple
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === "advanced"}
+        onClick={() => setMode("advanced")}
+        className={`flex flex-1 items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+          mode === "advanced" ? "bg-primary text-black" : "text-white/45 hover:text-white"
+        }`}
+        title="Advanced mode — full manual controls"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced
+      </button>
+    </div>
+  );
+}
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, profile, signOut, getAccessToken } = useAuth();
+  const { user, profile, signOut, getAccessToken, refreshProfile } = useAuth();
   const { setOpen } = useSidebar();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [addingCredits, setAddingCredits] = useState(false);
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
@@ -64,12 +115,26 @@ export function AppSidebar() {
     return () => { cancelled = true; };
   }, [user, getAccessToken]);
 
+  async function handleAddTestCredits() {
+    setAddingCredits(true);
+    try {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch("/api/dev/add-credits", { method: "POST", headers });
+      if (res.ok) await refreshProfile();
+    } finally {
+      setAddingCredits(false);
+    }
+  }
+
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   const links = [
     { href: "/", label: "Home", icon: Home },
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/my-projects", label: "My Projects", icon: FolderOpen },
     { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
     { href: "/make-song", label: "Make a Song", icon: Music },
     { href: "/songs", label: "Songs", icon: Music2 },
@@ -87,9 +152,14 @@ export function AppSidebar() {
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
   ];
 
+  const accountLinks = [
+    { href: "/credit-history", label: "Credit History", icon: Zap },
+    { href: "/settings", label: "Settings", icon: Settings },
+  ];
+
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <Link href="/" ref={logoTilt} className="flex items-center gap-2 cursor-pointer rounded-lg">
             <img
@@ -111,6 +181,8 @@ export function AppSidebar() {
             <ChevronsLeft className="h-4 w-4" />
           </button>
         </div>
+        {/* Simple / Advanced mode — lived in the old toolbar. */}
+        {user && <ModeToggle />}
       </SidebarHeader>
 
       <SidebarContent>
@@ -134,12 +206,60 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Account — every destination the old toolbar's user menu + mobile
+            menu offered, now one tap away in the sidebar. */}
+        {user && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-white/30">
+              Account
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {accountLinks.map((link) => (
+                  <SidebarMenuItem key={link.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === link.href}
+                      className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-primary"
+                    >
+                      <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
+                        <link.icon className="h-5 w-5" />
+                        <span className="font-medium">{link.label}</span>
+                        {link.href === "/credit-history" && profile && (
+                          <span className="ml-auto text-xs font-black text-primary">
+                            {profile.credits}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => window.dispatchEvent(new CustomEvent("open-help-panel"))}
+                    className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground w-full cursor-pointer"
+                  >
+                    <span className="flex items-center gap-3 w-full py-2">
+                      <HelpCircle className="h-5 w-5" />
+                      <span className="font-medium">Need Help?</span>
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-sidebar-border space-y-3">
         {user && profile ? (
           <>
-            <div className="flex items-center justify-between">
+            <Link
+              href="/credit-history"
+              title="View Credit History"
+              className="flex items-center justify-between rounded-lg px-1 py-0.5 hover:bg-white/[0.03] transition-colors"
+            >
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
                 <span className="text-sm text-sidebar-foreground/70 font-medium">Credits</span>
@@ -147,7 +267,20 @@ export function AppSidebar() {
               <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
                 {profile.credits} left
               </Badge>
-            </div>
+            </Link>
+            {/* Dev-only quick credits — lived in the old toolbar. */}
+            {IS_DEV && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddTestCredits}
+                disabled={addingCredits}
+                className="w-full border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-xs"
+              >
+                {addingCredits ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-2" />}
+                Add 10 Test Credits
+              </Button>
+            )}
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? profile.email}</p>

@@ -10,7 +10,6 @@ import {
   Music, Video, Film, Check, Copy, Save, FileText, FileDown, Download, RefreshCcw, X,
   Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { MarketingBadge } from "@/components/MarketingBadge";
 
 import { callGenerateApi } from "@/lib/generate-api";
@@ -735,7 +734,6 @@ export default function SongAndVideo() {
   /* ─────────────── RENDER ─────────────── */
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-primary/7 rounded-full blur-[120px]" />
