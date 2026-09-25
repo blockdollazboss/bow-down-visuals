@@ -41,6 +41,7 @@ import chatRouter from "./chat";
 import preProductionRouter from "./generate/pre-production";
 import randomizerRouter from "./generate/randomizer";
 import hookStudioRouter from "./generate/hook-studio";
+import monetizationCoachRouter from "./generate/monetization-coach";
 
 const router: IRouter = Router();
 
@@ -86,5 +87,6 @@ router.use(preProductionRouter);
 router.use(chatRouter);
 router.use(randomizerRouter);
 router.use(hookStudioRouter);
+router.use(monetizationCoachRouter);
 
 export default router;
