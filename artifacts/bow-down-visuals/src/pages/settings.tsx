@@ -4,6 +4,7 @@ import { ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { ConnectedAccounts } from "@/components/ConnectedAccounts";
 import { DiscordWebhookSettings } from "@/components/DiscordWebhookSettings";
 import { useToast } from "@/hooks/use-toast";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* Account settings. The social OAuth callbacks redirect here with
    ?social=instagram_connected / ?social=tiktok_connected / ?social=facebook_connected
@@ -48,6 +49,7 @@ const SOCIAL_MESSAGES: Record<string, { title: string; description: string; dest
 };
 
 export default function Settings() {
+  usePageTitle("Settings", "Manage your account, preferences, and connected accounts.");
   const search = useSearch();
   const { toast } = useToast();
 

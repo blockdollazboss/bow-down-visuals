@@ -14,8 +14,7 @@ import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
-import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
-
+import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
@@ -72,6 +71,7 @@ const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
 const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
+const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
@@ -114,9 +114,7 @@ const Samples = lazyWithRetry(() => import("@/pages/samples"));
 const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
-const Join = lazyWithRetry(() => import("@/pages/join"));
-
-/**
+const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
  *
  * A route chunk can fail to load for transient reasons (network blip) or
@@ -238,8 +236,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
-        <MobileSidebarTrigger />
-      </div>
+        <MobileSidebarTrigger />        {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
 }
@@ -284,7 +281,9 @@ function AppShell() {
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
-          <Route path="/analytics"><Analytics /></Route>          <Route path="/logo-maker"><LogoMaker /></Route>
+          <Route path="/analytics"><Analytics /></Route>
+          <Route path="/import"><MediaImport /></Route>
+          <Route path="/logo-maker"><LogoMaker /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
@@ -353,9 +352,7 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
-                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
-                <Route component={NotFound} />
-              </Switch>
+                <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>                <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>                <Route component={NotFound} />                <Route component={NotFound} />              </Switch>
             </AuthedLayout>
           </Route>
         </Switch>

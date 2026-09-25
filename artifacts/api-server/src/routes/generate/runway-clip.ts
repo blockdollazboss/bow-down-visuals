@@ -18,6 +18,8 @@ import {
   SEEDANCE_CREDITS_PER_SEC_FALLBACK,
   resolveClipPlan,
 } from "./clip-pricing";
+import { getLockedPack } from "./pre-production";
+import type { PackIngredients } from "@workspace/db";
 
 const router = Router();
 /* Site credits charged per second of Seedance 2.5 video. Env-overridable so
@@ -136,7 +138,7 @@ router.get("/generate-runway-clip/debug-check", requireAuth, (_req, res) => {
    4. Return { taskId }.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-runway-clip", requireAuth, async (req, res) => {
-  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution } = req.body as {
+  const { promptText, negativePrompt, ratio, projectId, referenceImageUrl, previousClipUrl, model, durationSec, resolution, packId, shotNumber } = req.body as {
     promptText?: string;
     negativePrompt?: string;
     ratio?: "1280:720" | "720:1280";
@@ -152,19 +154,47 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     durationSec?: number;
     /** Output resolution tier for seedance2_5. */
     resolution?: "720p" | "1080p";
+    /** Locked pre-production pack + shot: when present, the prompt, negative
+     *  prompt, model, duration, and ratio come from the pack's locked
+     *  ingredients — the client's promptText is ignored. */
+    packId?: string | null;
+    shotNumber?: number | null;
   };
 
-  if (!promptText?.trim()) {
+  /* ── Locked pack mode: everything comes from the locked-in ingredients ─── */
+  let lockedIngredients: PackIngredients | null = null;
+  if (packId) {
+    try {
+      const pack = await getLockedPack(req.userId!, String(packId));
+      const list = (pack.ingredients as PackIngredients[] | null) ?? [];
+      lockedIngredients = list.find((g) => g.shotNumber === Number(shotNumber)) ?? null;
+      if (!lockedIngredients) {
+        res.status(404).json({ error: `Shot ${shotNumber} is not in the locked pack.` });
+        return;
+      }
+    } catch (err: any) {
+      res.status(err?.status ?? 500).json({ error: err?.message ?? "Failed to load the locked pack." });
+      return;
+    }
+  }
+
+  const effectivePrompt = lockedIngredients?.prompt ?? promptText;
+  const effectiveNegative = lockedIngredients?.negativePrompt ?? negativePrompt;
+  const effectiveModel = lockedIngredients?.model ?? model;
+  const effectiveDuration = lockedIngredients?.durationSec ?? durationSec;
+  const effectiveRatio = (lockedIngredients?.ratio === "1280:720" ? "1280:720" : "720:1280") as "1280:720" | "720:1280";
+
+  if (!effectivePrompt?.trim()) {
     res.status(400).json({ error: "promptText is required" });
     return;
   }
 
   /* ── Model + duration resolution ───────────────────────────────────────── */
   const plan = resolveClipPlan({
-    model,
-    durationSec,
+    model: effectiveModel,
+    durationSec: effectiveDuration,
     resolution,
-    ratio,
+    ratio: effectiveRatio,
     creditsPerSec: SEEDANCE_CREDITS_PER_SEC,
   });
   const useSeedance = plan.useSeedance;
@@ -271,28 +301,32 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
 
   /* Detect outro / closing scene from the prompt text */
   const isOutro = /\b(outro|closing|final scene|ending|walk away|farewell|fade out)\b/i.test(
-    promptText,
+    effectivePrompt,
   );
 
-  const base = promptText.trim().slice(0, 480);
+  const base = effectivePrompt.trim().slice(0, 480);
   const motionBlock = `${MOTION_DIRECTIVE}${isOutro ? ` ${OUTRO_DIRECTIVE}` : ""}`;
-  const content = `${base} ${motionBlock}`.trim();
+  /* Locked pack continuity: the ingredients' continuity notes ride along. */
+  const continuityBlock = lockedIngredients?.continuityNotes?.trim()
+    ? ` Continuity lock: ${lockedIngredients.continuityNotes.trim()}`.slice(0, 200)
+    : "";
+  const content = `${base} ${motionBlock}${continuityBlock}`.trim();
 
-  const neg = negativePrompt?.trim();
+  const neg = effectiveNegative?.trim();
   const avoidBlock = [neg, AVOID_TERMS].filter(Boolean).join(", ");
   /* gen4.5 image-to-video caps promptText at 1000 UTF-16 code units; text-to-video allows more. */
   const promptCap = useImageRef ? 1000 : 1400;
   const finalPrompt = `${content} | Avoid: ${avoidBlock}`.slice(0, promptCap);
 
   const client = new RunwayML({ apiKey });
-  const resolvedRatio = ratio === "1280:720" ? "1280:720" : "720:1280";
+  const resolvedRatio = effectiveRatio;
   /* Seedance 2.5 resolution mapping: 720p stays at the base ratio, 1080p
      steps up to the full-HD variant. Generated audio is always off — music
      videos get their audio from the song, not the video model. */
   const seedanceRatio = plan.seedanceRatio;
 
   req.log.info(
-    { userId: req.userId, ratio, mode: useImageRef ? "image-to-video" : "text-to-video", model: useSeedance ? "seedance2_5" : "gen4.5", durationSec: resolvedDurationSec },
+    { userId: req.userId, ratio: effectiveRatio, mode: useImageRef ? "image-to-video" : "text-to-video", model: effectiveModel, durationSec: resolvedDurationSec, packId: packId ?? null, shotNumber: shotNumber ?? null },
     "[runway-clip] Runway generation started",
   );
 

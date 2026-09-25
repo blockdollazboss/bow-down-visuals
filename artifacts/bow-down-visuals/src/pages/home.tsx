@@ -27,6 +27,7 @@ import {
   Lock,
   AlertCircle,
 } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -919,6 +920,7 @@ function MusicVideoTeaser() {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
+  usePageTitle("Create Songs, Music Videos & Promo Clips With AI", "Tell us your artist, genre, and idea. Bow Down Visuals generates lyrics, video treatments, promo content, and more — in seconds.");
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();

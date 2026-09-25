@@ -10,6 +10,7 @@ import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Stream Pack Generator ───────────────────────────────────────────────
    One-click branded asset bundles for streamers: overlay frames, alert
@@ -56,6 +57,7 @@ const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", 
 const FALLBACK_CREDIT_COST = 1;
 
 export default function StreamPack() {
+  usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");

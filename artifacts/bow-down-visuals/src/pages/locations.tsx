@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Upload, MapPin, Link2, Trash2, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 interface LocationRecord {
   id: string;
@@ -11,6 +12,7 @@ interface LocationRecord {
 }
 
 export default function LocationsPage() {
+  usePageTitle("Locations", "Manage your video shoot locations.");
   const { getAccessToken } = useAuth();
   const [locations, setLocations] = useState<LocationRecord[]>([]);
   const [loading, setLoading] = useState(true);
