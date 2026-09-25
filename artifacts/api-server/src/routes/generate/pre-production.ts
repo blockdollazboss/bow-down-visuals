@@ -452,8 +452,7 @@ Return: { "props": [...], "ingredients": [...] }` }],
       })
       .returning();
 
-    const after = await deductCredits(req.userId!, currentCredits, PACK_TEXT_CREDIT_COST);
-    recordCreditUsage({ userId: req.userId!, action: "Pre-production Pack", creditsUsed: PACK_TEXT_CREDIT_COST }).catch(() => {});
+    const after = await chargeCredits(req.userId!, PACK_TEXT_CREDIT_COST, { action: "Pre-production Pack" });
 
     res.json({
       pack,
