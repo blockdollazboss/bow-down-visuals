@@ -63,19 +63,24 @@ function Rail({ side }: { side: "left" | "right" }) {
 }
 
 export function SideVideoBanners() {
-  // Keep the two rails in sync: if drift exceeds a quarter second, snap the
-  // right rail back to the left rail's clock.
+  // Keep the two rails locked in sync: the right rail continuously mirrors
+  // the left rail's clock via rAF, so both sides play the exact same loop
+  // frame — no drift, no visible jumps.
   useEffect(() => {
-    const left = document.querySelector<HTMLVideoElement>('video[data-rail="left"]');
-    if (!left) return;
+    let raf = 0;
     const sync = () => {
+      const left = document.querySelector<HTMLVideoElement>('video[data-rail="left"]');
       const right = document.querySelector<HTMLVideoElement>('video[data-rail="right"]');
-      if (right && !right.paused && Math.abs(left.currentTime - right.currentTime) > 0.25) {
-        right.currentTime = left.currentTime;
+      if (left && right && !left.paused && !right.paused) {
+        const drift = Math.abs(left.currentTime - right.currentTime);
+        if (drift > 0.04) right.currentTime = left.currentTime;
+        // Keep playback rates identical too.
+        if (right.playbackRate !== left.playbackRate) right.playbackRate = left.playbackRate;
       }
+      raf = requestAnimationFrame(sync);
     };
-    left.addEventListener("timeupdate", sync);
-    return () => left.removeEventListener("timeupdate", sync);
+    raf = requestAnimationFrame(sync);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
