@@ -115,9 +115,6 @@ export default function Login() {
       {/* Smooth gradient blend from video edges into the page */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
       <div className="w-full max-w-md space-y-8 relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
-        <div className="text-center animate-[fadeSlideIn_0.7s_ease-out_0.1s_both]">
-          <p className="text-muted-foreground">Sign in to your creator account</p>
-        </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
           <SocialSignInButtons
