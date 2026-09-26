@@ -90,6 +90,9 @@ import {
   Gamepad2,
   Gem,
   Star,
+  Gauge,
+  BarChart3,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -216,6 +219,8 @@ const SECTIONS: NavSection[] = [
       { href: "/repurpose", label: "Content Repurposer", icon: Repeat },
       { href: "/sounds", label: "Sound Finder", icon: AudioWaveform },
       { href: "/channel-audit", label: "Channel Audit", icon: SearchCheck },
+      { href: "/virality-check", label: "Virality Check", icon: Gauge },
+      { href: "/analytics-hub", label: "Analytics Hub", icon: BarChart3 },
       { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
       { href: "/go-live", label: "Go Live", icon: Radio },
     ],
@@ -249,7 +254,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Tools",
     links: [
-      { href: "/upscale", label: "Upscale", icon: Maximize },
+      { href: "/upscale", label: "Upscale & Clean", icon: Maximize },
       { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
       { href: "/vocal-removal", label: "Vocal Removal", icon: MicOff },
       { href: "/stems", label: "Stem Splitter", icon: Split },
@@ -257,6 +262,7 @@ const SECTIONS: NavSection[] = [
       { href: "/sfx", label: "SFX Generator", icon: Volume2 },
       { href: "/samples", label: "Sample Packs", icon: Package },
       { href: "/logo-maker", label: "Logo Maker", icon: Palette },
+      { href: "/branding-kit", label: "Branding Kit", icon: Crown },
       { href: "/intros-outros", label: "Intros & Outros", icon: PlaySquare },
       { href: "/stream-pack", label: "Stream Pack", icon: Tv },
       { href: "/thumbnail-test", label: "Thumbnail A/B Test", icon: FlaskConical },

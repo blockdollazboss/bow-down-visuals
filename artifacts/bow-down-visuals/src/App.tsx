@@ -76,6 +76,9 @@ const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal")
 const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
+const BrandingKit = lazyWithRetry(() => import("@/pages/branding-kit"));
+const ViralityCheck = lazyWithRetry(() => import("@/pages/virality-check"));
+const AnalyticsHub = lazyWithRetry(() => import("@/pages/analytics-hub"));
 const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
@@ -293,6 +296,9 @@ function AppShell() {
           <Route path="/analytics"><Analytics /></Route>
           <Route path="/import"><MediaImport /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
+          <Route path="/branding-kit"><BrandingKit /></Route>
+          <Route path="/virality-check"><ViralityCheck /></Route>
+          <Route path="/analytics-hub"><AnalyticsHub /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
