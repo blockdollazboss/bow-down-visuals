@@ -208,12 +208,6 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
           >
             The Content Creation Cheat Code
           </span>
-          <span
-            className="text-[7px] md:text-[8px] font-semibold tracking-[0.32em] text-[#e8c96a]/70 uppercase"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}
-          >
-            Powered by Thy Cheat Code
-          </span>
         </div>
       </div>
 

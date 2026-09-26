@@ -54,6 +54,10 @@ export function SiteFooter() {
             <p className="font-display italic text-primary/85 text-[15px] mt-4">
               The content creator&rsquo;s cheat code.
             </p>
+            <span className="inline-flex items-center gap-1.5 mt-3 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              Powered by Thy Cheat Code
+            </span>
             <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
               AI creator credits for lyrics, music video plans, video prompts,
               captions, thumbnails, promo clips, and more.
