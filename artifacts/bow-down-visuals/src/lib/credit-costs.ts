@@ -49,6 +49,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/repair-clip": { cost: 1, feature: "Repair Clip" },
   "/api/pro-tools/auto-grade": { cost: 2, feature: "AI Auto Grade" },
   "/api/upscale": { cost: 2, feature: "Upscale" },
+  "/api/upscale/image": { cost: 3, feature: "Upscale Image" },
   "/api/watermark-removal": { cost: 2, feature: "Remove Watermark" },
   "/api/video-translator/translate": { cost: 5, feature: "Video Translator" },
   "/api/analyze-sections": { cost: 1, feature: "Analyze Song Sections" },
