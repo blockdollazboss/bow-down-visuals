@@ -2,17 +2,11 @@
  * Money-integrity + honesty tests for the AI Branding Shop.
  *
  * Covers: the 2-credit design charge, schema validation (design + order),
-<<<<<<< HEAD
- * server-side order total recompute, catalog integrity, the v1 honesty
- * contract (no shipped/delivered/tracking fiction), and GPT-6 token-param
- * correctness (max_completion_tokens, never max_tokens).
-=======
  * server-side order total recompute, catalog integrity (40-60% margins),
  * the fulfillment honesty contract (statuses only from the provider —
  * Printful live or the clearly-labeled mock sandbox — never fabricated),
  * Runway gen4_image design generation, and GPT-6 token-param correctness
  * (max_completion_tokens, never max_tokens).
->>>>>>> feature/branding-shop
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
@@ -45,13 +39,6 @@ describe("branding shop pricing", () => {
     }
   });
 
-<<<<<<< HEAD
-  it("has the five launch products", () => {
-    expect(Object.keys(PRODUCTS).sort()).toEqual(
-      ["cap", "hoodie", "mug", "poster", "tshirt"].sort()
-    );
-  });
-=======
   it("has the seven launch products", () => {
     expect(Object.keys(PRODUCTS).sort()).toEqual(
       ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"].sort()
@@ -67,7 +54,6 @@ describe("branding shop pricing", () => {
       expect(margin, `${key} margin`).toBeLessThanOrEqual(0.6);
     }
   });
->>>>>>> feature/branding-shop
 });
 
 describe("design request schema", () => {
@@ -96,11 +82,7 @@ describe("design request schema", () => {
 
   it("rejects more than 3 products", () => {
     expect(
-<<<<<<< HEAD
-      designSchema.safeParse({ ...valid, products: ["tshirt", "hoodie", "mug", "cap"] }).success
-=======
       designSchema.safeParse({ ...valid, products: ["tshirt", "hoodie", "mug", "snapback"] }).success
->>>>>>> feature/branding-shop
     ).toBe(false);
   });
 
@@ -150,8 +132,6 @@ describe("order schema", () => {
   it("rejects a missing shipping field", () => {
     expect(orderSchema.safeParse({ ...valid, zip: "" }).success).toBe(false);
   });
-<<<<<<< HEAD
-=======
 
   it("accepts an optional designUrl per item", () => {
     const withDesign = {
@@ -168,7 +148,6 @@ describe("order schema", () => {
     };
     expect(orderSchema.safeParse(bad).success).toBe(false);
   });
->>>>>>> feature/branding-shop
 });
 
 describe("order total integrity", () => {
@@ -182,21 +161,6 @@ describe("order total integrity", () => {
   });
 });
 
-<<<<<<< HEAD
-describe("v1 honesty contract", () => {
-  it("only allows received / pending_fulfillment statuses", () => {
-    expect([...ORDER_STATUSES]).toEqual(["received", "pending_fulfillment"]);
-  });
-
-  it("never mentions shipped/delivered/tracking as order states", () => {
-    expect(routeSource).not.toMatch(/status.*shipped/i);
-    expect(routeSource).not.toMatch(/status:\s*["']delivered["']/i);
-    expect(routeSource).not.toMatch(/tracking[_-]?number/i);
-  });
-
-  it("tells the user fulfillment is coming soon", () => {
-    expect(routeSource).toMatch(/dropship partner integration is coming soon/i);
-=======
 describe("fulfillment honesty contract", () => {
   it("allows the full provider-driven status vocabulary", () => {
     expect([...ORDER_STATUSES]).toEqual([
@@ -231,7 +195,6 @@ describe("design generation", () => {
 
   it("polls tasks server-side with a bounded timeout", () => {
     expect(routeSource).toMatch(/BRANDING_SHOP_DESIGN_TIMEOUT_MS/);
->>>>>>> feature/branding-shop
   });
 });
 
