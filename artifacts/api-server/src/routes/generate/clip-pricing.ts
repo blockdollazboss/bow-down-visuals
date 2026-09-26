@@ -6,7 +6,7 @@
 export type ClipModel = "gen4.5" | "seedance2_5";
 export type ClipResolution = "720p" | "1080p";
 /** The four Seedance 2.5 ratios this route ever requests. */
-ortpe SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
+export type SeedanceRatio = "1280:720" | "720:1280" | "1920:1080" | "1080:1920";
 export const GEN45_CREDIT_COST = 
       4;
 /* Resolution-aware Seedance 2.5 site-credit rates (credits per output second).
