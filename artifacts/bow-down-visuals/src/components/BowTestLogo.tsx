@@ -14,7 +14,7 @@ const PER_SHEET = 36;
 const FS = 600;
 const COUNT_KEY = "bdv-bow-test-count";
 
-export function BowTestLogo() {
+export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const posterRef = useRef<HTMLImageElement | null>(null);
   const [bows, setBows] = useState(() => {
@@ -114,6 +114,38 @@ export function BowTestLogo() {
   };
 
   const base = import.meta.env.BASE_URL;
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={doBow}
+        aria-label="Make the shark king bow"
+        title="Click me — I bow"
+        className="relative h-11 w-11 shrink-0 cursor-pointer rounded-full transition-transform duration-300 hover:scale-105"
+      >
+        <img
+          ref={posterRef}
+          src={`${base}hero-bow-poster.webp`}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover rounded-full"
+          draggable={false}
+        />
+        <canvas
+          ref={canvasRef}
+          width={FS}
+          height={FS}
+          className="absolute inset-0 h-full w-full"
+          role="img"
+          aria-label="Thy Cheat Code shark king"
+        />
+        <span className="absolute -bottom-1 -right-1 rounded-full bg-[#c9a84c] px-1 text-[9px] font-bold leading-4 text-black">
+          {bows}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center">

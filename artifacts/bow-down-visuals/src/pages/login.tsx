@@ -133,13 +133,8 @@ export default function Login() {
       {/* Cinematic vignette + dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/55" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
-      {/* Stage: the bow logo, centered */}
-      <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-10">
-        <div className="animate-[fadeSlideIn_0.7s_ease-out_both] scale-[1.8]">
-          {/* TEST ONLY: click-to-bow logo */}
-          <BowTestLogo />
-        </div>
-      </main>
+      {/* Stage: video breathing room */}
+      <main className="flex-1 relative z-10" aria-hidden />
 
       {/* Bottom sign-in toolbar */}
       <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
@@ -189,6 +184,8 @@ export default function Login() {
                   loadingProvider={socialLoading}
                   mode="signin"
                 />
+                {/* TEST ONLY: click-to-bow shark */}
+                <BowTestLogo compact />
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"
