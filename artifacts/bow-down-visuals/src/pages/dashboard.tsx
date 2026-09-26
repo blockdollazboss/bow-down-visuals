@@ -71,8 +71,8 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
       <div className={`
         group relative flex flex-col h-full p-6 rounded-2xl border transition-all duration-300 cursor-pointer
         ${accent
-          ? "bg-gradient-to-br from-primary/[0.18] via-primary/[0.09] to-transparent border-primary/45 shadow-[0_0_36px_rgba(218,165,32,0.14)] hover:shadow-[0_0_52px_rgba(218,165,32,0.24)] hover:-translate-y-0.5"
-          : "bg-white/[0.025] border-white/[0.07] hover:border-primary/30 hover:bg-primary/[0.04] hover:-translate-y-0.5"
+          ? "lux-shine bg-gradient-to-br from-primary/[0.18] via-primary/[0.09] to-transparent border-primary/45 shadow-[0_0_36px_rgba(218,165,32,0.14)] hover:shadow-[0_0_52px_rgba(218,165,32,0.24)] hover:-translate-y-0.5"
+          : "lux-card"
         }
       `}>
         {accent && (
@@ -278,7 +278,7 @@ export default function Dashboard() {
   const checklistDoneCount = checklistSteps.filter((s) => s.done).length;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
 
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -421,7 +421,7 @@ export default function Dashboard() {
           {/* 1 → 2 → 3 pipeline */}
           <StudioPipeline />
 
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lux-stagger">
             <CreatorCard
               icon={Mic2}
               title="Make Song + Video"
@@ -491,11 +491,11 @@ export default function Dashboard() {
           {projectsLoading ? (
             <div className="flex flex-col gap-2" aria-label="Loading projects">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse">
-                  <div className="h-8 w-8 rounded-lg bg-white/[0.06] shrink-0" />
+                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                  <div className="h-8 w-8 rounded-lg lux-skeleton shrink-0" />
                   <div className="flex-1">
-                    <div className="h-3.5 w-2/5 rounded bg-white/[0.07] mb-2" />
-                    <div className="h-2.5 w-1/4 rounded bg-white/[0.05]" />
+                    <div className="h-3.5 w-2/5 rounded lux-skeleton mb-2" />
+                    <div className="h-2.5 w-1/4 rounded lux-skeleton" />
                   </div>
                 </div>
               ))}
