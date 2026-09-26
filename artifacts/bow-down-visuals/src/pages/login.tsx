@@ -217,7 +217,7 @@ export default function Login() {
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
                 </Button>
               </form>
-              <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45">
+              <div className="mt-2 flex items-center justify-end gap-3 text-xs text-white/45">
                 <button
                   type="button"
                   onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
