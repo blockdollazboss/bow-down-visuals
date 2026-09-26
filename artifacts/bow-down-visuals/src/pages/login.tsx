@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { SideVideoBanners } from "@/components/SideVideoBanners";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -136,9 +135,6 @@ export default function Login() {
       />
       {/* Dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/60" />
-      <SideVideoBanners />
-      {/* Smooth gradient blend from video edges into the page */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
       <div className="w-full max-w-sm relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
 
         <div className="bg-card border border-card-border rounded-md p-6 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
