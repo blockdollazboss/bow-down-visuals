@@ -1104,8 +1104,18 @@ html[data-user-mode="advanced"] .simple-only {
   will-change: transform;
 }
 
+/* ─── Thy Cheat Code chat drawer — slides in from the right ─── */
+@keyframes tcc-drawer-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-tcc-drawer-in {
+  animation: tcc-drawer-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .guideme-ring { animation: guideme-fade 0.25s ease-out; }
   .guideme-fab.animate-bounce { animation: none; }
   .animate-shark-swim { animation: none; }
+  .animate-tcc-drawer-in { animation: none; }
 }
