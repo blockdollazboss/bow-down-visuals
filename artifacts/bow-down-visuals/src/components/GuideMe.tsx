@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import {
-  X, ChevronLeft, ChevronRight, Sparkles, MessageCircle, Play, Flag,
+  X, ChevronLeft, ChevronRight, Sparkles, MessageCircle, Flag,
 } from "lucide-react";
 import {
   getGuideForRoute, ONBOARDING_TOUR,
   type PageGuide, type GuideStep,
 } from "@/guides";
 
-/* ─── AI Guide Mode — Thy Cheat Code walks beside you ─────────────────────
-   Floating gold shark button (bottom-left) toggles page-aware walkthroughs.
-   Purely additive: no existing page logic is touched. */
-
-const WELCOME_KEY = "guideme-welcomed-v1";
+/* ─── AI Guide Mode — spotlight tour overlay ────────────────────────────────
+   The floating bottom-left launcher is gone: Thy Cheat Code now lives in the
+   page as the in-page coach (ThyCheatCodeHost). This component keeps only the
+   spotlight tour overlay, started via the "thy-tour:start" event (dispatched
+   by the host's "Walk me through it" button). Purely additive: no existing
+   page logic is touched. */
 
 interface ActiveTour {
   kind: "page" | "onboarding";
@@ -67,23 +68,10 @@ export function GuideMe() {
   const [location, navigate] = useLocation();
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [showWelcome, setShowWelcome] = useState(false);
   const [rect, setRect] = useState<TargetRect | null>(null);
   const [cardReady, setCardReady] = useState(false);
   const tourRef = useRef<ActiveTour | null>(null);
   tourRef.current = tour;
-
-  /* First-visit welcome prompt (once). */
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(WELCOME_KEY)) setShowWelcome(true);
-    } catch { /* private mode — skip welcome */ }
-  }, []);
-
-  const dismissWelcome = useCallback(() => {
-    setShowWelcome(false);
-    try { localStorage.setItem(WELCOME_KEY, "1"); } catch { /* noop */ }
-  }, []);
 
   /* Resolve the current step from tour state. */
   const steps = tour?.steps ?? [];
@@ -160,7 +148,7 @@ export function GuideMe() {
   /* Escape ends the tour. */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setTour(null); setShowWelcome(false); }
+      if (e.key === "Escape") setTour(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -184,16 +172,14 @@ export function GuideMe() {
       });
     }
     setStepIndex(0);
-    setShowWelcome(false);
   }, [location]);
 
-  const startOnboarding = useCallback(() => {
-    dismissWelcome();
-    const first = ONBOARDING_TOUR[0];
-    setTour({ kind: "onboarding", pageName: first.pageName, steps: [], onboardingIndex: 0 });
-    setStepIndex(0);
-    if (first.route !== location) navigate(first.route);
-  }, [dismissWelcome, location, navigate]);
+  /* The in-page coach host starts the tour via this event. */
+  useEffect(() => {
+    const onStartTour = () => startPageGuide();
+    window.addEventListener("thy-tour:start", onStartTour);
+    return () => window.removeEventListener("thy-tour:start", onStartTour);
+  }, [startPageGuide]);
 
   const endTour = useCallback(() => setTour(null), []);
 
@@ -261,48 +247,7 @@ export function GuideMe() {
 
   return (
     <>
-      {/* Floating Guide button — bottom-left, clear of the chat widget */}
-      <button
-        onClick={() => (tour ? endTour() : startPageGuide())}
-        aria-label={tour ? "End guided tour" : "Guide me — Thy Cheat Code walkthrough"}
-        title="Guide Me — Thy Cheat Code walks you through this page"
-        className={`guideme-fab fixed bottom-5 left-5 z-[9996] flex h-14 w-14 items-center justify-center rounded-full border border-amber-300/60 bg-gradient-to-br from-amber-400 via-yellow-600 to-amber-800 text-2xl shadow-[0_0_28px_rgba(218,165,32,0.55)] transition-transform hover:scale-110 active:scale-95 ${showWelcome ? "animate-bounce" : ""}`}
-      >
-        {tour ? <X className="h-6 w-6 text-black" /> : <span role="img" aria-hidden>🦈</span>}
-      </button>
-
-      {/* First-visit welcome card */}
-      {showWelcome && !tour && (
-        <div className="fixed bottom-24 left-5 z-[9996] w-[min(340px,calc(100vw-40px))] overflow-hidden rounded-2xl border border-amber-400/40 bg-black/85 shadow-[0_8px_40px_rgba(0,0,0,0.7),0_0_24px_rgba(218,165,32,0.25)] backdrop-blur-xl">
-          <div className="border-b border-amber-400/20 bg-gradient-to-r from-amber-500/15 to-transparent px-5 py-4">
-            <p className="flex items-center gap-2 text-sm font-black text-amber-300">
-              <span className="text-lg">🦈</span> Hey, I'm Thy Cheat Code
-            </p>
-          </div>
-          <div className="px-5 py-4">
-            <p className="text-sm leading-relaxed text-white/80">
-              Want me to show you around? I'll walk you through the whole site,
-              step by step — like a coach right beside you.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={startOnboarding}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-600 px-4 py-2.5 text-sm font-black text-black transition hover:brightness-110"
-              >
-                <Play className="h-4 w-4" /> Start Tour
-              </button>
-              <button
-                onClick={dismissWelcome}
-                className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-white/60 transition hover:bg-white/5 hover:text-white"
-              >
-                Later
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Spotlight overlay + coach card */}
+      {/* Spotlight overlay + coach card (tour only — no floating launcher) */}
       {tour && step && cardReady && (
         <>
           {/* Dim layer (4 rects around the target, or full-screen if no target) */}

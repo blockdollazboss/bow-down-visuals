@@ -12,7 +12,8 @@ import { UserModeProvider } from "@/contexts/UserModeContext";
 import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
-import { AiChatWidget } from "@/components/AiChatWidget";
+import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
+import { ThyCheatCodeHost } from "@/components/ThyCheatCodeHost";
 import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
@@ -280,7 +281,10 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           <div className="sticky top-0 z-40">
             <VideoBanner />
           </div>
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1">
+            <ThyCheatCodeHost />
+            {children}
+          </main>
         </div>
         <ExpandSidebarButton
           collapsed={sidebarCollapsed}
@@ -297,15 +301,20 @@ function AppShell() {
   /* The video editor is a full-viewport studio surface — the marketing site
    * footer doesn't belong under it. */
   const hideFooter = location.startsWith("/video-editor");
+  /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
+   * in-flow. Auth/legal/fan pages are excluded by the host itself. */
+  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
+    .includes(location.split("?")[0].split("#")[0]);
   return (
     <>
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
-      {typeof window !== "undefined" && <AiChatWidget />}
+      {typeof window !== "undefined" && <ThyCheatCodeChat />}
       {typeof window !== "undefined" && <GuideMe />}
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
+      {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
         <Switch>
