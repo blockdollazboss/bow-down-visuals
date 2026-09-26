@@ -1,5 +1,4 @@
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { GoogleGMark } from "./GoogleSignInButton";
 
 /** Facebook "f" mark (inline SVG). */
@@ -90,31 +89,29 @@ export function SocialSignInButtons({
   mode,
   providers = ["google", "apple", "instagram", "facebook", "tiktok"],
 }: SocialSignInButtonsProps) {
-  const verb = mode === "signin" ? "Continue with" : "Sign up with";
   return (
-    <div className="grid grid-cols-1 gap-2.5">
+    <div className="flex items-center justify-center gap-3">
       {providers.map((provider) => {
         const meta = PROVIDER_META[provider];
         const Mark = meta.mark;
         const loading = loadingProvider === provider;
         return (
-          <Button
+          <button
             key={provider}
             type="button"
-            variant="outline"
-            size="lg"
-            className="w-full"
             onClick={() => onSignIn(provider)}
             disabled={loadingProvider !== null}
             data-testid={`btn-${provider}-signin`}
+            title={meta.label}
+            aria-label={`${mode === "signin" ? "Continue" : "Sign up"} with ${meta.label}`}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-all hover:border-primary/60 hover:bg-primary/10 hover:text-primary disabled:opacity-50"
           >
             {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Mark className="mr-2 h-5 w-5" />
+              <Mark className="h-5 w-5" />
             )}
-            {verb} {meta.label}
-          </Button>
+          </button>
         );
       })}
     </div>
