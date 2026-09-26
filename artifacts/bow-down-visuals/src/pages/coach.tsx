@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PixelShark } from "@/components/PixelShark";
 import { Link } from "wouter";
 import {
   DollarSign, TrendingUp, Loader2, Sparkles, ArrowRight, Target,
@@ -461,7 +462,7 @@ export default function MonetizationCoach() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Plan in hand? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code <PixelShark size={14} /></span>{" "}
           in the chat bubble to turn your money moves into this week's content.
         </p>
       </main>

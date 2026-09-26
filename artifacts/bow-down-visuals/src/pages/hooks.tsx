@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PixelShark } from "@/components/PixelShark";
 import { Link } from "wouter";
 import {
   Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
@@ -731,7 +732,7 @@ export default function HookStudio() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Hooks in hand? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code <PixelShark size={14} /></span>{" "}
           in the chat bubble to build the full video plan around them.
         </p>
       </main>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PixelShark } from "@/components/PixelShark";
 import { Link } from "wouter";
 import {
   Dices, Sparkles, Loader2, Lightbulb, Clapperboard, Zap,
@@ -399,7 +400,7 @@ export default function Randomizer() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Like an idea? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code <PixelShark size={14} /></span>{" "}
           in the chat bubble to turn it into a full plan.
         </p>
       </main>

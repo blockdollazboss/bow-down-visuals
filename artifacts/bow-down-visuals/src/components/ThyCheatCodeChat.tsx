@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
+import { PixelShark, renderWithShark } from "@/components/PixelShark";
 
 /* ─── Thy Cheat Code — on-site AI chat, right-side slide-over drawer ────────
    Gold/black 8-bit luxury theme, mobile-friendly. Mounted globally in
@@ -285,7 +286,7 @@ export function ThyCheatCodeChat() {
                   }
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
                 >
-                  {m.content}
+                  {renderWithShark(m.content)}
                 </div>
               </div>
             ))}

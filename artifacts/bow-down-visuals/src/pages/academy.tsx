@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PixelShark } from "@/components/PixelShark";
 import { Link } from "wouter";
 import {
   GraduationCap, Sparkles, Loader2, ArrowRight, ArrowLeft, Clock,
@@ -774,7 +775,7 @@ function CourseDetail(props: CourseDetailProps) {
               }`}
             >
               {m.role === "coach" && (
-                <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">Coach 🦈</p>
+                <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-primary/70">Coach <PixelShark size={12} /></p>
               )}
               <p className="whitespace-pre-wrap">{m.text}</p>
             </div>

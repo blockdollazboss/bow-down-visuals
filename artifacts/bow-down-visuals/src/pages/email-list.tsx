@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { PixelShark } from "@/components/PixelShark";
 import {
   Mail, Users, TrendingUp, PenLine, Loader2, Copy, Check, Plus,
   Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
@@ -553,7 +554,7 @@ export default function EmailListBuilder() {
         </div>
 
         <p className="relative mt-8 text-center text-sm text-white/40">
-          List built? Ask <span className="font-semibold text-primary">Thy Cheat Code 🦈</span> in the
+          List built? Ask <span className="font-semibold text-primary">Thy Cheat Code <PixelShark size={14} /></span> in the
           chat bubble for newsletter ideas that actually get opened.
         </p>
       </main>

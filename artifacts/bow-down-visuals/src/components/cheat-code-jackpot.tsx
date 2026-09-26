@@ -658,7 +658,7 @@ export function CheatCodeJackpot() {
               </span>
               .
               <br />
-              You cracked the code — the King Shark bows to you. 🦈
+              You cracked the code — the King Shark bows to you.
             </p>
             <p className="mt-4 text-white/40 text-xs leading-relaxed">
               One code, one winner, one season. Your credits are already in
