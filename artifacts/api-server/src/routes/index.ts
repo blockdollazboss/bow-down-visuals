@@ -92,6 +92,8 @@ import cheatCodeRouter from "./cheat-code";
 import mixMasterRouter from "./generate/mix-master";
 import shopsRouter from "./generate/shops";
 import storefrontsRouter from "./generate/storefronts";
+import showFinderRouter from "./generate/show-finder";
+import brandDealsRouter from "./generate/brand-deals";
 
 const router: IRouter = Router();
 
@@ -188,5 +190,7 @@ router.use(cheatCodeRouter);
 router.use(mixMasterRouter);
 router.use(shopsRouter);
 router.use(storefrontsRouter);
+router.use(showFinderRouter);
+router.use(brandDealsRouter);
 
 export default router;

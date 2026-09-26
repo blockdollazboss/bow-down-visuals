@@ -71,6 +71,8 @@ const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
 const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
+const ShowFinder = lazyWithRetry(() => import("@/pages/shows"));
+const BrandDealFinder = lazyWithRetry(() => import("@/pages/brand-deals"));
 const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
@@ -329,6 +331,8 @@ function AppShell() {
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/sponsors"><SponsorMarketplace /></Route>
+          <Route path="/shows"><ShowFinder /></Route>
+          <Route path="/brand-deals"><BrandDealFinder /></Route>
           <Route path="/distribute"><Distribute /></Route>
           <Route path="/presave/:slug"><Presave /></Route>
           <Route path="/upscale"><Upscale /></Route>

@@ -7,6 +7,8 @@ import { promoClipGuide } from "./promo-clip";
 import { thumbnailGuide } from "./thumbnail";
 import { videoEditorGuide } from "./video-editor";
 import { pricingGuide } from "./pricing";
+import { showFinderGuide } from "./show-finder";
+import { brandDealFinderGuide } from "./brand-deals";
 export { ONBOARDING_TOUR } from "./onboarding";
 export type { GuideStep, PageGuide, OnboardingStop } from "./types";
 
@@ -19,6 +21,8 @@ const GUIDES: PageGuide[] = [
   thumbnailGuide,
   videoEditorGuide,
   pricingGuide,
+  showFinderGuide,
+  brandDealFinderGuide,
 ];
 
 /** Normalize a path for matching: strip trailing slash, ignore query/hash. */
