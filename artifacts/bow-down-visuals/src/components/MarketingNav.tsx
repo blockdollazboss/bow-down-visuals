@@ -26,12 +26,18 @@ const NAV_LINKS = [
   { label: "Money Coach", href: "/coach" },
   { label: "Rate Calculator", href: "/brand-calculator" },
   { label: "Content Calendar", href: "/content-calendar" },
+<<<<<<< HEAD
   { label: "Scheduler", href: "/scheduler" },
   { label: "Tip Jar", href: "/tips" },
   { label: "Tour Planner", href: "/tour" },
   { label: "Setlist Builder", href: "/setlist" },
   { label: "Interview Prep", href: "/interview-prep" },
   { label: "Media Importer", href: "/import" },
+=======
+  { label: "Distribute", href: "/distribute" },
+  { label: "Clip Maker", href: "/clip-maker" },
+  { label: "Branding Shop", href: "/branding-shop" },
+>>>>>>> feature/branding-shop
   { label: "Tools", href: "/dashboard" },
   { label: "Waitlist", href: "/waitlist" },
 ];
