@@ -77,6 +77,7 @@ import shoutoutsRouter from "./generate/shoutouts";
 import releaseChecklistRouter from "./generate/release-checklist";
 import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
 import cheatCodeRouter from "./cheat-code";
+import mixMasterRouter from "./generate/mix-master";
 
 const router: IRouter = Router();
 
@@ -158,5 +159,6 @@ router.use(shoutoutsRouter);
 router.use(releaseChecklistRouter);
 router.use(thumbnailGeneratorRouter);
 router.use(cheatCodeRouter);
+router.use(mixMasterRouter);
 
 export default router;

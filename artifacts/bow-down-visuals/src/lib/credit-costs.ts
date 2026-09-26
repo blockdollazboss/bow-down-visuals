@@ -20,6 +20,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/voiceover/generate": { cost: 2, feature: "AI Voiceover" },
   "/api/podcast/generate": { cost: 3, feature: "Generate Podcast" },
   "/api/mastering": { cost: 2, feature: "AI Mastering" },
+  "/api/mix-master/master": { cost: 8, feature: "AI Master (Mix & Master)" },
+  "/api/mix-master/mix": { cost: 15, feature: "AI Mix — Stems (Mix & Master)" },
   "/api/stems": { cost: 2, feature: "Stem Separation" },
   "/api/vocal-removal": { cost: 2, feature: "Vocal Removal" },
 
