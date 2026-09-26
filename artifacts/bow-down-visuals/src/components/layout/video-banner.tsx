@@ -115,11 +115,13 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       <div className="bdv-banner-drift absolute inset-0 will-change-transform">
         {/* Prowl-pan artwork layer — edge-faded so it melts into the base */}
         <div ref={mediaRef} className="absolute inset-0 will-change-transform">
-          <img
-            src={`${base}bowdownvisuals-banner-sharkking.jpg`}
-            alt=""
+          <video
+            src={`${base}top-banner-drone.mp4`}
+            autoPlay
+            muted
+            loop
+            playsInline
             aria-hidden
-            draggable={false}
             className="h-full w-full object-cover object-[center_35%]"
             style={{
               maskImage:
