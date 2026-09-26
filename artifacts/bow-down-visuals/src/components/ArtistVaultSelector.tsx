@@ -62,16 +62,16 @@ export const SUBJECT_TYPE_META: Record<
 > = {
   singer: {
     label: "Singer",
-    badge: "text-amber-300 border-amber-400/40 bg-gradient-to-r from-amber-500/25 via-amber-400/15 to-amber-500/25",
-    dot: "bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.8)]",
-    glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
+    badge: "text-cyan-300 border-cyan-400/40 bg-gradient-to-r from-cyan-500/25 via-cyan-400/15 to-cyan-500/25",
+    dot: "bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
     description: "Singers and vocalists - for music videos and songs",
   },
   rapper: {
     label: "Rapper",
-    badge: "text-cyan-300 border-cyan-400/40 bg-gradient-to-r from-cyan-500/25 via-cyan-400/15 to-cyan-500/25",
-    dot: "bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.8)]",
-    glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
+    badge: "text-amber-300 border-amber-400/40 bg-gradient-to-r from-amber-500/25 via-amber-400/15 to-amber-500/25",
+    dot: "bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
     description: "Rappers and hip-hop artists - for music videos and songs",
   },
   influencer: {
