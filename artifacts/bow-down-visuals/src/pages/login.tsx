@@ -93,10 +93,13 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 md:px-32 lg:px-40 relative overflow-hidden">
-      {/* Golden throne background */}
+      {/* Golden throne background — framed to show the throne */}
       <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
+        className="pointer-events-none absolute inset-0 bg-cover"
+        style={{
+          backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)`,
+          backgroundPosition: "center 15%",
+        }}
       />
       {/* Dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/70" />
@@ -104,8 +107,8 @@ export default function Login() {
       {/* Smooth gradient blend from video edges into the page */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
       <div className="w-full max-w-md space-y-8 relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
-        <div className="text-center animate-[fadeSlideIn_0.7s_ease-out_0.1s_both]">
-          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-20 w-auto mx-auto" />
+        <div className="text-center animate-[fadeSlideIn_0.7s_ease-out_0.1s_both] -mt-16">
+          <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-28 w-auto mx-auto drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)]" />
           <p className="mt-3 text-muted-foreground">Sign in to your creator account</p>
         </div>
 
