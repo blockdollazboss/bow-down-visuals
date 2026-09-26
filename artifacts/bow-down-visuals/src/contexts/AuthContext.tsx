@@ -20,7 +20,7 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithProvider: (
-    provider: "google" | "facebook" | "twitter" | "apple" | "discord",
+    provider: "google" | "apple" | "instagram" | "facebook" | "tiktok",
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -161,13 +161,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * to the provider, so this only returns when something goes wrong
    * before the redirect. */
   async function signInWithProvider(
-    provider: "google" | "facebook" | "twitter" | "apple" | "discord",
+    provider: "google" | "apple" | "instagram" | "facebook" | "tiktok",
   ) {
-    const pretty = provider === "twitter" ? "X" : provider[0].toUpperCase() + provider.slice(1);
+    const pretty = provider[0].toUpperCase() + provider.slice(1);
     try {
       const client = getSupabase();
       const { error } = await client.auth.signInWithOAuth({
-        provider,
+        // Supabase Provider type lags behind; instagram/tiktok are configured server-side
+        provider: provider as "google",
         options: { redirectTo: `${window.location.origin}/choose-artist` },
       });
       return { error: error?.message ?? null };
