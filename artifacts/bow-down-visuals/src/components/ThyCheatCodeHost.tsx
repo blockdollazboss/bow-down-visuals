@@ -78,12 +78,14 @@ export function ThyCheatCodeHost() {
           className="inline-flex items-center gap-2 rounded-full border border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-[#C9A84C]/60">
-            <img
-              src="/cheat-code-avatar.webp"
-              alt=""
+            <video
+              src="/thy-cheat-code-idle.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
               aria-hidden="true"
-              className="h-full w-full object-cover animate-shark-swim"
-              draggable={false}
+              className="h-full w-full object-cover"
             />
           </span>
           <span>
@@ -105,11 +107,14 @@ export function ThyCheatCodeHost() {
         {/* Coach header — him, in first person */}
         <div className="flex items-start gap-4 p-5 sm:p-6">
           <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
-            <img
-              src="/cheat-code-avatar.webp"
-              alt="Thy Cheat Code — the King Shark"
-              className="h-full w-full object-cover animate-shark-swim"
-              draggable={false}
+            <video
+              src="/thy-cheat-code-making.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label="Thy Cheat Code — the King Shark"
+              className="h-full w-full object-cover"
             />
           </div>
           <div className="min-w-0 flex-1">
