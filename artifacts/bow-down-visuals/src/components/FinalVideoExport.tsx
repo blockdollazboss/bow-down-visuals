@@ -547,7 +547,7 @@ export function FinalVideoExport({
       if (data.debug?.identicalClipsDetected && !hasIntentionalReuse) {
         throw new Error(
           "Server detected two or more downloaded clips with identical content. " +
-          "Re-generate the affected Runway clips and try again.",
+          "Re-generate the affected AI clips and try again.",
         );
       }
       return { data, timelineOrder };
@@ -575,7 +575,7 @@ export function FinalVideoExport({
       return;
     }
     if (selectedScenes.length === 0) {
-      toast({ title: "No clips ready", description: "Generate Runway clips on the scenes first.", variant: "destructive" });
+      toast({ title: "No clips ready", description: "Generate AI clips on the scenes first.", variant: "destructive" });
       return;
     }
     if (hasDuplicateUrls) {
@@ -966,7 +966,7 @@ export function FinalVideoExport({
               <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Only 1 clip is selected. Generate Runway clips for other scenes to include them.
+                  Only 1 clip is selected. Generate AI clips for other scenes to include them.
                 </p>
               </div>
             )}
@@ -1327,7 +1327,7 @@ function ClipsPanel({ scenes }: { scenes: SceneData[] }) {
       <div className="px-3 py-2 bg-white/[0.02] border-t border-white/[0.06] flex items-center justify-between gap-2">
         <span className="text-[10px] text-white/25">
           {selectedCount === 0
-            ? "No clips ready — generate Runway clips above"
+            ? "No clips ready — generate AI clips above"
             : selectedCount === scenes.length
             ? "All scenes have clips — ready to export"
             : `${scenes.length - selectedCount} scene${scenes.length - selectedCount > 1 ? "s" : ""} without clips will be skipped`}

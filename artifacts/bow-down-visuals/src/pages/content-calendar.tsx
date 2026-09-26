@@ -352,7 +352,7 @@ export default function ContentCalendar() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credit per calendar · powered by GPT-6 · viewing & check-offs are free
+              {CREDIT_COST} credit per calendar · powered by Thy Cheat Code · viewing & check-offs are free
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (

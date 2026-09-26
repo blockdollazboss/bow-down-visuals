@@ -683,7 +683,7 @@ export default function AnalyticsHub() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {INSIGHT_COST} credits per plan · built on your real numbers · powered by GPT-6
+              {INSIGHT_COST} credits per plan · built on your real numbers · powered by Thy Cheat Code
             </p>
             {!hasData && (
               <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-sm text-amber-300/90">

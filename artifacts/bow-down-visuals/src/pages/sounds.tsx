@@ -497,7 +497,7 @@ export default function ViralSoundFinder() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {MATCH_CREDIT_COST} credit per match · powered by GPT-6 · refunded if it fails
+              {MATCH_CREDIT_COST} credit per match · powered by Thy Cheat Code · refunded if it fails
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {matchError && !outOfCredits && (

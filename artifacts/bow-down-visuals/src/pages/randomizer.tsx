@@ -353,7 +353,7 @@ export default function Randomizer() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {AI_CREDIT_COST} credit per AI roll · powered by GPT-6
+              {AI_CREDIT_COST} credit per AI roll · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (

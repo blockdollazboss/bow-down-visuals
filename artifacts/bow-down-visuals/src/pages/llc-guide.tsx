@@ -424,7 +424,7 @@ export default function LlcGuide() {
             )}
             {user && (
               <p className="mt-2.5 text-center text-xs text-white/35">
-                {CREDIT_COST} credit per answer · powered by GPT-6 · credit refunded if the AI fails
+                {CREDIT_COST} credit per answer · powered by Thy Cheat Code · credit refunded if the AI fails
               </p>
             )}
             {chatOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -512,7 +512,7 @@ export default function LlcGuide() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credit per plan · powered by GPT-6 · credit refunded if the AI fails
+              {CREDIT_COST} credit per plan · powered by Thy Cheat Code · credit refunded if the AI fails
             </p>
             {planOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {planError && !planOutOfCredits && (

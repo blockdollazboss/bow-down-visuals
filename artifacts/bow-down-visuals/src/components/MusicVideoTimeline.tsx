@@ -464,7 +464,7 @@
                       {!scene.demoClipUrl ? "No generated video yet" : "Clip link expired"}
                     </p>
                     <p className="text-[11px] text-yellow-300/60 mt-0.5">
-                      Click "Generate Runway Clip" below to launch your rendering engine pipeline.
+                      Click "Generate AI Clip" below to launch your rendering engine pipeline.
                     </p>
                   </div>
                 </div>
@@ -508,7 +508,7 @@
                   data-testid="btn-generate-runway-clip"
                 >
                   <Zap className="h-3.5 w-3.5" />
-                  Generate Runway Clip
+                  Generate AI Clip
                   {!hasPrompt && (
                     <span className="text-primary/50 font-normal">
                       (using scene info)

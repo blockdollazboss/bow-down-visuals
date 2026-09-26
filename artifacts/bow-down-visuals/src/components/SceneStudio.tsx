@@ -577,8 +577,8 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Model</span>
           {([
-            { id: "gen4.5", label: "Gen-4.5" },
-            { id: "seedance2_5", label: "Seedance 2.5" },
+            { id: "gen4.5", label: "Standard" },
+            { id: "seedance2_5", label: "Premium" },
           ] as const).map((m) => (
             <button
               key={m.id}

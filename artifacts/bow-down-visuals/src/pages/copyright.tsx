@@ -408,7 +408,7 @@ export default function CopyrightAssistant() {
                 <Sparkles className="h-6 w-6" aria-hidden="true" /> Sign in to generate your draft <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
-            <p className="mt-2.5 text-xs text-white/35">{DRAFT_CREDIT_COST} credit per draft · powered by GPT-6</p>
+            <p className="mt-2.5 text-xs text-white/35">{DRAFT_CREDIT_COST} credit per draft · powered by Thy Cheat Code</p>
             {draftOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {draftError && !draftOutOfCredits && (
               <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{draftError}</p>
@@ -554,7 +554,7 @@ export default function CopyrightAssistant() {
               Ask
             </button>
           </div>
-          <p className="mt-2 text-xs text-white/35">{ASK_CREDIT_COST} credit per answer · powered by GPT-6</p>
+          <p className="mt-2 text-xs text-white/35">{ASK_CREDIT_COST} credit per answer · powered by Thy Cheat Code</p>
           {qaOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
           {qaError && !qaOutOfCredits && (
             <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{qaError}</p>

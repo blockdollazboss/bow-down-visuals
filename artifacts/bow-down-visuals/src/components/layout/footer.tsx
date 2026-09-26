@@ -60,7 +60,7 @@ export function SiteFooter() {
             </p>
             <span className="inline-flex items-center gap-1.5 mt-4 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
               <Sparkles className="h-3 w-3" aria-hidden="true" />
-              Powered by GPT-6
+              Powered by Thy Cheat Code
             </span>
             <a
               href="mailto:support@bowdownvisuals.com"

@@ -384,7 +384,7 @@ export default function ViralityCheck() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credits per scorecard · powered by GPT-6
+              {CREDIT_COST} credits per scorecard · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (

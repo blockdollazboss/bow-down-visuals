@@ -14,7 +14,7 @@ interface OpenVideoEditorButtonProps {
 
 /**
  * Premium, reusable CTA that opens the Video Editor for a given saved project.
- * Used after a plan is generated, after Runway clips are generated, on project
+ * Used after a plan is generated, after AI clips are generated, on project
  * cards in My Projects, and in the project detail modal.
  */
 export function OpenVideoEditorButton({

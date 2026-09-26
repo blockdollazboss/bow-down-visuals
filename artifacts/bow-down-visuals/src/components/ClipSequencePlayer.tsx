@@ -57,7 +57,7 @@ export function ClipSequencePlayer({
   allScenes,
   title = "Music Video Preview",
   emptyTitle = "No clips generated yet.",
-  emptyHint = "Generate Runway clips on the scene cards — they'll appear here in sequence.",
+  emptyHint = "Generate AI clips on the scene cards — they'll appear here in sequence.",
 }: ClipSequencePlayerProps) {
   const numberSource = allScenes ?? scenes;
 

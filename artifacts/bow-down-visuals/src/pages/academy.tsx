@@ -451,7 +451,7 @@ export default function CreatorAcademy() {
                     <ArrowRight className="h-5 w-5" aria-hidden="true" />
                   </Link>
                 )}
-                <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} credit per path · powered by GPT-6</p>
+                <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} credit per path · powered by Thy Cheat Code</p>
               </div>
 
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
