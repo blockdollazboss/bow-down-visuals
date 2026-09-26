@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject, type SetStateAction } from "react";
 import { Link, useSearch } from "wouter";
 import {
   ArrowLeft, Loader2, Clapperboard,
@@ -9,11 +9,12 @@ import {
   Crop, Smartphone, Monitor, Square, ChevronDown, ChevronUp, Bug, Mic2,
   Minimize2, Maximize2, EyeOff, Eye, Sparkles, AlertCircle, BookOpen,
   Theater, Repeat, StepBack, StepForward, RotateCcw, Columns2, ChevronsLeftRight,
-  SlidersHorizontal,
+  SlidersHorizontal, Undo2, Redo2,
 } from "lucide-react";
 
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { Button } from "@/components/ui/button";
 import { InstagramIcon } from "@/components/ui/instagram-icon";
@@ -163,8 +164,8 @@ export default function VideoEditor() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [project, setProject] = useState<LoadedProject | null>(null);
   const [rawResult, setRawResult] = useState<string | null>(null);
-  const [scenes, setScenes] = useState<SceneData[]>([]);
-  const [settings, setSettings] = useState<EditorSettings>(normalizeEditorSettings(null));
+  const [scenes, setScenesState] = useState<SceneData[]>([]);
+  const [settings, setSettingsState] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setRawTab] = useState<EditorTab>("clips");
   const [requestedAudioExport, setRequestedAudioExport] = useState<AudioExportType | null>(null);
@@ -328,6 +329,7 @@ export default function VideoEditor() {
         }
         setSettings(normalizeEditorSettings(data.project.output_data?.editorSettings));
         setTranscriptText(data.project.output_data?.transcriptText ?? null);
+        resetHistory();
         hydrated.current = true;
       } catch (err) {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : "Failed to load project");
@@ -342,6 +344,78 @@ export default function VideoEditor() {
 
   /* ── Keep scenesRef in sync so persist() is never stale ── */
   useEffect(() => { scenesRef.current = scenes; }, [scenes]);
+
+  /** Always-current ref for settings (mirrors scenesRef) — lets undo/redo
+   *  snapshots read the latest value outside render. */
+  const settingsRef = useRef<EditorSettings>(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  /* ── Undo/redo history over {scenes, settings} ─────────────────────────
+   * The wrapped setScenes/setSettings below snapshot the pre-change state
+   * before applying. Child sections receive the wrapped setters, so every
+   * editor edit — clip attach, reorder, captions, effects, branding, music —
+   * is undoable. Rapid bursts (typing, slider drags) coalesce into one step. */
+  interface EditorSnapshot { scenes: SceneData[]; settings: EditorSettings; }
+  const undoHistoryApi = useUndoRedo<EditorSnapshot>({ maxHistory: 50, coalesceMs: 800 });
+  const { push: pushHistory, undo: undoStep, redo: redoStep, reset: resetHistory } = undoHistoryApi;
+  const canUndo = undoHistoryApi.canUndo;
+  const canRedo = undoHistoryApi.canRedo;
+
+  const snapshotNow = useCallback((): EditorSnapshot => ({
+    scenes: scenesRef.current,
+    settings: settingsRef.current,
+  }), []);
+
+  const setScenes = useCallback((update: SetStateAction<SceneData[]>) => {
+    const prev = scenesRef.current;
+    const next = typeof update === "function" ? (update as (p: SceneData[]) => SceneData[])(prev) : update;
+    if (next === prev) return;
+    pushHistory(snapshotNow());
+    scenesRef.current = next;
+    setScenesState(next);
+  }, [pushHistory, snapshotNow]);
+
+  const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
+    const prev = settingsRef.current;
+    const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
+    if (next === prev) return;
+    pushHistory(snapshotNow());
+    settingsRef.current = next;
+    setSettingsState(next);
+  }, [pushHistory, snapshotNow]);
+
+  const handleUndo = useCallback(() => {
+    const snap = undoStep(snapshotNow());
+    if (!snap) return;
+    scenesRef.current = snap.scenes;
+    settingsRef.current = snap.settings;
+    setScenesState(snap.scenes);
+    setSettingsState(snap.settings);
+  }, [undoStep, snapshotNow]);
+
+  const handleRedo = useCallback(() => {
+    const snap = redoStep(snapshotNow());
+    if (!snap) return;
+    scenesRef.current = snap.scenes;
+    settingsRef.current = snap.settings;
+    setScenesState(snap.scenes);
+    setSettingsState(snap.settings);
+  }, [redoStep, snapshotNow]);
+
+  /* Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y — skipped inside text fields so native
+   * field-level undo keeps working there; the toolbar buttons always work. */
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      else if (key === "y" || (key === "z" && e.shiftKey)) { e.preventDefault(); handleRedo(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo, handleRedo]);
 
   /* ── Debounced autosave on scenes / settings change ── */
   useEffect(() => {
@@ -828,6 +902,12 @@ export default function VideoEditor() {
               </div>
               <SaveIndicator state={saveState} />
               <div className="flex-1" />
+              <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title="Undo (Ctrl+Z)" data-testid="btn-undo-editor">
+                <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">Undo</span>
+              </Button>
+              <Button onClick={handleRedo} disabled={!canRedo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title="Redo (Ctrl+Shift+Z)" data-testid="btn-redo-editor">
+                <Redo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">Redo</span>
+              </Button>
               <Button onClick={saveNow} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8" data-testid="btn-save-editor">
                 <Save className="h-3.5 w-3.5" /> Save
               </Button>
