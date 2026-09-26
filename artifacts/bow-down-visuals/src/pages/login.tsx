@@ -92,10 +92,17 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 md:px-48 lg:px-72 xl:px-96 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 md:px-48 lg:px-72 xl:px-96 relative overflow-hidden">
+      {/* Golden throne background */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="pointer-events-none absolute inset-0 bg-black/55" />
       <SideVideoBanners />
       {/* Smooth gradient blend from video edges into the page */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background via-transparent to-background" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
       <div className="w-full max-w-md space-y-8 relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
         <div className="text-center animate-[fadeSlideIn_0.7s_ease-out_0.1s_both]">
           <img src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="h-20 w-auto mx-auto" />

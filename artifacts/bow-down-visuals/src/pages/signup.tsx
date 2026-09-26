@@ -87,8 +87,15 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Golden throne background */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="pointer-events-none absolute inset-0 bg-black/55" />
+      <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center">
           <div className="flex justify-center mb-6">
             <img ref={logoTilt} src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="w-[320px] max-w-full h-auto" />
