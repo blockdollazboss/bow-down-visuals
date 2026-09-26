@@ -13,7 +13,7 @@ FROM node:22-slim
 # upstream google/fonts removed the luckiestguy and permanentmarker
 # directories, and their 404s broke production Docker builds on 2026-09-25.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig python3 python3-venv python3-pip \
   && rm -rf /var/lib/apt/lists/*
 COPY docker/fonts/*.ttf /usr/share/fonts/bdv/
 RUN fc-cache -f /usr/share/fonts/bdv \
