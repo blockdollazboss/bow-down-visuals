@@ -323,13 +323,22 @@ export default function Dashboard() {
           const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
           const hasConsistency = !!(activeArtist.consistency_prompt || activeArtist.reference_image_url);
           return (
-            <div className="rounded-[18px] border border-[rgba(201,168,76,0.28)] bg-[linear-gradient(90deg,rgba(201,168,76,0.06)_0%,rgba(0,0,0,0)_60%)] px-4 py-3 flex items-center gap-3.5 relative overflow-hidden shadow-[0_0_24px_rgba(201,168,76,0.06),inset_0_1px_0_rgba(201,168,76,0.1)]">
-              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[linear-gradient(to_bottom,#C9A84C,rgba(201,168,76,0))] rounded-l-[2px]" />
-              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black text-[#C9A84C] bg-[linear-gradient(135deg,rgba(201,168,76,0.2)_0%,rgba(201,168,76,0.06)_100%)] border-[1.5px] border-[rgba(201,168,76,0.4)] shadow-[0_0_18px_rgba(201,168,76,0.25)]">
+            <div className="rounded-[18px] border px-4 py-3 flex items-center gap-3.5 relative overflow-hidden" style={{
+              borderColor: "var(--character-glow, rgba(201,168,76,0.28))",
+              background: "linear-gradient(90deg, var(--character-tint, rgba(201,168,76,0.06)) 0%, rgba(0,0,0,0) 60%)",
+              boxShadow: "0 0 24px var(--character-tint, rgba(201,168,76,0.06)), inset 0 1px 0 var(--character-glow, rgba(201,168,76,0.1))",
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] rounded-l-[2px]" style={{ background: "linear-gradient(to bottom, var(--character-primary, #C9A84C), transparent)" }} />
+              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black border-[1.5px]" style={{
+                color: "var(--character-primary, #C9A84C)",
+                background: "linear-gradient(135deg, var(--character-tint, rgba(201,168,76,0.2)) 0%, transparent 100%)",
+                borderColor: "var(--character-glow, rgba(201,168,76,0.4))",
+                boxShadow: "0 0 18px var(--character-glow, rgba(201,168,76,0.25))",
+              }}>
                 {activeArtist.reference_image_url ? (
                   <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover object-[top_center]" />
                 ) : initials}
-                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full bg-[#C9A84C] border-[1.5px] border-[#080808] shadow-[0_0_6px_#C9A84C]" />
+                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-[1.5px] border-[#080808]" style={{ background: "var(--character-primary, #C9A84C)", boxShadow: "0 0 6px var(--character-primary, #C9A84C)" }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -346,7 +355,12 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setLocation("/choose-artist")}
-                className="h-[30px] rounded-[9px] border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)] text-[#C9A84C] text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap hover:bg-[rgba(201,168,76,0.16)] transition-colors"
+                className="h-[30px] rounded-[9px] border text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap transition-colors"
+                style={{
+                  borderColor: "var(--character-glow, rgba(201,168,76,0.3))",
+                  background: "var(--character-tint, rgba(201,168,76,0.08))",
+                  color: "var(--character-primary, #C9A84C)",
+                }}
               >Change →</button>
             </div>
           );

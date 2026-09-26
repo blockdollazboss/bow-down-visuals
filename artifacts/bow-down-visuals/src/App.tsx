@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
+import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
@@ -462,6 +463,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
               <UserModeProvider>
                 <CreditConfirmProvider>
                   <ActiveArtistProvider>
+                    <CharacterThemeApplier />
                     <AppShell />
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>
