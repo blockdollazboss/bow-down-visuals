@@ -17,7 +17,7 @@ import { usePageTitle } from "@/hooks/use-page-title";
 const PLANS = [
   {
     stars: 1,
-    name: "Starter",
+    name: "Street Punk",
     streetTitle: "Street Punk",
     price: 19,
     period: "/month",
@@ -25,7 +25,7 @@ const PLANS = [
     credits: "25 credits monthly",
     featured: false,
     badge: null,
-    cta: "Start with 1 Star",
+    cta: "Become a Street Punk",
     features: [
       "AI Music Maker",
       "Music video plans & treatments",
@@ -37,7 +37,7 @@ const PLANS = [
   },
   {
     stars: 2,
-    name: "Creator",
+    name: "Hustler",
     streetTitle: "Hustler",
     price: 49,
     period: "/month",
@@ -45,9 +45,9 @@ const PLANS = [
     credits: "100 credits monthly",
     featured: true,
     badge: "Most Popular",
-    cta: "Get 2 Stars",
+    cta: "Rank Up to Hustler",
     features: [
-      "Everything in Starter",
+      "Everything in Street Punk",
       "AI video clip generation",
       "Full Video Editor access",
       "Artist Vault + Photo Shoot",
@@ -57,7 +57,7 @@ const PLANS = [
   },
   {
     stars: 3,
-    name: "Pro Artist",
+    name: "Gangster",
     streetTitle: "Gangster",
     price: 99,
     period: "/month",
@@ -65,9 +65,9 @@ const PLANS = [
     credits: "250 credits monthly",
     featured: false,
     badge: null,
-    cta: "Go Pro with 3 Stars",
+    cta: "Become a Gangster",
     features: [
-      "Everything in Creator",
+      "Everything in Hustler",
       "AI Lip Sync",
       "AI mastering + stem separation",
       "Advanced effects & transitions",
@@ -77,7 +77,7 @@ const PLANS = [
   },
   {
     stars: 4,
-    name: "Studio",
+    name: "Shot Caller",
     streetTitle: "Shot Caller",
     price: 199,
     period: "/month",
@@ -85,9 +85,9 @@ const PLANS = [
     credits: "600 credits monthly",
     featured: false,
     badge: null,
-    cta: "Build with 4 Stars",
+    cta: "Become a Shot Caller",
     features: [
-      "Everything in Pro Artist",
+      "Everything in Gangster",
       "Team workspace & member roles",
       "Shared vaults & brand libraries",
       "Review & approval workflow",
@@ -97,7 +97,7 @@ const PLANS = [
   },
   {
     stars: 5,
-    name: "VIP",
+    name: "Crime Boss",
     streetTitle: "Crime Boss",
     price: 399,
     period: "/month",
@@ -105,19 +105,19 @@ const PLANS = [
     credits: "1,500 credits monthly",
     featured: false,
     badge: "Exclusive",
-    cta: "Become 5-Star VIP",
+    cta: "Become a Crime Boss",
     features: [
-      "Everything in Studio",
+      "Everything in Shot Caller",
       "Priority generation queue",
       "4K output where supported",
       "Early access to new AI models",
       "Advanced cross-platform analytics",
-      "Exclusive VIP templates & styles",
+      "Exclusive Crime Boss templates & styles",
     ],
   },
   {
     stars: 6,
-    name: "MVP",
+    name: "Kingpin",
     streetTitle: "Kingpin",
     price: 799,
     period: "/month",
@@ -125,9 +125,9 @@ const PLANS = [
     credits: "4,000 credits monthly",
     featured: false,
     badge: "Top Tier",
-    cta: "Claim 6-Star MVP",
+    cta: "Claim the Kingpin Crown",
     features: [
-      "Everything in VIP",
+      "Everything in Crime Boss",
       "8K delivery where supported",
       "Custom AI style training",
       "White-label client deliverables",
@@ -431,10 +431,10 @@ export default function Pricing() {
         </section>
 
         {/* ── PLANS ── */}
-        <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 lux-stagger">
+        <section className="max-w-7xl mx-auto px-5 md:px-8 pb-32">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 gap-y-8 lux-stagger pt-4">
             {PLANS.map((plan) => {
-              const isExclusive = plan.name === "VIP" || plan.name === "MVP";
+              const isExclusive = plan.name === "Crime Boss" || plan.name === "Kingpin";
               const isHighlighted = highlightedPlan === plan.stars;
               return (
               <div
@@ -443,12 +443,12 @@ export default function Pricing() {
                 className={`relative rounded-2xl border flex flex-col p-6 transition-all duration-300 ${
                   isHighlighted
                     ? "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)] -translate-y-1"
-                    : plan.name === "MVP"
-                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-amber-500/[0.12] via-primary/[0.06] to-transparent shadow-[0_0_80px_rgba(251,191,36,0.2)] hover:-translate-y-1"
-                    : plan.name === "VIP"
-                    ? "border-purple-400/40 bg-gradient-to-b from-purple-500/[0.1] via-primary/[0.04] to-transparent shadow-[0_0_60px_rgba(192,132,252,0.15)] hover:-translate-y-1"
+                    : plan.name === "Kingpin"
+                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-[#1a1408] via-[#0d0b06] to-black shadow-[0_0_80px_rgba(251,191,36,0.2)] hover:-translate-y-1"
+                    : plan.name === "Crime Boss"
+                    ? "border-purple-400/40 bg-gradient-to-b from-[#14101d] via-[#0b0912] to-black shadow-[0_0_60px_rgba(192,132,252,0.15)] hover:-translate-y-1"
                     : plan.featured
-                    ? "lux-shine border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)] hover:-translate-y-1"
+                    ? "lux-shine border-primary/45 bg-gradient-to-b from-[#171207] via-[#0d0b05] to-black shadow-[0_0_60px_rgba(218,165,32,0.15)] hover:-translate-y-1"
                     : "lux-card"
                 }`}
               >
@@ -476,8 +476,8 @@ export default function Pricing() {
                       />
                     ))}
                   </div>
-                  <h2 className="text-lg font-semibold text-white mb-0.5">
-                    {plan.name} <span className="text-primary/90 font-bold">· {plan.streetTitle}</span>
+                  <h2 className="text-lg font-bold text-primary mb-0.5">
+                    {plan.name}
                   </h2>
                   <p className="text-xs text-white/35 font-medium mb-4">Best for: {plan.bestFor}</p>
 
