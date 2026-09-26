@@ -258,9 +258,22 @@ export function ThyCheatCodeChat() {
           </div>
 
           {/* Messages */}
-          <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div ref={listRef} className="relative flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {/* 8-bit King Shark watermark background */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.07]"
+            >
+              <img
+                src="/thy-cheat-code-8bit.webp"
+                alt=""
+                draggable={false}
+                className="h-64 w-64 object-cover"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </div>
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div key={i} className={`relative flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "assistant" && (
                   <div
                     className="mr-2 h-8 w-8 shrink-0 overflow-hidden border-2 border-[#C9A84C]/70 bg-black"
