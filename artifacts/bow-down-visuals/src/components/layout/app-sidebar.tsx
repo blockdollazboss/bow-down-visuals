@@ -91,6 +91,7 @@ import {
   Gem,
   Star,
   type LucideIcon,
+
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -240,6 +241,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Learn",
     links: [
+      { href: "/guides", label: "Guides & Services", icon: BookOpen },
       { href: "/academy", label: "Creator Academy", icon: GraduationCap },
       { href: "/copyright", label: "Copyright", icon: Copyright },
       { href: "/llc-guide", label: "LLC Guide", icon: Scale },

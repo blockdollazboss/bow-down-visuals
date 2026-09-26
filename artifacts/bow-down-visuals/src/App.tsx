@@ -85,6 +85,7 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const Guides = lazyWithRetry(() => import("@/pages/guides"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -307,6 +308,8 @@ function AppShell() {
           <Route path="/join/:handle"><Join /></Route>
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
+          <Route path="/guides"><Guides /></Route>
+
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
