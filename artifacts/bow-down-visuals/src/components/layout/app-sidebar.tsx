@@ -490,7 +490,18 @@ export function AppSidebar() {
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white truncate">{profile.display_name ?? profile.email}</p>
-                <p className="text-[10px] text-muted-foreground capitalize">{profile.plan} plan</p>
+                <Link
+                  href="/pricing"
+                  title="View ranks"
+                  className="flex items-center gap-1.5 mt-0.5 group/rank"
+                >
+                  <span className="text-[10px] text-primary font-black tracking-wider group-hover/rank:underline">
+                    ★ {profile.plan === "beta" || !profile.plan ? "BETA TESTER" : `${profile.plan} plan`}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground group-hover/rank:text-primary transition-colors">
+                    Rank up →
+                  </span>
+                </Link>
               </div>
               <Button
                 variant="ghost"
