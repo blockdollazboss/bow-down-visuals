@@ -488,7 +488,7 @@ function WhatYouCanMake() {
           {OUTPUT_TYPES.map((type, i) => (
             <div
               key={i}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
+              className="lux-card flex items-center gap-3 px-4 py-3.5 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
               <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
@@ -584,7 +584,7 @@ function FeaturedTools() {
                 className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
                   tool.featured
                     ? "bg-primary text-white"
-                    : "bg-white/5 group-hover:bg-primary/20 transition-colors"
+                    : "bg-white/[0.06] group-hover:bg-primary/20 transition-colors shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08)]"
                 }`}
               >
                 <tool.icon
@@ -734,7 +734,7 @@ function FAQSection() {
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                 openIndex === i
                   ? "border-primary/30 bg-primary/5"
-                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
+                  : "lux-card"
               }`}
             >
               <button
@@ -941,7 +941,7 @@ export default function Home() {
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden lux-page">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <HeroSection onWaitlist={scrollToWaitlist} />

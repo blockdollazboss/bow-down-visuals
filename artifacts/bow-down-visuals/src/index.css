@@ -779,3 +779,281 @@ html[data-user-mode="simple"] .advanced-only {
 html[data-user-mode="advanced"] .simple-only {
   display: none !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   BILLION-DOLLAR POLISH SYSTEM — global premium utilities.
+   Everything here is transform/opacity-only for 60fps. Gold/black
+   only. No logic, pure presentation.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── .lux-card — the signature premium surface ───
+   Gradient hairline border, inner top highlight, deep layered shadow.
+   Hover: gentle lift + gold border glow. */
+.lux-card {
+  position: relative;
+  border-radius: 1rem;
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.05), hsl(0 0% 100% / 0.015) 40%, transparent),
+    hsl(222 16% 8% / 0.92);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.08),
+    inset 0 -1px 0 hsl(0 0% 0% / 0.4),
+    0 20px 50px -20px hsl(0 0% 0% / 0.75);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
+}
+.lux-card:hover {
+  transform: translateY(-3px);
+  border-color: hsl(45 90% 50% / 0.32);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.1),
+    0 28px 60px -20px hsl(0 0% 0% / 0.85),
+    0 0 40px -10px hsl(45 95% 50% / 0.22);
+}
+
+/* ─── .lux-card-static — premium surface without hover lift (forms, panels) ─── */
+.lux-card-static {
+  border-radius: 1rem;
+  border: 1px solid hsl(0 0% 100% / 0.08);
+  background:
+    linear-gradient(180deg, hsl(0 0% 100% / 0.045), hsl(0 0% 100% / 0.015) 40%, transparent),
+    hsl(222 16% 8% / 0.92);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.07),
+    0 20px 50px -24px hsl(0 0% 0% / 0.8);
+}
+
+/* ─── .lux-button — gold bullion CTA (class version of the luxury variant) ─── */
+.lux-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(45 100% 80% / 0.7);
+  background: linear-gradient(180deg, #f7d774 0%, #eab52e 55%, #c98f0e 100%);
+  color: #1a1204;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 10px 36px -10px rgba(212, 160, 23, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease,
+    filter 0.3s ease;
+  cursor: pointer;
+}
+.lux-button::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: 1;
+  background: linear-gradient(105deg, transparent 42%, hsl(0 0% 100% / 0.5) 50%, transparent 58%);
+  transform: translateX(-130%) skewX(-8deg);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.lux-button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 16px 44px -10px rgba(212, 160, 23, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.lux-button:hover::after {
+  transform: translateX(130%) skewX(-8deg);
+}
+.lux-button:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+.lux-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ─── .lux-button-ghost — refined secondary action ─── */
+.lux-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(0 0% 100% / 0.14);
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.06), hsl(0 0% 100% / 0.02));
+  color: hsl(45 25% 92%);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.08);
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.3s ease,
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
+  cursor: pointer;
+}
+.lux-button-ghost:hover {
+  transform: translateY(-1px);
+  border-color: hsl(45 90% 50% / 0.4);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.1),
+    0 8px 24px -12px hsl(45 95% 50% / 0.3);
+}
+.lux-button-ghost:active {
+  transform: translateY(0);
+}
+
+/* ─── .lux-input — refined field with gold focus glow ─── */
+.lux-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(0 0% 100% / 0.1);
+  background: linear-gradient(180deg, hsl(0 0% 100% / 0.04), hsl(0 0% 100% / 0.015));
+  color: hsl(45 25% 94%);
+  padding: 0.65rem 0.9rem;
+  font-size: 0.875rem;
+  box-shadow: inset 0 1px 2px hsl(0 0% 0% / 0.3);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease,
+    background-color 0.25s ease;
+}
+.lux-input::placeholder {
+  color: hsl(220 10% 48% / 0.8);
+}
+.lux-input:hover {
+  border-color: hsl(0 0% 100% / 0.18);
+}
+.lux-input:focus {
+  outline: none;
+  border-color: hsl(45 95% 55% / 0.6);
+  box-shadow:
+    inset 0 1px 2px hsl(0 0% 0% / 0.3),
+    0 0 0 3px hsl(45 95% 50% / 0.15),
+    0 0 20px -4px hsl(45 95% 50% / 0.35);
+  background-color: hsl(0 0% 100% / 0.03);
+}
+
+/* ─── .lux-badge — premium pill ─── */
+.lux-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid hsl(45 90% 55% / 0.35);
+  background: linear-gradient(180deg, hsl(45 95% 50% / 0.18), hsl(45 95% 50% / 0.08));
+  color: hsl(45 95% 68%);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.75rem;
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.12),
+    0 4px 14px -6px hsl(45 95% 50% / 0.4);
+  white-space: nowrap;
+}
+
+/* ─── Staggered entrance — add .lux-stagger to a grid/list,
+       children animate in sequence via --lux-i (set inline or auto) ─── */
+@keyframes lux-rise-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lux-stagger > * {
+  opacity: 0;
+  animation: lux-rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--lux-i, 0) * 70ms);
+  will-change: opacity, transform;
+}
+/* Auto-index fallback: if --lux-i isn't set, use nth-child up to 12 */
+.lux-stagger > *:nth-child(1)  { --lux-i: 0; }
+.lux-stagger > *:nth-child(2)  { --lux-i: 1; }
+.lux-stagger > *:nth-child(3)  { --lux-i: 2; }
+.lux-stagger > *:nth-child(4)  { --lux-i: 3; }
+.lux-stagger > *:nth-child(5)  { --lux-i: 4; }
+.lux-stagger > *:nth-child(6)  { --lux-i: 5; }
+.lux-stagger > *:nth-child(7)  { --lux-i: 6; }
+.lux-stagger > *:nth-child(8)  { --lux-i: 7; }
+.lux-stagger > *:nth-child(9)  { --lux-i: 8; }
+.lux-stagger > *:nth-child(10) { --lux-i: 9; }
+.lux-stagger > *:nth-child(11) { --lux-i: 10; }
+.lux-stagger > *:nth-child(12) { --lux-i: 11; }
+
+/* ─── .lux-page — page-level entrance (wrap page root) ─── */
+@keyframes lux-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lux-page {
+  animation: lux-page-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ─── .lux-skeleton — shimmer loading placeholder ─── */
+@keyframes lux-skeleton-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+.lux-skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    100deg,
+    hsl(0 0% 100% / 0.04) 40%,
+    hsl(45 95% 55% / 0.12) 50%,
+    hsl(0 0% 100% / 0.04) 60%
+  );
+  background-size: 200% 100%;
+  animation: lux-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─── Typography — display headings + refined labels ─── */
+.lux-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+.lux-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(45 85% 62% / 0.9);
+}
+/* Upgrade any bare uppercase eyebrow that lacks tracking */
+.lux-tracked {
+  letter-spacing: 0.18em !important;
+}
+
+/* ─── Smooth state transitions for interactive elements ─── */
+.lux-transition {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease,
+    border-color 0.25s ease,
+    background-color 0.25s ease,
+    box-shadow 0.25s ease,
+    color 0.25s ease;
+}
+
+/* ─── Reduced motion — luxury never forces movement ─── */
+@media (prefers-reduced-motion: reduce) {
+  .lux-stagger > *,
+  .lux-page {
+    opacity: 1;
+    animation: none;
+    transform: none;
+  }
+  .lux-skeleton {
+    animation: none;
+  }
+  .lux-button::after {
+    display: none;
+  }
+}
