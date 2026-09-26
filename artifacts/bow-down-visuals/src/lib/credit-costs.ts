@@ -104,6 +104,11 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/content-calendar": { cost: 1, feature: "Content Calendar AI" },
   "/api/release-checklist": { cost: 2, feature: "Release Checklist AI" },
 
+  // ── Storefronts ────────────────────────────────────────────────
+  "/api/shops/ai/shop-description": { cost: 1, feature: "AI Shop Description" },
+  "/api/shops/ai/product-description": { cost: 1, feature: "AI Product Description" },
+  "/api/shops/ai/product-image": { cost: 1, feature: "AI Product Image" },
+
   // ── Social publishing ──────────────────────────────────────────
   "/api/social/instagram/publish": { cost: 1, feature: "Publish to Instagram" },
   "/api/social/facebook/publish": { cost: 1, feature: "Publish to Facebook" },

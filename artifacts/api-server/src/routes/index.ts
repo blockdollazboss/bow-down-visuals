@@ -85,6 +85,8 @@ import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
 import audioCleanupRouter from "./generate/audio-cleanup";
 import cheatCodeRouter from "./cheat-code";
 import mixMasterRouter from "./generate/mix-master";
+import shopsRouter from "./generate/shops";
+import storefrontsRouter from "./generate/storefronts";
 
 const router: IRouter = Router();
 
@@ -174,5 +176,7 @@ router.use(thumbnailGeneratorRouter);
 router.use(audioCleanupRouter);
 router.use(cheatCodeRouter);
 router.use(mixMasterRouter);
+router.use(shopsRouter);
+router.use(storefrontsRouter);
 
 export default router;

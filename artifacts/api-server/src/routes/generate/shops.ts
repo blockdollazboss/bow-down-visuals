@@ -33,6 +33,7 @@ import {
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import { ensureShopProductsBucket, SHOP_PRODUCTS_BUCKET } from "../../lib/objectStorage";
 import { db } from "@workspace/db";
+import { requireProTier } from "./storefronts";
 import { sql } from "drizzle-orm";
 
 const router = Router();
@@ -144,6 +145,9 @@ interface ShopRow {
   banner_color: string;
   accent_color: string;
   banner_image_url: string | null;
+  custom_domain: string | null;
+  domain_verified: boolean;
+  domain_verification_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -165,6 +169,7 @@ async function getOwnedShop(shopId: string, userId: string): Promise<ShopRow | n
   const result = await db.execute(sql`
     SELECT id, user_id, name, handle, tagline, description,
            banner_color, accent_color, banner_image_url,
+           custom_domain, domain_verified, domain_verification_token,
            created_at, updated_at
     FROM shops
     WHERE id = ${shopId} AND user_id = ${userId}
@@ -192,6 +197,7 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   const result = await db.execute(sql`
     SELECT s.id, s.user_id, s.name, s.handle, s.tagline, s.description,
            s.banner_color, s.accent_color, s.banner_image_url,
+           s.custom_domain, s.domain_verified,
            s.created_at, s.updated_at
     FROM shops s
     WHERE s.user_id = ${userId}
@@ -217,8 +223,10 @@ router.get("/shops/mine", requireAuth, async (req, res) => {
   });
 });
 
-/* ── POST /api/shops — create a shop (free: pure UI/data) ────────────────── */
-router.post("/shops", publicApiLimiter, requireAuth, async (req, res) => {
+/* ── POST /api/shops — create a shop (Pro tier or higher) ─────────────────
+   Storefronts are a platform feature: opening a shop requires a paid plan.
+   Everything after creation (products, AI, analytics) follows its own rules. */
+router.post("/shops", publicApiLimiter, requireAuth, requireProTier, async (req, res) => {
   const parsed = createShopSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
