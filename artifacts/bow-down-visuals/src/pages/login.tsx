@@ -99,7 +99,7 @@ export default function Login() {
         style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
       />
       {/* Dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/55" />
+      <div className="pointer-events-none absolute inset-0 bg-black/70" />
       <SideVideoBanners />
       {/* Smooth gradient blend from video edges into the page */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
@@ -109,7 +109,7 @@ export default function Login() {
           <p className="mt-3 text-muted-foreground">Sign in to your creator account</p>
         </div>
 
-        <div className="bg-card/90 backdrop-blur-xl border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
+        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
           <SocialSignInButtons
             onSignIn={onSocialSignIn}
             loadingProvider={socialLoading}

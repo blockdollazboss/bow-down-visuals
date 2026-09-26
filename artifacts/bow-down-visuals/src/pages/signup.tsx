@@ -94,7 +94,7 @@ export default function Signup() {
         style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
       />
       {/* Dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/55" />
+      <div className="pointer-events-none absolute inset-0 bg-black/70" />
       <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center">
           <div className="flex justify-center mb-6">
