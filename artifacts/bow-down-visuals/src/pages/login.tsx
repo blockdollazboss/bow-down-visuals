@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { BowTestLogo } from "@/components/BowTestLogo";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -134,9 +135,11 @@ export default function Login() {
       {/* Cinematic vignette + dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/55" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
-      <div className="w-full max-w-[300px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
+      <div className="w-full max-w-[300px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both] flex flex-col items-center gap-5">
+        {/* TEST ONLY: click-to-bow logo */}
+        <BowTestLogo />
 
-        <div className="relative rounded-2xl p-[1px] bg-gradient-to-b from-[#c9a84c]/60 via-[#c9a84c]/15 to-transparent shadow-[0_8px_60px_rgba(0,0,0,0.6)] animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+        <div className="w-full relative rounded-2xl p-[1px] bg-gradient-to-b from-[#c9a84c]/60 via-[#c9a84c]/15 to-transparent shadow-[0_8px_60px_rgba(0,0,0,0.6)] animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
           <div className="rounded-2xl bg-black/55 backdrop-blur-xl px-5 py-6">
             <p className="text-center text-[11px] tracking-[0.3em] uppercase text-[#c9a84c]/90 font-medium mb-5">Welcome back</p>
           <SocialSignInButtons
