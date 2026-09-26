@@ -432,7 +432,7 @@ export default function Pricing() {
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-32">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 gap-y-8 lux-stagger pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 gap-y-10 lux-stagger pt-8">
             {PLANS.map((plan) => {
               const isExclusive = plan.name === "Crime Boss" || plan.name === "Kingpin";
               const isHighlighted = highlightedPlan === plan.stars;
@@ -454,7 +454,7 @@ export default function Pricing() {
               >
                 {/* Badge */}
                 {plan.badge && (
-                  <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                  <div className="absolute -top-4 left-0 right-0 z-10 flex justify-center">
                     <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
                     </MarketingBadge>
