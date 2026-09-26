@@ -135,6 +135,9 @@ const Sfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Samples = lazyWithRetry(() => import("@/pages/samples"));
 const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
+const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
+const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
+const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
@@ -321,7 +324,9 @@ function AppShell() {
           <Route path="/content-calendar"><ContentCalendar /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
-          <Route path="/tips/:handle"><TipPage /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
+          <Route path="/tips/:handle"><TipPage /></Route>
+          <Route path="/storefronts"><Storefronts /></Route>
+          <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
           <Route path="/audio-cleanup"><AudioCleanup /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>
@@ -413,6 +418,7 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
                 <Route component={NotFound} />
