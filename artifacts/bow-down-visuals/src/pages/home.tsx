@@ -1042,7 +1042,7 @@ function ManifestoBand() {
             </p>
             <p className="mt-8 text-xs text-white/30 font-medium tracking-wide">
               Rumor: this page has a cheat code.{" "}
-              <span className="text-primary/60 font-mono">↑↑↓↓←→←→BA</span>
+              <span className="text-primary/60 font-mono">↑↑↓↓←→←→</span>
             </p>
           </div>
         </div>

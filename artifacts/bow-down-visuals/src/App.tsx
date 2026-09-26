@@ -17,7 +17,9 @@ import { ThyCheatCodeHost } from "@/components/ThyCheatCodeHost";
 import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
-import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { OnboardingTour } from "@/components/OnboardingTour";
+import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
+import { OnboardingTour } from "@/components/OnboardingTour";
+import { FloatingSharkScrubber } from "@/components/FloatingSharkScrubber";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
@@ -305,6 +307,16 @@ function AppShell() {
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
   const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
     .includes(location.split("?")[0].split("#")[0]);
+  /* Floating mouse-tracked shark: the homepage hero shark rides along on
+   * subpages. Excluded where it would duplicate or clash — the homepage
+   * (hero shark already there), auth (immersive sign-in video), and the
+   * video editor (full-viewport studio surface). */
+  const cleanPath = location.split("?")[0].split("#")[0];
+  const showFloatingShark =
+    cleanPath !== "/" &&
+    cleanPath !== "/login" &&
+    cleanPath !== "/signup" &&
+    !cleanPath.startsWith("/video-editor");
   return (
     <>
       <ScrollToTop />
@@ -314,6 +326,7 @@ function AppShell() {
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
+      {typeof window !== "undefined" && showFloatingShark && <FloatingSharkScrubber />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
