@@ -79,6 +79,35 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── SPONSOR ESCROW ────────────────────────────────────────────────────
+  // Brands fund sponsorship deals through Checkout with
+  // metadata.sponsor_deal_id set. This path owns the money; it never
+  // touches credits. Idempotency is handled inside markEscrowFunded.
+  if (session.metadata?.sponsor_deal_id) {
+    const dealId = session.metadata.sponsor_deal_id;
+    logger.info({ dealId, sessionId: session.id }, "Stripe webhook: sponsor escrow payment verified");
+    try {
+      const { markEscrowFunded } = await import("../routes/generate/sponsors");
+      const result = await markEscrowFunded(
+        dealId,
+        session.id,
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+      );
+      if (!result.ok) {
+        logger.warn({ dealId, reason: result.reason }, "Stripe webhook: escrow funding not applied");
+        res.status(200).json({ received: true, warning: `Escrow not applied: ${result.reason}` });
+        return;
+      }
+      res.status(200).json({ received: true, success: true, escrow: "funded" });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, dealId }, "Stripe webhook: escrow funding failed");
+      res.status(200).json({ received: true, warning: `Escrow funding failed: ${msg}` });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);

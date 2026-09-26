@@ -120,6 +120,9 @@ const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
 const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
 const Sponsors = lazyWithRetry(() => import("@/pages/sponsors"));
+const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
+const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
+const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const Titles = lazyWithRetry(() => import("@/pages/titles"));
 const Community = lazyWithRetry(() => import("@/pages/community"));
@@ -393,6 +396,9 @@ function AppShell() {
                 <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
                 <Route path="/collabs"><ProtectedRoute><Collabs /></ProtectedRoute></Route>
                 <Route path="/sponsors"><ProtectedRoute><Sponsors /></ProtectedRoute></Route>
+                <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
+                <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
+                <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
                 <Route path="/titles"><ProtectedRoute><Titles /></ProtectedRoute></Route>
                 <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>

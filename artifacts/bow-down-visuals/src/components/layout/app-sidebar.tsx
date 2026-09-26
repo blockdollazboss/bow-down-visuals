@@ -233,7 +233,7 @@ const SECTIONS: NavSection[] = [
     links: [
       { href: "/coach", label: "Monetization Coach", icon: DollarSign },
       { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
-      { href: "/sponsors", label: "Sponsors", icon: Users },
+      { href: "/sponsors", label: "Sponsor Marketplace", icon: Users },
       { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
       { href: "/tips", label: "Tips", icon: HeartHandshake },
       { href: "/merch", label: "Merch Designer", icon: Shirt },
