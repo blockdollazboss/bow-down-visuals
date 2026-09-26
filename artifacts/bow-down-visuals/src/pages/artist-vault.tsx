@@ -17,6 +17,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import {
+  normalizeSubjectType,
+  SUBJECT_TYPE_META,
+  SubjectBadge,
+  type SubjectType,
+} from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
@@ -65,11 +71,6 @@ interface FormValues {
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
-
-const ARTIST_TYPES = [
-  "Rapper", "Singer", "Producer", "AI Artist",
-  "Content Creator", "Label", "Kids Music Creator", "Other",
-];
 
 const GENRES = [
   "Hip Hop", "Drill", "Trap", "R&B", "Pop",
@@ -1027,9 +1028,7 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onV
             <div className="min-w-0">
               <h2 className="text-xl font-black text-white truncate">{vault.artist_name}</h2>
               <div className="flex flex-wrap gap-1.5 mt-1">
-                {vault.artist_type && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">{vault.artist_type}</Badge>
-                )}
+                <SubjectBadge type={normalizeSubjectType(vault.artist_type)} />
                 {vault.genre && (
                   <Badge className="bg-white/5 text-white/50 border-white/10 text-xs">{vault.genre}</Badge>
                 )}
@@ -1187,11 +1186,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             textShadow: "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
-          {vault.artist_type && (
             <p style={{ fontSize: 9.5, color: isActive ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              {vault.artist_type}
+              {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
             </p>
-          )}
         </div>
 
         {/* Gold left accent bar */}
@@ -1293,7 +1290,7 @@ export default function ArtistVault() {
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
-      artistName: "", artistType: "",
+      artistName: "", artistType: "artist",
       genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
       clothingStyle: "", brandColors: "", personality: "", doNotChangeRules: "",
     },
@@ -1389,7 +1386,7 @@ export default function ArtistVault() {
   function startEdit(vault: ArtistVaultRecord) {
     setEditId(vault.id);
     setValue("artistName", vault.artist_name);
-    setValue("artistType", vault.artist_type ?? "");
+    setValue("artistType", normalizeSubjectType(vault.artist_type));
     setValue("genre", vault.genre ?? "");
     setValue("voiceStyle", vault.voice_style ?? "");
     setValue("visualStyle", vault.visual_style ?? "");
@@ -1657,20 +1654,42 @@ export default function ArtistVault() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
 
-            {/* Row 1: Artist Name + Artist Type */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Artist Name">
-                <Input
-                  {...register("artistName", { required: true })}
-                  placeholder="Your stage name"
-                  className={inputClass}
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Artist Type">
-                <StyledSelect name="artistType" placeholder="Select type..." options={ARTIST_TYPES}
-                  value={watched.artistType} onChange={(v) => setValue("artistType", v)} />
-              </FieldWrapper>
-            </div>
+            {/* Row 1: Artist Name */}
+            <FieldWrapper label="Artist Name">
+              <Input
+                {...register("artistName", { required: true })}
+                placeholder="Your stage name"
+                className={inputClass}
+              />
+            </FieldWrapper>
+
+            {/* Subject Type */}
+            <FieldWrapper label="Subject Type" hint="What kind of subject is this profile for?">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {(Object.keys(SUBJECT_TYPE_META) as SubjectType[]).map((t) => {
+                  const meta = SUBJECT_TYPE_META[t];
+                  const active = watched.artistType === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setValue("artistType", t)}
+                      className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
+                        active
+                          ? `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
+                          : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        <span className={`text-sm font-bold tracking-wide ${active ? "" : "text-white"}`}>{meta.label}</span>
+                      </span>
+                      <span className="block mt-2 text-xs text-white/45 leading-relaxed font-medium">{meta.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FieldWrapper>
 
             {/* Personality */}
             <FieldWrapper label="Personality" hint="Describe your artist's energy, attitude, story, and vibe">

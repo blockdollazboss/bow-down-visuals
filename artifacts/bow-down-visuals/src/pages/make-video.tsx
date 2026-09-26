@@ -1062,7 +1062,7 @@ export default function MakeVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
 
                   <FieldWrapper label="Artist Description">
                     <Textarea
