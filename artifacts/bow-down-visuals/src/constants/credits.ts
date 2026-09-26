@@ -4,6 +4,7 @@ export const CREDIT_COSTS = {
   "song-video": 2,
   promo: 1,
   thumbnail: 1,
+  "branding-design": 2,
 } as const;
 
 export type ToolKey = keyof typeof CREDIT_COSTS;

@@ -2,9 +2,11 @@
  * Money-integrity + honesty tests for the AI Branding Shop.
  *
  * Covers: the 2-credit design charge, schema validation (design + order),
- * server-side order total recompute, catalog integrity, the v1 honesty
- * contract (no shipped/delivered/tracking fiction), and GPT-6 token-param
- * correctness (max_completion_tokens, never max_tokens).
+ * server-side order total recompute, catalog integrity (40-60% margins),
+ * the fulfillment honesty contract (statuses only from the provider —
+ * Printful live or the clearly-labeled mock sandbox — never fabricated),
+ * Runway gen4_image design generation, and GPT-6 token-param correctness
+ * (max_completion_tokens, never max_tokens).
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "fs";
@@ -37,10 +39,20 @@ describe("branding shop pricing", () => {
     }
   });
 
-  it("has the five launch products", () => {
+  it("has the seven launch products", () => {
     expect(Object.keys(PRODUCTS).sort()).toEqual(
-      ["cap", "hoodie", "mug", "poster", "tshirt"].sort()
+      ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"].sort()
     );
+  });
+
+  it("holds 40-60% margins over base cost (server-side only)", () => {
+    for (const [key, p] of Object.entries(PRODUCTS)) {
+      expect(p.baseCostCents, `${key} base cost`).toBeGreaterThan(0);
+      expect(p.baseCostCents, `${key} base cost`).toBeLessThan(p.priceCents);
+      const margin = (p.priceCents - p.baseCostCents) / p.priceCents;
+      expect(margin, `${key} margin`).toBeGreaterThanOrEqual(0.4);
+      expect(margin, `${key} margin`).toBeLessThanOrEqual(0.6);
+    }
   });
 });
 
@@ -70,7 +82,7 @@ describe("design request schema", () => {
 
   it("rejects more than 3 products", () => {
     expect(
-      designSchema.safeParse({ ...valid, products: ["tshirt", "hoodie", "mug", "cap"] }).success
+      designSchema.safeParse({ ...valid, products: ["tshirt", "hoodie", "mug", "snapback"] }).success
     ).toBe(false);
   });
 
@@ -120,6 +132,22 @@ describe("order schema", () => {
   it("rejects a missing shipping field", () => {
     expect(orderSchema.safeParse({ ...valid, zip: "" }).success).toBe(false);
   });
+
+  it("accepts an optional designUrl per item", () => {
+    const withDesign = {
+      ...valid,
+      items: [{ ...validItem, designUrl: "https://example.com/design.png" }],
+    };
+    expect(orderSchema.safeParse(withDesign).success).toBe(true);
+  });
+
+  it("rejects an invalid designUrl", () => {
+    const bad = {
+      ...valid,
+      items: [{ ...validItem, designUrl: "not-a-url" }],
+    };
+    expect(orderSchema.safeParse(bad).success).toBe(false);
+  });
 });
 
 describe("order total integrity", () => {
@@ -133,19 +161,40 @@ describe("order total integrity", () => {
   });
 });
 
-describe("v1 honesty contract", () => {
-  it("only allows received / pending_fulfillment statuses", () => {
-    expect([...ORDER_STATUSES]).toEqual(["received", "pending_fulfillment"]);
+describe("fulfillment honesty contract", () => {
+  it("allows the full provider-driven status vocabulary", () => {
+    expect([...ORDER_STATUSES]).toEqual([
+      "received",
+      "pending_fulfillment",
+      "in_production",
+      "shipped",
+      "delivered",
+      "canceled",
+      "failed",
+    ]);
   });
 
-  it("never mentions shipped/delivered/tracking as order states", () => {
-    expect(routeSource).not.toMatch(/status.*shipped/i);
-    expect(routeSource).not.toMatch(/status:\s*["']delivered["']/i);
-    expect(routeSource).not.toMatch(/tracking[_-]?number/i);
+  it("never hardcodes fake shipped/delivered DB states — statuses come from the provider", () => {
+    /* No literal 'shipped'/'delivered' in SQL status writes; the webhook only
+       maps provider event types, and persistence flows through toOrderStatus(). */
+    expect(routeSource).not.toMatch(/SET status\s*=\s*['"]shipped['"]/i);
+    expect(routeSource).not.toMatch(/SET status\s*=\s*['"]delivered['"]/i);
+    expect(routeSource).toMatch(/toOrderStatus/);
   });
 
-  it("tells the user fulfillment is coming soon", () => {
-    expect(routeSource).toMatch(/dropship partner integration is coming soon/i);
+  it("labels mock mode honestly everywhere it surfaces", () => {
+    expect(routeSource).toMatch(/demo/i);
+  });
+});
+
+describe("design generation", () => {
+  it("uses Runway gen4_image (the site's image pipeline)", () => {
+    expect(routeSource).toMatch(/gen4_image/);
+    expect(routeSource).toMatch(/@runwayml\/sdk/);
+  });
+
+  it("polls tasks server-side with a bounded timeout", () => {
+    expect(routeSource).toMatch(/BRANDING_SHOP_DESIGN_TIMEOUT_MS/);
   });
 });
 

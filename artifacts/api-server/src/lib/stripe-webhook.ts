@@ -93,6 +93,39 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
 
   logger.info({ userId }, "Stripe webhook: user_id found");
 
+  /* ── Branding-shop merch orders ─────────────────────────────────────────
+     Branding checkout sessions carry metadata.kind = "branding_order" +
+     branding_order_id. Mark the order paid and submit it to fulfillment
+     (Printful live or mock sandbox). Idempotent via isPaymentAlreadyRecorded. */
+  if (session.metadata?.kind === "branding_order" && session.metadata?.branding_order_id) {
+    const brandingOrderId = session.metadata.branding_order_id;
+    try {
+      const { markBrandingOrderPaid, fulfillBrandingOrder, confirmBrandingFulfillment } = await import("./branding-fulfillment");
+      await markBrandingOrderPaid(brandingOrderId, session.id);
+      const fulfillment = await fulfillBrandingOrder(brandingOrderId);
+      await confirmBrandingFulfillment(brandingOrderId);
+      logger.info(
+        { brandingOrderId, sessionId: session.id, fulfillment },
+        "Stripe webhook: branding order paid + submitted to fulfillment"
+      );
+      await recordStripePayment({
+        stripeSessionId:      session.id,
+        stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        userId,
+        creditPack:           `branding_order:${brandingOrderId}`,
+        creditsAmount:         0,
+        amountTotal:  session.amount_total,
+        currency:     session.currency,
+      });
+      res.status(200).json({ received: true, success: true, brandingOrderId });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, brandingOrderId }, "Stripe webhook: branding order fulfillment failed");
+      res.status(200).json({ received: true, warning: `Branding fulfillment failed: ${msg}` });
+    }
+    return;
+  }
+
   if (!creditsAmount || creditsAmount <= 0) {
     logger.error({ sessionId: session.id, creditsAmount }, "Stripe webhook: invalid credits_amount in metadata");
     res.status(200).json({ received: true, warning: "Invalid credits_amount in metadata" });
