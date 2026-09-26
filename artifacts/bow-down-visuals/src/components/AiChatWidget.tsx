@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices, GripVertical } from "lucide-react";
-import { CheatCodeName } from "@/components/pixel-headline";
-import { AnimatedSharkIcon } from "@/components/AnimatedSharkIcon";
+import { CheatCodeName, PixelSprite, PixelDivider } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -62,7 +61,7 @@ const SNAP_COLS = 4;
 const SNAP_ROWS = 3;
 const SNAP_COUNT = SNAP_COLS * SNAP_ROWS; // 12
 const EDGE_MARGIN = 20;
-const LAUNCHER_SIZE = 56; // h-14 w-14
+const LAUNCHER_SIZE = 64; // h-16 w-16
 const SNAP_STORAGE_KEY = "thy-cheat-code-snap-slot";
 
 function slotXY(slot: number): { x: number; y: number } {
@@ -328,43 +327,55 @@ export function AiChatWidget() {
           <div
             role="dialog"
             aria-label="Chat with Thy Cheat Code"
-            className="flex w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-primary/40 bg-black shadow-[0_8px_40px_rgba(0,0,0,0.7),0_0_24px_rgba(212,175,55,0.15)]"
-            style={{ height: "min(70vh, 560px)" }}
+            className="flex w-[min(92vw,380px)] flex-col overflow-hidden border-4 border-[#C9A84C] bg-black"
+            style={{
+              height: "min(70vh, 560px)",
+              boxShadow: "8px 8px 0 rgba(0,0,0,0.85), 8px 8px 0 2px rgba(201,168,76,0.35)",
+              imageRendering: "pixelated",
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-primary/25 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-primary/60 shadow-[0_0_12px_rgba(212,175,55,0.4)]">
-                  <AnimatedSharkIcon className="h-full w-full" />
+            <div className="border-b-4 border-[#C9A84C]/60 bg-gradient-to-r from-[#1a1405] to-black px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center border-2 border-[#C9A84C] bg-black"
+                    style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
+                  >
+                    <PixelSprite name="shark" pixel={3} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold"><CheatCodeName /></p>
+                    <p className="pixel-display mt-1.5 text-[8px] uppercase tracking-[0.2em] text-neutral-400">
+                      {creditCost
+                        ? `${creditCost} credit${creditCost === 1 ? "" : "s"}/msg`
+                        : "AI assistant"}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-primary"><CheatCodeName /> 🦈</p>
-                  <p className="text-[11px] text-neutral-400">
-                    {creditCost
-                      ? `AI assistant · ${creditCost} credit${creditCost === 1 ? "" : "s"}/message`
-                      : "AI assistant — ask me about the site"}
-                  </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      const pick = SURPRISE_PROMPTS[Math.floor(Math.random() * SURPRISE_PROMPTS.length)];
+                      send(pick);
+                    }}
+                    disabled={loading}
+                    aria-label="Surprise me with a random question"
+                    title="Surprise me 🎲"
+                    className="border-2 border-transparent p-1.5 text-[#C9A84C] transition hover:border-[#C9A84C]/60 hover:bg-[#C9A84C]/15 disabled:opacity-40"
+                  >
+                    <Dices className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setOpen(false)}
+                    aria-label="Close chat"
+                    className="border-2 border-transparent p-1.5 text-neutral-400 transition hover:border-white/40 hover:bg-white/10 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  const pick = SURPRISE_PROMPTS[Math.floor(Math.random() * SURPRISE_PROMPTS.length)];
-                  send(pick);
-                }}
-                disabled={loading}
-                aria-label="Surprise me with a random question"
-                title="Surprise me 🎲"
-                className="rounded-full p-1.5 text-primary/80 transition hover:bg-primary/15 hover:text-primary disabled:opacity-40"
-              >
-                <Dices className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="Close chat"
-                className="rounded-full p-1.5 text-neutral-400 transition hover:bg-white/10 hover:text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <PixelDivider count={16} align="left" className="mt-2.5" />
             </div>
 
             {/* Messages */}
@@ -372,16 +383,20 @@ export function AiChatWidget() {
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && (
-                    <div className="mr-2 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-primary/50">
-                      <AnimatedSharkIcon className="h-full w-full" />
+                    <div
+                      className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center border-2 border-[#C9A84C]/70 bg-black"
+                      style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
+                    >
+                      <PixelSprite name="shark" pixel={2} />
                     </div>
                   )}
                   <div
                     className={
                       m.role === "user"
-                        ? "max-w-[85%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-sm font-medium text-black"
-                        : "max-w-[85%] rounded-2xl rounded-bl-md border border-primary/25 bg-[#14100a] px-3.5 py-2.5 text-sm text-neutral-100"
+                        ? "max-w-[85%] border-2 border-[#8A6B1F] bg-[#C9A84C] px-3.5 py-2.5 text-sm font-medium text-black"
+                        : "max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-sm text-neutral-100"
                     }
+                    style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
                   >
                     {m.content}
                   </div>
@@ -389,10 +404,13 @@ export function AiChatWidget() {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-primary/25 bg-[#14100a] px-4 py-3">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:150ms]" />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:300ms]" />
+                  <div
+                    className="flex items-center gap-1.5 border-2 border-[#C9A84C]/40 bg-[#14100a] px-4 py-3"
+                    style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
+                  >
+                    <span className="h-2 w-2 animate-bounce bg-[#C9A84C]" />
+                    <span className="h-2 w-2 animate-bounce bg-[#C9A84C] [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-bounce bg-[#C9A84C] [animation-delay:300ms]" />
                   </div>
                 </div>
               )}
@@ -405,7 +423,8 @@ export function AiChatWidget() {
                   <button
                     key={q}
                     onClick={() => send(q)}
-                    className="rounded-full border border-primary/40 px-3 py-1.5 text-xs text-primary transition hover:bg-primary hover:text-black"
+                    className="pixel-display border-2 border-[#C9A84C]/60 px-2.5 py-2 text-[8px] uppercase tracking-[0.12em] text-[#C9A84C] transition hover:bg-[#C9A84C] hover:text-black"
+                    style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.8)" }}
                   >
                     {q}
                   </button>
@@ -414,7 +433,7 @@ export function AiChatWidget() {
             )}
 
             {/* Input */}
-            <div className="flex items-center gap-2 border-t border-primary/25 bg-[#0d0b06] p-3">
+            <div className="flex items-center gap-2 border-t-4 border-[#C9A84C]/60 bg-[#0d0b06] p-3">
               <input
                 ref={inputRef}
                 value={input}
@@ -423,13 +442,14 @@ export function AiChatWidget() {
                 placeholder="Ask about tools, credits, pricing…"
                 maxLength={2000}
                 aria-label="Chat message"
-                className="min-w-0 flex-1 rounded-full border border-white/10 bg-black px-4 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-primary/60 focus:outline-none"
+                className="min-w-0 flex-1 border-2 border-white/15 bg-black px-3 py-2.5 text-sm text-white placeholder:text-neutral-500 focus:border-[#C9A84C] focus:outline-none"
               />
               <button
                 onClick={() => send(input)}
                 disabled={loading || !input.trim()}
                 aria-label="Send message"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-black transition hover:brightness-110 disabled:opacity-40"
+                className="pixel-display flex h-10 w-10 shrink-0 items-center justify-center border-2 border-[#8A6B1F] bg-[#C9A84C] text-black transition hover:brightness-110 disabled:opacity-40"
+                style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.85)" }}
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>
@@ -446,20 +466,26 @@ export function AiChatWidget() {
           onPointerCancel={endDrag}
           aria-label={open ? "Close AI chat" : "Chat with Thy Cheat Code — drag to move"}
           title="Drag to move · click to chat"
-          className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 bg-black transition-shadow hover:scale-105 active:scale-95 ${
+          className={`relative flex h-16 w-16 items-center justify-center border-4 bg-black transition-transform hover:scale-105 active:scale-95 ${
             dragging
-              ? "cursor-grabbing border-primary shadow-[0_4px_28px_rgba(212,175,55,0.7)]"
-              : "cursor-grab border-primary/70 shadow-[0_4px_20px_rgba(212,175,55,0.45)]"
+              ? "cursor-grabbing border-[#F5DE8E]"
+              : "cursor-grab border-[#C9A84C]"
           }`}
-          style={{ touchAction: "none" }}
+          style={{
+            touchAction: "none",
+            boxShadow: dragging
+              ? "6px 6px 0 rgba(0,0,0,0.9), 0 0 0 2px rgba(245,222,142,0.5)"
+              : "5px 5px 0 rgba(0,0,0,0.9), 5px 5px 0 2px rgba(201,168,76,0.35)",
+            imageRendering: "pixelated",
+          }}
         >
           {open && !dragging ? (
-            <X className="h-6 w-6 text-primary" />
+            <X className="h-6 w-6 text-[#C9A84C]" />
           ) : (
-            <AnimatedSharkIcon className="h-full w-full" />
+            <PixelSprite name="shark" pixel={4} />
           )}
           {/* Drag hint grip, fades in on hover */}
-          <span className="pointer-events-none absolute bottom-0.5 left-1/2 -translate-x-1/2 text-primary/0 transition group-hover:text-primary/60">
+          <span className="pointer-events-none absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[#C9A84C]/0 transition group-hover:text-[#C9A84C]/60">
             <GripVertical className="h-3 w-3" />
           </span>
         </button>
