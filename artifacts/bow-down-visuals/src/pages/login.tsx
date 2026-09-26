@@ -104,11 +104,11 @@ export default function Login() {
       {/* Dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/60" />
       {/* Logo seated on the throne — absolute positioned over the chair */}
-      <div className="pointer-events-none absolute top-[4%] left-1/2 -translate-x-1/2 z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
+      <div className="pointer-events-none absolute top-[9%] left-1/2 -translate-x-1/2 z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
         <img
           src={`${import.meta.env.BASE_URL}logo-static.png`}
           alt="Bow Down Visuals"
-          className="h-24 md:h-28 w-auto drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)]"
+          className="h-28 md:h-36 w-auto drop-shadow-[0_10px_25px_rgba(0,0,0,0.9)]"
         />
       </div>
       <SideVideoBanners />
