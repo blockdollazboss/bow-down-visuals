@@ -2,7 +2,7 @@
  * Server-side caption font catalog.
  *
  * Mirrors artifacts/bow-down-visuals/src/lib/fonts.ts. The Dockerfile
- * downloads these TTFs into the image and refreshes fontconfig, so
+ * vendors these TTFs (docker/fonts/) into the image and refreshes fontconfig, so
  * libass can resolve `Fontname` to the same face the web preview shows.
  */
 export interface BundledFont {
