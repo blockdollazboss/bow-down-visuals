@@ -50,7 +50,3 @@ export function getSupabase(): SupabaseClient {
   return supabase;
 }
 
-/** @deprecated Use the exported \`supabase\` singleton or \`getSupabase()\`. */
-export function initSupabase(_url: string, _anonKey: string): SupabaseClient {
-  return getSupabase();
-}
