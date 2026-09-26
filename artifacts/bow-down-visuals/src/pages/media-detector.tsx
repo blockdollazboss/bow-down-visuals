@@ -443,7 +443,7 @@ export default function MediaDetector() {
           </div>
         )}
 
-        <OutOfCredits user={user} />
+        <OutOfCredits />
       </main>
       <SiteFooter />
     </div>

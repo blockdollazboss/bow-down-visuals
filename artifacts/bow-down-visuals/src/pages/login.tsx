@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
-import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
+import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
+import { OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,11 @@ const schema = z.object({
 
 export default function Login() {
   usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
-  const { signIn, signInWithGoogle, user, loading: authLoading } = useAuth();
+  const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -59,15 +60,15 @@ export default function Login() {
     }
   }
 
-  async function onGoogleSignIn() {
-    setGoogleLoading(true);
+  async function onSocialSignIn(provider: SocialProvider) {
+    setSocialLoading(provider);
     setError(null);
-    /* On success the browser leaves for Google's consent screen, so this
-     * only resolves when something failed before the redirect. */
-    const { error } = await signInWithGoogle();
+    /* On success the browser leaves for the provider's consent screen, so
+     * this only resolves when something failed before the redirect. */
+    const { error } = await signInWithProvider(provider);
     if (error) {
       setError(error);
-      setGoogleLoading(false);
+      setSocialLoading(null);
     }
   }
 
@@ -105,10 +106,10 @@ export default function Login() {
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
-          <GoogleSignInButton
-            onClick={onGoogleSignIn}
-            loading={googleLoading}
-            label="Continue with Google"
+          <SocialSignInButtons
+            onSignIn={onSocialSignIn}
+            loadingProvider={socialLoading}
+            mode="signin"
           />
           <OrDivider />
 
