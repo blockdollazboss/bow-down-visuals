@@ -3,7 +3,7 @@
  *
  * Covers:
  * - pricing constants (AI 1 credit, packaging 10 credits, env-overridable)
- * - platform list integrity (8 platforms, every key has a label)
+ * - platform list integrity (9 platforms, every key has a label)
  * - the v1 honesty contract: RELEASE_STATUSES has no "delivered" status,
  *   and the route source uses max_completion_tokens (GPT-6 rejects max_tokens)
  * - release CRUD with real DB semantics via pg-mem: auth scoping,
@@ -233,8 +233,8 @@ describe("pricing constants", () => {
 });
 
 describe("platform list", () => {
-  it("covers 8 platforms with a label for each", () => {
-    expect(DISTRIBUTION_PLATFORMS).toHaveLength(8);
+  it("covers 9 platforms with a label for each", () => {
+    expect(DISTRIBUTION_PLATFORMS).toHaveLength(9);
     for (const key of DISTRIBUTION_PLATFORMS) {
       expect(PLATFORM_LABEL[key]).toBeTruthy();
     }

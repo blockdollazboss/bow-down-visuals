@@ -98,6 +98,9 @@ CREATE TABLE shops (
   banner_color text NOT NULL DEFAULT '#0a0a0a',
   accent_color text NOT NULL DEFAULT '#d4af37',
   banner_image_url text,
+  custom_domain text,
+  domain_verified boolean NOT NULL DEFAULT FALSE,
+  domain_verification_token text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
