@@ -65,3 +65,68 @@ export const insertDiscordStreamSchema = createInsertSchema(discordStreamsTable)
 });
 export type InsertDiscordStream = z.infer<typeof insertDiscordStreamSchema>;
 export type DiscordStream = typeof discordStreamsTable.$inferSelect;
+
+/* Discord Live Companion Bot (Phase 1).
+   A discord.js bot service (artifacts/discord-bot) watches the user's
+   server for Go Live (VOICE_STATE_UPDATE with self_stream) and automates
+   everything around the stream: announcements, watch-party threads, recaps.
+   This config table holds the per-user wiring between the site and the bot;
+   the bot authenticates to the API with DISCORD_BOT_SHARED_SECRET. */
+export const discordBotConfigTable = pgTable(
+  "discord_bot_config",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: uuid("user_id").notNull().unique(),
+    /* The Discord server (guild) the bot is installed on. */
+    guild_id: text("guild_id"),
+    /* Channel ID where LIVE announcements are posted. */
+    announce_channel_id: text("announce_channel_id"),
+    /* Role ID pinged on go-live (optional; falls back to @everyone if set). */
+    announce_role_id: text("announce_role_id"),
+    mention_everyone: boolean("mention_everyone").notNull().default(false),
+    /* The streamer's Discord user ID — the bot only announces for this user. */
+    streamer_discord_user_id: text("streamer_discord_user_id"),
+    /* Streamer's Discord username, for display ("name#discrim" or @handle). */
+    streamer_discord_username: text("streamer_discord_username"),
+    enabled: boolean("enabled").notNull().default(true),
+    created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("discord_bot_config_user_id_idx").on(t.user_id)],
+);
+
+export const insertDiscordBotConfigSchema = createInsertSchema(discordBotConfigTable).omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+});
+export type InsertDiscordBotConfig = z.infer<typeof insertDiscordBotConfigSchema>;
+export type DiscordBotConfig = typeof discordBotConfigTable.$inferSelect;
+
+/* Live state, written by the bot service (POST /discord-bot/live) and read
+   by the site (GET /discord-bot/live) to render the LIVE badge. One row per
+   user; upserted on every transition. */
+export const discordLiveStateTable = pgTable(
+  "discord_live_state",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    user_id: uuid("user_id").notNull().unique(),
+    is_live: boolean("is_live").notNull().default(false),
+    started_at: timestamp("started_at", { withTimezone: true }),
+    ended_at: timestamp("ended_at", { withTimezone: true }),
+    channel_id: text("channel_id"),
+    channel_name: text("channel_name"),
+    stream_title: text("stream_title"),
+    announcement_message_id: text("announcement_message_id"),
+    thread_id: text("thread_id"),
+    updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("discord_live_state_user_id_idx").on(t.user_id)],
+);
+
+export const insertDiscordLiveStateSchema = createInsertSchema(discordLiveStateTable).omit({
+  id: true,
+  updated_at: true,
+});
+export type InsertDiscordLiveState = z.infer<typeof insertDiscordLiveStateSchema>;
+export type DiscordLiveState = typeof discordLiveStateTable.$inferSelect;

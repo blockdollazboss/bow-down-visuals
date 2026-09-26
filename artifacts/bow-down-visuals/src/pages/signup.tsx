@@ -69,6 +69,7 @@ export default function Signup() {
     }
   }
 
+
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
