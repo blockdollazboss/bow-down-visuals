@@ -4,7 +4,6 @@ import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon } from 
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { platformLabel } from "@/lib/distribution";
-import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
    No auth required — this page is meant to be shared with fans. It reads
@@ -105,7 +104,7 @@ export default function PresaveLanding() {
               </div>
             )}
             <p className="mt-8 text-xs text-white/30">
-              Released with <CheatCodeName /> — the content creator cheat code.
+              Released with Thy Cheat Code — the content creator cheat code.
             </p>
           </div>
         )}

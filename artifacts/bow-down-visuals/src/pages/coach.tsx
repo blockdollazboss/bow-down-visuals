@@ -10,7 +10,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
@@ -194,15 +193,11 @@ export default function MonetizationCoach() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <DollarSign className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
+            <DollarSign className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
           </p>
-          <div className="flex justify-center mb-5">
-            <PixelSprite name="coin" pixel={6} />
-          </div>
-          <PixelHeadline size="page" align="center">
-            Monetization Coach
-          </PixelHeadline>
-          <PixelDivider align="center" className="mt-5" />
+          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
+            Monetization <span className="text-primary">Coach</span>
+          </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             The money end of the creator loop: where you stand on every
             monetization program, what your niche actually pays, and your
@@ -466,7 +461,7 @@ export default function MonetizationCoach() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Plan in hand? Ask{" "}
-          <CheatCodeName /> 🦈{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
           in the chat bubble to turn your money moves into this week's content.
         </p>
       </main>

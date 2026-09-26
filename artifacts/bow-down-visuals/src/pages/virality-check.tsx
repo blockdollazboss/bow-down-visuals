@@ -9,7 +9,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -274,15 +273,11 @@ export default function ViralityCheck() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Gauge className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
+            <Gauge className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
           </p>
-          <div className="flex justify-center mb-5">
-            <PixelSprite name="bolt" pixel={6} />
-          </div>
-          <PixelHeadline size="page" align="center">
-            Virality Pre-Flight Check
-          </PixelHeadline>
-          <PixelDivider align="center" className="mt-5" />
+          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
+            Virality <span className="text-primary">Pre-Flight Check</span>
+          </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             A brutally honest readiness scorecard for your post — before you ship
             it. Not a virality guarantee: no AI can predict what blows up.
@@ -515,7 +510,7 @@ export default function ViralityCheck() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Need fresh hooks first? Ask{" "}
-          <CheatCodeName /> 🦈{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
           in the chat bubble — or open{" "}
           <Link href="/hooks" className="font-semibold text-primary hover:underline">
             Hook Studio

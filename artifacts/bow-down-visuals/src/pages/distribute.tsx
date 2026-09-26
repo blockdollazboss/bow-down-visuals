@@ -25,7 +25,6 @@ import {
   type DistributionTier,
   type RoyaltySplit,
 } from "@/lib/distribution";
-import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Music Distribution hub ───────────────────────────────
    DistroKid-style release dashboard at /distribute.
@@ -1557,7 +1556,7 @@ export default function Distribute() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Disc3 className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> distribution hub
+            <Disc3 className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's distribution hub
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Music <span className="text-primary">Distribution</span>

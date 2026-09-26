@@ -9,7 +9,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Release Checklist ─────────────────────────────────────────────────
@@ -247,7 +246,7 @@ export default function ReleaseChecklist() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Rocket className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> release tools
+            <Rocket className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's release tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Release <span className="text-primary">Checklist</span>

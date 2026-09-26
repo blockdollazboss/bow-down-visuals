@@ -9,7 +9,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Content Randomizer ─────────────────────────────────
@@ -253,7 +252,7 @@ export default function Randomizer() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Dices className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> dice
+            <Dices className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's dice
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Content <span className="text-primary">Randomizer</span>
@@ -400,7 +399,7 @@ export default function Randomizer() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Like an idea? Ask{" "}
-          <CheatCodeName /> 🦈{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
           in the chat bubble to turn it into a full plan.
         </p>
       </main>
