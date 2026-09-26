@@ -5,28 +5,18 @@ FROM node:22-slim
 
 # ffmpeg + ffprobe: the export pipeline shells out to both (prepare step
 # probes clip duration/resolution/codec; the render step runs ffmpeg).
-# fontconfig + curl: caption burn-in uses libass, which resolves ASS
+# fontconfig: caption burn-in uses libass, which resolves ASS
 # Fontname through fontconfig. The caption font library (see
-# artifacts/api-server/src/lib/fonts.ts) is downloaded here so the
-# exported video uses the exact same faces as the web preview.
+# artifacts/api-server/src/lib/fonts.ts) is vendored in docker/fonts/
+# (all OFL-licensed) and copied here so the exported video uses the
+# exact same faces as the web preview. Vendored instead of downloaded:
+# upstream google/fonts removed the luckiestguy and permanentmarker
+# directories, and their 404s broke production Docker builds on 2026-09-25.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig curl \
-  && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /usr/share/fonts/bdv \
-  && cd /usr/share/fonts/bdv \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/alfaslabone/AlfaSlabOne-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf \
-  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/barlowcondensed/BarlowCondensed-Bold.ttf" \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/bungee/Bungee-Regular.ttf \
-  && curl -fsSL -O "https://github.com/google/fonts/raw/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf" \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/luckiestguy/LuckiestGuy-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/permanentmarker/PermanentMarker-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-Bold.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/righteous/Righteous-Regular.ttf \
-  && curl -fsSL -O https://github.com/google/fonts/raw/main/ofl/titanone/TitanOne-Regular.ttf \
-  && fc-cache -f /usr/share/fonts/bdv \
+  && apt-get install -y --no-install-recommends ca-certificates ffmpeg fontconfig \
+  && rm -rf /var/lib/apt/lists/*
+COPY docker/fonts/*.ttf /usr/share/fonts/bdv/
+RUN fc-cache -f /usr/share/fonts/bdv \
   && echo "caption fonts installed: $(fc-list /usr/share/fonts/bdv file 2>/dev/null | wc -l)"
 
 # Demucs (Meta vocal separation) in an isolated venv, CPU-only torch.
