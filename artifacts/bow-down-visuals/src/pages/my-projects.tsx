@@ -23,6 +23,16 @@ function isVideoProject(projectType: string): boolean {
   return projectType === "Make a Music Video" || projectType === "Make Song + Video";
 }
 
+/* Display names for project types — stored values stay stable so old
+   projects keep working; only what the user sees changes. */
+const TYPE_DISPLAY_NAMES: Record<string, string> = {
+  "Make Song + Video": "Song + Video from Scratch",
+  "Make a Music Video": "Video for My Song",
+};
+function displayProjectType(projectType: string): string {
+  return TYPE_DISPLAY_NAMES[projectType] ?? projectType;
+}
+
 interface ExportRecord {
   final_video_url: string;
   export_status: string;
@@ -188,7 +198,7 @@ function ResultModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
           <div>
             <p className="text-xs text-primary font-bold uppercase tracking-widest mb-0.5">
-              {project.project_type}
+              {displayProjectType(project.project_type)}
             </p>
             <h2 className="text-lg font-black text-white">{project.title}</h2>
           </div>
@@ -331,7 +341,7 @@ function ProjectCard({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className={iconColor}>{icon}</span>
-              <span className="text-xs font-semibold text-white/40">{project.project_type}</span>
+              <span className="text-xs font-semibold text-white/40">{displayProjectType(project.project_type)}</span>
               <span className="text-white/15 text-xs">·</span>
               <span className="text-xs text-white/30">{date}</span>
               {project.credits_used > 0 && (
@@ -432,8 +442,8 @@ interface ClipRow {
 }
 
 const WORKFLOW_LABELS: Record<string, string> = {
-  "make-video":    "Make a Music Video",
-  "song-and-video": "Make Song + Video",
+  "make-video":    "Video for My Song",
+  "song-and-video": "Song + Video from Scratch",
 };
 const WORKFLOW_PATHS: Record<string, string> = {
   "make-video":    "/make-video",
@@ -881,7 +891,7 @@ export default function MyProjects() {
                 </p>
               </div>
               <Link href="/make-video">
-                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> Make a Music Video</Button>
+                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> Video for My Song</Button>
               </Link>
             </div>
           ) : (
