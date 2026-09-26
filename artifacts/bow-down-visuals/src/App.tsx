@@ -90,6 +90,7 @@ const Merch = lazyWithRetry(() => import("@/pages/merch"));
 const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
 const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
+const Movies = lazyWithRetry(() => import("@/pages/movies"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
@@ -334,6 +335,7 @@ function AppShell() {
                 <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
+                <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
                 <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
