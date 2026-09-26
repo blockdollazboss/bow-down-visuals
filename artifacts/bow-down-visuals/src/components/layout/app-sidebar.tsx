@@ -35,7 +35,8 @@ import {
   ChevronsLeft,
   Library,
   Radio,
-  GraduationCap
+  GraduationCap,
+  BookOpen
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
@@ -80,6 +81,7 @@ export function AppSidebar() {
     { href: "/my-clips", label: "My Clips", icon: Library },
     { href: "/go-live", label: "Go Live", icon: Radio },
     { href: "/academy", label: "Creator Academy", icon: GraduationCap },
+    { href: "/guides", label: "Guides & Services", icon: BookOpen },
     { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
     { href: "/thumbnail-maker", label: "AI Thumbnail Generator", icon: Sparkles },
     { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
