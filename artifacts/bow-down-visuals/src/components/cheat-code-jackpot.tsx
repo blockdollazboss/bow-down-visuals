@@ -353,7 +353,7 @@ export function CheatCodeJackpot() {
   }, []);
 
   const phase = status?.phase ?? "none";
-  const showBanner = !dismissed && status !== null && phase !== "none";
+  const showBanner = !dismissed && status !== null;
   const codeLength = status?.codeLength ?? 10;
 
   const bannerBody = (() => {
@@ -388,8 +388,14 @@ export function CheatCodeJackpot() {
           sub: "A new secret code is on the way",
           accent: false,
         };
+      case "none":
       default:
-        return null;
+        return {
+          icon: "🎰",
+          title: "Cheat Code Jackpot — coming soon",
+          sub: "One secret code for the whole site. One winner takes the credits.",
+          accent: false,
+        };
     }
   })();
 
