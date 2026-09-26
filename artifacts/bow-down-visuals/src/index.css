@@ -1094,7 +1094,18 @@ html[data-user-mode="advanced"] .simple-only {
   to   { opacity: 1; }
 }
 
+/* ─── Thy Cheat Code avatar — King Shark swim ─── */
+@keyframes shark-swim {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg) scale(1.1); }
+  50%      { transform: translateY(-4px) rotate(1.5deg) scale(1.13); }
+}
+.animate-shark-swim {
+  animation: shark-swim 4s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .guideme-ring { animation: guideme-fade 0.25s ease-out; }
   .guideme-fab.animate-bounce { animation: none; }
+  .animate-shark-swim { animation: none; }
 }

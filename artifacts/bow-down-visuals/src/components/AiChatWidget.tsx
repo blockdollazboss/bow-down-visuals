@@ -345,7 +345,7 @@ export function AiChatWidget() {
                     <img
                       src="/cheat-code-avatar.webp"
                       alt="Thy Cheat Code avatar"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover animate-shark-swim"
                       draggable={false}
                     />
                   </div>
@@ -395,7 +395,7 @@ export function AiChatWidget() {
                       <img
                         src="/cheat-code-avatar.webp"
                         alt="Thy Cheat Code"
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover animate-shark-swim"
                         draggable={false}
                       />
                     </div>
@@ -495,7 +495,7 @@ export function AiChatWidget() {
             <img
               src="/cheat-code-avatar.webp"
               alt="Chat with Thy Cheat Code"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover animate-shark-swim"
               draggable={false}
             />
           )}
