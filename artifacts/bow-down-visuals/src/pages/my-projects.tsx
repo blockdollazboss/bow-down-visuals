@@ -26,7 +26,7 @@ function isVideoProject(projectType: string): boolean {
 /* Display names for project types — stored values stay stable so old
    projects keep working; only what the user sees changes. */
 const TYPE_DISPLAY_NAMES: Record<string, string> = {
-  "Make Song + Video": "Song + Video from Scratch",
+  "Make Song + Video": "Start from Scratch",
   "Make a Music Video": "Video for My Song",
 };
 function displayProjectType(projectType: string): string {
@@ -443,7 +443,7 @@ interface ClipRow {
 
 const WORKFLOW_LABELS: Record<string, string> = {
   "make-video":    "Video for My Song",
-  "song-and-video": "Song + Video from Scratch",
+  "song-and-video": "Start from Scratch",
 };
 const WORKFLOW_PATHS: Record<string, string> = {
   "make-video":    "/make-video",

@@ -30,7 +30,7 @@ const BENEFITS = [
 const TOOLS = [
   { label: "Make a Song",        icon: Music,     badge: null },
   { label: "Video for My Song", icon: Video,     badge: null },
-  { label: "Song + Video from Scratch",  icon: Mic2,      badge: "Most Popular" },
+  { label: "Start from Scratch",  icon: Mic2,      badge: "Most Popular" },
   { label: "Promo Clip Maker",   icon: Film,      badge: null },
   { label: "Thumbnail Maker",    icon: ImageIcon, badge: null },
   { label: "Artist Profiles",       icon: Archive,   badge: "Free" },
