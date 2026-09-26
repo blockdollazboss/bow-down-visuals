@@ -59,6 +59,7 @@ import {
   Captions,
   Disc3,
   AudioWaveform,
+  Waves,
   Languages,
   Type,
   CalendarDays,
@@ -253,6 +254,7 @@ const SECTIONS: NavSection[] = [
     links: [
       { href: "/upscale", label: "Upscale", icon: Maximize },
       { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
+      { href: "/audio-cleanup", label: "Audio Cleanup", icon: Waves },
       { href: "/vocal-removal", label: "Vocal Removal", icon: MicOff },
       { href: "/stems", label: "Stem Splitter", icon: Split },
       { href: "/mastering", label: "AI Mastering", icon: SlidersHorizontal },

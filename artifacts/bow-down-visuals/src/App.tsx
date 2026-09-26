@@ -74,6 +74,7 @@ const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const AudioCleanup = lazyWithRetry(() => import("@/pages/audio-cleanup"));
 const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
@@ -295,6 +296,7 @@ function AppShell() {
           <Route path="/tips"><Tips /></Route>
           <Route path="/tips/:handle"><TipPage /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/audio-cleanup"><AudioCleanup /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Analytics /></Route>
           <Route path="/import"><MediaImport /></Route>
