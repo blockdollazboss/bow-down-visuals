@@ -162,7 +162,19 @@ export function ThyCheatCodeChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!open) return null;
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Chat with Thy Cheat Code"
+        title="Chat with Thy Cheat Code"
+        className="fixed bottom-5 right-5 z-[9990] flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#C9A84C] bg-black/90 text-2xl shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
+      >
+        <span aria-hidden="true">🦈</span>
+      </button>
+    );
+  }
 
   return (
     <>
