@@ -97,7 +97,7 @@ export default function Login() {
       <div
         className="pointer-events-none absolute inset-0 bg-cover"
         style={{
-          backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)`,
+          backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-shark-bg.webp)`,
           backgroundPosition: "center 20%",
         }}
       />
