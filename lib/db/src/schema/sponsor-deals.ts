@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 /* Sponsor marketplace — brands post paid deals, creators apply with a pitch.
  * Bow Down Visuals takes a 15% cut of every released deal (escrow flow).
  * Must stay in sync with lib/db/migrations/0010_sponsor_deals.sql and
- * lib/db/migrations/0029_sponsor_escrow.sql
+ * lib/db/migrations/0033_sponsor_escrow.sql
  * (boot-time `drizzle-kit push` derives the same shape from this schema).
  *
  * Deal lifecycle:  active → funded → in_progress → completed → paid
