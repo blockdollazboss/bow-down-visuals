@@ -11,9 +11,7 @@ import {
   Music,
   Video,
   Film,
-  Image as ImageIcon,
   Mic2,
-  Archive,
   ChevronDown,
   ChevronRight,
   Zap,
@@ -26,6 +24,20 @@ import {
   Globe,
   Lock,
   AlertCircle,
+  Copy,
+  Check,
+  KeyRound,
+  Crown,
+  Handshake,
+  Shirt,
+  AudioLines,
+  Clapperboard,
+  Megaphone,
+  CalendarCheck,
+  DollarSign,
+  Scissors,
+  BadgeDollarSign,
+  Rocket,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -34,37 +46,37 @@ import { usePageTitle } from "@/hooks/use-page-title";
 const STEPS = [
   {
     number: "01",
-    title: "Describe Your Vision",
-    body: "Enter your artist name, genre, mood, and song concept. The more detail you give, the better your output.",
+    title: "Lock In Your Artist",
+    body: "Your vault holds your sound, look, and voice — every generation comes out unmistakably you.",
     icon: Target,
   },
   {
     number: "02",
-    title: "Generate in Seconds",
-    body: "Our AI creates professional-grade lyrics, video treatments, and promo content instantly — no waiting.",
+    title: "Generate The Impossible",
+    body: "Songs, videos, promo, branding — full AI generations in seconds, for a few credits. No team, no waiting.",
     icon: Zap,
   },
   {
     number: "03",
-    title: "Ship Your Release",
-    body: "Copy, refine, and publish your content across all platforms. From studio to street in minutes.",
+    title: "Release Like A Label",
+    body: "Schedule the rollout, pitch sponsors, drop merch. The business end, handled — while you create.",
     icon: Globe,
   },
 ];
 
 const OUTPUT_TYPES = [
-  "Song Lyrics & Hooks",
-  "Music Video Treatments",
-  "Scene-by-Scene Prompts",
-  "Social Media Captions",
-  "Thumbnail Concepts",
-  "Promo Clip Scripts",
-  "Artist Brand Copy",
-  "Release Strategies",
-  "Hook & Chorus Ideas",
-  "Director's Notes",
-  "Platform Rollout Plans",
-  "Cover Art Concepts",
+  "Full songs — audio included",
+  "Cinematic music videos",
+  "Lyric videos",
+  "Promo clips",
+  "Thumbnails",
+  "Cover art",
+  "AI voiceovers",
+  "Lip-synced performances",
+  "4K upscales",
+  "Merch mockups",
+  "Press kits",
+  "Sponsor pitches",
 ];
 
 const CREATOR_TYPES = [
@@ -100,61 +112,132 @@ const CREATOR_TYPES = [
   },
 ];
 
-const TOOLS = [
+/* Studio showcase — 4 categories × 3 cards. Every cost and route verified
+   against credit-costs.ts and App.tsx. */
+const STUDIO = [
   {
-    title: "Make a Song",
-    description:
-      "Generate full lyrics, hooks, verse structure, and song notes tailored to your genre and mood.",
-    icon: Music,
-    cost: "1 credit",
-    href: "/make-song",
-    featured: false,
+    category: "Create",
+    tagline: "The music",
+    icon: Sparkles,
+    tools: [
+      {
+        title: "Make a Song",
+        description: "Full songs — lyrics, melody, and production in minutes.",
+        icon: Music,
+        cost: "4 cr",
+        href: "/make-song",
+        featured: false,
+      },
+      {
+        title: "Make a Music Video",
+        description: "Cinematic AI scenes built for your track.",
+        icon: Clapperboard,
+        cost: "4 cr",
+        href: "/make-video",
+        featured: false,
+      },
+      {
+        title: "Song + Video",
+        description: "The full package — song and video in one flow.",
+        icon: Mic2,
+        cost: "4 cr",
+        href: "/song-and-video",
+        featured: true,
+      },
+    ],
   },
   {
-    title: "Make a Music Video",
-    description:
-      "Create a complete scene-by-scene treatment with visual direction, location ideas, and shot notes.",
-    icon: Video,
-    cost: "1 credit",
-    href: "/make-video",
-    featured: false,
+    category: "Craft",
+    tagline: "The polish",
+    icon: Scissors,
+    tools: [
+      {
+        title: "Video Editor",
+        description: "Cut, caption, and grade — with lip sync built in.",
+        icon: Scissors,
+        cost: "Lip sync 3 cr",
+        href: "/video-editor",
+        featured: false,
+      },
+      {
+        title: "AI Voiceover",
+        description: "Studio-quality narration in any voice.",
+        icon: AudioLines,
+        cost: "2 cr/min",
+        href: "/voiceover",
+        featured: false,
+      },
+      {
+        title: "Upscale",
+        description: "Honest 1080p and 4K upscaling. No fake “enhance”.",
+        icon: Rocket,
+        cost: "3 cr",
+        href: "/upscale",
+        featured: false,
+      },
+    ],
   },
   {
-    title: "Make Song + Video",
-    description:
-      "The full package — lyrics, music prompt, video treatment, and promo content generated together.",
-    icon: Mic2,
-    cost: "2 credits",
-    href: "/song-and-video",
-    featured: true,
+    category: "Promote",
+    tagline: "The rollout",
+    icon: Megaphone,
+    tools: [
+      {
+        title: "Promo Clips",
+        description: "Scroll-stopping clips for TikTok, Reels, and Shorts.",
+        icon: Film,
+        cost: "4 cr",
+        href: "/promo-clip",
+        featured: false,
+      },
+      {
+        title: "Hook Studio",
+        description: "First-3-second hooks plus a virality pre-flight check.",
+        icon: Zap,
+        cost: "1 cr",
+        href: "/hooks",
+        featured: false,
+      },
+      {
+        title: "Scheduler",
+        description: "Auto-post to Instagram, TikTok, and Facebook.",
+        icon: CalendarCheck,
+        cost: "1 cr/post",
+        href: "/scheduler",
+        featured: false,
+      },
+    ],
   },
   {
-    title: "Promo Clip Maker",
-    description:
-      "Plan your social media rollout with teaser scripts, release captions, and platform-specific hooks.",
-    icon: Film,
-    cost: "1 credit",
-    href: "/promo-clip",
-    featured: false,
-  },
-  {
-    title: "Thumbnail Maker",
-    description:
-      "Generate compelling cover art concepts and thumbnail ideas that grab attention on every platform.",
-    icon: ImageIcon,
-    cost: "1 credit",
-    href: "/thumbnail",
-    featured: false,
-  },
-  {
-    title: "Artist Profiles",
-    description:
-      "Save your artist profile, style rules, and brand colors so every generation is on-brand automatically.",
-    icon: Archive,
-    cost: "Coming soon",
-    href: "#",
-    featured: false,
-    comingSoon: true,
+    category: "Get Paid",
+    tagline: "The business",
+    icon: BadgeDollarSign,
+    tools: [
+      {
+        title: "Monetization Coach",
+        description: "Your 30-day money plan, platform by platform.",
+        icon: DollarSign,
+        cost: "1 cr",
+        href: "/coach",
+        featured: false,
+      },
+      {
+        title: "Sponsor Match",
+        description: "AI-matched brand deals, plus pitches that close.",
+        icon: Handshake,
+        cost: "1 cr",
+        href: "/sponsors",
+        featured: false,
+      },
+      {
+        title: "Merch Designer",
+        description: "AI merch mockups — dropship-ready.",
+        icon: Shirt,
+        cost: "3 cr",
+        href: "/merch",
+        featured: false,
+      },
+    ],
   },
 ];
 
@@ -192,27 +275,31 @@ const CREDIT_PACKS = [
 const FAQS = [
   {
     q: "What is Bow Down Visuals?",
-    a: "Bow Down Visuals is an AI-powered creative studio built for music creators. It helps you generate song lyrics, music video treatments, promo content, thumbnails, and more — so you can move faster from idea to release.",
-  },
-  {
-    q: "Do I need music production experience?",
-    a: "Not at all. You just describe your vision — genre, mood, artist style, concept — and the AI handles the rest. It's built for artists, managers, directors, and everyone in between.",
+    a: "The AI studio for music creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one credit system, no team required.",
   },
   {
     q: "How do credits work?",
-    a: "Every new account gets 3 free credits to start. Each tool costs 1–2 credits per generation. The Song + Video combo costs 2 credits since it generates both song and video content together.",
+    a: "Credits are the fuel. You buy them in packs starting at $9, and every AI generation spends a few — a full song is 4 credits, a music video is 4, a hook idea is 1. Browsing, editing, and viewing are always free. Payments are in test mode right now, so nothing real is charged.",
   },
   {
-    q: "Can I use the generated content commercially?",
-    a: "Yes. The content you generate belongs to you. Use it for your songs, music videos, social media, press kits, and anywhere else in your creative workflow.",
+    q: "What does a full release cost?",
+    a: "A song (4 cr) + a music video (4 cr) + promo clips (4 cr) + a hook pack (1 cr) = 13 credits. The entire release pipeline — song to promo — for less than the cost of one pack.",
   },
   {
-    q: "What platforms is the content optimized for?",
-    a: "Promo clips and captions are optimized for YouTube, Instagram, TikTok, X (Twitter), and SoundCloud. You choose the platform when you generate, and the AI tailors the output accordingly.",
+    q: "Do I need experience to use it?",
+    a: "No. Describe your vision in plain words — genre, mood, artist, idea — and the studio handles the craft. Advanced controls are there when you want them, never in your way when you don't.",
   },
   {
-    q: "When is paid access launching?",
-    a: "We're currently in early access. Join the waitlist to be first in line when our paid plans go live — waitlist members get priority access and early pricing.",
+    q: "Can I use what I generate commercially?",
+    a: "Yes. Songs, videos, artwork, copy — what you generate is yours to release, sell, and promote anywhere.",
+  },
+  {
+    q: "Is the site fully launched?",
+    a: "We're in beta and shipping constantly — new tools land all the time. Payments are in test mode while we polish, so explore the studio freely.",
+  },
+  {
+    q: "Why “cheat code”?",
+    a: "Because it feels like one. Your competitors will think you hired a team. You didn't — you just got here first.",
   },
 ];
 
@@ -223,11 +310,11 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "AI-powered creative studio for music creators — generate song lyrics, music video treatments, promo clip scripts, and thumbnail concepts in seconds.",
+    "Bow Down Visuals — the AI studio for music creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple credit pricing.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "USD",
-    lowPrice: "0",
+    lowPrice: "9",
     highPrice: "249",
     offerCount: "4",
   },
@@ -238,14 +325,20 @@ const HOME_FAQ_JSON_LD = buildFaqJsonLd(FAQS.map((f) => ({ q: f.q, a: f.a })));
 /* ──────────────────── Capability ticker ──────────────────── */
 
 const TICKER_ITEMS = [
-  "Lyrics in seconds",
-  "Full video treatments",
+  "Full songs in minutes",
+  "Cinematic music videos",
+  "Lip sync that actually syncs",
+  "AI voiceovers",
+  "Lyric videos",
   "Promo clips on demand",
-  "Thumbnails that stop the scroll",
-  "Captions for every platform",
-  "Release strategies",
-  "Scene-by-scene prompts",
-  "Hooks & chorus ideas",
+  "Hooks that stop the scroll",
+  "Auto-post to IG · TikTok · FB",
+  "Thumbnails & cover art",
+  "4K upscaling",
+  "Sponsor matching",
+  "Merch mockups",
+  "Press kits in minutes",
+  "Your 30-day money plan",
 ];
 
 function CheatCodeTicker() {
@@ -277,9 +370,154 @@ function SectionDivider() {
   );
 }
 
+/* ──────────────────── Share row ──────────────────── */
+
+const SHARE_TEXT = "The content creator's cheat code — songs, videos & promo in seconds";
+const SHARE_URL = "https://bowdownvisuals.com/";
+
+function XIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
+
+function ShareRow({ label = "Spread the code" }: { label?: string }) {
+  const [copied, setCopied] = useState(false);
+  const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
+  const fbHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${SHARE_TEXT} ${SHARE_URL}`);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = `${SHARE_TEXT} ${SHARE_URL}`;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  const btn =
+    "flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-white/50 transition-all duration-200 hover:border-primary/50 hover:text-primary hover:bg-primary/10";
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/35">{label}</span>
+      <a href={xHref} target="_blank" rel="noopener noreferrer" aria-label="Share on X" className={btn}>
+        <XIcon className="h-3.5 w-3.5" />
+      </a>
+      <a href={fbHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook" className={btn}>
+        <FacebookIcon className="h-3.5 w-3.5" />
+      </a>
+      <button onClick={copyLink} aria-label="Copy link" className={btn}>
+        {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+      {copied && <span className="text-xs font-medium text-primary">Copied</span>}
+    </div>
+  );
+}
+
+/* ──────────────────── Konami easter egg ──────────────────── */
+
+const KONAMI = [
+  "arrowup", "arrowup", "arrowdown", "arrowdown",
+  "arrowleft", "arrowright", "arrowleft", "arrowright", "b", "a",
+];
+
+function KonamiEgg() {
+  const [fired, setFired] = useState(false);
+  const pos = useRef(0);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+      const k = e.key.toLowerCase();
+      if (k === KONAMI[pos.current]) {
+        pos.current += 1;
+        if (pos.current === KONAMI.length) {
+          pos.current = 0;
+          setFired(true);
+        }
+      } else {
+        pos.current = k === KONAMI[0] ? 1 : 0;
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  if (!fired) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/92 p-5 backdrop-blur-sm"
+      onClick={() => setFired(false)}
+      role="dialog"
+      aria-label="Cheat code accepted"
+    >
+      <style>{`
+        @keyframes konami-flash { 0% { opacity: 0; transform: scale(0.92); } 18% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
+        @keyframes konami-glow { 0%, 100% { box-shadow: 0 0 40px rgba(212,175,55,0.35), 0 0 120px rgba(212,175,55,0.15); } 50% { box-shadow: 0 0 70px rgba(212,175,55,0.6), 0 0 160px rgba(212,175,55,0.25); } }
+        @media (prefers-reduced-motion: reduce) { .konami-anim { animation: none !important; } }
+      `}</style>
+      <div
+        className="konami-anim relative max-w-md rounded-[2rem] border border-primary/40 bg-gradient-to-b from-yellow-950/40 to-black p-10 text-center"
+        style={{ animation: "konami-flash 0.5s ease-out, konami-glow 2.4s ease-in-out infinite" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src="/cheat-code-avatar.webp"
+          alt="Thy Cheat Code — the Shark King"
+          className="mx-auto mb-6 h-32 w-32 rounded-full border-2 border-primary object-cover"
+        />
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.3em] text-primary">
+          Cheat code accepted
+        </p>
+        <h3 className="mb-3 font-display text-3xl italic text-white">
+          You were always one of us.
+        </h3>
+        <p className="mb-8 text-sm leading-relaxed text-white/55">
+          Up, up, down, down — the oldest code in the book, and you knew it.
+          Welcome to the unfair advantage.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link href="/signup">
+            <Button variant="luxury" className="w-full sm:w-auto gap-2">
+              <KeyRound className="h-4 w-4" /> Claim your access
+            </Button>
+          </Link>
+          <Button variant="outline" onClick={() => setFired(false)} className="border-primary/30 text-primary hover:bg-primary/10">
+            Keep it quiet
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────────────────── COMPONENTS ─────────────────────────── */
 
-function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
+function HeroSection() {
+  function scrollToDemo() {
+    document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   return (
     <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 py-16 overflow-hidden">
       {/* Background — glows + grid dissolve into the next section: one continuous surface, no seam */}
@@ -344,71 +582,75 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
           The content creator&rsquo;s cheat code
         </p>
 
-        {/* Beta badge */}
+        {/* Clearance badge */}
         <Link href="/beta-access">
           <div
             className="inline-flex items-center gap-2 bg-primary/10 border border-primary/50 rounded-full px-4 py-1.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors cursor-pointer shimmer"
             style={{ boxShadow: "0 0 18px rgba(212,160,23,0.25)" }}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            Beta Access Open
+            <KeyRound className="h-3.5 w-3.5" />
+            Restricted beta — clearance open
           </div>
         </Link>
 
         {/* Headline */}
         <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95]">
-          Create Songs, <span className="gold-text-shine">Music Videos,</span>{" "}
-          and Promo Clips With AI
+          Your competitors will think you{" "}
+          <span className="gold-text-shine">hired a team.</span>
         </h1>
 
         {/* Slogan */}
         <p className="text-base sm:text-lg font-semibold tracking-widest text-primary/80 uppercase">
-          Create the Song. Create the Video. Promote the Release.
+          This feels like cheating. That&rsquo;s the point.
         </p>
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-          Tell us your artist, genre, and idea. In seconds, we'll generate
-          lyrics, a full video treatment, promo content, and more — ready to
-          use.
+          Bow Down Visuals is the AI studio that writes your songs, shoots
+          your videos, cuts your promo, and runs your business — 80+ tools,
+          one credit system, zero permission needed.
         </p>
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
-          <Link href="/dashboard">
+          <Link href="/signup">
             <Button
               size="lg"
               variant="luxury"
               className="w-full sm:w-auto text-base h-14 px-10 rounded-full gap-2"
             >
-              Start Creating <ArrowRight className="h-4 w-4" />
+              <KeyRound className="h-4 w-4" /> Claim your access <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link href="/beta-access">
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/30 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:border-primary/60 hover:text-primary font-semibold gap-2 transition-all duration-300"
-            >
-              <Sparkles className="h-4 w-4" /> Join Beta
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={scrollToDemo}
+            className="w-full sm:w-auto text-base h-14 px-10 rounded-full border-primary/30 bg-primary/[0.04] text-primary hover:bg-primary/10 hover:border-primary/60 hover:text-primary font-semibold gap-2 transition-all duration-300"
+          >
+            <Sparkles className="h-4 w-4" /> Watch it work
+          </Button>
         </div>
 
-        {/* Social proof */}
+        {/* Social proof — true claims only */}
         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-primary/60" /> 3 free credits
-            on signup
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> Pay only for
+            what you create
           </span>
           <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-primary/60" /> No credit card
-            required
+            <CheckCircle2 className="h-4 w-4 text-primary/60" /> No
+            subscription, ever
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="h-4 w-4 text-primary/60" /> Results in
             seconds
           </span>
+        </div>
+
+        {/* Share */}
+        <div className="flex justify-center lg:justify-start pt-2">
+          <ShareRow />
         </div>
         </div>
       </div>
@@ -417,6 +659,232 @@ function HeroSection({ onWaitlist }: { onWaitlist: () => void }) {
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-40">
         <ChevronDown className="h-5 w-5 text-white" />
       </div>
+    </section>
+  );
+}
+
+/* ───── "Watch the cheat code work" — simulated preview, pure frontend theater.
+   Clearly labeled as a taste, never the real generator. No credits, no API. ───── */
+
+const DEMO_VIBES = [
+  {
+    id: "rnb",
+    label: "Midnight R&B",
+    lyrics: [
+      "City lights bleed through the rain on glass,",
+      "You only call when the night moves slow,",
+      "I turned every scar into a melody,",
+      "Now the whole block singing back to me.",
+    ],
+    treatment: [
+      "OPEN — rooftop at 2AM, neon on wet concrete. Slow orbit around the artist.",
+      "HOOK — gold light leak, crowd silhouettes moving in perfect sync.",
+    ],
+    hook: "the song that raised me. midnight r&b, out now.",
+  },
+  {
+    id: "drill",
+    label: "UK Drill",
+    lyrics: [
+      "Blacked-out whip, yeah the opps stay lurking,",
+      "Count it up daily, yeah the money working,",
+      "From the block to the charts, that's a certi upgrade,",
+      "They doubted the kid — now the kid got paid.",
+    ],
+    treatment: [
+      "OPEN — estate at dusk, low angle, crew in formation.",
+      "DROP — strobe cuts on the 808, drone pull-back over the skyline.",
+    ],
+    hook: "drill season never ended. new drop friday.",
+  },
+  {
+    id: "afrobeats",
+    label: "Afrobeats Anthem",
+    lyrics: [
+      "Lagos to London, we dey move with grace,",
+      "Golden hour dancing, sunshine on my face,",
+      "Money no dey sleep and neither do I,",
+      "We go party till the morning light.",
+    ],
+    treatment: [
+      "OPEN — beach party at golden hour, drone sweep over dancers.",
+      "CHORUS — confetti burst, slow-mo spin, everybody moving as one.",
+    ],
+    hook: "summer anthem loading. afrobeats to the world.",
+  },
+];
+
+function CheatCodeDemo() {
+  const [vibeId, setVibeId] = useState<string | null>(null);
+  const [stage, setStage] = useState(0);
+  const timers = useRef<number[]>([]);
+
+  useEffect(() => {
+    const stash = timers.current;
+    return () => stash.forEach((t) => window.clearTimeout(t));
+  }, []);
+
+  function run(id: string) {
+    timers.current.forEach((t) => window.clearTimeout(t));
+    timers.current = [];
+    setVibeId(id);
+    setStage(0);
+    [1, 2, 3, 4].forEach((s, i) => {
+      timers.current.push(window.setTimeout(() => setStage(s), 900 * (i + 1)));
+    });
+  }
+
+  const vibe = DEMO_VIBES.find((v) => v.id === vibeId) ?? null;
+  const running = vibeId !== null && stage < 4;
+
+  return (
+    <section id="demo" className="scroll-mt-20 py-20 md:py-28 px-5 relative">
+      <style>{`
+        @keyframes demo-stage-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes demo-pulse-dot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) { .demo-anim { animation: none !important; } }
+      `}</style>
+      <LuxReveal className="max-w-4xl mx-auto">
+        <div className="text-center mb-10 space-y-4">
+          <MarketingBadge variant="kicker">Taste the cheat code</MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+            Watch it work. Then imagine it working{" "}
+            <span className="gold-text-shine">for you.</span>
+          </h2>
+          <p className="text-white/50 text-lg max-w-xl mx-auto">
+            Pick a vibe. This is a simulated preview — the real studio
+            generates the real thing.
+          </p>
+        </div>
+
+        <div className="lux-panel rounded-[2rem] p-6 sm:p-10">
+          {/* Vibe picker */}
+          <div className="flex flex-wrap justify-center gap-3 mb-8">
+            {DEMO_VIBES.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => run(v.id)}
+                className={`rounded-full px-6 py-2.5 text-sm font-bold transition-all duration-200 border ${
+                  vibeId === v.id
+                    ? "bg-primary text-black border-transparent shadow-[0_0_24px_rgba(218,165,32,0.4)]"
+                    : "border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Stage output */}
+          <div className="min-h-[280px]">
+            {!vibe && (
+              <div className="flex h-[280px] items-center justify-center text-center">
+                <p className="text-white/30 text-sm max-w-xs">
+                  Choose a vibe above and watch lyrics, video treatment, and
+                  promo hook materialize — in seconds.
+                </p>
+              </div>
+            )}
+
+            {vibe && (
+              <div className="space-y-5">
+                {stage >= 1 && (
+                  <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Lyrics</span>
+                      {stage === 1 && running && (
+                        <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                          <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
+                          Writing…
+                        </span>
+                      )}
+                    </div>
+                    {vibe.lyrics.map((line, i) => (
+                      <p key={i} className="font-display italic text-lg text-white/85 leading-relaxed">“{line}”</p>
+                    ))}
+                  </div>
+                )}
+
+                {stage >= 2 && (
+                  <div className="demo-anim rounded-2xl border border-white/[0.07] bg-black/40 p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Video treatment</span>
+                      {stage === 2 && running && (
+                        <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                          <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
+                          Directing…
+                        </span>
+                      )}
+                    </div>
+                    {vibe.treatment.map((line, i) => (
+                      <p key={i} className="text-sm text-white/70 leading-relaxed mb-1.5">{line}</p>
+                    ))}
+                  </div>
+                )}
+
+                {stage >= 3 && (
+                  <div className="demo-anim rounded-2xl border border-primary/25 bg-primary/[0.06] p-6" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Promo hook</span>
+                      {stage === 3 && running && (
+                        <span className="flex items-center gap-1.5 text-[11px] text-white/40">
+                          <span className="demo-anim h-1.5 w-1.5 rounded-full bg-primary" style={{ animation: "demo-pulse-dot 1s infinite" }} />
+                          Cutting…
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-base font-semibold text-white">“{vibe.hook}”</p>
+                  </div>
+                )}
+
+                {stage >= 4 && (
+                  <div className="demo-anim pt-2 text-center" style={{ animation: "demo-stage-in 0.5s ease-out" }}>
+                    <p className="mb-4 text-xs uppercase tracking-[0.2em] text-white/35">
+                      Simulated preview — the real thing is behind the door
+                    </p>
+                    <Link href="/signup">
+                      <Button variant="luxury" size="lg" className="rounded-full px-8 gap-2">
+                        <KeyRound className="h-4 w-4" /> Sign in to generate for real
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Proof band — real numbers only, counted from the repo ───── */
+
+const PROOF_STATS = [
+  { value: "81", label: "AI tools under one roof" },
+  { value: "$9", label: "Cheapest credit pack" },
+  { value: "4 cr", label: "A full song, start to finish" },
+  { value: "0", label: "Subscriptions. Ever." },
+];
+
+function ProofBand() {
+  return (
+    <section aria-label="By the numbers" className="py-14 px-5 border-y border-white/[0.06] bg-black/40">
+      <LuxReveal className="max-w-6xl mx-auto">
+        <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-8">
+          The receipts — real numbers from the real studio
+        </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          {PROOF_STATS.map((s) => (
+            <div key={s.label}>
+              <div className="gold-text-shine text-4xl md:text-5xl font-black tracking-tight">
+                {s.value}
+              </div>
+              <div className="mt-2 text-sm text-white/45 font-medium">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </LuxReveal>
     </section>
   );
 }
@@ -430,11 +898,10 @@ function HowItWorks() {
             How It Works
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            From idea to release in minutes
+            Idea to empire in minutes
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            No experience needed. Just describe your vision and let the studio
-            handle the rest.
+            No team. No budget meetings. Just you and the code.
           </p>
         </div>
 
@@ -479,8 +946,8 @@ function WhatYouCanMake() {
             Everything your release needs
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            One platform. Every piece of creative content your music career
-            demands.
+            One studio. Every asset your music career demands — generated,
+            not delegated.
           </p>
         </div>
 
@@ -488,7 +955,7 @@ function WhatYouCanMake() {
           {OUTPUT_TYPES.map((type, i) => (
             <div
               key={i}
-              className="lux-card flex items-center gap-3 px-4 py-3.5 group"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
               <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
@@ -514,7 +981,7 @@ function BuiltForCreators() {
             Built for music creators
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Whether you're an independent artist or running a label, Bow Down
+            Whether you&rsquo;re an independent artist or running a label, Bow Down
             Visuals was made for you.
           </p>
         </div>
@@ -542,7 +1009,50 @@ function BuiltForCreators() {
   );
 }
 
-function FeaturedTools() {
+/* ───── Signature moment: the manifesto. One full-bleed statement. ───── */
+
+function ManifestoBand() {
+  return (
+    <section aria-label="Manifesto" className="relative overflow-hidden">
+      <LuxReveal>
+        <div className="relative flex min-h-[68svh] items-center justify-center px-5 py-24">
+          {/* Shark King backdrop */}
+          <img
+            src="/bowdownvisuals-banner-sharkking.jpg"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover opacity-45"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black via-black/55 to-black" aria-hidden="true" />
+          <div className="absolute inset-0 lux-vignette" aria-hidden="true" />
+
+          <div className="relative z-10 max-w-4xl text-center">
+            <div className="mb-6 flex justify-center">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-black/60 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.3em] text-primary">
+                <Crown className="h-3.5 w-3.5" /> A message from the king
+              </span>
+            </div>
+            <h2 className="font-display text-6xl sm:text-7xl md:text-8xl font-black tracking-tight text-white leading-none">
+              BOW <span className="gold-text-shine">DOWN.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl font-display text-xl sm:text-2xl italic text-white/80 leading-relaxed">
+              The industry had its turn. 80+ AI tools. One cheat code.
+              Zero permission needed.
+            </p>
+            <p className="mt-8 text-xs text-white/30 font-medium tracking-wide">
+              Rumor: this page has a cheat code.{" "}
+              <span className="text-primary/60 font-mono">↑↑↓↓←→←→BA</span>
+            </p>
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Studio showcase — the full arsenal, grouped ───── */
+
+function StudioShowcase() {
   return (
     <section
       id="tools"
@@ -551,79 +1061,100 @@ function FeaturedTools() {
       <LuxReveal className="max-w-6xl mx-auto">
         <div className="text-center mb-16 space-y-4">
           <MarketingBadge variant="kicker">
-            Featured Tools
+            The Studio
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            The complete creator toolkit
+            One login. The whole machine.
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Six powerful tools designed to take you from concept to release —
-            faster than ever.
+            Create the music, polish the craft, promote the release, get
+            paid — without leaving the building.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {TOOLS.map((tool) => (
-            <div
-              key={tool.title}
-              className={`relative group flex flex-col p-7 rounded-2xl lux-card-lift ${
-                tool.featured
-                  ? "royal-border bg-primary/10 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
-                  : "lux-panel"
-              } ${tool.comingSoon ? "opacity-60" : ""}`}
-            >
-              {tool.featured && (
-                <div className="absolute -top-3 left-6">
-                  <MarketingBadge variant="popular">
-                    <Star className="h-2.5 w-2.5" /> Most Popular
-                  </MarketingBadge>
+        <div className="space-y-12">
+          {STUDIO.map((cat) => (
+            <div key={cat.category}>
+              <div className="mb-6 flex items-center gap-4">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <cat.icon className="h-5 w-5 text-primary" />
                 </div>
-              )}
-
-              <div
-                className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
-                  tool.featured
-                    ? "bg-primary text-white"
-                    : "bg-white/[0.06] group-hover:bg-primary/20 transition-colors shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08)]"
-                }`}
-              >
-                <tool.icon
-                  className={`h-6 w-6 ${tool.featured ? "text-white" : "text-primary"}`}
-                />
-              </div>
-
-              <div className="flex-1">
-                <div className="flex items-start justify-between mb-2 gap-2">
-                  <h3 className="font-semibold text-white text-lg leading-tight">
-                    {tool.title}
+                <div>
+                  <h3 className="text-xl font-bold text-white leading-tight">
+                    {cat.category}
+                    <span className="ml-3 text-sm font-medium text-white/35">
+                      {cat.tagline}
+                    </span>
                   </h3>
-                  {tool.comingSoon ? (
-                    <MarketingBadge variant="soon" className="shrink-0">
-                      <Lock className="h-2.5 w-2.5" /> Soon
-                    </MarketingBadge>
-                  ) : (
-                    <MarketingBadge variant="muted" className="shrink-0">
-                      {tool.cost}
-                    </MarketingBadge>
-                  )}
                 </div>
-                <p className="text-white/50 text-sm leading-relaxed">
-                  {tool.description}
-                </p>
+                <div className="flex-1 h-px bg-gradient-to-r from-primary/25 to-transparent" aria-hidden="true" />
               </div>
 
-              {!tool.comingSoon && (
-                <Link
-                  href={tool.href}
-                  className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
-                >
-                  Try this tool{" "}
-                  <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
-                </Link>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {cat.tools.map((tool) => (
+                  <div
+                    key={tool.title}
+                    className={`relative group flex flex-col p-7 rounded-2xl lux-card-lift ${
+                      tool.featured
+                        ? "royal-border bg-primary/10 shadow-[0_0_30px_rgba(218,165,32,0.18)]"
+                        : "lux-panel"
+                    }`}
+                  >
+                    {tool.featured && (
+                      <div className="absolute -top-3 left-6">
+                        <MarketingBadge variant="popular">
+                          <Star className="h-2.5 w-2.5" /> Most Popular
+                        </MarketingBadge>
+                      </div>
+                    )}
+
+                    <div
+                      className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
+                        tool.featured
+                          ? "bg-primary text-white"
+                          : "bg-white/5 group-hover:bg-primary/20 transition-colors"
+                      }`}
+                    >
+                      <tool.icon
+                        className={`h-6 w-6 ${tool.featured ? "text-white" : "text-primary"}`}
+                      />
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <h4 className="font-semibold text-white text-lg leading-tight">
+                          {tool.title}
+                        </h4>
+                        <MarketingBadge variant="muted" className="shrink-0">
+                          {tool.cost}
+                        </MarketingBadge>
+                      </div>
+                      <p className="text-white/50 text-sm leading-relaxed">
+                        {tool.description}
+                      </p>
+                    </div>
+
+                    <Link
+                      href={tool.href}
+                      className="mt-6 flex items-center gap-2 text-sm font-semibold text-primary hover:text-yellow-300 transition-colors group/link"
+                    >
+                      Open this tool{" "}
+                      <ChevronRight className="h-4 w-4 group-hover/link:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
+
+        <p className="mt-12 text-center text-sm text-white/40">
+          Plus cover art, logos, thumbnails, press kits, lyric videos, and 70+
+          more —{" "}
+          <Link href="/features" className="font-semibold text-primary hover:text-yellow-300 transition-colors">
+            browse the full arsenal <ArrowRight className="inline h-3.5 w-3.5" />
+          </Link>
+        </p>
       </LuxReveal>
     </section>
   );
@@ -638,7 +1169,7 @@ function PricingSection() {
             Credit Packs
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Simple, creator-first pricing
+            Pay per creation. That&rsquo;s it.
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
             Buy credits once, use them any time. No subscription required.
@@ -734,7 +1265,7 @@ function FAQSection() {
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                 openIndex === i
                   ? "border-primary/30 bg-primary/5"
-                  : "lux-card"
+                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
               }`}
             >
               <button
@@ -801,26 +1332,28 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         <div className="relative">
           <div className="absolute -inset-20 bg-yellow-600/8 rounded-full blur-[80px] pointer-events-none" />
           <MarketingBadge variant="kicker" className="mb-6">
-            Early Access
+            Clearance
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight mb-4">
-            Be first in line.
+            Claim your access.
           </h2>
           <p className="text-white/50 text-lg max-w-md mx-auto">
-            Join the waitlist and get priority access when our paid plans go
-            live — plus an early-bird discount.
+            Join the list — first in line for every new drop from the studio.
+            The cheat code only gets stronger.
           </p>
         </div>
 
         {submitted ? (
           <div className="p-8 rounded-2xl border border-primary/30 bg-primary/10">
-            <div className="text-4xl mb-3">🎤</div>
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 border border-primary/40">
+              <KeyRound className="h-6 w-6 text-primary" />
+            </div>
             <h3 className="text-xl font-semibold text-white mb-2">
-              You're on the list.
+              Clearance granted.
             </h3>
             <p className="text-white/60 text-sm">
-              We'll hit you first when doors open. In the meantime, start
-              creating with your 3 free credits.
+              You&rsquo;re on the list. We&rsquo;ll hit you first when new heat
+              drops — meanwhile, the studio&rsquo;s open.
             </p>
             <Link href="/dashboard">
               <Button variant="luxury" className="mt-5 font-semibold gap-2">
@@ -848,7 +1381,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
               variant="luxury"
               className="h-12 px-7 shrink-0"
             >
-              {loading ? "Joining..." : "Join Waitlist"}
+              {loading ? "Joining..." : "Get the code"}
             </Button>
           </form>
         )}
@@ -860,8 +1393,12 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         )}
 
         <p className="text-white/25 text-xs">
-          No spam. No credit card. Just early access.
+          No spam. No credit card. Just the unfair advantage.
         </p>
+
+        <div className="flex justify-center pt-2">
+          <ShareRow label="Tell a creator" />
+        </div>
       </div>
       </LuxReveal>
     </section>
@@ -920,7 +1457,10 @@ function MusicVideoTeaser() {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
-  usePageTitle("Create Songs, Music Videos & Promo Clips With AI", "Tell us your artist, genre, and idea. Bow Down Visuals generates lyrics, video treatments, promo content, and more — in seconds.");
+  usePageTitle(
+    "Bow Down Visuals — The Content Creator's Cheat Code",
+    "The AI studio for music creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create."
+  );
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -933,26 +1473,25 @@ export default function Home() {
     }
   }, [authLoading, user, setLocation]);
 
-  function scrollToWaitlist() {
-    waitlistRef.current?.scrollIntoView({ behavior: "smooth" });
-  }
-
   /* Don't flash the marketing page while the redirect fires. */
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden lux-page">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
-      <HeroSection onWaitlist={scrollToWaitlist} />
+      <KonamiEgg />
+      <HeroSection />
       <CheatCodeTicker />
+      <CheatCodeDemo />
+      <ProofBand />
       <MusicVideoTeaser />
       <HowItWorks />
       <SectionDivider />
       <WhatYouCanMake />
       <BuiltForCreators />
-      <SectionDivider />
-      <FeaturedTools />
+      <ManifestoBand />
+      <StudioShowcase />
       <PricingSection />
       <SectionDivider />
       <FAQSection />
