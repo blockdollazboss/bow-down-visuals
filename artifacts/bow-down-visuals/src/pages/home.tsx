@@ -447,7 +447,7 @@ function HowItWorks() {
               key={step.number}
               className="relative flex flex-col items-center text-center p-8 rounded-2xl lux-panel lux-card-lift group"
             >
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-5xl font-black text-primary/10 select-none pointer-events-none">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 z-10 text-5xl font-black text-primary/40 select-none pointer-events-none drop-shadow-[0_0_12px_rgba(201,168,76,0.3)]">
                 {step.number}
               </div>
               <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 mt-4 group-hover:bg-primary/20 transition-colors">
