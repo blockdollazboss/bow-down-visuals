@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { recordCreditUsage } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
@@ -106,7 +107,7 @@ Mood: ${mood || "Dark"}
 Primary Platform: ${platform || "TikTok 9:16"}
 Promo Goal: ${promoGoal || "Drive streams"}${promoTypeLine}${lyricsBlock}${clipsLine}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Every idea must be platform-specific, creative, and ready to execute immediately.
 

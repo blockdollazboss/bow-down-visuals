@@ -15,6 +15,9 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   jewelry: text("jewelry"),
   clothing_style: text("clothing_style"),
   brand_colors: text("brand_colors"),
+  /* Visual identity theme — preset id from src/lib/character-themes.ts.
+     Drives the artist's color scheme across selection, vault, and branding. */
+  theme_id: text("theme_id").notNull().default("gold-royalty"),
   personality: text("personality"),
   do_not_change_rules: text("do_not_change_rules"),
   reference_image_url: text("reference_image_url"),

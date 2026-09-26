@@ -349,6 +349,7 @@ export default function MakeVideo() {
         instructions: combinedInstructions,
         artistVault: loadedVault
           ? {
+              vaultId:             loadedVault.id,
               artistType:          loadedVault.artist_type       ?? null,
               artistDescription:   values.artistDescription      || loadedVault.personality,
               visualStyle:         values.videoStyle             || loadedVault.visual_style,

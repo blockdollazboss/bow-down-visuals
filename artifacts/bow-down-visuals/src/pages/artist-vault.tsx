@@ -27,6 +27,8 @@ import { getSupabase } from "@/lib/supabase";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { CHARACTER_THEMES, getCharacterTheme } from "@/lib/character-themes";
+import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -43,6 +45,7 @@ interface ArtistVaultRecord {
   jewelry: string | null;
   clothing_style: string | null;
   brand_colors: string | null;
+  theme_id: string | null;
   personality: string | null;
   do_not_change_rules: string | null;
   reference_image_url: string | null;
@@ -66,6 +69,7 @@ interface FormValues {
   jewelry: string;
   clothingStyle: string;
   brandColors: string;
+  themeId: string;
   personality: string;
   doNotChangeRules: string;
 }
@@ -1003,8 +1007,8 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   );
 }
 
-function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
-  vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
+function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
+  vault: ArtistVaultRecord; allVaults: ArtistVaultRecord[]; onClose: () => void; onEdit: () => void; onLock: () => void;
   onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
   wardrobeRefreshKey: number; onGenerateOutfit: () => void;
 }) {
@@ -1062,6 +1066,8 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onV
         )}
 
         <LockedVoiceSection vault={vault} onChanged={onVoiceChanged} />
+
+        <LinkedCharactersSection vault={vault as unknown as ArtistVault} allVaults={allVaults as unknown as ArtistVault[]} />
 
         <WardrobeSection
           vaultId={vault.id}
@@ -1292,7 +1298,7 @@ export default function ArtistVault() {
     defaultValues: {
       artistName: "", artistType: "artist",
       genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
-      clothingStyle: "", brandColors: "", personality: "", doNotChangeRules: "",
+      clothingStyle: "", brandColors: "", themeId: "gold-royalty", personality: "", doNotChangeRules: "",
     },
   });
 
@@ -1395,6 +1401,7 @@ export default function ArtistVault() {
     setValue("jewelry", vault.jewelry ?? "");
     setValue("clothingStyle", vault.clothing_style ?? "");
     setValue("brandColors", vault.brand_colors ?? "");
+    setValue("themeId", vault.theme_id ?? "gold-royalty");
     setValue("personality", vault.personality ?? "");
     setValue("doNotChangeRules", vault.do_not_change_rules ?? "");
     setPhotoUrl(vault.reference_image_url ?? null);
@@ -1423,6 +1430,7 @@ export default function ArtistVault() {
         jewelry: values.jewelry || null,
         clothing_style: values.clothingStyle || null,
         brand_colors: values.brandColors || null,
+        theme_id: values.themeId || "gold-royalty",
         personality: values.personality || null,
         do_not_change_rules: values.doNotChangeRules || null,
         reference_image_url: photoUrl || null,
@@ -1446,6 +1454,7 @@ export default function ArtistVault() {
         jewelry: partialVault.jewelry,
         clothingStyle: partialVault.clothing_style,
         brandColors: partialVault.brand_colors,
+        themeId: partialVault.theme_id,
         personality: partialVault.personality,
         doNotChangeRules: partialVault.do_not_change_rules,
         referenceImageUrl: partialVault.reference_image_url,
@@ -1516,6 +1525,7 @@ export default function ArtistVault() {
       {openVault && (
         <VaultModal
           vault={openVault}
+          allVaults={vaults}
           onClose={() => setOpenVault(null)}
           onEdit={() => startEdit(openVault)}
           onLock={() => { setOpenVault(null); setConsistencyVault(openVault); }}
@@ -1735,6 +1745,40 @@ export default function ArtistVault() {
             {/* Brand section */}
             <div>
               <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Brand Identity</p>
+              {/* Character theme picker — their colors, their identity */}
+              <div className="mb-5">
+                <Label className="text-sm font-semibold text-white/80 mb-1 block">Character Theme</Label>
+                <p className="text-xs text-white/35 mb-3">Their signature color identity — shows up everywhere this character appears.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  {CHARACTER_THEMES.map((theme) => {
+                    const selected = (watched.themeId || "gold-royalty") === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => setValue("themeId", theme.id)}
+                        title={`${theme.name} — ${theme.vibe}`}
+                        className="rounded-xl border p-2.5 text-left transition-all cursor-pointer"
+                        style={selected ? {
+                          borderColor: theme.primary,
+                          background: `linear-gradient(135deg, ${theme.primary}26, transparent)`,
+                          boxShadow: `0 0 16px ${theme.primary}44`,
+                        } : {
+                          borderColor: "rgba(255,255,255,0.08)",
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        <div
+                          className="h-8 rounded-lg mb-2"
+                          style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.deep})` }}
+                        />
+                        <p className="text-xs font-bold text-white leading-tight">{theme.name}</p>
+                        <p className="text-[10px] text-white/35 leading-tight mt-0.5">{theme.vibe}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FieldWrapper label="Brand Colors" hint="Your signature color palette">
                   <Input {...register("brandColors")} placeholder="e.g. black, gold, and deep red..." className={inputClass} />

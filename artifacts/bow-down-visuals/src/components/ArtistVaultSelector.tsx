@@ -17,6 +17,7 @@ export interface ArtistVault {
   jewelry: string | null;
   clothing_style: string | null;
   brand_colors: string | null;
+  theme_id: string | null;
   personality: string | null;
   do_not_change_rules: string | null;
   reference_image_url: string | null;

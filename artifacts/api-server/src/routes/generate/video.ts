@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
@@ -133,7 +134,7 @@ Artist Description: ${artistDescription}
 ${lyrics ? `Lyrics / Key Lines:\n${lyrics}` : ""}
 ${songStructure ? `\nSONG STRUCTURE ANALYSIS — align your scene-by-scene breakdown with these sections:\n${formatSongStructure(songStructure)}` : ""}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Write full, director-level content for every section.
 

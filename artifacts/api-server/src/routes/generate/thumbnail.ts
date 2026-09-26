@@ -3,6 +3,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { recordThumbnailHistory } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl, normalizeToStorageRef } from "../../lib/objectStorage";
@@ -244,7 +245,7 @@ Color Theme: ${colorTheme || "Black and gold"}
 Mood: ${mood || "Dark"}
 Featured Text: ${featuredText || "None"}
 ${specialRequests ? `Special Requests: ${specialRequests}` : ""}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Write detailed, actionable, AI-ready content for every section.
 

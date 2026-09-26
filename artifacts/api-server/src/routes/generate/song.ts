@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
@@ -107,7 +108,7 @@ Voice Style: ${voiceStyle || "Not specified"}
 Beat Style: ${beatStyle || "Not specified"}
 Song Length: ${songLength || "Not specified"}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Write full, original, high-quality content for every section. Make the lyrics match the genre, mood, topic, voice style, and beat style.
 
