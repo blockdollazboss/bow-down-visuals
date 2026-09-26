@@ -6,9 +6,7 @@ import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
-import { OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
@@ -119,7 +117,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+    <div className="min-h-screen flex flex-col relative overflow-hidden"
       onMouseMove={handleMouseScrub}
     >
       {/* Drone video background — scrub through with your mouse */}
@@ -135,115 +133,105 @@ export default function Login() {
       {/* Cinematic vignette + dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/55" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
-      <div className="w-full max-w-[300px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both] flex flex-col items-center gap-5">
-        {/* TEST ONLY: click-to-bow logo */}
-        <BowTestLogo />
+      {/* Stage: the bow logo, centered */}
+      <main className="flex-1 flex items-center justify-center relative z-10 px-4 py-10">
+        <div className="animate-[fadeSlideIn_0.7s_ease-out_both] scale-[1.8]">
+          {/* TEST ONLY: click-to-bow logo */}
+          <BowTestLogo />
+        </div>
+      </main>
 
-        <div className="w-full relative rounded-2xl p-[1px] bg-gradient-to-b from-[#c9a84c]/60 via-[#c9a84c]/15 to-transparent shadow-[0_8px_60px_rgba(0,0,0,0.6)] animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
-          <div className="rounded-2xl bg-black/55 backdrop-blur-xl px-5 py-6">
-            <p className="text-center text-[11px] tracking-[0.3em] uppercase text-[#c9a84c]/90 font-medium mb-5">Welcome back</p>
-          <SocialSignInButtons
-            onSignIn={onSocialSignIn}
-            loadingProvider={socialLoading}
-            mode="signin"
-          />
-          <OrDivider />
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[11px] uppercase tracking-wider text-white/60">Email</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-email" type="email" placeholder="you@example.com" className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-[11px] uppercase tracking-wider text-white/60">Password</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-password" type="password" placeholder="••••••••" className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {error && (
-                <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                  {error}
-                </div>
-              )}
-
-              <Button data-testid="btn-login" type="submit" className="w-full h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
-              </Button>
-            </form>
-          </Form>
-
+      {/* Bottom sign-in toolbar */}
+      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+        <div className="mx-auto max-w-4xl">
+          {(error || form.formState.errors.email || form.formState.errors.password) && !resetMode && (
+            <p className="mb-2 text-center text-xs text-destructive">
+              {error || form.formState.errors.email?.message || form.formState.errors.password?.message}
+            </p>
+          )}
           {resetMode ? (
             resetSent ? (
-              <div className="mt-5 p-4 rounded-xl border border-primary/25 bg-primary/5 text-center">
-                <p className="text-sm text-white/80 font-medium">Check your email for a reset link.</p>
+              <div className="flex items-center justify-center gap-3 text-sm">
+                <p className="text-white/80">Check your email for a reset link.</p>
                 <button
                   type="button"
                   onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
-                  className="mt-2 text-sm text-primary hover:underline font-medium"
+                  className="text-[#c9a84c] hover:underline font-medium"
                 >
                   Back to sign in
                 </button>
               </div>
             ) : (
-              <form onSubmit={onResetSubmit} className="mt-5 space-y-3.5">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wider text-white/60 mb-1.5">Email</p>
-                  <Input
-                    data-testid="input-reset-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-                    value={resetEmail}
-                    onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
-                  />
-                </div>
-                {resetError && (
-                  <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
-                    {resetError}
-                  </div>
-                )}
-                <Button data-testid="btn-reset-password" type="submit" className="w-full h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending reset link...</> : "Send Reset Link"}
+              <form onSubmit={onResetSubmit} className="flex items-center justify-center gap-2 flex-wrap">
+                <Input
+                  data-testid="input-reset-email"
+                  type="email"
+                  aria-label="Email"
+                  placeholder="you@example.com"
+                  className="h-9 w-56 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  value={resetEmail}
+                  onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
+                />
+                {resetError && <span className="text-xs text-destructive">{resetError}</span>}
+                <Button data-testid="btn-reset-password" type="submit" className="h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
+                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending...</> : "Send Reset Link"}
                 </Button>
-                <p className="text-center text-sm">
-                  <button type="button" onClick={() => setResetMode(false)} className="text-white/50 hover:text-white hover:underline font-medium">
-                    Back to sign in
-                  </button>
-                </p>
+                <button type="button" onClick={() => setResetMode(false)} className="text-xs text-white/50 hover:text-white hover:underline font-medium">
+                  Back to sign in
+                </button>
               </form>
             )
           ) : (
-            <p className="mt-5 text-center text-xs">
-              <button
-                type="button"
-                onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
-                className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
-              >
-                Forgot password?
-              </button>
-            </p>
+            <>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
+                <SocialSignInButtons
+                  onSignIn={onSocialSignIn}
+                  loadingProvider={socialLoading}
+                  mode="signin"
+                />
+                <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
+                <Input
+                  data-testid="input-email"
+                  type="email"
+                  aria-label="Email"
+                  placeholder="Email"
+                  autoComplete="email"
+                  className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  {...form.register("email")}
+                />
+                <Input
+                  data-testid="input-password"
+                  type="password"
+                  aria-label="Password"
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  {...form.register("password")}
+                />
+                <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
+                  {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
+                </Button>
+              </form>
+              <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45">
+                <button
+                  type="button"
+                  onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
+                  className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
+                >
+                  Forgot password?
+                </button>
+                <span aria-hidden className="text-white/20">·</span>
+                <span>
+                  Don't have an account?{" "}
+                  <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
+                    Sign up free
+                  </Link>
+                </span>
+              </div>
+            </>
           )}
-
-          <p className="mt-4 text-center text-xs text-white/45">
-            Don't have an account?{" "}
-            <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
-              Sign up free
-            </Link>
-          </p>
-          </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
