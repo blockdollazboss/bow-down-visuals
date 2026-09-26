@@ -8,7 +8,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { CheatCodeName } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code's Email List Builder ────────────────────────────────
    Own your audience: hosted landing pages (/join/:handle), embeddable
@@ -554,7 +553,7 @@ export default function EmailListBuilder() {
         </div>
 
         <p className="relative mt-8 text-center text-sm text-white/40">
-          List built? Ask <CheatCodeName /> 🦈 in the
+          List built? Ask <span className="font-semibold text-primary">Thy Cheat Code 🦈</span> in the
           chat bubble for newsletter ideas that actually get opened.
         </p>
       </main>

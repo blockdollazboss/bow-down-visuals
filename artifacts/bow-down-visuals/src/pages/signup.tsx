@@ -4,7 +4,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
-import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
+import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
+import { OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -31,11 +32,11 @@ export default function Signup() {
   usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithProvider } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const [success, setSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof schema>>({
@@ -56,17 +57,18 @@ export default function Signup() {
     }
   }
 
-  async function onGoogleSignUp() {
-    setGoogleLoading(true);
+  async function onSocialSignUp(provider: SocialProvider) {
+    setSocialLoading(provider);
     setError(null);
-    /* On success the browser leaves for Google's consent screen, so this
-     * only resolves when something failed before the redirect. */
-    const { error } = await signInWithGoogle();
+    /* On success the browser leaves for the provider's consent screen, so
+     * this only resolves when something failed before the redirect. */
+    const { error } = await signInWithProvider(provider);
     if (error) {
       setError(error);
-      setGoogleLoading(false);
+      setSocialLoading(null);
     }
   }
+
 
   if (success) {
     return (
@@ -95,11 +97,10 @@ export default function Signup() {
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
-          <GoogleSignInButton
-            onClick={onGoogleSignUp}
-            loading={googleLoading}
-            label="Sign up with Google"
-            testId="btn-google-signup"
+          <SocialSignInButtons
+            onSignIn={onSocialSignUp}
+            loadingProvider={socialLoading}
+            mode="signup"
           />
           <OrDivider />
 

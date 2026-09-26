@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 
@@ -140,7 +141,7 @@ Artist Description: ${artistDescription || "Not specified"}
 ${existingLyrics ? `\nExisting Lyrics (use as the base — preserve the core content, polish and expand as needed):\n${existingLyrics}` : ""}
 ${songStructure ? `\nSONG STRUCTURE ANALYSIS — use this to align lyrics and video breakdown to these sections:\n${formatSongStructure(songStructure)}` : ""}
 ${instructions ? `Special Instructions: ${instructions}` : ""}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PART 1 — SONG PACKAGE

@@ -9,10 +9,10 @@ import {
 } from "./distribution";
 
 describe("DISTRIBUTION_PLATFORMS", () => {
-  it("lists 8 platforms with unique keys and labels", () => {
-    expect(DISTRIBUTION_PLATFORMS).toHaveLength(8);
+  it("lists 9 platforms with unique keys and labels", () => {
+    expect(DISTRIBUTION_PLATFORMS).toHaveLength(9);
     const keys = DISTRIBUTION_PLATFORMS.map((p) => p.key);
-    expect(new Set(keys).size).toBe(8);
+    expect(new Set(keys).size).toBe(9);
     for (const p of DISTRIBUTION_PLATFORMS) {
       expect(p.label.length).toBeGreaterThan(0);
     }

@@ -15,7 +15,6 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -393,13 +392,13 @@ export default function PromoClip() {
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <PixelSprite name="star" pixel={4} />
+              <Film className="h-5 w-5 text-primary" />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <PixelHeadline size="section" className="mb-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Promo Clips
-          </PixelHeadline>
+          </h1>
           <p className="text-white/50 text-lg max-w-2xl">
             Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.
           </p>
@@ -791,6 +790,7 @@ export default function PromoClip() {
                   }}
                   loadedVaultId={loadedVault?.id}
                   loadedVault={loadedVault}
+                  context="promo"
                 />
 
                 {/* Step 1: Artist & Track */}

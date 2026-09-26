@@ -3,6 +3,7 @@ import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { uploadMediaToSupabaseStorage, refreshSupabaseStorageUrl } from "../../lib/objectStorage";
 import { db, preproductionPacksTable } from "@workspace/db";
@@ -105,7 +106,7 @@ Artist: ${artistName || "Unknown Artist"}
 Song: "${songTitle || "Untitled"}"
 Genre: ${genre || "Hip-hop"}
 Mood: ${mood || "Dark, cinematic"}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 {
@@ -162,7 +163,7 @@ router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
 
 Create a ${count}-shot STORYBOARD for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return ONLY valid JSON (no markdown, no commentary) as an array of shot objects:
 [
@@ -229,7 +230,7 @@ router.post("/pre-production/image", requireAuth, async (req, res) => {
   const imagePrompt =
 `${subject}
 ${buildBibleContext(bible)}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 Style: ultra-detailed cinematic still, professional music video production quality. No text, no watermark, no cartoon, no anime.`.slice(0, 4000);
 
   try {
@@ -353,7 +354,7 @@ Artist: ${artistName || "Unknown Artist"}
 Song: "${songTitle || "Untitled"}"
 Genre: ${genre || "Hip-hop"}
 Mood: ${mood || "Dark, cinematic"}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 {
@@ -372,7 +373,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     const storyboard = await generateStoryboardJson(
 `Create a ${shots}-shot STORYBOARD for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Return ONLY valid JSON (no markdown, no commentary) as an array of shot objects:
 [
@@ -386,7 +387,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
       messages: [{ role: "user", content:
 `You are the pre-production department for the music video "${songTitle || "Untitled"}".
 ${buildBibleContext(bible)}
-${buildVaultContext(artistVault)}
+${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
 
 Storyboard shots:
 ${storyboard.map((s: PackShot) => `#${s.shotNumber} (${s.cameraAngle}, ${s.durationSec}s): ${s.description}`).join("\n")}

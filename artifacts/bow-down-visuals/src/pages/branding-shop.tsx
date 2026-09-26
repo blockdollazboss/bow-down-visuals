@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Shirt, Loader2, Sparkles, ShoppingCart, Trash2, Plus, Minus,
   CheckCircle2, Package, Palette, Tag, Truck, X, ChevronRight,
+  Smartphone, ShoppingBag, RefreshCw, CreditCard, ExternalLink, BadgeCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
@@ -43,8 +44,10 @@ const ICONS: Record<ProductKey, LucideIcon> = {
   tshirt: Shirt,
   hoodie: Shirt,
   mug: Package,
-  cap: Tag,
+  snapback: Tag,
   poster: Palette,
+  phonecase: Smartphone,
+  tote: ShoppingBag,
 };
 
 /* Catalog lives in @/lib/branding-shop (testable); icons stay page-local. */
@@ -89,8 +92,23 @@ interface Order {
   items: Array<CartItem & { unitPriceCents: number }>;
   totalCents: number;
   status: string;
+  provider: string;
+  providerOrderId: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  paid: boolean;
   createdAt: string;
 }
+
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  received:           { label: "Order received",    className: "border-amber-400/30 bg-amber-400/10 text-amber-300" },
+  pending_fulfillment:{ label: "Sent to printer",   className: "border-sky-400/30 bg-sky-400/10 text-sky-300" },
+  in_production:      { label: "In production",     className: "border-violet-400/30 bg-violet-400/10 text-violet-300" },
+  shipped:            { label: "Shipped",           className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+  delivered:          { label: "Delivered",         className: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" },
+  canceled:           { label: "Canceled",          className: "border-red-400/30 bg-red-400/10 text-red-300" },
+  failed:             { label: "Failed",            className: "border-red-400/30 bg-red-400/10 text-red-300" },
+};
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
@@ -247,8 +265,41 @@ export default function BrandingShop() {
     }
   }
 
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [paying, setPaying] = useState<string | null>(null);
+
+  /** Pay for an existing unpaid order (from My Orders). */
+  async function payForOrder(orderId: string) {
+    if (!user || paying) return;
+    setPaying(orderId);
+    setError(null);
+    try {
+      const res = await authed("/api/branding-shop/checkout", {
+        method: "POST",
+        body: JSON.stringify({ orderId }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        checkoutUrl?: string;
+        mock?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Checkout failed — try again.");
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      /* Demo checkout completed instantly — refresh the list. */
+      await loadOrders();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Checkout failed — try again.");
+    } finally {
+      setPaying(null);
+    }
+  }
+
   async function placeOrder() {
-    if (ordering || !user || cart.length === 0) return;
+    if (ordering || checkingOut || !user || cart.length === 0) return;
     if (!name.trim() || !email.trim() || !address.trim() || !city.trim() || !state_.trim() || !zip.trim()) {
       setError("Fill in every shipping field so we know where to send your merch.");
       return;
@@ -276,13 +327,36 @@ export default function BrandingShop() {
       if (!res.ok || !data.order?.id) {
         throw new Error(data.message || data.error || "Order failed — try again.");
       }
-      setOrderSuccess(data.message || "Order received!");
+      const orderId = data.order.id;
+      setOrdering(false);
+      /* ── pay for it: Stripe Checkout (live) or instant demo checkout ── */
+      setCheckingOut(true);
+      const coRes = await authed("/api/branding-shop/checkout", {
+        method: "POST",
+        body: JSON.stringify({ orderId }),
+      });
+      const coData = (await coRes.json().catch(() => ({}))) as {
+        checkoutUrl?: string;
+        mock?: boolean;
+        demo?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!coRes.ok) {
+        throw new Error(coData.error || "Checkout failed — your order is saved; try paying from My Orders.");
+      }
+      if (coData.checkoutUrl) {
+        window.location.href = coData.checkoutUrl;
+        return;
+      }
+      setOrderSuccess(coData.message || "Order received!");
       setCart([]);
       setCartOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Order failed — try again.");
     } finally {
       setOrdering(false);
+      setCheckingOut(false);
     }
   }
 
@@ -291,12 +365,42 @@ export default function BrandingShop() {
     setOrdersLoading(true);
     try {
       const res = await authed("/api/branding-shop/orders");
-      const data = (await res.json().catch(() => ({}))) as { orders?: Order[] };
+      const data = (await res.json().catch(() => ({}))) as { orders?: Order[]; demo?: boolean };
       setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setDemoMode(!!data.demo);
     } catch {
       /* orders list is best-effort */
     } finally {
       setOrdersLoading(false);
+    }
+  }
+
+  const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
+
+  async function refreshOrder(orderId: string) {
+    if (!user || refreshing) return;
+    setRefreshing(orderId);
+    try {
+      const res = await authed(`/api/branding-shop/orders/${orderId}/refresh`, { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        trackingNumber?: string | null;
+        trackingUrl?: string | null;
+        error?: string;
+      };
+      if (!res.ok) throw new Error(data.error || "Refresh failed.");
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, status: data.status ?? o.status, trackingNumber: data.trackingNumber ?? o.trackingNumber, trackingUrl: data.trackingUrl ?? o.trackingUrl }
+            : o
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Refresh failed.");
+    } finally {
+      setRefreshing(null);
     }
   }
 
@@ -305,10 +409,37 @@ export default function BrandingShop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  /* After Stripe checkout redirects back (?order=…&paid=1), land on My Orders. */
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("paid") === "1") {
+        setTab("orders");
+        setOrderSuccess("Payment received — your merch is headed to production!");
+        window.history.replaceState({}, "", "/branding-shop");
+      }
+    } catch {
+      /* non-browser or malformed query — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="min-h-screen bg-black text-white">
       <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10">
+        {orderSuccess && !cartOpen && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-emerald-300">Order received!</p>
+              <p className="mt-1 text-sm text-white/60">{orderSuccess}</p>
+            </div>
+            <button onClick={() => setOrderSuccess(null)} className="p-1 text-white/40 hover:text-white" aria-label="Dismiss">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {/* header */}
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -641,19 +772,55 @@ export default function BrandingShop() {
               </div>
             ) : (
               <div className="space-y-4">
-                {orders.map((o) => (
+                {demoMode && (
+                  <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-2.5 text-xs text-amber-200">
+                    <span className="font-bold">Demo fulfillment:</span> no Printful API key is
+                    configured, so order statuses are simulated. Connect PRINTFUL_API_KEY to ship real products.
+                  </div>
+                )}
+                {orders.map((o) => {
+                  const meta = STATUS_META[o.status] ?? STATUS_META.received!;
+                  return (
                   <div key={o.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-sm">
+                      <div className="flex items-center gap-2 text-sm">
                         <span className="font-mono text-white/40">#{o.id.slice(0, 8)}</span>
-                        <span className="ml-3 text-white/40">
+                        <span className="text-white/40">
                           {new Date(o.createdAt).toLocaleDateString()}
                         </span>
+                        {o.paid && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
+                            <BadgeCheck className="h-3 w-3" /> Paid
+                          </span>
+                        )}
+                        {!o.paid && (
+                          <button
+                            onClick={() => payForOrder(o.id)}
+                            disabled={paying === o.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary hover:bg-primary/20 disabled:opacity-50"
+                          >
+                            {paying === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CreditCard className="h-3 w-3" />}
+                            Pay {money(o.totalCents)}
+                          </button>
+                        )}
                       </div>
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                        <Truck className="h-3.5 w-3.5" />
-                        {o.status === "received" ? "Order received" : "Pending fulfillment"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${meta.className}`}>
+                          <Truck className="h-3.5 w-3.5" />
+                          {meta.label}
+                        </span>
+                        {o.providerOrderId && (
+                          <button
+                            onClick={() => refreshOrder(o.id)}
+                            disabled={refreshing === o.id}
+                            className="inline-flex items-center gap-1 rounded-full border border-white/15 px-2.5 py-1 text-[11px] font-semibold text-white/60 hover:text-white disabled:opacity-50"
+                            title="Check the latest status with the print partner"
+                          >
+                            {refreshing === o.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            Refresh
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-3 space-y-1.5">
                       {o.items.map((it, i) => (
@@ -669,11 +836,26 @@ export default function BrandingShop() {
                       <span>Total</span>
                       <span className="text-primary">{money(o.totalCents)}</span>
                     </div>
+                    {(o.trackingNumber || o.trackingUrl) && (
+                      <p className="mt-2 text-xs text-white/55">
+                        Tracking:{" "}
+                        {o.trackingUrl ? (
+                          <a href={o.trackingUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+                            {o.trackingNumber ?? "Track package"} <ExternalLink className="h-3 w-3" />
+                          </a>
+                        ) : (
+                          <span className="font-mono">{o.trackingNumber}</span>
+                        )}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-white/35">
-                      Dropship partner integration coming soon — we'll notify you when fulfillment goes live.
+                      {o.provider === "printful"
+                        ? "Printed and shipped by our Printful partner — Bow Down Visuals never touches inventory."
+                        : "Demo fulfillment — connect a Printful API key to ship real products."}
                     </p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -684,10 +866,10 @@ export default function BrandingShop() {
           <Truck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <p className="text-xs leading-relaxed text-white/45">
             <span className="font-bold text-white/70">How fulfillment works:</span> this is a
-            pure dropship store — manufacturers print and ship your merch directly to your
-            fans, so you never touch inventory. Our dropship partner integration is coming
-            soon: orders placed now are saved as <span className="text-white/70">received</span> and
-            you'll be notified the moment fulfillment goes live. No payment is taken at checkout today.
+            pure dropship store — our print partner manufactures and ships your merch
+            directly to your fans, so you never touch inventory. AI brand-kit designs cost{" "}
+            {DESIGN_COST} credits; merch is sold at retail in USD via secure Stripe checkout.
+            Tracking appears on your order as soon as the carrier picks it up.
           </p>
         </div>
       </main>

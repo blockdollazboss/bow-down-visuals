@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Zap, HelpCircle, ChevronDown, ArrowRight,
-  Sparkles, AlertCircle, CreditCard, Lock, Loader2,
+  Sparkles, AlertCircle, CreditCard, Lock, Loader2, Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -16,67 +16,123 @@ import { usePageTitle } from "@/hooks/use-page-title";
 
 const PLANS = [
   {
+    stars: 1,
     name: "Starter",
+    streetTitle: "On the Map",
     price: 19,
     period: "/month",
     bestFor: "New creators",
     credits: "25 credits monthly",
     featured: false,
     badge: null,
+    cta: "Start with 1 Star",
     features: [
-      "Make songs",
-      "Make music video plans",
-      "Promo clip packs",
-      "Thumbnail prompts",
-      "Save projects",
+      "AI Music Maker",
+      "Music video plans & treatments",
+      "Promo clip planning",
+      "Hook Studio + virality check",
+      "Thumbnail Maker & Logo Maker",
+      "Thy Cheat Code guided setup",
     ],
   },
   {
+    stars: 2,
     name: "Creator",
+    streetTitle: "Rising Heat",
     price: 49,
     period: "/month",
-    bestFor: "Active artists",
+    bestFor: "Active solo creators",
     credits: "100 credits monthly",
     featured: true,
     badge: "Most Popular",
+    cta: "Get 2 Stars",
     features: [
       "Everything in Starter",
-      "Music video clip generation",
-      "Artist Profiles",
-      "Music Mixer beta",
-      "Video Editor beta",
-      "Download TXT / PDF",
+      "AI video clip generation",
+      "Full Video Editor access",
+      "Artist Vault + Photo Shoot",
+      "Artist Voice Lock",
+      "Character video references",
     ],
   },
   {
+    stars: 3,
     name: "Pro Artist",
+    streetTitle: "Wanted",
     price: 99,
     period: "/month",
-    bestFor: "Serious music creators",
+    bestFor: "Serious full-time creators",
     credits: "250 credits monthly",
     featured: false,
     badge: null,
+    cta: "Go Pro with 3 Stars",
     features: [
       "Everything in Creator",
-      "More video clip generations",
-      "Advanced promo packs",
-      "Music Studio tools (beta)",
-      "Priority beta access",
+      "AI Lip Sync",
+      "AI mastering + stem separation",
+      "Advanced effects & transitions",
+      "Upscaling & watermark cleanup",
+      "Batch creative variations",
     ],
   },
   {
+    stars: 4,
     name: "Studio",
+    streetTitle: "High Alert",
     price: 199,
     period: "/month",
-    bestFor: "Teams and labels",
+    bestFor: "Teams & creator brands",
     credits: "600 credits monthly",
     featured: false,
     badge: null,
+    cta: "Build with 4 Stars",
     features: [
       "Everything in Pro Artist",
-      "More saved projects",
-      "Higher usage limits",
-      "Team features coming soon",
+      "Team workspace & member roles",
+      "Shared vaults & brand libraries",
+      "Review & approval workflow",
+      "Social scheduling & publishing",
+      "Bulk asset creation",
+    ],
+  },
+  {
+    stars: 5,
+    name: "VIP",
+    streetTitle: "Most Wanted",
+    price: 399,
+    period: "/month",
+    bestFor: "High-volume creators",
+    credits: "1,500 credits monthly",
+    featured: false,
+    badge: "Exclusive",
+    cta: "Become 5-Star VIP",
+    features: [
+      "Everything in Studio",
+      "Priority generation queue",
+      "4K output where supported",
+      "Early access to new AI models",
+      "Advanced cross-platform analytics",
+      "Exclusive VIP templates & styles",
+    ],
+  },
+  {
+    stars: 6,
+    name: "MVP",
+    streetTitle: "Kingpin",
+    price: 799,
+    period: "/month",
+    bestFor: "Labels, agencies & power users",
+    credits: "4,000 credits monthly",
+    featured: false,
+    badge: "Top Tier",
+    cta: "Claim 6-Star MVP",
+    features: [
+      "Everything in VIP",
+      "8K delivery where supported",
+      "Custom AI style training",
+      "White-label client deliverables",
+      "API access & automation",
+      "Dedicated account manager",
     ],
   },
 ];
@@ -177,13 +233,13 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex flex-col items-center text-center gap-4">
-      <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center">
+    <div className="lux-card p-5 flex flex-col items-center text-center gap-4">
+      <div className="h-11 w-11 rounded-2xl bg-gradient-to-b from-primary/25 to-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_20px_-4px_hsl(45_95%_50%/0.4),inset_0_1px_0_hsl(0_0%_100%/0.15)]">
         <CreditCard className="h-5 w-5 text-primary" />
       </div>
       <div>
-        <p className="text-lg font-black text-white leading-tight">{pack.credits}</p>
-        <p className="text-2xl font-black text-primary mt-1">{pack.price}</p>
+        <p className="text-lg font-black text-white leading-tight tracking-tight">{pack.credits}</p>
+        <p className="text-2xl font-black text-primary mt-1 tracking-tight">{pack.price}</p>
       </div>
       {errorMsg && (
         <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
@@ -192,8 +248,8 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
         size="sm"
         onClick={handleBuy}
         disabled={loading}
-        className="w-full font-bold gap-2 bg-white/[0.06] border border-white/[0.12] text-white hover:bg-white/[0.12] hover:border-primary/40 hover:text-primary transition-all"
-        variant="outline"
+        className="w-full font-bold gap-2"
+        variant="luxury"
       >
         {loading ? (
           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
@@ -220,11 +276,65 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+/* ─── wanted-level star meter ─── */
+
+function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  return (
+    <div className="flex flex-col items-center gap-3 mt-8">
+      <div
+        className="flex items-center gap-2"
+        role="radiogroup"
+        aria-label="Preview wanted level"
+        onMouseLeave={() => setHovered(null)}
+      >
+        {([1, 2, 3, 4, 5, 6] as const).map((s) => {
+          const lit = (hovered ?? 0) >= s;
+          return (
+            <button
+              key={s}
+              type="button"
+              role="radio"
+              aria-checked={false}
+              aria-label={`${s} star${s > 1 ? "s" : ""} — ${PLANS[s - 1]!.name} $${PLANS[s - 1]!.price}/month`}
+              onMouseEnter={() => setHovered(s)}
+              onFocus={() => setHovered(s)}
+              onClick={() => onSelect(s)}
+              className="p-1 transition-transform hover:scale-125 active:scale-95"
+            >
+              <Star
+                className={`h-8 w-8 md:h-10 md:w-10 transition-all duration-150 ${
+                  lit
+                    ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]"
+                    : "fill-transparent text-white/20"
+                }`}
+              />
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-sm text-white/40 font-medium h-5">
+        {hovered
+          ? `${hovered} Star${hovered > 1 ? "s" : ""} — ${PLANS[hovered - 1]!.name} · $${PLANS[hovered - 1]!.price}/mo`
+          : "Hover the stars, then tap a level to jump to its plan"}
+      </p>
+    </div>
+  );
+}
+
 /* ─── page ─── */
 
 export default function Pricing() {
-  usePageTitle("Pricing", "Simple credit-based pricing — pay only for what you create.");
+  usePageTitle("Pricing", "Choose your wanted level — six star-rated creator plans.");
   const [showCancelled, setShowCancelled] = useState(false);
+  const [highlightedPlan, setHighlightedPlan] = useState<number | null>(null);
+  const planRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  function jumpToPlan(stars: number) {
+    setHighlightedPlan(stars);
+    planRefs.current[stars - 1]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => setHighlightedPlan(null), 2600);
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -242,7 +352,7 @@ export default function Pricing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
       <JsonLd data={PRICING_JSON_LD} />
       <JsonLd data={PRICING_FAQ_JSON_LD} />
       <MarketingNav />
@@ -297,30 +407,44 @@ export default function Pricing() {
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
             Choose Your<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
-              Creator Plan
+              Wanted Level
             </span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            Start with AI songs, video plans, promo clips, artist profiles, and editing tools. Full paid access is coming soon.
+            The higher the heat, the more power, credits, automation, and control you unlock.
           </p>
+          <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
+            No free generations. No hidden compute charges. See the credit cost before you create.
+          </p>
+          <WantedMeter onSelect={jumpToPlan} />
         </section>
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            {PLANS.map((plan) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 lux-stagger">
+            {PLANS.map((plan) => {
+              const isExclusive = plan.name === "VIP" || plan.name === "MVP";
+              const isHighlighted = highlightedPlan === plan.stars;
+              return (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl border flex flex-col p-6 transition-all ${
-                  plan.featured
-                    ? "border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)]"
-                    : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14]"
+                ref={(el) => { planRefs.current[plan.stars - 1] = el; }}
+                className={`relative rounded-2xl border flex flex-col p-6 transition-all duration-300 ${
+                  isHighlighted
+                    ? "border-amber-300 bg-amber-400/[0.08] shadow-[0_0_60px_rgba(251,191,36,0.35)] -translate-y-1"
+                    : plan.name === "MVP"
+                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-amber-500/[0.12] via-primary/[0.06] to-transparent shadow-[0_0_80px_rgba(251,191,36,0.2)] hover:-translate-y-1"
+                    : plan.name === "VIP"
+                    ? "border-purple-400/40 bg-gradient-to-b from-purple-500/[0.1] via-primary/[0.04] to-transparent shadow-[0_0_60px_rgba(192,132,252,0.15)] hover:-translate-y-1"
+                    : plan.featured
+                    ? "lux-shine border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)] hover:-translate-y-1"
+                    : "lux-card"
                 }`}
               >
                 {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <MarketingBadge variant="popular">
+                    <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
                     </MarketingBadge>
                   </div>
@@ -328,7 +452,22 @@ export default function Pricing() {
 
                 {/* Plan header */}
                 <div className="mb-5 mt-1">
-                  <h2 className="text-lg font-semibold text-white mb-0.5">{plan.name}</h2>
+                  {/* Wanted stars */}
+                  <div className="flex items-center gap-1 mb-3" aria-label={`${plan.stars} out of 6 wanted stars`}>
+                    {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+                      <Star
+                        key={s}
+                        className={`h-4 w-4 ${
+                          s <= plan.stars
+                            ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]"
+                            : "fill-transparent text-white/15"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <h2 className="text-lg font-semibold text-white mb-0.5">
+                    {plan.name} <span className="text-primary/90 font-bold">· {plan.streetTitle}</span>
+                  </h2>
                   <p className="text-xs text-white/35 font-medium mb-4">Best for: {plan.bestFor}</p>
 
                   <div className="flex items-baseline gap-1 mb-2">
@@ -347,12 +486,12 @@ export default function Pricing() {
                     className={`w-full font-bold h-10 gap-2 ${
                       plan.featured
                         ? "gold-glow"
-                        : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-white hover:border-white/20"
+                        : ""
                     }`}
-                    variant={plan.featured ? "default" : "outline"}
+                    variant={plan.featured ? "luxury" : "outline"}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    Join Beta
+                    {plan.cta}
                     {plan.featured && <ArrowRight className="h-3.5 w-3.5" />}
                   </Button>
                 </Link>
@@ -367,7 +506,8 @@ export default function Pricing() {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Coming soon note */}

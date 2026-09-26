@@ -17,11 +17,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { SceneStudio } from "@/components/SceneStudio";
 import { StoryboardReview } from "@/components/StoryboardReview";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
+import { SongSegmentPicker, type SongSegment } from "@/components/SongSegmentPicker";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
@@ -102,13 +102,13 @@ function FieldWrapper({ label, hint, children }: { label: string; hint?: string;
 }
 
 const inputClass =
-  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
+  "h-11 bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl hover:border-white/[0.18]";
 
 const textareaClass =
-  "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
+  "bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 py-3 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl resize-none hover:border-white/[0.18]";
 
 const selectClass =
-  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
+  "h-11 w-full rounded-xl bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 text-sm focus:outline-none focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 appearance-none cursor-pointer hover:border-white/[0.18]";
 
 function StyledSelect({
   name, placeholder, options, value, onChange,
@@ -142,7 +142,7 @@ interface OutputSection { label: string; content: string; icon: React.ElementTyp
 function OutputCard({ label, content, icon: Icon, defaultOpen = false }: OutputSection) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+    <div className="lux-card-static overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -218,6 +218,8 @@ export default function MakeVideo() {
   const [storyboardApproved, setStoryboardApproved] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  /** Locked song segment — when set, scenes are built for this slice, not the full song. */
+  const [songSegment, setSongSegment] = useState<SongSegment | null>(null);
   const [generatingScenesFromAudio, setGeneratingScenesFromAudio] = useState(false);
   const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
@@ -302,6 +304,7 @@ export default function MakeVideo() {
         songStructure,
         getAccessToken,
         fetchImpl: confirmedFetch,
+        segment: songSegment,
       });
       if (!flow) { setGeneratingScenesFromAudio(false); return; } // user cancelled the credit confirmation
       const { songStructure: structure, scenes: newScenes } = flow;
@@ -349,6 +352,7 @@ export default function MakeVideo() {
         instructions: combinedInstructions,
         artistVault: loadedVault
           ? {
+              vaultId:             loadedVault.id,
               artistType:          loadedVault.artist_type       ?? null,
               artistDescription:   values.artistDescription      || loadedVault.personality,
               visualStyle:         values.videoStyle             || loadedVault.visual_style,
@@ -784,7 +788,7 @@ export default function MakeVideo() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
 
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
@@ -877,13 +881,13 @@ export default function MakeVideo() {
         <div className="mb-8">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <PixelSprite name="play" pixel={4} />
+              <Video className="h-5 w-5 text-primary" />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <PixelHeadline size="section" className="mb-3">
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Music Video
-          </PixelHeadline>
+          </h1>
           <p className="text-white/50 text-base md:text-lg max-w-2xl">
             A step-by-step studio — from song setup to a cinematic AI music video plan.
           </p>
@@ -942,7 +946,7 @@ export default function MakeVideo() {
         )}
 
         {/* ── Step Content ── */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+        <div className="lux-card-static p-6 md:p-8">
 
           {/* STEP 1 — Song Setup */}
           {step === 1 && (
@@ -980,10 +984,20 @@ export default function MakeVideo() {
               <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
-                  onFileUrl={setAudioUrl}
-                  onFile={setAudioFile}
+                  onFileUrl={(url) => { setAudioUrl(url); setSongSegment(null); }}
+                  onFile={(f) => { setAudioFile(f); setSongSegment(null); }}
                 />
                 {audioUrl && <ReferenceAudioPlayer url={audioUrl} label="Your Song" />}
+                {audioUrl && (
+                  <div className="mt-3">
+                    <SongSegmentPicker
+                      audioUrl={audioUrl}
+                      label="Pick your section"
+                      initialSegment={songSegment}
+                      onLock={setSongSegment}
+                    />
+                  </div>
+                )}
               </FieldWrapper>
 
               <FieldWrapper label="Lyrics" hint="Paste lyrics below, or upload audio above and click Transcribe.">
@@ -1062,7 +1076,7 @@ export default function MakeVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
 
                   <FieldWrapper label="Artist Description">
                     <Textarea
@@ -1168,7 +1182,7 @@ export default function MakeVideo() {
                       { label: "Style", value: watched.videoStyle || "—" },
                       { label: "Platform", value: watched.platform || "—" },
                     ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+                      <div key={label} className="lux-card-static px-4 py-3">
                         <p className="text-[10px] font-bold text-white/35 uppercase tracking-wider mb-1">{label}</p>
                         <p className="text-sm font-semibold text-white truncate">{value}</p>
                       </div>
@@ -1244,7 +1258,7 @@ export default function MakeVideo() {
 
                     {/* Song Structure card if available */}
                     {songStructure && (
-                      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
+                      <div className="lux-card-static overflow-hidden">
                         <div className="px-5 py-4 flex items-center gap-3">
                           <span className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                             <BarChart2 className="h-3.5 w-3.5 text-primary" />
@@ -1312,7 +1326,7 @@ export default function MakeVideo() {
                   />
                 )
               ) : (
-                <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-6 py-10 text-center">
+                <div className="lux-card-static px-6 py-10 text-center">
                   <Clapperboard className="h-8 w-8 text-white/20 mx-auto mb-3" />
                   <p className="text-sm text-white/40">No scenes yet — go back to step 4 and generate your plan.</p>
                   <button
@@ -1338,7 +1352,7 @@ export default function MakeVideo() {
               <div className="space-y-3">
 
                 {/* Save Project */}
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="lux-card-static p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                       <Save className="h-4 w-4 text-primary" />
@@ -1378,7 +1392,7 @@ export default function MakeVideo() {
                 </div>
 
                 {/* Open Video Editor */}
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="lux-card-static p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                       <Clapperboard className="h-4 w-4 text-primary" />
@@ -1426,7 +1440,7 @@ export default function MakeVideo() {
                 </div>
 
                 {/* Generate Promo Clips */}
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="lux-card-static p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                       <Film className="h-4 w-4 text-primary" />
@@ -1444,7 +1458,7 @@ export default function MakeVideo() {
                 </div>
 
                 {/* Download TXT */}
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="lux-card-static p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                       <FileText className="h-4 w-4 text-white/50" />
@@ -1466,7 +1480,7 @@ export default function MakeVideo() {
                 </div>
 
                 {/* Download PDF */}
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="lux-card-static p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <span className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                       <FileText className="h-4 w-4 text-white/50" />

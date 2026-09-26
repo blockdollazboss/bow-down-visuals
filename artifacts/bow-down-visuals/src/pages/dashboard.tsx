@@ -71,8 +71,8 @@ function CreatorCard({ icon: Icon, title, description, cta, href, accent }: Crea
       <div className={`
         group relative flex flex-col h-full p-6 rounded-2xl border transition-all duration-300 cursor-pointer
         ${accent
-          ? "bg-gradient-to-br from-primary/[0.18] via-primary/[0.09] to-transparent border-primary/45 shadow-[0_0_36px_rgba(218,165,32,0.14)] hover:shadow-[0_0_52px_rgba(218,165,32,0.24)] hover:-translate-y-0.5"
-          : "bg-white/[0.025] border-white/[0.07] hover:border-primary/30 hover:bg-primary/[0.04] hover:-translate-y-0.5"
+          ? "lux-shine bg-gradient-to-br from-primary/[0.18] via-primary/[0.09] to-transparent border-primary/45 shadow-[0_0_36px_rgba(218,165,32,0.14)] hover:shadow-[0_0_52px_rgba(218,165,32,0.24)] hover:-translate-y-0.5"
+          : "lux-card"
         }
       `}>
         {accent && (
@@ -278,7 +278,7 @@ export default function Dashboard() {
   const checklistDoneCount = checklistSteps.filter((s) => s.done).length;
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
 
       {/* Ambient glows */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
@@ -323,13 +323,22 @@ export default function Dashboard() {
           const initials = activeArtist.artist_name.split(" ").slice(0,2).map(w => w[0]?.toUpperCase() ?? "").join("");
           const hasConsistency = !!(activeArtist.consistency_prompt || activeArtist.reference_image_url);
           return (
-            <div className="rounded-[18px] border border-[rgba(201,168,76,0.28)] bg-[linear-gradient(90deg,rgba(201,168,76,0.06)_0%,rgba(0,0,0,0)_60%)] px-4 py-3 flex items-center gap-3.5 relative overflow-hidden shadow-[0_0_24px_rgba(201,168,76,0.06),inset_0_1px_0_rgba(201,168,76,0.1)]">
-              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-[linear-gradient(to_bottom,#C9A84C,rgba(201,168,76,0))] rounded-l-[2px]" />
-              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black text-[#C9A84C] bg-[linear-gradient(135deg,rgba(201,168,76,0.2)_0%,rgba(201,168,76,0.06)_100%)] border-[1.5px] border-[rgba(201,168,76,0.4)] shadow-[0_0_18px_rgba(201,168,76,0.25)]">
+            <div className="rounded-[18px] border px-4 py-3 flex items-center gap-3.5 relative overflow-hidden" style={{
+              borderColor: "var(--character-glow, rgba(201,168,76,0.28))",
+              background: "linear-gradient(90deg, var(--character-tint, rgba(201,168,76,0.06)) 0%, rgba(0,0,0,0) 60%)",
+              boxShadow: "0 0 24px var(--character-tint, rgba(201,168,76,0.06)), inset 0 1px 0 var(--character-glow, rgba(201,168,76,0.1))",
+            }}>
+              <div className="absolute left-0 top-0 bottom-0 w-[2.5px] rounded-l-[2px]" style={{ background: "linear-gradient(to bottom, var(--character-primary, #C9A84C), transparent)" }} />
+              <div className="h-14 w-14 rounded-2xl shrink-0 flex items-center justify-center relative overflow-hidden font-[Georgia,serif] text-xl font-black border-[1.5px]" style={{
+                color: "var(--character-primary, #C9A84C)",
+                background: "linear-gradient(135deg, var(--character-tint, rgba(201,168,76,0.2)) 0%, transparent 100%)",
+                borderColor: "var(--character-glow, rgba(201,168,76,0.4))",
+                boxShadow: "0 0 18px var(--character-glow, rgba(201,168,76,0.25))",
+              }}>
                 {activeArtist.reference_image_url ? (
                   <img src={activeArtist.reference_image_url} alt={activeArtist.artist_name} className="h-full w-full object-cover object-[top_center]" />
                 ) : initials}
-                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full bg-[#C9A84C] border-[1.5px] border-[#080808] shadow-[0_0_6px_#C9A84C]" />
+                <div className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-[1.5px] border-[#080808]" style={{ background: "var(--character-primary, #C9A84C)", boxShadow: "0 0 6px var(--character-primary, #C9A84C)" }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -346,7 +355,12 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => setLocation("/choose-artist")}
-                className="h-[30px] rounded-[9px] border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)] text-[#C9A84C] text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap hover:bg-[rgba(201,168,76,0.16)] transition-colors"
+                className="h-[30px] rounded-[9px] border text-[10.5px] font-extrabold cursor-pointer px-3 shrink-0 tracking-[0.04em] whitespace-nowrap transition-colors"
+                style={{
+                  borderColor: "var(--character-glow, rgba(201,168,76,0.3))",
+                  background: "var(--character-tint, rgba(201,168,76,0.08))",
+                  color: "var(--character-primary, #C9A84C)",
+                }}
               >Change →</button>
             </div>
           );
@@ -421,7 +435,7 @@ export default function Dashboard() {
           {/* 1 → 2 → 3 pipeline */}
           <StudioPipeline />
 
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lux-stagger">
             <CreatorCard
               icon={Mic2}
               title="Make Song + Video"
@@ -491,11 +505,11 @@ export default function Dashboard() {
           {projectsLoading ? (
             <div className="flex flex-col gap-2" aria-label="Loading projects">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] animate-pulse">
-                  <div className="h-8 w-8 rounded-lg bg-white/[0.06] shrink-0" />
+                <div key={i} className="flex items-center gap-4 px-5 py-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                  <div className="h-8 w-8 rounded-lg lux-skeleton shrink-0" />
                   <div className="flex-1">
-                    <div className="h-3.5 w-2/5 rounded bg-white/[0.07] mb-2" />
-                    <div className="h-2.5 w-1/4 rounded bg-white/[0.05]" />
+                    <div className="h-3.5 w-2/5 rounded lux-skeleton mb-2" />
+                    <div className="h-2.5 w-1/4 rounded lux-skeleton" />
                   </div>
                 </div>
               ))}

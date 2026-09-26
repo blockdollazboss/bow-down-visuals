@@ -2,6 +2,7 @@ import { Router } from "express";
 import OpenAI from "openai";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
+import { buildCoStarContext } from "../../lib/co-stars";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 
@@ -183,6 +184,11 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     .join("\n");
 
   const { text: vaultText, hasIdentity } = buildVaultContext(body.artistVault);
+  const coStarText = await buildCoStarContext(
+    (body.artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ??
+      (body.artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"],
+    req.userId,
+  );
 
   const userBrief = [
     `SONG: "${body.songTitle || "Untitled"}" by ${body.artistName || "Unknown Artist"}`,
@@ -192,6 +198,7 @@ router.post("/auto-video-plan", requireAuth, async (req, res) => {
     transcriptText ? `\nTIMED TRANSCRIPT (ground visuals in these lyrics):\n${transcriptText}` : "",
     body.lyrics ? `\nFULL LYRICS:\n${body.lyrics}` : "",
     vaultText,
+    coStarText,
     !hasIdentity
       ? "\nNO ARTIST VAULT PROVIDED: invent one striking, specific artist look and describe it IDENTICALLY in every videoPrompt. Also return it in suggestedArtist."
       : "",

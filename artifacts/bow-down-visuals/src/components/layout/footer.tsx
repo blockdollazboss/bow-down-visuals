@@ -18,11 +18,13 @@ const LEGAL = [
   { label: "Refund Policy",    href: "/refund-policy" },
 ];
 
-/* Social channels — accounts are being created; links go live with real URLs then. */
+/* Social channels — accounts are being created; links go live with real URLs then.
+ * To make clickable: replace the <span> with <a href="URL"> in the bottom
+ * social row below (marked with data-social-link). */
 const SOCIALS_COMING_SOON = [
-  { label: "Instagram", Icon: InstagramIcon },
-  { label: "TikTok",    Icon: TikTokIcon },
-  { label: "YouTube",   Icon: YouTubeIcon },
+  { label: "Instagram", Icon: InstagramIcon, key: "instagram" },
+  { label: "TikTok",    Icon: TikTokIcon,    key: "tiktok" },
+  { label: "YouTube",   Icon: YouTubeIcon,   key: "youtube" },
 ];
 
 export function SiteFooter() {
@@ -123,6 +125,21 @@ export function SiteFooter() {
         {/* Bottom bar */}
         <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
+          {/* Social row — swap <span> for <a href="…"> to go live (see data-social-link) */}
+          <div className="flex items-center gap-3" aria-label="Social media">
+            {SOCIALS_COMING_SOON.map(({ label, Icon, key }) => (
+              <span
+                key={key}
+                data-social-link={key}
+                title={`${label} — coming soon`}
+                aria-label={`${label} (coming soon)`}
+                aria-disabled="true"
+                className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] inline-flex items-center justify-center text-white/50 cursor-not-allowed hover:text-primary hover:border-primary/40 transition-colors"
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+            ))}
+          </div>
           <p className="text-white/[0.13] text-[10px] select-none" title="every arcade has its secrets">
             psst&hellip; this site has a cheat code
           </p>

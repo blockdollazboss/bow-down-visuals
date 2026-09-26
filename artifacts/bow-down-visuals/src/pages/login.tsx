@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { AnimatedLogo } from "@/components/AnimatedLogo";
-import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { SideVideoBanners } from "@/components/SideVideoBanners";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
-import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
+import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
+import { OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -22,18 +22,16 @@ const schema = z.object({
 
 export default function Login() {
   usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
-  const { signIn, signInWithGoogle, user, loading: authLoading } = useAuth();
+  const { signIn, signInWithProvider, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
-  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
-  const logoTilt = useTiltOnHover<HTMLSpanElement>({ maxDeg: 8, maxShift: 6 });
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
@@ -59,17 +57,18 @@ export default function Login() {
     }
   }
 
-  async function onGoogleSignIn() {
-    setGoogleLoading(true);
+  async function onSocialSignIn(provider: SocialProvider) {
+    setSocialLoading(provider);
     setError(null);
-    /* On success the browser leaves for Google's consent screen, so this
-     * only resolves when something failed before the redirect. */
-    const { error } = await signInWithGoogle();
+    /* On success the browser leaves for the provider's consent screen, so
+     * this only resolves when something failed before the redirect. */
+    const { error } = await signInWithProvider(provider);
     if (error) {
       setError(error);
-      setGoogleLoading(false);
+      setSocialLoading(null);
     }
   }
+
 
   async function onResetSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -93,22 +92,21 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 md:px-24 relative">
+      <SideVideoBanners />
+      <div className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <span ref={logoTilt} className="inline-block rounded-lg">
-              <AnimatedLogo className="w-[320px] max-w-full h-auto" />
-            </span>
-          </div>
-          <p className="mt-1 text-muted-foreground">Sign in to your creator account</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-primary">
+            Bow Down Visuals
+          </p>
+          <p className="mt-3 text-muted-foreground">Sign in to your creator account</p>
         </div>
 
         <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
-          <GoogleSignInButton
-            onClick={onGoogleSignIn}
-            loading={googleLoading}
-            label="Continue with Google"
+          <SocialSignInButtons
+            onSignIn={onSocialSignIn}
+            loadingProvider={socialLoading}
+            mode="signin"
           />
           <OrDivider />
 

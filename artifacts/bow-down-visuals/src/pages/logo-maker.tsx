@@ -52,8 +52,7 @@ interface RecentLogo {
   at: number;
 }
 
-export default function LogoMaker() {
-  usePageTitle("Logo Maker", "AI logo designer for creators — professional brand marks in seconds.");
+export function LogoMakerTool() {
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [brandName, setBrandName] = useState("");
@@ -162,9 +161,7 @@ export default function LogoMaker() {
   const canGenerate = brandName.trim().length > 0 && !!user && !busy;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -325,7 +322,16 @@ export default function LogoMaker() {
             </div>
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function LogoMaker() {
+  usePageTitle("Logo Maker", "AI logo designer for creators — professional brand marks in seconds.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <LogoMakerTool />
       <SiteFooter />
     </div>
   );

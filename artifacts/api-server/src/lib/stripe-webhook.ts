@@ -79,6 +79,35 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── SPONSOR ESCROW ────────────────────────────────────────────────────
+  // Brands fund sponsorship deals through Checkout with
+  // metadata.sponsor_deal_id set. This path owns the money; it never
+  // touches credits. Idempotency is handled inside markEscrowFunded.
+  if (session.metadata?.sponsor_deal_id) {
+    const dealId = session.metadata.sponsor_deal_id;
+    logger.info({ dealId, sessionId: session.id }, "Stripe webhook: sponsor escrow payment verified");
+    try {
+      const { markEscrowFunded } = await import("../routes/generate/sponsors");
+      const result = await markEscrowFunded(
+        dealId,
+        session.id,
+        typeof session.payment_intent === "string" ? session.payment_intent : null,
+      );
+      if (!result.ok) {
+        logger.warn({ dealId, reason: result.reason }, "Stripe webhook: escrow funding not applied");
+        res.status(200).json({ received: true, warning: `Escrow not applied: ${result.reason}` });
+        return;
+      }
+      res.status(200).json({ received: true, success: true, escrow: "funded" });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, dealId }, "Stripe webhook: escrow funding failed");
+      res.status(200).json({ received: true, warning: `Escrow funding failed: ${msg}` });
+    }
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   const userId = session.metadata?.user_id;
   const creditPack = session.metadata?.credit_pack ?? "unknown";
   const creditsAmount = parseInt(session.metadata?.credits_amount ?? "0", 10);
@@ -92,6 +121,39 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
   }
 
   logger.info({ userId }, "Stripe webhook: user_id found");
+
+  /* ── Branding-shop merch orders ─────────────────────────────────────────
+     Branding checkout sessions carry metadata.kind = "branding_order" +
+     branding_order_id. Mark the order paid and submit it to fulfillment
+     (Printful live or mock sandbox). Idempotent via isPaymentAlreadyRecorded. */
+  if (session.metadata?.kind === "branding_order" && session.metadata?.branding_order_id) {
+    const brandingOrderId = session.metadata.branding_order_id;
+    try {
+      const { markBrandingOrderPaid, fulfillBrandingOrder, confirmBrandingFulfillment } = await import("./branding-fulfillment");
+      await markBrandingOrderPaid(brandingOrderId, session.id);
+      const fulfillment = await fulfillBrandingOrder(brandingOrderId);
+      await confirmBrandingFulfillment(brandingOrderId);
+      logger.info(
+        { brandingOrderId, sessionId: session.id, fulfillment },
+        "Stripe webhook: branding order paid + submitted to fulfillment"
+      );
+      await recordStripePayment({
+        stripeSessionId:      session.id,
+        stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        userId,
+        creditPack:           `branding_order:${brandingOrderId}`,
+        creditsAmount:         0,
+        amountTotal:  session.amount_total,
+        currency:     session.currency,
+      });
+      res.status(200).json({ received: true, success: true, brandingOrderId });
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message ?? "unknown";
+      logger.error({ err, msg, brandingOrderId }, "Stripe webhook: branding order fulfillment failed");
+      res.status(200).json({ received: true, warning: `Branding fulfillment failed: ${msg}` });
+    }
+    return;
+  }
 
   if (!creditsAmount || creditsAmount <= 0) {
     logger.error({ sessionId: session.id, creditsAmount }, "Stripe webhook: invalid credits_amount in metadata");

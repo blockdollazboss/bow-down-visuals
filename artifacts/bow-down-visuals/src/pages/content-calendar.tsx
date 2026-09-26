@@ -17,7 +17,6 @@ import {
   postingCount,
   type CalendarPlatformKey,
 } from "@/lib/content-calendar";
-import { CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── AI Content Calendar ────────────────────────────────────────────────
@@ -221,7 +220,7 @@ export default function ContentCalendar() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <CalendarDays className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> planning tools
+            <CalendarDays className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's planning tools
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             AI Content <span className="text-primary">Calendar</span>

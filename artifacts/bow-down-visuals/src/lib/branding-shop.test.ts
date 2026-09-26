@@ -11,13 +11,19 @@ import {
 } from "./branding-shop";
 
 describe("branding shop catalog", () => {
-  it("has five products with positive cent prices and sizes", () => {
-    expect(BRANDING_PRODUCTS).toHaveLength(5);
+  it("has seven products with positive cent prices and sizes", () => {
+    expect(BRANDING_PRODUCTS).toHaveLength(7);
     for (const p of BRANDING_PRODUCTS) {
       expect(Number.isInteger(p.priceCents)).toBe(true);
       expect(p.priceCents).toBeGreaterThan(0);
       expect(p.sizes.length).toBeGreaterThan(0);
     }
+  });
+
+  it("covers the full POD lineup", () => {
+    expect(BRANDING_PRODUCTS.map((p) => p.key).sort()).toEqual(
+      ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"]
+    );
   });
 
   it("has three color options", () => {

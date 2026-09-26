@@ -15,10 +15,15 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   jewelry: text("jewelry"),
   clothing_style: text("clothing_style"),
   brand_colors: text("brand_colors"),
+  /* Visual identity theme — preset id from src/lib/character-themes.ts.
+     Drives the artist's color scheme across selection, vault, and branding. */
+  theme_id: text("theme_id").notNull().default("gold-royalty"),
   personality: text("personality"),
   do_not_change_rules: text("do_not_change_rules"),
   reference_image_url: text("reference_image_url"),
   reference_image_path: text("reference_image_path"),
+  reference_video_url: text("reference_video_url"),
+  reference_video_path: text("reference_video_path"),
   consistency_prompt: text("consistency_prompt"),
   /* Locked-in ElevenLabs voice for this artist. When set, every song
      generated for the artist is vocal-swapped to this voice. */

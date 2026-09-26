@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
-  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft,
+  ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck,
 } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
@@ -14,8 +14,8 @@ import { centsToDisplay, dollarsToCents } from "@/lib/shops";
    Your own shop on the Bow Down Visuals platform. Shop/product CRUD is
    FREE (pure data). The AI layer costs credits: AI shop description and
    AI product description at 1 credit each, AI product images at 1 credit
-   (standard) / 2 credits (premium). Custom domains are marked coming soon
-   in the UI — never faked. */
+   (standard) / 2 credits (premium). Custom domains are REAL: TXT verification
+   via /api/storefronts/domain/verify — never faked. */
 
 interface Shop {
   id: string;
@@ -26,6 +26,8 @@ interface Shop {
   banner_color: string;
   accent_color: string;
   banner_image_url: string | null;
+  custom_domain: string | null;
+  domain_verified: boolean;
   product_count?: number;
 }
 
@@ -500,17 +502,7 @@ export default function MyShop() {
                     </button>
                   </div>
 
-                  {/* custom domain — coming soon, never faked */}
-                  <div className="mt-6 rounded-xl border border-dashed border-white/15 bg-black/40 p-4 flex items-start gap-3">
-                    <Globe className="w-5 h-5 text-white/40 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-sm font-bold">Connect your own domain <span className="ml-2 rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">coming soon</span></div>
-                      <p className="mt-1 text-xs text-white/45">
-                        Your shop is live now at <span className="font-mono text-amber-300/90">/shop/{activeShop.handle}</span>.
-                        Custom domains (yourstore.com) are on the roadmap — we'll notify you when it's ready.
-                      </p>
-                    </div>
-                  </div>
+                  <DomainManager shop={activeShop} authed={authed} onUpdate={setActiveShop} />
                 </section>
 
                 {/* products */}
@@ -619,6 +611,8 @@ export default function MyShop() {
                     </div>
                   )}
                 </section>
+
+                <AnalyticsCard shopId={activeShop.id} authed={authed} />
               </div>
             )}
           </div>
@@ -630,5 +624,241 @@ export default function MyShop() {
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+/* ─── DomainManager — real custom-domain connection ────────────────────────
+   TXT verification via POST /api/storefronts/domain/verify. Never faked:
+   the domain only shows "verified" after DNS actually resolves the token. */
+function DomainManager({
+  shop, authed, onUpdate,
+}: {
+  shop: Shop;
+  authed: (path: string, init?: RequestInit) => Promise<Response>;
+  onUpdate: (s: Shop) => void;
+}) {
+  const [domain, setDomain] = useState(shop.custom_domain ?? "");
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function attach() {
+    setError(null); setBusy(true);
+    try {
+      const res = await authed(`/api/storefronts/${shop.id}/domain`, {
+        method: "POST", body: JSON.stringify({ domain: domain.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't attach that domain.");
+      setToken(data.verification.value);
+      onUpdate({ ...shop, custom_domain: data.domain, domain_verified: false });
+    } catch (e) { setError(e instanceof Error ? e.message : "Attach failed."); }
+    finally { setBusy(false); }
+  }
+
+  async function verify() {
+    setError(null); setVerifying(true);
+    try {
+      const res = await authed("/api/storefronts/domain/verify", {
+        method: "POST", body: JSON.stringify({ shopId: shop.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.verified) {
+        setToken(null);
+        onUpdate({ ...shop, domain_verified: true });
+      } else {
+        setError(data.reason || "Not verified yet — DNS can take a few minutes to propagate.");
+      }
+    } catch { setError("Verification check failed. Try again."); }
+    finally { setVerifying(false); }
+  }
+
+  async function detach() {
+    if (!confirm("Disconnect this domain from your shop?")) return;
+    setError(null);
+    try {
+      const res = await authed(`/api/storefronts/${shop.id}/domain`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Couldn't disconnect the domain.");
+      setToken(null); setDomain("");
+      onUpdate({ ...shop, custom_domain: null, domain_verified: false });
+    } catch (e) { setError(e instanceof Error ? e.message : "Disconnect failed."); }
+  }
+
+  function copyToken() {
+    if (token) navigator.clipboard.writeText(token).catch(() => {});
+    setCopied(true); setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border border-white/10 bg-black/40 p-5">
+      <div className="flex items-center gap-2">
+        <Globe className="w-5 h-5 text-amber-300" />
+        <div className="text-sm font-bold">Custom domain</div>
+        {shop.domain_verified && shop.custom_domain && (
+          <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-300">
+            <BadgeCheck className="w-3.5 h-3.5" /> Verified
+          </span>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+
+      {!shop.custom_domain ? (
+        <div className="mt-3">
+          <p className="text-xs text-white/45">
+            Point your own domain at your shop. You'll add one TXT record to prove ownership.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <input
+              value={domain} onChange={(e) => setDomain(e.target.value)}
+              placeholder="shop.yourname.com"
+              className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+            />
+            <button onClick={attach} disabled={busy || !domain.trim()} className={goldBtn}>
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} Connect
+            </button>
+          </div>
+        </div>
+      ) : shop.domain_verified ? (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="font-mono text-sm text-emerald-300">{shop.custom_domain}</p>
+          <button onClick={detach} className="text-xs font-bold text-white/40 hover:text-red-300">Disconnect</button>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-3 text-sm">
+          <p className="font-mono text-xs text-white/70">
+            Add this TXT record at <span className="text-amber-300">bdv-verify.{shop.custom_domain}</span>:
+          </p>
+          <div className="flex items-start justify-between gap-2 rounded-lg border border-white/10 bg-black/60 p-3">
+            <code className="break-all font-mono text-xs text-amber-300">{token ?? "••••••••"}</code>
+            {token && (
+              <button onClick={copyToken} className="shrink-0 text-white/50 hover:text-white" title="Copy token">
+                {copied ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
+          {!token && (
+            <p className="text-xs text-white/40">Token issued when you connected — reconnect to get a fresh one.</p>
+          )}
+          <p className="text-xs text-white/45">
+            Also add a CNAME: host <span className="font-mono text-white/70">@</span> →{" "}
+            <span className="font-mono text-white/70">cname.bowdownvisuals.com</span>
+          </p>
+          <div className="flex gap-2">
+            <button onClick={verify} disabled={verifying} className={goldBtn}>
+              {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeCheck className="w-4 h-4" />}
+              Verify domain
+            </button>
+            <button onClick={detach} className={ghostBtn}>Cancel</button>
+          </div>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-white/40">
+        Live now at <span className="font-mono text-amber-300/90">/shop/{shop.handle}</span>
+      </p>
+    </div>
+  );
+}
+
+/* ─── AnalyticsCard — per-shop views + sales (free to view) ─────────────── */
+function AnalyticsCard({
+  shopId, authed,
+}: {
+  shopId: string;
+  authed: (path: string, init?: RequestInit) => Promise<Response>;
+}) {
+  const [data, setData] = useState<{
+    totals: { views: number; sales: number; gross_cents: number; platform_fee_cents: number; seller_net_cents: number };
+    dailyViews: Array<{ day: string; views: number }>;
+    sales: Array<{ id: string; product_name: string | null; amount_cents: number; platform_fee_cents: number; seller_net_cents: number; buyer_email: string | null; created_at: string }>;
+    platformFeePct: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await authed(`/api/storefronts/${shopId}/analytics`);
+        const d = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) setData(d);
+      } catch { /* analytics never breaks the page */ }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [shopId]);
+
+  const maxViews = Math.max(1, ...(data?.dailyViews.map((d) => d.views) ?? [1]));
+
+  return (
+    <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+      <h2 className="text-lg font-bold">Analytics <span className="text-white/40 text-sm font-normal">free</span></h2>
+      {loading ? (
+        <div className="py-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-amber-400" /></div>
+      ) : !data ? (
+        <p className="mt-3 text-sm text-white/40">Couldn't load analytics.</p>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Storefront views", value: String(data.totals.views) },
+              { label: "Sales", value: String(data.totals.sales) },
+              { label: "Gross revenue", value: centsToDisplay(data.totals.gross_cents) },
+              { label: "You keep (90%)", value: centsToDisplay(data.totals.seller_net_cents), gold: true },
+            ].map((s) => (
+              <div key={s.label} className="rounded-xl border border-white/10 bg-black/40 p-4">
+                <div className={`text-xl font-black ${s.gold ? "text-amber-300" : ""}`}>{s.value}</div>
+                <div className="mt-1 text-[11px] uppercase tracking-wider text-white/40">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {data.dailyViews.length > 0 && (
+            <div className="mt-5">
+              <div className="text-xs font-bold uppercase tracking-wider text-white/40">Views — last 30 days</div>
+              <div className="mt-2 flex h-20 items-end gap-1">
+                {data.dailyViews.map((d) => (
+                  <div
+                    key={d.day}
+                    title={`${d.day}: ${d.views} views`}
+                    className="flex-1 rounded-t bg-gradient-to-t from-amber-500/40 to-amber-300/80"
+                    style={{ height: `${Math.max(4, (d.views / maxViews) * 100)}%` }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5">
+            <div className="text-xs font-bold uppercase tracking-wider text-white/40">
+              Recent sales <span className="normal-case font-normal">({data.platformFeePct}% platform fee on each)</span>
+            </div>
+            {data.sales.length === 0 ? (
+              <p className="mt-2 text-sm text-white/40">No sales yet — share your storefront link.</p>
+            ) : (
+              <div className="mt-2 space-y-2">
+                {data.sales.slice(0, 10).map((sale) => (
+                  <div key={sale.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate font-bold">{sale.product_name ?? "Product"}</div>
+                      <div className="text-[11px] text-white/40">
+                        {new Date(sale.created_at).toLocaleDateString()}{sale.buyer_email ? ` · ${sale.buyer_email}` : ""}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="font-bold">{centsToDisplay(sale.amount_cents)}</div>
+                      <div className="text-[11px] text-emerald-300">you keep {centsToDisplay(sale.seller_net_cents)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
   );
 }

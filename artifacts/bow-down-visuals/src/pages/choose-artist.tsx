@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function ChooseArtist() {
@@ -122,8 +123,10 @@ export default function ChooseArtist() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               {featuredVaults.map((vault, index) => {
               const isSelected = selectedId === vault.id;
-              const G = (o: number) => `rgba(201,168,76,${o})`;
-              const GOLD = "#C9A84C";
+              /* Each character shines in their own theme — identity at a glance. */
+              const theme = getCharacterTheme(vault.theme_id);
+              const T = (o: number) => themeAlpha(theme.primary, o);
+              const THEME = theme.primary;
               const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
               return (
                 <button
@@ -134,8 +137,8 @@ export default function ChooseArtist() {
                   style={{
                     textAlign: "left",
                     borderRadius: 20,
-                    border: isSelected ? `2px solid ${G(0.6)}` : "1px solid rgba(255,255,255,0.07)",
-                    boxShadow: isSelected ? `0 0 40px ${G(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
+                    border: isSelected ? `2px solid ${T(0.6)}` : "1px solid rgba(255,255,255,0.07)",
+                    boxShadow: isSelected ? `0 0 40px ${T(0.2)}, 0 8px 32px rgba(0,0,0,0.6)` : "none",
                     padding: 0,
                     cursor: "pointer",
                     position: "relative",
@@ -147,10 +150,15 @@ export default function ChooseArtist() {
                     background: vault.reference_image_url
                       ? `url(${vault.reference_image_url}) top center/cover no-repeat`
                       : isSelected
-                        ? "linear-gradient(135deg, #1a1200 0%, #0d0800 60%, #000 100%)"
+                        ? `linear-gradient(135deg, ${T(0.22)} 0%, ${T(0.08)} 60%, #000 100%)`
                         : "linear-gradient(135deg, #111 0%, #0a0a0a 100%)",
                   }}
                 >
+                  {/* Theme color wash — the character's identity glows through */}
+                  <div style={{
+                    position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
+                    background: `linear-gradient(135deg, ${T(0.14)} 0%, transparent 55%)`,
+                  }} />
                   {/* Initials avatar (no photo) */}
                   {!vault.reference_image_url && (
                     <div style={{
@@ -159,12 +167,12 @@ export default function ChooseArtist() {
                     }}>
                       <div style={{
                         width: 72, height: 72, borderRadius: "50%",
-                        background: isSelected ? `linear-gradient(135deg, ${G(0.25)}, ${G(0.06)})` : "rgba(255,255,255,0.06)",
-                        border: isSelected ? `2px solid ${G(0.5)}` : "1px solid rgba(255,255,255,0.1)",
+                        background: isSelected ? `linear-gradient(135deg, ${T(0.25)}, ${T(0.06)})` : "rgba(255,255,255,0.06)",
+                        border: isSelected ? `2px solid ${T(0.5)}` : "1px solid rgba(255,255,255,0.1)",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        boxShadow: isSelected ? `0 0 28px ${G(0.35)}` : "none",
+                        boxShadow: isSelected ? `0 0 28px ${T(0.35)}` : "none",
                       }}>
-                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? GOLD : "rgba(255,255,255,0.35)" }}>{initials}</span>
+                        <span style={{ fontFamily: "Georgia, serif", fontSize: 22, fontWeight: 900, color: isSelected ? THEME : "rgba(255,255,255,0.35)" }}>{initials}</span>
                       </div>
                     </div>
                   )}
@@ -173,24 +181,24 @@ export default function ChooseArtist() {
                   <div style={{
                     position: "absolute", top: 10, left: 10, zIndex: 3,
                     display: "flex", alignItems: "center", gap: 5,
-                    background: "linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.08))",
-                    border: `1px solid ${G(0.6)}`,
+                    background: `linear-gradient(135deg, ${T(0.25)}, ${T(0.08)})`,
+                    border: `1px solid ${T(0.6)}`,
                     borderRadius: 8, padding: "4px 10px",
                     backdropFilter: "blur(8px)",
-                    boxShadow: `0 0 15px ${G(0.3)}`,
+                    boxShadow: `0 0 15px ${T(0.3)}`,
                   }}>
-                    <Crown className="h-3 w-3" style={{ color: GOLD }} />
-                    <span style={{ fontSize: 9, fontWeight: 900, color: GOLD, letterSpacing: "0.12em" }}>
+                    <Crown className="h-3 w-3" style={{ color: THEME }} />
+                    <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em" }}>
                       #{index + 1} SPOTLIGHT
                     </span>
                   </div>
 
                   {/* Viewfinder focus corners */}
                   {[
-                    { top: 8, left: 8, borderTop: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderTopLeftRadius: 6 },
-                    { top: 8, right: 8, borderTop: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderTopRightRadius: 6 },
-                    { bottom: 8, left: 8, borderBottom: `2px solid ${G(0.8)}`, borderLeft: `2px solid ${G(0.8)}`, borderBottomLeftRadius: 6 },
-                    { bottom: 8, right: 8, borderBottom: `2px solid ${G(0.8)}`, borderRight: `2px solid ${G(0.8)}`, borderBottomRightRadius: 6 },
+                    { top: 8, left: 8, borderTop: `2px solid ${T(0.8)}`, borderLeft: `2px solid ${T(0.8)}`, borderTopLeftRadius: 6 },
+                    { top: 8, right: 8, borderTop: `2px solid ${T(0.8)}`, borderRight: `2px solid ${T(0.8)}`, borderTopRightRadius: 6 },
+                    { bottom: 8, left: 8, borderBottom: `2px solid ${T(0.8)}`, borderLeft: `2px solid ${T(0.8)}`, borderBottomLeftRadius: 6 },
+                    { bottom: 8, right: 8, borderBottom: `2px solid ${T(0.8)}`, borderRight: `2px solid ${T(0.8)}`, borderBottomRightRadius: 6 },
                   ].map((corner, ci) => (
                     <div key={ci} style={{ position: "absolute", width: 22, height: 22, zIndex: 2, pointerEvents: "none", ...corner }} />
                   ))}
@@ -200,12 +208,12 @@ export default function ChooseArtist() {
                     <div style={{
                       position: "absolute", top: 10, right: 10, zIndex: 3,
                       display: "flex", alignItems: "center", gap: 4,
-                      background: "rgba(0,0,0,0.55)", border: `1px solid ${G(0.5)}`,
+                      background: "rgba(0,0,0,0.55)", border: `1px solid ${T(0.5)}`,
                       borderRadius: 7, padding: "3px 8px",
                       backdropFilter: "blur(8px)",
                     }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: GOLD, boxShadow: `0 0 5px ${GOLD}` }} />
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: GOLD, letterSpacing: "0.14em" }}>SELECTED</span>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: THEME, boxShadow: `0 0 5px ${THEME}` }} />
+                      <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>SELECTED</span>
                     </div>
                   )}
 
@@ -223,17 +231,21 @@ export default function ChooseArtist() {
                       textShadow: "0 1px 6px rgba(0,0,0,0.8)",
                     }}>{vault.artist_name}</p>
                     {vault.artist_type && (
-                      <p style={{ fontSize: 9.5, color: isSelected ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                      <p style={{ fontSize: 9.5, color: isSelected ? T(0.85) : "rgba(255,255,255,0.55)", marginTop: 1, letterSpacing: "0.07em", textTransform: "uppercase" }}>
                         {vault.artist_type}
                       </p>
                     )}
+                    {/* Theme name tag — who they are, in their colors */}
+                    <p style={{ fontSize: 9, color: T(0.9), marginTop: 3, letterSpacing: "0.14em", textTransform: "uppercase", fontWeight: 700 }}>
+                      {theme.name}
+                    </p>
                   </div>
 
-                  {/* Gold border glow on selected */}
+                  {/* Theme border glow on selected */}
                   {isSelected && (
                     <div style={{
                       position: "absolute", left: 0, top: 0, bottom: 0, width: 3,
-                      background: `linear-gradient(to bottom, ${GOLD}, ${G(0.3)})`,
+                      background: `linear-gradient(to bottom, ${THEME}, ${T(0.3)})`,
                       zIndex: 2,
                     }} />
                   )}
@@ -251,23 +263,43 @@ export default function ChooseArtist() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
                   {remainingVaults.map((vault) => {
                     const isSelected = selectedId === vault.id;
+                    const rTheme = getCharacterTheme(vault.theme_id);
                     const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
                     return (
                       <button
                         key={vault.id}
                         type="button"
                         onClick={() => setSelectedId(isSelected ? null : vault.id)}
-                        className={`rounded-xl border p-3 text-left transition ${
-                          isSelected
-                            ? "border-primary/60 bg-primary/[0.08]"
-                            : "border-white/[0.07] bg-white/[0.02] hover:border-white/20"
-                        }`}
+                        className="rounded-xl border p-3 text-left transition"
+                        style={isSelected ? {
+                          borderColor: themeAlpha(rTheme.primary, 0.6),
+                          background: rTheme.cardTint,
+                          boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
+                        } : undefined}
                       >
                         <div className="flex items-center gap-2.5">
-                          {vault.reference_image_url ? (
-                            <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                          {vault.reference_video_url ? (
+                            <video
+                              src={vault.reference_video_url}
+                              poster={vault.reference_image_url ?? undefined}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              className="h-10 w-10 rounded-full object-cover"
+                              style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined}
+                            />
+                          ) : vault.reference_image_url ? (
+                            <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined} />
                           ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[0.06] text-sm font-bold text-white/50">
+                            <div
+                              className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                              style={isSelected ? {
+                                background: `linear-gradient(135deg, ${themeAlpha(rTheme.primary, 0.3)}, ${themeAlpha(rTheme.primary, 0.08)})`,
+                                color: rTheme.primary,
+                                border: `1px solid ${themeAlpha(rTheme.primary, 0.5)}`,
+                              } : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
+                            >
                               {initials}
                             </div>
                           )}

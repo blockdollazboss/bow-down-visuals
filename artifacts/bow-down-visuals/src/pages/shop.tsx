@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "wouter";
 import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
-  Store, ArrowLeft, Lock,
+  Store, ArrowLeft, Check, BadgeCheck,
 } from "lucide-react";
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
@@ -12,8 +12,11 @@ import {
 } from "@/lib/shops";
 
 /* ─── Public storefront — /shop/:handle ───────────────────────────────────
-   Anyone can view. No auth required. Cart is local-only (localStorage);
-   checkout is honestly marked COMING SOON — v1 never fakes an order. */
+   Anyone can view. No auth required. Cart is local-only (localStorage).
+   Checkout records a real order via /api/storefronts/checkout: the buyer
+   pays the listed price, Bow Down Visuals takes a 10% platform fee from the
+   seller's cut. Card processing via Stripe Connect is the follow-up — the
+   seller follows up to complete payment. */
 
 interface PublicShop {
   id: string;
@@ -24,6 +27,8 @@ interface PublicShop {
   banner_color: string;
   accent_color: string;
   banner_image_url: string | null;
+  custom_domain: string | null;
+  domain_verified: boolean;
 }
 
 interface PublicProduct {
@@ -35,8 +40,8 @@ interface PublicProduct {
 }
 
 export default function ShopStorefront() {
-  const params = useParams<{ handle?: string }>();
-  const handle = (params.handle ?? "").toLowerCase();
+  const params = useParams<{ slug?: string }>();
+  const handle = (params.slug ?? "").toLowerCase();
   const [shop, setShop] = useState<PublicShop | null>(null);
   const [products, setProducts] = useState<PublicProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,6 +49,12 @@ export default function ShopStorefront() {
   const [selected, setSelected] = useState<PublicProduct | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [feePct, setFeePct] = useState(10);
+  /* checkout */
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [placing, setPlacing] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  const [orderDone, setOrderDone] = useState<{ lines: number; gross: number; fee: number; net: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,12 +62,12 @@ export default function ShopStorefront() {
       setLoading(true);
       setNotFound(false);
       try {
-        const res = await fetch(`/api/shops/handle/${encodeURIComponent(handle)}`);
+        const res = await fetch(`/api/storefronts/slug/${encodeURIComponent(handle)}`);
         if (res.status === 404) {
           if (!cancelled) setNotFound(true);
           return;
         }
-        const data = (await res.json()) as { shop?: PublicShop; products?: PublicProduct[] };
+        const data = (await res.json()) as { shop?: PublicShop; products?: PublicProduct[]; platformFeePct?: number };
         if (!data.shop) {
           if (!cancelled) setNotFound(true);
           return;
@@ -64,6 +75,7 @@ export default function ShopStorefront() {
         if (!cancelled) {
           setShop(data.shop);
           setProducts(data.products ?? []);
+          setFeePct(data.platformFeePct ?? 10);
         }
       } catch {
         if (!cancelled) setNotFound(true);
@@ -110,6 +122,40 @@ export default function ShopStorefront() {
     setCart((c) => setCartLineQty(c, productId, qty));
   }
 
+  /* Real order capture: one checkout call per cart line, fee broken out
+     honestly. The buyer pays the listed price; the 10% platform fee comes
+     out of the seller's cut. Card processing (Stripe Connect) is next —
+     the seller follows up to complete payment. */
+  async function placeOrder() {
+    if (!shop || cartDetailed.length === 0) return;
+    setPlacing(true);
+    setOrderError(null);
+    try {
+      let gross = 0, fee = 0, net = 0;
+      for (const l of cartDetailed) {
+        const res = await fetch("/api/storefronts/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shopId: shop.id,
+            productId: l.productId,
+            quantity: l.qty,
+            buyerEmail: buyerEmail.trim() || undefined,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "Order failed.");
+        gross += data.gross_cents; fee += data.platform_fee_cents; net += data.seller_net_cents;
+      }
+      setOrderDone({ lines: cartDetailed.length, gross, fee, net });
+      setCart([]);
+    } catch (e) {
+      setOrderError(e instanceof Error ? e.message : "Order failed. Try again.");
+    } finally {
+      setPlacing(false);
+    }
+  }
+
   const accent = shop?.accent_color ?? "#d4af37";
 
   return (
@@ -141,7 +187,14 @@ export default function ShopStorefront() {
             <div className="relative max-w-6xl mx-auto px-5 md:px-8 pt-16 pb-10 md:pt-24 md:pb-14">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: accent }}>Bow Down Visuals Shop</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: accent }}>Bow Down Visuals Shop</p>
+                    {shop.domain_verified && shop.custom_domain && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[11px] font-bold text-amber-300">
+                        <BadgeCheck className="h-3.5 w-3.5" /> {shop.custom_domain}
+                      </span>
+                    )}
+                  </div>
                   <h1 className="mt-2 text-4xl md:text-6xl font-black tracking-tight">{shop.name}</h1>
                   {shop.tagline && <p className="mt-2 text-lg text-white/70">{shop.tagline}</p>}
                   {shop.description && <p className="mt-4 max-w-2xl text-sm text-white/55 whitespace-pre-line">{shop.description}</p>}
@@ -197,7 +250,8 @@ export default function ShopStorefront() {
               </div>
             )}
             <p className="mt-10 text-center text-xs text-white/30">
-              Powered by <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · Secure checkout coming soon
+              Powered by <span className="text-amber-300/80 font-semibold">Bow Down Visuals</span> · Sellers keep 90% of every sale ·{" "}
+              <Link href="/storefronts" className="underline hover:text-white/60">Browse all shops</Link>
             </p>
           </div>
         </main>
@@ -287,25 +341,49 @@ export default function ShopStorefront() {
                 ))
               )}
             </div>
-            {cartDetailed.length > 0 && (
+            {cartDetailed.length > 0 && !orderDone && (
               <div className="mt-4 border-t border-white/10 pt-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-white/50">Total</span>
                   <span className="text-lg font-black">{centsToDisplay(cartTotal)}</span>
                 </div>
-                <div className="mt-3 rounded-xl border border-dashed border-amber-400/40 bg-amber-400/[0.06] p-3 flex items-start gap-2">
-                  <Lock className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-200/80">
-                    <span className="font-bold">Secure checkout is coming soon.</span> Your cart is saved on this device —
-                    check back once the shop owner enables checkout.
-                  </p>
-                </div>
+                <input
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  type="email"
+                  placeholder="Email for order follow-up"
+                  className="mt-3 w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-amber-400/60"
+                />
+                {orderError && <p className="mt-2 text-xs text-red-300">{orderError}</p>}
                 <button
-                  disabled
-                  className="mt-3 w-full rounded-xl bg-white/10 px-5 py-3.5 text-sm font-bold text-white/40 cursor-not-allowed"
-                  title="Checkout is coming soon"
+                  onClick={placeOrder}
+                  disabled={placing}
+                  className="mt-3 w-full rounded-xl px-5 py-3.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
+                  style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}cc)` }}
                 >
-                  Checkout — coming soon
+                  {placing ? <Loader2 className="w-5 h-5 mx-auto animate-spin" /> : `Place order — ${centsToDisplay(cartTotal)}`}
+                </button>
+                <p className="mt-2 text-[11px] leading-relaxed text-white/35">
+                  Order capture — card processing via Stripe Connect is coming soon; the seller
+                  follows up to complete payment. You pay the listed price; Bow Down Visuals
+                  takes a {feePct}% platform fee from the seller's cut.
+                </p>
+              </div>
+            )}
+            {orderDone && (
+              <div className="mt-4 border-t border-white/10 pt-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/15">
+                  <Check className="h-6 w-6 text-emerald-300" />
+                </div>
+                <h3 className="mt-3 font-black">Order recorded!</h3>
+                <p className="mt-1 text-xs text-white/50">{orderDone.lines} item{orderDone.lines === 1 ? "" : "s"} — the seller will follow up to complete payment.</p>
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-3 text-left text-xs">
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">Order total</span><span className="font-bold">{centsToDisplay(orderDone.gross)}</span></div>
+                  <div className="flex justify-between py-0.5"><span className="text-white/50">Platform fee ({feePct}%)</span><span>{centsToDisplay(orderDone.fee)}</span></div>
+                  <div className="flex justify-between border-t border-white/10 py-0.5 pt-1.5"><span className="font-bold">Seller receives</span><span className="font-bold text-emerald-300">{centsToDisplay(orderDone.net)}</span></div>
+                </div>
+                <button className="mt-3 text-xs font-bold text-white/50 hover:text-white" onClick={() => { setOrderDone(null); setCartOpen(false); }}>
+                  Continue shopping
                 </button>
               </div>
             )}

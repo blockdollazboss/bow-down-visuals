@@ -3,7 +3,7 @@
  *
  * Covers:
  * - pricing constants (AI 1 credit, packaging 10 credits, env-overridable)
- * - platform list integrity (8 platforms, every key has a label)
+ * - platform list integrity (9 platforms, every key has a label)
  * - the v1 honesty contract: RELEASE_STATUSES has no "delivered" status,
  *   and the route source uses max_completion_tokens (GPT-6 rejects max_tokens)
  * - release CRUD with real DB semantics via pg-mem: auth scoping,
@@ -80,6 +80,7 @@ import router, {
   DISTRIBUTION_PLATFORMS,
   PLATFORM_LABEL,
   RELEASE_STATUSES,
+  RELEASE_TIER_CREDITS,
   metadataSchema,
   strategySchema,
   createReleaseSchema,
@@ -103,7 +104,41 @@ CREATE TABLE distribution_releases (
   status text NOT NULL DEFAULT 'draft',
   credits_charged integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  release_type text NOT NULL DEFAULT 'single',
+  isrc text,
+  genre text,
+  explicit boolean NOT NULL DEFAULT false,
+  explicit_declared boolean NOT NULL DEFAULT false,
+  upc text,
+  label text,
+  copyright_line text,
+  song_id uuid,
+  tracks jsonb NOT NULL DEFAULT '[]'::jsonb,
+  aggregator text NOT NULL DEFAULT 'none',
+  aggregator_release_id text,
+  platform_statuses jsonb NOT NULL DEFAULT '[]'::jsonb,
+  presave_slug text
+);`;
+
+const SPLITS_DDL = `
+CREATE TABLE distribution_royalty_splits (
+  id uuid PRIMARY KEY,
+  release_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  payee_name text NOT NULL,
+  role text,
+  share_pct numeric(5,2) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);`;
+
+/* Minimal songs table — only the columns the songId ownership check reads. */
+const SONGS_DDL = `
+CREATE TABLE songs (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  audio_url text NOT NULL
 );`;
 
 const realFetch = globalThis.fetch;
@@ -129,6 +164,8 @@ afterAll(async () => {
 beforeEach(async () => {
   const { db, mem } = createTestDb();
   mem.public.none(RELEASES_DDL);
+  mem.public.none(SPLITS_DDL);
+  mem.public.none(SONGS_DDL);
   testState.db = db;
   testState.userId = USER_A;
   testState.userCredits = 100;
@@ -148,11 +185,38 @@ async function req(method: string, path: string, body?: unknown) {
   return { status: r.status, json: json as any };
 }
 
+function futureDate(daysOut: number): string {
+  const d = new Date(Date.now() + daysOut * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
 async function seedRelease(userId: string, overrides: Record<string, unknown> = {}) {
   const id = randomUUID();
+  /* `complete: true` fills every checklist field so submit can proceed. */
+  const complete = overrides["complete"] === true;
+  const releaseType = (overrides["release_type"] as string) ?? "single";
+  const trackCount = releaseType === "album" ? 7 : releaseType === "ep" ? 3 : 1;
+  const tracks = complete
+    ? JSON.stringify(
+        Array.from({ length: trackCount }, (_, i) => ({ title: `Track ${i + 1}` })),
+      )
+    : "[]";
   await testState.db.execute(sql`
-    INSERT INTO distribution_releases (id, user_id, title, artist_name, status, platforms)
-    VALUES (${id}, ${userId}, ${"Test Track"}, ${"Test Artist"}, ${(overrides["status"] as string) ?? "draft"}, ${JSON.stringify(["spotify"])})
+    INSERT INTO distribution_releases
+      (id, user_id, title, artist_name, status, platforms, release_type,
+       audio_url, artwork_url, release_date, explicit_declared, genre, tracks)
+    VALUES (
+      ${id}, ${userId}, ${"Test Track"}, ${"Test Artist"},
+      ${(overrides["status"] as string) ?? "draft"},
+      ${JSON.stringify(["spotify"])},
+      ${releaseType},
+      ${complete ? "https://example.com/audio.mp3" : null},
+      ${complete ? "https://example.com/art.jpg" : null},
+      ${complete ? futureDate(30) : null},
+      ${complete},
+      ${complete ? "Hip-Hop" : null},
+      ${tracks}::jsonb
+    )
   `);
   return { id };
 }
@@ -169,8 +233,8 @@ describe("pricing constants", () => {
 });
 
 describe("platform list", () => {
-  it("covers 8 platforms with a label for each", () => {
-    expect(DISTRIBUTION_PLATFORMS).toHaveLength(8);
+  it("covers 9 platforms with a label for each", () => {
+    expect(DISTRIBUTION_PLATFORMS).toHaveLength(9);
     for (const key of DISTRIBUTION_PLATFORMS) {
       expect(PLATFORM_LABEL[key]).toBeTruthy();
     }
@@ -333,9 +397,18 @@ describe("DELETE /api/distribution/releases/:id", () => {
 /* ─── submit (paid packaging) ────────────────────────────────────────────── */
 
 describe("POST /api/distribution/releases/:id/submit", () => {
-  it("402s when the user can't afford the packaging fee", async () => {
-    testState.userCredits = 5;
+  it("400s when the release checklist is incomplete", async () => {
     const { id } = await seedRelease(USER_A);
+    const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
+    expect(status).toBe(400);
+    expect(json.checklist).toBeDefined();
+    expect(json.checklist.some((c: any) => c.key === "audio" && !c.ok)).toBe(true);
+    expect(chargeCredits).not.toHaveBeenCalled();
+  });
+
+  it("402s when the user can't afford the tier fee", async () => {
+    testState.userCredits = 5;
+    const { id } = await seedRelease(USER_A, { complete: true });
     const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
     expect(status).toBe(402);
     expect(json.error).toBe("out_of_credits");
@@ -356,18 +429,43 @@ describe("POST /api/distribution/releases/:id/submit", () => {
     expect(chargeCredits).not.toHaveBeenCalled();
   });
 
-  it("charges the fee, marks the release packaged, and stays honest about delivery", async () => {
-    const { id } = await seedRelease(USER_A);
+  it("charges the single-tier fee, marks packaged, queues platform delivery", async () => {
+    const { id } = await seedRelease(USER_A, { complete: true });
     const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
     expect(status).toBe(200);
     expect(chargeCredits).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(chargeCredits).mock.calls[0]?.[1]).toBe(DISTRIBUTION_RELEASE_CREDITS);
+    expect(vi.mocked(chargeCredits).mock.calls[0]?.[1]).toBe(RELEASE_TIER_CREDITS.single);
     expect(json.release.status).toBe("packaged");
-    expect(json.release.creditsCharged).toBe(DISTRIBUTION_RELEASE_CREDITS);
-    expect(json.creditsUsed).toBe(DISTRIBUTION_RELEASE_CREDITS);
+    expect(json.release.creditsCharged).toBe(RELEASE_TIER_CREDITS.single);
+    expect(json.creditsUsed).toBe(RELEASE_TIER_CREDITS.single);
+    expect(json.release.aggregator).toBe("mock");
+    expect(json.release.aggregatorReleaseId).toBeTruthy();
+    expect(json.release.platformStatuses).toHaveLength(1);
+    expect(json.release.platformStatuses[0].status).toBe("queued");
     /* Honesty: the notice must not claim platform delivery happened. */
-    expect(json.notice).toMatch(/coming soon/i);
+    expect(json.notice).toMatch(/sandbox/i);
     expect(json.notice).not.toMatch(/has been delivered|is now live on/i);
+  });
+
+  it("charges the EP tier (20 credits) for EPs", async () => {
+    const { id } = await seedRelease(USER_A, { complete: true, release_type: "ep" });
+    const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
+    expect(status).toBe(200);
+    expect(vi.mocked(chargeCredits).mock.calls[0]?.[1]).toBe(RELEASE_TIER_CREDITS.ep);
+    expect(json.creditsUsed).toBe(20);
+  });
+
+  it("refunds when the aggregator submission fails", async () => {
+    const { id } = await seedRelease(USER_A, { complete: true });
+    testState.userCredits = 100;
+    const { getAggregator } = await import("../../lib/distribution-aggregator");
+    const agg = getAggregator();
+    const spy = vi.spyOn(agg, "submitRelease").mockRejectedValueOnce(new Error("boom"));
+    const { status } = await req("POST", `/distribution/releases/${id}/submit`);
+    expect(status).toBe(502);
+    const { refundCredits } = await import("../../lib/credits");
+    expect(vi.mocked(refundCredits)).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 });
 
@@ -480,5 +578,189 @@ describe("POST /api/distribution/strategy", () => {
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
     expect(testState.refundCalls[0]?.amount).toBe(AI_CREDIT_COST);
+  });
+});
+
+/* ─── v2: tiered pricing ──────────────────────────────────────────────────── */
+
+describe("tiered release pricing", () => {
+  it("single 10 / EP 20 / album 30 credits", () => {
+    expect(RELEASE_TIER_CREDITS.single).toBe(10);
+    expect(RELEASE_TIER_CREDITS.ep).toBe(20);
+    expect(RELEASE_TIER_CREDITS.album).toBe(30);
+  });
+
+  it("GET /api/distribution/pricing exposes live tiers", async () => {
+    const { status, json } = await req("GET", "/distribution/pricing");
+    expect(status).toBe(200);
+    expect(json.tiers).toHaveLength(3);
+    expect(json.tiers.find((t: any) => t.type === "album").credits).toBe(30);
+    expect(json.annualPlan.comingSoon).toBe(true);
+    expect(json.aggregator).toBe("mock");
+    expect(json.aggregatorLive).toBe(false);
+  });
+});
+
+/* ─── v2: ISRC validation on create ───────────────────────────────────────── */
+
+describe("ISRC validation", () => {
+  it("rejects a malformed release ISRC", async () => {
+    const { status } = await req("POST", "/distribution/releases", {
+      title: "Test Track",
+      artistName: "Test Artist",
+      isrc: "not-an-isrc",
+    });
+    expect(status).toBe(400);
+  });
+
+  it("accepts a valid 12-char ISRC (dashes/spaces tolerated)", async () => {
+    const { status, json } = await req("POST", "/distribution/releases", {
+      title: "Test Track",
+      artistName: "Test Artist",
+      isrc: "us-abc24 12345",
+    });
+    expect(status).toBe(201);
+    expect(json.release.isrc).toBe("USABC2412345");
+  });
+
+  it("rejects another user's songId", async () => {
+    const { status } = await req("POST", "/distribution/releases", {
+      title: "Test Track",
+      artistName: "Test Artist",
+      songId: randomUUID(),
+    });
+    expect(status).toBe(400);
+  });
+
+  it("prefills audio from an owned library song", async () => {
+    const songId = randomUUID();
+    await testState.db.execute(sql`
+      INSERT INTO songs (id, user_id, title, audio_url)
+      VALUES (${songId}, ${USER_A}, ${"My Song"}, ${"https://example.com/mysong.mp3"})
+    `);
+    const { status, json } = await req("POST", "/distribution/releases", {
+      title: "My Song",
+      artistName: "Test Artist",
+      songId,
+    });
+    expect(status).toBe(201);
+    expect(json.release.audioUrl).toBe("https://example.com/mysong.mp3");
+    expect(json.release.songId).toBe(songId);
+  });
+});
+
+/* ─── v2: royalty splits ──────────────────────────────────────────────────── */
+
+describe("PUT /api/distribution/releases/:id/splits", () => {
+  it("400s when shares don't total 100", async () => {
+    const { id } = await seedRelease(USER_A);
+    const { status, json } = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", share: 60 },
+        { name: "Producer", share: 30 },
+      ],
+    });
+    expect(status).toBe(400);
+    expect(json.error).toMatch(/100%/);
+  });
+
+  it("saves splits that total 100 and returns them on detail", async () => {
+    const { id } = await seedRelease(USER_A);
+    const { status, json } = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [
+        { name: "Me", role: "Artist", share: 70 },
+        { name: "Producer", role: "Producer", share: 30 },
+      ],
+    });
+    expect(status).toBe(200);
+    expect(json.splits).toHaveLength(2);
+    const detail = await req("GET", `/distribution/releases/${id}`);
+    expect(detail.json.release.royaltySplits).toHaveLength(2);
+    expect(detail.json.release.royaltySplits[0].share).toBe(70);
+  });
+
+  it("404s for another user's release", async () => {
+    const { id } = await seedRelease(USER_B);
+    const { status } = await req("PUT", `/distribution/releases/${id}/splits`, {
+      splits: [{ name: "Me", share: 100 }],
+    });
+    expect(status).toBe(404);
+  });
+});
+
+/* ─── v2: pre-save links ──────────────────────────────────────────────────── */
+
+describe("pre-save links", () => {
+  it("mints a slug and serves it publicly", async () => {
+    const { id } = await seedRelease(USER_A);
+    const minted = await req("POST", `/distribution/releases/${id}/presave`);
+    expect(minted.status).toBe(200);
+    expect(minted.json.slug).toMatch(/^[a-f0-9]{10}$/);
+    expect(minted.json.url).toContain(minted.json.slug);
+    /* Idempotent — same slug on re-mint. */
+    const again = await req("POST", `/distribution/releases/${id}/presave`);
+    expect(again.json.slug).toBe(minted.json.slug);
+    /* Public lookup needs no auth scoping tricks — plain fetch. */
+    const pub = await req("GET", `/distribution/presave/${minted.json.slug}`);
+    expect(pub.status).toBe(200);
+    expect(pub.json.presave.title).toBe("Test Track");
+    expect(pub.json.presave.artistName).toBe("Test Artist");
+    expect(pub.json.presave).not.toHaveProperty("creditsCharged");
+  });
+
+  it("404s for an unknown slug", async () => {
+    const { status } = await req("GET", "/distribution/presave/nope-not-real");
+    expect(status).toBe(404);
+  });
+});
+
+/* ─── v2: platform delivery polling ───────────────────────────────────────── */
+
+describe("GET /api/distribution/releases/:id/platforms", () => {
+  it("returns queued statuses right after submit", async () => {
+    const { id } = await seedRelease(USER_A, { complete: true });
+    await req("POST", `/distribution/releases/${id}/submit`);
+    const { status, json } = await req("GET", `/distribution/releases/${id}/platforms`);
+    expect(status).toBe(200);
+    expect(json.aggregator).toBe("mock");
+    expect(json.platformStatuses).toHaveLength(1);
+    expect(json.platformStatuses[0]).toMatchObject({ platform: "spotify", status: "queued" });
+  });
+
+  it("404s for another user's release", async () => {
+    const { id } = await seedRelease(USER_B);
+    const { status } = await req("GET", `/distribution/releases/${id}/platforms`);
+    expect(status).toBe(404);
+  });
+});
+
+/* ─── mock aggregator lifecycle ───────────────────────────────────────────── */
+
+describe("mock aggregator", () => {
+  it("advances queued → pending → delivered → live on its clock", async () => {
+    const { MockAggregatorAdapter } = await import("../../lib/distribution-aggregator");
+    const agg = new MockAggregatorAdapter();
+    expect(agg.live).toBe(false);
+    const sub = await agg.submitRelease({
+      clientReleaseId: randomUUID(),
+      title: "T",
+      artistName: "A",
+      releaseType: "single",
+      releaseDate: "2026-12-01",
+      explicit: false,
+      tracks: [{ title: "T", audioUrl: "https://example.com/a.mp3", explicit: false }],
+      artworkUrl: "https://example.com/art.jpg",
+      platforms: ["spotify"],
+    });
+    let statuses = await agg.fetchPlatformStatuses(sub.aggregatorReleaseId);
+    expect(statuses[0]?.status).toBe("queued");
+    /* Fast-forward the in-memory clock past every step. */
+    const job = (agg as unknown as { jobs: Map<string, { submittedAt: number }> }).jobs.get(
+      sub.aggregatorReleaseId,
+    );
+    expect(job).toBeDefined();
+    job!.submittedAt = Date.now() - 300_000;
+    statuses = await agg.fetchPlatformStatuses(sub.aggregatorReleaseId);
+    expect(statuses[0]?.status).toBe("live");
   });
 });

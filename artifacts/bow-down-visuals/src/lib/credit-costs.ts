@@ -20,6 +20,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/voiceover/generate": { cost: 2, feature: "AI Voiceover" },
   "/api/podcast/generate": { cost: 3, feature: "Generate Podcast" },
   "/api/mastering": { cost: 2, feature: "AI Mastering" },
+  "/api/mix-master/master": { cost: 8, feature: "AI Master (Mix & Master)" },
+  "/api/mix-master/mix": { cost: 15, feature: "AI Mix — Stems (Mix & Master)" },
   "/api/stems": { cost: 2, feature: "Stem Separation" },
   "/api/vocal-removal": { cost: 2, feature: "Vocal Removal" },
 
@@ -49,6 +51,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/repair-clip": { cost: 1, feature: "Repair Clip" },
   "/api/pro-tools/auto-grade": { cost: 2, feature: "AI Auto Grade" },
   "/api/upscale": { cost: 2, feature: "Upscale" },
+  "/api/upscale/image": { cost: 3, feature: "Upscale Image" },
   "/api/watermark-removal": { cost: 2, feature: "Remove Watermark" },
   "/api/video-translator/translate": { cost: 5, feature: "Video Translator" },
   "/api/analyze-sections": { cost: 1, feature: "Analyze Song Sections" },
@@ -78,6 +81,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── AI text / copilots (1 credit) ──────────────────────────────
   "/api/chat": { cost: 1, feature: "AI Chat Message" },
   "/api/hook-studio": { cost: 1, feature: "Hook Studio" },
+  "/api/virality-check": { cost: 2, feature: "Virality Pre-Flight Check" },
+  "/api/analytics-hub/insights": { cost: 2, feature: "AI Growth Plan" },
   "/api/monetization-coach": { cost: 1, feature: "Monetization Coach" },
   "/api/script-writer": { cost: 2, feature: "Script Writer" },
   "/api/title-studio": { cost: 1, feature: "Title Studio" },
@@ -93,11 +98,20 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/shoutouts/ai-message": { cost: 1, feature: "AI Shoutout Message" },
   "/api/press-kit/generate": { cost: 3, feature: "Press Kit Generator" },
   "/api/gamers/ideas": { cost: 1, feature: "Gamer Content Ideas" },
+  "/api/show-finder/pitch": { cost: 1, feature: "Show Pitch Draft" },
+  "/api/show-finder": { cost: 2, feature: "Show Finder" },
+  "/api/brand-deals/outreach": { cost: 1, feature: "Brand Outreach Draft" },
+  "/api/brand-deals": { cost: 2, feature: "Brand Deal Finder" },
   "/api/live-shopping/ai-description": { cost: 1, feature: "AI Product Description" },
   "/api/randomizer": { cost: 1, feature: "Content Randomizer" },
   "/api/sound-finder/match": { cost: 1, feature: "Sound Finder" },
   "/api/content-calendar": { cost: 1, feature: "Content Calendar AI" },
   "/api/release-checklist": { cost: 2, feature: "Release Checklist AI" },
+
+  // ── Storefronts ────────────────────────────────────────────────
+  "/api/shops/ai/shop-description": { cost: 1, feature: "AI Shop Description" },
+  "/api/shops/ai/product-description": { cost: 1, feature: "AI Product Description" },
+  "/api/shops/ai/product-image": { cost: 1, feature: "AI Product Image" },
 
   // ── Social publishing ──────────────────────────────────────────
   "/api/social/instagram/publish": { cost: 1, feature: "Publish to Instagram" },

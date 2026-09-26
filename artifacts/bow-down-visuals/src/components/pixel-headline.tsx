@@ -76,6 +76,21 @@ const SPRITES: Record<string, string[]> = {
     "..GGGG..",
     ".GG..GG.",
   ],
+  /* Thy Cheat Code — the King Shark, facing left, gold on black */
+  shark: [
+    "................",
+    "......DD........",
+    "......DDD.......",
+    ".....DDDDD......",
+    "...GGDDDD.......",
+    "..GGLLDDDDD.....",
+    ".GGWWGGGGDDD....",
+    ".GGGGGGGGGDDD...",
+    "GGGGGGGGGGGD.D.",
+    "GGWWWWWWGGGDDD.",
+    ".GGGGGGGGGGD.D.",
+    "..GGGGGGGGG....",
+  ],
 };
 
 export type SpriteName = keyof typeof SPRITES;

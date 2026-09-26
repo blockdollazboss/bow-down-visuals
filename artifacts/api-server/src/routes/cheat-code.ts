@@ -65,7 +65,7 @@ const DirectionSchema = z.enum(CHEAT_CODE_DIRECTIONS);
 const SequenceSchema = z
   .array(DirectionSchema)
   .min(4, "Sequence must be at least 4 moves.")
-  .max(16, "Sequence must be at most 16 moves.");
+  .max(10, "Sequence must be at most 10 moves.");
 
 /* ------------------------------------------------------------------ */
 /* Row shapes                                                          */
@@ -201,24 +201,42 @@ router.get("/cheat-code/status", async (req: Request, res: Response) => {
 /* POST /api/cheat-code/attempt — auth, rate-limited                    */
 /* ------------------------------------------------------------------ */
 
-const ATTEMPT_WINDOW_MS = 10 * 60 * 1000;
-const MAX_ATTEMPTS_PER_USER = 30;
-const MAX_ATTEMPTS_PER_IP = 60;
+/* Game rules: 3 tries per player per day, spread out — a cooldown between
+   tries keeps them from being burned back-to-back. */
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_TRIES_PER_DAY = 3;
+const TRY_COOLDOWN_MS = 4 * 60 * 60 * 1000;
+const MAX_ATTEMPTS_PER_IP_PER_DAY = 60;
 
 const AttemptSchema = z.object({ sequence: SequenceSchema });
 
-async function countRecentAttempts(
-  column: "user_id" | "ip",
-  value: string,
-  since: Date,
-): Promise<number> {
-  const col = column === "user_id" ? sql`user_id` : sql`ip`;
+interface AttemptStats {
+  count: number;
+  firstAt: Date | null;
+  lastAt: Date | null;
+}
+
+/** Tries by this player on this event in the last 24h, with first/last times. */
+async function getUserAttemptStats(
+  userId: string,
+  eventId: string,
+): Promise<AttemptStats> {
+  const dayAgo = new Date(Date.now() - DAY_MS);
   const result = await db.execute(sql`
-    SELECT COUNT(*) AS n FROM cheat_code_attempts
-    WHERE ${col} = ${value} AND created_at > ${since}
+    SELECT COUNT(*) AS n, MIN(created_at) AS first_at, MAX(created_at) AS last_at
+    FROM cheat_code_attempts
+    WHERE user_id = ${userId} AND event_id = ${eventId} AND created_at > ${dayAgo}
   `);
-  const rows = result.rows as unknown as { n: string | number }[];
-  return Number(rows[0]?.n ?? 0);
+  const row = (result.rows as unknown as { n: string | number; first_at: string | Date | null; last_at: string | Date | null }[])[0];
+  const toD = (v: string | Date | null | undefined): Date | null => {
+    if (v == null) return null;
+    return v instanceof Date ? v : new Date(String(v));
+  };
+  return { count: Number(row?.n ?? 0), firstAt: toD(row?.first_at), lastAt: toD(row?.last_at) };
+}
+
+function retryAfterSeconds(target: Date): number {
+  return Math.max(1, Math.ceil((target.getTime() - Date.now()) / 1000));
 }
 
 async function resolveDisplayName(
@@ -252,7 +270,7 @@ router.post(
     if (!parsed.success) {
       res.status(400).json({
         error:
-          "Invalid sequence. Send 4–16 moves, each one of: up, down, left, right.",
+          "Invalid sequence. Send 4–10 moves, each one of: up, down, left, right.",
       });
       return;
     }
@@ -263,22 +281,6 @@ router.post(
         ?.trim() || req.ip;
 
     try {
-      const since = new Date(Date.now() - ATTEMPT_WINDOW_MS);
-      const [userAttempts, ipAttempts] = await Promise.all([
-        countRecentAttempts("user_id", userId, since),
-        ip ? countRecentAttempts("ip", ip, since) : Promise.resolve(0),
-      ]);
-      if (
-        userAttempts >= MAX_ATTEMPTS_PER_USER ||
-        ipAttempts >= MAX_ATTEMPTS_PER_IP
-      ) {
-        res.status(429).json({
-          error:
-            "Too many attempts. Take a breath — the code isn't going anywhere.",
-        });
-        return;
-      }
-
       const { event } = await getSpotlightEvent();
       /* A claimed-but-still-live event reports "already claimed"; anything
          outside the live window is a 404. */
@@ -297,6 +299,53 @@ router.post(
         return;
       }
 
+      /* 3 tries per day, spread out: a cooldown between tries keeps them
+         from being burned back-to-back. */
+      const stats = await getUserAttemptStats(userId, event.id);
+      const triesLeft = Math.max(0, MAX_TRIES_PER_DAY - stats.count);
+      if (stats.count >= MAX_TRIES_PER_DAY && stats.firstAt) {
+        res.status(429).json({
+          error:
+            "That's your 3 tries for today — come back tomorrow for 3 more.",
+          retryAfterSeconds: retryAfterSeconds(
+            new Date(stats.firstAt.getTime() + DAY_MS),
+          ),
+          triesLeft: 0,
+        });
+        return;
+      }
+      if (stats.lastAt && Date.now() - stats.lastAt.getTime() < TRY_COOLDOWN_MS) {
+        res.status(429).json({
+          error:
+            "Not so fast — give it a rest before your next try.",
+          retryAfterSeconds: retryAfterSeconds(
+            new Date(stats.lastAt.getTime() + TRY_COOLDOWN_MS),
+          ),
+          triesLeft,
+        });
+        return;
+      }
+
+      /* Loose per-IP guard against distributed guessing. */
+      if (ip) {
+        const dayAgo = new Date(Date.now() - DAY_MS);
+        const ipRes = await db.execute(sql`
+          SELECT COUNT(*) AS n FROM cheat_code_attempts
+          WHERE ip = ${ip} AND created_at > ${dayAgo}
+        `);
+        const ipCount = Number(
+          (ipRes.rows as unknown as { n: string | number }[])[0]?.n ?? 0,
+        );
+        if (ipCount >= MAX_ATTEMPTS_PER_IP_PER_DAY) {
+          res.status(429).json({
+            error:
+              "Too many attempts from this network today. Try again tomorrow.",
+            triesLeft: 0,
+          });
+          return;
+        }
+      }
+
       const attemptHash = hashCodeSequence(parsed.data.sequence);
       const codeMatched = sequencesEqual(attemptHash, event.code_hash);
 
@@ -308,7 +357,11 @@ router.post(
 
       if (!codeMatched) {
         await logAttempt(false);
-        res.json({ correct: false, claimed: false });
+        res.json({
+          correct: false,
+          claimed: false,
+          triesLeft: Math.max(0, triesLeft - 1),
+        });
         return;
       }
 

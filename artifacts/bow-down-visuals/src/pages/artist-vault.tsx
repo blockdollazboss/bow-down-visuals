@@ -17,10 +17,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import {
+  normalizeSubjectType,
+  SUBJECT_TYPE_META,
+  SubjectBadge,
+  type SubjectType,
+} from "@/components/ArtistVaultSelector";
 import { getSupabase } from "@/lib/supabase";
 import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/components/GenerateArtistImageModal";
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { CHARACTER_THEMES, getCharacterTheme } from "@/lib/character-themes";
+import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -37,10 +45,13 @@ interface ArtistVaultRecord {
   jewelry: string | null;
   clothing_style: string | null;
   brand_colors: string | null;
+  theme_id: string | null;
   personality: string | null;
   do_not_change_rules: string | null;
   reference_image_url: string | null;
   reference_image_path: string | null;
+  reference_video_url: string | null;
+  reference_video_path: string | null;
   consistency_prompt: string | null;
   voice_id: string | null;
   voice_name: string | null;
@@ -60,16 +71,12 @@ interface FormValues {
   jewelry: string;
   clothingStyle: string;
   brandColors: string;
+  themeId: string;
   personality: string;
   doNotChangeRules: string;
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
-
-const ARTIST_TYPES = [
-  "Rapper", "Singer", "Producer", "AI Artist",
-  "Content Creator", "Label", "Kids Music Creator", "Other",
-];
 
 const GENRES = [
   "Hip Hop", "Drill", "Trap", "R&B", "Pop",
@@ -323,11 +330,11 @@ function ConsistencyModal({
 /* ─────────────────────────── STYLE CONSTANTS ─────────────────────────── */
 
 const selectClass =
-  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] transition-colors appearance-none cursor-pointer";
+  "h-11 w-full rounded-xl bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 text-sm focus:outline-none focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 appearance-none cursor-pointer hover:border-white/[0.18]";
 const inputClass =
-  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl";
+  "h-11 bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl hover:border-white/[0.18]";
 const textareaClass =
-  "bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] transition-colors rounded-xl resize-none";
+  "bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 py-3 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl resize-none hover:border-white/[0.18]";
 
 /* ─────────────────────────── SUB-COMPONENTS ─────────────────────────── */
 
@@ -366,7 +373,7 @@ function FieldWrapper({ label, hint, children }: {
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4">
+    <div className="lux-card-static p-4">
       <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-1">{label}</p>
       <p className="text-sm text-white/80 whitespace-pre-wrap">{value}</p>
     </div>
@@ -537,7 +544,7 @@ function LockedVoiceSection({ vault, onChanged }: {
   }
 
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-4 mb-3">
+    <div className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Lock className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Locked Voice</p>
@@ -692,6 +699,171 @@ function LockedVoiceSection({ vault, onChanged }: {
           Tip: upload 30+ seconds of clean singing or talking for the best clone.
         </p>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────── REFERENCE VIDEO ─────────────────────── */
+
+const REF_VIDEO_CREDITS = 15;
+
+function ReferenceVideoSection({ vault, onChanged }: {
+  vault: ArtistVaultRecord;
+  onChanged: () => Promise<void>;
+}) {
+  const { getAccessToken } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function authHeaders(): Promise<HeadersInit> {
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function pollTask(taskId: string): Promise<void> {
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 10000));
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video/${taskId}`, {
+        headers: await authHeaders(),
+      });
+      const data = await res.json().catch(() => ({} as { status?: string; error?: string }));
+      if (data.status === "SUCCEEDED") return;
+      if (data.status === "FAILED" || data.status === "CANCELLED") {
+        throw new Error(data.error || "Video generation failed. No credits were charged.");
+      }
+    }
+    throw new Error("Still processing — check back shortly. No credits charged yet.");
+  }
+
+  async function handleGenerate() {
+    setConfirming(false);
+    setBusy(true);
+    setError(null);
+    try {
+      setStage("Submitting the living-portrait job…");
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
+      const data = await res.json().catch(() => ({} as { taskId?: string; error?: string; message?: string }));
+      if (!res.ok) throw new Error(data.message || data.error || "Could not start video generation.");
+      setStage("Animating your character… this takes a few minutes.");
+      await pollTask(data.taskId!);
+      setStage(null);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Video generation failed.");
+    } finally {
+      setBusy(false);
+      setStage(null);
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("Could not remove the video.");
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove the video.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hasPhoto = !!vault.reference_image_url;
+
+  return (
+    <div className="lux-card-static p-4 mb-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Video className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Reference Video</p>
+      </div>
+      <p className="text-xs text-white/40 mb-3">
+        A living portrait of {vault.artist_name}. Wherever you pick this character, the video plays automatically instead of the still photo.
+      </p>
+
+      {vault.reference_video_url ? (
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <video
+            src={vault.reference_video_url}
+            poster={vault.reference_image_url ?? undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-36 rounded-xl border border-white/10 object-cover aspect-[9/16]"
+          />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white mb-1">Living portrait active</p>
+            <p className="text-xs text-white/40 mb-3">
+              Character pickers across the site will autoplay this video.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { void handleDelete(); }}
+              disabled={busy}
+              className="text-white/50 hover:text-red-400 gap-2"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Remove video
+            </Button>
+          </div>
+        </div>
+      ) : confirming ? (
+        <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
+          <p className="text-sm font-bold text-white mb-1">Generate a living portrait?</p>
+          <p className="text-xs text-white/50 mb-3">
+            AI animates {vault.artist_name}'s reference photo into a 5-second portrait video.{" "}
+            <span className="text-primary font-semibold">{REF_VIDEO_CREDITS} credits</span> are charged only if it succeeds.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => { void handleGenerate(); }}
+              disabled={busy}
+              className="gold-glow font-bold gap-2"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Generate — {REF_VIDEO_CREDITS} credits
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy} className="text-white/50">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <Button
+            size="sm"
+            onClick={() => setConfirming(true)}
+            disabled={busy || !hasPhoto}
+            title={hasPhoto ? "Generate a 5-second living portrait" : "Save an Artist Photo first — the video is generated from it"}
+            className="gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+            Generate living portrait
+          </Button>
+          {!hasPhoto && (
+            <p className="mt-2 text-[11px] text-white/30">Save an Artist Photo first — the video is generated from it.</p>
+          )}
+          {busy && stage && (
+            <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> {stage}
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </div>
   );
 }
@@ -1002,8 +1174,8 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   );
 }
 
-function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
-  vault: ArtistVaultRecord; onClose: () => void; onEdit: () => void; onLock: () => void;
+function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, isActive, onVoiceChanged, wardrobeRefreshKey, onGenerateOutfit }: {
+  vault: ArtistVaultRecord; allVaults: ArtistVaultRecord[]; onClose: () => void; onEdit: () => void; onLock: () => void;
   onSetActive: () => void; isActive: boolean; onVoiceChanged: () => Promise<void>;
   wardrobeRefreshKey: number; onGenerateOutfit: () => void;
 }) {
@@ -1027,9 +1199,7 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onV
             <div className="min-w-0">
               <h2 className="text-xl font-black text-white truncate">{vault.artist_name}</h2>
               <div className="flex flex-wrap gap-1.5 mt-1">
-                {vault.artist_type && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">{vault.artist_type}</Badge>
-                )}
+                <SubjectBadge type={normalizeSubjectType(vault.artist_type)} />
                 {vault.genre && (
                   <Badge className="bg-white/5 text-white/50 border-white/10 text-xs">{vault.genre}</Badge>
                 )}
@@ -1063,6 +1233,10 @@ function VaultModal({ vault, onClose, onEdit, onLock, onSetActive, isActive, onV
         )}
 
         <LockedVoiceSection vault={vault} onChanged={onVoiceChanged} />
+
+        <ReferenceVideoSection vault={vault} onChanged={onVoiceChanged} />
+
+        <LinkedCharactersSection vault={vault as unknown as ArtistVault} allVaults={allVaults as unknown as ArtistVault[]} />
 
         <WardrobeSection
           vaultId={vault.id}
@@ -1187,11 +1361,9 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             textShadow: "0 1px 6px rgba(0,0,0,0.9)",
           }}>{vault.artist_name}</p>
-          {vault.artist_type && (
             <p style={{ fontSize: 9.5, color: isActive ? G(0.85) : "rgba(255,255,255,0.55)", marginTop: 2, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              {vault.artist_type}
+              {SUBJECT_TYPE_META[normalizeSubjectType(vault.artist_type)].label}
             </p>
-          )}
         </div>
 
         {/* Gold left accent bar */}
@@ -1293,9 +1465,9 @@ export default function ArtistVault() {
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
-      artistName: "", artistType: "",
+      artistName: "", artistType: "singer",
       genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
-      clothingStyle: "", brandColors: "", personality: "", doNotChangeRules: "",
+      clothingStyle: "", brandColors: "", themeId: "gold-royalty", personality: "", doNotChangeRules: "",
     },
   });
 
@@ -1389,7 +1561,7 @@ export default function ArtistVault() {
   function startEdit(vault: ArtistVaultRecord) {
     setEditId(vault.id);
     setValue("artistName", vault.artist_name);
-    setValue("artistType", vault.artist_type ?? "");
+    setValue("artistType", normalizeSubjectType(vault.artist_type));
     setValue("genre", vault.genre ?? "");
     setValue("voiceStyle", vault.voice_style ?? "");
     setValue("visualStyle", vault.visual_style ?? "");
@@ -1398,6 +1570,7 @@ export default function ArtistVault() {
     setValue("jewelry", vault.jewelry ?? "");
     setValue("clothingStyle", vault.clothing_style ?? "");
     setValue("brandColors", vault.brand_colors ?? "");
+    setValue("themeId", vault.theme_id ?? "gold-royalty");
     setValue("personality", vault.personality ?? "");
     setValue("doNotChangeRules", vault.do_not_change_rules ?? "");
     setPhotoUrl(vault.reference_image_url ?? null);
@@ -1426,10 +1599,13 @@ export default function ArtistVault() {
         jewelry: values.jewelry || null,
         clothing_style: values.clothingStyle || null,
         brand_colors: values.brandColors || null,
+        theme_id: values.themeId || "gold-royalty",
         personality: values.personality || null,
         do_not_change_rules: values.doNotChangeRules || null,
         reference_image_url: photoUrl || null,
         reference_image_path: photoPath || null,
+        reference_video_url: null,
+        reference_video_path: null,
         consistency_prompt: null,
         voice_id: null,
         voice_name: null,
@@ -1449,6 +1625,7 @@ export default function ArtistVault() {
         jewelry: partialVault.jewelry,
         clothingStyle: partialVault.clothing_style,
         brandColors: partialVault.brand_colors,
+        themeId: partialVault.theme_id,
         personality: partialVault.personality,
         doNotChangeRules: partialVault.do_not_change_rules,
         referenceImageUrl: partialVault.reference_image_url,
@@ -1510,7 +1687,7 @@ export default function ArtistVault() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
 
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
@@ -1519,6 +1696,7 @@ export default function ArtistVault() {
       {openVault && (
         <VaultModal
           vault={openVault}
+          allVaults={vaults}
           onClose={() => setOpenVault(null)}
           onEdit={() => startEdit(openVault)}
           onLock={() => { setOpenVault(null); setConsistencyVault(openVault); }}
@@ -1657,20 +1835,42 @@ export default function ArtistVault() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8 space-y-8">
 
-            {/* Row 1: Artist Name + Artist Type */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <FieldWrapper label="Artist Name">
-                <Input
-                  {...register("artistName", { required: true })}
-                  placeholder="Your stage name"
-                  className={inputClass}
-                />
-              </FieldWrapper>
-              <FieldWrapper label="Artist Type">
-                <StyledSelect name="artistType" placeholder="Select type..." options={ARTIST_TYPES}
-                  value={watched.artistType} onChange={(v) => setValue("artistType", v)} />
-              </FieldWrapper>
-            </div>
+            {/* Row 1: Artist Name */}
+            <FieldWrapper label="Artist Name">
+              <Input
+                {...register("artistName", { required: true })}
+                placeholder="Your stage name"
+                className={inputClass}
+              />
+            </FieldWrapper>
+
+            {/* Subject Type */}
+            <FieldWrapper label="Subject Type" hint="What kind of subject is this profile for?">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {(Object.keys(SUBJECT_TYPE_META) as SubjectType[]).map((t) => {
+                  const meta = SUBJECT_TYPE_META[t];
+                  const active = watched.artistType === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setValue("artistType", t)}
+                      className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
+                        active
+                          ? `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
+                          : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        <span className={`text-sm font-bold tracking-wide ${active ? "" : "text-white"}`}>{meta.label}</span>
+                      </span>
+                      <span className="block mt-2 text-xs text-white/45 leading-relaxed font-medium">{meta.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </FieldWrapper>
 
             {/* Personality */}
             <FieldWrapper label="Personality" hint="Describe your artist's energy, attitude, story, and vibe">
@@ -1716,6 +1916,40 @@ export default function ArtistVault() {
             {/* Brand section */}
             <div>
               <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Brand Identity</p>
+              {/* Character theme picker — their colors, their identity */}
+              <div className="mb-5">
+                <Label className="text-sm font-semibold text-white/80 mb-1 block">Character Theme</Label>
+                <p className="text-xs text-white/35 mb-3">Their signature color identity — shows up everywhere this character appears.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  {CHARACTER_THEMES.map((theme) => {
+                    const selected = (watched.themeId || "gold-royalty") === theme.id;
+                    return (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        onClick={() => setValue("themeId", theme.id)}
+                        title={`${theme.name} — ${theme.vibe}`}
+                        className="rounded-xl border p-2.5 text-left transition-all cursor-pointer"
+                        style={selected ? {
+                          borderColor: theme.primary,
+                          background: `linear-gradient(135deg, ${theme.primary}26, transparent)`,
+                          boxShadow: `0 0 16px ${theme.primary}44`,
+                        } : {
+                          borderColor: "rgba(255,255,255,0.08)",
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        <div
+                          className="h-8 rounded-lg mb-2"
+                          style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.deep})` }}
+                        />
+                        <p className="text-xs font-bold text-white leading-tight">{theme.name}</p>
+                        <p className="text-[10px] text-white/35 leading-tight mt-0.5">{theme.vibe}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FieldWrapper label="Brand Colors" hint="Your signature color palette">
                   <Input {...register("brandColors")} placeholder="e.g. black, gold, and deep red..." className={inputClass} />
@@ -1918,7 +2152,7 @@ export default function ArtistVault() {
               <p className="text-white/30 text-sm">Fill out the form above to save your first artist profile.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lux-stagger">
               {vaults.map((vault) => (
                 <VaultCard
                   key={vault.id}

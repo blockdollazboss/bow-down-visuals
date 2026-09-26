@@ -48,8 +48,7 @@ interface RecentSting {
   at: number;
 }
 
-export default function IntrosOutros() {
-  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
+export function IntrosOutrosTool() {
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
@@ -151,9 +150,7 @@ export default function IntrosOutros() {
   const canGenerate = channelName.trim().length > 0 && !!user && !busy;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -308,7 +305,16 @@ export default function IntrosOutros() {
             </div>
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function IntrosOutros() {
+  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <IntrosOutrosTool />
       <SiteFooter />
     </div>
   );

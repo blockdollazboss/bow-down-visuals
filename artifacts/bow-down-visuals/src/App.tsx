@@ -1,23 +1,27 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
+import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
-import { AiChatWidget } from "@/components/AiChatWidget";
+import { ThyCheatCodeChat } from "@/components/ThyCheatCodeChat";
+import { ThyCheatCodeHost } from "@/components/ThyCheatCodeHost";
+import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
+import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
@@ -67,15 +71,24 @@ const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
+const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
+const ShowFinder = lazyWithRetry(() => import("@/pages/shows"));
+const BrandDealFinder = lazyWithRetry(() => import("@/pages/brand-deals"));
+const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
+const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
 const WatermarkRemoval = lazyWithRetry(() => import("@/pages/watermark-removal"));
+const AudioCleanup = lazyWithRetry(() => import("@/pages/audio-cleanup"));
 const Analytics = lazyWithRetry(() => import("@/pages/analytics"));
 const MediaImport = lazyWithRetry(() => import("@/pages/import"));
 const LogoMaker = lazyWithRetry(() => import("@/pages/logo-maker"));
+const BrandingKit = lazyWithRetry(() => import("@/pages/branding-kit"));
+const ViralityCheck = lazyWithRetry(() => import("@/pages/virality-check"));
+const AnalyticsHub = lazyWithRetry(() => import("@/pages/analytics-hub"));
 const SetlistBuilder = lazyWithRetry(() => import("@/pages/setlist"));
 const IntrosOutros = lazyWithRetry(() => import("@/pages/intros-outros"));
 const StreamPack = lazyWithRetry(() => import("@/pages/stream-pack"));
@@ -84,12 +97,19 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const DiscordBot = lazyWithRetry(() => import("@/pages/discord-bot"));
+const Guides = lazyWithRetry(() => import("@/pages/guides"));
+const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
+const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
 const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
 const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
+const Movies = lazyWithRetry(() => import("@/pages/movies"));
+const WebsiteBuilder = lazyWithRetry(() => import("@/pages/website-builder"));
+const MediaDetector = lazyWithRetry(() => import("@/pages/media-detector"));
 const SponsorshipOutreach = lazyWithRetry(() => import("@/pages/outreach"));
 const Shoutouts = lazyWithRetry(() => import("@/pages/shoutouts"));
 const ReleaseChecklist = lazyWithRetry(() => import("@/pages/release"));
@@ -111,16 +131,22 @@ const PressPublic = lazyWithRetry(() => import("@/pages/press-public"));
 const EmailList = lazyWithRetry(() => import("@/pages/email-list"));
 const Collabs = lazyWithRetry(() => import("@/pages/collabs"));
 const Sponsors = lazyWithRetry(() => import("@/pages/sponsors"));
+const SponsorPost = lazyWithRetry(() => import("@/pages/sponsors-post"));
+const SponsorDealDetail = lazyWithRetry(() => import("@/pages/sponsor-deal-detail"));
+const SponsorDashboard = lazyWithRetry(() => import("@/pages/sponsor-dashboard"));
 const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const Titles = lazyWithRetry(() => import("@/pages/titles"));
 const Community = lazyWithRetry(() => import("@/pages/community"));
 const Mastering = lazyWithRetry(() => import("@/pages/mastering"));
+const MixMaster = lazyWithRetry(() => import("@/pages/mix-master"));
 const Stems = lazyWithRetry(() => import("@/pages/stems"));
 const Sfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Samples = lazyWithRetry(() => import("@/pages/samples"));
 const Podcast = lazyWithRetry(() => import("@/pages/podcast"));
 const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
-const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
+const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
+const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
+const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
  *
@@ -226,10 +252,28 @@ function RouteFallback() {
  */
 function AuthedLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const userTouchedSidebar = useRef(false);
+
+  // Sidebar preview: start open so the user sees where everything is,
+  // then auto-close after a moment. Manual toggle cancels the auto-close.
+  useEffect(() => {
+    setSidebarCollapsed(false);
+    const t = setTimeout(() => {
+      if (!userTouchedSidebar.current) setSidebarCollapsed(true);
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOpenChange = (open: boolean) => {
+    userTouchedSidebar.current = true;
+    setSidebarCollapsed(!open);
+  };
+
   return (
     <SidebarProvider
       open={!sidebarCollapsed}
-      onOpenChange={(open) => setSidebarCollapsed(!open)}
+      onOpenChange={handleOpenChange}
     >
       <div className="flex min-h-svh w-full">
         <AppSidebar />
@@ -237,12 +281,16 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           <div className="sticky top-0 z-40">
             <VideoBanner />
           </div>
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1">
+            <ThyCheatCodeHost />
+            {children}
+          </main>
         </div>
         <ExpandSidebarButton
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
+        <LiveBadge />
         <MobileSidebarTrigger />        {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
@@ -253,14 +301,20 @@ function AppShell() {
   /* The video editor is a full-viewport studio surface — the marketing site
    * footer doesn't belong under it. */
   const hideFooter = location.startsWith("/video-editor");
+  /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
+   * in-flow. Auth/legal/fan pages are excluded by the host itself. */
+  const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
+    .includes(location.split("?")[0].split("#")[0]);
   return (
     <>
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
-      {typeof window !== "undefined" && <AiChatWidget />}
+      {typeof window !== "undefined" && <ThyCheatCodeChat />}
+      {typeof window !== "undefined" && <GuideMe />}
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
+      {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
         <Switch>
@@ -285,14 +339,26 @@ function AppShell() {
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
+          <Route path="/sponsors"><SponsorMarketplace /></Route>
+          <Route path="/shows"><ShowFinder /></Route>
+          <Route path="/brand-deals"><BrandDealFinder /></Route>
+          <Route path="/distribute"><Distribute /></Route>
+          <Route path="/presave/:slug"><Presave /></Route>
+          <Route path="/upscale"><Upscale /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
-          <Route path="/tips/:handle"><TipPage /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
+          <Route path="/tips/:handle"><TipPage /></Route>
+          <Route path="/storefronts"><Storefronts /></Route>
+          <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
+          <Route path="/audio-cleanup"><AudioCleanup /></Route>
           <Route path="/setlist"><SetlistBuilder /></Route>
           <Route path="/analytics"><Analytics /></Route>
           <Route path="/import"><MediaImport /></Route>
           <Route path="/logo-maker"><LogoMaker /></Route>
+          <Route path="/branding-kit"><BrandingKit /></Route>
+          <Route path="/virality-check"><ViralityCheck /></Route>
+          <Route path="/analytics-hub"><AnalyticsHub /></Route>
           <Route path="/intros-outros"><IntrosOutros /></Route>
           <Route path="/stream-pack"><StreamPack /></Route>
           <Route path="/copyright"><CopyrightAssistant /></Route>
@@ -302,6 +368,10 @@ function AppShell() {
           <Route path="/join/:handle"><Join /></Route>
           <Route path="/features"><Features /></Route>
           <Route path="/promote"><Promote /></Route>
+          <Route path="/guides"><Guides /></Route>
+          <Route path="/clip-maker"><ClipMaker /></Route>
+          <Route path="/branding-shop"><BrandingShop /></Route>
+
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
           <Route path="/video-editor"><ProtectedRoute><VideoEditor /></ProtectedRoute></Route>
@@ -334,10 +404,14 @@ function AppShell() {
                 <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
+                <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>
+                <Route path="/website-builder"><ProtectedRoute><WebsiteBuilder /></ProtectedRoute></Route>
+                <Route path="/detector"><ProtectedRoute><MediaDetector /></ProtectedRoute></Route>
                 <Route path="/sponsorship-outreach"><ProtectedRoute><SponsorshipOutreach /></ProtectedRoute></Route>
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
                 <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
                 <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
@@ -355,17 +429,23 @@ function AppShell() {
                 <Route path="/email-list"><ProtectedRoute><EmailList /></ProtectedRoute></Route>
                 <Route path="/collabs"><ProtectedRoute><Collabs /></ProtectedRoute></Route>
                 <Route path="/sponsors"><ProtectedRoute><Sponsors /></ProtectedRoute></Route>
+                <Route path="/sponsors/post"><ProtectedRoute><SponsorPost /></ProtectedRoute></Route>
+                <Route path="/sponsors/dashboard"><ProtectedRoute><SponsorDashboard /></ProtectedRoute></Route>
+                <Route path="/sponsors/:id"><ProtectedRoute><SponsorDealDetail /></ProtectedRoute></Route>
                 <Route path="/contests"><ProtectedRoute><Contests /></ProtectedRoute></Route>
                 <Route path="/titles"><ProtectedRoute><Titles /></ProtectedRoute></Route>
                 <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>
                 <Route path="/mastering"><ProtectedRoute><Mastering /></ProtectedRoute></Route>
+                <Route path="/mix-master"><ProtectedRoute><MixMaster /></ProtectedRoute></Route>
                 <Route path="/stems"><ProtectedRoute><Stems /></ProtectedRoute></Route>
                 <Route path="/sfx"><ProtectedRoute><Sfx /></ProtectedRoute></Route>
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
+                <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>
@@ -396,6 +476,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
               <UserModeProvider>
                 <CreditConfirmProvider>
                   <ActiveArtistProvider>
+                    <CharacterThemeApplier />
                     <AppShell />
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>

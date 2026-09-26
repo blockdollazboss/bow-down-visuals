@@ -30,12 +30,14 @@ const testState = vi.hoisted(() => ({
   db: null as any,
   userId: "",
   userCredits: 10,
+  userPlan: "pro",
 }));
 
 vi.mock("../../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.userId = testState.userId;
     req.userCredits = testState.userCredits;
+    req.userPlan = testState.userPlan;
     next();
   },
 }));
@@ -96,6 +98,9 @@ CREATE TABLE shops (
   banner_color text NOT NULL DEFAULT '#0a0a0a',
   accent_color text NOT NULL DEFAULT '#d4af37',
   banner_image_url text,
+  custom_domain text,
+  domain_verified boolean NOT NULL DEFAULT FALSE,
+  domain_verification_token text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -262,6 +267,22 @@ describe("POST /api/shops", () => {
   it("requires a name", async () => {
     const { status } = await req("POST", "/shops", { name: "", handle: "valid-handle" });
     expect(status).toBe(400);
+  });
+
+  it("rejects shop creation for free plans with 403", async () => {
+    testState.userPlan = "free";
+    const { status, json } = await req("POST", "/shops", { name: "Nope", handle: "nope-shop" });
+    expect(status).toBe(403);
+    expect(json.error).toBe("PRO_TIER_REQUIRED");
+    testState.userPlan = "pro";
+  });
+
+  it("allows shop creation for VIP plans", async () => {
+    testState.userPlan = "vip";
+    const { status, json } = await req("POST", "/shops", { name: "VIP Supply", handle: "vip-supply" });
+    expect(status).toBe(201);
+    expect(json.shop.handle).toBe("vip-supply");
+    testState.userPlan = "pro";
   });
 });
 

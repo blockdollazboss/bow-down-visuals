@@ -9,7 +9,6 @@ import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
-import { PixelHeadline, PixelDivider, PixelSprite, CheatCodeName } from "@/components/pixel-headline";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
@@ -255,15 +254,11 @@ export default function HookStudio() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Zap className="h-3 w-3" aria-hidden="true" /> <CheatCodeName possessive /> money tools
+            <Zap className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's money tools
           </p>
-          <div className="flex justify-center mb-5">
-            <PixelSprite name="bolt" pixel={6} />
-          </div>
-          <PixelHeadline size="page" align="center">
-            Hook Studio
-          </PixelHeadline>
-          <PixelDivider align="center" className="mt-5" />
+          <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
+            Hook <span className="text-primary">Studio</span>
+          </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             Your money is made in the first 3 seconds. Generate scroll-stopping
             openers — then run your post through the pre-flight before you ship it.
@@ -736,7 +731,7 @@ export default function HookStudio() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Hooks in hand? Ask{" "}
-          <CheatCodeName /> 🦈{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
           in the chat bubble to build the full video plan around them.
         </p>
       </main>

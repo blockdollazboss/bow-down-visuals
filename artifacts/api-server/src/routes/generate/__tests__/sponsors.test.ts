@@ -87,6 +87,9 @@ CREATE TABLE sponsor_applications (
   user_id text NOT NULL,
   pitch text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
+  status text NOT NULL DEFAULT 'pending',
+  portfolio_url text,
+  decided_at timestamptz,
   UNIQUE (deal_id, user_id)
 );`;
 
