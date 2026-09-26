@@ -11,8 +11,8 @@ import { openThyChat } from "@/components/ThyCheatCodeChat";
    in-flow chip (per route, remembered in localStorage).
 
    Never rendered on auth pages, the full-viewport video editor studio, or
-   legal/fan-facing pages where he'd clutter. Premium gold/black, normal
-   typography — the 8-bit pixel font stays exclusive to the chat drawer. */
+   legal/fan-facing pages where he'd clutter. Full 8-bit pixel styling —
+   he communicates in 8-bit everywhere. */
 
 const EXCLUDED_RE =
   /^\/(login|signup|video-editor|terms|privacy|refund-policy|press\/|join\/)/;
@@ -75,22 +75,21 @@ export function ThyCheatCodeHost() {
       <div className="px-4 pt-4 sm:px-6 lg:px-8">
         <button
           onClick={expand}
-          className="inline-flex items-center gap-2 rounded-full border border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
+          className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
+          style={{ imageRendering: "pixelated" }}
         >
-          <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-[#C9A84C]/60">
-            <video
-              src="/thy-cheat-code-idle.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
+          <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
+            <img
+              src="/thy-cheat-code-8bit.webp"
+              alt=""
               aria-hidden="true"
               className="h-full w-full object-cover"
+              style={{ imageRendering: "pixelated" }}
             />
           </span>
           <span>
-            <span className="font-display font-bold text-[#E8C96A]">🦈 Thy Cheat Code</span>
-            <span className="text-neutral-400"> · tips for this page</span>
+            <span className="pixel-display text-xs font-bold text-[#E8C96A]">THY CHEAT CODE</span>
+            <span className="pixel-display text-[10px] text-neutral-400"> · TIPS FOR THIS PAGE</span>
           </span>
         </button>
       </div>
@@ -102,32 +101,30 @@ export function ThyCheatCodeHost() {
     <div className="px-4 pt-4 sm:px-6 lg:px-8">
       <section
         aria-label="Thy Cheat Code — your coach on this page"
-        className="overflow-hidden rounded-2xl border border-[#C9A84C]/40 bg-gradient-to-br from-[#171208] via-black to-black shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+        className="overflow-hidden border-4 border-[#C9A84C]/40 bg-gradient-to-br from-[#171208] via-black to-black shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
+        style={{ imageRendering: "pixelated" }}
       >
         {/* Coach header — him, in first person */}
         <div className="flex items-start gap-4 p-5 sm:p-6">
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
-            <video
-              src="/thy-cheat-code-making.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-label="Thy Cheat Code — the King Shark"
+          <div className="h-20 w-20 shrink-0 overflow-hidden border-4 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
+            <img
+              src="/thy-cheat-code-8bit.webp"
+              alt="Thy Cheat Code — the King Shark"
               className="h-full w-full object-cover"
+              style={{ imageRendering: "pixelated" }}
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-display text-xl font-bold text-[#E8C96A]">
-              Thy Cheat Code
+            <p className="pixel-display text-lg font-bold tracking-wide text-[#E8C96A]">
+              THY CHEAT CODE
             </p>
-            <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
-              your coach on this page
+            <p className="pixel-display mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
+              YOUR COACH ON THIS PAGE
             </p>
-            <p className="font-display mt-3 text-lg leading-snug text-neutral-100">
-              Yo — I&apos;m Thy Cheat Code. Here&apos;s the play
+            <p className="pixel-display mt-3 text-sm leading-relaxed text-neutral-100">
+              YO — I&apos;M THY CHEAT CODE. HERE&apos;S THE PLAY
               {guide ? (
-                <> on <span className="text-[#E8C96A]">{guide.pageName}</span>:</>
+                <> ON <span className="text-[#E8C96A]">{guide.pageName.toUpperCase()}</span>:</>
               ) : (
                 <>:</>
               )}
@@ -142,7 +139,7 @@ export function ThyCheatCodeHost() {
             onClick={dismiss}
             aria-label="Hide Thy Cheat Code's tips for this page"
             title="Hide for this page"
-            className="shrink-0 rounded-full p-1.5 text-neutral-500 transition hover:bg-white/10 hover:text-white"
+            className="shrink-0 p-1.5 text-neutral-500 transition hover:bg-white/10 hover:text-white"
           >
             <X className="h-4 w-4" />
           </button>
@@ -154,27 +151,27 @@ export function ThyCheatCodeHost() {
             {guide.steps.map((step, i) => (
               <li
                 key={i}
-                className="flex flex-col rounded-xl border border-white/10 bg-white/[0.03] p-4"
+                className="flex flex-col border-2 border-white/10 bg-white/[0.03] p-4"
               >
                 <div className="flex items-center gap-2.5">
                   <span
                     aria-hidden="true"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#C9A84C]/60 bg-[#C9A84C]/10 font-display text-sm font-bold text-[#E8C96A]"
+                    className="pixel-display flex h-7 w-7 shrink-0 items-center justify-center border-2 border-[#C9A84C]/60 bg-[#C9A84C]/10 text-xs font-bold text-[#E8C96A]"
                   >
                     {i + 1}
                   </span>
-                  <h3 className="font-display text-base font-bold text-white">
-                    {step.title}
+                  <h3 className="pixel-display text-xs font-bold tracking-wide text-white">
+                    {step.title.toUpperCase()}
                   </h3>
                 </div>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-neutral-300">
                   {step.body}
                 </p>
                 {step.tip && (
-                  <div className="mt-3 flex gap-2 rounded-lg border border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] px-3 py-2.5">
+                  <div className="mt-3 flex gap-2 border-2 border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] px-3 py-2.5">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#E8C96A]" />
                     <p className="text-xs leading-relaxed text-amber-100/90">
-                      <span className="font-bold text-[#E8C96A]">My tip: </span>
+                      <span className="pixel-display text-[10px] font-bold text-[#E8C96A]">MY TIP: </span>
                       {step.tip}
                     </p>
                   </div>
@@ -183,10 +180,10 @@ export function ThyCheatCodeHost() {
                   onClick={() =>
                     openThyChat(step.askPrompt ?? `Tell me more about: ${step.title}`)
                   }
-                  className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#C9A84C]/30 bg-[#C9A84C]/10 px-3 py-2 text-xs font-bold text-[#E8C96A] transition hover:bg-[#C9A84C]/20"
+                  className="pixel-display mt-3 inline-flex items-center justify-center gap-1.5 border-2 border-[#C9A84C]/30 bg-[#C9A84C]/10 px-3 py-2 text-[10px] font-bold tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/20"
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
-                  Ask about this
+                  ASK ABOUT THIS
                 </button>
               </li>
             ))}
@@ -194,25 +191,25 @@ export function ThyCheatCodeHost() {
         )}
 
         {/* Actions */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-[#C9A84C]/20 bg-black/40 px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2 border-t-4 border-[#C9A84C]/20 bg-black/40 px-5 py-4 sm:px-6">
           <button
             onClick={() => openThyChat()}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#E8C96A] px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110"
+            className="pixel-display inline-flex items-center gap-2 border-2 border-black bg-gradient-to-r from-[#C9A84C] to-[#E8C96A] px-5 py-2.5 text-xs font-bold tracking-wide text-black transition hover:brightness-110"
           >
             <MessageCircle className="h-4 w-4" />
-            Chat with me
+            CHAT WITH ME
           </button>
           {guide && guide.steps.length > 0 && (
             <button
               onClick={startTour}
-              className="inline-flex items-center gap-2 rounded-xl border border-[#C9A84C]/40 px-5 py-2.5 text-sm font-bold text-[#E8C96A] transition hover:bg-[#C9A84C]/10"
+              className="pixel-display inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 px-5 py-2.5 text-xs font-bold tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/10"
             >
               <Footprints className="h-4 w-4" />
-              Walk me through it
+              WALK ME THROUGH IT
             </button>
           )}
-          <p className="ml-auto hidden text-xs text-neutral-500 sm:block">
-            I&apos;m on every page — I&apos;ve got you.
+          <p className="pixel-display ml-auto hidden text-[10px] text-neutral-500 sm:block">
+            I&apos;M ON EVERY PAGE — I&apos;VE GOT YOU.
           </p>
         </div>
       </section>
