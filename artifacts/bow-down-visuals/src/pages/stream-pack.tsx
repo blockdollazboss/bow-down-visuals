@@ -56,8 +56,7 @@ const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", 
 /* Fallback catalog if the API is unreachable — mirrors the server list. */
 const FALLBACK_CREDIT_COST = 1;
 
-export default function StreamPack() {
-  usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
+export function StreamPackTool() {
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
@@ -206,9 +205,7 @@ export default function StreamPack() {
   const busy = generating;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-5xl px-4 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -448,7 +445,16 @@ export default function StreamPack() {
             ))}
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function StreamPack() {
+  usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <StreamPackTool />
       <SiteFooter />
     </div>
   );
