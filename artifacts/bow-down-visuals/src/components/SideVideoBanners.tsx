@@ -29,7 +29,7 @@ function Rail({ side }: { side: "left" | "right" }) {
     <div
       aria-hidden="true"
       className={[
-        "pointer-events-none fixed inset-y-0 z-0 hidden w-14 overflow-hidden md:block lg:w-20",
+        "pointer-events-none fixed inset-y-0 z-0 hidden w-28 overflow-hidden md:block lg:w-40 xl:w-48",
         side === "left"
           ? "left-0 border-r border-primary/25"
           : "right-0 border-l border-primary/25",
