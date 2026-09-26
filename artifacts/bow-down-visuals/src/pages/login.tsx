@@ -118,7 +118,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-end justify-center px-4 md:px-32 lg:px-40 pb-10 relative overflow-hidden"
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
       onMouseMove={handleMouseScrub}
     >
       {/* Drone video background — scrub through with your mouse */}
@@ -131,11 +131,14 @@ export default function Login() {
         disablePictureInPicture
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
-      {/* Dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/60" />
-      <div className="w-full max-w-[280px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
+      {/* Cinematic vignette + dark overlay for readability */}
+      <div className="pointer-events-none absolute inset-0 bg-black/55" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
+      <div className="w-full max-w-[300px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
 
-        <div className="bg-card border border-card-border rounded-md p-4 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
+        <div className="relative rounded-2xl p-[1px] bg-gradient-to-b from-[#c9a84c]/60 via-[#c9a84c]/15 to-transparent shadow-[0_8px_60px_rgba(0,0,0,0.6)] animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+          <div className="rounded-2xl bg-black/55 backdrop-blur-xl px-5 py-6">
+            <p className="text-center text-[11px] tracking-[0.3em] uppercase text-[#c9a84c]/90 font-medium mb-5">Welcome back</p>
           <SocialSignInButtons
             onSignIn={onSocialSignIn}
             loadingProvider={socialLoading}
@@ -144,12 +147,12 @@ export default function Login() {
           <OrDivider />
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Email</FormLabel>
+                  <FormLabel className="text-[11px] uppercase tracking-wider text-white/60">Email</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-email" type="email" placeholder="you@example.com" className="h-8 text-sm" {...field} />
+                    <Input data-testid="input-email" type="email" placeholder="you@example.com" className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -157,9 +160,9 @@ export default function Login() {
 
               <FormField control={form.control} name="password" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-xs">Password</FormLabel>
+                  <FormLabel className="text-[11px] uppercase tracking-wider text-white/60">Password</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-password" type="password" placeholder="••••••••" className="h-8 text-sm" {...field} />
+                    <Input data-testid="input-password" type="password" placeholder="••••••••" className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -171,7 +174,7 @@ export default function Login() {
                 </div>
               )}
 
-              <Button data-testid="btn-login" type="submit" size="sm" className="w-full gold-glow" disabled={loading}>
+              <Button data-testid="btn-login" type="submit" className="w-full h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
               </Button>
             </form>
@@ -179,7 +182,7 @@ export default function Login() {
 
           {resetMode ? (
             resetSent ? (
-              <div className="mt-6 p-4 rounded-xl border border-primary/25 bg-primary/5 text-center">
+              <div className="mt-5 p-4 rounded-xl border border-primary/25 bg-primary/5 text-center">
                 <p className="text-sm text-white/80 font-medium">Check your email for a reset link.</p>
                 <button
                   type="button"
@@ -190,50 +193,52 @@ export default function Login() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={onResetSubmit} className="mt-6 space-y-4">
+              <form onSubmit={onResetSubmit} className="mt-5 space-y-3.5">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1.5">Email</p>
+                  <p className="text-[11px] uppercase tracking-wider text-white/60 mb-1.5">Email</p>
                   <Input
                     data-testid="input-reset-email"
                     type="email"
                     placeholder="you@example.com"
+                    className="h-9 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
                     value={resetEmail}
                     onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
                   />
                 </div>
                 {resetError && (
-                  <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                  <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                     {resetError}
                   </div>
                 )}
-                <Button data-testid="btn-reset-password" type="submit" size="lg" className="w-full gold-glow" disabled={resetLoading}>
+                <Button data-testid="btn-reset-password" type="submit" className="w-full h-9 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110" disabled={resetLoading}>
                   {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending reset link...</> : "Send Reset Link"}
                 </Button>
                 <p className="text-center text-sm">
-                  <button type="button" onClick={() => setResetMode(false)} className="text-muted-foreground hover:text-white hover:underline font-medium">
+                  <button type="button" onClick={() => setResetMode(false)} className="text-white/50 hover:text-white hover:underline font-medium">
                     Back to sign in
                   </button>
                 </p>
               </form>
             )
           ) : (
-            <p className="mt-6 text-center text-sm">
+            <p className="mt-5 text-center text-xs">
               <button
                 type="button"
                 onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
-                className="text-primary hover:underline font-medium"
+                className="text-[#c9a84c]/80 hover:text-[#c9a84c] hover:underline font-medium"
               >
                 Forgot password?
               </button>
             </p>
           )}
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p className="mt-4 text-center text-xs text-white/45">
             Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
+            <Link href="/signup" className="text-[#c9a84c] hover:underline font-medium">
               Sign up free
             </Link>
           </p>
+          </div>
         </div>
       </div>
     </div>
