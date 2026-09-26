@@ -18,7 +18,7 @@ const PLANS = [
   {
     stars: 1,
     name: "Starter",
-    streetTitle: "On the Map",
+    streetTitle: "Street Punk",
     price: 19,
     period: "/month",
     bestFor: "New creators",
@@ -38,7 +38,7 @@ const PLANS = [
   {
     stars: 2,
     name: "Creator",
-    streetTitle: "Rising Heat",
+    streetTitle: "Hustler",
     price: 49,
     period: "/month",
     bestFor: "Active solo creators",
@@ -58,7 +58,7 @@ const PLANS = [
   {
     stars: 3,
     name: "Pro Artist",
-    streetTitle: "Wanted",
+    streetTitle: "Gangster",
     price: 99,
     period: "/month",
     bestFor: "Serious full-time creators",
@@ -78,7 +78,7 @@ const PLANS = [
   {
     stars: 4,
     name: "Studio",
-    streetTitle: "High Alert",
+    streetTitle: "Shot Caller",
     price: 199,
     period: "/month",
     bestFor: "Teams & creator brands",
@@ -98,7 +98,7 @@ const PLANS = [
   {
     stars: 5,
     name: "VIP",
-    streetTitle: "Most Wanted",
+    streetTitle: "Crime Boss",
     price: 399,
     period: "/month",
     bestFor: "High-volume creators",
@@ -276,7 +276,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   );
 }
 
-/* ─── wanted-level star meter ─── */
+/* ─── rank star meter ─── */
 
 function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -285,7 +285,7 @@ function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
       <div
         className="flex items-center gap-2"
         role="radiogroup"
-        aria-label="Preview wanted level"
+        aria-label="Preview rank"
         onMouseLeave={() => setHovered(null)}
       >
         {([1, 2, 3, 4, 5, 6] as const).map((s) => {
@@ -325,7 +325,7 @@ function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
 /* ─── page ─── */
 
 export default function Pricing() {
-  usePageTitle("Pricing", "Choose your wanted level — six star-rated creator plans.");
+  usePageTitle("Pricing", "Choose your rank — six star-rated creator plans.");
   const [showCancelled, setShowCancelled] = useState(false);
   const [highlightedPlan, setHighlightedPlan] = useState<number | null>(null);
   const planRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -407,11 +407,11 @@ export default function Pricing() {
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
             Choose Your<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
-              Wanted Level
+              Rank
             </span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            The higher the heat, the more power, credits, automation, and control you unlock.
+            Climb from Street Punk to Kingpin — the higher your rank, the more power, credits, automation, and control you unlock.
           </p>
           <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
             No free generations. No hidden compute charges. See the credit cost before you create.
