@@ -29,10 +29,8 @@ function Rail({ side }: { side: "left" | "right" }) {
     <div
       aria-hidden="true"
       className={[
-        "pointer-events-none fixed inset-y-0 z-0 hidden w-40 overflow-hidden md:block lg:w-64 xl:w-80",
-        side === "left"
-          ? "left-0 border-r border-primary/25"
-          : "right-0 border-l border-primary/25",
+        "pointer-events-none fixed inset-y-0 z-0 hidden w-24 overflow-hidden opacity-40 md:block lg:w-32 xl:w-40",
+        side === "left" ? "left-0" : "right-0",
       ].join(" ")}
     >
       <video
@@ -45,16 +43,19 @@ function Rail({ side }: { side: "left" | "right" }) {
         preload="auto"
         disablePictureInPicture
         data-rail={side}
-        className="h-full w-[200%] max-w-none object-cover"
-        style={side === "right" ? { transform: "translateX(-50%)" } : undefined}
+        className="h-full w-[200%] max-w-none object-cover grayscale-[0.6]"
+        style={{
+          ...(side === "right" ? { transform: "translateX(-50%)" } : {}),
+          filter: "brightness(0.35) saturate(0.5) blur(1px)",
+        }}
       />
-      {/* Gold glow bleed + top/bottom fade so the rails melt into the page. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background" />
+      {/* Heavy vignette — videos melt into darkness, pure ambient texture. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black" />
       <div
         className={
           side === "left"
-            ? "absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-primary/15 to-transparent"
-            : "absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-primary/15 to-transparent"
+            ? "absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-black/80"
+            : "absolute inset-0 bg-gradient-to-l from-black/80 via-transparent to-black/80"
         }
       />
     </div>

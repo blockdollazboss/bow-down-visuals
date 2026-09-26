@@ -92,7 +92,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 md:px-48 lg:px-72 xl:px-96 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 md:px-32 lg:px-40 relative overflow-hidden">
       {/* Golden throne background */}
       <div
         className="pointer-events-none absolute inset-0 bg-cover bg-center"
