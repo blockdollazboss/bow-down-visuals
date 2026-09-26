@@ -84,6 +84,7 @@ import releaseChecklistRouter from "./generate/release-checklist";
 import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
 import audioCleanupRouter from "./generate/audio-cleanup";
 import cheatCodeRouter from "./cheat-code";
+import mixMasterRouter from "./generate/mix-master";
 
 const router: IRouter = Router();
 
@@ -172,5 +173,6 @@ router.use(releaseChecklistRouter);
 router.use(thumbnailGeneratorRouter);
 router.use(audioCleanupRouter);
 router.use(cheatCodeRouter);
+router.use(mixMasterRouter);
 
 export default router;

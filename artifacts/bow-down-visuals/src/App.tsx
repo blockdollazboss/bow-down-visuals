@@ -124,6 +124,7 @@ const Contests = lazyWithRetry(() => import("@/pages/contests"));
 const Titles = lazyWithRetry(() => import("@/pages/titles"));
 const Community = lazyWithRetry(() => import("@/pages/community"));
 const Mastering = lazyWithRetry(() => import("@/pages/mastering"));
+const MixMaster = lazyWithRetry(() => import("@/pages/mix-master"));
 const Stems = lazyWithRetry(() => import("@/pages/stems"));
 const Sfx = lazyWithRetry(() => import("@/pages/sfx"));
 const Samples = lazyWithRetry(() => import("@/pages/samples"));
@@ -396,6 +397,7 @@ function AppShell() {
                 <Route path="/titles"><ProtectedRoute><Titles /></ProtectedRoute></Route>
                 <Route path="/community"><ProtectedRoute><Community /></ProtectedRoute></Route>
                 <Route path="/mastering"><ProtectedRoute><Mastering /></ProtectedRoute></Route>
+                <Route path="/mix-master"><ProtectedRoute><MixMaster /></ProtectedRoute></Route>
                 <Route path="/stems"><ProtectedRoute><Stems /></ProtectedRoute></Route>
                 <Route path="/sfx"><ProtectedRoute><Sfx /></ProtectedRoute></Route>
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
