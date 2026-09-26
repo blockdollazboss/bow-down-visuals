@@ -1,6 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
@@ -235,10 +235,28 @@ function RouteFallback() {
  */
 function AuthedLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const userTouchedSidebar = useRef(false);
+
+  // Sidebar preview: start open so the user sees where everything is,
+  // then auto-close after a moment. Manual toggle cancels the auto-close.
+  useEffect(() => {
+    setSidebarCollapsed(false);
+    const t = setTimeout(() => {
+      if (!userTouchedSidebar.current) setSidebarCollapsed(true);
+    }, 3000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOpenChange = (open: boolean) => {
+    userTouchedSidebar.current = true;
+    setSidebarCollapsed(!open);
+  };
+
   return (
     <SidebarProvider
       open={!sidebarCollapsed}
-      onOpenChange={(open) => setSidebarCollapsed(!open)}
+      onOpenChange={handleOpenChange}
     >
       <div className="flex min-h-svh w-full">
         <AppSidebar />
