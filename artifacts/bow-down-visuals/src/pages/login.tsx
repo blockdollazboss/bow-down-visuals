@@ -8,6 +8,7 @@ import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSupabase } from "@/lib/supabase";
 import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
+import { DiscordSignInButton } from "@/components/DiscordSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,12 @@ const schema = z.object({
 
 export default function Login() {
   usePageTitle("Sign In", "Sign in to Bow Down Visuals.");
-  const { signIn, signInWithGoogle, user, loading: authLoading } = useAuth();
+  const { signIn, signInWithGoogle, signInWithDiscord, user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -71,6 +73,18 @@ export default function Login() {
     }
   }
 
+  async function onDiscordAuth() {
+    setDiscordLoading(true);
+    setError(null);
+    /* On success the browser leaves for Discord's consent screen, so this
+     * only resolves when something failed before the redirect. */
+    const { error } = await signInWithDiscord();
+    if (error) {
+      setError(error);
+      setDiscordLoading(false);
+    }
+  }
+
   async function onResetSubmit(e: React.FormEvent) {
     e.preventDefault();
     const email = resetEmail.trim();
@@ -110,6 +124,14 @@ export default function Login() {
             loading={googleLoading}
             label="Continue with Google"
           />
+          <div className="mt-3">
+            <DiscordSignInButton
+              onClick={onDiscordAuth}
+              loading={discordLoading}
+              label="Continue with Discord"
+              testId="btn-discord-signin"
+            />
+          </div>
           <OrDivider />
 
           <Form {...form}>

@@ -19,6 +19,7 @@ import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { Onbo
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
+import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
@@ -89,6 +90,7 @@ const LlcGuide = lazyWithRetry(() => import("@/pages/llc-guide"));
 const Features = lazyWithRetry(() => import("@/pages/features"));
 const Promote = lazyWithRetry(() => import("@/pages/promote"));
 const GoLive = lazyWithRetry(() => import("@/pages/go-live"));
+const DiscordBot = lazyWithRetry(() => import("@/pages/discord-bot"));
 const Guides = lazyWithRetry(() => import("@/pages/guides"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
@@ -271,6 +273,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           collapsed={sidebarCollapsed}
           onExpand={() => setSidebarCollapsed(false)}
         />
+        <LiveBadge />
         <MobileSidebarTrigger />        {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
@@ -376,6 +379,7 @@ function AppShell() {
                 <Route path="/shoutouts"><ProtectedRoute><Shoutouts /></ProtectedRoute></Route>
                 <Route path="/release-checklist"><ProtectedRoute><ReleaseChecklist /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
                 <Route path="/jewelry"><ProtectedRoute><JewelryStudio /></ProtectedRoute></Route>
                 <Route path="/gamers"><ProtectedRoute><Gamers /></ProtectedRoute></Route>
                 {/* ── Wired-up orphaned pages (site organization) ── */}
@@ -405,6 +409,7 @@ function AppShell() {
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
                 <Route path="/go-live"><ProtectedRoute><GoLive /></ProtectedRoute></Route>
+                <Route path="/discord-bot"><ProtectedRoute><DiscordBot /></ProtectedRoute></Route>
                 <Route component={NotFound} />
               </Switch>
             </AuthedLayout>

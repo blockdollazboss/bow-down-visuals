@@ -19,6 +19,7 @@ interface AuthContextValue {
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithDiscord: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
@@ -169,6 +170,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  /* Discord OAuth via Supabase. Same redirect pattern as Google: on success
+   * the browser leaves for Discord's consent screen. Requires the Discord
+   * provider to be enabled in the Supabase dashboard (Client ID + Secret). */
+  async function signInWithDiscord() {
+    try {
+      const client = getSupabase();
+      const { error } = await client.auth.signInWithOAuth({
+        provider: "discord",
+        options: {
+          redirectTo: `${window.location.origin}/choose-artist`,
+          scopes: "identify email",
+        },
+      });
+      return { error: error?.message ?? null };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Discord sign-in failed" };
+    }
+  }
+
   async function signOut() {
     const supabaseUrl = String(import.meta.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
 
@@ -188,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signInWithGoogle, signOut, refreshProfile, getAccessToken }}>
+    <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signInWithGoogle, signInWithDiscord, signOut, refreshProfile, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

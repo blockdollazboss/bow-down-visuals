@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { GoogleSignInButton, OrDivider } from "@/components/GoogleSignInButton";
+import { DiscordSignInButton } from "@/components/DiscordSignInButton";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -31,11 +32,12 @@ export default function Signup() {
   usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, signInWithGoogle, signInWithDiscord } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [discordLoading, setDiscordLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const form = useForm<z.infer<typeof schema>>({
@@ -65,6 +67,18 @@ export default function Signup() {
     if (error) {
       setError(error);
       setGoogleLoading(false);
+    }
+  }
+
+  async function onDiscordAuth() {
+    setDiscordLoading(true);
+    setError(null);
+    /* On success the browser leaves for Discord's consent screen, so this
+     * only resolves when something failed before the redirect. */
+    const { error } = await signInWithDiscord();
+    if (error) {
+      setError(error);
+      setDiscordLoading(false);
     }
   }
 
@@ -101,6 +115,14 @@ export default function Signup() {
             label="Sign up with Google"
             testId="btn-google-signup"
           />
+          <div className="mt-3">
+            <DiscordSignInButton
+              onClick={onDiscordAuth}
+              loading={discordLoading}
+              label="Sign up with Discord"
+              testId="btn-discord-signup"
+            />
+          </div>
           <OrDivider />
 
           <Form {...form}>

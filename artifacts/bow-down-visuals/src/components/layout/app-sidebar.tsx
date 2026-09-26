@@ -37,6 +37,7 @@ import {
   ChevronsUpDown,
   Library,
   Radio,
+  Bot,
   GraduationCap,
   Shirt,
   ListMusic,
@@ -226,6 +227,7 @@ const SECTIONS: NavSection[] = [
       { href: "/analytics-hub", label: "Analytics Hub", icon: BarChart3 },
       { href: "/playlist-pitch", label: "Playlist Pitcher", icon: ListMusic },
       { href: "/go-live", label: "Go Live", icon: Radio },
+      { href: "/discord-bot", label: "Discord Bot", icon: Bot },
     ],
   },
   {
