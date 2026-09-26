@@ -79,6 +79,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── AI text / copilots (1 credit) ──────────────────────────────
   "/api/chat": { cost: 1, feature: "AI Chat Message" },
   "/api/hook-studio": { cost: 1, feature: "Hook Studio" },
+  "/api/analytics-hub/insights": { cost: 2, feature: "AI Growth Plan" },
   "/api/monetization-coach": { cost: 1, feature: "Monetization Coach" },
   "/api/script-writer": { cost: 2, feature: "Script Writer" },
   "/api/title-studio": { cost: 1, feature: "Title Studio" },
