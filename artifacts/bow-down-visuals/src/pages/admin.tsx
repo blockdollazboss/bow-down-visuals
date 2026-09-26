@@ -316,10 +316,27 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [amount, setAmount] = useState("500");
   const [granting, setGranting] = useState(false);
-  const [bowCfg, setBowCfg] = useState<{ targetBows: number; rewardCredits: number; enabled: boolean } | null>(null);
-  const [bowTarget, setBowTarget] = useState("100");
-  const [bowReward, setBowReward] = useState("5");
+  interface BowRaceStatus {
+    period: string;
+    target: number;
+    totalBows: number;
+    winnerUserId: string | null;
+    winnerEmail: string | null;
+    wonAt: string | null;
+    raceOver: boolean;
+  }
+  interface BowRaceHistory {
+    period: string;
+    target: number;
+    totalBows: number;
+    winnerEmail: string | null;
+    wonAt: string | null;
+  }
+  const [bowReward, setBowReward] = useState("50");
   const [bowEnabled, setBowEnabled] = useState(true);
+  const [bowOverride, setBowOverride] = useState("");
+  const [bowRace, setBowRace] = useState<BowRaceStatus | null>(null);
+  const [bowHistory, setBowHistory] = useState<BowRaceHistory[]>([]);
   const [bowSaving, setBowSaving] = useState(false);
   const [bowMsg, setBowMsg] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -330,20 +347,25 @@ export default function AdminPage() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, [getAccessToken]);
 
+  const loadBowRace = useCallback(async () => {
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/admin/bow-challenge", { headers });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBowReward(String(data.rewardCredits));
+      setBowEnabled(data.enabled);
+      setBowOverride(data.targetOverride == null ? "" : String(data.targetOverride));
+      setBowRace(data.race);
+      setBowHistory(data.history ?? []);
+    } catch { /* silent */ }
+  }, [authHeaders]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const headers = await authHeaders();
-        const res = await fetch("/api/admin/bow-challenge", { headers });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (cancelled) return;
-        setBowCfg(data);
-        setBowTarget(String(data.targetBows));
-        setBowReward(String(data.rewardCredits));
-        setBowEnabled(data.enabled);
-      } catch { /* silent */ }
+      if (cancelled) return;
+      await loadBowRace();
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -354,25 +376,26 @@ export default function AdminPage() {
     setBowMsg(null);
     try {
       const headers = await authHeaders();
+      const overrideRaw = bowOverride.trim();
       const res = await fetch("/api/admin/bow-challenge", {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...headers },
         body: JSON.stringify({
-          targetBows: parseInt(bowTarget, 10),
           rewardCredits: parseInt(bowReward, 10),
           enabled: bowEnabled,
+          targetOverride: overrideRaw === "" ? null : parseInt(overrideRaw, 10),
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed.");
-      setBowCfg(data);
-      setBowMsg("Secret challenge updated.");
+      await loadBowRace();
+      setBowMsg("Bow race updated.");
     } catch (e) {
       setBowMsg(e instanceof Error ? e.message : "Save failed.");
     } finally {
       setBowSaving(false);
     }
-  }, [authHeaders, bowTarget, bowReward, bowEnabled]);
+  }, [authHeaders, loadBowRace, bowReward, bowEnabled, bowOverride]);
 
 
   useEffect(() => {
@@ -468,25 +491,47 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1">
               <Crown className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Secret Bow Challenge
+                Global Bow Race
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Hidden monthly milestone. Users bow the shark for fun — when they hit the
-              target in a calendar month, they get a surprise &ldquo;You Cracked the Code!&rdquo;
-              popup and the credit reward. The challenge is never announced anywhere.
+              One secret site-wide race per month. Every signed-in user&rsquo;s bows feed a
+              single counter; each month draws a random target of 1,000&ndash;5,000 bows.
+              Whoever&rsquo;s bow lands exactly on the target wins the credit reward and sees
+              the surprise &ldquo;You Cracked the Code!&rdquo; popup. The race is never announced
+              anywhere &mdash; this panel is the only place it surfaces.
             </p>
+            {bowRace?.raceOver && bowRace.winnerEmail && (
+              <div className="mb-4 rounded-xl border border-[#C9A84C]/60 bg-[#C9A84C]/10 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-[#e8c86a]" />
+                  <p className="text-sm font-semibold text-[#e8c86a]">
+                    Race won &mdash; {bowRace.period}
+                  </p>
+                </div>
+                <p className="mt-1 text-sm text-white/80">
+                  {bowRace.winnerEmail} landed bow #{bowRace.target.toLocaleString()} of{" "}
+                  {bowRace.target.toLocaleString()}
+                  {bowRace.wonAt ? ` on ${new Date(bowRace.wonAt).toLocaleString()}` : ""} and
+                  was awarded the credit reward.
+                </p>
+              </div>
+            )}
+            {bowRace && !bowRace.raceOver && (
+              <p className="mb-4 text-sm text-white/60">
+                Current race <span className="text-white/90 font-semibold">{bowRace.period}</span>:
+                {" "}<span className="text-white/90 font-semibold">{bowRace.totalBows.toLocaleString()}</span>
+                {" "}bows so far &mdash; target{" "}
+                <span className="text-white/90 font-semibold">{bowRace.target.toLocaleString()}</span>.
+                No winner yet.
+              </p>
+            )}
+            {!bowRace && (
+              <p className="mb-4 text-sm text-white/40">
+                No race has started this month yet &mdash; the first signed-in bow draws the target.
+              </p>
+            )}
             <div className="flex flex-wrap items-end gap-3">
-              <label className="text-xs text-white/40">
-                Bows to win
-                <input
-                  type="number" min={1} max={100000}
-                  value={bowTarget}
-                  onChange={(e) => setBowTarget(e.target.value)}
-                  disabled={bowSaving}
-                  className="mt-1 block w-32 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
-                />
-              </label>
               <label className="text-xs text-white/40">
                 Credit reward
                 <input
@@ -495,6 +540,17 @@ export default function AdminPage() {
                   onChange={(e) => setBowReward(e.target.value)}
                   disabled={bowSaving}
                   className="mt-1 block w-32 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                />
+              </label>
+              <label className="text-xs text-white/40">
+                Target override (1000&ndash;5000, blank = random)
+                <input
+                  type="number" min={1000} max={5000}
+                  placeholder="random"
+                  value={bowOverride}
+                  onChange={(e) => setBowOverride(e.target.value)}
+                  disabled={bowSaving}
+                  className="mt-1 block w-40 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
                 />
               </label>
               <label className="flex items-center gap-2 text-xs text-white/40 pb-2.5 cursor-pointer">
@@ -514,9 +570,41 @@ export default function AdminPage() {
             </div>
             {bowMsg && <p className="mt-3 text-sm text-green-400">{bowMsg}</p>}
             <p className="mt-4 text-[11px] text-white/30">
-              Counts reset automatically on the 1st of every month. Rewards are logged as
-              &ldquo;Secret Bow Challenge&rdquo; in the credit ledger.
+              A new month automatically starts a new race with a fresh random target &mdash; no
+              manual reset. The override applies one time to the next race month, then
+              clears itself. Rewards are logged as &ldquo;Global Bow Race&rdquo; in the credit ledger.
             </p>
+            {bowHistory.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs text-white/40 uppercase tracking-wider font-semibold mb-2">
+                  Win history
+                </p>
+                <div className="overflow-hidden rounded-xl border border-white/[0.06]">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-white/[0.03] text-left text-xs text-white/40">
+                        <th className="px-3 py-2 font-semibold">Month</th>
+                        <th className="px-3 py-2 font-semibold">Target</th>
+                        <th className="px-3 py-2 font-semibold">Winner</th>
+                        <th className="px-3 py-2 font-semibold">Won at</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bowHistory.map((h) => (
+                        <tr key={h.period} className="border-t border-white/[0.06] text-white/70">
+                          <td className="px-3 py-2">{h.period}</td>
+                          <td className="px-3 py-2">{h.target.toLocaleString()}</td>
+                          <td className="px-3 py-2">{h.winnerEmail ?? "—"}</td>
+                          <td className="px-3 py-2">
+                            {h.wonAt ? new Date(h.wonAt).toLocaleString() : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
           <JackpotAdmin authHeaders={authHeaders} />
         </>
