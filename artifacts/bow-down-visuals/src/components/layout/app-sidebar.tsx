@@ -185,7 +185,7 @@ const SECTIONS: NavSection[] = [
     links: [
       { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
       { href: "/make-song", label: "Make a Song", icon: Music },
-      { href: "/make-video", label: "Video for My Song", icon: Video },
+      { href: "/make-video", label: "MV", icon: Video },
       { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
       { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
       { href: "/clip-maker", label: "AI Streamer Clips", icon: Scissors },

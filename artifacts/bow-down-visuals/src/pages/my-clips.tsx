@@ -606,7 +606,7 @@ export default function MyClips() {
             </p>
             <Link href="/make-video">
               <Button className="gold-glow font-bold gap-2">
-                <Video className="h-4 w-4" /> Video for My Song
+                <Video className="h-4 w-4" /> MV
               </Button>
             </Link>
           </div>

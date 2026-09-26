@@ -80,7 +80,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "make-video",
-    title: "Video for My Song",
+    title: "MV",
     body: "The flagship. Turn your song or lyrics into cinematic video scenes and AI-generated clips, ready for the editor.",
     target: '[data-tour="nav-make-video"]',
   },

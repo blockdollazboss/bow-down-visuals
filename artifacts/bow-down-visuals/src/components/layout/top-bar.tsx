@@ -12,7 +12,7 @@ const IS_DEV = import.meta.env.DEV;
 const NAV_LINKS = [
   { label: "Dashboard",        href: "/dashboard" },
   { label: "Start from Scratch", href: "/song-and-video" },
-  { label: "Video for My Song",  href: "/make-video" },
+  { label: "MV",  href: "/make-video" },
   { label: "Promo Clips",       href: "/promo-clip" },
   { label: "Artist Profiles",   href: "/artist-vault" },
   { label: "Pricing",           href: "/pricing" },
