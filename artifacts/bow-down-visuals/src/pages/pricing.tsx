@@ -79,6 +79,46 @@ const PLANS = [
       "Team features coming soon",
     ],
   },
+  {
+    name: "VIP",
+    price: 399,
+    period: "/month",
+    bestFor: "Top creators & influencers",
+    credits: "1,500 credits monthly",
+    featured: false,
+    badge: "Exclusive",
+    features: [
+      "Everything in Studio",
+      "Priority generation queue — skip the line",
+      "Early access to new AI models & features",
+      "4K video output on all generations",
+      "Exclusive VIP-only templates & styles",
+      "Advanced cross-platform analytics",
+      "Dedicated priority support",
+      "VIP badge on your profile",
+    ],
+  },
+  {
+    name: "MVP",
+    price: 799,
+    period: "/month",
+    bestFor: "Labels, agencies & power users",
+    credits: "4,000 credits monthly",
+    featured: false,
+    badge: "Top Tier",
+    features: [
+      "Everything in VIP",
+      "Highest priority — instant generation",
+      "First access to every new feature & model",
+      "8K video output + exclusive quality presets",
+      "Custom AI style training on your brand",
+      "White-label client deliverables",
+      "API access for automation",
+      "Dedicated account manager",
+      "Quarterly strategy session",
+      "MVP badge + hall of fame placement",
+    ],
+  },
 ];
 
 const CREDIT_PACKS = [
@@ -307,12 +347,18 @@ export default function Pricing() {
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            {PLANS.map((plan) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            {PLANS.map((plan) => {
+              const isExclusive = plan.name === "VIP" || plan.name === "MVP";
+              return (
               <div
                 key={plan.name}
                 className={`relative rounded-2xl border flex flex-col p-6 transition-all ${
-                  plan.featured
+                  plan.name === "MVP"
+                    ? "border-amber-400/50 bg-gradient-to-b from-amber-500/[0.12] via-primary/[0.06] to-transparent shadow-[0_0_80px_rgba(251,191,36,0.2)]"
+                    : plan.name === "VIP"
+                    ? "border-purple-400/40 bg-gradient-to-b from-purple-500/[0.1] via-primary/[0.04] to-transparent shadow-[0_0_60px_rgba(192,132,252,0.15)]"
+                    : plan.featured
                     ? "border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)]"
                     : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14]"
                 }`}
@@ -320,7 +366,7 @@ export default function Pricing() {
                 {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <MarketingBadge variant="popular">
+                    <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
                     </MarketingBadge>
                   </div>
@@ -367,7 +413,8 @@ export default function Pricing() {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Coming soon note */}
