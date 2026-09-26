@@ -522,3 +522,44 @@ html {
     animation: none;
   }
 }
+
+/* ─── AI Guide Mode (GuideMe) — spotlight tour styles ───────────────────── */
+.guideme-dim {
+  position: fixed;
+  z-index: 9990;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(1px);
+  animation: guideme-fade 0.25s ease-out;
+}
+
+.guideme-ring {
+  position: fixed;
+  z-index: 9991;
+  pointer-events: none;
+  border-radius: 14px;
+  border: 2px solid rgba(251, 191, 36, 0.95);
+  box-shadow:
+    0 0 0 4px rgba(218, 165, 32, 0.25),
+    0 0 28px rgba(218, 165, 32, 0.55),
+    inset 0 0 18px rgba(218, 165, 32, 0.12);
+  animation: guideme-pulse 1.8s ease-in-out infinite, guideme-fade 0.25s ease-out;
+}
+
+.guideme-fab {
+  animation: guideme-fade 0.3s ease-out;
+}
+
+@keyframes guideme-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(218,165,32,0.25), 0 0 28px rgba(218,165,32,0.55), inset 0 0 18px rgba(218,165,32,0.12); }
+  50%      { box-shadow: 0 0 0 7px rgba(218,165,32,0.12), 0 0 44px rgba(218,165,32,0.75), inset 0 0 22px rgba(218,165,32,0.18); }
+}
+
+@keyframes guideme-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guideme-ring { animation: guideme-fade 0.25s ease-out; }
+  .guideme-fab.animate-bounce { animation: none; }
+}

@@ -11,6 +11,7 @@ import { UserModeProvider } from "@/contexts/UserModeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
+import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 
 import { SiteFooter } from "@/components/layout/footer";
@@ -203,6 +204,7 @@ function AppShell() {
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
       {typeof window !== "undefined" && <AiChatWidget />}
+      {typeof window !== "undefined" && <GuideMe />}
       {typeof window !== "undefined" && <HelpPanel />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
