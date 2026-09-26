@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { PixelShark } from "@/components/PixelShark";
 import { useLocation } from "wouter";
 import {
   X, ChevronLeft, ChevronRight, Sparkles, MessageCircle, Flag,
@@ -272,7 +271,7 @@ export function GuideMe() {
           <div style={cardStyle} className="overflow-hidden rounded-2xl border border-amber-400/40 bg-black/85 shadow-[0_8px_40px_rgba(0,0,0,0.7),0_0_32px_rgba(218,165,32,0.3)] backdrop-blur-xl">
             <div className="flex items-center justify-between border-b border-amber-400/20 bg-gradient-to-r from-amber-500/15 to-transparent px-5 py-3">
               <p className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-amber-300">
-                <PixelShark size={16} /> Thy Cheat Code
+                <span className="text-base">🦈</span> Thy Cheat Code
               </p>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-white/40">

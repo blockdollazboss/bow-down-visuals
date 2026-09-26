@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { PixelShark } from "@/components/PixelShark";
 import { Link } from "wouter";
 import {
   Gauge, Loader2, Sparkles, ArrowRight, Clock, Hash, Type, Quote,
@@ -511,7 +510,7 @@ export default function ViralityCheck() {
         {/* cross-link */}
         <p className="relative mt-8 text-center text-sm text-white/40">
           Need fresh hooks first? Ask{" "}
-          <span className="font-semibold text-primary">Thy Cheat Code <PixelShark size={14} /></span>{" "}
+          <span className="font-semibold text-primary">Thy Cheat Code 🦈</span>{" "}
           in the chat bubble — or open{" "}
           <Link href="/hooks" className="font-semibold text-primary hover:underline">
             Hook Studio

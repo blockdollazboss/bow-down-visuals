@@ -409,7 +409,15 @@ export function CheatCodeJackpot() {
         >
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
             <span aria-hidden="true" className="shrink-0 leading-none">
-              <PixelSprite name="shark" pixel={4} />
+              <img
+                src="/thy-cheat-code-8bit.webp"
+                alt=""
+                width={40}
+                height={40}
+                draggable={false}
+                className="h-10 w-10 object-cover"
+                style={{ imageRendering: "pixelated" }}
+              />
             </span>
             <div className="min-w-0 flex-1">
               <p className="pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] text-[#F5DE8E] uppercase">
@@ -635,7 +643,15 @@ export function CheatCodeJackpot() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex justify-center">
-              <PixelSprite name="shark" pixel={11} />
+              <img
+                src="/thy-cheat-code-8bit.webp"
+                alt="Thy Cheat Code"
+                width={120}
+                height={120}
+                draggable={false}
+                className="h-28 w-28 object-cover"
+                style={{ imageRendering: "pixelated" }}
+              />
             </div>
             <p className="pixel-display pixel-gold-text text-2xl sm:text-4xl leading-[1.6]">
               Jackpot!
@@ -658,7 +674,7 @@ export function CheatCodeJackpot() {
               </span>
               .
               <br />
-              You cracked the code — the King Shark bows to you.
+              You cracked the code — the King Shark bows to you. 🦈
             </p>
             <p className="mt-4 text-white/40 text-xs leading-relaxed">
               One code, one winner, one season. Your credits are already in

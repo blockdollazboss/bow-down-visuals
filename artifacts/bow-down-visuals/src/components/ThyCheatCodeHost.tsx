@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { PixelShark } from "@/components/PixelShark";
 import { useLocation } from "wouter";
 import { X, MessageCircle, Sparkles, Footprints } from "lucide-react";
 import { getGuideForRoute } from "@/guides";
@@ -90,7 +89,7 @@ export function ThyCheatCodeHost() {
             />
           </span>
           <span>
-            <span className="font-display font-bold text-[#E8C96A]"><PixelShark size={16} /> Thy Cheat Code</span>
+            <span className="font-display font-bold text-[#E8C96A]">🦈 Thy Cheat Code</span>
             <span className="text-neutral-400"> · tips for this page</span>
           </span>
         </button>
