@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices, GripVertical } from "lucide-react";
-import { CheatCodeName, PixelSprite, PixelDivider } from "@/components/pixel-headline";
+import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 
 /* ─── Thy Cheat Code — floating on-site AI chat assistant ─────────────────
    Gold/black luxury theme, mobile-friendly. Mounted in AppShell so it is
@@ -339,10 +339,15 @@ export function AiChatWidget() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-12 w-12 items-center justify-center border-2 border-[#C9A84C] bg-black"
+                    className="h-12 w-12 shrink-0 overflow-hidden border-2 border-[#C9A84C] bg-black"
                     style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                   >
-                    <PixelSprite name="shark" pixel={3} />
+                    <img
+                      src="/cheat-code-avatar.webp"
+                      alt="Thy Cheat Code avatar"
+                      className="h-full w-full object-cover"
+                      draggable={false}
+                    />
                   </div>
                   <div>
                     <p className="text-sm font-bold"><CheatCodeName /></p>
@@ -384,10 +389,15 @@ export function AiChatWidget() {
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                   {m.role === "assistant" && (
                     <div
-                      className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center border-2 border-[#C9A84C]/70 bg-black"
+                      className="mr-2 h-8 w-8 shrink-0 overflow-hidden border-2 border-[#C9A84C]/70 bg-black"
                       style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                     >
-                      <PixelSprite name="shark" pixel={2} />
+                      <img
+                        src="/cheat-code-avatar.webp"
+                        alt="Thy Cheat Code"
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                      />
                     </div>
                   )}
                   <div
@@ -482,7 +492,12 @@ export function AiChatWidget() {
           {open && !dragging ? (
             <X className="h-6 w-6 text-[#C9A84C]" />
           ) : (
-            <PixelSprite name="shark" pixel={4} />
+            <img
+              src="/cheat-code-avatar.webp"
+              alt="Chat with Thy Cheat Code"
+              className="h-full w-full object-cover"
+              draggable={false}
+            />
           )}
           {/* Drag hint grip, fades in on hover */}
           <span className="pointer-events-none absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[#C9A84C]/0 transition group-hover:text-[#C9A84C]/60">
