@@ -169,9 +169,17 @@ export function ThyCheatCodeChat() {
         onClick={() => setOpen(true)}
         aria-label="Chat with Thy Cheat Code"
         title="Chat with Thy Cheat Code"
-        className="fixed bottom-5 right-5 z-[9990] flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#C9A84C] bg-black/90 text-2xl shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
+        className="fixed bottom-5 right-5 z-[9990] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
       >
-        <span aria-hidden="true">🦈</span>
+        <video
+          src="/thy-cheat-code-avatar.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+          className="h-full w-full object-cover"
+        />
       </button>
     );
   }
@@ -205,11 +213,14 @@ export function ThyCheatCodeChat() {
                   className="h-12 w-12 shrink-0 overflow-hidden border-2 border-[#C9A84C] bg-black"
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                 >
-                  <img
-                    src="/cheat-code-avatar.webp"
-                    alt="Thy Cheat Code avatar"
-                    className="h-full w-full object-cover animate-shark-swim"
-                    draggable={false}
+                  <video
+                    src="/thy-cheat-code-avatar.mp4"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    aria-label="Thy Cheat Code avatar"
+                    className="h-full w-full object-cover"
                   />
                 </div>
                 <div>
@@ -255,11 +266,14 @@ export function ThyCheatCodeChat() {
                     className="mr-2 h-8 w-8 shrink-0 overflow-hidden border-2 border-[#C9A84C]/70 bg-black"
                     style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                   >
-                    <img
-                      src="/cheat-code-avatar.webp"
-                      alt="Thy Cheat Code"
-                      className="h-full w-full object-cover animate-shark-swim"
-                      draggable={false}
+                    <video
+                      src="/thy-cheat-code-avatar.mp4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      aria-label="Thy Cheat Code"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                 )}
