@@ -35,7 +35,7 @@ to submit releases programmatically. They are dashboard-only products.
 - `src/routes/generate/distribution.ts` — API routes + delivery poller
   (15s tick until all platforms terminal) + `resumeActiveDeliveries()`
   (called from `src/index.ts` on boot).
-- Migration `lib/db/migrations/0029_distribution_v2.sql`.
+- Migration `lib/db/migrations/0034_distribution_v2.sql`.
 
 ## Going live — exact checklist
 

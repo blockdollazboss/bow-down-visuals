@@ -95,7 +95,6 @@ import {
   Gamepad2,
   Gem,
   Star,
-  BookOpen,
   Gauge,
   BarChart3,
   Crown,
