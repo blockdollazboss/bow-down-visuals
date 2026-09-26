@@ -12,6 +12,7 @@ import { CreditConfirmProvider } from "@/contexts/CreditConfirmContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
 import { AiChatWidget } from "@/components/AiChatWidget";
+import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";import { OnboardingTour } from "@/components/OnboardingTour";
@@ -261,6 +262,7 @@ function AppShell() {
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
       {typeof window !== "undefined" && <AiChatWidget />}
+      {typeof window !== "undefined" && <GuideMe />}
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}

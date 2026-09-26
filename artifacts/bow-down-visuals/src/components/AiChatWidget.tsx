@@ -128,6 +128,18 @@ export function AiChatWidget() {
     }
   }
 
+  /* GuideMe integration: "Ask Thy Cheat Code" opens chat with a prefilled question. */
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const q = (e as CustomEvent<{ question?: string }>).detail?.question;
+      setOpen(true);
+      if (q && q.trim()) window.setTimeout(() => send(q.trim()), 150);
+    };
+    window.addEventListener("guideme:ask", handler);
+    return () => window.removeEventListener("guideme:ask", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="fixed bottom-5 right-5 z-[9995] flex flex-col items-end gap-3">
       {open && (
