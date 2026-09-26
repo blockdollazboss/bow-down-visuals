@@ -172,7 +172,7 @@ export function ThyCheatCodeChat() {
         className="fixed bottom-5 right-5 z-[9990] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
       >
         <video
-          src="/thy-cheat-code-avatar.mp4"
+          src="/thy-cheat-code-idle.mp4"
           autoPlay
           muted
           loop
@@ -214,7 +214,7 @@ export function ThyCheatCodeChat() {
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                 >
                   <video
-                    src="/thy-cheat-code-avatar.mp4"
+                    src="/thy-cheat-code-working.mp4"
                     autoPlay
                     muted
                     loop
@@ -267,7 +267,7 @@ export function ThyCheatCodeChat() {
                     style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                   >
                     <video
-                      src="/thy-cheat-code-avatar.mp4"
+                      src="/thy-cheat-code-working.mp4"
                       autoPlay
                       muted
                       loop

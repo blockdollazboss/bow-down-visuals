@@ -404,6 +404,17 @@ export default function Pricing() {
           <MarketingBadge variant="kicker" className="mb-5 px-4 py-1.5">
             Pricing
           </MarketingBadge>
+          <div className="mx-auto mb-6 h-28 w-28 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_32px_rgba(201,168,76,0.3)]">
+            <video
+              src="/thy-cheat-code-levelup.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label="Thy Cheat Code leveling up"
+              className="h-full w-full object-cover"
+            />
+          </div>
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
             Choose Your<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
