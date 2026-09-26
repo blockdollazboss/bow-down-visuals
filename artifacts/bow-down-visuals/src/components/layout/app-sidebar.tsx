@@ -38,7 +38,6 @@ import {
   Library,
   Radio,
   GraduationCap,
-<<<<<<< HEAD
   Shirt,
   ListMusic,
   SearchCheck,
@@ -100,9 +99,6 @@ import {
   Crown,
   type LucideIcon,
 
-=======
-  Store
->>>>>>> feature/branding-shop
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
@@ -243,6 +239,7 @@ const SECTIONS: NavSection[] = [
       { href: "/shoutouts", label: "Fan Shoutouts", icon: Megaphone },
       { href: "/tips", label: "Tips", icon: HeartHandshake },
       { href: "/merch", label: "Merch Designer", icon: Shirt },
+      { href: "/branding-shop", label: "Branding Shop", icon: Store },
       { href: "/storefronts", label: "Storefronts", icon: ShoppingBag },
       { href: "/my-shop", label: "My Shop", icon: Store },
       { href: "/release-checklist", label: "Release Checklist", icon: ClipboardCheck },
@@ -377,29 +374,7 @@ export function AppSidebar() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
-<<<<<<< HEAD
   const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
-=======
-  const links = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/song-and-video", label: "Make Song + Video", icon: Mic2 },
-    { href: "/make-song", label: "Make a Song", icon: Music },
-    { href: "/songs", label: "Songs", icon: Music2 },
-    { href: "/locations", label: "Locations", icon: MapPin },
-    { href: "/make-video", label: "Make a Music Video", icon: Video },
-    { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
-    { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
-    { href: "/my-clips", label: "My Clips", icon: Library },
-    { href: "/go-live", label: "Go Live", icon: Radio },
-    { href: "/academy", label: "Creator Academy", icon: GraduationCap },
-    { href: "/thumbnail", label: "Thumbnail Maker", icon: Image },
-    { href: "/thumbnails", label: "Thumbnail Library", icon: Images },
-    { href: "/branding-shop", label: "Branding Shop", icon: Store },
-    { href: "/pricing", label: "Pricing", icon: CreditCard },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: ShieldCheck }] : []),
-  ];
->>>>>>> feature/branding-shop
 
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">

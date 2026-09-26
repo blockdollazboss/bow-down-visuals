@@ -3,11 +3,8 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import OpenAI from "openai";
-<<<<<<< HEAD
-=======
 import RunwayML from "@runwayml/sdk";
 import Stripe from "stripe";
->>>>>>> feature/branding-shop
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
@@ -20,8 +17,6 @@ import {
 } from "../../lib/credits";
 import { db } from "@workspace/db";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
-<<<<<<< HEAD
-=======
 import {
   fulfillmentMode,
   toOrderStatus,
@@ -33,32 +28,11 @@ import {
   markBrandingOrderPaid,
   confirmBrandingFulfillment,
 } from "../../lib/branding-fulfillment";
->>>>>>> feature/branding-shop
 
 const router = Router();
 
 /* ─── AI Branding Shop ────────────────────────────────────────────────────
    Dropship branding store: AI designs the brand kit (logo + product
-<<<<<<< HEAD
-   mockups), the shop sells merch, manufacturers ship direct — Bow Down
-   Visuals never touches inventory.
-
-   v1 HONESTY CONTRACT (standing rule — never fabricate):
-   - Order statuses are only "received" / "pending_fulfillment". There is no
-     "shipped", no "delivered", no tracking number until a real dropship
-     partner integration exists. The UI says "dropship partner integration
-     coming soon" and orders are saved as received.
-   - Browsing the catalog and placing orders is FREE (pure UI + order
-     intake, no AI compute). Only the AI brand-kit design costs credits. */
-
-/* Product catalog — keep in sync with the frontend /branding-shop page. */
-const PRODUCTS = {
-  tshirt: { label: "Classic Tee", priceCents: 2499, sizes: ["S", "M", "L", "XL", "2XL"] },
-  hoodie: { label: "Luxury Hoodie", priceCents: 4999, sizes: ["S", "M", "L", "XL", "2XL"] },
-  mug:    { label: "Gold-Rim Mug", priceCents: 1699, sizes: ["11oz"] },
-  cap:    { label: "Snapback Cap", priceCents: 2799, sizes: ["One size"] },
-  poster: { label: "Art Poster", priceCents: 1999, sizes: ['12x18"', '18x24"'] },
-=======
    mockups via Runway gen4_image), the shop sells merch at retail in USD
    (Stripe checkout), and Printful manufactures + ships direct — Bow Down
    Visuals never touches inventory.
@@ -86,7 +60,6 @@ const PRODUCTS = {
   poster:    { label: "Art Poster",   priceCents: 1999, baseCostCents: 800,  sizes: ['12x18"', '18x24"'] },
   phonecase: { label: "Phone Case",   priceCents: 2299, baseCostCents: 1000, sizes: ["iPhone", "Samsung"] },
   tote:      { label: "Canvas Tote",  priceCents: 1899, baseCostCents: 800,  sizes: ["One size"] },
->>>>>>> feature/branding-shop
 } as const;
 type ProductKey = keyof typeof PRODUCTS;
 
@@ -102,15 +75,6 @@ const STYLE_DIRECTION: Record<BrandStyle, string> = {
   bold: "loud and maximal — vibrant color, big shapes, unmissable from across the room",
 };
 
-<<<<<<< HEAD
-/* 2 credits per AI brand-kit design set (logo + up to 3 product mockups),
-   following the logo-maker premium GPT Image tier (2cr). The set burns one
-   GPT-6 text call plus up to 4 GPT Image generations — 2 credits holds a
-   healthy margin at that provider cost. Env-overridable without a deploy. */
-const DESIGN_CREDIT_COST = Number(process.env["BRANDING_SHOP_DESIGN_COST"]) || 2;
-
-const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";
-=======
 /* 2 credits per AI brand-kit design set (logo + up to 3 product mockups).
    The set burns one GPT-6 text call plus up to 4 Runway gen4_image
    generations — 2 credits holds a healthy margin at that provider cost.
@@ -121,7 +85,6 @@ const DESIGN_CREDIT_COST = Number(process.env["BRANDING_SHOP_DESIGN_COST"]) || 2
 const DESIGN_TIMEOUT_MS = Number(process.env["BRANDING_SHOP_DESIGN_TIMEOUT_MS"]) || 180_000;
 const DESIGN_POLL_MS = 3_000;
 
->>>>>>> feature/branding-shop
 const BRANDING_BUCKET = "artist-references";
 
 const designSchema = z.object({
@@ -139,10 +102,7 @@ const orderItemSchema = z.object({
   color: z.enum(COLORS),
   size: z.string().min(1).max(20),
   qty: z.number().int().min(1).max(99),
-<<<<<<< HEAD
-=======
   designUrl: z.string().url().max(2000).optional(),
->>>>>>> feature/branding-shop
 });
 
 const orderSchema = z.object({
@@ -191,26 +151,6 @@ function parseBrief(raw: string, products: ProductKey[]): DesignBrief | null {
   }
 }
 
-<<<<<<< HEAD
-async function generateAndUpload(
-  userId: string,
-  prompt: string,
-  size: "1024x1024" | "1024x1536"
-): Promise<string> {
-  const imageResp = await getOpenAI().images.generate({
-    model: IMAGE_MODEL,
-    prompt: prompt.slice(0, 4000),
-    size,
-    quality: "high",
-    n: 1,
-  });
-  const b64 = imageResp.data?.[0]?.b64_json;
-  if (!b64) throw new Error("Image generation returned no image data");
-  const filePath = `${userId}/branding/${randomUUID()}.png`;
-  const { error: upErr } = await getSupabaseAdmin()
-    .storage.from(BRANDING_BUCKET)
-    .upload(filePath, Buffer.from(b64, "base64"), { contentType: "image/png", upsert: false });
-=======
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /* Submit one Runway gen4_image task, poll server-side until it completes,
@@ -258,7 +198,6 @@ async function runwayGenerateAndUpload(
   const { error: upErr } = await getSupabaseAdmin()
     .storage.from(BRANDING_BUCKET)
     .upload(filePath, buf, { contentType: "image/png", upsert: false });
->>>>>>> feature/branding-shop
   if (upErr) throw upErr;
   const {
     data: { publicUrl },
@@ -268,16 +207,10 @@ async function runwayGenerateAndUpload(
 
 /* ── POST /api/branding-shop/design — AI brand kit (PAID: 2 credits) ──────
    One GPT-6 text call produces the brand brief (logo prompt + per-product
-<<<<<<< HEAD
-   mockup prompts); then 1 logo + up to 3 mockup images are generated and
-   stored. Credits are charged BEFORE generation and refunded on ANY provider
-   failure — the user never pays for a kit they didn't get. */
-=======
    mockup prompts); then the logo + up to 3 mockups are generated with
    Runway gen4_image in PARALLEL (server-side polling). Credits are charged
    BEFORE generation and refunded on ANY provider failure — the user never
    pays for a kit they didn't get. */
->>>>>>> feature/branding-shop
 router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = designSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -289,14 +222,11 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
   }
   const { brandName, niche, style, products } = parsed.data;
 
-<<<<<<< HEAD
-=======
   if (!process.env["RUNWAYML_API_SECRET"]) {
     res.status(500).json({ error: "Design generation is not configured on the server right now." });
     return;
   }
 
->>>>>>> feature/branding-shop
   const balance = req.userCredits ?? 0;
   if (balance < DESIGN_CREDIT_COST) {
     res.status(402).json({
@@ -359,22 +289,6 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
     const brief = parseBrief(completion.choices[0]?.message?.content ?? "{}", products);
     if (!brief) throw new Error("Model returned no usable brand brief");
 
-<<<<<<< HEAD
-    const logoUrl = await generateAndUpload(
-      req.userId!,
-      `${brief.logoPrompt} Brand name: "${brandName}".`,
-      "1024x1024"
-    );
-    const mockups: Array<{ product: ProductKey; url: string }> = [];
-    for (const p of products) {
-      const url = await generateAndUpload(
-        req.userId!,
-        `${brief.mockupPrompts[p]} The applied logo reads "${brandName}".`,
-        "1024x1024"
-      );
-      mockups.push({ product: p, url });
-    }
-=======
     /* Parallel: 1 logo + N mockups via Runway gen4_image. */
     const logoPromise = runwayGenerateAndUpload(
       req.userId!,
@@ -388,7 +302,6 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
       ),
     }));
     const [logoUrl, mockups] = await Promise.all([logoPromise, Promise.all(mockupPromises)]);
->>>>>>> feature/branding-shop
 
     res.json({
       logo: { url: logoUrl },
@@ -420,19 +333,12 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
   }
 });
 
-<<<<<<< HEAD
-/* ── POST /api/branding-shop/orders — place an order (FREE) ───────────────
-   Order intake only. Totals are recomputed server-side from the catalog —
-   the client total is never trusted. Status is always "received"; the
-   response carries the honest dropship-coming-soon message. */
-=======
 /* ── POST /api/branding-shop/orders — place an order (FREE intake) ─────────
    Order intake only. Totals are recomputed server-side from the catalog —
    the client total is never trusted. The order is immediately submitted to
    fulfillment (Printful live, or the clearly-labeled mock sandbox) and the
    response carries the provider + honest fulfillment messaging. Payment is
    a separate step (POST /checkout) — nothing is charged here. */
->>>>>>> feature/branding-shop
 router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, res) => {
   const parsed = orderSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -466,24 +372,6 @@ router.post("/branding-shop/orders", publicApiLimiter, requireAuth, async (req, 
   `);
   const row = result.rows[0] as unknown as { id: string; status: string; total_cents: number; created_at: string };
 
-<<<<<<< HEAD
-  res.status(201).json({
-    order: {
-      id: row.id,
-      status: row.status,
-      totalCents: row.total_cents,
-      createdAt: row.created_at,
-    },
-    message:
-      "Order received! Our dropship partner integration is coming soon — your order is saved and we'll notify you the moment fulfillment goes live. No payment has been taken.",
-  });
-});
-
-/* ── GET /api/branding-shop/orders — my orders (FREE) ──────────────────── */
-router.get("/branding-shop/orders", requireAuth, async (req, res) => {
-  const result = await db.execute(sql`
-    SELECT id, items, total_cents, status, created_at
-=======
   /* Submit to fulfillment (Printful live or mock sandbox). A fulfillment
      failure must not lose the order — it stays 'received' and can be
      retried via the refresh endpoint. */
@@ -638,55 +526,39 @@ router.get("/branding-shop/orders", requireAuth, async (req, res) => {
   const result = await db.execute(sql`
     SELECT id, items, total_cents, status, provider, provider_order_id,
            tracking_number, tracking_url, paid, created_at
->>>>>>> feature/branding-shop
     FROM branding_orders
     WHERE user_id = ${req.userId!}
     ORDER BY created_at DESC
     LIMIT 100
   `);
   res.json({
-<<<<<<< HEAD
-=======
     demo: fulfillmentMode() === "mock",
->>>>>>> feature/branding-shop
     orders: (result.rows as unknown as Array<{
       id: string;
       items: unknown;
       total_cents: number;
       status: string;
-<<<<<<< HEAD
-=======
       provider: string;
       provider_order_id: string | null;
       tracking_number: string | null;
       tracking_url: string | null;
       paid: boolean;
->>>>>>> feature/branding-shop
       created_at: string;
     }>).map((r) => ({
       id: r.id,
       items: r.items,
       totalCents: r.total_cents,
       status: r.status,
-<<<<<<< HEAD
-=======
       provider: r.provider,
       providerOrderId: r.provider_order_id,
       trackingNumber: r.tracking_number,
       trackingUrl: r.tracking_url,
       paid: r.paid,
->>>>>>> feature/branding-shop
       createdAt: r.created_at,
     })),
   });
 });
 
-<<<<<<< HEAD
-export default router;
-
-/* Re-exported for tests: catalog + pricing constants + schemas + statuses. */
-const ORDER_STATUSES = ["received", "pending_fulfillment"] as const;
-=======
 /* ── POST /api/branding-shop/orders/:id/refresh — refresh status (FREE) ────
    Pulls the latest fulfillment state from the provider and persists it. */
 router.post("/branding-shop/orders/:id/refresh", requireAuth, async (req, res) => {
@@ -760,6 +632,5 @@ const ORDER_STATUSES = [
   "canceled",
   "failed",
 ] as const;
->>>>>>> feature/branding-shop
 export { PRODUCTS, DESIGN_CREDIT_COST, designSchema, orderSchema, ORDER_STATUSES };
 export type { ProductKey };

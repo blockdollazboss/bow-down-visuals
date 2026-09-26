@@ -52,14 +52,10 @@ import brandCalculatorRouter from "./generate/brand-calculator";
 import academyRouter from "./generate/academy";
 import commentRepliesRouter from "./generate/comment-replies";
 import contentCalendarRouter from "./generate/content-calendar";
-<<<<<<< HEAD
 import tipJarRouter from "./generate/tip-jar";import interviewPrepRouter from "./generate/interview-prep";import upscaleRouter from "./generate/upscale";
-=======
 import titleStudioRouter from "./generate/title-studio";
 import sponsorsRouter from "./generate/sponsors";
 import brandingShopRouter from "./generate/branding-shop";
-import upscaleRouter from "./generate/upscale";
->>>>>>> feature/branding-shop
 import streamPackRouter from "./generate/stream-pack";
 import watermarkRemovalRouter from "./generate/watermark-removal";
 import mediaImporterRouter from "./generate/media-importer";
@@ -150,14 +146,10 @@ router.use(brandCalculatorRouter);
 router.use(academyRouter);
 router.use(commentRepliesRouter);
 router.use(contentCalendarRouter);
-<<<<<<< HEAD
 router.use(tipJarRouter);router.use(interviewPrepRouter);router.use(upscaleRouter);
-=======
 router.use(titleStudioRouter);
 router.use(sponsorsRouter);
 router.use(brandingShopRouter);
-router.use(upscaleRouter);
->>>>>>> feature/branding-shop
 router.use(watermarkRemovalRouter);
 router.use(mediaImporterRouter);
 router.use(streamPackRouter);

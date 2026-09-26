@@ -335,7 +335,7 @@ router.post("/storefronts/:id/domain", publicApiLimiter, requireAuth, requirePro
     res.status(400).json({ error: "A valid domain is required (e.g. shop.yourname.com)." });
     return;
   }
-  const domain = normalizeDomain(parsed.domain);
+  const domain = normalizeDomain(parsed.data.domain);
   if (!domain) {
     res.status(400).json({ error: "That doesn't look like a valid domain." });
     return;

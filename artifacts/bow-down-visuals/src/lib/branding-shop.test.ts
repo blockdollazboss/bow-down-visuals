@@ -11,13 +11,8 @@ import {
 } from "./branding-shop";
 
 describe("branding shop catalog", () => {
-<<<<<<< HEAD
-  it("has five products with positive cent prices and sizes", () => {
-    expect(BRANDING_PRODUCTS).toHaveLength(5);
-=======
   it("has seven products with positive cent prices and sizes", () => {
     expect(BRANDING_PRODUCTS).toHaveLength(7);
->>>>>>> feature/branding-shop
     for (const p of BRANDING_PRODUCTS) {
       expect(Number.isInteger(p.priceCents)).toBe(true);
       expect(p.priceCents).toBeGreaterThan(0);
@@ -25,15 +20,12 @@ describe("branding shop catalog", () => {
     }
   });
 
-<<<<<<< HEAD
-=======
   it("covers the full POD lineup", () => {
     expect(BRANDING_PRODUCTS.map((p) => p.key).sort()).toEqual(
       ["hoodie", "mug", "phonecase", "poster", "snapback", "tote", "tshirt"]
     );
   });
 
->>>>>>> feature/branding-shop
   it("has three color options", () => {
     expect(BRANDING_COLORS.map((c) => c.key).sort()).toEqual(["black", "gold", "white"]);
   });
