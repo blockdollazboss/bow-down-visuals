@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
+import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { Music, ArrowLeft, ChevronRight, Loader2, Upload } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -61,10 +63,10 @@ function FieldWrapper({ label, hint, children }: { label: string; hint?: string;
 }
 
 const inputClass =
-  "h-11 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl";
+  "h-11 bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl hover:border-white/[0.18]";
 
 const selectClass =
-  "h-11 w-full rounded-xl bg-white/[0.04] border border-white/[0.08] text-white px-3 text-sm focus:outline-none focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors appearance-none cursor-pointer";
+  "h-11 w-full rounded-xl bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 text-sm focus:outline-none focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 appearance-none cursor-pointer hover:border-white/[0.18]";
 
 function StyledSelect({
   name,
@@ -105,7 +107,9 @@ function StyledSelect({
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function MakeSong() {
+  usePageTitle("Make a Song", "Generate full songs with AI — lyrics, melody, and production in minutes.");
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +142,7 @@ export default function MakeSong() {
     setOutOfCredits(false);
     try {
       const token = await getAccessToken();
-      const { rawResult, creditsRemaining } = await callGenerateApi("/api/generate-song", {
+      const result = await callGenerateApi("/api/generate-song", {
         artistName: values.artistName,
         songTitle: values.songTitle,
         genre: values.genre,
@@ -150,7 +154,9 @@ export default function MakeSong() {
         songLength: values.songLength,
         instructions: values.specialInstructions,
         artistVault: loadedVault,
-      }, token);
+      }, token, confirmedFetch);
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult, creditsRemaining } = result;
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
@@ -166,11 +172,10 @@ export default function MakeSong() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <TopBar />
+    <div className="min-h-screen bg-black text-white lux-page">
 
       {/* Background glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
@@ -186,20 +191,20 @@ export default function MakeSong() {
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Music className="h-5 w-5 text-primary" />
+              <PixelSprite name="note" pixel={4} />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <PixelHeadline size="section" className="mb-3">
             Make a Song
-          </h1>
+          </PixelHeadline>
           <p className="text-white/50 text-lg max-w-2xl">
             Create lyrics, hooks, verses, beat direction, vocal style, and AI music prompts for your next release.
           </p>
         </div>
 
         {/* Form card */}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+        <div className="lux-card-static p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
 
             {/* Upload your own song — skip generation, go straight to video */}
@@ -232,7 +237,7 @@ export default function MakeSong() {
               )}
             </div>
 
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} />
+            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="music" />
 
             {/* Row 1: Artist + Song Title */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -330,7 +335,7 @@ export default function MakeSong() {
               <Textarea
                 {...register("specialInstructions")}
                 placeholder="Any extra details — references, specific themes, things to avoid, cultural notes..."
-                className="min-h-[100px] bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/25 focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0 transition-colors rounded-xl resize-none"
+                className="min-h-[100px] bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 py-3 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl resize-none hover:border-white/[0.18]"
               />
             </FieldWrapper>
 

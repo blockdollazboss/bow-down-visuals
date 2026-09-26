@@ -7,7 +7,9 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Intros & Outros ───────────────────────────────────────────────────
    Branded 5-second video stings for creators: channel name + tagline →
@@ -46,8 +48,9 @@ interface RecentSting {
   at: number;
 }
 
-export default function IntrosOutros() {
+export function IntrosOutrosTool() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [tagline, setTagline] = useState("");
   const [type, setType] = useState<StingType>("intro");
@@ -101,7 +104,7 @@ export default function IntrosOutros() {
     setOutOfCredits(false);
     setOutputUrl(null);
     try {
-      const res = await fetch("/api/generate-intro-outro", {
+      const res = await confirmedFetch("/api/generate-intro-outro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,6 +114,10 @@ export default function IntrosOutros() {
           referenceImageUrl: logoUrl.trim() || undefined,
         }),
       });
+      if (!res) {
+        setStatus("idle");
+        return;
+      }
       const data: StingResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);
@@ -143,9 +150,7 @@ export default function IntrosOutros() {
   const canGenerate = channelName.trim().length > 0 && !!user && !busy;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -300,7 +305,16 @@ export default function IntrosOutros() {
             </div>
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function IntrosOutros() {
+  usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <IntrosOutrosTool />
       <SiteFooter />
     </div>
   );

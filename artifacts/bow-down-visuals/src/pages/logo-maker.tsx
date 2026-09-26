@@ -7,7 +7,9 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Logo Maker ──────────────────────────────────────────────────────────
    AI brand logos for creators: channel name + style preset → generated
@@ -50,8 +52,9 @@ interface RecentLogo {
   at: number;
 }
 
-export default function LogoMaker() {
+export function LogoMakerTool() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [brandName, setBrandName] = useState("");
   const [tagline, setTagline] = useState("");
   const [style, setStyle] = useState<LogoStyleKey>("luxury-gold");
@@ -104,11 +107,15 @@ export default function LogoMaker() {
     setOutOfCredits(false);
     setOutputUrl(null);
     try {
-      const res = await fetch("/api/generate-logo", {
+      const res = await confirmedFetch("/api/generate-logo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandName: brandName.trim(), style, tagline: tagline.trim() || undefined, model }),
       });
+      if (!res) {
+        setStatus("idle");
+        return;
+      }
       const data: LogoResponse = await res.json();
       if (res.status === 402) {
         setOutOfCredits(true);
@@ -154,9 +161,7 @@ export default function LogoMaker() {
   const canGenerate = brandName.trim().length > 0 && !!user && !busy;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -317,7 +322,16 @@ export default function LogoMaker() {
             </div>
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function LogoMaker() {
+  usePageTitle("Logo Maker", "AI logo designer for creators — professional brand marks in seconds.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <LogoMakerTool />
       <SiteFooter />
     </div>
   );

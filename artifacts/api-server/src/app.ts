@@ -89,6 +89,7 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
     "/songs",
     "/login",
     "/signup",
+    "/live-shopping",
   ]);
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.method !== "GET" || req.path === "/api" || req.path.startsWith("/api/")) {

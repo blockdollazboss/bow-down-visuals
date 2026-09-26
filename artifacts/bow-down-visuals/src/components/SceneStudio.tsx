@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
@@ -117,12 +119,13 @@ interface WardrobeOutfit { id: string; label: string; image_url: string; is_defa
 export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger, previousClipUrl }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [taskId, setTaskId]             = useState<string | null>(null);
   const [progress, setProgress]         = useState<number | null>(null);
   const [error, setError]               = useState<string | null>(null);
-  const [showConfirm, setShowConfirm]   = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [showFinalPrompt, setShowFinalPrompt] = useState(false);
   /* Video model selection — Seedance 2.5 is the premium option with longer
@@ -185,7 +188,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   useEffect(() => {
     if (!createAllTrigger) return;
     if (hasClipForTrigger || isGenerating || outOfCredits) return;
-    void startGeneration();
+    void startGeneration({ skipConfirm: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createAllTrigger]);
 
@@ -276,14 +279,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     }, 5000);
   }
 
-  async function startGeneration() {
+  async function startGeneration(opts?: { skipConfirm?: boolean }) {
     const finalPrompt = buildFinalPrompt();
     const chaining = hasUsableClip(previousClipUrl);
 
     setIsGenerating(true);
     setError(null);
     setProgress(null);
-    setShowConfirm(false);
     /* Optimistic guess for the "generating…" badge — server confirms/corrects
        via the response's referenceSource once the extraction actually runs. */
     setReferenceSource(
@@ -292,7 +294,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/generate-runway-clip", {
+      const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
         body: JSON.stringify({
@@ -310,7 +312,11 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
           resolution: clipRes,
         }),
+        overrideCost: clipCost,
+        overrideFeature: "Generate Video Clip",
+        skipConfirm: opts?.skipConfirm,
       });
+      if (!res) { setIsGenerating(false); setProgress(null); return; } // user cancelled
       const data = await res.json() as { taskId?: string; error?: string; referenceSource?: "previous_scene" | "vault_photo" | "none" };
       if (!res.ok || !data.taskId) throw new Error(data.error ?? `Runway API error (HTTP ${res.status})`);
       const resolvedSource = data.referenceSource ?? "none";
@@ -336,7 +342,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     setTaskId(null);
     setError(null);
     setProgress(null);
-    setShowConfirm(false);
+    setShowRemoveConfirm(false);
     onUpdateRef.current({
       demoClipUrl: null,
       generationStatus: null,
@@ -353,10 +359,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const hasArtist = !!artistVault;
   const willChain = hasUsableClip(previousClipUrl);
 
-  /* Site-credit cost for the current picker selection. The per-second rate
-     must match the server's SEEDANCE_CREDITS_PER_SEC default (1.5). */
-  const SEEDANCE_CREDITS_PER_SEC_CLIENT = 1.5;
-  const clipCost = clipModel === "seedance2_5" ? clipDuration * SEEDANCE_CREDITS_PER_SEC_CLIENT : 5;
+  /* Site-credit cost for the current picker selection. The per-second rates
+     must match the server's SEEDANCE per-tier defaults (3 at 720p, 6 at 1080p). */
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_720P = 3;
+  const SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P = 6;
+  const clipCost = clipModel === "seedance2_5"
+    ? clipDuration * (clipRes === "1080p" ? SEEDANCE_CREDITS_PER_SEC_CLIENT_1080P : SEEDANCE_CREDITS_PER_SEC_CLIENT_720P)
+    : 5;
   const genTimeHint = clipModel === "seedance2_5" ? "Usually takes 1–4 minutes" : "Usually takes 30–90 seconds";
 
   /* Human-readable label for whichever reference the last/next generation used or will use. */
@@ -411,7 +420,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <p className="text-[11px] text-red-400/70 mt-0.5 break-words">{error}</p>
         </div>
         <button
-          onClick={() => { setError(null); setShowConfirm(false); }}
+          onClick={() => { setError(null); }}
           className="text-white/30 hover:text-white/60 transition-colors shrink-0"
         >
           <X className="h-4 w-4" />
@@ -436,7 +445,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
               <ShieldCheck className="h-2.5 w-2.5" /> {referenceLabel(scene.referenceSource ?? referenceSource)}
             </span>
           )}
-          {showConfirm ? (
+          {showRemoveConfirm ? (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-white/40">Remove clip?</span>
               <button
@@ -444,13 +453,13 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors"
               >Yes</button>
               <button
-                onClick={() => setShowConfirm(false)}
+                onClick={() => setShowRemoveConfirm(false)}
                 className="text-[10px] text-white/30 hover:text-white/60 transition-colors"
               >No</button>
             </div>
           ) : (
             <button
-              onClick={() => setShowConfirm(true)}
+              onClick={() => setShowRemoveConfirm(true)}
               className="text-[10px] text-white/25 hover:text-white/50 transition-colors flex items-center gap-1"
             >
               <RotateCcw className="h-2.5 w-2.5" /> Re-generate
@@ -625,25 +634,12 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
         )}
       </div>
 
-      {/* Generate controls */}
-      {showConfirm ? (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
-          <Button size="sm" onClick={startGeneration} className="gold-glow h-7 text-xs gap-1.5">
-            <Video className="h-3.5 w-3.5" /> Yes, Generate
-          </Button>
-          <Button
-            size="sm" variant="outline"
-            onClick={() => setShowConfirm(false)}
-            className="h-7 text-xs border-white/10 bg-white/5 text-white/50"
-          >
-            Cancel
-          </Button>
-        </div>
-      ) : (
+      {/* Generate controls — credit confirmation handled by the universal popup */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
         <Button
           size="sm"
-          onClick={() => setShowConfirm(true)}
+          onClick={() => startGeneration()}
           className="gap-2 border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-bold text-xs h-8"
           variant="outline"
           data-testid={`btn-generate-runway`}
@@ -651,7 +647,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           <Video className="h-3.5 w-3.5" />
           Generate Runway Clip
         </Button>
-      )}
+      </div>
     </div>
   );
 }
@@ -809,6 +805,7 @@ interface SceneCardProps {
 function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, projectId, externalImproving, improveFailure, previousClipUrl }: SceneCardProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
 
   const [collapsed, setCollapsed]         = useState(false);
   const [showPrompt, setShowPrompt]       = useState(false);
@@ -846,7 +843,9 @@ function SceneCard({ scene, index, onUpdate, artistVault, videoStyle, platform, 
         token, prompt: seed, scene,
         artistVault: artistVault ? vaultToPayload(artistVault) : null,
         videoStyle, platform,
+        fetchImpl: confirmedFetch,
       });
+      if (!improvedPrompt) return; // user cancelled the credit confirmation
       setAiPrompt(improvedPrompt);
       handleUpdate({ aiVideoPrompt: improvedPrompt });
       toast({ title: "Prompt improved!", description: "Your AI Video Prompt has been enhanced for Runway." });
@@ -1137,6 +1136,8 @@ export function SceneStudio({
 }: SceneStudioProps) {
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
+  const { confirmSpend } = useCreditConfirm();
   const [improvingIds, setImprovingIds] = useState<Set<string>>(new Set());
   const [improveAllTotal, setImproveAllTotal] = useState(0);
   const improveAllActive = improveAllTotal > 0;
@@ -1191,6 +1192,12 @@ export function SceneStudio({
     async (targets: SceneData[], opts?: { isRetry?: boolean }) => {
       if (improveAllActive || targets.length === 0) return;
 
+      // One confirmation for the whole batch (1 credit per prompt)
+      const okToSpend = await confirmSpend({ cost: targets.length, feature: "Improve Prompts" });
+      if (!okToSpend) return;
+      const skipConfirmFetch: typeof confirmedFetch = (url, init) =>
+        confirmedFetch(url, { ...init, skipConfirm: true });
+
       setImproveAllTotal(targets.length);
       setImprovingIds(new Set(targets.map((s) => s.id)));
 
@@ -1207,7 +1214,9 @@ export function SceneStudio({
                 token, prompt: sceneSeedPrompt(scene), scene,
                 artistVault: artistVault ? vaultToPayload(artistVault) : null,
                 videoStyle, platform,
+                fetchImpl: skipConfirmFetch,
               });
+              if (!improved) throw new Error("cancelled");
               working = working.map((s) => (s.id === scene.id ? { ...s, aiVideoPrompt: improved } : s));
               onScenesChange(working);
               ok++;

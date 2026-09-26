@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 const schema = z.object({
   displayName: z.string().min(2, "Enter your artist or display name"),
@@ -27,6 +28,7 @@ const schema = z.object({
 });
 
 export default function Signup() {
+  usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   const { signUp, signInWithGoogle } = useAuth();

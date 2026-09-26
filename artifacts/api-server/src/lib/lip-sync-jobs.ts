@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
 
 /**
@@ -79,7 +80,7 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error("DATABASE_URL is not configured — cannot access lip_sync_jobs.");
     }
-    _pool = new Pool({ connectionString, max: 5 });
+    _pool = new Pool({ connectionString, max: 5, ssl: pgSslConfig(connectionString) });
   }
   return _pool;
 }

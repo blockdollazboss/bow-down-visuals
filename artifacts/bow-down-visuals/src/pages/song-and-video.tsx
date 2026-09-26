@@ -10,7 +10,6 @@ import {
   Music, Video, Film, Check, Copy, Save, FileText, FileDown, Download, RefreshCcw, X,
   Sparkles, BarChart2, Zap, BookOpen, Camera, ArrowRight,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { MarketingBadge } from "@/components/MarketingBadge";
 
 import { callGenerateApi } from "@/lib/generate-api";
@@ -26,7 +25,9 @@ import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scene-parser";
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { useToast } from "@/hooks/use-toast";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { vaultToPayload } from "@/lib/prompt-improve";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────── CONSTANTS ─────────────────────── */
 
@@ -255,9 +256,11 @@ function NavRow({ onBack, onNext, nextLabel = "Next Step", nextIcon, loading = f
 /* ─────────────────────── PAGE ─────────────────────── */
 
 export default function SongAndVideo() {
+  usePageTitle("Make Song + Video", "The full package — generate a song and its music video in one flow.");
   const { getAccessToken, refreshProfile, user } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [, setLocation] = useLocation();
 
   const [step, setStep] = useState(1);
@@ -402,7 +405,7 @@ export default function SongAndVideo() {
 
     try {
       const token = await getAccessToken();
-      const { rawResult: res, creditsRemaining, genHistoryId: gid } = await callGenerateApi(
+      const result = await callGenerateApi(
         "/api/generate-song-video",
         {
           artistName:        watched.artistName,
@@ -423,7 +426,10 @@ export default function SongAndVideo() {
           songStructure:     songStructure ?? undefined,
         },
         token,
+        confirmedFetch,
       );
+      if (!result) return; // user cancelled the credit confirmation
+      const { rawResult: res, creditsRemaining, genHistoryId: gid } = result;
       setRawResult(res);
       const parsedScenes = parseScenes(extractBreakdownContent(res));
       setScenes(parsedScenes);
@@ -735,9 +741,8 @@ export default function SongAndVideo() {
   /* ─────────────── RENDER ─────────────── */
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-primary/7 rounded-full blur-[120px]" />
       </div>
 
@@ -949,7 +954,7 @@ export default function SongAndVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} />
+                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
 
                   <FieldWrapper label="Artist Description">
                     <Textarea {...register("artistDescription", { required: !loadedVault })}

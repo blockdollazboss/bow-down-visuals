@@ -4,7 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
-import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -28,6 +27,7 @@ import {
   Lock,
   AlertCircle,
 } from "lucide-react";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -488,7 +488,7 @@ function WhatYouCanMake() {
           {OUTPUT_TYPES.map((type, i) => (
             <div
               key={i}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-primary/30 hover:bg-primary/5 hover:-translate-y-0.5 transition-all duration-300 group"
+              className="lux-card flex items-center gap-3 px-4 py-3.5 group"
             >
               <div className="h-1.5 w-1.5 rounded-full bg-primary group-hover:scale-150 transition-transform shrink-0" />
               <span className="text-sm font-medium text-white/70 group-hover:text-white transition-colors">
@@ -584,7 +584,7 @@ function FeaturedTools() {
                 className={`h-12 w-12 rounded-xl flex items-center justify-center mb-5 ${
                   tool.featured
                     ? "bg-primary text-white"
-                    : "bg-white/5 group-hover:bg-primary/20 transition-colors"
+                    : "bg-white/[0.06] group-hover:bg-primary/20 transition-colors shadow-[inset_0_1px_0_hsl(0_0%_100%/0.08)]"
                 }`}
               >
                 <tool.icon
@@ -734,7 +734,7 @@ function FAQSection() {
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                 openIndex === i
                   ? "border-primary/30 bg-primary/5"
-                  : "border-white/[0.06] bg-white/[0.02] hover:border-white/10"
+                  : "lux-card"
               }`}
             >
               <button
@@ -920,6 +920,7 @@ function MusicVideoTeaser() {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function Home() {
+  usePageTitle("Create Songs, Music Videos & Promo Clips With AI", "Tell us your artist, genre, and idea. Bow Down Visuals generates lyrics, video treatments, promo content, and more — in seconds.");
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -940,10 +941,9 @@ export default function Home() {
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden lux-page">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
-      <MarketingNav />
       <HeroSection onWaitlist={scrollToWaitlist} />
       <CheatCodeTicker />
       <MusicVideoTeaser />

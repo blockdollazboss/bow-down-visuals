@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -17,6 +16,7 @@ import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /** Project types that can be opened in the Video Editor. */
 function isVideoProject(projectType: string): boolean {
@@ -592,6 +592,7 @@ interface GenerationHistoryRow {
 
 /* ─── Page ─── */
 export default function MyProjects() {
+  usePageTitle("My Projects", "All your songs, videos, and creative projects in one place.");
   const { user, getAccessToken } = useAuth();
   const [tab, setTab] = useState<"projects" | "drafts" | "clips" | "history">("projects");
 
@@ -720,9 +721,8 @@ export default function MyProjects() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 

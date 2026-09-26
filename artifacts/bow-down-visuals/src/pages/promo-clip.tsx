@@ -11,15 +11,17 @@ import {
   FolderOpen, Music, Video, Mic2, Image as ImageIcon, Wand2,
   Megaphone, Check, Search,
 } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { PixelHeadline, PixelSprite } from "@/components/pixel-headline";
 import { GenerationResult, type SaveMetadata } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
 import type { SceneData } from "@/lib/scene-parser";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -180,8 +182,10 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function PromoClip() {
+  usePageTitle("Promo Clip Maker", "Turn any song into scroll-stopping promo clips for TikTok, Reels, and Shorts.");
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
+  const { confirmedFetch } = useConfirmedApi();
 
   /* ── Mode ── */
   const [mode, setMode] = useState<Mode>("select");
@@ -267,7 +271,7 @@ export default function PromoClip() {
       const token = await getAccessToken();
       const lyrics = extractLyrics(selectedProject);
       const clips  = getClips(selectedProject);
-      const { rawResult: result, creditsRemaining } = await callGenerateApi(
+      const res = await callGenerateApi(
         "/api/generate-promo-clips",
         {
           artistName:    selectedProject.artist_name ?? "",
@@ -285,7 +289,10 @@ export default function PromoClip() {
           selectedClipIds,
         },
         token,
+        confirmedFetch,
       );
+      if (!res) return; // user cancelled the credit confirmation
+      const { rawResult: result, creditsRemaining } = res;
       setRawResult(result);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
@@ -306,7 +313,7 @@ export default function PromoClip() {
     resetOutput();
     try {
       const token = await getAccessToken();
-      const { rawResult: result, creditsRemaining } = await callGenerateApi(
+      const res = await callGenerateApi(
         "/api/generate-promo-clips",
         {
           artistName:  values.artistName,
@@ -320,7 +327,10 @@ export default function PromoClip() {
           artistVault: loadedVault,
         },
         token,
+        confirmedFetch,
       );
+      if (!res) return; // user cancelled the credit confirmation
+      const { rawResult: result, creditsRemaining } = res;
       setRawResult(result);
       if (creditsRemaining !== undefined) refreshProfile();
       setTimeout(() => {
@@ -365,10 +375,9 @@ export default function PromoClip() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <TopBar />
 
       {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
       </div>
 
@@ -384,13 +393,13 @@ export default function PromoClip() {
         <div className="mb-10">
           <div className="flex items-center gap-2.5 mb-4">
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <Film className="h-5 w-5 text-primary" />
+              <PixelSprite name="star" pixel={4} />
             </div>
             <MarketingBadge variant="muted">1 credit</MarketingBadge>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+          <PixelHeadline size="section" className="mb-3">
             Promo Clips
-          </h1>
+          </PixelHeadline>
           <p className="text-white/50 text-lg max-w-2xl">
             Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.
           </p>
@@ -782,6 +791,7 @@ export default function PromoClip() {
                   }}
                   loadedVaultId={loadedVault?.id}
                   loadedVault={loadedVault}
+                  context="promo"
                 />
 
                 {/* Step 1: Artist & Track */}

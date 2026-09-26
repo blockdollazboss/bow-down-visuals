@@ -16,6 +16,7 @@ import {
   getAgentTier,
   type RegisteredAgentTier,
 } from "@/data/llc-state-fees";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── AI-powered LLC Formation Guide ──────────────────────────────────────
    Free: step-by-step checklist (localStorage progress), 50-state fee table,
@@ -146,6 +147,7 @@ function SectionLabel({ icon: Icon, children }: { icon: typeof Scale; children: 
 }
 
 export default function LlcGuide() {
+  usePageTitle("LLC Guide", "Start your music business right — step-by-step LLC formation guide for creators.");
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* ── AI Q&A chat ─────────────────────────────────────────────────── */

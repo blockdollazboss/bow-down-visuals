@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Loader2, Sparkles, Send, CheckCircle2, ExternalLink, Gauge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -38,6 +39,7 @@ const PROGRESS_STAGES = [
 
 export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
   const [description, setDescription] = useState(DEFAULT_DESCRIPTION);
   const [accountId, setAccountId] = useState("");
@@ -108,7 +110,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
     setError(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/hook-studio", {
+      const res = await confirmedFetch("/api/hook-studio", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -116,6 +118,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
         },
         body: JSON.stringify({ mode: "hooks", videoType: "music-promo", topic: "" }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json().catch(() => ({}));
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);
@@ -143,7 +146,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
     setPermalink(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/api/social/facebook/publish", {
+      const res = await confirmedFetch("/api/social/facebook/publish", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -156,6 +159,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
           idempotencyKey: idempotencyKey.current,
         }),
       });
+      if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json().catch(() => ({}));
       if (res.status === 402 || data.error === "out_of_credits") {
         setOutOfCredits(true);

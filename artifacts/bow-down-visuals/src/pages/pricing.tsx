@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── data ─── */
 
@@ -76,6 +77,46 @@ const PLANS = [
       "More saved projects",
       "Higher usage limits",
       "Team features coming soon",
+    ],
+  },
+  {
+    name: "VIP",
+    price: 399,
+    period: "/month",
+    bestFor: "Top creators & influencers",
+    credits: "1,500 credits monthly",
+    featured: false,
+    badge: "Exclusive",
+    features: [
+      "Everything in Studio",
+      "Priority generation queue — skip the line",
+      "Early access to new AI models & features",
+      "4K video output on all generations",
+      "Exclusive VIP-only templates & styles",
+      "Advanced cross-platform analytics",
+      "Dedicated priority support",
+      "VIP badge on your profile",
+    ],
+  },
+  {
+    name: "MVP",
+    price: 799,
+    period: "/month",
+    bestFor: "Labels, agencies & power users",
+    credits: "4,000 credits monthly",
+    featured: false,
+    badge: "Top Tier",
+    features: [
+      "Everything in VIP",
+      "Highest priority — instant generation",
+      "First access to every new feature & model",
+      "8K video output + exclusive quality presets",
+      "Custom AI style training on your brand",
+      "White-label client deliverables",
+      "API access for automation",
+      "Dedicated account manager",
+      "Quarterly strategy session",
+      "MVP badge + hall of fame placement",
     ],
   },
 ];
@@ -176,13 +217,13 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-5 flex flex-col items-center text-center gap-4">
-      <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/15 flex items-center justify-center">
+    <div className="lux-card p-5 flex flex-col items-center text-center gap-4">
+      <div className="h-11 w-11 rounded-2xl bg-gradient-to-b from-primary/25 to-primary/10 border border-primary/30 flex items-center justify-center shadow-[0_0_20px_-4px_hsl(45_95%_50%/0.4),inset_0_1px_0_hsl(0_0%_100%/0.15)]">
         <CreditCard className="h-5 w-5 text-primary" />
       </div>
       <div>
-        <p className="text-lg font-black text-white leading-tight">{pack.credits}</p>
-        <p className="text-2xl font-black text-primary mt-1">{pack.price}</p>
+        <p className="text-lg font-black text-white leading-tight tracking-tight">{pack.credits}</p>
+        <p className="text-2xl font-black text-primary mt-1 tracking-tight">{pack.price}</p>
       </div>
       {errorMsg && (
         <p className="text-[11px] text-red-400 leading-snug text-center px-1">{errorMsg}</p>
@@ -191,8 +232,8 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
         size="sm"
         onClick={handleBuy}
         disabled={loading}
-        className="w-full font-bold gap-2 bg-white/[0.06] border border-white/[0.12] text-white hover:bg-white/[0.12] hover:border-primary/40 hover:text-primary transition-all"
-        variant="outline"
+        className="w-full font-bold gap-2"
+        variant="luxury"
       >
         {loading ? (
           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
@@ -222,6 +263,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 /* ─── page ─── */
 
 export default function Pricing() {
+  usePageTitle("Pricing", "Simple credit-based pricing — pay only for what you create.");
   const [showCancelled, setShowCancelled] = useState(false);
 
   useEffect(() => {
@@ -240,13 +282,13 @@ export default function Pricing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white lux-page">
       <JsonLd data={PRICING_JSON_LD} />
       <JsonLd data={PRICING_FAQ_JSON_LD} />
       <MarketingNav />
 
       {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-60px] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-yellow-600/10 rounded-full blur-[130px]" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-yellow-900/6 rounded-full blur-[100px]" />
       </div>
@@ -305,20 +347,26 @@ export default function Pricing() {
 
         {/* ── PLANS ── */}
         <section className="max-w-7xl mx-auto px-5 md:px-8 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-            {PLANS.map((plan) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 lux-stagger">
+            {PLANS.map((plan) => {
+              const isExclusive = plan.name === "VIP" || plan.name === "MVP";
+              return (
               <div
                 key={plan.name}
-                className={`relative rounded-2xl border flex flex-col p-6 transition-all ${
-                  plan.featured
-                    ? "border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)]"
-                    : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.14]"
+                className={`relative rounded-2xl border flex flex-col p-6 transition-all duration-300 ${
+                  plan.name === "MVP"
+                    ? "lux-shine border-amber-400/50 bg-gradient-to-b from-amber-500/[0.12] via-primary/[0.06] to-transparent shadow-[0_0_80px_rgba(251,191,36,0.2)] hover:-translate-y-1"
+                    : plan.name === "VIP"
+                    ? "border-purple-400/40 bg-gradient-to-b from-purple-500/[0.1] via-primary/[0.04] to-transparent shadow-[0_0_60px_rgba(192,132,252,0.15)] hover:-translate-y-1"
+                    : plan.featured
+                    ? "lux-shine border-primary/45 bg-gradient-to-b from-primary/[0.09] to-primary/[0.03] shadow-[0_0_60px_rgba(218,165,32,0.15)] hover:-translate-y-1"
+                    : "lux-card"
                 }`}
               >
                 {/* Badge */}
                 {plan.badge && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <MarketingBadge variant="popular">
+                    <MarketingBadge variant={isExclusive ? "exclusive" : "popular"}>
                       <Sparkles className="h-2.5 w-2.5" /> {plan.badge}
                     </MarketingBadge>
                   </div>
@@ -345,9 +393,9 @@ export default function Pricing() {
                     className={`w-full font-bold h-10 gap-2 ${
                       plan.featured
                         ? "gold-glow"
-                        : "border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-white hover:border-white/20"
+                        : ""
                     }`}
-                    variant={plan.featured ? "default" : "outline"}
+                    variant={plan.featured ? "luxury" : "outline"}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
                     Join Beta
@@ -365,7 +413,8 @@ export default function Pricing() {
                   ))}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Coming soon note */}

@@ -87,6 +87,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", userId)
       .single();
+    if (data) {
+      /* Admins always display at the highest tier, regardless of the
+       * stored plan value. The admin check is server-side (ADMIN_EMAILS). */
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.access_token) {
+          const res = await fetch("/api/admin/status", {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          if (res.ok) {
+            const { isAdmin } = await res.json();
+            if (isAdmin) data.plan = "studio";
+          }
+        }
+      } catch {
+        /* Non-fatal: fall back to the stored plan value. */
+      }
+    }
     setProfile(data ?? null);
   }
 

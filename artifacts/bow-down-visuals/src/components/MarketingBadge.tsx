@@ -10,8 +10,9 @@ import type { ReactNode } from "react";
  * - free:    muted — "Free" plans/tools
  * - muted:   soft gold pill — neutral info (e.g. "1 credit")
  * - kicker:  uppercase micro-label for section eyebrows
+ * - exclusive: gradient purple/gold — "Exclusive" / "Top Tier" VIP/MVP callout
  */
-export type MarketingBadgeVariant = "popular" | "soon" | "free" | "muted" | "kicker";
+export type MarketingBadgeVariant = "popular" | "soon" | "free" | "muted" | "kicker" | "exclusive";
 
 const VARIANT_CLASSES: Record<MarketingBadgeVariant, string> = {
   popular:
@@ -21,6 +22,8 @@ const VARIANT_CLASSES: Record<MarketingBadgeVariant, string> = {
   muted: "bg-primary/10 text-primary/90 border-primary/20",
   kicker:
     "lux-kicker bg-transparent text-primary/90 border-transparent uppercase tracking-[0.28em] text-[10px] font-bold px-1",
+  exclusive:
+    "bg-gradient-to-r from-purple-500 via-primary to-amber-400 text-black border-transparent shadow-[0_0_24px_rgba(192,132,252,0.45)]",
 };
 
 interface MarketingBadgeProps {

@@ -8,7 +8,9 @@ import {
 import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Stream Pack Generator ───────────────────────────────────────────────
    One-click branded asset bundles for streamers: overlay frames, alert
@@ -54,8 +56,9 @@ const GROUP_ORDER: Array<AssetInfo["group"]> = ["Overlays", "Alerts", "Panels", 
 /* Fallback catalog if the API is unreachable — mirrors the server list. */
 const FALLBACK_CREDIT_COST = 1;
 
-export default function StreamPack() {
+export function StreamPackTool() {
   const { user } = useAuth();
+  const { confirmedFetch } = useConfirmedApi();
   const [channelName, setChannelName] = useState("");
   const [themes, setThemes] = useState<ThemeInfo[]>([]);
   const [assets, setAssets] = useState<AssetInfo[]>([]);
@@ -126,11 +129,15 @@ export default function StreamPack() {
       return next;
     });
     try {
-      const res = await fetch("/api/stream-pack/generate", {
+      const res = await confirmedFetch("/api/stream-pack/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelName: channelName.trim(), theme: themeId, asset: assetKey }),
       });
+      if (!res) {
+        setStates((s) => ({ ...s, [assetKey]: "pending" }));
+        return false;
+      }
       const data = await res.json() as {
         url?: string; path?: string | null; label?: string; error?: string; message?: string;
       };
@@ -198,9 +205,7 @@ export default function StreamPack() {
   const busy = generating;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
-      <main className="mx-auto max-w-5xl px-4 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -440,7 +445,16 @@ export default function StreamPack() {
             ))}
           </div>
         )}
-      </main>
+    </main>
+  );
+}
+
+export default function StreamPack() {
+  usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <MarketingNav />
+      <StreamPackTool />
       <SiteFooter />
     </div>
   );
