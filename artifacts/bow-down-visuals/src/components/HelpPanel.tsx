@@ -29,7 +29,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     title: "Creator Studio — Getting Started",
     steps: [
       { n: 1, title: "Choose your artist",  desc: "Go to Artist Profiles, create your artist, and click Set as Active Artist." },
-      { n: 2, title: "Pick what to create", desc: "Click Start from Scratch, MV, or Promo Clips from the menu." },
+      { n: 2, title: "Pick what to create", desc: "Click Start from Scratch, Video for My Song, or Promo Clips from the menu." },
       { n: 3, title: "Generate with AI",    desc: "Follow the on-screen steps. AI writes lyrics and creates video scene prompts for you." },
       { n: 4, title: "Save your project",   desc: "Your project saves automatically. Find it in My Projects anytime." },
       { n: 5, title: "Edit and export",     desc: "Open the Video Editor from My Projects to add effects, captions, and export your final video." },
@@ -115,7 +115,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 
   "make-video": {
-    title: "MV — Guide",
+    title: "Video for My Song — Guide",
     steps: [
       { n: 1, title: "Paste your lyrics",         desc: "Paste your song lyrics into the text area so AI can plan scenes around your song structure." },
       { n: 2, title: "Generate a video plan",     desc: "Click Generate Video Plan. AI creates a visual scene breakdown matched to your lyrics." },

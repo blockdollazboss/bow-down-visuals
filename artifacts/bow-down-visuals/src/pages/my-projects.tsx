@@ -27,7 +27,7 @@ function isVideoProject(projectType: string): boolean {
    projects keep working; only what the user sees changes. */
 const TYPE_DISPLAY_NAMES: Record<string, string> = {
   "Make Song + Video": "Start from Scratch",
-  "Make a Music Video": "MV",
+  "Make a Music Video": "Video for My Song",
 };
 function displayProjectType(projectType: string): string {
   return TYPE_DISPLAY_NAMES[projectType] ?? projectType;
@@ -442,7 +442,7 @@ interface ClipRow {
 }
 
 const WORKFLOW_LABELS: Record<string, string> = {
-  "make-video":    "MV",
+  "make-video":    "Video for My Song",
   "song-and-video": "Start from Scratch",
 };
 const WORKFLOW_PATHS: Record<string, string> = {
@@ -891,7 +891,7 @@ export default function MyProjects() {
                 </p>
               </div>
               <Link href="/make-video">
-                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> MV</Button>
+                <Button className="gold-glow font-semibold gap-2"><Video className="h-4 w-4" /> Video for My Song</Button>
               </Link>
             </div>
           ) : (
