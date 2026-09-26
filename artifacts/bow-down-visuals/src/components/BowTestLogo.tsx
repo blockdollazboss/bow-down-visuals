@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-/* ── TEST ONLY: click-to-bow sign-in logo ──────────────────────────
-   Reuses the hero bow sprite sheets (102 frames of the shark king
-   bowing). Click the logo → he bows down and back up. Bow count is kept
-   in localStorage for test purposes only — the production version will
-   track per-account in the database. */
+/* Click-to-bow shark: reuses the hero bow sprite sheets (102 frames).
+   Click → smooth timed bow (down, hold, up). */
 
 const FRAMES = 102;
 const BOW_END = 4.2;
@@ -12,20 +9,17 @@ const SHEETS = 3;
 const COLS = 6;
 const PER_SHEET = 36;
 const FS = 600;
-const COUNT_KEY = "bdv-bow-test-count";
 
 export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const posterRef = useRef<HTMLImageElement | null>(null);
-  const [bows, setBows] = useState(() => {
-    try {
-      return parseInt(localStorage.getItem(COUNT_KEY) || "0", 10) || 0;
-    } catch {
-      return 0;
-    }
-  });
   const [bowing, setBowing] = useState(false);
-  const bowState = useRef({ target: 0, current: 0, animating: false });
+  const bowState = useRef({
+    current: 0,
+    animating: false,
+    phase: "idle" as "idle" | "down" | "hold" | "up",
+    phaseStart: 0,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,10 +67,32 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     }
     if (sheets[0]) drawFrame(0);
 
-    const loop = () => {
+    const DOWN_MS = 1100;
+    const HOLD_MS = 450;
+    const UP_MS = 1100;
+    const easeInOut = (t: number) =>
+      t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+    const loop = (now: number) => {
       if (cancelled) return;
-      st.current += (st.target - st.current) * 0.25;
-      if (Math.abs(st.target - st.current) < 0.02) st.current = st.target;
+      if (st.phase !== "idle") {
+        const elapsed = now - st.phaseStart;
+        if (st.phase === "down") {
+          const p = Math.min(1, elapsed / DOWN_MS);
+          st.current = easeInOut(p) * BOW_END;
+          if (p >= 1) { st.phase = "hold"; st.phaseStart = now; }
+        } else if (st.phase === "hold") {
+          st.current = BOW_END;
+          if (elapsed >= HOLD_MS) { st.phase = "up"; st.phaseStart = now; }
+        } else if (st.phase === "up") {
+          const p = Math.min(1, elapsed / UP_MS);
+          st.current = (1 - easeInOut(p)) * BOW_END;
+          if (p >= 1) {
+            st.phase = "idle"; st.current = 0; st.animating = false;
+            setBowing(false);
+          }
+        }
+      }
       drawFrame(frameFor(st.current));
       raf = requestAnimationFrame(loop);
     };
@@ -93,24 +109,8 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
     if (st.animating) return;
     st.animating = true;
     setBowing(true);
-    // Bow down, hold briefly, come back up.
-    st.target = BOW_END;
-    setTimeout(() => {
-      st.target = 0;
-      setTimeout(() => {
-        st.animating = false;
-        setBowing(false);
-        setBows((n) => {
-          const next = n + 1;
-          try {
-            localStorage.setItem(COUNT_KEY, String(next));
-          } catch {
-            /* ignore */
-          }
-          return next;
-        });
-      }, 900);
-    }, 900);
+    st.phase = "down";
+    st.phaseStart = performance.now();
   };
 
   const base = import.meta.env.BASE_URL;
@@ -140,9 +140,6 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
           role="img"
           aria-label="Thy Cheat Code shark king"
         />
-        <span className="absolute -bottom-1 -right-1 rounded-full bg-[#c9a84c] px-1 text-[9px] font-bold leading-4 text-black">
-          {bows}
-        </span>
       </button>
     );
   }
@@ -172,10 +169,6 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
           aria-label="Thy Cheat Code shark king"
         />
       </button>
-      <p className="mt-1 text-[11px] tracking-widest uppercase text-white/40">
-        Bows: <span className="text-[#c9a84c] font-semibold">{bows}</span>
-        <span className="text-white/25"> · test</span>
-      </p>
     </div>
   );
 }

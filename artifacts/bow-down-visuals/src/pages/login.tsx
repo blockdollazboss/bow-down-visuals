@@ -94,13 +94,17 @@ export default function Login() {
   const scrubRaf = useRef<number>(0);
 
   // Pro-grade mouse scrub: 1:1 tracking, frame-throttled so seeks never stutter.
+  // Uses fastSeek() where available (built for scrubbing) with dense
+  // keyframes in the source file for near-instant seeks.
   useEffect(() => {
     const tick = () => {
       const video = bgVideoRef.current;
       const target = scrubTarget.current;
-      if (video && target !== null && video.duration && isFinite(video.duration)) {
+      if (video && target !== null && video.duration && isFinite(video.duration) && video.readyState >= 2) {
         if (Math.abs(video.currentTime - target) > 0.02) {
-          video.currentTime = target;
+          const v = video as HTMLVideoElement & { fastSeek?: (t: number) => void };
+          if (typeof v.fastSeek === "function") v.fastSeek(target);
+          else video.currentTime = target;
         }
       }
       scrubRaf.current = requestAnimationFrame(tick);
