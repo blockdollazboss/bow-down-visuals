@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { SideVideoBanners } from "@/components/SideVideoBanners";
 import { useForm } from "react-hook-form";
@@ -91,15 +91,33 @@ export default function Login() {
     }
   }
 
+  const bgVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Scrub the background video with horizontal mouse position.
+  const handleMouseScrub = (e: React.MouseEvent) => {
+    const video = bgVideoRef.current;
+    if (!video || !video.duration || !isFinite(video.duration)) return;
+    const ratio = Math.min(Math.max(e.clientX / window.innerWidth, 0), 1);
+    const target = ratio * video.duration;
+    // Only seek when the change is meaningful to avoid stutter.
+    if (Math.abs(video.currentTime - target) > 0.04) {
+      video.currentTime = target;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-end justify-center px-4 md:px-32 lg:px-40 pb-10 relative overflow-hidden">
-      {/* Golden throne background — shark seated on the throne */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover"
-        style={{
-          backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-shark-bg.webp)`,
-          backgroundPosition: "center 20%",
-        }}
+    <div className="min-h-screen flex items-end justify-center px-4 md:px-32 lg:px-40 pb-10 relative overflow-hidden"
+      onMouseMove={handleMouseScrub}
+    >
+      {/* Drone video background — scrub through with your mouse */}
+      <video
+        ref={bgVideoRef}
+        src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+        muted
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
       {/* Dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/60" />
