@@ -307,10 +307,10 @@ function AppShell() {
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
   const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
     .includes(location.split("?")[0].split("#")[0]);
-  /* Side video banners: the homepage's twin slim rails ride along on
-   * subpages. Excluded where they'd duplicate or clash — the homepage
-   * (renders its own), auth (immersive sign-in video), and the video
-   * editor (full-viewport studio surface). */
+  /* Side video banners: twin slim rails on subpages only. Excluded where
+   * they'd duplicate or clash — the homepage (no rails there anymore),
+   * auth (immersive sign-in video), and the video editor (full-viewport
+   * studio surface). */
   const cleanPath = location.split("?")[0].split("#")[0];
   const showSideBanners =
     cleanPath !== "/" &&

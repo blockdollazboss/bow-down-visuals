@@ -11,7 +11,7 @@ import { openThyChat } from "@/components/ThyCheatCodeChat";
    in-flow chip (per route, remembered in localStorage).
 
    Never rendered on auth pages, the full-viewport video editor studio, or
-   legal/fan-facing pages where he'd clutter. Full 8-bit pixel styling —
+   legal/fan-facing pages where he'd clutter. He IS on the home screen too. Full 8-bit pixel styling —
    he communicates in 8-bit everywhere. */
 
 const EXCLUDED_RE =

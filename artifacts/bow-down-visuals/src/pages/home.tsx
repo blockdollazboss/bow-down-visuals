@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
-import { SideVideoBanners } from "@/components/SideVideoBanners";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import {
   Music,
@@ -1481,7 +1480,6 @@ export default function Home() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
-      <SideVideoBanners />
       <KonamiEgg />
       <HeroSection />
       <CheatCodeTicker />
