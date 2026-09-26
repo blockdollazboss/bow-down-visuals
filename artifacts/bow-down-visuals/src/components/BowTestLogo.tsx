@@ -14,9 +14,14 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const posterRef = useRef<HTMLImageElement | null>(null);
   const [bowing, setBowing] = useState(false);
+  /* Secret monthly count: keyed by YYYY-MM so it resets every month. */
+  const monthKey = () => {
+    const d = new Date();
+    return `bdv-bow-count-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
   const [bows, setBows] = useState(() => {
     try {
-      return parseInt(localStorage.getItem("bdv-bow-count") || "0", 10) || 0;
+      return parseInt(localStorage.getItem(monthKey()) || "0", 10) || 0;
     } catch {
       return 0;
     }
@@ -99,7 +104,7 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
             setBowing(false);
             setBows((n) => {
               const next = n + 1;
-              try { localStorage.setItem("bdv-bow-count", String(next)); } catch { /* ignore */ }
+              try { localStorage.setItem(monthKey(), String(next)); } catch { /* ignore */ }
               return next;
             });
           }
