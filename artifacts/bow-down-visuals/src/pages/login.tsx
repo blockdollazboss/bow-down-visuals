@@ -92,7 +92,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 md:px-48 lg:px-56 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 md:px-48 lg:px-72 xl:px-96 relative overflow-hidden">
       <SideVideoBanners />
       {/* Smooth gradient blend from video edges into the page */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-background via-transparent to-background" />
