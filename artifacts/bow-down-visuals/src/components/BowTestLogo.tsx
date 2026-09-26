@@ -14,6 +14,13 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const posterRef = useRef<HTMLImageElement | null>(null);
   const [bowing, setBowing] = useState(false);
+  const [bows, setBows] = useState(() => {
+    try {
+      return parseInt(localStorage.getItem("bdv-bow-count") || "0", 10) || 0;
+    } catch {
+      return 0;
+    }
+  });
   const bowState = useRef({
     current: 0,
     animating: false,
@@ -90,6 +97,11 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
           if (p >= 1) {
             st.phase = "idle"; st.current = 0; st.animating = false;
             setBowing(false);
+            setBows((n) => {
+              const next = n + 1;
+              try { localStorage.setItem("bdv-bow-count", String(next)); } catch { /* ignore */ }
+              return next;
+            });
           }
         }
       }

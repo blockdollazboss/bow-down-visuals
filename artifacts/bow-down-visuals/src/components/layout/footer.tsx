@@ -42,35 +42,6 @@ export function SiteFooter() {
         {/* Top row */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
 
-          {/* Brand */}
-          <div>
-            <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
-              <img
-                src={`${import.meta.env.BASE_URL}logo-static.png`}
-                alt="Bow Down Visuals"
-                className="h-40 w-auto"
-              />
-            </Link>
-            <p className="font-display italic text-primary/85 text-[15px] mt-4">
-              The content creator&rsquo;s cheat code.
-            </p>
-            <span className="inline-flex items-center gap-1.5 mt-3 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-              <Sparkles className="h-3 w-3" aria-hidden="true" />
-              Powered by Thy Cheat Code
-            </span>
-            <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
-              AI creator credits for lyrics, music video plans, video prompts,
-              captions, thumbnails, promo clips, and more.
-            </p>
-            <a
-              href="mailto:support@bowdownvisuals.com"
-              className="inline-flex items-center gap-1.5 mt-4 text-xs text-white/40 hover:text-primary transition-colors"
-            >
-              <Mail className="h-3 w-3 shrink-0" />
-              support@bowdownvisuals.com
-            </a>
-          </div>
-
           {/* Navigate */}
           <nav className="flex flex-col gap-2.5" aria-label="Footer">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
@@ -98,6 +69,35 @@ export function SiteFooter() {
               </Link>
             ))}
           </nav>
+
+          {/* Brand — right side */}
+          <div className="md:col-start-4">
+            <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
+              <img
+                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                alt="Bow Down Visuals"
+                className="h-40 w-auto"
+              />
+            </Link>
+            <p className="font-display italic text-primary/85 text-[15px] mt-4">
+              The content creator&rsquo;s cheat code.
+            </p>
+            <span className="inline-flex items-center gap-1.5 mt-3 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              Powered by Thy Cheat Code
+            </span>
+            <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
+              AI creator credits for lyrics, music video plans, video prompts,
+              captions, thumbnails, promo clips, and more.
+            </p>
+            <a
+              href="mailto:support@bowdownvisuals.com"
+              className="inline-flex items-center gap-1.5 mt-4 text-xs text-white/40 hover:text-primary transition-colors"
+            >
+              <Mail className="h-3 w-3 shrink-0" />
+              support@bowdownvisuals.com
+            </a>
+          </div>
 
         </div>
 
