@@ -94,16 +94,14 @@ export default function Login() {
   const scrubTarget = useRef<number | null>(null);
   const scrubRaf = useRef<number>(0);
 
-  // Buttery-smooth mouse scrub: track the target, ease toward it on rAF.
+  // Pro-grade mouse scrub: 1:1 tracking, frame-throttled so seeks never stutter.
   useEffect(() => {
     const tick = () => {
       const video = bgVideoRef.current;
       const target = scrubTarget.current;
       if (video && target !== null && video.duration && isFinite(video.duration)) {
-        const diff = target - video.currentTime;
-        // Ease toward target — smaller factor = smoother, larger = snappier.
-        if (Math.abs(diff) > 0.015) {
-          video.currentTime = video.currentTime + diff * 0.12;
+        if (Math.abs(video.currentTime - target) > 0.02) {
+          video.currentTime = target;
         }
       }
       scrubRaf.current = requestAnimationFrame(tick);
@@ -135,9 +133,9 @@ export default function Login() {
       />
       {/* Dark overlay for readability */}
       <div className="pointer-events-none absolute inset-0 bg-black/60" />
-      <div className="w-full max-w-sm relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
+      <div className="w-full max-w-[280px] relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
 
-        <div className="bg-card border border-card-border rounded-md p-6 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
+        <div className="bg-card border border-card-border rounded-md p-4 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
           <SocialSignInButtons
             onSignIn={onSocialSignIn}
             loadingProvider={socialLoading}
@@ -146,12 +144,12 @@ export default function Login() {
           <OrDivider />
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <FormField control={form.control} name="email" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel className="text-xs">Email</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-email" type="email" placeholder="you@example.com" {...field} />
+                    <Input data-testid="input-email" type="email" placeholder="you@example.com" className="h-8 text-sm" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -159,21 +157,21 @@ export default function Login() {
 
               <FormField control={form.control} name="password" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel className="text-xs">Password</FormLabel>
                   <FormControl>
-                    <Input data-testid="input-password" type="password" placeholder="••••••••" {...field} />
+                    <Input data-testid="input-password" type="password" placeholder="••••••••" className="h-8 text-sm" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
 
               {error && (
-                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+                <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-3 py-2">
                   {error}
                 </div>
               )}
 
-              <Button data-testid="btn-login" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
+              <Button data-testid="btn-login" type="submit" size="sm" className="w-full gold-glow" disabled={loading}>
                 {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
               </Button>
             </form>
