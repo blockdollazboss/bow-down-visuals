@@ -1465,7 +1465,7 @@ export default function ArtistVault() {
 
   const { register, handleSubmit, watch, setValue, reset } = useForm<FormValues>({
     defaultValues: {
-      artistName: "", artistType: "artist",
+      artistName: "", artistType: "singer",
       genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
       clothingStyle: "", brandColors: "", themeId: "gold-royalty", personality: "", doNotChangeRules: "",
     },

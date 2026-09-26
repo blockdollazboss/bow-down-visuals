@@ -36,31 +36,50 @@ export interface ArtistVault {
    Stored in the existing `artist_type` DB text field. Legacy values
    ("Rapper", "Singer", …) and empty/null normalize to "artist". */
 
-export type SubjectType = "artist" | "actor" | "actress" | "character" | "gamer" | "streamer" | "podcaster";
+export type SubjectType = "singer" | "rapper" | "influencer" | "actor" | "actress" | "character" | "gamer" | "streamer" | "podcaster";
 
 export type VaultContext = "music" | "video" | "movie" | "series" | "promo" | "thumbnail";
 
 export function normalizeSubjectType(value: string | null | undefined): SubjectType {
   const v = (value ?? "").trim().toLowerCase();
+  if (v === "singer") return "singer";
+  if (v === "rapper") return "rapper";
+  if (v === "influencer") return "influencer";
   if (v === "actor") return "actor";
   if (v === "actress") return "actress";
   if (v === "character") return "character";
   if (v === "gamer") return "gamer";
   if (v === "streamer") return "streamer";
   if (v === "podcaster") return "podcaster";
-  return "artist";
+  /* Legacy: the old generic "artist" type is now "singer". */
+  if (v === "artist") return "singer";
+  return "singer";
 }
 
 export const SUBJECT_TYPE_META: Record<
   SubjectType,
   { label: string; badge: string; dot: string; glow: string; description: string }
 > = {
-  artist: {
-    label: "Artist",
+  singer: {
+    label: "Singer",
     badge: "text-amber-300 border-amber-400/40 bg-gradient-to-r from-amber-500/25 via-amber-400/15 to-amber-500/25",
     dot: "bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.8)]",
     glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
-    description: "Musicians, singers, rappers - for music videos and songs",
+    description: "Singers and vocalists - for music videos and songs",
+  },
+  rapper: {
+    label: "Rapper",
+    badge: "text-cyan-300 border-cyan-400/40 bg-gradient-to-r from-cyan-500/25 via-cyan-400/15 to-cyan-500/25",
+    dot: "bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
+    description: "Rappers and hip-hop artists - for music videos and songs",
+  },
+  influencer: {
+    label: "Influencer",
+    badge: "text-fuchsia-300 border-fuchsia-400/40 bg-gradient-to-r from-fuchsia-500/25 via-fuchsia-400/15 to-fuchsia-500/25",
+    dot: "bg-fuchsia-300 shadow-[0_0_6px_rgba(240,171,252,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(232,121,249,0.25)]",
+    description: "Influencers and content creators - for promos, socials, and brand content",
   },
   actor: {
     label: "Actor",
@@ -121,12 +140,12 @@ export function SubjectBadge({ type, className = "" }: { type: SubjectType; clas
 /* Sort priority per context. Array.prototype.sort is stable, so profiles of
    the same type keep their original (created_at) relative order. */
 const CONTEXT_PRIORITY: Record<VaultContext, Record<SubjectType, number>> = {
-  music: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, streamer: 3, podcaster: 3 },
-  video: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, streamer: 3, podcaster: 3 },
-  movie: { actor: 0, actress: 0, character: 1, artist: 2, gamer: 3, streamer: 3, podcaster: 3 },
-  series: { character: 0, actor: 1, actress: 1, artist: 2, gamer: 3, streamer: 3, podcaster: 3 },
-  promo: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, streamer: 2, podcaster: 2 },
-  thumbnail: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, streamer: 2, podcaster: 2 },
+  music: { singer: 0, rapper: 0, character: 1, actor: 2, actress: 2, influencer: 2, gamer: 3, streamer: 3, podcaster: 3 },
+  video: { singer: 0, rapper: 0, character: 1, actor: 2, actress: 2, influencer: 2, gamer: 3, streamer: 3, podcaster: 3 },
+  movie: { actor: 0, actress: 0, character: 1, singer: 2, rapper: 2, influencer: 2, gamer: 3, streamer: 3, podcaster: 3 },
+  series: { character: 0, actor: 1, actress: 1, singer: 2, rapper: 2, influencer: 2, gamer: 3, streamer: 3, podcaster: 3 },
+  promo: { singer: 0, rapper: 0, influencer: 0, actor: 1, actress: 1, character: 2, gamer: 2, streamer: 2, podcaster: 2 },
+  thumbnail: { singer: 0, rapper: 0, influencer: 0, actor: 1, actress: 1, character: 2, gamer: 2, streamer: 2, podcaster: 2 },
 };
 
 interface Props {
