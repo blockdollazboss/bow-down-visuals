@@ -49,6 +49,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/repair-clip": { cost: 1, feature: "Repair Clip" },
   "/api/pro-tools/auto-grade": { cost: 2, feature: "AI Auto Grade" },
   "/api/upscale": { cost: 2, feature: "Upscale" },
+  "/api/upscale/image": { cost: 3, feature: "Upscale Image" },
   "/api/watermark-removal": { cost: 2, feature: "Remove Watermark" },
   "/api/video-translator/translate": { cost: 5, feature: "Video Translator" },
   "/api/analyze-sections": { cost: 1, feature: "Analyze Song Sections" },
@@ -78,6 +79,8 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── AI text / copilots (1 credit) ──────────────────────────────
   "/api/chat": { cost: 1, feature: "AI Chat Message" },
   "/api/hook-studio": { cost: 1, feature: "Hook Studio" },
+  "/api/virality-check": { cost: 2, feature: "Virality Pre-Flight Check" },
+  "/api/analytics-hub/insights": { cost: 2, feature: "AI Growth Plan" },
   "/api/monetization-coach": { cost: 1, feature: "Monetization Coach" },
   "/api/script-writer": { cost: 2, feature: "Script Writer" },
   "/api/title-studio": { cost: 1, feature: "Title Studio" },
