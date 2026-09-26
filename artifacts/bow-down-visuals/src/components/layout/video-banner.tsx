@@ -186,12 +186,14 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
               aria-hidden
             />
             <span
-              className="font-display font-black tracking-[0.28em] text-sm md:text-lg text-transparent bg-clip-text"
+              className="tracking-[0.22em] text-base md:text-xl text-transparent bg-clip-text"
               style={{
+                fontFamily: "'Cinzel', serif",
+                fontWeight: 700,
                 backgroundImage:
                   "linear-gradient(100deg, #8a6b1f 0%, #e8c96a 25%, #fff3c4 50%, #e8c96a 75%, #8a6b1f 100%)",
                 backgroundSize: "200% auto",
-                filter: "drop-shadow(0 1px 6px rgba(0,0,0,0.9))",
+                filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
               }}
             >
               BOW&nbsp;DOWN&nbsp;VISUALS
@@ -203,10 +205,14 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
             />
           </span>
           <span
-            className="text-[8px] md:text-[9px] font-bold tracking-[0.42em] text-[#c9a84c]/80 uppercase"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.95)" }}
+            className="text-[9px] md:text-[10px] tracking-[0.38em] text-[#e8c96a] uppercase"
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontWeight: 700,
+              textShadow: "0 2px 6px rgba(0,0,0,0.95), 0 0 20px rgba(232,201,106,0.3)",
+            }}
           >
-            The Content Creation Cheat Code
+            The Content Creator&rsquo;s Cheat Code
           </span>
         </div>
       </div>
