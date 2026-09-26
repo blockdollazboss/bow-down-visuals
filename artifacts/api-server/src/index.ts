@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
+import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
 import { startJobPoller } from "./lib/job-poller";
 
@@ -34,4 +35,11 @@ app.listen(port, (err) => {
   // Server-owned background poller: drives lip-sync jobs through Sync.so's
   // long runs and raises exactly-once completion notifications — no tab needed.
   startJobPoller();
+
+  // Re-register in-flight music-distribution deliveries orphaned by a
+  // previous process (deploy/restart/crash) so per-platform statuses keep
+  // advancing. Mock-mode jobs are re-submitted to restart their clock.
+  resumeActiveDeliveries().catch((recoveryErr) =>
+    logger.error({ recoveryErr }, "Distribution delivery recovery failed"),
+  );
 });

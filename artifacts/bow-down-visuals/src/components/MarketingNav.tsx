@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { label: "Money Coach", href: "/coach" },
   { label: "Rate Calculator", href: "/brand-calculator" },
   { label: "Content Calendar", href: "/content-calendar" },
+  { label: "Distribute", href: "/distribute" },
   { label: "Scheduler", href: "/scheduler" },
   { label: "Tip Jar", href: "/tips" },
   { label: "Tour Planner", href: "/tour" },

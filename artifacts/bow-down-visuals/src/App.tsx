@@ -69,6 +69,9 @@ const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
 const CreatorAcademy = lazyWithRetry(() => import("@/pages/academy"));
 const ContentCalendar = lazyWithRetry(() => import("@/pages/content-calendar"));
+const SponsorMarketplace = lazyWithRetry(() => import("@/pages/sponsors"));
+const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
+const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
@@ -324,6 +327,10 @@ function AppShell() {
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
           <Route path="/academy"><CreatorAcademy /></Route>
           <Route path="/content-calendar"><ContentCalendar /></Route>
+          <Route path="/sponsors"><SponsorMarketplace /></Route>
+          <Route path="/distribute"><Distribute /></Route>
+          <Route path="/presave/:slug"><Presave /></Route>
+          <Route path="/upscale"><Upscale /></Route>
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
