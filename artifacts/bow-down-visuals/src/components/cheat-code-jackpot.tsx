@@ -360,30 +360,26 @@ export function CheatCodeJackpot() {
     switch (phase) {
       case "live":
         return {
-          icon: "🎰",
           title: `CHEAT CODE JACKPOT — ${status?.prizeCredits ?? 100} credits unclaimed`,
-          sub: `One code for the whole site · ends ${formatJackpotDate(status?.endsAt)} · next code drops ${formatJackpotDate(status?.resetsAt)}`,
+          sub: `One code for the whole site · ends ${formatJackpotDate(status?.endsAt)}`,
           accent: true,
         };
       case "claimed":
         return {
-          icon: "🏆",
-          title: `Jackpot claimed by ${status?.winnerDisplayName ?? "a sharp player"}`,
-          sub: `Thank you for playing — next code drops ${formatJackpotDate(status?.resetsAt)}`,
-          accent: false,
+          title: `🏆 ${status?.winnerDisplayName ?? "a sharp player"} won the jackpot`,
+          sub: `+${status?.prizeCredits ?? 100} credits claimed — think you can beat them? A new code is coming`,
+          accent: true,
         };
       case "upcoming":
         return {
-          icon: "🕹️",
           title: "The next jackpot season is loading…",
-          sub: `A new secret code goes live ${formatJackpotDate(status?.startsAt)} — one winner takes ${status?.prizeCredits ?? 100} credits`,
+          sub: `A new secret code goes live — one winner takes ${status?.prizeCredits ?? 100} credits`,
           accent: false,
         };
       case "ended":
         return {
-          icon: "👑",
           title: status?.winnerDisplayName
-            ? `Season over — ${status.winnerDisplayName} took the crown`
+            ? `👑 ${status.winnerDisplayName} took the crown`
             : "Season over with no winner",
           sub: "A new secret code is on the way",
           accent: false,
@@ -391,7 +387,6 @@ export function CheatCodeJackpot() {
       case "none":
       default:
         return {
-          icon: "🎰",
           title: "Cheat Code Jackpot — coming soon",
           sub: "One secret code for the whole site. One winner takes the credits.",
           accent: false,
@@ -413,8 +408,8 @@ export function CheatCodeJackpot() {
           )}
         >
           <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2">
-            <span aria-hidden="true" className="text-lg leading-none">
-              {bannerBody.icon}
+            <span aria-hidden="true" className="shrink-0 leading-none">
+              <PixelSprite name="shark" pixel={4} />
             </span>
             <div className="min-w-0 flex-1">
               <p className="pixel-display truncate text-[10px] sm:text-xs tracking-[0.14em] text-[#F5DE8E] uppercase">
@@ -640,7 +635,7 @@ export function CheatCodeJackpot() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 flex justify-center">
-              <PixelSprite name="crown" pixel={11} />
+              <PixelSprite name="shark" pixel={11} />
             </div>
             <p className="pixel-display pixel-gold-text text-2xl sm:text-4xl leading-[1.6]">
               Jackpot!
