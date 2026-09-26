@@ -99,46 +99,28 @@ export function SiteFooter() {
             ))}
           </nav>
 
-          {/* Follow - social accounts launching soon */}
-          <div className="flex flex-col gap-2.5" aria-label="Follow">
-            <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Follow</p>
-            {SOCIALS_COMING_SOON.map(({ label, Icon }) => (
-              <span
-                key={label}
-                title={`${label} - coming soon`}
-                aria-disabled="true"
-                className="inline-flex items-center gap-2.5 w-fit text-sm text-white/35 cursor-not-allowed"
-              >
-                <span className="h-8 w-8 rounded-lg border border-white/10 bg-white/[0.03] inline-flex items-center justify-center">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span>{label}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-primary/70 border border-primary/25 rounded-full px-1.5 py-0.5">
-                  Soon
-                </span>
-              </span>
-            ))}
-            <p className="text-white/30 text-xs mt-1">{SOCIAL_HANDLE}</p>
-          </div>
         </div>
 
         {/* Bottom bar */}
         <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
           {/* Social row — swap <span> for <a href="…"> to go live (see data-social-link) */}
-          <div className="flex items-center gap-3" aria-label="Social media">
-            {SOCIALS_COMING_SOON.map(({ label, Icon, key }) => (
-              <span
-                key={key}
-                data-social-link={key}
-                title={`${label} — coming soon`}
-                aria-label={`${label} (coming soon)`}
-                aria-disabled="true"
-                className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] inline-flex items-center justify-center text-white/50 cursor-not-allowed hover:text-primary hover:border-primary/40 transition-colors"
-              >
-                <Icon className="h-5 w-5" />
-              </span>
-            ))}
+          <div className="flex flex-col items-center gap-2" aria-label="Social media">
+            <div className="flex items-center gap-3">
+              {SOCIALS_COMING_SOON.map(({ label, Icon, key }) => (
+                <span
+                  key={key}
+                  data-social-link={key}
+                  title={`${label} — coming soon`}
+                  aria-label={`${label} (coming soon)`}
+                  aria-disabled="true"
+                  className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] inline-flex items-center justify-center text-white/50 cursor-not-allowed hover:text-primary hover:border-primary/40 transition-colors"
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+              ))}
+            </div>
+            <p className="text-white/40 text-xs">@BowDownVisuals</p>
           </div>
           <p className="text-white/[0.13] text-[10px] select-none" title="every arcade has its secrets">
             psst&hellip; this site has a cheat code
