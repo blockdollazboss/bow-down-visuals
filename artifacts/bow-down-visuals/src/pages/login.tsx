@@ -106,7 +106,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-end justify-center px-4 md:px-32 lg:px-40 pb-10 relative overflow-hidden"
+    <div className="min-h-screen relative overflow-hidden"
       onMouseMove={handleMouseScrub}
     >
       {/* Drone video background — scrub through with your mouse */}
@@ -119,113 +119,15 @@ export default function Login() {
         disablePictureInPicture
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
-      {/* Dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/60" />
-      <SideVideoBanners />
-      {/* Smooth gradient blend from video edges into the page */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-black/70" />
-      <div className="w-full max-w-sm relative z-10 animate-[fadeSlideIn_0.7s_ease-out_both]">
-
-        <div className="bg-card border border-card-border rounded-md p-6 shadow-2xl gold-glow-sm animate-[fadeSlideIn_0.7s_ease-out_0.2s_both] transition-all duration-300 hover:shadow-[0_0_60px_rgba(201,168,76,0.15)]">
-          <SocialSignInButtons
-            onSignIn={onSocialSignIn}
-            loadingProvider={socialLoading}
-            mode="signin"
-          />
-          <OrDivider />
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-email" type="email" placeholder="you@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-password" type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {error && (
-                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-                  {error}
-                </div>
-              )}
-
-              <Button data-testid="btn-login" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
-              </Button>
-            </form>
-          </Form>
-
-          {resetMode ? (
-            resetSent ? (
-              <div className="mt-6 p-4 rounded-xl border border-primary/25 bg-primary/5 text-center">
-                <p className="text-sm text-white/80 font-medium">Check your email for a reset link.</p>
-                <button
-                  type="button"
-                  onClick={() => { setResetMode(false); setResetSent(false); setResetEmail(""); }}
-                  className="mt-2 text-sm text-primary hover:underline font-medium"
-                >
-                  Back to sign in
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={onResetSubmit} className="mt-6 space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1.5">Email</p>
-                  <Input
-                    data-testid="input-reset-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={resetEmail}
-                    onChange={(e) => { setResetEmail(e.target.value); if (resetError) setResetError(null); }}
-                  />
-                </div>
-                {resetError && (
-                  <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-                    {resetError}
-                  </div>
-                )}
-                <Button data-testid="btn-reset-password" type="submit" size="lg" className="w-full gold-glow" disabled={resetLoading}>
-                  {resetLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending reset link...</> : "Send Reset Link"}
-                </Button>
-                <p className="text-center text-sm">
-                  <button type="button" onClick={() => setResetMode(false)} className="text-muted-foreground hover:text-white hover:underline font-medium">
-                    Back to sign in
-                  </button>
-                </p>
-              </form>
-            )
-          ) : (
-            <p className="mt-6 text-center text-sm">
-              <button
-                type="button"
-                onClick={() => { setResetMode(true); setResetEmail(form.getValues("email")); }}
-                className="text-primary hover:underline font-medium"
-              >
-                Forgot password?
-              </button>
-            </p>
-          )}
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline font-medium">
-              Sign up free
-            </Link>
-          </p>
-        </div>
+      {/* Dark overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-black/40" />
+      {/* Logo — the only thing on the page, placed in the golden upper third */}
+      <div className="relative z-10 flex flex-col items-center justify-start pt-[12vh] animate-[fadeSlideIn_0.7s_ease-out_both]">
+        <img
+          src={`${import.meta.env.BASE_URL}logo-static.png`}
+          alt="Bow Down Visuals"
+          className="h-40 md:h-56 w-auto drop-shadow-[0_15px_35px_rgba(0,0,0,0.9)]"
+        />
       </div>
     </div>
   );
