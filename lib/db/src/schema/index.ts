@@ -55,3 +55,4 @@ export * from "./royalties";
 export * from "./cheat-code-events";
 export * from "./tour";
 export * from "./preproduction-packs";
+export * from "./bow-challenge";

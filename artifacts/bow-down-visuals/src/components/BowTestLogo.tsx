@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { SecretChallengePopup } from "./SecretChallengePopup";
 
 /* Click-to-bow shark: reuses the hero bow sprite sheets (102 frames).
    Click → smooth timed bow (down, hold, up). */
@@ -26,6 +28,8 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
       return 0;
     }
   });
+  const { user, getAccessToken } = useAuth();
+  const [rewardCredits, setRewardCredits] = useState<number | null>(null);
   const bowState = useRef({
     current: 0,
     animating: false,
@@ -107,6 +111,23 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
               try { localStorage.setItem(monthKey(), String(next)); } catch { /* ignore */ }
               return next;
             });
+            // Secret challenge: sync to server when signed in. Silent — the
+            // popup only appears if the server reports a reward.
+            if (user) {
+              void (async () => {
+                try {
+                  const token = await getAccessToken();
+                  if (!token) return;
+                  const res = await fetch("/api/bow", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                  });
+                  if (!res.ok) return;
+                  const data = (await res.json()) as { rewarded?: boolean; rewardCredits?: number };
+                  if (data.rewarded && data.rewardCredits) setRewardCredits(data.rewardCredits);
+                } catch { /* silent */ }
+              })();
+            }
           }
         }
       }
@@ -162,7 +183,8 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="flex flex-col items-center">
+    <>
+      <div className="flex flex-col items-center">
       <button
         type="button"
         onClick={doBow}
@@ -186,6 +208,10 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
           aria-label="Thy Cheat Code shark king"
         />
       </button>
-    </div>
+      </div>
+      {rewardCredits !== null && (
+        <SecretChallengePopup credits={rewardCredits} onClaim={() => setRewardCredits(null)} />
+      )}
+    </>
   );
 }

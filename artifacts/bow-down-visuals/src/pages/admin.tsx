@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Loader2, Coins, ShieldCheck, Trophy, Delete, RotateCcw,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -316,6 +316,12 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [amount, setAmount] = useState("500");
   const [granting, setGranting] = useState(false);
+  const [bowCfg, setBowCfg] = useState<{ targetBows: number; rewardCredits: number; enabled: boolean } | null>(null);
+  const [bowTarget, setBowTarget] = useState("100");
+  const [bowReward, setBowReward] = useState("5");
+  const [bowEnabled, setBowEnabled] = useState(true);
+  const [bowSaving, setBowSaving] = useState(false);
+  const [bowMsg, setBowMsg] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -323,6 +329,51 @@ export default function AdminPage() {
     const token = await getAccessToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, [getAccessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        const res = await fetch("/api/admin/bow-challenge", { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        setBowCfg(data);
+        setBowTarget(String(data.targetBows));
+        setBowReward(String(data.rewardCredits));
+        setBowEnabled(data.enabled);
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleBowSave = useCallback(async () => {
+    setBowSaving(true);
+    setBowMsg(null);
+    try {
+      const headers = await authHeaders();
+      const res = await fetch("/api/admin/bow-challenge", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...headers },
+        body: JSON.stringify({
+          targetBows: parseInt(bowTarget, 10),
+          rewardCredits: parseInt(bowReward, 10),
+          enabled: bowEnabled,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed.");
+      setBowCfg(data);
+      setBowMsg("Secret challenge updated.");
+    } catch (e) {
+      setBowMsg(e instanceof Error ? e.message : "Save failed.");
+    } finally {
+      setBowSaving(false);
+    }
+  }, [authHeaders, bowTarget, bowReward, bowEnabled]);
+
 
   useEffect(() => {
     let cancelled = false;
@@ -411,6 +462,60 @@ export default function AdminPage() {
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
             <p className="mt-4 text-[11px] text-white/30">
               Grants are logged as "Admin Credit Grant" in the credit ledger.
+            </p>
+          </div>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="h-4 w-4 text-primary" />
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+                Secret Bow Challenge
+              </p>
+            </div>
+            <p className="text-sm text-white/60 mb-4">
+              Hidden monthly milestone. Users bow the shark for fun — when they hit the
+              target in a calendar month, they get a surprise &ldquo;You Cracked the Code!&rdquo;
+              popup and the credit reward. The challenge is never announced anywhere.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="text-xs text-white/40">
+                Bows to win
+                <input
+                  type="number" min={1} max={100000}
+                  value={bowTarget}
+                  onChange={(e) => setBowTarget(e.target.value)}
+                  disabled={bowSaving}
+                  className="mt-1 block w-32 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                />
+              </label>
+              <label className="text-xs text-white/40">
+                Credit reward
+                <input
+                  type="number" min={1} max={10000}
+                  value={bowReward}
+                  onChange={(e) => setBowReward(e.target.value)}
+                  disabled={bowSaving}
+                  className="mt-1 block w-32 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs text-white/40 pb-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bowEnabled}
+                  onChange={(e) => setBowEnabled(e.target.checked)}
+                  disabled={bowSaving}
+                  className="h-4 w-4 accent-[#C9A84C]"
+                />
+                Enabled
+              </label>
+              <Button onClick={() => { void handleBowSave(); }} disabled={bowSaving} className="rounded-xl">
+                {bowSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save
+              </Button>
+            </div>
+            {bowMsg && <p className="mt-3 text-sm text-green-400">{bowMsg}</p>}
+            <p className="mt-4 text-[11px] text-white/30">
+              Counts reset automatically on the 1st of every month. Rewards are logged as
+              &ldquo;Secret Bow Challenge&rdquo; in the credit ledger.
             </p>
           </div>
           <JackpotAdmin authHeaders={authHeaders} />
