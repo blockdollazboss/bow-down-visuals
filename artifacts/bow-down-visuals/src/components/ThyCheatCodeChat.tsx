@@ -224,8 +224,8 @@ export function ThyCheatCodeChat() {
                   />
                 </div>
                 <div>
-                  <p className="pixel-display text-xs font-bold tracking-wide"><CheatCodeName /></p>
-                  <p className="pixel-display mt-1.5 text-[8px] uppercase tracking-[0.2em] text-neutral-400">
+                  <p className="tcc-display text-sm tracking-wide"><CheatCodeName /></p>
+                  <p className="tcc-accent mt-1.5 text-[10px] uppercase tracking-[0.2em] text-neutral-400">
                     {creditCost
                       ? `${creditCost} credit${creditCost === 1 ? "" : "s"}/msg`
                       : "AI assistant"}
@@ -294,7 +294,7 @@ export function ThyCheatCodeChat() {
                   className={
                     m.role === "user"
                       ? "max-w-[85%] border-2 border-[#8A6B1F] bg-[#C9A84C] px-3.5 py-2.5 text-sm font-medium text-black"
-                      : "pixel-display max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-[11px] leading-relaxed tracking-wide text-neutral-100"
+                      : "tcc-chat max-w-[85%] border-2 border-[#C9A84C]/40 bg-[#14100a] px-3.5 py-2.5 text-lg leading-snug text-neutral-100"
                   }
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.75)" }}
                 >
@@ -342,7 +342,7 @@ export function ThyCheatCodeChat() {
               placeholder="Ask about tools, credits, pricing…"
               maxLength={2000}
               aria-label="Chat message"
-              className="pixel-display min-w-0 flex-1 border-2 border-white/15 bg-black px-3 py-2.5 text-[11px] tracking-wide text-white placeholder:text-neutral-500 focus:border-[#C9A84C] focus:outline-none"
+              className="tcc-chat min-w-0 flex-1 border-2 border-white/15 bg-black px-3 py-2.5 text-lg text-white placeholder:text-neutral-500 focus:border-[#C9A84C] focus:outline-none"
             />
             <button
               onClick={() => send(input)}

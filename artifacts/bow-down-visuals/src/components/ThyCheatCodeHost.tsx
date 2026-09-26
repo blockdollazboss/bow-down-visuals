@@ -90,8 +90,8 @@ export function ThyCheatCodeHost() {
             />
           </span>
           <span>
-            <span className="pixel-display text-xs font-bold text-[#E8C96A]">THY CHEAT CODE</span>
-            <span className="pixel-display text-[10px] text-neutral-400"> · TIPS FOR THIS PAGE</span>
+            <span className="tcc-display text-sm text-[#E8C96A]">THY CHEAT CODE</span>
+            <span className="tcc-accent text-xs text-neutral-400"> · TIPS FOR THIS PAGE</span>
           </span>
         </button>
       </div>
@@ -120,13 +120,13 @@ export function ThyCheatCodeHost() {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="pixel-display text-lg font-bold tracking-wide text-[#E8C96A]">
+            <p className="tcc-display text-xl tracking-wide text-[#E8C96A]">
               THY CHEAT CODE
             </p>
-            <p className="pixel-display mt-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-400">
+            <p className="tcc-accent mt-1 text-xs uppercase tracking-[0.22em] text-neutral-400">
               YOUR COACH ON THIS PAGE
             </p>
-            <p className="pixel-display mt-3 text-sm leading-relaxed text-neutral-100">
+            <p className="tcc-chat mt-3 text-xl leading-snug text-neutral-100">
               YO — I&apos;M THY CHEAT CODE. HERE&apos;S THE PLAY
               {guide ? (
                 <> ON <span className="text-[#E8C96A]">{guide.pageName.toUpperCase()}</span>:</>
@@ -161,11 +161,11 @@ export function ThyCheatCodeHost() {
                 <div className="flex items-center gap-2.5">
                   <span
                     aria-hidden="true"
-                    className="pixel-display flex h-7 w-7 shrink-0 items-center justify-center border-2 border-[#C9A84C]/60 bg-[#C9A84C]/10 text-xs font-bold text-[#E8C96A]"
+                    className="tcc-display flex h-7 w-7 shrink-0 items-center justify-center border-2 border-[#C9A84C]/60 bg-[#C9A84C]/10 text-sm text-[#E8C96A]"
                   >
                     {i + 1}
                   </span>
-                  <h3 className="pixel-display text-xs font-bold tracking-wide text-white">
+                  <h3 className="tcc-display text-sm tracking-wide text-white">
                     {step.title.toUpperCase()}
                   </h3>
                 </div>
@@ -176,7 +176,7 @@ export function ThyCheatCodeHost() {
                   <div className="mt-3 flex gap-2 border-2 border-[#C9A84C]/25 bg-[#C9A84C]/[0.07] px-3 py-2.5">
                     <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#E8C96A]" />
                     <p className="text-xs leading-relaxed text-amber-100/90">
-                      <span className="pixel-display text-[10px] font-bold text-[#E8C96A]">MY TIP: </span>
+                      <span className="tcc-display text-xs text-[#E8C96A]">MY TIP: </span>
                       {step.tip}
                     </p>
                   </div>
@@ -185,7 +185,7 @@ export function ThyCheatCodeHost() {
                   onClick={() =>
                     openThyChat(step.askPrompt ?? `Tell me more about: ${step.title}`)
                   }
-                  className="pixel-display mt-3 inline-flex items-center justify-center gap-1.5 border-2 border-[#C9A84C]/30 bg-[#C9A84C]/10 px-3 py-2 text-[10px] font-bold tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/20"
+                  className="tcc-display mt-3 inline-flex items-center justify-center gap-1.5 border-2 border-[#C9A84C]/30 bg-[#C9A84C]/10 px-3 py-2 text-xs tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/20"
                 >
                   <MessageCircle className="h-3.5 w-3.5" />
                   ASK ABOUT THIS
@@ -199,7 +199,7 @@ export function ThyCheatCodeHost() {
         <div className="flex flex-wrap items-center gap-2 border-t-4 border-[#C9A84C]/20 bg-black/40 px-5 py-4 sm:px-6">
           <button
             onClick={() => openThyChat()}
-            className="pixel-display inline-flex items-center gap-2 border-2 border-black bg-gradient-to-r from-[#C9A84C] to-[#E8C96A] px-5 py-2.5 text-xs font-bold tracking-wide text-black transition hover:brightness-110"
+            className="tcc-display inline-flex items-center gap-2 border-2 border-black bg-gradient-to-r from-[#C9A84C] to-[#E8C96A] px-5 py-2.5 text-sm tracking-wide text-black transition hover:brightness-110"
           >
             <MessageCircle className="h-4 w-4" />
             CHAT WITH ME
@@ -207,13 +207,13 @@ export function ThyCheatCodeHost() {
           {guide && guide.steps.length > 0 && (
             <button
               onClick={startTour}
-              className="pixel-display inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 px-5 py-2.5 text-xs font-bold tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/10"
+              className="tcc-display inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 px-5 py-2.5 text-sm tracking-wide text-[#E8C96A] transition hover:bg-[#C9A84C]/10"
             >
               <Footprints className="h-4 w-4" />
               WALK ME THROUGH IT
             </button>
           )}
-          <p className="pixel-display ml-auto hidden text-[10px] text-neutral-500 sm:block">
+          <p className="tcc-accent ml-auto hidden text-xs text-neutral-500 sm:block">
             I&apos;M ON EVERY PAGE — I&apos;VE GOT YOU.
           </p>
         </div>

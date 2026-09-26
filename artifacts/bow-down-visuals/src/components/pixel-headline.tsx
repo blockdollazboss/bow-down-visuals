@@ -231,10 +231,10 @@ export function CheatCodeName({
 }) {
   return (
     <span
-      className={cn("pixel-display whitespace-nowrap text-[#E8C96A]", className)}
+      className={cn("tcc-display whitespace-nowrap text-[#E8C96A]", className)}
       style={{
-        fontSize: "0.72em",
-        letterSpacing: "0.03em",
+        fontSize: "0.85em",
+        letterSpacing: "0.04em",
         lineHeight: 1.7,
         textShadow: "2px 2px 0 rgba(0,0,0,0.85)",
       }}

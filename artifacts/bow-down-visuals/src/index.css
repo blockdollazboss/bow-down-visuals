@@ -629,6 +629,34 @@ html {
   font-weight: 400;
 }
 
+/* ─── Thy Cheat Code's signature voice — his fonts, his personality ────────
+   He doesn't talk in generic pixel font. He has his own type system:
+   - .tcc-display: Silkscreen Bold — his name, headings, buttons. Punchy arcade.
+   - .tcc-chat: VT323 — his chat messages. Terminal AI vibe, highly readable.
+   - .tcc-accent: DotGothic16 — exotic arcade flavor for kickers and labels.
+   - .tcc-pixel: Pixelify Sans — modern pixel for longer body text. */
+.tcc-display {
+  font-family: "Silkscreen", "Press Start 2P", monospace;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.tcc-chat {
+  font-family: "VT323", "Courier New", monospace;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.tcc-accent {
+  font-family: "DotGothic16", "Press Start 2P", monospace;
+  font-weight: 400;
+}
+
+.tcc-pixel {
+  font-family: "Pixelify Sans", "Press Start 2P", monospace;
+  font-weight: 400;
+}
+
 /* Gold gradient pixel text with hard stepped drop shadows (no blur — chunky pixels) */
 .pixel-gold-text {
   background: linear-gradient(
