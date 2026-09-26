@@ -23,6 +23,8 @@ export interface RunAudioSceneFlowParams {
   getAccessToken: () => Promise<string | null | undefined>;
   /** Pass confirmedFetch from useConfirmedApi() to confirm credit spend first. */
   fetchImpl?: FetchImpl;
+  /** Locked song segment (seconds). When set, scenes are built for this slice only. */
+  segment?: { start: number; end: number } | null;
 }
 
 export interface RunAudioSceneFlowResult {
@@ -31,7 +33,7 @@ export interface RunAudioSceneFlowResult {
 }
 
 export async function runAudioSceneFlow(params: RunAudioSceneFlowParams): Promise<RunAudioSceneFlowResult | null> {
-  const { lyrics, audioUrl, audioFile, songStructure, getAccessToken, fetchImpl = fetch } = params;
+  const { lyrics, audioUrl, audioFile, songStructure, getAccessToken, fetchImpl = fetch, segment } = params;
 
   if (!audioUrl) {
     throw new Error("Upload a song first.");
@@ -54,8 +56,10 @@ export async function runAudioSceneFlow(params: RunAudioSceneFlowParams): Promis
   }
 
   const durationSec = audioFile ? (await readAudioDuration(audioFile)) ?? null : null;
+  /* A locked segment overrides the full-song duration: scenes are paced to the slice. */
+  const effectiveDuration = segment && segment.end > segment.start ? segment.end - segment.start : durationSec;
 
-  const { scenes } = await generateScenesFromAudio({ audioUrl, durationSec, songStructure: structure });
+  const { scenes } = await generateScenesFromAudio({ audioUrl, durationSec: effectiveDuration, songStructure: structure });
   if (scenes.length === 0) {
     throw new Error("Could not derive scenes from this song's structure.");
   }

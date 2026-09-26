@@ -22,6 +22,7 @@ import { SceneStudio } from "@/components/SceneStudio";
 import { StoryboardReview } from "@/components/StoryboardReview";
 import { ActiveArtistBanner } from "@/components/ActiveArtistBanner";
 import { ReferenceAudioPlayer } from "@/components/ReferenceAudioPlayer";
+import { SongSegmentPicker, type SongSegment } from "@/components/SongSegmentPicker";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { AudioTranscribe } from "@/components/AudioTranscribe";
@@ -218,6 +219,8 @@ export default function MakeVideo() {
   const [storyboardApproved, setStoryboardApproved] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  /** Locked song segment — when set, scenes are built for this slice, not the full song. */
+  const [songSegment, setSongSegment] = useState<SongSegment | null>(null);
   const [generatingScenesFromAudio, setGeneratingScenesFromAudio] = useState(false);
   const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
@@ -302,6 +305,7 @@ export default function MakeVideo() {
         songStructure,
         getAccessToken,
         fetchImpl: confirmedFetch,
+        segment: songSegment,
       });
       if (!flow) { setGeneratingScenesFromAudio(false); return; } // user cancelled the credit confirmation
       const { songStructure: structure, scenes: newScenes } = flow;
@@ -981,10 +985,20 @@ export default function MakeVideo() {
               <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
-                  onFileUrl={setAudioUrl}
-                  onFile={setAudioFile}
+                  onFileUrl={(url) => { setAudioUrl(url); setSongSegment(null); }}
+                  onFile={(f) => { setAudioFile(f); setSongSegment(null); }}
                 />
                 {audioUrl && <ReferenceAudioPlayer url={audioUrl} label="Your Song" />}
+                {audioUrl && (
+                  <div className="mt-3">
+                    <SongSegmentPicker
+                      audioUrl={audioUrl}
+                      label="Pick your section"
+                      initialSegment={songSegment}
+                      onLock={setSongSegment}
+                    />
+                  </div>
+                )}
               </FieldWrapper>
 
               <FieldWrapper label="Lyrics" hint="Paste lyrics below, or upload audio above and click Transcribe.">
