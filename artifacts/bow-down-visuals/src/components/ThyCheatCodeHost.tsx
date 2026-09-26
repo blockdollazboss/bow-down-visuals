@@ -79,12 +79,14 @@ export function ThyCheatCodeHost() {
           style={{ imageRendering: "pixelated" }}
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
-            <img
-              src="/thy-cheat-code-8bit.webp"
-              alt=""
+            <video
+              src="/thy-cheat-code-idle.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
               aria-hidden="true"
               className="h-full w-full object-cover"
-              style={{ imageRendering: "pixelated" }}
             />
           </span>
           <span>
@@ -107,11 +109,14 @@ export function ThyCheatCodeHost() {
         {/* Coach header — him, in first person */}
         <div className="flex items-start gap-4 p-5 sm:p-6">
           <div className="h-20 w-20 shrink-0 overflow-hidden border-4 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
-            <img
-              src="/thy-cheat-code-8bit.webp"
-              alt="Thy Cheat Code — the King Shark"
+            <video
+              src="/thy-cheat-code-making.mp4"
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label="Thy Cheat Code — the King Shark"
               className="h-full w-full object-cover"
-              style={{ imageRendering: "pixelated" }}
             />
           </div>
           <div className="min-w-0 flex-1">
