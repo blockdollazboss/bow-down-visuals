@@ -183,17 +183,17 @@ export default function Login() {
           ) : (
             <>
               <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
+                {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
+                <div className="relative h-11 w-28 shrink-0">
+                  <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
+                    <BowTestLogo />
+                  </div>
+                </div>
                 <SocialSignInButtons
                   onSignIn={onSocialSignIn}
                   loadingProvider={socialLoading}
                   mode="signin"
                 />
-                {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
-                <div className="relative h-11 w-24 shrink-0">
-                  <div className="absolute -top-[4.5rem] left-1/2 -translate-x-1/2">
-                    <BowTestLogo />
-                  </div>
-                </div>
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"
