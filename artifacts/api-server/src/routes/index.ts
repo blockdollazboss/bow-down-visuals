@@ -69,9 +69,7 @@ import socialRouter from "./social";
 import analyticsRouter from "./analytics";
 import discordRouter from "./discord";
 import jobNotificationsRouter from "./job-notifications";
-<<<<<<< HEAD
 import distributionRouter from "./generate/distribution";
-=======
 import schedulerRouter from "./scheduler";
 import merchRouter from "./generate/merch";
 import jewelryRouter from "./generate/jewelry";
@@ -88,7 +86,6 @@ import thumbnailGeneratorRouter from "./generate/thumbnail-generator";
 import audioCleanupRouter from "./generate/audio-cleanup";
 import cheatCodeRouter from "./cheat-code";
 import mixMasterRouter from "./generate/mix-master";
->>>>>>> main
 
 const router: IRouter = Router();
 
@@ -162,9 +159,7 @@ router.use(socialRouter);
 router.use(analyticsRouter);
 router.use(discordRouter);
 router.use(jobNotificationsRouter);
-<<<<<<< HEAD
 router.use(distributionRouter);
-=======
 router.use(schedulerRouter);
 router.use(merchRouter);
 router.use(jewelryRouter);
@@ -181,6 +176,5 @@ router.use(thumbnailGeneratorRouter);
 router.use(audioCleanupRouter);
 router.use(cheatCodeRouter);
 router.use(mixMasterRouter);
->>>>>>> main
 
 export default router;
