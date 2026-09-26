@@ -22,6 +22,8 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   do_not_change_rules: text("do_not_change_rules"),
   reference_image_url: text("reference_image_url"),
   reference_image_path: text("reference_image_path"),
+  reference_video_url: text("reference_video_url"),
+  reference_video_path: text("reference_video_path"),
   consistency_prompt: text("consistency_prompt"),
   /* Locked-in ElevenLabs voice for this artist. When set, every song
      generated for the artist is vocal-swapped to this voice. */

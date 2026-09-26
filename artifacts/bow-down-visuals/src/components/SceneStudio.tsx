@@ -496,7 +496,9 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 pickedOutfitId === null ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
               }`}
             >
-              {artistVault!.reference_image_url ? (
+              {artistVault!.reference_video_url ? (
+                <video src={artistVault!.reference_video_url} poster={artistVault!.reference_image_url ?? undefined} autoPlay muted loop playsInline className="h-full w-full object-cover object-top" />
+              ) : artistVault!.reference_image_url ? (
                 <img src={artistVault!.reference_image_url} alt="Base look" className="h-full w-full object-cover object-top" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center bg-white/10 text-[9px] text-white/50 font-bold">Base</span>

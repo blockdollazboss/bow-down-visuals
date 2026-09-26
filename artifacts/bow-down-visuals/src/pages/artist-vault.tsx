@@ -50,6 +50,8 @@ interface ArtistVaultRecord {
   do_not_change_rules: string | null;
   reference_image_url: string | null;
   reference_image_path: string | null;
+  reference_video_url: string | null;
+  reference_video_path: string | null;
   consistency_prompt: string | null;
   voice_id: string | null;
   voice_name: string | null;
@@ -701,6 +703,171 @@ function LockedVoiceSection({ vault, onChanged }: {
   );
 }
 
+/* ─────────────────────── REFERENCE VIDEO ─────────────────────── */
+
+const REF_VIDEO_CREDITS = 15;
+
+function ReferenceVideoSection({ vault, onChanged }: {
+  vault: ArtistVaultRecord;
+  onChanged: () => Promise<void>;
+}) {
+  const { getAccessToken } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function authHeaders(): Promise<HeadersInit> {
+    const token = await getAccessToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function pollTask(taskId: string): Promise<void> {
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 10000));
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video/${taskId}`, {
+        headers: await authHeaders(),
+      });
+      const data = await res.json().catch(() => ({} as { status?: string; error?: string }));
+      if (data.status === "SUCCEEDED") return;
+      if (data.status === "FAILED" || data.status === "CANCELLED") {
+        throw new Error(data.error || "Video generation failed. No credits were charged.");
+      }
+    }
+    throw new Error("Still processing — check back shortly. No credits charged yet.");
+  }
+
+  async function handleGenerate() {
+    setConfirming(false);
+    setBusy(true);
+    setError(null);
+    try {
+      setStage("Submitting the living-portrait job…");
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
+      const data = await res.json().catch(() => ({} as { taskId?: string; error?: string; message?: string }));
+      if (!res.ok) throw new Error(data.message || data.error || "Could not start video generation.");
+      setStage("Animating your character… this takes a few minutes.");
+      await pollTask(data.taskId!);
+      setStage(null);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Video generation failed.");
+    } finally {
+      setBusy(false);
+      setStage(null);
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video`, {
+        method: "DELETE",
+        headers: await authHeaders(),
+      });
+      if (!res.ok) throw new Error("Could not remove the video.");
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove the video.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hasPhoto = !!vault.reference_image_url;
+
+  return (
+    <div className="lux-card-static p-4 mb-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Video className="h-4 w-4 text-primary" />
+        <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Reference Video</p>
+      </div>
+      <p className="text-xs text-white/40 mb-3">
+        A living portrait of {vault.artist_name}. Wherever you pick this character, the video plays automatically instead of the still photo.
+      </p>
+
+      {vault.reference_video_url ? (
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <video
+            src={vault.reference_video_url}
+            poster={vault.reference_image_url ?? undefined}
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-36 rounded-xl border border-white/10 object-cover aspect-[9/16]"
+          />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-white mb-1">Living portrait active</p>
+            <p className="text-xs text-white/40 mb-3">
+              Character pickers across the site will autoplay this video.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { void handleDelete(); }}
+              disabled={busy}
+              className="text-white/50 hover:text-red-400 gap-2"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Remove video
+            </Button>
+          </div>
+        </div>
+      ) : confirming ? (
+        <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-4">
+          <p className="text-sm font-bold text-white mb-1">Generate a living portrait?</p>
+          <p className="text-xs text-white/50 mb-3">
+            AI animates {vault.artist_name}'s reference photo into a 5-second portrait video.{" "}
+            <span className="text-primary font-semibold">{REF_VIDEO_CREDITS} credits</span> are charged only if it succeeds.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => { void handleGenerate(); }}
+              disabled={busy}
+              className="gold-glow font-bold gap-2"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+              Generate — {REF_VIDEO_CREDITS} credits
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy} className="text-white/50">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <Button
+            size="sm"
+            onClick={() => setConfirming(true)}
+            disabled={busy || !hasPhoto}
+            title={hasPhoto ? "Generate a 5-second living portrait" : "Save an Artist Photo first — the video is generated from it"}
+            className="gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Film className="h-4 w-4" />}
+            Generate living portrait
+          </Button>
+          {!hasPhoto && (
+            <p className="mt-2 text-[11px] text-white/30">Save an Artist Photo first — the video is generated from it.</p>
+          )}
+          {busy && stage && (
+            <p className="mt-3 text-xs text-white/50 flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> {stage}
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+    </div>
+  );
+}
+
 /* ─────────────────────────── WARDROBE ─────────────────────────── */
 
 interface WardrobeOutfit {
@@ -1066,6 +1233,8 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
         )}
 
         <LockedVoiceSection vault={vault} onChanged={onVoiceChanged} />
+
+        <ReferenceVideoSection vault={vault} onChanged={onVoiceChanged} />
 
         <LinkedCharactersSection vault={vault as unknown as ArtistVault} allVaults={allVaults as unknown as ArtistVault[]} />
 
@@ -1435,6 +1604,8 @@ export default function ArtistVault() {
         do_not_change_rules: values.doNotChangeRules || null,
         reference_image_url: photoUrl || null,
         reference_image_path: photoPath || null,
+        reference_video_url: null,
+        reference_video_path: null,
         consistency_prompt: null,
         voice_id: null,
         voice_name: null,

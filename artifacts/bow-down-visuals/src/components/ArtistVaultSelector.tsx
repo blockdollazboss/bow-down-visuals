@@ -22,6 +22,8 @@ export interface ArtistVault {
   do_not_change_rules: string | null;
   reference_image_url: string | null;
   reference_image_path: string | null;
+  reference_video_url?: string | null;
+  reference_video_path?: string | null;
   consistency_prompt: string | null;
   voice_id: string | null;
   voice_name: string | null;

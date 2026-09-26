@@ -278,7 +278,18 @@ export default function ChooseArtist() {
                         } : undefined}
                       >
                         <div className="flex items-center gap-2.5">
-                          {vault.reference_image_url ? (
+                          {vault.reference_video_url ? (
+                            <video
+                              src={vault.reference_video_url}
+                              poster={vault.reference_image_url ?? undefined}
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              className="h-10 w-10 rounded-full object-cover"
+                              style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined}
+                            />
+                          ) : vault.reference_image_url ? (
                             <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined} />
                           ) : (
                             <div

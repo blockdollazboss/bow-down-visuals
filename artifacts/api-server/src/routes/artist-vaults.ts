@@ -1,8 +1,11 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
+import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
+import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
+import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 
 const router = Router();
 
@@ -257,6 +260,187 @@ router.delete("/artist-vaults/:id/links/:linkId", requireAuth, async (req, res) 
       ),
     );
 
+  res.json({ success: true });
+});
+
+/* ── Character reference video (paid) ────────────────────────────────────
+ * Generates a 5s "living portrait" video from the character's reference photo
+ * via Seedance 2.5 image-to-video. Credits are charged only on SUCCEEDED.
+ * When set, character selection shows the autoplaying video instead of the photo. */
+
+const REF_VIDEO_DURATION_SEC = 5;
+const REF_VIDEO_CREDITS =
+  REF_VIDEO_DURATION_SEC * SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT; // 15
+
+const refVideoTasks = new Map<
+  string,
+  { userId: string; vaultId: string; credits: number }
+>();
+
+/** Submit a reference-video generation for a character. */
+router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
+  const id = String(req.params["id"]);
+
+  const [vault] = await db
+    .select({
+      id: artistVaultsTable.id,
+      artist_name: artistVaultsTable.artist_name,
+      reference_image_url: artistVaultsTable.reference_image_url,
+    })
+    .from(artistVaultsTable)
+    .where(
+      and(
+        eq(artistVaultsTable.id, id),
+        eq(artistVaultsTable.user_id, req.userId!),
+      ),
+    );
+  if (!vault) {
+    res.status(404).json({ error: "Character not found" });
+    return;
+  }
+
+  const photoUrl = vault.reference_image_url?.trim();
+  if (!photoUrl || !/^https:\/\//i.test(photoUrl)) {
+    res.status(400).json({
+      error: "Add a reference photo for this character first — the video is generated from it.",
+    });
+    return;
+  }
+
+  /* Credit check before submitting. */
+  const { data: profile } = await req.userSupabase!
+    .from("profiles")
+    .select("credits")
+    .eq("id", req.userId!)
+    .single();
+  const credits: number = (profile as { credits?: number } | null)?.credits ?? 0;
+  if (credits < REF_VIDEO_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: `Not enough credits. A character video costs ${REF_VIDEO_CREDITS} credits.`,
+      required: REF_VIDEO_CREDITS,
+      balance: credits,
+    });
+    return;
+  }
+
+  const apiKey = process.env["RUNWAYML_API_SECRET"];
+  if (!apiKey) {
+    res.status(500).json({ error: "Video generation is not configured on the server" });
+    return;
+  }
+
+  try {
+    const client = new RunwayML({ apiKey });
+    const prompt =
+      `Living portrait of ${vault.artist_name || "this character"}: subtle idle motion, ` +
+      `gentle breathing, slight natural head movement and slow blink, cinematic soft light. ` +
+      `Keep the face, hairstyle, clothing and overall appearance exactly as in the reference photo — ` +
+      `no new elements, no camera cuts.`;
+    const task = await client.imageToVideo.create({
+      model: "seedance2_5",
+      promptImage: photoUrl,
+      promptText: prompt,
+      duration: REF_VIDEO_DURATION_SEC,
+      ratio: "720:1280",
+      audio: false,
+    });
+
+    refVideoTasks.set(task.id, {
+      userId: req.userId!,
+      vaultId: id,
+      credits: REF_VIDEO_CREDITS,
+    });
+    req.log.info({ taskId: task.id, vaultId: id }, "[ref-video] task submitted — credits pending on SUCCEEDED");
+    res.json({ taskId: task.id, creditCost: REF_VIDEO_CREDITS });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    req.log.error({ err: msg }, "[ref-video] submission failed — no credits charged");
+    res.status(502).json({ error: "Video generation failed to start. No credits were charged." });
+  }
+});
+
+/** Poll a reference-video task. On SUCCEEDED: charge credits + save to the vault. */
+router.get("/artist-vaults/:id/reference-video/:taskId", requireAuth, async (req, res) => {
+  const id = String(req.params["id"]);
+  const taskId = String(req.params["taskId"]);
+
+  const pending = refVideoTasks.get(taskId);
+  if (!pending || pending.userId !== req.userId || pending.vaultId !== id) {
+    res.status(404).json({ error: "Unknown video task" });
+    return;
+  }
+
+  const apiKey = process.env["RUNWAYML_API_SECRET"];
+  if (!apiKey) {
+    res.status(500).json({ error: "Video generation is not configured on the server" });
+    return;
+  }
+
+  try {
+    const client = new RunwayML({ apiKey });
+    const task = await client.tasks.retrieve(taskId);
+
+    if (task.status === "SUCCEEDED") {
+      const videoUrl = (task.output as string[] | undefined)?.[0] ?? null;
+      refVideoTasks.delete(taskId);
+      if (!videoUrl) {
+        res.json({ status: "succeeded", url: null });
+        return;
+      }
+      /* Charge credits (once — guarded by pendingTasks presence). */
+      try {
+        await chargeCreditsAtomic(req.userId!, pending.credits, {
+          action: "Character Reference Video",
+          projectId: null,
+        });
+      } catch (e) {
+        if (e instanceof LedgerWriteError) {
+          req.log.error({ taskId, err: e.message }, "[ref-video] ledger write failed after charge");
+        } else {
+          throw e;
+        }
+      }
+      /* Save to the vault. */
+      await db
+        .update(artistVaultsTable)
+        .set({ reference_video_url: videoUrl, updated_at: new Date() })
+        .where(
+          and(
+            eq(artistVaultsTable.id, id),
+            eq(artistVaultsTable.user_id, req.userId!),
+          ),
+        );
+      res.json({ status: "succeeded", url: videoUrl });
+      return;
+    }
+
+    if (task.status === "FAILED" || task.status === "CANCELLED") {
+      refVideoTasks.delete(taskId);
+      res.json({ status: "failed" });
+      return;
+    }
+
+    res.json({ status: "processing" });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    req.log.error({ taskId, err: msg }, "[ref-video] poll failed");
+    res.status(502).json({ error: "Could not check video status" });
+  }
+});
+
+/** Remove a character's reference video (keeps the photo). */
+router.delete("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
+  const id = String(req.params["id"]);
+  await db
+    .update(artistVaultsTable)
+    .set({ reference_video_url: null, reference_video_path: null, updated_at: new Date() })
+    .where(
+      and(
+        eq(artistVaultsTable.id, id),
+        eq(artistVaultsTable.user_id, req.userId!),
+      ),
+    );
   res.json({ success: true });
 });
 
