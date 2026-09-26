@@ -188,8 +188,12 @@ export default function Login() {
                   loadingProvider={socialLoading}
                   mode="signin"
                 />
-                {/* TEST ONLY: click-to-bow shark */}
-                <BowTestLogo compact />
+                {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
+                <div className="relative h-11 w-24 shrink-0">
+                  <div className="absolute -top-[4.5rem] left-1/2 -translate-x-1/2">
+                    <BowTestLogo />
+                  </div>
+                </div>
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
                 <Input
                   data-testid="input-email"
