@@ -1,5 +1,24 @@
 # Music Distribution — Aggregator Integration & Pricing
 
+## Correctional channel: Jails & Prisons
+
+The `correctional` platform delivers releases to inmate tablet music networks
+(**JPay, GTL, Securus/ViaPath**) — millions of listeners inside state and
+federal facilities, with almost no competition for attention.
+
+Real-world delivery paths (verified 2026-09-26):
+- Aggregators that deliver to **Audible Magic Fulfillment** reach GTL and JPay
+  (UnitedMasters documents this; TuneCore / The Orchard / Ingrooves are also
+  cited as routes into JPay's catalog).
+- Niche services like **Secures Distribution** specialize in jail & prison
+  delivery ($10 single / $20 EP-album at time of research).
+
+Honest constraints, shown in the UI when the channel is selected:
+- These networks are **curated** — delivery is not guaranteed acceptance.
+- **No explicit content** is accepted by JPay/GTL — clean versions only.
+- Until a live aggregator with correctional delivery is wired up, the channel
+  runs in the labeled sandbox simulation like every other platform.
+
 ## Aggregator choice: Too Lost
 
 **DistroKid, TuneCore, CD Baby, Amuse, and RouteNote were evaluated and
@@ -55,7 +74,7 @@ to submit releases programmatically. They are dashboard-only products.
    HMAC-SHA256 hex digest of the raw body in `x-toolost-signature`,
    keyed by `TOOLOST_WEBHOOK_SECRET` — update to match the docs if their
    scheme differs.
-5. **Run migration 0029** on the production database.
+5. **Run migration 0034** on the production database.
 6. Flip the UI automatically shows "live" mode: `GET /api/distribution/pricing`
    returns `aggregatorLive: true`, and the sandbox badges disappear.
 

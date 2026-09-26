@@ -714,6 +714,12 @@ function NewReleaseWizard(props: {
               );
             })}
           </div>
+          {platforms.includes("correctional") && (
+            <p className="mt-3 text-xs text-white/40">
+              Jails &amp; Prisons delivers to correctional tablet networks (JPay, GTL, Securus/ViaPath).
+              These networks are curated and do not accept explicit content — clean versions only.
+            </p>
+          )}
           <div className="mt-6 flex justify-between">
             <button onClick={() => setStep(2)} className={ghostBtn}><ArrowLeft className="h-4 w-4" /> Back</button>
             <button onClick={() => setStep(4)} className={goldBtn}>Review <ArrowRight className="h-4 w-4" /></button>

@@ -12,6 +12,7 @@ export const DISTRIBUTION_PLATFORMS = [
   { key: "amazon_music", label: "Amazon Music" },
   { key: "deezer", label: "Deezer" },
   { key: "tidal", label: "Tidal" },
+  { key: "correctional", label: "Jails & Prisons" },
 ] as const;
 
 export type DistributionPlatformKey = (typeof DISTRIBUTION_PLATFORMS)[number]["key"];

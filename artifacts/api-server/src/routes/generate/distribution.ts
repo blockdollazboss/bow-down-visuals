@@ -73,6 +73,7 @@ export const DISTRIBUTION_PLATFORMS = [
   "amazon_music",
   "deezer",
   "tidal",
+  "correctional",
 ] as const;
 export type DistributionPlatform = (typeof DISTRIBUTION_PLATFORMS)[number];
 
@@ -85,6 +86,7 @@ export const PLATFORM_LABEL: Record<DistributionPlatform, string> = {
   amazon_music: "Amazon Music",
   deezer: "Deezer",
   tidal: "Tidal",
+  correctional: "Jails & Prisons",
 };
 
 export const RELEASE_STATUSES = ["draft", "packaged"] as const;
@@ -104,7 +106,7 @@ export const strategySchema = z.object({
   artistName: z.string().min(1, "Artist name is required.").max(120),
   genreTags: z.array(z.string().max(40)).max(10).optional().default([]),
   releaseDate: z.string().max(20).optional().default(""),
-  platforms: z.array(z.enum(DISTRIBUTION_PLATFORMS)).min(1).max(8).optional().default(["spotify"]),
+  platforms: z.array(z.enum(DISTRIBUTION_PLATFORMS)).min(1).max(9).optional().default(["spotify"]),
 });
 
 export const RELEASE_TYPES = ["single", "ep", "album"] as const;
@@ -129,7 +131,7 @@ export const createReleaseSchema = z.object({
   artistName: z.string().min(1, "Artist name is required.").max(120),
   releaseType: z.enum(RELEASE_TYPES).optional().default("single"),
   releaseDate: z.string().max(20).optional().default(""),
-  platforms: z.array(z.enum(DISTRIBUTION_PLATFORMS)).max(8).optional().default([]),
+  platforms: z.array(z.enum(DISTRIBUTION_PLATFORMS)).max(9).optional().default([]),
   audioUrl: z.string().url("Audio URL must be a valid URL.").max(2000).optional().or(z.literal("")),
   artworkUrl: z.string().url("Artwork URL must be a valid URL.").max(2000).optional().or(z.literal("")),
   /* Optional link into the user's song library — server verifies ownership
