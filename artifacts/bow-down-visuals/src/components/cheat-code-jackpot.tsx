@@ -231,12 +231,19 @@ export function CheatCodeJackpot() {
           winnerDisplayName?: string | null;
           message?: string;
           error?: string;
+          retryAfterSeconds?: number;
+          triesLeft?: number;
         };
         if (res.status === 401) {
           setSignInPrompt(true);
         } else if (res.status === 429) {
+          const wait = data.retryAfterSeconds;
+          const waitText =
+            wait != null && wait > 0
+              ? ` Try again in ${wait >= 3600 ? `~${Math.round(wait / 3600)}h` : `~${Math.ceil(wait / 60)}m`}.`
+              : "";
           showToast(
-            "Too many attempts — take a breath. The code isn't going anywhere.",
+            (data.error ?? "Too many attempts — take a breath.") + waitText,
           );
         } else if (data.correct && data.claimed) {
           const name = data.winnerDisplayName ?? "Champion";
@@ -265,6 +272,13 @@ export function CheatCodeJackpot() {
           /* wrong code — shake the input, keep hunting */
           setWrongFlash(true);
           window.setTimeout(() => setWrongFlash(false), 450);
+          if (data.triesLeft != null) {
+            showToast(
+              data.triesLeft > 0
+                ? `Wrong code — ${data.triesLeft} ${data.triesLeft === 1 ? "try" : "tries"} left today.`
+                : "Wrong code — that's your 3 tries for today.",
+            );
+          }
         }
       } catch {
         showToast("Could not check the code. Try again.");

@@ -66,7 +66,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
   useEffect(() => { void load(); }, [load]);
 
   function pushDir(d: Direction) {
-    setSequence((s) => (s.length >= 16 ? s : [...s, d]));
+    setSequence((s) => (s.length >= 10 ? s : [...s, d]));
   }
 
   async function handleCreate() {
@@ -197,7 +197,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         </div>
 
         {/* D-pad code entry */}
-        <p className="text-xs text-white/50 mb-2">Tap the D-pad to build the secret code (4–16 moves)</p>
+        <p className="text-xs text-white/50 mb-2">Tap the D-pad to build the secret code (4–10 moves)</p>
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <div className="grid grid-cols-3 gap-1.5 w-fit" aria-label="D-pad code entry">
             <span />
@@ -238,7 +238,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
               })}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-white/40">{sequence.length}/16 moves</span>
+              <span className="text-xs text-white/40">{sequence.length}/10 moves</span>
               <button type="button" onClick={() => setSequence((s) => s.slice(0, -1))} disabled={saving || sequence.length === 0}
                 className="rounded-lg bg-white/[0.06] border border-white/10 p-1.5 text-white/70 disabled:opacity-40" aria-label="Delete last move">
                 <Delete className="h-4 w-4" />
