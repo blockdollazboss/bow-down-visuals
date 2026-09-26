@@ -1674,14 +1674,17 @@ export default function ArtistVault() {
                       key={t}
                       type="button"
                       onClick={() => setValue("artistType", t)}
-                      className={`rounded-xl border p-3 text-left transition-all ${
+                      className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
                         active
-                          ? `${meta.badge} border-opacity-60 ring-1 ring-current`
-                          : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                          ? `${meta.badge} ${meta.glow} border-opacity-70 ring-2 ring-current ring-opacity-30 scale-[1.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]`
+                          : "border-white/[0.08] bg-gradient-to-b from-white/[0.04] to-white/[0.01] hover:border-white/25 hover:from-white/[0.07] hover:shadow-[0_4px_16px_rgba(0,0,0,0.3)]"
                       }`}
                     >
-                      <span className={`text-sm font-bold ${active ? "" : "text-white"}`}>{meta.label}</span>
-                      <span className="block mt-1 text-xs text-white/40 leading-snug">{meta.description}</span>
+                      <span className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        <span className={`text-sm font-bold tracking-wide ${active ? "" : "text-white"}`}>{meta.label}</span>
+                      </span>
+                      <span className="block mt-2 text-xs text-white/45 leading-relaxed font-medium">{meta.description}</span>
                     </button>
                   );
                 })}

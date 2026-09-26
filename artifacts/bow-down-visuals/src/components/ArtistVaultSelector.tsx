@@ -50,41 +50,55 @@ export function normalizeSubjectType(value: string | null | undefined): SubjectT
 
 export const SUBJECT_TYPE_META: Record<
   SubjectType,
-  { label: string; badge: string; description: string }
+  { label: string; badge: string; dot: string; glow: string; description: string }
 > = {
   artist: {
     label: "Artist",
-    badge: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+    badge: "text-amber-300 border-amber-400/40 bg-gradient-to-r from-amber-500/25 via-amber-400/15 to-amber-500/25",
+    dot: "bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
     description: "Musicians, singers, rappers - for music videos and songs",
   },
   actor: {
     label: "Actor",
-    badge: "text-blue-400 border-blue-400/30 bg-blue-400/10",
+    badge: "text-blue-300 border-blue-400/40 bg-gradient-to-r from-blue-500/25 via-blue-400/15 to-blue-500/25",
+    dot: "bg-blue-300 shadow-[0_0_6px_rgba(147,197,253,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(96,165,250,0.25)]",
     description: "Actors, male presenters, hosts - for movies, series, and skits",
   },
   actress: {
     label: "Actress",
-    badge: "text-rose-400 border-rose-400/30 bg-rose-400/10",
+    badge: "text-rose-300 border-rose-400/40 bg-gradient-to-r from-rose-500/25 via-rose-400/15 to-rose-500/25",
+    dot: "bg-rose-300 shadow-[0_0_6px_rgba(253,164,175,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(251,113,133,0.25)]",
     description: "Actresses, female presenters, hosts - for movies, series, and skits",
   },
   character: {
     label: "Character",
-    badge: "text-purple-400 border-purple-400/30 bg-purple-400/10",
+    badge: "text-purple-300 border-purple-400/40 bg-gradient-to-r from-purple-500/25 via-purple-400/15 to-purple-500/25",
+    dot: "bg-purple-300 shadow-[0_0_6px_rgba(216,180,254,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(192,132,252,0.25)]",
     description: "Fictional characters, mascots, avatars - for stories and branding",
   },
   gamer: {
     label: "Gamer",
-    badge: "text-green-400 border-green-400/30 bg-green-400/10",
+    badge: "text-emerald-300 border-emerald-400/40 bg-gradient-to-r from-emerald-500/25 via-emerald-400/15 to-emerald-500/25",
+    dot: "bg-emerald-300 shadow-[0_0_6px_rgba(110,231,183,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(52,211,153,0.25)]",
     description: "Gamers, streamers, esports players - for gaming content and streams",
   },
   streamer: {
     label: "Streamer",
-    badge: "text-red-400 border-red-400/30 bg-red-400/10",
+    badge: "text-red-300 border-red-400/40 bg-gradient-to-r from-red-500/25 via-red-400/15 to-red-500/25",
+    dot: "bg-red-300 shadow-[0_0_6px_rgba(252,165,165,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(248,113,113,0.35)]",
     description: "Streamers, live creators, broadcasters - for live content and community streams",
   },
   podcaster: {
     label: "Podcaster",
-    badge: "text-orange-400 border-orange-400/30 bg-orange-400/10",
+    badge: "text-orange-300 border-orange-400/40 bg-gradient-to-r from-orange-500/25 via-orange-400/15 to-orange-500/25",
+    dot: "bg-orange-300 shadow-[0_0_6px_rgba(253,186,116,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(251,146,60,0.25)]",
     description: "Podcasters, hosts, interviewers - for podcasts and talk content",
   },
 };
@@ -93,8 +107,9 @@ export function SubjectBadge({ type, className = "" }: { type: SubjectType; clas
   const meta = SUBJECT_TYPE_META[type];
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${meta.badge} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] shrink-0 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${meta.badge} ${meta.glow} ${className}`}
     >
+      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
     </span>
   );
@@ -189,26 +204,30 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
   }
 
   return (
-    <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-primary/[0.04]">
-      <div className="flex items-center gap-2 mb-3">
-        <Archive className="h-3.5 w-3.5 text-primary shrink-0" />
-        <span className="text-xs font-bold text-primary uppercase tracking-wider">Subject Selection</span>
-        <Link href="/artist-vault" className="ml-auto text-xs text-white/30 hover:text-white/60 transition-colors">
-          Manage profiles
+    <div className="mb-6 p-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="flex items-center justify-center h-7 w-7 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/40 shadow-[0_0_12px_rgba(212,175,55,0.3)]">
+          <Archive className="h-3.5 w-3.5 text-primary shrink-0" />
+        </div>
+        <span className="text-xs font-bold text-primary uppercase tracking-[0.18em]">Subject Selection</span>
+        <Link href="/artist-vault" className="ml-auto text-xs text-white/40 hover:text-primary transition-colors font-medium">
+          Manage profiles →
         </Link>
       </div>
 
       {loaded ? (
-        <div className="flex items-center gap-3">
-          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-          <div className="min-w-0 flex items-center gap-2">
-            <p className="text-sm font-bold text-white truncate">{loaded.artist_name} loaded</p>
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+          <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-primary/40 to-primary/10 border border-primary/30 shrink-0">
+            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+          </div>
+          <div className="min-w-0 flex items-center gap-2.5">
+            <p className="text-sm font-bold text-white truncate tracking-wide">{loaded.artist_name}</p>
             <SubjectBadge type={normalizeSubjectType(loaded.artist_type)} />
           </div>
-          {loaded.genre && <p className="text-xs text-white/40 truncate">{loaded.genre}</p>}
+          {loaded.genre && <p className="text-xs text-white/40 truncate font-medium">{loaded.genre}</p>}
           <button
             onClick={() => setSelected(loaded.id)}
-            className="ml-auto text-xs text-white/30 hover:text-white transition-colors shrink-0"
+            className="ml-auto text-xs text-white/40 hover:text-primary transition-colors shrink-0 font-semibold tracking-wide"
           >
             Change
           </button>
@@ -219,14 +238,14 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
             <button
               type="button"
               onClick={() => setDropdownOpen((o) => !o)}
-              className={`${selectClass} flex items-center gap-2 text-left`}
+              className="h-11 w-full rounded-xl bg-gradient-to-b from-white/[0.07] to-white/[0.03] border border-white/[0.12] text-white px-4 text-sm focus:outline-none focus:border-primary/60 focus:shadow-[0_0_16px_rgba(212,175,55,0.2)] appearance-none cursor-pointer flex items-center gap-2.5 text-left transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
             >
-              <span className="truncate">{selectedVault ? selectedVault.artist_name : "Select a profile"}</span>
+              <span className="truncate font-semibold tracking-wide">{selectedVault ? selectedVault.artist_name : "Select a profile"}</span>
               {selectedVault && <SubjectBadge type={normalizeSubjectType(selectedVault.artist_type)} />}
-              <ChevronDown className="ml-auto h-4 w-4 text-white/30 shrink-0" />
+              <ChevronDown className={`ml-auto h-4 w-4 text-primary/70 shrink-0 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
             {dropdownOpen && (
-              <div className="absolute z-50 mt-2 w-full rounded-xl border border-white/10 bg-[#141414] shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
+              <div className="absolute z-50 mt-2 w-full rounded-xl border border-white/[0.12] bg-[#161616]/95 backdrop-blur-xl shadow-[0_16px_48px_rgba(0,0,0,0.6)] overflow-hidden max-h-64 overflow-y-auto">
                 {sortedVaults.map((v) => (
                   <button
                     key={v.id}
@@ -235,13 +254,13 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
                       setSelected(v.id);
                       setDropdownOpen(false);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-white/5 ${
-                      v.id === selected ? "bg-primary/10" : ""
+                    className={`w-full flex items-center gap-2.5 px-4 py-3 text-left transition-all hover:bg-gradient-to-r hover:from-white/[0.07] hover:to-transparent ${
+                      v.id === selected ? "bg-gradient-to-r from-primary/[0.15] to-transparent border-l-2 border-l-primary" : "border-l-2 border-l-transparent"
                     }`}
                   >
-                    <span className="truncate text-sm text-white">{v.artist_name}</span>
+                    <span className="truncate text-sm text-white font-medium tracking-wide">{v.artist_name}</span>
                     <SubjectBadge type={normalizeSubjectType(v.artist_type)} />
-                    {v.genre && <span className="ml-auto text-xs text-white/30 truncate pl-2">{v.genre}</span>}
+                    {v.genre && <span className="ml-auto text-xs text-white/35 truncate pl-2 font-medium">{v.genre}</span>}
                   </button>
                 ))}
               </div>
@@ -254,7 +273,7 @@ export function ArtistVaultSelector({ onLoad, loadedVaultId, loadedVault: loaded
               const vault = vaults.find((v) => v.id === selected);
               if (vault) onLoad(vault);
             }}
-            className="h-10 px-5 shrink-0 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 rounded-xl text-sm font-bold transition-colors"
+            className="h-11 px-6 shrink-0 bg-gradient-to-b from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-black border border-primary/50 rounded-xl text-sm font-bold tracking-wide transition-all shadow-[0_4px_16px_rgba(212,175,55,0.3),inset_0_1px_0_rgba(255,255,255,0.3)] hover:shadow-[0_6px_20px_rgba(212,175,55,0.4)]"
           >
             Load Profile
           </Button>
