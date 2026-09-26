@@ -1096,11 +1096,11 @@ html[data-user-mode="advanced"] .simple-only {
 
 /* ─── Thy Cheat Code avatar — King Shark swim ─── */
 @keyframes shark-swim {
-  0%, 100% { transform: translateY(0) rotate(-1.5deg) scale(1.1); }
-  50%      { transform: translateY(-4px) rotate(1.5deg) scale(1.13); }
+  0%, 100% { transform: translateY(7px) translateX(-4px) rotate(-5deg) scale(1.12); }
+  50%      { transform: translateY(-7px) translateX(4px) rotate(5deg) scale(1.2); }
 }
 .animate-shark-swim {
-  animation: shark-swim 4s ease-in-out infinite;
+  animation: shark-swim 3s ease-in-out infinite;
   will-change: transform;
 }
 
