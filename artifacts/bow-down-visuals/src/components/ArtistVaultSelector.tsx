@@ -33,7 +33,7 @@ export interface ArtistVault {
    Stored in the existing `artist_type` DB text field. Legacy values
    ("Rapper", "Singer", …) and empty/null normalize to "artist". */
 
-export type SubjectType = "artist" | "actor" | "actress" | "character" | "gamer" | "screamer";
+export type SubjectType = "artist" | "actor" | "actress" | "character" | "gamer" | "screamer" | "streamer";
 
 export type VaultContext = "music" | "video" | "movie" | "series" | "promo" | "thumbnail";
 
@@ -44,6 +44,7 @@ export function normalizeSubjectType(value: string | null | undefined): SubjectT
   if (v === "character") return "character";
   if (v === "gamer") return "gamer";
   if (v === "screamer") return "screamer";
+  if (v === "streamer") return "streamer";
   return "artist";
 }
 
@@ -81,6 +82,11 @@ export const SUBJECT_TYPE_META: Record<
     badge: "text-red-400 border-red-400/30 bg-red-400/10",
     description: "Screamers, horror creators, reaction streamers - for horror and high-energy content",
   },
+  streamer: {
+    label: "Streamer",
+    badge: "text-teal-400 border-teal-400/30 bg-teal-400/10",
+    description: "Streamers, live creators, broadcasters - for live content and community streams",
+  },
 };
 
 export function SubjectBadge({ type, className = "" }: { type: SubjectType; className?: string }) {
@@ -97,12 +103,12 @@ export function SubjectBadge({ type, className = "" }: { type: SubjectType; clas
 /* Sort priority per context. Array.prototype.sort is stable, so profiles of
    the same type keep their original (created_at) relative order. */
 const CONTEXT_PRIORITY: Record<VaultContext, Record<SubjectType, number>> = {
-  music: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, screamer: 3 },
-  video: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, screamer: 3 },
-  movie: { actor: 0, actress: 0, character: 1, artist: 2, gamer: 3, screamer: 3 },
-  series: { character: 0, actor: 1, actress: 1, artist: 2, gamer: 3, screamer: 3 },
-  promo: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, screamer: 2 },
-  thumbnail: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, screamer: 2 },
+  music: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, screamer: 3, streamer: 3 },
+  video: { artist: 0, character: 1, actor: 2, actress: 2, gamer: 3, screamer: 3, streamer: 3 },
+  movie: { actor: 0, actress: 0, character: 1, artist: 2, gamer: 3, screamer: 3, streamer: 3 },
+  series: { character: 0, actor: 1, actress: 1, artist: 2, gamer: 3, screamer: 3, streamer: 3 },
+  promo: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, screamer: 2, streamer: 2 },
+  thumbnail: { artist: 0, actor: 1, actress: 1, character: 2, gamer: 2, screamer: 2, streamer: 2 },
 };
 
 interface Props {
