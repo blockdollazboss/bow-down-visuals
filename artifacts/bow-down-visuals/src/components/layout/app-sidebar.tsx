@@ -58,6 +58,7 @@ import {
   Dices,
   Captions,
   Disc3,
+  BookOpen,
   AudioWaveform,
   Waves,
   AudioLines,
@@ -95,6 +96,7 @@ import {
   Gauge,
   BarChart3,
   Crown,
+  Rocket,
   type LucideIcon,
 
 } from "lucide-react";
@@ -231,6 +233,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Monetize",
     links: [
+      { href: "/distribute", label: "Distribute Music", icon: Rocket },
       { href: "/coach", label: "Monetization Coach", icon: DollarSign },
       { href: "/sponsorship-outreach", label: "Sponsorship Outreach", icon: Handshake },
       { href: "/sponsors", label: "Sponsors", icon: Users },
