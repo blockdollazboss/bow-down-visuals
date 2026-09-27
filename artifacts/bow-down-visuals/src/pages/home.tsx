@@ -1534,7 +1534,7 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-    <div className="min-h-screen bg-black text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
+    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes,
           OVER the Shark King so he scrolls behind the curtains like
