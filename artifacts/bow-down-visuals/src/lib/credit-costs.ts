@@ -9,11 +9,15 @@
  * Matching: exact endpoint, or prefix (endpoint + "/" or endpoint + "?").
  * Callers must only route actual SPENDING calls through confirmedFetch —
  * status/health/list/download endpoints stay on plain fetch.
+ *
+ * Tiered pricing: /api/generate-music-audio charges 4cr (≤1min), 8cr (≤3min),
+ * or 12cr (≤5min). The registry value (4) is the minimum; callers with a
+ * length selector must compute the tier and pass overrideCost.
  */
 export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── Songs & audio ──────────────────────────────────────────────
-  "/api/generate-song": { cost: 4, feature: "Generate Song" },
-  "/api/generate-song-video": { cost: 4, feature: "Generate Song + Video" },
+  "/api/generate-song": { cost: 1, feature: "Generate Song Concept" },
+  "/api/generate-song-video": { cost: 3, feature: "Generate Song + Video" },
   "/api/generate-music-audio": { cost: 4, feature: "Generate Music Audio" },
   "/api/music/export": { cost: 4, feature: "Export Audio" },
   "/api/music/preview-render": { cost: 1, feature: "Preview Render" },
