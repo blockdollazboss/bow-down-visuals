@@ -1,11 +1,15 @@
 import { Router } from "express";
+import { randomUUID } from "crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
 import { eq, and, desc, isNull } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
+import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
+
+const ARTIST_BUCKET = "artist-references";
 
 const router = Router();
 
@@ -459,6 +463,70 @@ router.delete("/artist-vaults/:id/reference-video", requireAuth, async (req, res
       ),
     );
   res.json({ success: true });
+});
+
+/**
+ * Attach an existing video as the character's reference video (no AI generation, no credits).
+ * Body: { videoUrl: string } — must be an https URL to an mp4.
+ * The server downloads it, stores it in the artist-references bucket, and sets it on the vault.
+ */
+router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req, res) => {
+  const id = String(req.params["id"]);
+  const { videoUrl } = req.body as { videoUrl?: string };
+  if (!videoUrl || typeof videoUrl !== "string" || !videoUrl.startsWith("https://")) {
+    res.status(400).json({ error: "A valid https videoUrl is required." });
+    return;
+  }
+  try {
+    /* Verify the vault belongs to the user. */
+    const [vault] = await db
+      .select({ id: artistVaultsTable.id })
+      .from(artistVaultsTable)
+      .where(
+        and(
+          eq(artistVaultsTable.id, id),
+          eq(artistVaultsTable.user_id, req.userId!),
+          isNull(artistVaultsTable.deleted_at),
+        ),
+      )
+      .limit(1);
+    if (!vault) {
+      res.status(404).json({ error: "Vault not found." });
+      return;
+    }
+    /* Download the video server-side. */
+    const response = await fetch(videoUrl);
+    if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("mp4") && !contentType.includes("video")) {
+      throw new Error(`Not a video file (content-type: ${contentType}).`);
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > 50 * 1024 * 1024) throw new Error("Video exceeds 50MB limit.");
+    /* Upload to the artist-references bucket. */
+    const filePath = `${req.userId}/reference-video/${randomUUID()}.mp4`;
+    const { error: upErr } = await getSupabaseAdmin().storage
+      .from(ARTIST_BUCKET)
+      .upload(filePath, buffer, { contentType: "video/mp4", upsert: false });
+    if (upErr) throw upErr;
+    const { data: { publicUrl } } = getSupabaseAdmin().storage
+      .from(ARTIST_BUCKET)
+      .getPublicUrl(filePath);
+    /* Set it on the vault. */
+    await db
+      .update(artistVaultsTable)
+      .set({ reference_video_url: publicUrl, reference_video_path: filePath, updated_at: new Date() })
+      .where(
+        and(
+          eq(artistVaultsTable.id, id),
+          eq(artistVaultsTable.user_id, req.userId!),
+        ),
+      );
+    res.json({ success: true, url: publicUrl });
+  } catch (err: unknown) {
+    req.log.error({ err }, "[ref-video] attach failed");
+    res.status(500).json({ error: err instanceof Error ? err.message : "Attach failed." });
+  }
 });
 
 export default router;
