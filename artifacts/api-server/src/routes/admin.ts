@@ -192,4 +192,65 @@ router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({ error: `Could not set plan tier: ${detail}` });
   }
 });
+/* ── TEMPORARY one-shot staging schema repair (REMOVE AFTER USE) ──
+   Applies the bow-race schema (0038 config table + full 0040 global race
+   migration) directly through the runtime database connection.
+   The container-startup drizzle-kit push was not applying these, leaving
+   the shield's Bow Race section broken
+   ("column bow_challenge_config.target_override does not exist").
+   Admin-only. Delete this route once the shield loads. */
+router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) => {
+  const { Pool } = await import("pg");
+  const { readFileSync, existsSync } = await import("fs");
+  const path = await import("path");
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) {
+    res.status(500).json({ ok: false, error: "DATABASE_URL not configured" });
+    return;
+  }
+  const results: Record<string, string> = {};
+  const pool = new Pool({ connectionString, max: 2, ssl: { rejectUnauthorized: false } });
+  try {
+    // 1. Ensure bow_challenge_config exists with every column (0038 table
+    //    plus the 0040 target_override column) and the singleton row.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bow_challenge_config (
+        id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        target_bows INTEGER NOT NULL DEFAULT 100,
+        reward_credits INTEGER NOT NULL DEFAULT 50,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        target_override INTEGER NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      INSERT INTO bow_challenge_config (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING;
+      ALTER TABLE bow_challenge_config ADD COLUMN IF NOT EXISTS target_override INTEGER NULL;
+    `);
+    results.bow_challenge_config = "applied";
+
+    // 2. Apply the full 0040 global bow race migration from the repo file
+    //    (bow_race_months, winner index, reward default 50, bow_race_record
+    //    + bow_race_undo_win functions). The file is fully idempotent.
+    const candidates = [
+      path.join(process.cwd(), "lib/db/migrations/0040_global_bow_race.sql"),
+      path.join(process.cwd(), "../lib/db/migrations/0040_global_bow_race.sql"),
+    ];
+    const sqlPath = candidates.find((p) => existsSync(p));
+    if (!sqlPath) {
+      res.status(500).json({ ok: false, results, error: "0040 migration file not found on disk" });
+      return;
+    }
+    await pool.query(readFileSync(sqlPath, "utf8"));
+    results.migration_0040 = "applied";
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    req.log.error({ err }, "admin: schema repair failed");
+    res.status(500).json({ ok: false, results, error: err instanceof Error ? err.message : "Unknown" });
+  } finally {
+    await pool.end();
+  }
+});
+
 export default router;
