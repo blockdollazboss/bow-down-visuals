@@ -283,16 +283,8 @@ body::before {
   82%      { opacity: 1; }
   90%      { opacity: 0.66; }
 }
-.spotlight-rays {
-  animation: rays-drift 7s linear infinite;
-}
-@keyframes rays-drift {
-  0%   { background-position: 0 0; }
-  100% { background-position: 74px 0; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .spotlight-beam,
-  .spotlight-rays {
+  .spotlight-beam {
     animation: none;
   }
 }

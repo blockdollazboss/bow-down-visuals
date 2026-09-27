@@ -10,13 +10,12 @@ import { useEffect, useRef } from "react";
    curtain overlay sits above the beams too (beams read as shining from
    behind the drapes).
 
-   Each beam: lamp glow → cone → drifting volumetric ray pattern →
-   light pool where it lands. Beams flash on staggered phases (CSS),
-   the whole row eases toward the cursor horizontally (rAF). Pure
-   decoration: pointer-events-none, translucent, reduced-motion safe. */
+   Each beam: lamp glow → smooth cone → light pool where it lands. Beams
+   flash on staggered phases (CSS), the whole row eases toward the cursor
+   horizontally (rAF). Pure decoration: pointer-events-none, translucent,
+   reduced-motion safe. */
 
 const BEAM_DELAYS = [0, 0.45, 0.9, 1.35];
-const RAY_DELAYS = [0, 0.9, 1.8, 2.7];
 
 export function SpotlightRig({ className = "" }: { className?: string }) {
   const rigRef = useRef<HTMLDivElement | null>(null);
@@ -88,16 +87,6 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                     clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                     background:
                       "linear-gradient(to bottom, rgba(255,226,130,0.62) 0%, rgba(255,210,100,0.28) 55%, transparent 94%)",
-                  }}
-                />
-                {/* Volumetric ray pattern drifting inside the beam */}
-                <div
-                  className="spotlight-rays absolute left-1/2 top-[1%] h-[80%] w-[460px] -translate-x-1/2"
-                  style={{
-                    clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
-                    background:
-                      "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,246,205,0.17) 16px 19px, transparent 19px 34px, rgba(255,240,180,0.12) 34px 37px)",
-                    animationDelay: `${RAY_DELAYS[i]}s`,
                   }}
                 />
                 {/* Light pool where the beam lands — at the King's feet */}
