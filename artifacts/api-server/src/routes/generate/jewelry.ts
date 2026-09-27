@@ -198,19 +198,6 @@ router.post("/jewelry/design", requireAuth, upload.single("logo"), async (req, r
     return;
   }
 
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, PREVIEW_CREDITS, {
-      action: "Jewelry Studio — AI Preview",
-    });
-  } catch (chargeErr) {
-    if (chargeErr instanceof OutOfCreditsError) {
-      outOfCredits(res);
-      return;
-    }
-    throw chargeErr;
-  }
-
   const fail = async (msg: string) => {
     req.log.error({ userId: req.userId }, "[jewelry] preview failed — refunding");
     try {
@@ -224,6 +211,19 @@ router.post("/jewelry/design", requireAuth, upload.single("logo"), async (req, r
   };
 
   try {
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(req.userId!, PREVIEW_CREDITS, {
+        action: "Jewelry Studio — AI Preview",
+      });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) {
+        outOfCredits(res);
+        return;
+      }
+      throw chargeErr;
+    }
+
     const prompt =
       category === "apparel" && apparelOpts
         ? buildApparelPrompt(apparelOpts)
@@ -274,19 +274,6 @@ router.post("/jewelry/export-stl", requireAuth, upload.single("logo"), async (re
     return;
   }
 
-  let creditsAfter: number;
-  try {
-    creditsAfter = await chargeCredits(req.userId!, STL_CREDITS, {
-      action: "Jewelry Studio — STL Export",
-    });
-  } catch (chargeErr) {
-    if (chargeErr instanceof OutOfCreditsError) {
-      outOfCredits(res);
-      return;
-    }
-    throw chargeErr;
-  }
-
   const fail = async (msg: string) => {
     req.log.error({ userId: req.userId }, "[jewelry] STL export failed — refunding");
     try {
@@ -300,6 +287,19 @@ router.post("/jewelry/export-stl", requireAuth, upload.single("logo"), async (re
   };
 
   try {
+    let creditsAfter: number;
+    try {
+      creditsAfter = await chargeCredits(req.userId!, STL_CREDITS, {
+        action: "Jewelry Studio — STL Export",
+      });
+    } catch (chargeErr) {
+      if (chargeErr instanceof OutOfCreditsError) {
+        outOfCredits(res);
+        return;
+      }
+      throw chargeErr;
+    }
+
     const img = decodePNG(req.file.buffer);
     const mask = logoToMask(img, 128);
     const built = buildPendantSTL(mask, { nfcPocket: opts.nfc });
@@ -399,7 +399,9 @@ router.post("/jewelry/consult", requireAuth, async (req, res) => {
       res.status(500).json({ error: "ledger_write_failed" });
       return;
     }
-    throw chargeErr;
+    req.log.error({ err: chargeErr }, "[jewelry] consult charge failed");
+    res.status(500).json({ error: "Could not process credits. Please try again." });
+    return;
   }
 
   try {
