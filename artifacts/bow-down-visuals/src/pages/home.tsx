@@ -581,7 +581,7 @@ function HeroSection() {
           beams). */}
       <SpotlightRig className="fixed inset-x-0 top-0 z-[2] h-[calc((100svh-72px)*0.92)] md:h-[calc((100svh-88px)*0.92)]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2">
+      <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[26%] sm:pr-[18%] lg:pr-0">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}
         <div className="flex justify-center">
           <HeroLogo3D />
