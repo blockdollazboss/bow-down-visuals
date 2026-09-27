@@ -6,6 +6,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -339,6 +340,7 @@ export default function AdminPage() {
   const [bowHistory, setBowHistory] = useState<BowRaceHistory[]>([]);
   const [bowSaving, setBowSaving] = useState(false);
   const [bowMsg, setBowMsg] = useState<string | null>(null);
+  const [bowTestPopup, setBowTestPopup] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -567,6 +569,14 @@ export default function AdminPage() {
                 {bowSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => setBowTestPopup(true)}
+                className="rounded-xl"
+                title="Preview the winner popup (no credits granted, no race state changed)"
+              >
+                Test winner popup
+              </Button>
             </div>
             {bowMsg && <p className="mt-3 text-sm text-green-400">{bowMsg}</p>}
             <p className="mt-4 text-[11px] text-white/30">
@@ -604,6 +614,14 @@ export default function AdminPage() {
                   </table>
                 </div>
               </div>
+            )}
+            {/* Test-only preview of the winner popup: purely client-side,
+                grants nothing and touches no race state. */}
+            {bowTestPopup && (
+              <SecretChallengePopup
+                credits={parseInt(bowReward, 10) || 50}
+                onClaim={() => setBowTestPopup(false)}
+              />
             )}
           </div>
           <JackpotAdmin authHeaders={authHeaders} />
