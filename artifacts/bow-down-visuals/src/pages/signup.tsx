@@ -72,7 +72,7 @@ export default function Signup() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 no-throne-bg">
         <div className="w-full max-w-md text-center space-y-6">
           <h1 className="text-4xl font-black text-white">Check Your Email</h1>
           <p className="text-muted-foreground text-lg">
@@ -87,7 +87,7 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden no-throne-bg">
       {/* Golden throne background */}
       <div
         className="pointer-events-none absolute inset-0 bg-cover bg-center"

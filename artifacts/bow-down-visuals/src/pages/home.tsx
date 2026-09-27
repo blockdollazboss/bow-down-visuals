@@ -1482,18 +1482,7 @@ export default function Home() {
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
-      {/* Page backdrop — Shark King on the throne with cameras, fixed full-viewport behind all content */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10"
-        style={{
-          backgroundImage: "url(/images/home-bg-throne-cameras.webp)",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
+    <div className="min-h-screen bg-black text-white overflow-x-hidden relative is-home">
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />

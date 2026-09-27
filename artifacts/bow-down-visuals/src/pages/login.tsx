@@ -121,7 +121,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden"
+    <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
       {/* Drone video background — scrub through with your mouse */}
