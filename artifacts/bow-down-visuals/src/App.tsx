@@ -19,7 +19,6 @@ import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
 import { OnboardingTour } from "@/components/OnboardingTour";
-import { SideVideoBanners } from "@/components/SideVideoBanners";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
@@ -307,16 +306,6 @@ function AppShell() {
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
   const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
     .includes(location.split("?")[0].split("#")[0]);
-  /* Side video banners: twin slim rails on subpages only. Excluded where
-   * they'd duplicate or clash — the homepage (no rails there anymore),
-   * auth (immersive sign-in video), and the video editor (full-viewport
-   * studio surface). */
-  const cleanPath = location.split("?")[0].split("#")[0];
-  const showSideBanners =
-    cleanPath !== "/" &&
-    cleanPath !== "/login" &&
-    cleanPath !== "/signup" &&
-    !cleanPath.startsWith("/video-editor");
   return (
     <>
       <ScrollToTop />
@@ -326,7 +315,6 @@ function AppShell() {
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
-      {typeof window !== "undefined" && showSideBanners && <SideVideoBanners mouseScrub />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
