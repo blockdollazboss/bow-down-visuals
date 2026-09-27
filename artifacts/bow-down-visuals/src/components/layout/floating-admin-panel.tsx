@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STAR_RANKS } from "@/lib/creator-level";
@@ -314,13 +314,19 @@ function BowRaceControls({
     }
   }
 
+  // Auto-load race data when the panel opens — no button click needed.
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!loaded) {
     return (
       <div>
         <p className={labelCls}>Bow race</p>
-        <button type="button" onClick={() => void load()} disabled={busy} className={btnCls}>
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Load race settings"}
-        </button>
+        <p className="text-[10px] text-white/40 flex items-center gap-1">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading race...
+        </p>
       </div>
     );
   }
