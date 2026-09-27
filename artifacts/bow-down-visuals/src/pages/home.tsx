@@ -673,49 +673,49 @@ function HeroSection() {
 
 const DEMO_VIBES = [
   {
+    id: "hiphop",
+    label: "Hip-Hop",
+    lyrics: [
+      "Came from the bottom, now the penthouse views,",
+      "Turned every loss into headline news,",
+      "They counted me out, now they countin' my wins,",
+      "Started with a dream, now the empire begins.",
+    ],
+    treatment: [
+      "OPEN — city rooftop at golden hour, slow push-in on the artist.",
+      "HOOK — drone orbit over the skyline, lights moving in perfect sync.",
+    ],
+    hook: "new era. hip-hop, out now.",
+  },
+  {
     id: "rnb",
-    label: "Midnight R&B",
+    label: "R&B",
     lyrics: [
-      "City lights bleed through the rain on glass,",
-      "You only call when the night moves slow,",
-      "I turned every scar into a melody,",
-      "Now the whole block singing back to me.",
+      "Velvet nights and your love on repeat,",
+      "Slow dance in the dark to our own heartbeat,",
+      "Every whisper got me fallin' deeper in,",
+      "Don't let the morning light the night we're in.",
     ],
     treatment: [
-      "OPEN — rooftop at 2AM, neon on wet concrete. Slow orbit around the artist.",
-      "HOOK — gold light leak, crowd silhouettes moving in perfect sync.",
+      "OPEN — dim loft, candlelight, silk in slow motion.",
+      "CHORUS — rain on the window, close-ups, everything glowing amber.",
     ],
-    hook: "the song that raised me. midnight r&b, out now.",
+    hook: "for the lovers. new r&b single, out now.",
   },
   {
-    id: "drill",
-    label: "UK Drill",
+    id: "pop",
+    label: "Pop",
     lyrics: [
-      "Blacked-out whip, yeah the opps stay lurking,",
-      "Count it up daily, yeah the money working,",
-      "From the block to the charts, that's a certi upgrade,",
-      "They doubted the kid — now the kid got paid.",
+      "Neon hearts and we're dancing on air,",
+      "Hands up high like we don't have a care,",
+      "This night's electric, feel the bassline drop,",
+      "We don't ever wanna make this stop.",
     ],
     treatment: [
-      "OPEN — estate at dusk, low angle, crew in formation.",
-      "DROP — strobe cuts on the 808, drone pull-back over the skyline.",
+      "OPEN — festival main stage, confetti cannons, fifty thousand hands up.",
+      "DROP — hyper-cut choreography, strobe sync, skyline fireworks.",
     ],
-    hook: "drill season never ended. new drop friday.",
-  },
-  {
-    id: "afrobeats",
-    label: "Afrobeats Anthem",
-    lyrics: [
-      "Lagos to London, we dey move with grace,",
-      "Golden hour dancing, sunshine on my face,",
-      "Money no dey sleep and neither do I,",
-      "We go party till the morning light.",
-    ],
-    treatment: [
-      "OPEN — beach party at golden hour, drone sweep over dancers.",
-      "CHORUS — confetti burst, slow-mo spin, everybody moving as one.",
-    ],
-    hook: "summer anthem loading. afrobeats to the world.",
+    hook: "your new obsession. pop anthem, out now.",
   },
 ];
 
