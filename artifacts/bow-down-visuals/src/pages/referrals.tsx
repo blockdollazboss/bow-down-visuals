@@ -52,7 +52,7 @@ export default function Referrals() {
     } catch { /* clipboard unavailable */ }
   };
 
-  const shareText = `Join me on Bow Down Visuals — the AI studio for music creators. Sign up with my link and we both get free credits!`;
+  const shareText = `Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and we both get free credits!`;
   const shareLinks = [
     { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}` },
     { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}` },

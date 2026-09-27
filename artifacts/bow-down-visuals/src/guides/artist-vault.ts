@@ -2,16 +2,16 @@ import type { PageGuide } from "./types";
 
 export const artistVaultGuide: PageGuide = {
   route: "/artist-vault",
-  pageName: "Artist Vault",
+  pageName: "Creator Vault",
   summary:
     "Your artists' home base. Save profiles with photos and locked voices so every song and video the AI makes sounds and looks like them.",
   steps: [
     {
       target: "main h1",
       title: "Your artists live here",
-      body: "The Artist Vault stores everything the AI needs to keep your artist consistent: their look, their voice, their vibe. Set it up once — every song and video uses it automatically.",
+      body: "The Creator Vault stores everything the AI needs to keep your artist consistent: their look, their voice, their vibe. Set it up once — every song and video uses it automatically.",
       tip: "This is the highest-leverage page on the site. 10 minutes here saves you hours of fixing inconsistent generations later.",
-      askPrompt: "How does the Artist Vault work and why does it matter?",
+      askPrompt: "How does the Creator Vault work and why does it matter?",
     },
     {
       targetText: "Create",

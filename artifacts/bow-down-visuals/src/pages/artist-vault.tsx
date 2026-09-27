@@ -1443,7 +1443,7 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function ArtistVault() {
-  usePageTitle("Artist Vault", "Your creative identity — artist profiles, photos, voice, and brand assets in one vault.");
+  usePageTitle("Creator Vault", "Your creative identity — artist profiles, photos, voice, and brand assets in one vault.");
   const { getAccessToken, user } = useAuth();
   const [vaults, setVaults] = useState<ArtistVaultRecord[]>([]);
   const [loadingVaults, setLoadingVaults] = useState(true);

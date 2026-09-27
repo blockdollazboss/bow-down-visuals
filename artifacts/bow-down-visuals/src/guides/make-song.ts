@@ -10,7 +10,7 @@ export const makeSongGuide: PageGuide = {
       target: "main h1",
       title: "Your song starts here",
       body: "This page takes you from a rough idea to a finished song. You'll describe the vibe, AI writes the lyrics, and then you generate the actual track — vocals and beat.",
-      tip: "Have your artist profile saved in the Artist Vault first — the song uses their locked voice automatically.",
+      tip: "Have your artist profile saved in the Creator Vault first — the song uses their locked voice automatically.",
       askPrompt: "Walk me through making my first song on this site",
     },
     {

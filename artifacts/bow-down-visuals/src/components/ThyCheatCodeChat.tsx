@@ -35,7 +35,7 @@ const SURPRISE_PROMPTS = [
   "Give me a random song concept to write about",
   "What's the cheapest way to promote my music here?",
   "Give me a content challenge for this week",
-  "How does the Artist Vault work?",
+  "How does the Creator Vault work?",
   "Give me a random niche I could own as a creator",
   "What does a promo clip cost in credits?",
   "Give me 3 opening lines for my next video",

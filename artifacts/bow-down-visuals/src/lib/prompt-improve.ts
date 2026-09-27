@@ -2,7 +2,7 @@ import type { SceneData } from "@/lib/scene-parser";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import type { FetchImpl } from "@/hooks/use-confirmed-api";
 
-/** Payload shape the `/api/improve-prompt` endpoint expects for Artist Vault context. */
+/** Payload shape the `/api/improve-prompt` endpoint expects for Creator Vault context. */
 export interface ArtistVaultPayload {
   /** Vault row id — lets the API auto pull-in linked co-star characters. */
   vaultId?: string | null;
@@ -56,7 +56,7 @@ export function deriveProjectContext(
   return { videoStyle, platform, artistVault };
 }
 
-/** Convert a full Artist Vault record into the payload shape the improve-prompt API expects. */
+/** Convert a full Creator Vault record into the payload shape the improve-prompt API expects. */
 export function vaultToPayload(vault: ArtistVault): ArtistVaultPayload {
   return {
     vaultId:           vault.id,

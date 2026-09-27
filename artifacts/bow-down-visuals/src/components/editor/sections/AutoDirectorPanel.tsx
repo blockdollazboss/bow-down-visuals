@@ -316,7 +316,7 @@ export function AutoDirectorPanel({
               {plan.suggestedArtist && (
                 <div className="pt-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">Suggested artist look — save to your Artist Vault</span>
+                    <span className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">Suggested artist look — save to your Creator Vault</span>
                     <button type="button" onClick={copyArtist} className="inline-flex items-center gap-1 text-[10px] text-primary hover:brightness-110">
                       {copiedArtist ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                       {copiedArtist ? "Copied" : "Copy"}

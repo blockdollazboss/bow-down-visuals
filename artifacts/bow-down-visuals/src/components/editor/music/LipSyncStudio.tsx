@@ -352,7 +352,7 @@ export function LipSyncStudio({
           <div>
             <p className="text-xs font-bold text-white/40">No active artist</p>
             <p className="text-[10px] text-white/25">
-              Select an artist from the Artist Vault to enable lip sync
+              Select an artist from the Creator Vault to enable lip sync
             </p>
           </div>
         </div>

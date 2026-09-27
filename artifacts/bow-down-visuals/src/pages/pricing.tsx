@@ -49,7 +49,7 @@ const PLANS = [
       "Everything in Street Punk",
       "AI video clip generation",
       "Full Video Editor access",
-      "Artist Vault + Photo Shoot",
+      "Creator Vault + Photo Shoot",
       "Artist Voice Lock",
       "Character video references",
     ],
@@ -177,7 +177,7 @@ const PRICING_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "AI-powered creative studio for music creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
+    "AI-powered creative studio for content creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
   offers: {
     "@type": "OfferCatalog",
     name: "Bow Down Visuals Plans",

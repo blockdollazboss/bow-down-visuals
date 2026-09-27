@@ -23,7 +23,7 @@ export const makeVideoGuide: PageGuide = {
       targetText: "Artist / Brand",
       title: "Step 2 — Artist / Brand",
       body: "Pick which artist profile stars in the video. Their locked face reference keeps them looking consistent across every generated clip — no morphing between scenes.",
-      tip: "No profile yet? Create one in the Artist Vault with 3-5 clear photos first.",
+      tip: "No profile yet? Create one in the Creator Vault with 3-5 clear photos first.",
     },
     {
       targetText: "Video Direction",

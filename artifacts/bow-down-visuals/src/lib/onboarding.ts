@@ -92,7 +92,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "artist-vault",
-    title: "Artist Vault",
+    title: "Creator Vault",
     body: "Your creative identity. Save your artist's look, style, and brand rules once — every AI tool uses them automatically.",
     target: '[data-tour="card-artist-vault"]',
   },

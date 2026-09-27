@@ -63,7 +63,7 @@ interface FormValues {
 /* ─── page ─── */
 
 export default function BetaAccess() {
-  usePageTitle("Beta Access", "Get early access to Bow Down Visuals — the AI content creation studio for music creators.");
+  usePageTitle("Beta Access", "Get early access to Bow Down Visuals — the AI content creation studio for content creators.");
   const [form, setForm] = useState<FormValues>({
     name: "", email: "", creatorName: "", artistType: "", wantToMake: "", socialHandle: "", message: "",
   });

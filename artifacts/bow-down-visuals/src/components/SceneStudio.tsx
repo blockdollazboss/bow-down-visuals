@@ -371,7 +371,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   /* Human-readable label for whichever reference the last/next generation used or will use. */
   function referenceLabel(source: "previous_scene" | "vault_photo" | "none" | null): string | null {
     if (source === "previous_scene") return "Chained from previous scene's final frame";
-    if (source === "vault_photo") return "Artist Vault photo reference";
+    if (source === "vault_photo") return "Creator Vault photo reference";
     return null;
   }
 
@@ -549,7 +549,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
                 ? ` Outfit "${pickedOutfit.label}" is used as the visual reference for this scene.`
                 : hasReferencePhoto(artistVault!)
                   ? " Vault photo is used as a visual reference so the artist's face & look stay consistent across scenes."
-                  : " Text-only character consistency applied. Add a photo to your Artist Vault to lock in the artist's face across scenes."}
+                  : " Text-only character consistency applied. Add a photo to your Creator Vault to lock in the artist's face across scenes."}
             </p>
           </div>
         </div>

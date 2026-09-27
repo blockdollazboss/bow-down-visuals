@@ -219,7 +219,7 @@ const SECTIONS: NavSection[] = [
       { href: "/my-projects", label: "My Projects", icon: FolderOpen },
       { href: "/my-clips", label: "My Clips", icon: Library },
       { href: "/songs", label: "Songs", icon: Music2 },
-      { href: "/artist-vault", label: "Artist Vault", icon: ShieldCheck },
+      { href: "/artist-vault", label: "Creator Vault", icon: ShieldCheck },
       { href: "/locations", label: "Locations", icon: MapPin },
       { href: "/jewelry", label: "Logo-to-Luxury Studio", icon: Gem },
       { href: "/gamers", label: "Home of Gamers", icon: Gamepad2 },

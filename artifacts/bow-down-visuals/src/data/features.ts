@@ -72,7 +72,7 @@ export const SITE_FEATURES: SiteFeature[] = [
   },
   {
     key: "artist-vault",
-    name: "Artist Vault",
+    name: "Creator Vault",
     tagline: "Your face, voice & brand assets in one vault",
     route: "/artist-vault",
     category: "create",

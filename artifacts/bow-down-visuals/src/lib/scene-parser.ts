@@ -26,7 +26,7 @@ export interface SceneData {
   promptUsed: string | null;
   generatedAt: string | null;
   /** Which image anchored this clip's generation: the previous scene's final
-   *  frame (continuity chain), the Artist Vault photo, or no image reference. */
+   *  frame (continuity chain), the Creator Vault photo, or no image reference. */
   referenceSource?: "previous_scene" | "vault_photo" | "none" | null;
   /** Set by "Use existing clip": this scene intentionally reuses another
    *  scene's clip URL. Export's duplicate-URL check exempts these. */

@@ -8,7 +8,7 @@ interface PhotoLightboxProps {
 }
 
 /**
- * Full-screen photo lightbox for Artist Vault photos.
+ * Full-screen photo lightbox for Creator Vault photos.
  * Click any artist photo to see it big.
  */
 export function PhotoLightbox({ photoUrl, artistName, onClose }: PhotoLightboxProps) {

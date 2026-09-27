@@ -10,7 +10,7 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Copyright Filing Assistant ────────────────────────────────────────────
-   AI-powered guided page for U.S. copyright registration prep (music creators).
+   AI-powered guided page for U.S. copyright registration prep (content creators).
 
    The form is FREE UI. The AI layer is core and prominent:
    - "Generate filing draft" → POST /api/copyright/draft (1 credit) — formal

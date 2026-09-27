@@ -17,7 +17,7 @@ export const dashboardGuide: PageGuide = {
       targetText: "Make Song",
       title: "Make a Song",
       body: "The heart of the site. Describe your vibe, pick a genre, and the AI writes full lyrics, hooks, and verses — then generates a complete AI-produced track with your artist's locked voice.",
-      tip: "Lock your artist's voice in the Artist Vault first so every song sounds like YOU.",
+      tip: "Lock your artist's voice in the Creator Vault first so every song sounds like YOU.",
     },
     {
       targetText: "Make a Music Video",

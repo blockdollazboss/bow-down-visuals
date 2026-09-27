@@ -2,7 +2,7 @@ import type { OnboardingStop } from "./types";
 
 /**
  * First-visit onboarding tour — the core creator loop:
- * Dashboard → Artist Vault → Make Song → Make Video.
+ * Dashboard → Creator Vault → Make Song → Make Video.
  * GuideMe navigates between pages automatically as the user advances.
  */
 export const ONBOARDING_TOUR: OnboardingStop[] = [
@@ -19,7 +19,7 @@ export const ONBOARDING_TOUR: OnboardingStop[] = [
   },
   {
     route: "/artist-vault",
-    pageName: "Artist Vault",
+    pageName: "Creator Vault",
     step: {
       target: "main h1",
       title: "Stop 1 — Build your artist",

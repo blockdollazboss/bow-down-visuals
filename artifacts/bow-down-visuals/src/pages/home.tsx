@@ -277,7 +277,7 @@ const CREDIT_PACKS = [
 const FAQS = [
   {
     q: "What is Bow Down Visuals?",
-    a: "The AI studio for music creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one credit system, no team required.",
+    a: "The AI studio for content creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one credit system, no team required.",
   },
   {
     q: "How do credits work?",
@@ -312,7 +312,7 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "Bow Down Visuals — the AI studio for music creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple credit pricing.",
+    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple credit pricing.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "USD",
@@ -1021,10 +1021,10 @@ function BuiltForCreators() {
             Built For
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
-            Built for music creators
+            Built for content creators
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Whether you&rsquo;re an independent artist or running a label, Bow Down
+            Whether you&rsquo;re a YouTuber, streamer, podcaster, musician, or running a full media brand, Bow Down
             Visuals was made for you.
           </p>
         </div>
@@ -1502,7 +1502,7 @@ function MusicVideoTeaser() {
 export default function Home() {
   usePageTitle(
     "Bow Down Visuals — The Content Creator's Cheat Code",
-    "The AI studio for music creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create."
+    "The AI studio for content creators: songs, music videos, promo clips, branding & business tools. 80+ AI features — pay only for what you create."
   );
   const waitlistRef = useRef<HTMLElement>(null);
   const { user, loading: authLoading } = useAuth();

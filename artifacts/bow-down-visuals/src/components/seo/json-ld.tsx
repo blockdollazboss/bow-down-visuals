@@ -25,7 +25,7 @@ export const ORGANIZATION_JSON_LD = {
   logo: `${SITE_URL}/logo-static.png`,
   email: "support@bowdownvisuals.com",
   description:
-    "Bow Down Visuals is an AI-powered creative studio for music creators, generating song lyrics, music video treatments, promo content, and thumbnails.",
+    "Bow Down Visuals is an AI-powered creative studio for content creators, generating song lyrics, music video treatments, promo content, and thumbnails.",
   sameAs: [],
 };
 
