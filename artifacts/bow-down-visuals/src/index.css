@@ -149,14 +149,10 @@ html, body, .bg-background, [class*="min-h-screen"] {
   background-color: #050505;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),
-    url("/images/subpage-bg-throne.webp");
+    url("/images/subpage-bg-throne-v2.webp");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
-}
-/* Homepage keeps the gold-curtain stage */
-.is-home[class*="min-h-screen"] {
-  background-image: url("/images/home-bg-gold-curtain-stage.webp");
 }
 /* Sign-in / sign-up keep the video — no throne behind it */
 .no-throne-bg[class*="min-h-screen"] {
