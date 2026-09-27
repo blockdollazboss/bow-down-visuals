@@ -234,6 +234,9 @@ const demoKitSchema = z.object({
   artistBio: z.string().max(2000).optional().default(""),
   socialStats: z.string().max(500).optional().default(""),
   labelName: z.string().max(200).optional().default(""),
+  autoMode: z.boolean().optional().default(false),
+  autoBio: z.boolean().optional().default(false),
+  autoTarget: z.boolean().optional().default(false),
 });
 
 export interface DemoSongAnalysis {
@@ -264,12 +267,18 @@ export function buildDemoKitPrompt(input: z.infer<typeof demoKitSchema>): string
   if (typeof input.energy === "number") lines.push(`Self-rated energy: ${input.energy}/100`);
   if (input.tempo.trim()) lines.push(`Tempo: "${input.tempo.trim()}"`);
   if (input.songDescription.trim()) lines.push(`Creator's description: "${input.songDescription.trim()}"`);
-  if (input.artistBio.trim()) lines.push(`Artist bio (use facts from this): """${input.artistBio.trim().slice(0, 1500)}"""`);
+  if (input.artistBio.trim()) {
+    lines.push(`Artist bio (use facts from this): """${input.artistBio.trim().slice(0, 1500)}"""`);
+  } else if (input.autoBio) {
+    lines.push(`No bio provided — AUTO MODE: write a compelling generic artist bio template with [bracketed] placeholders for the artist's real achievements, and note which parts they should personalize.`);
+  }
   if (input.socialStats.trim()) lines.push(`Social/streaming stats: "${input.socialStats.trim()}"`);
   if (input.lyrics.trim()) lines.push(`Lyrics (analyze themes): """${input.lyrics.trim().slice(0, 3000)}"""`);
   const labelLine = input.labelName.trim()
     ? `\nSubmitting to: ${input.labelName.trim()}. Personalize the greeting and one line of the email to this label's roster and reputation.`
-    : `\nNo specific label named — write the email with a [Label Name] placeholder the artist can fill in.`;
+    : input.autoTarget
+      ? `\nAUTO MODE: No specific label named — recommend the 3 best-fit labels from the major/indie landscape for this song's genre and sound, and write the email with a [Label Name] placeholder.`
+      : `\nNo specific label named — write the email with a [Label Name] placeholder the artist can fill in.`;
   return (
     `Analyze this independent artist's song and write a professional record-label demo submission package.\n\n` +
     lines.join("\n") + labelLine + `\n\n` +

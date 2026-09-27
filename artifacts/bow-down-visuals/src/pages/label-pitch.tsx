@@ -132,7 +132,7 @@ export default function LabelPitch() {
 
   /* ── demo kit state ── */
   const [library, setLibrary] = useState<LibrarySong[]>([]);
-  const [songSource, setSongSource] = useState<"library" | "manual">("manual");
+  const [songSource, setSongSource] = useState<"auto" | "library" | "manual">("auto");
   const [librarySongId, setLibrarySongId] = useState("");
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
@@ -204,13 +204,21 @@ export default function LabelPitch() {
 
   async function generateKit() {
     if (generating || !user) return;
-    const finalTitle = songSource === "library"
-      ? (library.find((s) => s.id === librarySongId)?.title ?? "").trim()
+    // Auto mode: use the most recent library song; fall back to manual if library is empty
+    const effectiveSource = songSource === "auto" && library.length > 0 ? "library" : songSource === "auto" ? "manual" : songSource;
+    const effectiveSongId = songSource === "auto" && library.length > 0 ? library[0].id : librarySongId;
+    const finalTitle = effectiveSource === "library"
+      ? (library.find((s) => s.id === effectiveSongId)?.title ?? "").trim()
       : songTitle.trim();
     if (!finalTitle) {
-      setError("Give your song a title first — the demo package is built around it.");
+      setError(songSource === "auto"
+        ? "Auto couldn't find a song — pick one from your library or enter it manually."
+        : "Give your song a title first — the demo package is built around it.");
       return;
     }
+    // Auto mode: AI fills in bio, stats, and label targeting from your profile
+    const autoBio = songSource === "auto" && !artistBio.trim();
+    const autoTarget = songSource === "auto" && !labelName.trim();
     setGenerating(true);
     setError(null);
     setOutOfCredits(false);
@@ -229,6 +237,9 @@ export default function LabelPitch() {
           artistBio: artistBio.trim(),
           socialStats: socialStats.trim(),
           labelName: labelName.trim(),
+          autoMode: songSource === "auto",
+          autoBio: autoBio,
+          autoTarget: autoTarget,
         }),
       });
       if (res.status === 402 || data.error === "out_of_credits") {
@@ -377,23 +388,36 @@ export default function LabelPitch() {
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Your song
               </p>
-              <div className="flex gap-2">
-                {(["manual", "library"] as const).map((s) => (
+              <div className="flex gap-2 flex-wrap">
+                {([
+                  { key: "auto", label: "✨ Auto (AI picks)" },
+                  { key: "manual", label: "Enter manually" },
+                  { key: "library", label: `From my library${library.length ? ` (${library.length})` : ""}` },
+                ] as const).map((s) => (
                   <button
-                    key={s}
-                    onClick={() => setSongSource(s)}
+                    key={s.key}
+                    onClick={() => setSongSource(s.key)}
                     className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      songSource === s
+                      songSource === s.key
                         ? "bg-primary text-black"
                         : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                     }`}
                   >
-                    {s === "manual" ? "Enter manually" : `From my library${library.length ? ` (${library.length})` : ""}`}
+                    {s.label}
                   </button>
                 ))}
               </div>
 
-              {songSource === "library" ? (
+              {songSource === "auto" ? (
+                <div className="mt-4 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-sm text-white/70">
+                    <span className="font-semibold text-primary">AI handles everything:</span>{" "}
+                    {library.length > 0
+                      ? <>picks your latest song (<span className="text-white font-medium">{library[0].title || "Untitled"}</span>), writes your bio from your artist profile, and targets the best-fit labels for your sound.</>
+                      : <>once you add songs to your library, AI will pick your latest. For now, enter your song manually below and AI handles the rest.</>}
+                  </p>
+                </div>
+              ) : songSource === "library" ? (
                 <select
                   value={librarySongId}
                   onChange={(e) => setLibrarySongId(e.target.value)}
