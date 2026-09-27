@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Loader2, Coins, ShieldCheck, Trophy, Delete, RotateCcw,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown, Users, Star,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown, Users, Star, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -329,6 +329,36 @@ export default function AdminPage() {
   const [planSaving, setPlanSaving] = useState(false);
   const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState(false);
+  const [repairMessage, setRepairMessage] = useState<string | null>(null);
+  const [repairError, setRepairError] = useState<string | null>(null);
+
+  const handleSchemaRepair = async () => {
+    setRepairing(true);
+    setRepairMessage(null);
+    setRepairError(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/schema-repair", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setRepairMessage(`Schema repair completed: ${JSON.stringify(data.results)}`);
+      } else {
+        setRepairError(data.error || "Repair failed");
+      }
+    } catch (e) {
+      setRepairError(e instanceof Error ? e.message : "Repair failed");
+    } finally {
+      setRepairing(false);
+    }
+  };
   interface BowRaceStatus {
     period: string;
     target: number;
@@ -521,6 +551,24 @@ export default function AdminPage() {
         <h1 className="text-2xl font-bold">Admin</h1>
       </div>
       <p className="text-sm text-white/50 mb-6">Owner-only controls.</p>
+
+      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Wrench className="h-4 w-4 text-primary" />
+          <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+            Database schema repair
+          </p>
+        </div>
+        <p className="text-sm text-white/60 mb-4">
+          Applies missing database columns and tables (one-time fix).
+        </p>
+        <Button onClick={() => { void handleSchemaRepair(); }} disabled={repairing} className="rounded-xl">
+          {repairing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Run schema repair
+        </Button>
+        {repairMessage && <p className="mt-3 text-sm text-green-400">{repairMessage}</p>}
+        {repairError && <p className="mt-3 text-sm text-red-400">{repairError}</p>}
+      </div>
 
       {checking ? (
         <div className="flex justify-center py-12">
