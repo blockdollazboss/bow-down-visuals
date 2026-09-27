@@ -476,6 +476,7 @@ router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
   /* TEMPORARY one-time setup bypass — remove after initial restore. */
   const isSetup = setupKey === "shark-king-restore-2026-09-27";
   let userId: string | undefined;
+  let vaultId = id;
   if (!isSetup) {
     const auth = req.headers.authorization;
     if (!auth?.startsWith("Bearer ")) {
@@ -491,17 +492,28 @@ router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
       return;
     }
   } else {
-    /* One-time restore: resolve the vault owner's ID from the vault itself. */
-    const [v] = await db
-      .select({ user_id: artistVaultsTable.user_id })
-      .from(artistVaultsTable)
-      .where(and(eq(artistVaultsTable.id, id), isNull(artistVaultsTable.deleted_at)))
-      .limit(1);
+    /* One-time restore: resolve the vault by ID or name, then get its owner. */
+    let v;
+    const looksLikeId = id.length > 20 || id.includes("-");
+    if (looksLikeId) {
+      [v] = await db
+        .select({ id: artistVaultsTable.id, user_id: artistVaultsTable.user_id })
+        .from(artistVaultsTable)
+        .where(and(eq(artistVaultsTable.id, id), isNull(artistVaultsTable.deleted_at)))
+        .limit(1);
+    } else {
+      [v] = await db
+        .select({ id: artistVaultsTable.id, user_id: artistVaultsTable.user_id })
+        .from(artistVaultsTable)
+        .where(and(eq(artistVaultsTable.artist_name, id), isNull(artistVaultsTable.deleted_at)))
+        .limit(1);
+    }
     if (!v) {
       res.status(404).json({ error: "Vault not found." });
       return;
     }
     userId = v.user_id;
+    vaultId = v.id;
   }
   if (!videoUrl || typeof videoUrl !== "string" || !videoUrl.startsWith("https://")) {
     res.status(400).json({ error: "A valid https videoUrl is required." });
@@ -514,7 +526,7 @@ router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
       .from(artistVaultsTable)
       .where(
         and(
-          eq(artistVaultsTable.id, id),
+          eq(artistVaultsTable.id, vaultId),
           eq(artistVaultsTable.user_id, userId!),
           isNull(artistVaultsTable.deleted_at),
         ),
@@ -548,7 +560,7 @@ router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
       .set({ reference_video_url: publicUrl, reference_video_path: filePath, updated_at: new Date() })
       .where(
         and(
-          eq(artistVaultsTable.id, id),
+          eq(artistVaultsTable.id, vaultId),
           eq(artistVaultsTable.user_id, userId!),
         ),
       );
