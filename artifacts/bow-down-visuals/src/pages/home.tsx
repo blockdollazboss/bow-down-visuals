@@ -574,12 +574,12 @@ function HeroSection() {
       <div className="lux-grain z-[1]" aria-hidden="true" />
       <div className="lux-vignette z-[1]" aria-hidden="true" />
 
-      {/* Hero spotlights — four beams washing down to the King's feet.
+      {/* Hero spotlights — four beams pinned to the viewport (fixed: they never
+          scroll with the page), washing down to the King's feet.
           z-[2]: above the backdrop grain, BELOW the hero copy (text stays
           on top) and below the curtain overlay (curtains drape over the
-          beams). Anchored to the hero so the lights never follow the
-          visitor down the page. */}
-      <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
+          beams). */}
+      <SpotlightRig className="fixed inset-x-0 top-[72px] md:top-[88px] z-[2] h-[calc((100svh-72px)*0.92)] md:h-[calc((100svh-88px)*0.92)]" />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}

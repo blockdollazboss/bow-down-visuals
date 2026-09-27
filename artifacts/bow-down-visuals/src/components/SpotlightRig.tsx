@@ -2,9 +2,8 @@ import { useEffect, useRef } from "react";
 
 /* ─────────────────── Homepage hero spotlight rig ─────────────────── */
 /* Four gold beams washing down over the hero, landing near the Shark
-   King's feet. Anchored to the hero section itself (absolute) so the
-   lights stay with the hero and scroll away naturally — they never
-   follow the visitor down the page.
+   King's feet. Pinned to the viewport (fixed) so the lights never move
+   when the page scrolls — they stay put while content slides beneath.
 
    Layering: hero copy sits ABOVE the beams (text stays on top), the
    curtain overlay sits above the beams too (beams read as shining from
