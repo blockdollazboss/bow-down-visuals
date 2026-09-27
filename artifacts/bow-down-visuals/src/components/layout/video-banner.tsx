@@ -86,9 +86,10 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         glow.style.opacity = reduce ? "0" : "1";
       }
       // Spotlight rig swings toward the cursor, eased like the pan.
+      // The rig is 1200px wide, so clamp travel to keep the beams on screen.
       if (spot) {
         const half = wrap.clientWidth / 2;
-        const range = Math.max(0, half - 160);
+        const range = Math.max(0, half - 620);
         spot.style.transform = `translate3d(${(spotCX * range).toFixed(1)}px, 0, 0)`;
       }
       raf = requestAnimationFrame(loop);
@@ -252,54 +253,67 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     </div>
 
       {/* ── Spotlight rig — hangs below the banner, shines down over the page ──
-          Mouse-tracked (eased in the rAF loop), flashing (CSS), with a
-          volumetric ray pattern drifting inside the beam. Pure decoration:
-          pointer-events-none, translucent, respects reduced motion. */}
+          Four beams in a row: mouse-tracked (eased in the rAF loop),
+          flashing on staggered phases (CSS), with a volumetric ray pattern
+          drifting inside each beam. Pure decoration: pointer-events-none,
+          translucent, respects reduced motion. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-full z-30 h-[300px] overflow-hidden"
       >
         <div
-          className="absolute left-1/2 top-0 h-full w-[600px]"
-          style={{ marginLeft: -300 }}
+          className="absolute left-1/2 top-0 h-full w-[1200px]"
+          style={{ marginLeft: -600 }}
         >
           <div ref={spotRef} className="spotlight-rig absolute inset-0 will-change-transform">
-            <div className="spotlight-beam absolute inset-0">
-              {/* Lamp source glow */}
+            {[0, 1, 2, 3].map((i) => (
               <div
-                className="absolute left-1/2 top-0 h-12 w-44 -translate-x-1/2 rounded-[50%]"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at center, rgba(255,246,208,0.95) 0%, rgba(255,220,120,0.45) 45%, transparent 70%)",
-                }}
-              />
-              {/* Beam cone */}
-              <div
-                className="absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
-                style={{
-                  clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
-                  background:
-                    "linear-gradient(to bottom, rgba(255,216,112,0.34) 0%, rgba(255,202,92,0.13) 55%, transparent 92%)",
-                }}
-              />
-              {/* Volumetric ray pattern drifting inside the beam */}
-              <div
-                className="spotlight-rays absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
-                style={{
-                  clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
-                  background:
-                    "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,242,196,0.08) 16px 19px, transparent 19px 34px, rgba(255,236,170,0.05) 34px 37px)",
-                }}
-              />
-              {/* Light pool where the beam lands */}
-              <div
-                className="absolute left-1/2 bottom-1 h-24 w-[540px] -translate-x-1/2 rounded-[50%]"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at center, rgba(255,216,112,0.30) 0%, rgba(255,200,90,0.10) 55%, transparent 72%)",
-                }}
-              />
-            </div>
+                key={i}
+                className="absolute top-0 h-full w-[460px]"
+                style={{ left: 150 + i * 300 - 230 }}
+              >
+                <div
+                  className="spotlight-beam absolute inset-0"
+                  style={{ animationDelay: `${(i * 0.45).toFixed(2)}s` }}
+                >
+                  {/* Lamp source glow */}
+                  <div
+                    className="absolute left-1/2 top-0 h-12 w-44 -translate-x-1/2 rounded-[50%]"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse at center, rgba(255,250,220,1) 0%, rgba(255,224,130,0.6) 45%, transparent 70%)",
+                    }}
+                  />
+                  {/* Beam cone */}
+                  <div
+                    className="absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                    style={{
+                      clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
+                      background:
+                        "linear-gradient(to bottom, rgba(255,222,122,0.52) 0%, rgba(255,206,96,0.22) 55%, transparent 92%)",
+                    }}
+                  />
+                  {/* Volumetric ray pattern drifting inside the beam */}
+                  <div
+                    className="spotlight-rays absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                    style={{
+                      clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
+                      background:
+                        "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,244,200,0.13) 16px 19px, transparent 19px 34px, rgba(255,238,175,0.09) 34px 37px)",
+                      animationDelay: `${(i * 0.9).toFixed(2)}s`,
+                    }}
+                  />
+                  {/* Light pool where the beam lands */}
+                  <div
+                    className="absolute left-1/2 bottom-1 h-24 w-[540px] -translate-x-1/2 rounded-[50%]"
+                    style={{
+                      background:
+                        "radial-gradient(ellipse at center, rgba(255,220,120,0.44) 0%, rgba(255,202,92,0.16) 55%, transparent 72%)",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
