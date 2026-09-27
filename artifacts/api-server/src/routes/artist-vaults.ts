@@ -468,51 +468,11 @@ router.delete("/artist-vaults/:id/reference-video", requireAuth, async (req, res
  * Body: { videoUrl: string } — must be an https URL to an mp4.
  * The server downloads it, stores it in the artist-references bucket, and sets it on the vault.
  */
-router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
+router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
-  const { videoUrl, setupKey } = req.body as { videoUrl?: string; setupKey?: string };
-  /* TEMPORARY one-time setup bypass — remove after initial restore. */
-  const isSetup = setupKey === "shark-king-restore-2026-09-27";
-  let userId: string | undefined;
-  let vaultId = id;
-  if (!isSetup) {
-    const auth = req.headers.authorization;
-    if (!auth?.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-    try {
-      const { data: { user }, error } = await getSupabaseAdmin().auth.getUser(auth.slice(7));
-      if (error || !user) throw new Error("Invalid token");
-      userId = user.id;
-    } catch {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-  } else {
-    /* One-time restore: resolve the vault by ID or name, then get its owner. */
-    let v;
-    const looksLikeId = id.length > 20 || id.includes("-");
-    if (looksLikeId) {
-      [v] = await db
-        .select({ id: artistVaultsTable.id, user_id: artistVaultsTable.user_id })
-        .from(artistVaultsTable)
-        .where(and(eq(artistVaultsTable.id, id), isNull(artistVaultsTable.deleted_at)))
-        .limit(1);
-    } else {
-      [v] = await db
-        .select({ id: artistVaultsTable.id, user_id: artistVaultsTable.user_id })
-        .from(artistVaultsTable)
-        .where(and(eq(artistVaultsTable.artist_name, id), isNull(artistVaultsTable.deleted_at)))
-        .limit(1);
-    }
-    if (!v) {
-      res.status(404).json({ error: "Vault not found." });
-      return;
-    }
-    userId = v.user_id;
-    vaultId = v.id;
-  }
+  const { videoUrl } = req.body as { videoUrl?: string };
+  const userId = req.userId!;
+  const vaultId = id;
   if (!videoUrl || typeof videoUrl !== "string" || !videoUrl.startsWith("https://")) {
     res.status(400).json({ error: "A valid https videoUrl is required." });
     return;
