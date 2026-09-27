@@ -79,6 +79,7 @@ const Distribute = lazyWithRetry(() => import("@/pages/distribute"));
 const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
+const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
@@ -299,6 +300,17 @@ function AuthedLayout({ children }: { children: ReactNode }) {
 
 function AppShell() {
   const [location] = useLocation();
+  /* Capture referral code from ?ref= (e.g. /?ref=ABC123) — persisted for
+   * post-signup credit award. */
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref && /^[A-Za-z0-9]{4,16}$/.test(ref)) {
+        localStorage.setItem("bdv_referral_code", ref.toUpperCase());
+      }
+    } catch { /* noop */ }
+  }, []);
   /* The video editor is a full-viewport studio surface — the marketing site
    * footer doesn't belong under it. */
   const hideFooter = location.startsWith("/video-editor");
@@ -349,6 +361,7 @@ function AppShell() {
           <Route path="/scheduler"><Scheduler /></Route>
           <Route path="/tips"><Tips /></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
+          <Route path="/referrals"><Referrals /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>

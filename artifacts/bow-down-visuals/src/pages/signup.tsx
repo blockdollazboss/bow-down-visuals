@@ -32,7 +32,7 @@ export default function Signup() {
   usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
-  const { signUp, signInWithProvider } = useAuth();
+  const { signUp, signInWithProvider, getAccessToken } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,6 +52,27 @@ export default function Signup() {
       setError(error);
       setLoading(false);
     } else {
+      /* Apply referral code if the user arrived via ?ref= */
+      try {
+        const refCode = localStorage.getItem("bdv_referral_code");
+        if (refCode) {
+          localStorage.removeItem("bdv_referral_code");
+          // Fire-and-forget: don't block signup success on referral
+          (async () => {
+            try {
+              const token = await getAccessToken();
+              await fetch("/api/referrals/apply", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ code: refCode }),
+              });
+            } catch { /* referral is best-effort */ }
+          })();
+        }
+      } catch { /* noop */ }
       setSuccess(true);
       setLoading(false);
     }
