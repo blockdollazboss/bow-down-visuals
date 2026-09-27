@@ -10,7 +10,7 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
-  AlertTriangle,
+  AlertTriangle, Download,
 } from "lucide-react";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,7 @@ import { GenerateArtistImageModal, type ArtistImageModalMode } from "@/component
 import { buildArtistImagePrompt } from "@/components/generate-artist-image";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { CHARACTER_THEMES, getCharacterTheme } from "@/lib/character-themes";
+import { downloadImage } from "@/lib/download-image";
 import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
@@ -1263,6 +1264,14 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
           <Button onClick={onEdit} className="flex-1 gold-glow font-bold rounded-xl gap-2">
             <Pencil className="h-4 w-4" /> Edit Profile
           </Button>
+          {vault.reference_image_url && (
+            <Button
+              onClick={() => downloadImage(vault.reference_image_url!, `${vault.artist_name}-character-sheet.png`)}
+              className="flex-1 gap-2 border border-white/15 bg-white/[0.04] text-white/60 hover:text-white hover:bg-white/[0.08] font-bold rounded-xl"
+            >
+              <Download className="h-4 w-4" /> Download Sheet
+            </Button>
+          )}
           <Button onClick={onClose} variant="ghost" className="text-white/40 hover:text-white rounded-xl px-6">
             Close
           </Button>
