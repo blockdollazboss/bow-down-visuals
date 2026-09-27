@@ -3,7 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 
@@ -67,7 +67,12 @@ router.get("/artist-vaults", requireAuth, async (req, res) => {
   const vaults = await db
     .select()
     .from(artistVaultsTable)
-    .where(eq(artistVaultsTable.user_id, req.userId!))
+    .where(
+      and(
+        eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
+      ),
+    )
     .orderBy(desc(artistVaultsTable.created_at));
 
   res.json({ vaults });
@@ -107,6 +112,7 @@ router.put("/artist-vaults/:id", requireAuth, async (req, res) => {
       and(
         eq(artistVaultsTable.id, id),
         eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
       ),
     );
 
@@ -119,7 +125,12 @@ router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
   await db
     .update(artistVaultsTable)
     .set({ is_active: false })
-    .where(eq(artistVaultsTable.user_id, req.userId!));
+    .where(
+      and(
+        eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
+      ),
+    );
 
   await db
     .update(artistVaultsTable)
@@ -128,6 +139,7 @@ router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
       and(
         eq(artistVaultsTable.id, id),
         eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
       ),
     );
 
@@ -137,12 +149,16 @@ router.patch("/artist-vaults/:id/set-active", requireAuth, async (req, res) => {
 router.delete("/artist-vaults/:id", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
 
+  /* Soft delete only — never hard-delete. The vault is hidden but the data
+     is preserved and can be restored. User data must never be permanently lost. */
   await db
-    .delete(artistVaultsTable)
+    .update(artistVaultsTable)
+    .set({ deleted_at: new Date(), updated_at: new Date() })
     .where(
       and(
         eq(artistVaultsTable.id, id),
         eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
       ),
     );
 
@@ -168,6 +184,7 @@ router.get("/artist-vaults/:id/links", requireAuth, async (req, res) => {
       and(
         eq(artistVaultsTable.id, id),
         eq(artistVaultsTable.user_id, req.userId!),
+        isNull(artistVaultsTable.deleted_at),
       ),
     );
   if (!owner) {

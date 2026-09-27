@@ -33,12 +33,16 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   is_active: boolean("is_active").notNull().default(false),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /* Soft delete: when set, the vault is hidden but the data is preserved.
+     Never hard-delete vaults — user data must never be permanently lost. */
+  deleted_at: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omit({
   id: true,
   created_at: true,
   updated_at: true,
+  deleted_at: true,
 });
 
 export const selectArtistVaultSchema = createSelectSchema(artistVaultsTable);
