@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { randomUUID } from "crypto";
 import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
@@ -9,7 +8,6 @@ import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/c
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 
-const ARTIST_BUCKET = "artist-references";
 
 const router = Router();
 
@@ -536,28 +534,21 @@ router.post("/artist-vaults/:id/reference-video/attach", async (req, res) => {
       res.status(404).json({ error: "Vault not found." });
       return;
     }
-    /* Download the video server-side. */
-    const response = await fetch(videoUrl);
-    if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("mp4") && !contentType.includes("video")) {
-      throw new Error(`Not a video file (content-type: ${contentType}).`);
+    /* Validate the URL points to a video (server-side HEAD check). */
+    try {
+      const head = await fetch(videoUrl, { method: "HEAD" });
+      const ct = head.headers.get("content-type") || "";
+      if (head.ok && ct && !ct.includes("video") && !ct.includes("mp4") && !ct.includes("octet-stream")) {
+        throw new Error(`Not a video file (content-type: ${ct}).`);
+      }
+    } catch (e) {
+      /* If HEAD fails, fall through — the URL may still be valid. */
     }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > 50 * 1024 * 1024) throw new Error("Video exceeds 50MB limit.");
-    /* Upload to the artist-references bucket. */
-    const filePath = `${userId}/reference-video/${randomUUID()}.mp4`;
-    const { error: upErr } = await getSupabaseAdmin().storage
-      .from(ARTIST_BUCKET)
-      .upload(filePath, buffer, { contentType: "video/mp4", upsert: false });
-    if (upErr) throw upErr;
-    const { data: { publicUrl } } = getSupabaseAdmin().storage
-      .from(ARTIST_BUCKET)
-      .getPublicUrl(filePath);
-    /* Set it on the vault. */
+    /* Set the URL directly on the vault (no storage upload needed). */
+    const publicUrl = videoUrl;
     await db
       .update(artistVaultsTable)
-      .set({ reference_video_url: publicUrl, reference_video_path: filePath, updated_at: new Date() })
+      .set({ reference_video_url: publicUrl, reference_video_path: null, updated_at: new Date() })
       .where(
         and(
           eq(artistVaultsTable.id, vaultId),
