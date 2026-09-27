@@ -193,34 +193,34 @@ export default function Signup() {
               mode="signup"
             />
             <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
-            <Input
-              data-testid="input-display-name"
-              type="text"
-              aria-label="Display Name"
-              placeholder="Display Name"
-              autoComplete="nickname"
-              className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-              {...form.register("displayName")}
-            />
-            <Input
-              data-testid="input-email"
-              type="email"
-              aria-label="Email"
-              placeholder="Email"
-              autoComplete="email"
-              className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-              {...form.register("email")}
-            />
-            <Input
-              data-testid="input-password"
-              type="password"
-              aria-label="Password"
-              placeholder="Password"
-              autoComplete="new-password"
-              className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-              {...form.register("password")}
-            />
             <div className="flex items-center gap-2 shrink-0">
+              <Input
+                data-testid="input-display-name"
+                type="text"
+                aria-label="Display Name"
+                placeholder="Display Name"
+                autoComplete="nickname"
+                className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                {...form.register("displayName")}
+              />
+              <Input
+                data-testid="input-email"
+                type="email"
+                aria-label="Email"
+                placeholder="Email"
+                autoComplete="email"
+                className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                {...form.register("email")}
+              />
+              <Input
+                data-testid="input-password"
+                type="password"
+                aria-label="Password"
+                placeholder="Password"
+                autoComplete="new-password"
+                className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                {...form.register("password")}
+              />
               <Input
                 data-testid="input-confirm-password"
                 type="password"

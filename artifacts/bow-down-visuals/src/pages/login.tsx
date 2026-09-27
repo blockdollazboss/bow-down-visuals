@@ -192,16 +192,16 @@ export default function Login() {
                   mode="signin"
                 />
                 <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
-                <Input
-                  data-testid="input-email"
-                  type="email"
-                  aria-label="Email"
-                  placeholder="Email"
-                  autoComplete="email"
-                  className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-                  {...form.register("email")}
-                />
                 <div className="flex items-center gap-2 shrink-0">
+                  <Input
+                    data-testid="input-email"
+                    type="email"
+                    aria-label="Email"
+                    placeholder="Email"
+                    autoComplete="email"
+                    className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                    {...form.register("email")}
+                  />
                   <Input
                     data-testid="input-password"
                     type="password"
