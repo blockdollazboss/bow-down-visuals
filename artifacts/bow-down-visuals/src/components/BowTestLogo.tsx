@@ -208,6 +208,9 @@ export function BowTestLogo({ compact = false }: { compact?: boolean }) {
           aria-label="Thy Cheat Code shark king"
         />
       </button>
+      <span className="mt-1 text-[11px] font-bold uppercase tracking-widest text-[#C9A84C] animate-pulse select-none">
+        Click me!
+      </span>
       </div>
       {rewardCredits !== null && (
         <SecretChallengePopup credits={rewardCredits} onClaim={() => setRewardCredits(null)} />
