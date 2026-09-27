@@ -256,6 +256,8 @@ function BowRaceControls({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [testPopup, setTestPopup] = useState(false);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [liveTarget, setLiveTarget] = useState<number | null>(null);
 
   async function load() {
     if (loaded || busy) return;
@@ -269,11 +271,14 @@ function BowRaceControls({
         rewardCredits?: number;
         enabled?: boolean;
         targetOverride?: number | null;
+        race?: { totalBows?: number; target?: number } | null;
       };
       if (res.ok) {
         setReward(String(data.rewardCredits ?? 50));
         setEnabled(data.enabled ?? true);
         setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
+        setLiveCount(data.race?.totalBows ?? null);
+        setLiveTarget(data.race?.target ?? null);
         setLoaded(true);
       }
     } finally {
@@ -323,6 +328,15 @@ function BowRaceControls({
   return (
     <div>
       <p className={labelCls}>Bow race</p>
+      <div className="flex items-center justify-between mb-1.5 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+        <span className="text-xs text-white/50 font-semibold">Live bow count</span>
+        <span className="text-sm font-black text-[#C9A84C]">
+          {liveCount != null ? liveCount.toLocaleString() : "—"}
+          {liveTarget != null && (
+            <span className="text-white/40 font-semibold"> / {liveTarget.toLocaleString()}</span>
+          )}
+        </span>
+      </div>
       <div className="flex items-center gap-2 mb-1">
         <input
           type="number"
