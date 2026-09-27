@@ -525,7 +525,7 @@ function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 pb-16 pt-[176px] md:pt-[192px] -mt-[112px] md:-mt-[128px] overflow-hidden">
+    <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 pb-16 pt-[232px] md:pt-[248px] -mt-[168px] md:-mt-[184px] overflow-hidden">
       {/* Background — glows + grid dissolve into the next section: one continuous surface, no seam */}
       <div
         className="absolute inset-0 z-0"

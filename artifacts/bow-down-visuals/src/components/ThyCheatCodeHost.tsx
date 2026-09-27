@@ -43,7 +43,7 @@ export function ThyCheatCodeHost() {
     setDismissed(readDismissed(route));
   }, [route]);
 
-  if (EXCLUDED_RE.test(route) || route === "/") return null;
+  if (EXCLUDED_RE.test(route)) return null;
 
   const guide = getGuideForRoute(route);
 
