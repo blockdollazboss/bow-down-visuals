@@ -1520,8 +1520,10 @@ export default function Home() {
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
-      {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all content */}
+    <>
+      {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all
+          content. Sibling of the page root (NOT inside it) so it never
+          paints above the footer: at -z-10 it stays behind everything. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10"
@@ -1532,13 +1534,16 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
+    <div className="min-h-screen bg-black text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes,
-          and OVER the Shark King so he scrolls behind the curtains like
-          going backstage (he sits at z-[4], just below this layer).
+          OVER the Shark King so he scrolls behind the curtains like
+          going backstage (he sits at z-[4], just below this layer),
+          and OVER the footer so the drapes hang over the foot of the page.
           Same geometry as the backdrop so the curtains align pixel-perfect.
           z-[5]: above the beams and the King, BELOW the hero copy — text
-          and buttons always stay on top. */}
+          and buttons always stay on top. Transparent center, so the footer
+          shows through between the drapes. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[5]"
@@ -1568,5 +1573,6 @@ export default function Home() {
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>
+    </>
   );
 }
