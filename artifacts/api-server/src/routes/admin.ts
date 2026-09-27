@@ -5,8 +5,11 @@
  * every admin route denies access — fail closed.
  *
  *  GET  /api/admin/status          { isAdmin: boolean } (requires auth)
- *  POST /api/admin/credits/grant   { amount, userId? } — grant credits to
- *                                  yourself (default) or another user.
+ *  POST /api/admin/credits/grant   { amount, userId?, email? } — grant credits
+ *                                  to yourself (default), another user by id,
+ *                                  or a friend by email.
+ *  POST /api/admin/plan/set        { tier, userId?, email? } — set a user's plan tier.
+ *                                  Tier N caps Creator Level at N stars.
  */
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { z } from "zod";
@@ -41,6 +44,8 @@ const GrantSchema = z.object({
   amount: z.number().int().min(1).max(100000),
   /** Optional target user id — defaults to the admin themself. */
   userId: z.string().uuid().optional(),
+  /** Optional target email (friend's email) — resolved to a user id. */
+  email: z.string().email().max(320).optional(),
 });
 
 router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) => {
@@ -49,10 +54,26 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
     res.status(400).json({ error: "Invalid request. Amount must be 1–100000." });
     return;
   }
-  const targetUserId = parsed.data.userId ?? req.userId!;
 
   try {
     const supabase = getSupabaseAdmin();
+    // Resolve the target: explicit userId wins, then email lookup, then self.
+    let targetUserId = parsed.data.userId ?? req.userId!;
+    let targetLabel = "yourself";
+    if (!parsed.data.userId && parsed.data.email) {
+      const { data: match, error: matchErr } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("email", parsed.data.email)
+        .limit(1)
+        .maybeSingle();
+      if (matchErr || !match) {
+        res.status(404).json({ error: "No user found with that email." });
+        return;
+      }
+      targetUserId = match.id;
+      targetLabel = parsed.data.email;
+    }
     const { data: profile, error: fetchErr } = await supabase
       .from("profiles")
       .select("credits")
@@ -92,7 +113,7 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
     }
 
     req.log.info(
-      { admin: req.userEmail, targetUserId, amount: parsed.data.amount, newBalance },
+      { admin: req.userEmail, targetUserId, targetLabel, amount: parsed.data.amount, newBalance },
       "admin: credits granted",
     );
     res.json({
@@ -106,4 +127,67 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
   }
 });
 
+const PLAN_RANKS = ["Street Punk", "Hustler", "Gangster", "Shot Caller", "Crime Boss", "Kingpin"] as const;
+
+const PlanSetSchema = z.object({
+  tier: z.number().int().min(1).max(6),
+  /** Optional target user id — defaults to the admin themself. */
+  userId: z.string().uuid().optional(),
+  /** Optional target email — resolved to a user id. */
+  email: z.string().email().max(320).optional(),
+});
+
+async function resolveTargetUser(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  userId: string | undefined,
+  email: string | undefined,
+  fallbackUserId: string,
+): Promise<{ userId: string } | { error: string }> {
+  if (userId) return { userId };
+  if (email) {
+    const { data: match, error: matchErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+    if (matchErr || !match) return { error: "No user found with that email." };
+    return { userId: match.id };
+  }
+  return { userId: fallbackUserId };
+}
+
+router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
+  const parsed = PlanSetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid request. Tier must be 1–6." });
+    return;
+  }
+  try {
+    const supabase = getSupabaseAdmin();
+    const resolved = await resolveTargetUser(supabase, parsed.data.userId, parsed.data.email, req.userId!);
+    if ("error" in resolved) {
+      res.status(404).json({ error: resolved.error });
+      return;
+    }
+    const { error: updateErr } = await supabase
+      .from("profiles")
+      .update({ plan_tier: parsed.data.tier })
+      .eq("id", resolved.userId);
+    if (updateErr) throw updateErr;
+
+    req.log.info(
+      { admin: req.userEmail, targetUserId: resolved.userId, tier: parsed.data.tier },
+      "admin: plan tier set",
+    );
+    res.json({
+      userId: resolved.userId,
+      tier: parsed.data.tier,
+      rank: PLAN_RANKS[parsed.data.tier - 1],
+    });
+  } catch (err) {
+    req.log.error({ err }, "admin: set plan tier failed");
+    res.status(500).json({ error: "Could not set plan tier. Please try again." });
+  }
+});
 export default router;

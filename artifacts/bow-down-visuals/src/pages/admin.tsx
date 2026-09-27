@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Loader2, Coins, ShieldCheck, Trophy, Delete, RotateCcw,
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown, Users, Star,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -316,6 +316,16 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [amount, setAmount] = useState("500");
   const [granting, setGranting] = useState(false);
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendAmount, setFriendAmount] = useState("100");
+  const [friendGranting, setFriendGranting] = useState(false);
+  const [friendMessage, setFriendMessage] = useState<string | null>(null);
+  const [friendError, setFriendError] = useState<string | null>(null);
+  const [planEmail, setPlanEmail] = useState("");
+  const [planTier, setPlanTier] = useState("1");
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string | null>(null);
+  const [planError, setPlanError] = useState<string | null>(null);
   const [bowCfg, setBowCfg] = useState<{ targetBows: number; rewardCredits: number; enabled: boolean } | null>(null);
   const [bowTarget, setBowTarget] = useState("100");
   const [bowReward, setBowReward] = useState("5");
@@ -417,6 +427,66 @@ export default function AdminPage() {
     }
   }
 
+  async function handleFriendGrant() {
+    const n = parseInt(friendAmount, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 100000) {
+      setFriendError("Enter an amount between 1 and 100000.");
+      return;
+    }
+    if (!friendEmail.trim()) {
+      setFriendError("Enter your friend's email.");
+      return;
+    }
+    setFriendGranting(true);
+    setFriendError(null);
+    setFriendMessage(null);
+    try {
+      const res = await fetch("/api/admin/credits/grant", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: n, email: friendEmail.trim() }),
+      });
+      const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
+      if (!res.ok) throw new Error(data.error || "Grant failed.");
+      setFriendMessage(`Granted ${data.granted} credits to ${friendEmail.trim()}. Their new balance: ${data.credits}.`);
+      setFriendEmail("");
+    } catch (e) {
+      setFriendError(e instanceof Error ? e.message : "Grant failed.");
+    } finally {
+      setFriendGranting(false);
+    }
+  }
+
+  async function handlePlanSet() {
+    const t = parseInt(planTier, 10);
+    if (!Number.isFinite(t) || t < 1 || t > 6) {
+      setPlanError("Pick a tier from 1 to 6.");
+      return;
+    }
+    if (!planEmail.trim()) {
+      setPlanError("Enter the user's email.");
+      return;
+    }
+    setPlanSaving(true);
+    setPlanError(null);
+    setPlanMessage(null);
+    try {
+      const res = await fetch("/api/admin/plan/set", {
+        method: "POST",
+        headers: { ...(await authHeaders()), "Content-Type": "application/json" },
+        body: JSON.stringify({ tier: t, email: planEmail.trim() }),
+      });
+      const data = (await res.json()) as { tier?: number; rank?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not set plan tier.");
+      setPlanMessage(`Set ${planEmail.trim()} to ${data.rank} (tier ${data.tier}).`);
+      setPlanEmail("");
+    } catch (e) {
+      setPlanError(e instanceof Error ? e.message : "Could not set plan tier.");
+    } finally {
+      setPlanSaving(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white px-4 py-8 max-w-xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
@@ -463,6 +533,82 @@ export default function AdminPage() {
             <p className="mt-4 text-[11px] text-white/30">
               Grants are logged as "Admin Credit Grant" in the credit ledger.
             </p>
+          </div>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="h-4 w-4 text-primary" />
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+                Give a friend credits
+              </p>
+            </div>
+            <p className="text-sm text-white/60 mb-4">
+              Send credits to any user by their sign-in email.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="email"
+                placeholder="friend@email.com"
+                value={friendEmail}
+                onChange={(e) => setFriendEmail(e.target.value)}
+                disabled={friendGranting}
+                className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+              />
+              <input
+                type="number"
+                min={1}
+                max={100000}
+                value={friendAmount}
+                onChange={(e) => setFriendAmount(e.target.value)}
+                disabled={friendGranting}
+                className="w-28 rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+              />
+              <Button onClick={() => { void handleFriendGrant(); }} disabled={friendGranting} className="rounded-xl">
+                {friendGranting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Send credits
+              </Button>
+            </div>
+            {friendMessage && <p className="mt-3 text-sm text-green-400">{friendMessage}</p>}
+            {friendError && <p className="mt-3 text-sm text-red-400">{friendError}</p>}
+          </div>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Star className="h-4 w-4 text-primary" />
+              <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
+                Set plan tier
+              </p>
+            </div>
+            <p className="text-sm text-white/60 mb-4">
+              A user's plan tier caps their Creator Level stars — tier 1 gets 1 star, tier 6 gets all 6.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="email"
+                placeholder="user@email.com"
+                value={planEmail}
+                onChange={(e) => setPlanEmail(e.target.value)}
+                disabled={planSaving}
+                className="flex-1 min-w-[180px] rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+              />
+              <select
+                value={planTier}
+                onChange={(e) => setPlanTier(e.target.value)}
+                disabled={planSaving}
+                className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
+              >
+                <option value="1">1 — Street Punk</option>
+                <option value="2">2 — Hustler</option>
+                <option value="3">3 — Gangster</option>
+                <option value="4">4 — Shot Caller</option>
+                <option value="5">5 — Crime Boss</option>
+                <option value="6">6 — Kingpin</option>
+              </select>
+              <Button onClick={() => { void handlePlanSet(); }} disabled={planSaving} className="rounded-xl">
+                {planSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Set tier
+              </Button>
+            </div>
+            {planMessage && <p className="mt-3 text-sm text-green-400">{planMessage}</p>}
+            {planError && <p className="mt-3 text-sm text-red-400">{planError}</p>}
           </div>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
             <div className="flex items-center gap-2 mb-1">

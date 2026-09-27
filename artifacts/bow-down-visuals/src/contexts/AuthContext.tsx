@@ -7,6 +7,8 @@ interface Profile {
   email: string;
   display_name: string | null;
   plan: string;
+  /** Plan tier 1–6. Tier N caps Creator Level at N stars. Defaults to 1. */
+  plan_tier: number;
   credits: number;
   created_at: string;
 }

@@ -32,6 +32,7 @@ import {
   LogIn,
   Coins,
   ShieldCheck,
+  Lock,
   MapPin,
   ChevronsLeft,
   ChevronsUpDown,
@@ -113,7 +114,7 @@ const IS_DEV = import.meta.env.DEV;
 /** Simple / Advanced mode switch — ported from the old TopBar so the
  *  toolbar's mode control lives in the sidebar now. */
 function ModeToggle() {
-  const { stars, setStars } = useUserMode();
+  const { stars, maxStars, setStars } = useUserMode();
   return (
     <div className="w-full space-y-1.5" role="radiogroup" aria-label="Creator level">
       <div className="flex items-center justify-between px-0.5">
@@ -127,6 +128,30 @@ function ModeToggle() {
       <div className="flex items-center justify-between gap-1">
         {([1, 2, 3, 4, 5, 6] as const).map((s) => {
           const active = s <= stars;
+          const locked = s > maxStars;
+          const starIcon = (
+            <Star
+              className={`h-5 w-5 transition-colors ${
+                active
+                  ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
+                  : "fill-transparent text-white/20 hover:text-white/40"
+              }`}
+            />
+          );
+          if (locked) {
+            return (
+              <Link
+                key={s}
+                href="/pricing"
+                aria-label={`${s} stars — ${STAR_RANKS[s - 1]} — locked, requires ${STAR_RANKS[s - 1]} plan`}
+                title={`Locked — requires the ${STAR_RANKS[s - 1]} plan. Tap to see plans.`}
+                className="flex-1 flex justify-center items-center gap-0.5 py-1 opacity-50 hover:opacity-90 transition-opacity"
+              >
+                {starIcon}
+                <Lock className="h-3 w-3 text-white/40" />
+              </Link>
+            );
+          }
           return (
             <button
               key={s}
@@ -138,13 +163,7 @@ function ModeToggle() {
               className="flex-1 flex justify-center py-1 transition-transform hover:scale-125 active:scale-95"
               title={`${STAR_RANKS[s - 1]} — ${STAR_TAGLINES[s - 1]}`}
             >
-              <Star
-                className={`h-5 w-5 transition-colors ${
-                  active
-                    ? "fill-primary text-primary drop-shadow-[0_0_6px_rgba(201,168,76,0.8)]"
-                    : "fill-transparent text-white/20 hover:text-white/40"
-                }`}
-              />
+              {starIcon}
             </button>
           );
         })}
@@ -152,6 +171,14 @@ function ModeToggle() {
       <p className="text-[10px] text-white/35 px-0.5">
         {STAR_TAGLINES[stars - 1]}
       </p>
+      {maxStars < 6 && (
+        <p className="text-[10px] text-white/35 px-0.5">
+          <Link href="/pricing" className="underline underline-offset-2 hover:text-white/60">
+            Upgrade your plan
+          </Link>{" "}
+          to unlock more stars.
+        </p>
+      )}
     </div>
   );
 }

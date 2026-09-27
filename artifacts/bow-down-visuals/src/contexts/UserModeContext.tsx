@@ -33,6 +33,8 @@ const starsToMode = (s: StarLevel): UserMode => (s <= 3 ? "simple" : "advanced")
 interface UserModeContextValue {
   mode: UserMode;
   stars: StarLevel;
+  /** Highest star level this account's plan allows. Admins always get 6. */
+  maxStars: StarLevel;
   setStars: (s: StarLevel) => void;
   setMode: (m: UserMode) => void;
   toggleMode: () => void;
@@ -42,15 +44,26 @@ interface UserModeContextValue {
 const UserModeContext = createContext<UserModeContextValue | null>(null);
 
 export function UserModeProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const userId = user?.id ?? null;
   const [stars, setStarsState] = useState<StarLevel>(() => readStars(null));
+
+  /* Plan tier caps the stars: tier N = max N stars. Admins bypass the cap. */
+  const isAdmin = profile?.plan === "studio";
+  const maxStars = useMemo((): StarLevel => {
+    if (isAdmin) return 6;
+    const t = Math.floor(Number(profile?.plan_tier) || 1);
+    return Math.min(6, Math.max(1, t)) as StarLevel;
+  }, [isAdmin, profile?.plan_tier]);
+
   const mode = starsToMode(stars);
 
-  /* Re-read the persisted level once we know who's signed in (auth resolves async). */
+  /* Re-read the persisted level once we know who's signed in (auth resolves async),
+     and clamp it to the plan tier. */
   useEffect(() => {
-    setStarsState(readStars(userId));
-  }, [userId]);
+    const s = readStars(userId);
+    setStarsState(s > maxStars ? maxStars : s);
+  }, [userId, maxStars]);
 
   /* Reflect the mode + stars on the document root so CSS can show/hide UI site-wide. */
   useEffect(() => {
@@ -59,9 +72,10 @@ export function UserModeProvider({ children }: { children: ReactNode }) {
   }, [mode, stars]);
 
   function setStars(s: StarLevel) {
-    setStarsState(s);
+    const clamped = Math.min(s, maxStars) as StarLevel;
+    setStarsState(clamped);
     try {
-      localStorage.setItem(keyFor(userId), String(s));
+      localStorage.setItem(keyFor(userId), String(clamped));
     } catch { /* ignore */ }
   }
 
@@ -74,9 +88,9 @@ export function UserModeProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ mode, stars, setStars, setMode, toggleMode, isSimple: mode === "simple" }),
+    () => ({ mode, stars, maxStars, setStars, setMode, toggleMode, isSimple: mode === "simple" }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, stars, userId],
+    [mode, stars, maxStars, userId],
   );
 
   return <UserModeContext.Provider value={value}>{children}</UserModeContext.Provider>;
