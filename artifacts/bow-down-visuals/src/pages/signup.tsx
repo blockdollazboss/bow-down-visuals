@@ -1,19 +1,17 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useAuth } from "@/contexts/AuthContext";
 import { SocialSignInButtons, type SocialProvider } from "@/components/SocialSignInButtons";
-import { OrDivider } from "@/components/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
-import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { BowTestLogo } from "@/components/BowTestLogo";
 
 const schema = z.object({
   displayName: z.string().min(2, "Enter your artist or display name"),
@@ -30,8 +28,6 @@ const schema = z.object({
 
 export default function Signup() {
   usePageTitle("Sign Up", "Create your Bow Down Visuals account and start creating.");
-  /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
-  const logoTilt = useTiltOnHover<HTMLImageElement>({ maxDeg: 8, maxShift: 6 });
   const { signUp, signInWithProvider, getAccessToken } = useAuth();
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -90,142 +86,182 @@ export default function Signup() {
     }
   }
 
+  const bgVideoRef = useRef<HTMLVideoElement>(null);
+  const scrubTarget = useRef<number | null>(null);
+  const scrubRaf = useRef<number>(0);
+
+  // Pro-grade mouse scrub: 1:1 tracking, frame-throttled so seeks never stutter.
+  // Uses fastSeek() where available (built for scrubbing) with dense
+  // keyframes in the source file for near-instant seeks.
+  useEffect(() => {
+    const tick = () => {
+      const video = bgVideoRef.current;
+      const target = scrubTarget.current;
+      if (video && target !== null && video.duration && isFinite(video.duration) && video.readyState >= 2) {
+        if (Math.abs(video.currentTime - target) > 0.02) {
+          const v = video as HTMLVideoElement & { fastSeek?: (t: number) => void };
+          if (typeof v.fastSeek === "function") v.fastSeek(target);
+          else video.currentTime = target;
+        }
+      }
+      scrubRaf.current = requestAnimationFrame(tick);
+    };
+    scrubRaf.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(scrubRaf.current);
+  }, []);
+
+  const handleMouseScrub = (e: React.MouseEvent) => {
+    const video = bgVideoRef.current;
+    if (!video || !video.duration || !isFinite(video.duration)) return;
+    const ratio = Math.min(Math.max(e.clientX / window.innerWidth, 0), 1);
+    scrubTarget.current = ratio * video.duration;
+  };
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 no-throne-bg">
-        <div className="w-full max-w-md text-center space-y-6">
-          <h1 className="text-4xl font-black text-white">Check Your Email</h1>
-          <p className="text-muted-foreground text-lg">
-            We sent a confirmation link to your email. Click it to activate your account, then sign in.
-          </p>
-          <Button onClick={() => setLocation("/login")} className="gold-glow">
-            Go to Sign In
-          </Button>
-        </div>
+      <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
+        onMouseMove={handleMouseScrub}
+      >
+        {/* Drone video background — scrub through with your mouse, full brightness */}
+        <video
+          ref={bgVideoRef}
+          src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+          muted
+          playsInline
+          preload="auto"
+          disablePictureInPicture
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        />
+        <main className="flex-1 relative z-10 flex items-center justify-center px-4">
+          <div className="w-full max-w-md text-center space-y-6 bg-black/65 backdrop-blur-xl border border-[#c9a84c]/25 rounded-2xl p-8">
+            <h1 className="text-4xl font-black text-white">Check Your Email</h1>
+            <p className="text-white/60 text-lg">
+              We sent a confirmation link to your email. Click it to activate your account, then sign in.
+            </p>
+            <Button onClick={() => setLocation("/login")} className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 font-semibold">
+              Go to Sign In
+            </Button>
+          </div>
+        </main>
       </div>
     );
   }
 
+  const fieldErrors = form.formState.errors;
+  const firstError = error
+    || fieldErrors.displayName?.message
+    || fieldErrors.email?.message
+    || fieldErrors.password?.message
+    || fieldErrors.confirmPassword?.message
+    || fieldErrors.agreeToTerms?.message;
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden no-throne-bg">
-      {/* Golden throne background */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}signin-throne-bg.webp)` }}
+    <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
+      onMouseMove={handleMouseScrub}
+    >
+      {/* Drone video background — scrub through with your mouse, full brightness */}
+      <video
+        ref={bgVideoRef}
+        src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+        muted
+        playsInline
+        preload="auto"
+        disablePictureInPicture
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
-      {/* Dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/70" />
-      <div className="w-full max-w-md space-y-8 relative z-10">
-        <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <img ref={logoTilt} src={`${import.meta.env.BASE_URL}logo-static.png`} alt="Bow Down Visuals" className="w-[320px] max-w-full h-auto" />
+      {/* Stage: video breathing room */}
+      <main className="flex-1 relative z-10" aria-hidden />
+
+      {/* Bottom sign-up toolbar */}
+      <footer className="relative z-10 border-t border-[#c9a84c]/25 bg-black/65 backdrop-blur-xl px-4 py-3 animate-[fadeSlideIn_0.7s_ease-out_0.2s_both]">
+        <div className="mx-auto max-w-5xl">
+          {firstError && (
+            <p className="mb-2 text-center text-xs text-destructive">
+              {firstError}
+            </p>
+          )}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
+            {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
+            <div className="relative h-11 w-28 shrink-0">
+              <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
+                <BowTestLogo />
+              </div>
+            </div>
+            <SocialSignInButtons
+              onSignIn={onSocialSignUp}
+              loadingProvider={socialLoading}
+              mode="signup"
+            />
+            <div className="hidden sm:block w-px h-8 bg-white/10" aria-hidden />
+            <Input
+              data-testid="input-display-name"
+              type="text"
+              aria-label="Display Name"
+              placeholder="Display Name"
+              autoComplete="nickname"
+              className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+              {...form.register("displayName")}
+            />
+            <Input
+              data-testid="input-email"
+              type="email"
+              aria-label="Email"
+              placeholder="Email"
+              autoComplete="email"
+              className="h-9 w-40 md:w-44 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+              {...form.register("email")}
+            />
+            <Input
+              data-testid="input-password"
+              type="password"
+              aria-label="Password"
+              placeholder="Password"
+              autoComplete="new-password"
+              className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+              {...form.register("password")}
+            />
+            <Input
+              data-testid="input-confirm-password"
+              type="password"
+              aria-label="Confirm Password"
+              placeholder="Confirm Password"
+              autoComplete="new-password"
+              className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+              {...form.register("confirmPassword")}
+            />
+            <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
+              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Free Account"}
+            </Button>
+          </form>
+          <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Checkbox
+                data-testid="input-terms"
+                checked={form.watch("agreeToTerms")}
+                onCheckedChange={(v) => form.setValue("agreeToTerms", v === true, { shouldValidate: true })}
+                className="border-white/20"
+              />
+              <span>
+                I agree to the{" "}
+                <Link href="/terms" className="text-[#c9a84c] hover:underline font-medium">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-[#c9a84c] hover:underline font-medium">
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+            <span aria-hidden className="text-white/20">·</span>
+            <span>
+              Already have an account?{" "}
+              <Link href="/login" className="text-[#c9a84c] hover:underline font-medium">
+                Sign in
+              </Link>
+            </span>
           </div>
-          <p className="mt-1 text-muted-foreground">Create your free creator account</p>
         </div>
-
-        <div className="bg-card border border-card-border rounded-2xl p-8 shadow-2xl gold-glow-sm">
-          <SocialSignInButtons
-            onSignIn={onSocialSignUp}
-            loadingProvider={socialLoading}
-            mode="signup"
-          />
-          <OrDivider />
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-              <FormField control={form.control} name="displayName" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Display Name</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-display-name" placeholder="Your artist or creator name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="email" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-email" type="email" placeholder="you@example.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="password" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-password" type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              <FormField control={form.control} name="confirmPassword" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input data-testid="input-confirm-password" type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {error && (
-                <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
-                  {error}
-                </div>
-              )}
-
-              <FormField control={form.control} name="agreeToTerms" render={({ field }) => (
-                <FormItem>
-                  <div className="flex items-start gap-3">
-                    <FormControl>
-                      <Checkbox
-                        data-testid="input-terms"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        className="mt-0.5"
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-normal text-muted-foreground cursor-pointer">
-                        I agree to the{" "}
-                        <Link href="/terms" className="text-primary hover:underline font-medium">
-                          Terms
-                        </Link>{" "}
-                        and{" "}
-                        <Link href="/privacy" className="text-primary hover:underline font-medium">
-                          Privacy Policy
-                        </Link>
-                      </FormLabel>
-                      <FormMessage />
-                    </div>
-                  </div>
-                </FormItem>
-              )} />
-
-              <Button data-testid="btn-signup" type="submit" size="lg" className="w-full gold-glow" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : "Create Free Account"}
-              </Button>
-            </form>
-          </Form>
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium">
-              Sign in
-            </Link>
-          </p>
-        </div>
-
-        <p className="text-center text-xs text-muted-foreground">
-          3 free credits on signup. No credit card required.
-        </p>
-      </div>
+      </footer>
     </div>
   );
 }
