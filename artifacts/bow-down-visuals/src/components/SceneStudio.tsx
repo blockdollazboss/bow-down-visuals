@@ -188,10 +188,60 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistVault?.id]);
 
+  /* ── Characters in this scene: multi-select co-stars per scene. ── */
+  const [allVaults, setAllVaults] = useState<ArtistVault[]>([]);
+  const [pickedCoStarIds, setPickedCoStarIds] = useState<Set<string>>(new Set());
+
   const pickedOutfit = outfits.find((o) => o.id === pickedOutfitId) ?? null;
   const outfitRefUrl = pickedOutfit && /^https:\/\//i.test(pickedOutfit.image_url)
     ? pickedOutfit.image_url
     : null;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/artist-vaults", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) setAllVaults(data.vaults ?? []);
+      } catch {
+        /* character picker is optional */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleCoStar(id: string) {
+    setPickedCoStarIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /* Manually picked co-stars + vault-linked co-stars, deduped by vault id. */
+  const sceneCoStars = (() => {
+    const seen = new Set<string>();
+    const out: { name: string; role: string; description: string }[] = [];
+    const push = (id: string, name: string, role: string, description: string) => {
+      if (seen.has(id)) return;
+      seen.add(id);
+      out.push({ name, role, description });
+    };
+    for (const v of allVaults) {
+      if (!pickedCoStarIds.has(v.id)) continue;
+      if (v.id === artistVault?.id) continue;
+      push(v.id, v.artist_name, "Co-star", [
+        v.personality, v.visual_style, v.clothing_style, v.jewelry,
+      ].filter(Boolean).join(". ") || "character");
+    }
+    return out;
+  })();
 
   /* ── Linked co-stars: characters linked in the vault appear in scenes together. ── */
   const [coStars, setCoStars] = useState<{ name: string; role: string; description: string }[]>([]);
@@ -232,6 +282,16 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
 
+  /* Merge vault-linked co-stars (matched by name to avoid dupes). */
+  const sceneCoStarsWithLinks = (() => {
+    const out = [...sceneCoStars];
+    for (const c of coStars) {
+      if (out.some((o) => o.name === c.name)) continue;
+      out.push(c);
+    }
+    return out;
+  })();
+
   function stopPolling() {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   }
@@ -254,7 +314,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       "cinematic music video scene, dramatic lighting, luxury aesthetic";
 
     if (artistVault) {
-      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null, coStars);
+      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null, sceneCoStarsWithLinks);
       return `${prefix}\n${basePrompt}`;
     }
     return basePrompt;
@@ -574,6 +634,51 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           </div>
           <p className="text-[10px] text-white/40 mt-1.5">
             {pickedOutfit ? <>Wearing: <span className="text-white/70 font-semibold">{pickedOutfit.label}</span></> : "Base vault look"}
+          </p>
+        </div>
+      )}
+
+      {/* Characters in this scene — multi-select co-stars */}
+      {allVaults.length > 1 && (
+        <div className="px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.08]" data-testid="costar-picker">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider mb-1.5">
+            🎭 Characters in this scene
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {allVaults.filter((v) => v.id !== artistVault?.id).map((v) => {
+              const selected = pickedCoStarIds.has(v.id);
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => toggleCoStar(v.id)}
+                  title={v.artist_name}
+                  className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                    selected ? "border-primary" : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  {v.reference_video_url ? (
+                    <video src={v.reference_video_url} poster={v.reference_image_url ?? undefined} autoPlay muted loop playsInline className="h-full w-full object-cover object-top" />
+                  ) : v.reference_image_url ? (
+                    <img src={v.reference_image_url} alt={v.artist_name} className="h-full w-full object-cover object-top" loading="lazy" />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center bg-white/10 text-[9px] text-white/50 font-bold">
+                      {v.artist_name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  {selected && (
+                    <span className="absolute inset-0 flex items-center justify-center bg-primary/30">
+                      <CheckCircle2 className="h-5 w-5 text-white" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-white/40 mt-1.5">
+            {sceneCoStarsWithLinks.length > 0
+              ? <>In scene: <span className="text-white/70 font-semibold">{sceneCoStarsWithLinks.map((c) => c.name).join(", ")}</span></>
+              : "Tap characters to add them to this scene"}
           </p>
         </div>
       )}
