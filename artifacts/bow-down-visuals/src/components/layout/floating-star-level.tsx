@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, ShieldCheck, Loader2 } from "lucide-react";
 import { useUserMode, type StarLevel } from "@/contexts/UserModeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { STAR_RANKS } from "@/lib/creator-level";
@@ -46,7 +46,7 @@ function clampToScreen(x: number, y: number, ww: number, wh: number): { x: numbe
  */
 export function FloatingStarLevel() {
   const { stars, maxStars, setStars } = useUserMode();
-  const { profile } = useAuth();
+  const { profile, getAccessToken, refreshProfile } = useAuth();
   const [slot, setSlot] = useState<number>(() => {
     try {
       const raw = localStorage.getItem(POS_KEY);
@@ -58,9 +58,19 @@ export function FloatingStarLevel() {
     return 7; /* default: middle-right */
   });
   const [expanded, setExpanded] = useState(false);
+  const [tab, setTab] = useState<"level" | "admin">("level");
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
   const elRef = useRef<HTMLDivElement>(null);
+
+  /* Admin quick tools */
+  const [tierEmail, setTierEmail] = useState("");
+  const [tierValue, setTierValue] = useState("6");
+  const [tierBusy, setTierBusy] = useState(false);
+  const [tierMsg, setTierMsg] = useState<string | null>(null);
+  const [creditAmount, setCreditAmount] = useState("50");
+  const [creditBusy, setCreditBusy] = useState(false);
+  const [creditMsg, setCreditMsg] = useState<string | null>(null);
 
   /* Only the site owner (admin) sees this. */
   const isAdmin = profile?.plan === "studio";
@@ -127,6 +137,52 @@ export function FloatingStarLevel() {
     }
   }
 
+  async function handleTierSet() {
+    const t = parseInt(tierValue, 10);
+    if (!tierEmail.trim() || !(t >= 1 && t <= 6) || tierBusy) return;
+    setTierBusy(true);
+    setTierMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/plan/set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ tier: t, email: tierEmail.trim() }),
+      });
+      const data = await res.json() as { tier?: number; rank?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || "Could not set tier.");
+      setTierMsg(`✓ ${tierEmail.trim()} → ${data.rank} (tier ${data.tier})`);
+      setTierEmail("");
+    } catch (e) {
+      setTierMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setTierBusy(false);
+    }
+  }
+
+  async function handleCreditGrant() {
+    const n = parseInt(creditAmount, 10);
+    if (!(n > 0) || creditBusy) return;
+    setCreditBusy(true);
+    setCreditMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/credits/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ amount: n }),
+      });
+      const data = await res.json() as { granted?: number; credits?: number; error?: string };
+      if (!res.ok) throw new Error(data.error || "Grant failed.");
+      setCreditMsg(`✓ Granted ${data.granted}. Balance: ${data.credits}.`);
+      await refreshProfile();
+    } catch (e) {
+      setCreditMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setCreditBusy(false);
+    }
+  }
+
   return (
     <div
       ref={elRef}
@@ -155,25 +211,108 @@ export function FloatingStarLevel() {
           Lv {stars} · {STAR_RANKS[stars - 1]}
         </span>
         {expanded && (
-          <div className="flex items-center gap-1 pt-1" onPointerDown={(e) => e.stopPropagation()}>
-            {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+          <div onPointerDown={(e) => e.stopPropagation()} className="w-56">
+            {/* Tabs */}
+            <div className="flex gap-1 pt-1 pb-1">
               <button
-                key={s}
                 type="button"
-                onClick={() => { if (s <= maxStars) { setStars(s as StarLevel); setExpanded(false); } }}
-                disabled={s > maxStars}
-                className={`h-7 w-7 rounded-full text-xs font-black transition-all ${
-                  s === stars
-                    ? "bg-primary text-black"
-                    : s > maxStars
-                      ? "text-white/20 cursor-not-allowed"
-                      : "text-white/60 hover:bg-white/10"
+                onClick={() => setTab("level")}
+                className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide transition-all ${
+                  tab === "level" ? "bg-primary/20 text-primary" : "text-white/40 hover:text-white/70"
                 }`}
-                aria-label={`Set level ${s}`}
               >
-                {s}
+                Level
               </button>
-            ))}
+              <button
+                type="button"
+                onClick={() => setTab("admin")}
+                className={`flex-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wide transition-all flex items-center justify-center gap-1 ${
+                  tab === "admin" ? "bg-primary/20 text-primary" : "text-white/40 hover:text-white/70"
+                }`}
+              >
+                <ShieldCheck className="h-3 w-3" /> Admin
+              </button>
+            </div>
+
+            {tab === "level" ? (
+              <div className="flex items-center justify-center gap-1 pb-1">
+                {([1, 2, 3, 4, 5, 6] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => { if (s <= maxStars) { setStars(s as StarLevel); setExpanded(false); } }}
+                    disabled={s > maxStars}
+                    className={`h-7 w-7 rounded-full text-xs font-black transition-all ${
+                      s === stars
+                        ? "bg-primary text-black"
+                        : s > maxStars
+                          ? "text-white/20 cursor-not-allowed"
+                          : "text-white/60 hover:bg-white/10"
+                    }`}
+                    aria-label={`Set level ${s}`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2 pb-1">
+                {/* Set user tier */}
+                <div>
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-wide mb-1">Upgrade user tier</p>
+                  <input
+                    type="email"
+                    placeholder="user@email.com"
+                    value={tierEmail}
+                    onChange={(e) => setTierEmail(e.target.value)}
+                    className="w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50 mb-1"
+                  />
+                  <div className="flex gap-1">
+                    <select
+                      value={tierValue}
+                      onChange={(e) => setTierValue(e.target.value)}
+                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none"
+                      style={{ colorScheme: "dark" }}
+                    >
+                      {([1, 2, 3, 4, 5, 6] as const).map((t) => (
+                        <option key={t} value={String(t)}>{t} — {STAR_RANKS[t - 1]}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => { void handleTierSet(); }}
+                      disabled={tierBusy}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-black hover:opacity-90 disabled:opacity-40"
+                    >
+                      {tierBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Set"}
+                    </button>
+                  </div>
+                  {tierMsg && <p className="text-[10px] mt-1 text-white/60">{tierMsg}</p>}
+                </div>
+                {/* Grant credits */}
+                <div>
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-wide mb-1">Grant credits (self)</p>
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      value={creditAmount}
+                      onChange={(e) => setCreditAmount(e.target.value)}
+                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { void handleCreditGrant(); }}
+                      disabled={creditBusy}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-black hover:opacity-90 disabled:opacity-40"
+                    >
+                      {creditBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Grant"}
+                    </button>
+                  </div>
+                  {creditMsg && <p className="text-[10px] mt-1 text-white/60">{creditMsg}</p>}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

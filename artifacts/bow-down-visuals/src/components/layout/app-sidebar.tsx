@@ -317,7 +317,6 @@ const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", label: "Pricing", icon: CreditCard },
   { href: "/credit-history", label: "Credit History", icon: Zap },
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
 ];
 
 function SidebarSection({ section, location, isAdmin }: { section: NavSection; location: string; isAdmin: boolean }) {
