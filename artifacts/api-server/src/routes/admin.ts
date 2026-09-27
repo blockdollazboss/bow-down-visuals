@@ -240,6 +240,17 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     results.bow_race_months = "applied";
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS bow_challenge_config (
+        id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+        target_bows INTEGER NOT NULL DEFAULT 100,
+        reward_credits INTEGER NOT NULL DEFAULT 5,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    results.bow_challenge_config = "applied";
+
+    await pool.query(`
       ALTER TABLE bow_challenge_config ADD COLUMN IF NOT EXISTS target_override INTEGER NULL;
     `);
     results.target_override = "applied";
