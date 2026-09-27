@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { Crown } from "lucide-react";
 
 /* ============================================================
    Synced fireworks show.
@@ -423,7 +422,7 @@ export function SecretChallengePopup({
       >
         <div className="relative">
           <div
-            className="pointer-events-auto relative w-full max-w-lg rounded-2xl bg-black/85 px-10 py-10 text-center backdrop-blur-xl animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+            className="pointer-events-auto relative z-10 w-full max-w-lg rounded-2xl bg-black/85 px-10 py-10 text-center backdrop-blur-xl animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
             style={{
               border: "2px solid #C9A84C",
               boxShadow:
@@ -447,7 +446,24 @@ export function SecretChallengePopup({
               />
             ))}
 
-            <Crown className="mx-auto h-12 w-12 text-[#e8c86a]" aria-hidden="true" style={{ filter: "drop-shadow(0 0 12px rgba(232,200,106,0.8))" }} />
+            {/* Pixel-art gold crown (per mockup) */}
+            <svg
+              viewBox="0 0 20 14"
+              className="mx-auto h-12 w-auto"
+              aria-hidden="true"
+              shapeRendering="crispEdges"
+              style={{ filter: "drop-shadow(0 0 12px rgba(232,200,106,0.8))" }}
+            >
+              <rect x="3" y="10" width="14" height="3" fill="#e8c86a" />
+              <rect x="3" y="5" width="2" height="5" fill="#e8c86a" />
+              <rect x="9" y="3" width="2" height="7" fill="#e8c86a" />
+              <rect x="15" y="5" width="2" height="5" fill="#e8c86a" />
+              <rect x="3" y="3" width="2" height="2" fill="#f4dd8f" />
+              <rect x="9" y="1" width="2" height="2" fill="#f4dd8f" />
+              <rect x="15" y="3" width="2" height="2" fill="#f4dd8f" />
+              <rect x="7" y="11" width="2" height="1" fill="#b08d3e" />
+              <rect x="11" y="11" width="2" height="1" fill="#b08d3e" />
+            </svg>
             <h2
               className="mt-4 font-display text-4xl font-bold text-[#e8c86a] sm:text-5xl"
               style={{ textShadow: "0 0 24px rgba(232,200,106,0.45)" }}
@@ -480,7 +496,7 @@ export function SecretChallengePopup({
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="pointer-events-none absolute left-[82%] top-1/2 z-0 hidden h-[125%] w-auto -translate-y-1/2 lg:block"
+            className="pointer-events-none absolute left-[82%] top-[54%] z-0 hidden h-[140%] w-auto -translate-y-1/2 lg:block"
             style={{ imageRendering: "pixelated" }}
           />
         </div>
