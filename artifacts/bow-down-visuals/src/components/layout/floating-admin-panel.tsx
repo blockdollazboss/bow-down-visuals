@@ -227,6 +227,257 @@ function AdminTools({
         </div>
         {friendMsg && <p className="text-[10px] mt-1 text-white/60 break-words">{friendMsg}</p>}
       </div>
+
+      {/* Bow Race settings */}
+      <BowRaceControls getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
+
+      {/* Jackpot event creator */}
+      <JackpotCreator getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
+    </div>
+  );
+}
+
+function BowRaceControls({
+  getAccessToken,
+  inputCls,
+  btnCls,
+  labelCls,
+}: {
+  getAccessToken: () => Promise<string | null>;
+  inputCls: string;
+  btnCls: string;
+  labelCls: string;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [reward, setReward] = useState("50");
+  const [enabled, setEnabled] = useState(true);
+  const [targetOverride, setTargetOverride] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function load() {
+    if (loaded || busy) return;
+    setBusy(true);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/admin/bow-challenge", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      const data = (await res.json()) as {
+        rewardCredits?: number;
+        enabled?: boolean;
+        targetOverride?: number | null;
+      };
+      if (res.ok) {
+        setReward(String(data.rewardCredits ?? 50));
+        setEnabled(data.enabled ?? true);
+        setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
+        setLoaded(true);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const override = targetOverride.trim() === "" ? null : parseInt(targetOverride, 10);
+      const res = await fetch("/admin/bow-challenge", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({
+          rewardCredits: parseInt(reward, 10) || 50,
+          enabled,
+          targetOverride: override,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Failed.");
+      setMsg("✓ Race settings saved.");
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!loaded) {
+    return (
+      <div>
+        <p className={labelCls}>Bow race</p>
+        <button type="button" onClick={() => void load()} disabled={busy} className={btnCls}>
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Load race settings"}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className={labelCls}>Bow race</p>
+      <div className="flex items-center gap-2 mb-1">
+        <input
+          type="number"
+          min="1"
+          value={reward}
+          onChange={(e) => setReward(e.target.value)}
+          className={inputCls}
+          placeholder="Reward credits"
+        />
+        <button
+          type="button"
+          onClick={() => setEnabled((v) => !v)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-black shrink-0 ${
+            enabled ? "bg-green-600 text-white" : "bg-white/10 text-white/50"
+          }`}
+        >
+          {enabled ? "ON" : "OFF"}
+        </button>
+      </div>
+      <input
+        type="number"
+        min="1000"
+        max="5000"
+        value={targetOverride}
+        onChange={(e) => setTargetOverride(e.target.value)}
+        className={`${inputCls} mb-1`}
+        placeholder="Target override (1000–5000, blank = random)"
+      />
+      <button type="button" onClick={() => void save()} disabled={busy} className={btnCls}>
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save race"}
+      </button>
+      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
+    </div>
+  );
+}
+
+const DPAD_DIRS = ["up", "down", "left", "right"] as const;
+
+function JackpotCreator({
+  getAccessToken,
+  inputCls,
+  btnCls,
+  labelCls,
+}: {
+  getAccessToken: () => Promise<string | null>;
+  inputCls: string;
+  btnCls: string;
+  labelCls: string;
+}) {
+  const [name, setName] = useState("");
+  const [sequence, setSequence] = useState<string[]>([]);
+  const [endsAt, setEndsAt] = useState("");
+  const [prize, setPrize] = useState("100");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function pushDir(dir: string) {
+    setSequence((prev) => (prev.length >= 10 ? prev : [...prev, dir]));
+  }
+
+  async function create() {
+    if (sequence.length < 4 || !name.trim() || !endsAt || busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/cheat-code/admin/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          codeSequence: sequence,
+          endsAt: new Date(endsAt).toISOString(),
+          prizeCredits: parseInt(prize, 10) || 100,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Failed.");
+      setMsg("✓ Jackpot event created.");
+      setName("");
+      setSequence([]);
+      setEndsAt("");
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const dirArrow: Record<string, string> = { up: "↑", down: "↓", left: "←", right: "→" };
+
+  return (
+    <div>
+      <p className={labelCls}>New jackpot event</p>
+      <input
+        type="text"
+        placeholder="Event name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className={`${inputCls} mb-1`}
+      />
+      {/* D-pad code entry */}
+      <div className="grid grid-cols-4 gap-1 mb-1">
+        {DPAD_DIRS.map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => pushDir(d)}
+            className="rounded-lg bg-white/10 py-1.5 text-sm text-white hover:bg-primary/30 transition-colors"
+          >
+            {dirArrow[d]}
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-1 mb-1">
+        <p className="text-[10px] text-white/50 flex-1 min-w-0 truncate">
+          {sequence.length === 0 ? "Tap arrows (4–10)" : sequence.map((d) => dirArrow[d]).join(" ")}
+        </p>
+        {sequence.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSequence([])}
+            className="text-[10px] text-white/40 hover:text-white"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <input
+        type="datetime-local"
+        value={endsAt}
+        onChange={(e) => setEndsAt(e.target.value)}
+        className={`${inputCls} mb-1`}
+        style={{ colorScheme: "dark" }}
+      />
+      <div className="flex gap-1">
+        <input
+          type="number"
+          min="1"
+          value={prize}
+          onChange={(e) => setPrize(e.target.value)}
+          className={inputCls}
+          placeholder="Prize credits"
+        />
+        <button
+          type="button"
+          onClick={() => void create()}
+          disabled={busy || sequence.length < 4}
+          className={btnCls}
+        >
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Create"}
+        </button>
+      </div>
+      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
     </div>
   );
 }
