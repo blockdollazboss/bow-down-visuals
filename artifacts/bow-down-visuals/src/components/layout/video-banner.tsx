@@ -181,7 +181,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         <div className="relative flex flex-col items-center gap-0.5 px-4 text-center">
           <span className="flex items-center gap-2">
             <Crown
-              className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#e8c96a]"
+              className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#f6dd8f]"
               strokeWidth={2.2}
               aria-hidden
             />
@@ -191,25 +191,28 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
                 backgroundImage:
-                  "linear-gradient(100deg, #8a6b1f 0%, #e8c96a 25%, #fff3c4 50%, #e8c96a 75%, #8a6b1f 100%)",
+                  "linear-gradient(100deg, #b98a2e 0%, #f5d576 25%, #fffbe8 50%, #f5d576 75%, #b98a2e 100%)",
                 backgroundSize: "200% auto",
-                filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
+                animation: "gold-shine 4.5s linear infinite",
+                filter:
+                  "drop-shadow(0 2px 8px rgba(0,0,0,0.9)) drop-shadow(0 0 16px rgba(255,215,100,0.5))",
               }}
             >
               BOW&nbsp;DOWN&nbsp;VISUALS
             </span>
             <Crown
-              className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#e8c96a] -scale-x-100"
+              className="h-3.5 w-3.5 md:h-4 md:w-4 text-[#f6dd8f] -scale-x-100"
               strokeWidth={2.2}
               aria-hidden
             />
           </span>
           <span
-            className="text-[9px] md:text-[10px] tracking-[0.38em] text-[#e8c96a] uppercase"
+            className="text-[9px] md:text-[10px] tracking-[0.38em] text-[#f6dd8f] uppercase"
             style={{
               fontFamily: "'Cinzel', serif",
               fontWeight: 700,
-              textShadow: "0 2px 6px rgba(0,0,0,0.95), 0 0 20px rgba(232,201,106,0.3)",
+              textShadow:
+                "0 2px 6px rgba(0,0,0,0.95), 0 0 18px rgba(246,221,143,0.55)",
             }}
           >
             The Content Creator&rsquo;s Cheat Code
