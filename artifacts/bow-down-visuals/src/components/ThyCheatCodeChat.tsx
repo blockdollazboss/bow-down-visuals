@@ -196,7 +196,7 @@ export function ThyCheatCodeChat() {
       <div
         role="dialog"
         aria-label="Chat with Thy Cheat Code"
-        className="animate-tcc-drawer-in fixed inset-y-0 right-0 z-[9995] w-[min(320px,88vw)]"
+        className="animate-tcc-drawer-in fixed inset-y-0 right-0 z-[9995] w-[min(300px,80vw)]"
       >
         <div
           className="flex h-full w-full flex-col overflow-hidden border-l-4 border-[#C9A84C] bg-black"
