@@ -4,7 +4,6 @@ import {
   Upload, Loader2, AlertTriangle, CheckCircle2, ArrowLeft,
   Trophy, Sparkles, RefreshCw, X, Image as ImageIcon, Wand2,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -154,7 +153,6 @@ export default function ThumbnailTest() {
 
   return (
     <div className="min-h-screen bg-black text-zinc-100">
-      <MarketingNav />
       <main className="max-w-6xl mx-auto px-4 py-10">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-amber-400/80 hover:text-amber-300 mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to dashboard

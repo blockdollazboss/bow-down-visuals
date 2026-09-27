@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { Loader2, MapPin, Mail, Globe, ExternalLink, Music2, Quote, Trophy, Camera, Download } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Public Press Kit ────────────────────────────────────────────────────
@@ -52,7 +51,6 @@ export default function PublicPressKit() {
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <MarketingNav />
         <div className="flex items-center justify-center py-32">
           <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
         </div>
@@ -64,7 +62,6 @@ export default function PublicPressKit() {
   if (notFound || !kit) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <MarketingNav />
         <div className="max-w-xl mx-auto px-5 py-32 text-center">
           <h1 className="text-3xl font-bold mb-3">Press kit not found</h1>
           <p className="text-white/50 mb-6">This press kit doesn't exist or isn't public.</p>
@@ -84,7 +81,6 @@ export default function PublicPressKit() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="print:hidden"><MarketingNav /></div>
 
       <main className="max-w-4xl mx-auto px-5 md:px-8 py-10">
         {/* hero */}

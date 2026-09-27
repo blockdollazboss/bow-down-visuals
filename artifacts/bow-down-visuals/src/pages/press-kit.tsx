@@ -4,7 +4,6 @@ import {
   Newspaper, Loader2, Sparkles, Plus, Trash2, Copy, Check, Download,
   RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -308,7 +307,6 @@ export default function PressKitBuilder() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white mb-6">
           <ArrowLeft className="h-4 w-4" /> Back to dashboard

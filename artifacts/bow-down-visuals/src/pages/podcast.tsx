@@ -5,7 +5,6 @@ import {
   AlertTriangle, Sparkles, FileText, Timer, Coins, Copy, Check,
   Users, User, Music, Video, PenLine, Lightbulb,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -289,7 +288,6 @@ export default function PodcastStudio() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <audio id="podcast-voice-preview" className="hidden" />
 
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-10">

@@ -4,7 +4,6 @@ import {
   Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
   Inbox, Send, FileText,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -242,7 +241,6 @@ export default function EmailListBuilder() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <main className="mx-auto max-w-6xl px-5 md:px-8 py-10">
         {/* hero */}

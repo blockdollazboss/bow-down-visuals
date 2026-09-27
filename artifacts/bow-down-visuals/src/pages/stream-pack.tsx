@@ -5,7 +5,6 @@ import {
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Layers,
   MonitorPlay, Bell, LayoutPanelTop, Tv,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -454,7 +453,6 @@ export default function StreamPack() {
   usePageTitle("Stream Pack Generator", "Custom overlays, alerts, and panels for your live streams.");
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <StreamPackTool />
       <SiteFooter />
     </div>

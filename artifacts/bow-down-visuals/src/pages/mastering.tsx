@@ -4,7 +4,6 @@ import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, AudioWaveform, Info, RefreshCw, Play, Pause,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -193,7 +192,6 @@ export default function Mastering() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
           <ArrowLeft className="h-4 w-4" /> Back

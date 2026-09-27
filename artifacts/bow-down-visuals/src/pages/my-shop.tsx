@@ -4,7 +4,6 @@ import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -347,7 +346,6 @@ export default function MyShop() {
   if (!user && !loading) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <MarketingNav />
         <main className="max-w-3xl mx-auto px-5 py-24 text-center">
           <Store className="w-12 h-12 mx-auto text-amber-400/80" />
           <h1 className="mt-6 text-4xl font-black tracking-tight">Your own storefront</h1>
@@ -361,7 +359,6 @@ export default function MyShop() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10 md:py-14">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

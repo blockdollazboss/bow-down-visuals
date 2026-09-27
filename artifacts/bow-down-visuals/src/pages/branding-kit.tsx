@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Palette, Clapperboard, Tv } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
@@ -26,7 +25,6 @@ export default function BrandingKit() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       {/* Hero */}
       <div className="mx-auto max-w-5xl px-4 pt-12 pb-6 text-center">

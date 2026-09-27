@@ -5,7 +5,6 @@ import {
   Copy, Plus, Trash2, ShieldCheck, Clock3, BadgeDollarSign, ArrowRight,
   ChevronDown, AlertTriangle, ListChecks,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -286,7 +285,6 @@ export default function CopyrightAssistant() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-5xl px-4 pb-20 pt-10 sm:px-6">
         {/* ── HERO ── */}
         <div className="text-center">

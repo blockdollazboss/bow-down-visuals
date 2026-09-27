@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Search, ArrowRight, Crown, Megaphone, Sparkles } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import {
   SITE_FEATURES,
@@ -42,7 +41,6 @@ export default function Features() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       {/* Hero */}
       <section className="relative overflow-hidden">

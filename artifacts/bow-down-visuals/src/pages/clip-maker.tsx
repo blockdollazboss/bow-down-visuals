@@ -3,7 +3,6 @@ import {
   Clapperboard, Loader2, Sparkles, Upload, Link2, Scissors,
   Copy, Check, Download, AlertTriangle, Play, Clock, Flame,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -274,7 +273,6 @@ export default function ClipMaker() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         {/* Hero */}
         <div className="text-center">

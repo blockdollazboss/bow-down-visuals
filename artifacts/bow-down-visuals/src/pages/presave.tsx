@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { platformLabel } from "@/lib/distribution";
 
@@ -50,7 +49,6 @@ export default function PresaveLanding() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="relative mx-auto max-w-xl px-5 pb-24 pt-14 md:pt-20">
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">
           <div className="h-[240px] w-[480px] rounded-full bg-yellow-600/10 blur-[110px]" />

@@ -4,7 +4,6 @@ import {
   Users, Sparkles, Loader2, Inbox, UserRound, Search, Send, Copy,
   CheckCircle2, XCircle, ChevronRight, MessageSquareText,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -324,7 +323,6 @@ export default function CollabFinder() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10">
         {/* hero */}
         <div className="mb-8 text-center">

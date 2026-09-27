@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -85,7 +84,6 @@ export default function SponsorPost() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-3xl px-4 pb-24 pt-28 md:pt-32">
         <Link href="/sponsors" className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to deals

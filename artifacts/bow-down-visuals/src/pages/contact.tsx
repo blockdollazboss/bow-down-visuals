@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Mail, CheckCircle2, Send } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 export default function Contact() {
@@ -43,7 +42,6 @@ export default function Contact() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <MarketingNav />
 
       <main className="flex-1 flex flex-col items-center justify-center px-5 py-20">
         <div className="w-full max-w-lg">

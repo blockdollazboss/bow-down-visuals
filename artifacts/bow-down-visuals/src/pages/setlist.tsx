@@ -5,7 +5,6 @@ import {
   Sparkles, Loader2, Printer, Clock, Music2, StickyNote, X,
   CheckCircle2, AlertTriangle, Library,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -226,7 +225,6 @@ export default function SetlistBuilder() {
       `}</style>
 
       <div className="no-print">
-        <MarketingNav />
       </div>
 
       <div className="mx-auto max-w-6xl px-5 md:px-8 py-10 md:py-14">

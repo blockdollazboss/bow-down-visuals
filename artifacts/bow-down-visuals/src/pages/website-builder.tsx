@@ -3,7 +3,6 @@ import {
   Globe, Loader2, Sparkles, Download, Eye, FileCode2, Wand2,
   Mic2, Newspaper, Link2, MapPin, CheckCircle2, AlertTriangle,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -216,7 +215,6 @@ export default function WebsiteBuilder() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-28">
         {/* Header */}
         <div className="mb-10 text-center">

@@ -4,7 +4,6 @@ import {
   RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -186,7 +185,6 @@ export default function TitleStudio() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <main className="relative mx-auto max-w-4xl px-4 pb-24 pt-28 md:pt-32">
         <div className="text-center">

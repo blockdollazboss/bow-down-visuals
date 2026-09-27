@@ -3,7 +3,6 @@ import {
   DollarSign, TrendingUp, Music2, Upload, Sparkles, Loader2,
   Wallet, Link2, CheckCircle2, Clock3, AlertTriangle, Copy,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -230,7 +229,6 @@ export default function RoyaltyTracker() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 md:px-8">
         {/* Header */}
         <div className="mb-8">

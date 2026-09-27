@@ -4,7 +4,6 @@ import {
   Clapperboard, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, RefreshCw, Film,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -313,7 +312,6 @@ export default function IntrosOutros() {
   usePageTitle("Intros & Outros", "AI-generated video intros and outros for your channel.");
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <IntrosOutrosTool />
       <SiteFooter />
     </div>

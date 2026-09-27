@@ -3,7 +3,6 @@ import {
   ShieldAlert, MessageSquareHeart, BarChart3, Star, Loader2, Sparkles,
   CheckCircle2, XCircle, AlertTriangle, Copy, Bell, Users,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -203,7 +202,6 @@ export default function CommunityManager() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-amber-300">

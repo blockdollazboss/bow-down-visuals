@@ -4,7 +4,6 @@ import {
   LayoutDashboard, Loader2, Briefcase, BadgeDollarSign, Banknote,
   ArrowRight, PlusCircle, PenLine, CheckCircle2, Clock,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBudgetRange } from "@/lib/sponsors";
@@ -107,7 +106,6 @@ export default function SponsorDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-28 md:pt-32">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

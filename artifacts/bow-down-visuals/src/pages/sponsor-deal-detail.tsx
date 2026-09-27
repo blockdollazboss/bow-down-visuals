@@ -5,7 +5,6 @@ import {
   PenLine, Sparkles, Copy, CheckCircle2, ShieldCheck, Wallet,
   Play, PackageCheck, Banknote, Users, XCircle, AlertTriangle,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -254,7 +253,6 @@ export default function SponsorDealDetail() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-28 md:pt-32">
         <button onClick={() => navigate("/sponsors")}
           className="inline-flex items-center gap-1.5 text-sm text-white/50 transition hover:text-white">

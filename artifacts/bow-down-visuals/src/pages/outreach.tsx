@@ -4,7 +4,6 @@ import {
   CalendarClock, Copy, Check, Send, Clock, Reply, BadgeCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -210,7 +209,6 @@ export default function SponsorshipOutreach() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <main className="relative mx-auto max-w-4xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}

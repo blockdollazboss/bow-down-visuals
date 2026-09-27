@@ -4,7 +4,6 @@ import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
   Store, ArrowLeft, Check, BadgeCheck,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
@@ -160,7 +159,6 @@ export default function ShopStorefront() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       {loading ? (
         <div className="py-32 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>

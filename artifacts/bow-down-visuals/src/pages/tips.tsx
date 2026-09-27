@@ -3,7 +3,6 @@ import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
   MessageCircleHeart, Sparkles, BadgeAlert,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -148,7 +147,6 @@ export default function Tips() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
           <HandCoins className="h-4 w-4" /> Creator monetization

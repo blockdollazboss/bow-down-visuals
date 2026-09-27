@@ -5,7 +5,6 @@ import {
   Briefcase, CalendarClock, BadgeDollarSign, Megaphone,
   LayoutDashboard, PlusCircle, Sparkles,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -141,7 +140,6 @@ export default function Sponsors() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-28 md:pt-32">
         {/* header */}
         <div className="flex flex-wrap items-end justify-between gap-4">

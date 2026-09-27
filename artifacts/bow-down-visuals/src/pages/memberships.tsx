@@ -4,7 +4,6 @@ import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
   Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -276,7 +275,6 @@ export default function Memberships() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary mb-4">

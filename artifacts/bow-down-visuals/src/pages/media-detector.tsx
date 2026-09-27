@@ -4,7 +4,6 @@ import {
   Bot, UserCheck, HelpCircle, ChevronRight, ShieldAlert,
   Image as ImageIcon, Film, Music4, FileWarning,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -275,7 +274,6 @@ export default function MediaDetector() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="max-w-5xl mx-auto px-4 pt-28 pb-20">
         {/* Header */}
         <div className="text-center mb-10">

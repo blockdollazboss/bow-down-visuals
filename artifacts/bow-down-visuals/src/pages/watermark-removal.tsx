@@ -4,7 +4,6 @@ import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Eraser, Info, RefreshCw,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -356,7 +355,6 @@ export default function WatermarkRemoval() {
   usePageTitle("Watermark Removal", "Clean watermarks from your own content — pristine exports, no logos.");
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <WatermarkRemovalTool />
       </main>

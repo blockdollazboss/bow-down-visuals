@@ -3,7 +3,6 @@ import { useRoute, Link } from "wouter";
 import {
   HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Public tip page — /tips/:handle ──────────────────────────────────────
@@ -92,7 +91,6 @@ export default function TipPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-xl px-4 pb-24 pt-28">
         {loading ? (
           <div className="flex justify-center pt-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

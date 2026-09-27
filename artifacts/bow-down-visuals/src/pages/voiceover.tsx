@@ -4,7 +4,6 @@ import {
   Mic, Loader2, Play, Pause, Download, Clapperboard, Volume2,
   AlertTriangle, Sparkles, FileText, Timer, Coins,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -188,7 +187,6 @@ export default function VoiceoverStudio() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <audio id="voice-preview" className="hidden" />
 
       <main className="mx-auto max-w-4xl px-4 pb-24 pt-10">

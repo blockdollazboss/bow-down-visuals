@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 
 import { Button } from "@/components/ui/button";
-import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Zap, HelpCircle, ChevronDown, ArrowRight,
@@ -355,7 +354,6 @@ export default function Pricing() {
     <div className="min-h-screen bg-black text-white lux-page">
       <JsonLd data={PRICING_JSON_LD} />
       <JsonLd data={PRICING_FAQ_JSON_LD} />
-      <MarketingNav />
 
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

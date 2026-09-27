@@ -6,7 +6,6 @@ import {
   Lightbulb, Flame, Tag, Radio, Clapperboard, Wand2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -258,7 +257,6 @@ export default function GamersHub() {
 
   return (
     <div className="gamers-scanlines relative min-h-screen bg-[#050510] text-white">
-      <MarketingNav />
 
       {/* ── HERO ── */}
       <header className="relative overflow-hidden">

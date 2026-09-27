@@ -4,7 +4,6 @@ import {
   AlertTriangle, RefreshCw, Clapperboard, Image as ImageIcon,
   MessageSquareText, Share2, Sparkles, Film,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -333,7 +332,6 @@ export default function Repurpose() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-5xl px-4 pb-24 pt-28">
         {/* Hero */}
         <div className="text-center">

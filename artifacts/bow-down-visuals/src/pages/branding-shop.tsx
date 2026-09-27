@@ -5,7 +5,6 @@ import {
   Smartphone, ShoppingBag, RefreshCw, CreditCard, ExternalLink, BadgeCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -426,7 +425,6 @@ export default function BrandingShop() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10">
         {orderSuccess && !cartOpen && (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">

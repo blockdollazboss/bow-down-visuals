@@ -6,7 +6,6 @@ import {
   History, GripVertical, RefreshCw, ExternalLink,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -239,7 +238,6 @@ export default function Scheduler() {
   if (!user) {
     return (
       <div className="min-h-screen bg-black text-white">
-        <MarketingNav />
         <main className="mx-auto max-w-3xl px-5 pb-24 pt-24 text-center">
           <h1 className="font-display text-4xl font-black">Content <span className="text-primary">Scheduler</span></h1>
           <p className="mt-4 text-white/55">Sign in to schedule posts across Instagram, TikTok, and Facebook.</p>
@@ -254,7 +252,6 @@ export default function Scheduler() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-14 md:pt-20">
         <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center" aria-hidden="true">

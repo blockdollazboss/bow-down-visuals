@@ -4,7 +4,6 @@ import {
   Scale, Copyright, GraduationCap, ArrowRight, Sparkles,
   ShieldCheck, BadgeDollarSign, BookOpen, CheckCircle2, AlertTriangle,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { SiteFooter } from "@/components/layout/footer";
 
@@ -68,7 +67,6 @@ export default function Guides() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       {/* ── HERO ── */}
       <section className="max-w-3xl mx-auto px-5 md:px-8 pt-16 pb-12 text-center">

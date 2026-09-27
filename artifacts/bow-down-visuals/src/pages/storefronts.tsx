@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Store, Search, Loader2, ArrowRight, Sparkles, BadgeCheck } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -49,7 +48,6 @@ export default function Storefronts() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-10">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-amber-300">

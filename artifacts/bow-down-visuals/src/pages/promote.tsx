@@ -4,7 +4,6 @@ import {
   Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, Hash,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -164,7 +163,6 @@ export default function Promote() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <section className="relative overflow-hidden">
         <div

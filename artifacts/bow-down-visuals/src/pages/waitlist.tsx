@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { MarketingNav } from "@/components/MarketingNav";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Zap, CheckCircle2, Music, Video, Film, Image as ImageIcon,
@@ -115,7 +114,6 @@ export default function Waitlist() {
   return (
     <div className="min-h-screen bg-black text-white">
       <JsonLd data={WAITLIST_CONTACT_JSON_LD} />
-      <MarketingNav />
 
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

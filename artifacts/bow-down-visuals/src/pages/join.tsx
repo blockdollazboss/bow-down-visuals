@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { Mail, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Hosted signup landing page: /join/:handle ─────────────────────────
@@ -66,7 +65,6 @@ export default function JoinList() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="mx-auto max-w-xl px-5 py-16">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>

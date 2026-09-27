@@ -4,7 +4,6 @@ import {
   DollarSign, Loader2, Sparkles, Handshake, FileDown,
   BadgeDollarSign, Package, ShieldCheck, Lightbulb, AlertTriangle,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -176,7 +175,6 @@ export default function BrandDealCalculator() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <div className="mx-auto max-w-5xl px-5 pb-24 pt-12 md:px-8 md:pt-16">
         <Link href="/dashboard" className="mb-8 inline-flex items-center gap-2 text-sm text-white/40 transition hover:text-white">
           ← Back to Dashboard

@@ -5,7 +5,6 @@ import {
   Tag, BadgeDollarSign, Store, BarChart3, Music2, AlertTriangle, CheckCircle2,
   X,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -245,7 +244,6 @@ export default function Beats() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <audio ref={audioRef} onEnded={() => setPlayingId(null)} className="hidden" />
 
       <main className="max-w-7xl mx-auto px-5 md:px-8 py-10">

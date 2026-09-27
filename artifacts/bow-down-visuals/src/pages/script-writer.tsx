@@ -4,7 +4,6 @@ import {
   MonitorPlay, Music2, Smartphone, Sparkles, Clock, Zap,
   Eye, Clapperboard, Megaphone, FileText,
 } from "lucide-react";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -137,7 +136,6 @@ export default function ScriptWriter() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
       <main className="max-w-5xl mx-auto px-5 md:px-8 py-10">
         <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-xl bg-amber-400/10 border border-amber-400/30">

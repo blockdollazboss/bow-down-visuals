@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { MarketingNav } from "@/components/MarketingNav";
 import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -362,7 +361,6 @@ export default function AnalyticsHub() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <MarketingNav />
 
       <main className="relative mx-auto max-w-6xl px-5 pb-24 pt-14 md:pt-20">
         {/* glow */}
