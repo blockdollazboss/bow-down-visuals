@@ -2,10 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Site-wide Creator Level — GTA-style 6-star wanted level.
+ * Site-wide Creator Level — GTA-style 6-star rank system.
  *
- * 1 star = Simplest — one-click AI-driven flow, minimal UI.
- * 6 stars = Most wanted — full manual controls, everything exposed.
+ * 1 star = Street Punk — one-click AI-driven flow, minimal UI.
+ * 6 stars = Kingpin — full manual controls, everything exposed.
  *
  * Stars 1-3 map to "simple", stars 4-6 map to "advanced" for existing consumers.
  * Persisted in localStorage, scoped per signed-in user. New users default to 1 star.

@@ -109,6 +109,24 @@ import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const IS_DEV = import.meta.env.DEV;
 
+/** GTA rank names — one per star, matching the pricing page tiers. */
+const STAR_RANKS = [
+  "Street Punk",
+  "Hustler",
+  "Gangster",
+  "Shot Caller",
+  "Crime Boss",
+  "Kingpin",
+] as const;
+const STAR_TAGLINES = [
+  "AI auto-pilot. Just create.",
+  "AI runs it, you approve.",
+  "AI + your tweaks.",
+  "Your call, AI assists.",
+  "Pro controls unlocked.",
+  "Every knob, every setting.",
+] as const;
+
 /** Simple / Advanced mode switch — ported from the old TopBar so the
  *  toolbar's mode control lives in the sidebar now. */
 function ModeToggle() {
@@ -119,8 +137,8 @@ function ModeToggle() {
         <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">
           Creator Level
         </span>
-        <span className="text-[10px] font-black text-primary">
-          {stars <= 2 ? "CHILL" : stars <= 4 ? "HEATING UP" : "MOST WANTED"}
+        <span className="text-[10px] font-black text-primary uppercase">
+          {STAR_RANKS[stars - 1]}
         </span>
       </div>
       <div className="flex items-center justify-between gap-1">
@@ -132,10 +150,10 @@ function ModeToggle() {
               type="button"
               role="radio"
               aria-checked={stars === s}
-              aria-label={`${s} star${s > 1 ? "s" : ""} — ${s <= 3 ? "simple" : "advanced"}`}
+              aria-label={`${s} star${s > 1 ? "s" : ""} — ${STAR_RANKS[s - 1]}`}
               onClick={() => setStars(s)}
               className="flex-1 flex justify-center py-1 transition-transform hover:scale-125 active:scale-95"
-              title={s <= 2 ? "Simple — AI does the work" : s <= 4 ? "Balanced" : "Advanced — full manual control"}
+              title={`${STAR_RANKS[s - 1]} — ${STAR_TAGLINES[s - 1]}`}
             >
               <Star
                 className={`h-5 w-5 transition-colors ${
@@ -149,11 +167,7 @@ function ModeToggle() {
         })}
       </div>
       <p className="text-[10px] text-white/35 px-0.5">
-        {stars <= 2
-          ? "AI auto-pilot. Just create."
-          : stars <= 4
-            ? "AI + your tweaks."
-            : "Every knob, every setting."}
+        {STAR_TAGLINES[stars - 1]}
       </p>
     </div>
   );
