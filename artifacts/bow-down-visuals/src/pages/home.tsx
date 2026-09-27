@@ -654,6 +654,14 @@ function HeroSection() {
           </Button>
         </div>
 
+        {/* Returning users */}
+        <p className="text-sm text-white/40">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors">
+            Sign in
+          </Link>
+        </p>
+
         {/* Social proof — true claims only */}
         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
