@@ -1,52 +1,89 @@
 import { useEffect, useRef } from "react";
 import { Crown } from "lucide-react";
 
-/* Procedural fireworks sound: pops + crackles, no audio file needed. */
+/* Procedural fireworks sound: launch whistle -> sharp bang -> crackle.
+   No audio file needed. */
 function playFireworksSound() {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new Ctx();
     const master = ctx.createGain();
-    master.gain.value = 0.5;
+    master.gain.value = 0.4;
     master.connect(ctx.destination);
 
-    const pop = (delay: number, freq: number, dur: number) => {
-      const t = ctx.currentTime + delay;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, t);
-      osc.frequency.exponentialRampToValueAtTime(40, t + dur);
-      gain.gain.setValueAtTime(0.9, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      osc.connect(gain).connect(master);
-      osc.start(t);
-      osc.stop(t + dur + 0.05);
+    // Shared 2s white-noise buffer reused by bangs and crackles.
+    const noiseLen = Math.floor(ctx.sampleRate * 2);
+    const noiseBuf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const noiseData = noiseBuf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) noiseData[i] = Math.random() * 2 - 1;
 
-      // crackle: short noise burst
-      const len = Math.floor(ctx.sampleRate * 0.25);
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
-      const noise = ctx.createBufferSource();
-      noise.buffer = buf;
-      const ng = ctx.createGain();
-      ng.gain.setValueAtTime(0.35, t + dur * 0.5);
-      ng.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.5 + 0.3);
-      const filter = ctx.createBiquadFilter();
-      filter.type = "highpass";
-      filter.frequency.value = 2000;
-      noise.connect(filter).connect(ng).connect(master);
-      noise.start(t + dur * 0.5);
+    const oneFirework = (startAt: number) => {
+      const t0 = ctx.currentTime + startAt;
+
+      // 1. Launch whistle: soft rising tone, ~0.45s.
+      const whistle = ctx.createOscillator();
+      const wGain = ctx.createGain();
+      whistle.type = "sine";
+      whistle.frequency.setValueAtTime(500, t0);
+      whistle.frequency.exponentialRampToValueAtTime(1800, t0 + 0.45);
+      wGain.gain.setValueAtTime(0.0001, t0);
+      wGain.gain.exponentialRampToValueAtTime(0.1, t0 + 0.12);
+      wGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.48);
+      whistle.connect(wGain).connect(master);
+      whistle.start(t0);
+      whistle.stop(t0 + 0.5);
+
+      // 2. Bang: loud noise burst with fast decay + low thump.
+      const t1 = t0 + 0.5;
+      const bang = ctx.createBufferSource();
+      bang.buffer = noiseBuf;
+      const bFilter = ctx.createBiquadFilter();
+      bFilter.type = "lowpass";
+      bFilter.frequency.setValueAtTime(9000, t1);
+      bFilter.frequency.exponentialRampToValueAtTime(400, t1 + 0.35);
+      const bGain = ctx.createGain();
+      bGain.gain.setValueAtTime(0.85, t1);
+      bGain.gain.exponentialRampToValueAtTime(0.001, t1 + 0.4);
+      bang.connect(bFilter).connect(bGain).connect(master);
+      bang.start(t1);
+      bang.stop(t1 + 0.45);
+
+      const thump = ctx.createOscillator();
+      const thGain = ctx.createGain();
+      thump.type = "sine";
+      thump.frequency.setValueAtTime(120, t1);
+      thump.frequency.exponentialRampToValueAtTime(35, t1 + 0.3);
+      thGain.gain.setValueAtTime(0.65, t1);
+      thGain.gain.exponentialRampToValueAtTime(0.001, t1 + 0.35);
+      thump.connect(thGain).connect(master);
+      thump.start(t1);
+      thump.stop(t1 + 0.4);
+
+      // 3. Crackle: random short pops for ~1.2s after the bang.
+      for (let i = 0; i < 22; i++) {
+        const ct = t1 + 0.15 + Math.random() * 1.2;
+        const dur = 0.02 + Math.random() * 0.04;
+        const pop = ctx.createBufferSource();
+        pop.buffer = noiseBuf;
+        pop.playbackRate.value = 0.8 + Math.random() * 0.8;
+        const bp = ctx.createBiquadFilter();
+        bp.type = "bandpass";
+        bp.frequency.value = 2500 + Math.random() * 3500;
+        bp.Q.value = 1.2;
+        const pGain = ctx.createGain();
+        pGain.gain.setValueAtTime(0.08 + Math.random() * 0.16, ct);
+        pGain.gain.exponentialRampToValueAtTime(0.001, ct + dur);
+        pop.connect(bp).connect(pGain).connect(master);
+        pop.start(ct);
+        pop.stop(ct + dur + 0.02);
+      }
     };
 
-    // A small volley of fireworks
-    pop(0.05, 220, 0.5);
-    pop(0.45, 180, 0.6);
-    pop(0.9, 260, 0.45);
-    pop(1.35, 200, 0.55);
-    pop(1.8, 240, 0.5);
-    window.setTimeout(() => void ctx.close(), 4000);
+    // A volley of three fireworks, staggered.
+    oneFirework(0.05);
+    oneFirework(0.9);
+    oneFirework(1.7);
+    window.setTimeout(() => void ctx.close(), 6000);
   } catch {
     /* audio unavailable — stay silent */
   }
@@ -139,12 +176,13 @@ export function SecretChallengePopup({ credits, onClaim }: { credits: number; on
       {/* Card — no backdrop behind it */}
       <div className="fixed inset-0 z-[9997] flex items-center justify-center p-6 pointer-events-none" role="dialog" aria-modal="true" aria-label="Secret challenge complete">
         <div className="pointer-events-auto relative w-full max-w-md rounded-2xl border-2 border-[#C9A84C] bg-black/90 px-8 py-8 text-center shadow-[0_0_80px_rgba(201,168,76,0.5)] backdrop-blur-md animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]">
-          {/* 8-bit shark peeking from the right edge */}
+          {/* 8-bit shark peeking from the right edge — kept outside the
+              dialog so it never covers the title text */}
           <img
             src={`${import.meta.env.BASE_URL}thy-cheat-code-8bit.webp`}
             alt=""
             aria-hidden="true"
-            className="absolute -right-14 top-1/2 hidden h-44 w-auto -translate-y-1/2 sm:block"
+            className="absolute -right-36 top-1/2 hidden h-44 w-auto -translate-y-1/2 sm:block"
           />
           <Crown className="mx-auto h-10 w-10 text-[#C9A84C]" aria-hidden="true" />
           <h2 className="mt-3 font-display text-3xl font-bold text-[#e8c86a]">You Cracked the Code!</h2>
