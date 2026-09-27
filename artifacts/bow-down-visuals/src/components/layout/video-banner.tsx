@@ -123,7 +123,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
             playsInline
             aria-hidden
             onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
-            className="h-full w-full object-cover object-[center_35%]"
+            className="h-full w-full object-cover object-[center_52%]"
             style={{
               maskImage:
                 "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
