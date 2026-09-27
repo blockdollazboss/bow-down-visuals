@@ -213,7 +213,7 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
  * job → poll GET /api/mastering/:jobId → A/B + download. Failed jobs are
  * refunded automatically.
  */
-router.post("/api/mastering", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
+router.post("/mastering", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
   const preset = resolveMasteringPreset(req.body?.preset);
   if (!preset) {
     res.status(400).json({
@@ -296,7 +296,7 @@ router.post("/api/mastering", requireAuth, upload.single("audio"), async (req: R
  * Poll job status. Returns the before/after loudness stats and download
  * URLs when done (reviewable output, never faked).
  */
-router.get("/api/mastering/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/mastering/:jobId", requireAuth, (req: Request, res: Response) => {
   const job = getMasteringJob(req.params.jobId as string);
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });

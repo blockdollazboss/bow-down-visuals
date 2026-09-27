@@ -356,7 +356,7 @@ export async function runRemixJob(
  * poll GET /api/stems/:jobId → per-stem WAV URLs. Failed jobs refund
  * automatically. Safe to close the tab while it runs.
  */
-router.post("/api/stems", requireAuth, upload.single("audio"), async (req, res) => {
+router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
@@ -422,7 +422,7 @@ router.post("/api/stems", requireAuth, upload.single("audio"), async (req, res) 
  * Poll job status. Returns per-stem URLs when done (signed, reviewable
  * WAVs retained in Supabase storage).
  */
-router.get("/api/stems/:jobId", requireAuth, (req, res) => {
+router.get("/stems/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {
@@ -447,7 +447,7 @@ router.get("/api/stems/:jobId", requireAuth, (req, res) => {
  * drums, bass, other } } with each 0–2. Free — the stems were already
  * paid for; this is a deterministic ffmpeg sum, not AI work.
  */
-router.post("/api/stems/:jobId/remix", requireAuth, async (req, res) => {
+router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

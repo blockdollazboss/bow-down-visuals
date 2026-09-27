@@ -742,7 +742,7 @@ const renderBodySchema = z.object({
  * speech, the lyrics don't match the audio, or the provider fails.
  */
 router.post(
-  "/api/lyric-video/align",
+  "/lyric-video/align",
   requireAuth,
   publicApiLimiter,
   upload.single("audio"),
@@ -929,7 +929,7 @@ router.post(
  * front; the background job refunds automatically if the render fails.
  */
 router.post(
-  "/api/lyric-video/render",
+  "/lyric-video/render",
   requireAuth,
   publicApiLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
@@ -1058,7 +1058,7 @@ router.post(
  * Poll render status. Returns outputUrl when done.
  */
 router.get(
-  "/api/lyric-video/render/:jobId",
+  "/lyric-video/render/:jobId",
   requireAuth,
   async (req: Request, res: Response) => {
     const job = getLyricRenderJob(req.params.jobId as string);
@@ -1079,7 +1079,7 @@ router.get(
 );
 
 /** GET /api/lyric-video/styles — preset metadata for the style picker UI. */
-router.get("/api/lyric-video/styles", requireAuth, (_req: Request, res: Response) => {
+router.get("/lyric-video/styles", requireAuth, (_req: Request, res: Response) => {
   res.json({
     styles: LYRIC_STYLES.map((key) => ({
       key,

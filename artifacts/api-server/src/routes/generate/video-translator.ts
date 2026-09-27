@@ -484,7 +484,7 @@ const translateSchema = z.object({
  * Supported target languages + per-minute pricing for the UI cost preview.
  * Free — no compute involved.
  */
-router.get("/api/video-translator/languages", (_req, res) => {
+router.get("/video-translator/languages", (_req, res) => {
   res.json({
     languages: TARGET_LANGUAGES,
     creditsPerMinutePerLanguage: VIDEO_TRANSLATOR_CREDITS_PER_MINUTE,
@@ -502,7 +502,7 @@ router.get("/api/video-translator/languages", (_req, res) => {
  * proportional refund for the languages that didn't complete.
  */
 router.post(
-  "/api/video-translator/translate",
+  "/video-translator/translate",
   publicApiLimiter,
   requireAuth,
   upload.single("video"),
@@ -618,7 +618,7 @@ router.post(
  * Poll job status. When done, outputs carry per-language videoUrl + srtUrl
  * (signed, reviewable URLs retained in Supabase storage).
  */
-router.get("/api/video-translator/jobs/:jobId", requireAuth, (req, res) => {
+router.get("/video-translator/jobs/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {
