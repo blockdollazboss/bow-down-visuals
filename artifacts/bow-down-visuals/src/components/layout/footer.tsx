@@ -103,7 +103,7 @@ export function SiteFooter() {
 
         {/* Bottom bar */}
         <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/20 text-xs">© 2026 Bow Down Visuals. All rights reserved.</p>
+          <p className="text-white/20 text-xs pl-[14%] sm:pl-[10%]">© 2026 Bow Down Visuals. All rights reserved.</p>
           {/* Social row — swap <span> for <a href="…"> to go live (see data-social-link) */}
           <div className="flex flex-col items-center gap-2" aria-label="Social media">
             <div className="flex items-center gap-3">
