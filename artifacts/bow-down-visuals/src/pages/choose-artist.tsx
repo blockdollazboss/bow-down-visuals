@@ -191,7 +191,7 @@ export default function ChooseArtist() {
                     </div>
                   )}
 
-                  {/* VIP rank badge */}
+                  {/* Artist name badge */}
                   <div style={{
                     position: "absolute", top: 10, left: 10, zIndex: 3,
                     display: "flex", alignItems: "center", gap: 5,
@@ -202,8 +202,8 @@ export default function ChooseArtist() {
                     boxShadow: `0 0 15px ${T(0.3)}`,
                   }}>
                     <Crown className="h-3 w-3" style={{ color: THEME }} />
-                    <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em" }}>
-                      #{index + 1} SPOTLIGHT
+                    <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                      {vault.artist_name}
                     </span>
                   </div>
 
