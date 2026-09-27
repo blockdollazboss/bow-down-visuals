@@ -170,6 +170,7 @@ function FireworksCanvas({ handleRef }: { handleRef: React.RefObject<FireworksHa
 
     const rockets: Rocket[] = [];
     let particles: Particle[] = [];
+    const flashes: { x: number; y: number; life: number; maxLife: number }[] = [];
     const bokeh: Bokeh[] = Array.from({ length: 26 }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
@@ -191,28 +192,30 @@ function FireworksCanvas({ handleRef }: { handleRef: React.RefObject<FireworksHa
     }));
 
     const burst = (x: number, y: number) => {
+      // Expanding core flash ring — the big golden bloom from the mockup.
+      flashes.push({ x, y, life: 0, maxLife: 30 });
       // Core flash
-      for (let i = 0; i < 26; i++) {
+      for (let i = 0; i < 44; i++) {
         const a = Math.random() * Math.PI * 2;
-        const sp = 1 + Math.random() * 3;
+        const sp = 1 + Math.random() * 4;
         particles.push({
           x, y,
           vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-          life: 0, maxLife: 30 + Math.random() * 20,
-          size: 2 + Math.random() * 2.5,
+          life: 0, maxLife: 34 + Math.random() * 22,
+          size: 3 + Math.random() * 3.5,
           hue: 48, crackle: false,
         });
       }
-      // Main gold burst
-      const count = 70 + Math.floor(Math.random() * 30);
+      // Main gold burst — bigger, wider, longer-lived.
+      const count = 140 + Math.floor(Math.random() * 50);
       for (let i = 0; i < count; i++) {
         const a = (i / count) * Math.PI * 2 + Math.random() * 0.2;
-        const sp = 2 + Math.random() * 5.5;
+        const sp = 3 + Math.random() * 7.5;
         particles.push({
           x, y,
           vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
-          life: 0, maxLife: 55 + Math.random() * 45,
-          size: 1 + Math.random() * 2.5,
+          life: 0, maxLife: 70 + Math.random() * 55,
+          size: 1.5 + Math.random() * 3,
           hue: 38 + Math.random() * 18,
           crackle: false,
         });
@@ -312,6 +315,27 @@ function FireworksCanvas({ handleRef }: { handleRef: React.RefObject<FireworksHa
         }
       }
 
+      // Core flash rings — big golden blooms, expanding and fading.
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const f = flashes[i];
+        f.life++;
+        if (f.life >= f.maxLife) {
+          flashes.splice(i, 1);
+          continue;
+        }
+        const t = f.life / f.maxLife;
+        const r = 30 + t * 190;
+        const alpha = (1 - t) * 0.55;
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, r);
+        g.addColorStop(0, `hsla(48, 100%, 70%, ${alpha})`);
+        g.addColorStop(0.55, `hsla(45, 95%, 58%, ${alpha * 0.5})`);
+        g.addColorStop(1, "hsla(45, 95%, 55%, 0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
       // Burst particles
       particles = particles.filter((p) => p.life < p.maxLife);
       for (const p of particles) {
@@ -390,8 +414,21 @@ export function SecretChallengePopup({
       }, s.at),
     );
 
+    // Ambient celebration loop — the sky never goes quiet while the
+    // popup is open. Each loop launch fires its own synced whistle/bang.
+    let loopTimer = 0;
+    const ambient = () => {
+      const x = 0.15 + Math.random() * 0.7;
+      const y = 0.14 + Math.random() * 0.22;
+      if (ctx && master && noiseBuf) scheduleFireworkSound(ctx, master, noiseBuf, 0);
+      canvasHandle.current?.launch(x, y);
+      loopTimer = window.setTimeout(ambient, 2100 + Math.random() * 900);
+    };
+    loopTimer = window.setTimeout(ambient, 4200);
+
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
+      window.clearTimeout(loopTimer);
       if (ctx) void ctx.close().catch(() => {});
     };
   }, []);
@@ -496,7 +533,7 @@ export function SecretChallengePopup({
             alt=""
             aria-hidden="true"
             draggable={false}
-            className="pointer-events-none absolute left-[82%] top-[54%] z-0 hidden h-[140%] w-auto -translate-y-1/2 lg:block"
+            className="pointer-events-none absolute left-[78%] top-[50%] z-0 hidden h-[105%] w-auto -translate-y-1/2 lg:block"
             style={{ imageRendering: "pixelated" }}
           />
         </div>
