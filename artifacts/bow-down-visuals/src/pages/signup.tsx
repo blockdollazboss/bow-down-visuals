@@ -180,10 +180,10 @@ export default function Signup() {
               {firstError}
             </p>
           )}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap overflow-x-auto">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
             {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
-            <div className="relative h-11 w-28 shrink-0">
-              <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
+            <div className="relative h-11 w-28 shrink-0 overflow-visible">
+              <div className="absolute -top-24 left-1/2 -translate-x-1/2 scale-125 z-20">
                 <BowTestLogo />
               </div>
             </div>
