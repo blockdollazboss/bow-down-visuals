@@ -783,7 +783,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
   const hasPhoto = !!vault.reference_image_url;
 
   return (
-    <div data-min-stars="4" className="lux-card-static p-4 mb-3">
+    <div data-min-stars="1" className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Video className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Reference Video</p>
