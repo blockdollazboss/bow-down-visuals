@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STAR_RANKS } from "@/lib/creator-level";
+import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 
 /**
  * Floating admin quick-actions panel — completely separate from the star widget.
@@ -254,6 +255,7 @@ function BowRaceControls({
   const [targetOverride, setTargetOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [testPopup, setTestPopup] = useState(false);
 
   async function load() {
     if (loaded || busy) return;
@@ -352,7 +354,22 @@ function BowRaceControls({
       <button type="button" onClick={() => void save()} disabled={busy} className={btnCls}>
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save race"}
       </button>
+      <button
+        type="button"
+        onClick={() => setTestPopup(true)}
+        className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:border-white/40 transition-colors ml-1"
+        title="Preview the winner popup (no credits granted, no race state changed)"
+      >
+        Test winner popup
+      </button>
       {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
+      {/* Test-only preview: purely client-side, grants nothing. */}
+      {testPopup && (
+        <SecretChallengePopup
+          credits={parseInt(reward, 10) || 50}
+          onClaim={() => setTestPopup(false)}
+        />
+      )}
     </div>
   );
 }
