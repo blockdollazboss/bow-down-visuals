@@ -106,6 +106,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
+import { BowTestLogo } from "@/components/BowTestLogo";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -513,6 +514,11 @@ export function AppSidebar() {
               >
                 <LogOut className="h-4 w-4" />
               </Button>
+              {/* Secret Global Bow Race: signed-in users' bows feed the
+                  monthly race. Silent by design — just a shark that bows. */}
+              <div title="Click me — I bow">
+                <BowTestLogo compact />
+              </div>
             </div>
           </>
         ) : (
