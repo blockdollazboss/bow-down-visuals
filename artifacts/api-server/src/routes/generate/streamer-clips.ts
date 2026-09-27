@@ -327,7 +327,7 @@ export async function detectHighlights(
    highlights. 3 credits. The source video is stored so the cut step can
    fetch it later; the stored ref is returned to the client. */
 router.post(
-  "/api/streamer-clips/analyze",
+  "/streamer-clips/analyze",
   publicApiLimiter,
   requireAuth,
   upload.single("video"),
@@ -534,7 +534,7 @@ export async function runCutJob(job: CutJob, videoRef: string): Promise<void> {
  * 2 credits per clip, charged up front; failed jobs are refunded.
  * Returns 202 + jobId — poll GET /api/streamer-clips/cut/:jobId.
  */
-router.post("/api/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
   const parsed = cutBodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -612,7 +612,7 @@ router.post("/api/streamer-clips/cut", publicApiLimiter, requireAuth, async (req
 });
 
 /** GET /api/streamer-clips/cut/:jobId — poll cut job status. */
-router.get("/api/streamer-clips/cut/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/streamer-clips/cut/:jobId", requireAuth, (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = cutJobs.get(jobId);
   if (!job || job.userId !== req.userId) {

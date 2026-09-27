@@ -411,7 +411,7 @@ export async function runCaptionStylerJob(job: CaptionStylerJob, inputBuffer: Bu
  * background job → poll GET /api/caption-styler/:jobId → download result.
  * Failed jobs are refunded automatically.
  */
-router.post("/api/caption-styler", requireAuth, upload.single("video"), async (req, res) => {
+router.post("/caption-styler", requireAuth, upload.single("video"), async (req, res) => {
   const { style, position, fontSize, withEmoji } = req.body as {
     style?: string;
     position?: string;
@@ -499,7 +499,7 @@ router.post("/api/caption-styler", requireAuth, upload.single("video"), async (r
  * Poll job status. Returns outputUrl when done (a signed, reviewable URL).
  * Jobs are scoped to the requesting user.
  */
-router.get("/api/caption-styler/:jobId", requireAuth, async (req, res) => {
+router.get("/caption-styler/:jobId", requireAuth, async (req, res) => {
   const job = getCaptionStylerJob(req.params.jobId as string);
   if (!job || job.userId !== req.userId) {
     res.status(404).json({ error: "Job not found" });

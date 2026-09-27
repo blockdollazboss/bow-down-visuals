@@ -19,7 +19,7 @@ const router = Router();
    GET /api/beats — browse the marketplace (free).
    Filters: genre, mood (matches mood_tags), minBpm, maxBpm, key, search, limit, offset.
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/api/beats", async (req, res) => {
+router.get("/beats", async (req, res) => {
   const parsed = beatFiltersSchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid filters", details: parsed.error.flatten() });
@@ -63,7 +63,7 @@ router.get("/api/beats", async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats/:id — beat detail (free). Bumps the play counter.
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/api/beats/:id", async (req, res) => {
+router.get("/beats/:id", async (req, res) => {
   const { id } = req.params as { id: string };
   try {
     const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
@@ -88,7 +88,7 @@ router.get("/api/beats/:id", async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/beats — list a beat (FREE to list).
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/api/beats", requireAuth, async (req, res) => {
+router.post("/beats", requireAuth, async (req, res) => {
   const parsed = beatMetadataSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid beat metadata", details: parsed.error.flatten() });
@@ -122,7 +122,7 @@ router.post("/api/beats", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats/mine/dashboard — producer storefront + sales (auth).
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/api/beats/mine/dashboard", requireAuth, async (req, res) => {
+router.get("/beats/mine/dashboard", requireAuth, async (req, res) => {
   try {
     const myBeats = await db
       .select()
@@ -162,7 +162,7 @@ router.get("/api/beats/mine/dashboard", requireAuth, async (req, res) => {
    suggests genre + mood tags via GPT-6. Charge-before-generate, refund on
    provider failure or empty output.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/api/beats/:id/ai-tags", requireAuth, async (req, res) => {
+router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const cost = getBeatAiTagsCost();
 
@@ -263,7 +263,7 @@ router.post("/api/beats/:id/ai-tags", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    PATCH /api/beats/:id — producer updates metadata/tags (auth, owner only).
 ───────────────────────────────────────────────────────────────────────────── */
-router.patch("/api/beats/:id", requireAuth, async (req, res) => {
+router.patch("/beats/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
   const beat = rows[0];
@@ -305,7 +305,7 @@ router.patch("/api/beats/:id", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    DELETE /api/beats/:id — producer removes a listing (auth, owner only).
 ───────────────────────────────────────────────────────────────────────────── */
-router.delete("/api/beats/:id", requireAuth, async (req, res) => {
+router.delete("/beats/:id", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const rows = await db.select().from(beatsTable).where(eq(beatsTable.id, id)).limit(1);
   const beat = rows[0];
@@ -331,7 +331,7 @@ router.delete("/api/beats/:id", requireAuth, async (req, res) => {
    Payment processing is coming soon, so this records the license as
    'pending_payment' and NEVER completes a purchase. The UI says so plainly.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/api/beats/:id/license", requireAuth, async (req, res) => {
+router.post("/beats/:id/license", requireAuth, async (req, res) => {
   const { id } = req.params as { id: string };
   const { tier } = req.body as { tier?: string };
 
@@ -387,7 +387,7 @@ router.post("/api/beats/:id/license", requireAuth, async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/beats/licenses/mine — buyer's license library (auth).
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/api/beats/licenses/mine", requireAuth, async (req, res) => {
+router.get("/beats/licenses/mine", requireAuth, async (req, res) => {
   try {
     const licenses = await db
       .select()

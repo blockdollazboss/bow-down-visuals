@@ -49,7 +49,7 @@ export interface GeneratedSample {
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/sample-pack/catalog — free. Genres, keys, sizes, pricing, types.
 ───────────────────────────────────────────────────────────────────────────── */
-router.get("/api/sample-pack/catalog", (_req, res) => {
+router.get("/sample-pack/catalog", (_req, res) => {
   res.json({
     genres: SAMPLE_GENRES,
     keys: MUSICAL_KEYS,
@@ -160,7 +160,7 @@ async function aiLoop(
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/sample-pack/generate — charge up front, generate, refund on failure.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/api/sample-pack/generate", requireAuth, async (req, res) => {
+router.post("/sample-pack/generate", requireAuth, async (req, res) => {
   const parsed = generatePackSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid pack options.", code: "bad_request", details: parsed.error.flatten() });
@@ -271,7 +271,7 @@ router.post("/api/sample-pack/generate", requireAuth, async (req, res) => {
    POST /api/sample-pack/zip — free. Takes sample URLs, returns a ZIP.
    Stateless: the client already holds the URLs from the generate response.
 ───────────────────────────────────────────────────────────────────────────── */
-router.post("/api/sample-pack/zip", requireAuth, async (req, res) => {
+router.post("/sample-pack/zip", requireAuth, async (req, res) => {
   const { urls, packName } = (req.body ?? {}) as { urls?: unknown; packName?: unknown };
   if (!Array.isArray(urls) || urls.length === 0 || urls.length > 50) {
     res.status(400).json({ error: "Provide 1–50 sample URLs.", code: "bad_request" });

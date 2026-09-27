@@ -245,7 +245,7 @@ const upload = multer({
  * server-owned background job → poll GET /api/vocal-removal/:jobId →
  * download/stream both stems. Failed jobs are refunded automatically.
  */
-router.post("/api/vocal-removal", requireAuth, upload.single("audio"), async (req, res) => {
+router.post("/vocal-removal", requireAuth, upload.single("audio"), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: "No audio file provided" });
     return;
@@ -318,7 +318,7 @@ router.post("/api/vocal-removal", requireAuth, upload.single("audio"), async (re
  * when karaoke was requested and transcription succeeded) once done —
  * signed, reviewable URLs retained in Supabase storage.
  */
-router.get("/api/vocal-removal/:jobId", requireAuth, (req, res) => {
+router.get("/vocal-removal/:jobId", requireAuth, (req, res) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {

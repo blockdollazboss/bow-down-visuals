@@ -525,7 +525,7 @@ export async function runThumbnailJob(job: RepurposeJob): Promise<void> {
    are INCLUDED in the 5 credits. Refunds on no-speech, bad AI output, or
    any provider failure — the user never pays for a pack they didn't get. */
 router.post(
-  "/api/repurpose/analyze",
+  "/repurpose/analyze",
   publicApiLimiter,
   requireAuth,
   upload.single("video"),
@@ -708,7 +708,7 @@ router.post(
 );
 
 /* ── GET /api/repurpose/jobs/:jobId — poll a clip or thumbnail job ─────── */
-router.get("/api/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Response) => {
+router.get("/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = repurposeJobs.get(jobId);
   if (!job || job.userId !== req.userId) {
@@ -730,7 +730,7 @@ router.get("/api/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Respon
    The client sends back the transcript from the analyze response (stateless
    — no server-side transcript storage). Refunds when the model returns
    unusable output. */
-router.post("/api/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
   const parsed = rerollBodySchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
@@ -801,7 +801,7 @@ router.post("/api/repurpose/reroll", publicApiLimiter, requireAuth, async (req: 
 });
 
 /* ── POST /api/repurpose/reroll-thumbnail — 1 credit per fresh image ───── */
-router.post("/api/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
   const parsed = rerollThumbnailSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({
