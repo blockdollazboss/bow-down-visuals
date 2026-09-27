@@ -220,18 +220,20 @@ export default function Signup() {
               className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
               {...form.register("password")}
             />
-            <Input
-              data-testid="input-confirm-password"
-              type="password"
-              aria-label="Confirm Password"
-              placeholder="Confirm Password"
-              autoComplete="new-password"
-              className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
-              {...form.register("confirmPassword")}
-            />
-            <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Free Account"}
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Input
+                data-testid="input-confirm-password"
+                type="password"
+                aria-label="Confirm Password"
+                placeholder="Confirm Password"
+                autoComplete="new-password"
+                className="h-9 w-36 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                {...form.register("confirmPassword")}
+              />
+              <Button data-testid="btn-signup" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap" disabled={loading}>
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Free Account"}
+              </Button>
+            </div>
           </form>
           <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/45 flex-wrap">
             <label className="flex items-center gap-2 cursor-pointer">
