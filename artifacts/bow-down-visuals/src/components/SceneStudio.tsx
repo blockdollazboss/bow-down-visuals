@@ -63,8 +63,24 @@ const IMPROVE_FAILURE_STYLE: Record<ImprovePromptErrorType, { label: string; cla
    When a reference photo will be sent to Runway (image-to-video), the photo
    anchors the artist's face/look, so we use a short identity note and let the
    scene description dominate (gen4.5 image-to-video caps promptText at ~1000
-   chars). Without a photo we fall back to the full text-only consistency block. */
-function buildConsistencyPrefix(vault: ArtistVault, outfitLabel?: string | null): string {
+   chars). Without a photo we fall back to the full text-only consistency block.
+   Linked co-stars are described so they appear in the scene together. */
+function buildConsistencyPrefix(
+  vault: ArtistVault,
+  outfitLabel?: string | null,
+  coStars?: { name: string; role: string; description: string }[],
+): string {
+  const coStarBlock = (coStars ?? []).length > 0
+    ? [
+        "CO-STARS IN THIS SCENE:",
+        ...(coStars ?? []).map(
+          (c) => `- ${c.name} (${c.role}): ${c.description}`,
+        ),
+        "All characters above appear together in the same scene. Keep each character's identity distinct and consistent.",
+        "---",
+      ].join("\n")
+    : "";
+
   if (hasReferencePhoto(vault)) {
     const parts: string[] = [
       `SAME ARTIST AS REFERENCE PHOTO: ${vault.artist_name}. Keep the exact same face, skin tone, hairstyle and identity from the reference image. Do NOT create a new person.`,
@@ -72,6 +88,7 @@ function buildConsistencyPrefix(vault: ArtistVault, outfitLabel?: string | null)
     if (outfitLabel) parts.push(`Outfit: ${outfitLabel} — dress the artist in this exact outfit.`);
     else if (vault.clothing_style) parts.push(`Clothing: ${vault.clothing_style}`);
     if (vault.do_not_change_rules) parts.push(`Do Not Change: ${vault.do_not_change_rules}`);
+    if (coStarBlock) parts.push(coStarBlock);
     parts.push("---");
     return parts.join("\n");
   }
@@ -90,6 +107,7 @@ function buildConsistencyPrefix(vault: ArtistVault, outfitLabel?: string | null)
   if (vault.brand_colors)        parts.push(`Brand Colors: ${vault.brand_colors}`);
   if (vault.consistency_prompt)  parts.push(`Consistency Guide: ${vault.consistency_prompt}`);
   if (vault.do_not_change_rules) parts.push(`⛔ Do Not Change: ${vault.do_not_change_rules}`);
+  if (coStarBlock) parts.push(coStarBlock);
   parts.push("---");
   return parts.join("\n");
 }
@@ -175,6 +193,42 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
     ? pickedOutfit.image_url
     : null;
 
+  /* ── Linked co-stars: characters linked in the vault appear in scenes together. ── */
+  const [coStars, setCoStars] = useState<{ name: string; role: string; description: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setCoStars([]);
+    const vaultId = artistVault?.id;
+    if (!vaultId) return;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch(`/api/artist-vaults/${vaultId}/links`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list: { name: string; role: string; description: string }[] = (data.links ?? [])
+          .filter((l: any) => l.character)
+          .map((l: any) => ({
+            name: l.character.artist_name ?? "Co-star",
+            role: String(l.role ?? "collaborator").split("-").map((w: string) => w[0]?.toUpperCase() + w.slice(1)).join(" "),
+            description: [
+              l.character.personality,
+              l.character.visual_style,
+              l.character.clothing_style,
+              l.character.jewelry,
+            ].filter(Boolean).join(". ") || "character",
+          }));
+        if (!cancelled) setCoStars(list);
+      } catch {
+        /* co-stars are optional — generation works without them */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artistVault?.id]);
+
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; });
 
@@ -200,7 +254,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
       "cinematic music video scene, dramatic lighting, luxury aesthetic";
 
     if (artistVault) {
-      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null);
+      const prefix = buildConsistencyPrefix(artistVault, pickedOutfit?.label ?? null, coStars);
       return `${prefix}\n${basePrompt}`;
     }
     return basePrompt;
