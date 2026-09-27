@@ -33,7 +33,7 @@ export function SecretChallengePopup({
           alt="You cracked the code — you've been awarded credits"
           draggable={false}
           className="block h-auto select-none"
-          style={{ width: "min(94vw, calc(90vh * 1.54))", maxHeight: "90vh" }}
+          style={{ width: "min(94vw, calc(90vh * 1.5))", maxHeight: "90vh" }}
         />
 
         {/* Live credit amount — opaque backing covers the baked-in
