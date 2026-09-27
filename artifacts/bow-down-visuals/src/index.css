@@ -149,7 +149,7 @@ html, body, .bg-background, [class*="min-h-screen"] {
   background-color: #050505;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),
-    url("/images/subpage-bg-throne-v2.webp");
+    url("/images/subpage-bg-throne-v3.webp");
   background-size: cover;
   background-position: center top;
   background-repeat: no-repeat;
