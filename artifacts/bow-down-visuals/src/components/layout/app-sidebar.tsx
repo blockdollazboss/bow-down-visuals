@@ -99,6 +99,7 @@ import {
   PlaySquare,
   Gamepad2,
   Gem,
+  Gift,
   Star,
   Gauge,
   BarChart3,
@@ -286,6 +287,7 @@ const SECTIONS: NavSection[] = [
       { href: "/email-list", label: "Email List", icon: Mail },
       { href: "/collabs", label: "Collabs", icon: UsersRound },
       { href: "/contests", label: "Contests", icon: Trophy },
+      { href: "/referrals", label: "Referrals", icon: Gift },
     ],
   },
   {
