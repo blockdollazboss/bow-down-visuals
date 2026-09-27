@@ -186,22 +186,16 @@ export function ThyCheatCodeChat() {
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[9994] bg-black/60 backdrop-blur-[2px]"
-        onClick={() => setOpen(false)}
-        aria-hidden="true"
-      />
-      {/* Slide-over drawer */}
+      {/* Small floating popup — no screen-blurring backdrop */}
       <div
         role="dialog"
         aria-label="Chat with Thy Cheat Code"
-        className="animate-tcc-drawer-in fixed inset-y-0 right-0 z-[9995] w-[min(300px,80vw)]"
+        className="animate-tcc-drawer-in fixed bottom-24 right-5 z-[9995] h-[min(520px,70vh)] w-[min(340px,90vw)]"
       >
         <div
-          className="flex h-full w-full flex-col overflow-hidden border-l-4 border-[#C9A84C] bg-black"
+          className="flex h-full w-full flex-col overflow-hidden rounded-2xl border-4 border-[#C9A84C] bg-black"
           style={{
-            boxShadow: "-8px 0 0 rgba(0,0,0,0.85), -8px 0 0 2px rgba(201,168,76,0.35)",
+            boxShadow: "0 12px 48px rgba(0,0,0,0.8), 0 0 24px rgba(201,168,76,0.2)",
             imageRendering: "pixelated",
           }}
         >
