@@ -22,6 +22,7 @@ import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
 import { MobileSidebarTrigger } from "@/components/layout/mobile-sidebar-trigger";
+import { FloatingStarLevel } from "@/components/layout/floating-star-level";
 import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -303,7 +304,9 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           onExpand={() => setSidebarCollapsed(false)}
         />
         <LiveBadge />
-        <MobileSidebarTrigger />        {typeof window !== "undefined" && <OnboardingTour />}      </div>
+        <MobileSidebarTrigger />
+        <FloatingStarLevel />
+        {typeof window !== "undefined" && <OnboardingTour />}      </div>
     </SidebarProvider>
   );
 }
