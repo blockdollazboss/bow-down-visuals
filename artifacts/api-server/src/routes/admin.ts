@@ -187,7 +187,9 @@ router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
     });
   } catch (err) {
     req.log.error({ err }, "admin: set plan tier failed");
-    res.status(500).json({ error: "Could not set plan tier. Please try again." });
+    /* Return the specific error to the admin for debugging — this is an admin-only route. */
+    const detail = err instanceof Error ? err.message : "Unknown error.";
+    res.status(500).json({ error: `Could not set plan tier: ${detail}` });
   }
 });
 export default router;
