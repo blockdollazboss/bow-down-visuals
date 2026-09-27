@@ -723,10 +723,31 @@ function CheatCodeDemo() {
   const [vibeId, setVibeId] = useState<string | null>(null);
   const [stage, setStage] = useState(0);
   const timers = useRef<number[]>([]);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const autoRan = useRef(false);
 
   useEffect(() => {
     const stash = timers.current;
     return () => stash.forEach((t) => window.clearTimeout(t));
+  }, []);
+
+  // Auto-play the Hip-Hop sample the first time the demo scrolls into view.
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!autoRan.current && entries.some((e) => e.isIntersecting)) {
+          autoRan.current = true;
+          run("hiphop");
+          io.disconnect();
+        }
+      },
+      { threshold: 0.35 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function run(id: string) {
@@ -743,7 +764,7 @@ function CheatCodeDemo() {
   const running = vibeId !== null && stage < 4;
 
   return (
-    <section id="demo" className="scroll-mt-20 py-20 md:py-28 px-5 relative">
+    <section id="demo" ref={sectionRef} className="scroll-mt-20 py-20 md:py-28 px-5 relative">
       <style>{`
         @keyframes demo-stage-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes demo-pulse-dot { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
