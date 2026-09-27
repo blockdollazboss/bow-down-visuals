@@ -76,7 +76,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                   className="absolute left-1/2 top-0 h-[7%] w-44 -translate-x-1/2 rounded-[50%]"
                   style={{
                     background:
-                      "radial-gradient(ellipse at center, rgba(255,252,230,0.9) 0%, rgba(255,228,140,0.6) 45%, transparent 70%)",
+                      "radial-gradient(ellipse at center, rgba(255,252,230,1) 0%, rgba(255,228,140,0.85) 45%, transparent 70%)",
                   }}
                 />
                 {/* Beam cone */}
@@ -85,7 +85,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                   style={{
                     clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                     background:
-                      "linear-gradient(to bottom, rgba(255,226,130,0.48) 0%, rgba(255,210,100,0.2) 55%, transparent 94%)",
+                      "linear-gradient(to bottom, rgba(255,226,130,0.7) 0%, rgba(255,210,100,0.32) 55%, transparent 94%)",
                   }}
                 />
                 {/* Light pool where the beam lands — at the King's feet */}
@@ -93,7 +93,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                   className="absolute left-1/2 bottom-[1%] h-[11%] w-[540px] -translate-x-1/2 rounded-[50%]"
                   style={{
                     background:
-                      "radial-gradient(ellipse at center, rgba(255,224,128,0.42) 0%, rgba(255,206,98,0.16) 55%, transparent 72%)",
+                      "radial-gradient(ellipse at center, rgba(255,224,128,0.62) 0%, rgba(255,206,98,0.26) 55%, transparent 72%)",
                   }}
                 />
               </div>
