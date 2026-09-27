@@ -8,6 +8,7 @@ import RunwayML from "@runwayml/sdk";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
+import { saveGeneration } from "../../lib/save-generation";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import {
   GEN4_IMAGE_CREDIT_COST,
@@ -40,7 +41,7 @@ const ARTIST_BUCKET = "artist-references";
  * Tracks submitted image tasks so credits are only charged on SUCCEEDED.
  * Key: Runway taskId  Value: { userId, credits }
  */
-const pendingImageTasks = new Map<string, { userId: string; credits: number }>();
+const pendingImageTasks = new Map<string, { userId: string; credits: number; prompt: string }>();
 
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
@@ -228,7 +229,7 @@ router.post("/generate-artist-image", requireAuth, async (req, res) => {
           contentModeration: { publicFigureThreshold: "low" },
         });
 
-    pendingImageTasks.set(task.id, { userId: req.userId!, credits: creditCost });
+    pendingImageTasks.set(task.id, { userId: req.userId!, credits: creditCost, prompt: finalPrompt });
     req.log.info({ taskId: task.id, userId: req.userId }, "[artist-image] task submitted — credits pending on SUCCEEDED");
 
     res.json({ taskId: task.id, creditCost, model: plan.model, ratio: plan.ratio });
@@ -311,6 +312,18 @@ router.get("/generate-artist-image/:taskId", requireAuth, async (req, res) => {
         const { data: { publicUrl } } = getSupabaseAdmin().storage
           .from(ARTIST_BUCKET)
           .getPublicUrl(filePath);
+        /* Auto-save to generation history */
+        if (pending) {
+          saveGeneration({
+            userId: pending.userId,
+            type: "image",
+            title: "Artist Image",
+            fileUrl: publicUrl,
+            thumbnailUrl: publicUrl,
+            prompt: pending.prompt,
+            creditsSpent: pending.credits,
+          });
+        }
         res.json({ status: "succeeded", url: publicUrl, path: filePath });
       } catch (uploadErr: unknown) {
         req.log.error({ err: uploadErr }, "[artist-image] bucket upload failed — returning raw Runway URL as fallback");
