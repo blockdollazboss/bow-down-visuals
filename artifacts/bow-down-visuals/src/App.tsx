@@ -283,7 +283,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           <div className="sticky top-0 z-40">
             <VideoBanner />
           </div>
-          <main className="min-w-0 flex-1">
+          <main className="min-w-0 flex-1 relative">
             <ThyCheatCodeHost />
             {children}
           </main>

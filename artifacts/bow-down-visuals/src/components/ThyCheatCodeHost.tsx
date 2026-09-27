@@ -69,10 +69,10 @@ export function ThyCheatCodeHost() {
     window.dispatchEvent(new CustomEvent("thy-tour:start"));
   };
 
-  /* ── Collapsed: slim in-flow chip ── */
+  /* ── Collapsed: slim floating chip (overlays hero, no flow space) ── */
   if (dismissed) {
     return (
-      <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
+      <div className="absolute top-2 left-4 sm:left-6 lg:left-8 z-[30]">
         <button
           onClick={expand}
           className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
