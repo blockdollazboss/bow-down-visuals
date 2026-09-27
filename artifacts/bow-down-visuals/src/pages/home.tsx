@@ -1483,12 +1483,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden relative">
-      {/* Page backdrop — gold curtain stage, fixed full-viewport behind all content */}
+      {/* Page backdrop — Shark King on the throne with cameras, fixed full-viewport behind all content */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 -z-10"
         style={{
-          backgroundImage: "url(/images/home-bg-gold-curtain-stage.webp)",
+          backgroundImage: "url(/images/home-bg-throne-cameras.webp)",
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat",
