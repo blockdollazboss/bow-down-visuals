@@ -71,6 +71,18 @@ export function FloatingStarLevel() {
   const [creditAmount, setCreditAmount] = useState("50");
   const [creditBusy, setCreditBusy] = useState(false);
   const [creditMsg, setCreditMsg] = useState<string | null>(null);
+  /* Friend credits */
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendAmount, setFriendAmount] = useState("25");
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [friendMsg, setFriendMsg] = useState<string | null>(null);
+  /* Bow race */
+  const [bowReward, setBowReward] = useState("50");
+  const [bowOverride, setBowOverride] = useState("");
+  const [bowEnabled, setBowEnabled] = useState(true);
+  const [bowBusy, setBowBusy] = useState(false);
+  const [bowMsg, setBowMsg] = useState<string | null>(null);
+  const [bowLoaded, setBowLoaded] = useState(false);
 
   /* Only the site owner (admin) sees this. */
   const isAdmin = profile?.plan === "studio";
@@ -182,6 +194,76 @@ export function FloatingStarLevel() {
       setCreditBusy(false);
     }
   }
+
+  async function handleFriendGrant() {
+    const n = parseInt(friendAmount, 10);
+    if (!(n > 0) || !friendEmail.trim() || friendBusy) return;
+    setFriendBusy(true);
+    setFriendMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/credits/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({ amount: n, email: friendEmail.trim() }),
+      });
+      const data = await res.json() as { granted?: number; credits?: number; error?: string };
+      if (!res.ok) throw new Error(data.error || "Grant failed.");
+      setFriendMsg(`✓ ${data.granted} credits → ${friendEmail.trim()}.`);
+      setFriendEmail("");
+    } catch (e) {
+      setFriendMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setFriendBusy(false);
+    }
+  }
+
+  async function loadBowRace() {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/bow-challenge", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setBowReward(String(data.rewardCredits ?? 50));
+      setBowEnabled(data.enabled !== false);
+      setBowOverride(data.targetOverride == null ? "" : String(data.targetOverride));
+    } catch { /* silent */ }
+    finally { setBowLoaded(true); }
+  }
+
+  async function handleBowSave() {
+    if (bowBusy) return;
+    setBowBusy(true);
+    setBowMsg(null);
+    try {
+      const token = await getAccessToken();
+      const overrideRaw = bowOverride.trim();
+      const res = await fetch("/api/admin/bow-challenge", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body: JSON.stringify({
+          rewardCredits: parseInt(bowReward, 10) || 50,
+          enabled: bowEnabled,
+          targetOverride: overrideRaw === "" ? null : parseInt(overrideRaw, 10),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed.");
+      setBowMsg("✓ Bow race updated.");
+    } catch (e) {
+      setBowMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBowBusy(false);
+    }
+  }
+
+  /* Load bow race settings the first time the Admin tab opens. */
+  useEffect(() => {
+    if (tab === "admin" && !bowLoaded) void loadBowRace();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   return (
     <div
@@ -310,6 +392,77 @@ export function FloatingStarLevel() {
                     </button>
                   </div>
                   {creditMsg && <p className="text-[10px] mt-1 text-white/60">{creditMsg}</p>}
+                </div>
+                {/* Give a friend credits */}
+                <div>
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-wide mb-1">Give a friend credits</p>
+                  <input
+                    type="email"
+                    placeholder="friend@email.com"
+                    value={friendEmail}
+                    onChange={(e) => setFriendEmail(e.target.value)}
+                    className="w-full rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50 mb-1"
+                  />
+                  <div className="flex gap-1">
+                    <input
+                      type="number"
+                      min="1"
+                      value={friendAmount}
+                      onChange={(e) => setFriendAmount(e.target.value)}
+                      className="flex-1 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { void handleFriendGrant(); }}
+                      disabled={friendBusy}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-black hover:opacity-90 disabled:opacity-40"
+                    >
+                      {friendBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send"}
+                    </button>
+                  </div>
+                  {friendMsg && <p className="text-[10px] mt-1 text-white/60">{friendMsg}</p>}
+                </div>
+                {/* Global Bow Race */}
+                <div>
+                  <p className="text-[9px] font-black text-white/40 uppercase tracking-wide mb-1">Global Bow Race</p>
+                  <div className="flex gap-1 mb-1">
+                    <input
+                      type="number" min="1"
+                      placeholder="Reward"
+                      value={bowReward}
+                      onChange={(e) => setBowReward(e.target.value)}
+                      title="Credit reward"
+                      className="flex-1 min-w-0 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50"
+                    />
+                    <input
+                      type="number" min="1000" max="5000"
+                      placeholder="Target"
+                      value={bowOverride}
+                      onChange={(e) => setBowOverride(e.target.value)}
+                      title="Target override (blank = random)"
+                      className="flex-1 min-w-0 rounded-lg bg-black/40 border border-white/10 px-2 py-1.5 text-xs text-white outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-1.5 text-[10px] text-white/60 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bowEnabled}
+                        onChange={(e) => setBowEnabled(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-[#C9A84C]"
+                      />
+                      Enabled
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { void handleBowSave(); }}
+                      disabled={bowBusy}
+                      className="ml-auto rounded-lg bg-primary px-3 py-1.5 text-xs font-black text-black hover:opacity-90 disabled:opacity-40"
+                    >
+                      {bowBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                    </button>
+                  </div>
+                  {bowMsg && <p className="text-[10px] mt-1 text-white/60">{bowMsg}</p>}
                 </div>
               </div>
             )}
