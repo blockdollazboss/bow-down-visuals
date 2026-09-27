@@ -10,40 +10,32 @@ const POS_KEY = "bdv_star_widget_snap";
 const COLS = 4;
 const ROWS = 3;
 const MARGIN = 12;
-const WIDGET_W = 76;
-const WIDGET_H = 64;
 
-function snapSlots(): { x: number; y: number }[] {
+function widgetSize(el: HTMLElement | null): { w: number; h: number } {
+  if (!el) return { w: 76, h: 64 };
+  const r = el.getBoundingClientRect();
+  return { w: Math.ceil(r.width) || 76, h: Math.ceil(r.height) || 64 };
+}
+
+function snapSlots(ww: number, wh: number): { x: number; y: number }[] {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const slots: { x: number; y: number }[] = [];
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const x = MARGIN + (c / (COLS - 1)) * (w - MARGIN * 2 - WIDGET_W);
-      const y = MARGIN + (r / (ROWS - 1)) * (h - MARGIN * 2 - WIDGET_H);
+      const x = MARGIN + (c / (COLS - 1)) * Math.max(0, w - MARGIN * 2 - ww);
+      const y = MARGIN + (r / (ROWS - 1)) * Math.max(0, h - MARGIN * 2 - wh);
       slots.push({ x: Math.round(x), y: Math.round(y) });
     }
   }
   return slots;
 }
 
-function nearestSlot(x: number, y: number): number {
-  const slots = snapSlots();
-  let best = 0;
-  let bestDist = Infinity;
-  slots.forEach((s, i) => {
-    const d = (s.x - x) ** 2 + (s.y - y) ** 2;
-    if (d < bestDist) { bestDist = d; best = i; }
-  });
-  return best;
-}
-
-/** Clamp a slot index's position so the widget can never leave the viewport. */
-function slotPos(i: number): { x: number; y: number } {
-  const s = snapSlots()[Math.min(Math.max(0, i), COLS * ROWS - 1)];
+/** Clamp any position so the widget stays fully inside the viewport. */
+function clampToScreen(x: number, y: number, ww: number, wh: number): { x: number; y: number } {
   return {
-    x: Math.min(Math.max(MARGIN, s.x), window.innerWidth - WIDGET_W - MARGIN),
-    y: Math.min(Math.max(MARGIN, s.y), window.innerHeight - WIDGET_H - MARGIN),
+    x: Math.min(Math.max(MARGIN, x), Math.max(MARGIN, window.innerWidth - ww - MARGIN)),
+    y: Math.min(Math.max(MARGIN, y), Math.max(MARGIN, window.innerHeight - wh - MARGIN)),
   };
 }
 
@@ -68,6 +60,7 @@ export function FloatingStarLevel() {
   const [expanded, setExpanded] = useState(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number; moved: boolean } | null>(null);
+  const elRef = useRef<HTMLDivElement>(null);
 
   /* Only the site owner (admin) sees this. */
   const isAdmin = profile?.plan === "studio";
@@ -76,16 +69,33 @@ export function FloatingStarLevel() {
     try { localStorage.setItem(POS_KEY, String(slot)); } catch { /* ignore */ }
   }, [slot]);
 
-  /* Keep the widget on screen when the viewport resizes. */
+  /* Re-clamp on viewport changes so it can never end up off screen. */
   useEffect(() => {
-    const onResize = () => setSlot((s) => Math.min(s, COLS * ROWS - 1));
+    const onResize = () => setSlot((s) => s);
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
   }, []);
 
   if (!isAdmin) return null;
 
-  const p = dragPos ?? slotPos(slot);
+  const { w: ww, h: wh } = widgetSize(elRef.current);
+  const slots = snapSlots(ww, wh);
+  const base = slots[Math.min(Math.max(0, slot), slots.length - 1)];
+  const p = dragPos ?? clampToScreen(base.x, base.y, ww, wh);
+
+  function nearestSlotIndex(x: number, y: number): number {
+    let best = 0;
+    let bestDist = Infinity;
+    slots.forEach((s, i) => {
+      const d = (s.x - x) ** 2 + (s.y - y) ** 2;
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return best;
+  }
 
   function onPointerDown(e: React.PointerEvent) {
     dragRef.current = {
@@ -101,11 +111,8 @@ export function FloatingStarLevel() {
     const dy = e.clientY - d.startY;
     if (Math.abs(dx) + Math.abs(dy) > 8) d.moved = true;
     if (d.moved) {
-      /* Free drag, hard-clamped to the viewport — never off screen. */
-      setDragPos({
-        x: Math.min(Math.max(MARGIN, d.origX + dx), window.innerWidth - WIDGET_W - MARGIN),
-        y: Math.min(Math.max(MARGIN, d.origY + dy), window.innerHeight - WIDGET_H - MARGIN),
-      });
+      const { w, h } = widgetSize(elRef.current);
+      setDragPos(clampToScreen(d.origX + dx, d.origY + dy, w, h));
     }
   }
   function onPointerUp() {
@@ -115,14 +122,14 @@ export function FloatingStarLevel() {
       setExpanded((v) => !v);
       setDragPos(null);
     } else if (dragPos) {
-      /* Snap to the nearest of the 12 slots on release. */
-      setSlot(nearestSlot(dragPos.x, dragPos.y));
+      setSlot(nearestSlotIndex(dragPos.x, dragPos.y));
       setDragPos(null);
     }
   }
 
   return (
     <div
+      ref={elRef}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
