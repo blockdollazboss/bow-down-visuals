@@ -259,7 +259,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
           translucent, respects reduced motion. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-full z-30 h-[300px] overflow-hidden"
+        className="pointer-events-none absolute inset-x-0 top-full z-30 h-[680px] overflow-hidden"
       >
         <div
           className="absolute left-1/2 top-0 h-full w-[1200px]"
@@ -281,25 +281,25 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
                     className="absolute left-1/2 top-0 h-12 w-44 -translate-x-1/2 rounded-[50%]"
                     style={{
                       background:
-                        "radial-gradient(ellipse at center, rgba(255,250,220,1) 0%, rgba(255,224,130,0.6) 45%, transparent 70%)",
+                        "radial-gradient(ellipse at center, rgba(255,252,230,1) 0%, rgba(255,228,140,0.75) 45%, transparent 70%)",
                     }}
                   />
                   {/* Beam cone */}
                   <div
-                    className="absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                    className="absolute left-1/2 top-3 h-[600px] w-[460px] -translate-x-1/2"
                     style={{
                       clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                       background:
-                        "linear-gradient(to bottom, rgba(255,222,122,0.52) 0%, rgba(255,206,96,0.22) 55%, transparent 92%)",
+                        "linear-gradient(to bottom, rgba(255,226,130,0.62) 0%, rgba(255,210,100,0.28) 55%, transparent 94%)",
                     }}
                   />
                   {/* Volumetric ray pattern drifting inside the beam */}
                   <div
-                    className="spotlight-rays absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                    className="spotlight-rays absolute left-1/2 top-3 h-[600px] w-[460px] -translate-x-1/2"
                     style={{
                       clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                       background:
-                        "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,244,200,0.13) 16px 19px, transparent 19px 34px, rgba(255,238,175,0.09) 34px 37px)",
+                        "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,246,205,0.17) 16px 19px, transparent 19px 34px, rgba(255,240,180,0.12) 34px 37px)",
                       animationDelay: `${(i * 0.9).toFixed(2)}s`,
                     }}
                   />
@@ -308,7 +308,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
                     className="absolute left-1/2 bottom-1 h-24 w-[540px] -translate-x-1/2 rounded-[50%]"
                     style={{
                       background:
-                        "radial-gradient(ellipse at center, rgba(255,220,120,0.44) 0%, rgba(255,202,92,0.16) 55%, transparent 72%)",
+                        "radial-gradient(ellipse at center, rgba(255,224,128,0.55) 0%, rgba(255,206,98,0.22) 55%, transparent 72%)",
                     }}
                   />
                 </div>
