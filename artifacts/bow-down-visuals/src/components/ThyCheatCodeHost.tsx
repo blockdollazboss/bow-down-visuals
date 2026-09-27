@@ -36,18 +36,14 @@ function readDismissed(route: string): boolean {
 export function ThyCheatCodeHost() {
   const [location] = useLocation();
   const route = normalizePath(location);
-  const [dismissed, setDismissed] = useState<boolean>(() => readDismissed(route));
+  const [dismissed, setDismissed] = useState<boolean>(true);
 
-  /* Re-read dismissal when the route changes (one host instance, many pages). */
+  /* Always start minimized; user expands manually per page. */
   useEffect(() => {
-    setDismissed(readDismissed(route));
+    setDismissed(true);
   }, [route]);
 
   if (EXCLUDED_RE.test(route)) return null;
-
-  /* Homepage: always show the full coach card (never the slim dismissed chip),
-     so the hero sits directly under real content, not an empty black strip. */
-  const showFull = route === "/" ? true : !dismissed;
 
   const guide = getGuideForRoute(route);
 
@@ -74,7 +70,7 @@ export function ThyCheatCodeHost() {
   };
 
   /* ── Collapsed: slim in-flow chip ── */
-  if (!showFull) {
+  if (dismissed) {
     return (
       <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
         <button
