@@ -808,6 +808,28 @@ html[data-user-mode="advanced"] .simple-only {
   display: none !important;
 }
 
+/* ─── Creator Level (1–6 stars) — difficulty gating ─── */
+/* Tag any control with data-min-stars="N": it is hidden below N stars.
+   Level semantics: 1 Street Punk (AI autopilot) → 6 Kingpin (every knob).
+   See src/lib/creator-level.ts for the full contract. */
+html[data-star-level="1"] [data-min-stars="2"],
+html[data-star-level="1"] [data-min-stars="3"],
+html[data-star-level="1"] [data-min-stars="4"],
+html[data-star-level="1"] [data-min-stars="5"],
+html[data-star-level="1"] [data-min-stars="6"],
+html[data-star-level="2"] [data-min-stars="3"],
+html[data-star-level="2"] [data-min-stars="4"],
+html[data-star-level="2"] [data-min-stars="5"],
+html[data-star-level="2"] [data-min-stars="6"],
+html[data-star-level="3"] [data-min-stars="4"],
+html[data-star-level="3"] [data-min-stars="5"],
+html[data-star-level="3"] [data-min-stars="6"],
+html[data-star-level="4"] [data-min-stars="5"],
+html[data-star-level="4"] [data-min-stars="6"],
+html[data-star-level="5"] [data-min-stars="6"] {
+  display: none !important;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    BILLION-DOLLAR POLISH SYSTEM — global premium utilities.
    Everything here is transform/opacity-only for 60fps. Gold/black

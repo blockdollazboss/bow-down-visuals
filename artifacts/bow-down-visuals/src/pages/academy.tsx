@@ -374,7 +374,7 @@ export default function CreatorAcademy() {
                     className={inputClass}
                   />
                 </div>
-                <div>
+                <div data-min-stars="3">
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">Hours per week</p>
                   <input
                     value={hours}
@@ -386,8 +386,8 @@ export default function CreatorAcademy() {
                 </div>
               </div>
 
-              <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Your level</p>
-              <div className="grid gap-2.5 sm:grid-cols-3">
+              <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">Your level</p>
+              <div data-min-stars="2" className="grid gap-2.5 sm:grid-cols-3">
                 {LEVEL_OPTS.map((l) => {
                   const selected = level === l.key;
                   return (

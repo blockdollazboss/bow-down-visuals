@@ -455,7 +455,7 @@ export default function AnalyticsHub() {
               </p>
             </div>
             {/* CSV import */}
-            <div className="flex items-center gap-2">
+            <div data-min-stars="5" className="flex items-center gap-2">
               <input
                 ref={fileRef}
                 type="file"

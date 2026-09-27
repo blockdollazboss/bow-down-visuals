@@ -621,7 +621,7 @@ export default function BrandingShop() {
                     className={inputClass}
                   />
                 </div>
-                <div>
+                <div data-min-stars="2">
                   <label className="mb-1.5 block text-xs font-semibold text-white/60">Style</label>
                   <div className="grid grid-cols-2 gap-2">
                     {STYLES.map((st) => (
@@ -640,7 +640,7 @@ export default function BrandingShop() {
                     ))}
                   </div>
                 </div>
-                <div>
+                <div data-min-stars="2">
                   <label className="mb-1.5 block text-xs font-semibold text-white/60">
                     Mock up on (up to 3)
                   </label>

@@ -233,10 +233,10 @@ export default function CommentReplies() {
             className={`${inputClass} min-h-[120px] resize-y`}
           />
 
-          <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Reply tone
           </p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {TONES.map((t) => {
               const Icon = t.icon;
               const selected = t.key === tone;
@@ -261,6 +261,7 @@ export default function CommentReplies() {
 
           <label
             htmlFor="voice-notes"
+            data-min-stars="3"
             className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40"
           >
             Your voice notes <span className="normal-case text-white/25">(optional)</span>
@@ -268,6 +269,7 @@ export default function CommentReplies() {
           <input
             id="voice-notes"
             type="text"
+            data-min-stars="3"
             value={voiceNotes}
             onChange={(e) => setVoiceNotes(e.target.value)}
             maxLength={300}
@@ -368,7 +370,7 @@ export default function CommentReplies() {
 
         {/* ── history ───────────────────────────────────────────────── */}
         {history.length > 0 && (
-          <div className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <div data-min-stars="3" className="relative mt-8 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
             <div className="flex items-center justify-between">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <History className="h-5 w-5 text-primary" aria-hidden="true" /> Past batches

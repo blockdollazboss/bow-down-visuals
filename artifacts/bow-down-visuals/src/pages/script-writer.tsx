@@ -167,7 +167,7 @@ export default function ScriptWriter() {
           />
 
           <div className="grid md:grid-cols-3 gap-6 mb-6">
-            <div>
+            <div data-min-stars="2">
               <p className="text-sm font-semibold text-white/70 mb-2">Platform</p>
               <div className="flex flex-col gap-2">
                 {PLATFORMS.map((p) => (
@@ -185,7 +185,7 @@ export default function ScriptWriter() {
                 ))}
               </div>
             </div>
-            <div>
+            <div data-min-stars="3">
               <p className="text-sm font-semibold text-white/70 mb-2">Length</p>
               <div className="flex flex-col gap-2">
                 {LENGTHS.map((l) => (
@@ -203,7 +203,7 @@ export default function ScriptWriter() {
                 ))}
               </div>
             </div>
-            <div>
+            <div data-min-stars="3">
               <p className="text-sm font-semibold text-white/70 mb-2">Tone</p>
               <div className="flex flex-col gap-2">
                 {TONES.map((t) => (
@@ -223,7 +223,7 @@ export default function ScriptWriter() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-6">
+          <div data-min-stars="3" className="grid md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-semibold text-white/70 mb-2">
                 Audience <span className="text-white/30 font-normal">(optional)</span>

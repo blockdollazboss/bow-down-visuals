@@ -281,6 +281,7 @@ export default function SetlistBuilder() {
           <div className="ml-auto flex items-center gap-2">
             <button
               onClick={() => setLibraryOpen(true)}
+              data-min-stars="2"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
             >
               <Library className="h-4 w-4" /> From my songs
@@ -346,6 +347,7 @@ export default function SetlistBuilder() {
                     onChange={(e) => setNewEnergy(Number(e.target.value))}
                     className={inputClass + " cursor-pointer"}
                     aria-label="Energy level"
+                    data-min-stars="2"
                   >
                     <option value={0} className="bg-black">Energy…</option>
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -376,6 +378,7 @@ export default function SetlistBuilder() {
                 value={showNotes}
                 onChange={(e) => setShowNotes(e.target.value)}
                 placeholder="Show context (optional): venue, crowd, slot time…"
+                data-min-stars="3"
                 className={inputClass + " resize-none mb-3"}
                 style={{ minHeight: "64px" }}
                 maxLength={500}
@@ -487,6 +490,7 @@ export default function SetlistBuilder() {
                       <div className="no-print flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => setNotesOpen((p) => ({ ...p, [s.id]: !p[s.id] }))}
+                          data-min-stars="3"
                           className="rounded-lg p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition"
                           title="Stage notes"
                         >
@@ -519,7 +523,7 @@ export default function SetlistBuilder() {
                     </div>
 
                     {/* editable details */}
-                    <div className="no-print mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div data-min-stars="3" className="no-print mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
                       <input
                         value={s.durationSec > 0 ? formatDuration(s.durationSec) : ""}
                         onChange={(e) => {

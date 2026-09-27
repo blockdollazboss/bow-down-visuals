@@ -203,12 +203,12 @@ export default function Tips() {
                     <textarea value={message} onChange={(e) => setMessage(e.target.value)}
                       placeholder="Your support keeps the music coming. Every tip means the world." className={inputClass} rows={3} maxLength={500} />
                   </div>
-                  <div>
+                  <div data-min-stars="3">
                     <label className="mb-1 block text-xs font-medium text-white/50">Suggested amounts (comma-separated, USD)</label>
                     <input value={suggested} onChange={(e) => setSuggested(e.target.value)}
                       placeholder="5, 10, 25" className={inputClass} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div data-min-stars="3" className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-white/50">Goal amount (optional)</label>
                       <input value={goalAmount} onChange={(e) => setGoalAmount(e.target.value.replace(/[^0-9.]/g, ""))}

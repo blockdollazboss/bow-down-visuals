@@ -297,10 +297,10 @@ export default function ViralityCheck() {
           </div>
 
           {/* platform picker */}
-          <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Platform
           </p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label="Platform">
+          <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4" role="radiogroup" aria-label="Platform">
             {PLATFORMS.map((p) => {
               const selected = p.key === platform;
               return (
@@ -322,10 +322,11 @@ export default function ViralityCheck() {
           </div>
 
           {/* hook line */}
-          <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Hook / first line <span className="normal-case tracking-normal text-white/25">(what viewers see or hear first)</span>
           </p>
           <input
+            data-min-stars="3"
             value={hookLine}
             onChange={(e) => setHookLine(e.target.value)}
             maxLength={300}
@@ -347,10 +348,11 @@ export default function ViralityCheck() {
           />
 
           {/* hashtags */}
-          <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="3" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Hashtags <span className="normal-case tracking-normal text-white/25">(optional)</span>
           </p>
           <input
+            data-min-stars="3"
             value={hashtags}
             onChange={(e) => setHashtags(e.target.value)}
             maxLength={500}
@@ -496,6 +498,7 @@ export default function ViralityCheck() {
                   <button
                     onClick={runCheck}
                     disabled={loading}
+                    data-min-stars="2"
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Gauge className="h-4 w-4" aria-hidden="true" />

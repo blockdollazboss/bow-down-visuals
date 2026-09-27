@@ -105,27 +105,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
+import { STAR_RANKS, STAR_TAGLINES } from "@/lib/creator-level";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 
 const IS_DEV = import.meta.env.DEV;
-
-/** GTA rank names — one per star, matching the pricing page tiers. */
-const STAR_RANKS = [
-  "Street Punk",
-  "Hustler",
-  "Gangster",
-  "Shot Caller",
-  "Crime Boss",
-  "Kingpin",
-] as const;
-const STAR_TAGLINES = [
-  "AI auto-pilot. Just create.",
-  "AI runs it, you approve.",
-  "AI + your tweaks.",
-  "Your call, AI assists.",
-  "Pro controls unlocked.",
-  "Every knob, every setting.",
-] as const;
 
 /** Simple / Advanced mode switch — ported from the old TopBar so the
  *  toolbar's mode control lives in the sidebar now. */

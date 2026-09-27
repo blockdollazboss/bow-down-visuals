@@ -236,7 +236,10 @@ export default function MakeSong() {
               )}
             </div>
 
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="music" />
+            {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
+            <div data-min-stars="2">
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="music" />
+            </div>
 
             {/* Row 1: Artist + Song Title */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -257,8 +260,8 @@ export default function MakeSong() {
               </FieldWrapper>
             </div>
 
-            {/* Row 2: Genre + Mood */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Row 2: Genre + Mood — style picks (2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
               <FieldWrapper label="Genre">
                 <StyledSelect
                   name="genre"
@@ -289,8 +292,8 @@ export default function MakeSong() {
               {errors.songTopic && <p className="text-red-400 text-xs mt-1">Song topic is required</p>}
             </FieldWrapper>
 
-            {/* Row 4: Clean/Explicit + Song Length */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Row 4: Clean/Explicit + Song Length — tweak options (3) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
               <FieldWrapper label="Clean or Explicit" hint="Clean = no profanity. Explicit = no restrictions on language.">
                 <StyledSelect
                   name="cleanOrExplicit"
@@ -311,8 +314,8 @@ export default function MakeSong() {
               </FieldWrapper>
             </div>
 
-            {/* Row 5: Voice Style + Beat Style */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Row 5: Voice Style + Beat Style — tweak options (3) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
               <FieldWrapper label="Voice Style" hint="How does the artist sound? e.g. deep and raspy, high melodic, aggressive, smooth.">
                 <Input
                   {...register("voiceStyle")}
@@ -329,14 +332,16 @@ export default function MakeSong() {
               </FieldWrapper>
             </div>
 
-            {/* Row 6: Special Instructions */}
-            <FieldWrapper label="Special Instructions" hint="Optional — add references, cultural notes, things to avoid, or any detail the AI should know about.">
-              <Textarea
-                {...register("specialInstructions")}
-                placeholder="Any extra details — references, specific themes, things to avoid, cultural notes..."
-                className="min-h-[100px] bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 py-3 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl resize-none hover:border-white/[0.18]"
-              />
-            </FieldWrapper>
+            {/* Row 6: Special Instructions — manual prompt editing (4) */}
+            <div data-min-stars="4">
+              <FieldWrapper label="Special Instructions" hint="Optional — add references, cultural notes, things to avoid, or any detail the AI should know about.">
+                <Textarea
+                  {...register("specialInstructions")}
+                  placeholder="Any extra details — references, specific themes, things to avoid, cultural notes..."
+                  className="min-h-[100px] bg-[linear-gradient(180deg,hsl(0_0%_100%/0.04),hsl(0_0%_100%/0.015))] border border-white/[0.10] text-white px-3.5 py-3 placeholder:text-white/25 focus:border-[hsl(45_95%_55%/0.6)] focus:shadow-[0_0_0_3px_hsl(45_95%_50%/0.15),0_0_20px_-4px_hsl(45_95%_50%/0.35)] shadow-[inset_0_1px_2px_hsl(0_0%_0%/0.3)] transition-all duration-200 rounded-xl resize-none hover:border-white/[0.18]"
+                />
+              </FieldWrapper>
+            </div>
 
             {/* Submit */}
             <div className="pt-2">

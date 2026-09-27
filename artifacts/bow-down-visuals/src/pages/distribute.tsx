@@ -175,11 +175,11 @@ function SandboxBadge({ aggregator }: { aggregator: string | null }) {
   );
 }
 
-function Section({ title, icon, children, action }: {
-  title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode;
+function Section({ title, icon, children, action, minStars }: {
+  title: string; icon: React.ReactNode; children: React.ReactNode; action?: React.ReactNode; minStars?: number;
 }) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+    <section data-min-stars={minStars} className="rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-display text-xl font-black">{icon}{title}</h3>
         {action}
@@ -513,8 +513,8 @@ function NewReleaseWizard(props: {
           </div>
 
           <div className="mt-5">
-            <label className={labelClass}>Release type *</label>
-            <div className="grid gap-2 md:grid-cols-3">
+            <label data-min-stars="2" className={labelClass}>Release type *</label>
+            <div data-min-stars="2" className="grid gap-2 md:grid-cols-3">
               {tierCards.map((t) => (
                 <button
                   key={t.type}
@@ -534,7 +534,7 @@ function NewReleaseWizard(props: {
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass}>Genre</label>
               <input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Hip-Hop / Trap" className={inputClass} maxLength={80} />
             </div>
@@ -542,11 +542,11 @@ function NewReleaseWizard(props: {
               <label className={labelClass}>Release date *</label>
               <input type="date" value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} className={inputClass} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass}>ISRC <span className="font-normal normal-case text-white/30">(optional)</span></label>
               <input value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder="US-XXX-26-00001" className={inputClass} maxLength={20} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass}>Record label <span className="font-normal normal-case text-white/30">(optional)</span></label>
               <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Bow Down Records" className={inputClass} maxLength={120} />
             </div>
@@ -605,6 +605,7 @@ function NewReleaseWizard(props: {
                     value={t.isrc ?? ""}
                     onChange={(e) => setTracks((prev) => prev.map((x, j) => (j === i ? { ...x, isrc: e.target.value } : x)))}
                     placeholder="ISRC"
+                    data-min-stars="4"
                     className={`${inputClass} max-w-[140px]`}
                     maxLength={20}
                   />
@@ -663,7 +664,7 @@ function NewReleaseWizard(props: {
               maxLength={1000}
             />
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <div className="flex gap-2">
+              <div data-min-stars="5" className="flex gap-2">
                 {ART_MODELS.map((m) => (
                   <button
                     key={m.value}
@@ -1220,6 +1221,7 @@ function ReleaseDetail(props: {
         title="Royalty splits"
         icon={<Users className="h-5 w-5 text-primary" />}
         action={<span className="rounded-full bg-white/[0.05] px-3 py-1 text-[11px] font-bold text-white/50">Free</span>}
+        minStars={5}
       >
         <p className="mb-4 text-sm text-white/50">
           Add collaborators and their share of royalties. Shares must total exactly 100%.

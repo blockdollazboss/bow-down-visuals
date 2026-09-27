@@ -259,7 +259,7 @@ export function StreamPackTool() {
             />
           </div>
 
-          <div>
+          <div data-min-stars="2">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Theme</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {themes.map((t) => (
@@ -289,7 +289,7 @@ export function StreamPackTool() {
             </div>
           </div>
 
-          <div>
+          <div data-min-stars="5">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
               Assets in this pack ({selectedAssets.length} selected · {totalCost} credits)
             </p>
@@ -399,6 +399,7 @@ export function StreamPackTool() {
                         <button
                           onClick={() => generateOne(a.key)}
                           title="Regenerate (1 credit)"
+                          data-min-stars="3"
                           className="rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
                         >
                           <RefreshCw className="h-3.5 w-3.5" />

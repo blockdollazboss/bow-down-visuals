@@ -72,7 +72,7 @@ export default function Storefronts() {
           </div>
         </div>
 
-        <div className="relative mx-auto mt-10 max-w-xl">
+        <div className="relative mx-auto mt-10 max-w-xl" data-min-stars="2">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
           <input
             value={q}

@@ -579,9 +579,9 @@ export default function PromoClip() {
               )}
             </div>
 
-            {/* ── STEP 2: Promo Type ── */}
+            {/* ── STEP 2: Promo Type — preset picks (2) ── */}
             {selectedProject && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
                 <StepHeader number={2} label="Choose Promo Type" done={!!promoType} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PROMO_TYPES.map((pt) => (
@@ -597,9 +597,9 @@ export default function PromoClip() {
               </div>
             )}
 
-            {/* ── STEP 3: Platform ── */}
+            {/* ── STEP 3: Platform — preset picks (2) ── */}
             {selectedProject && promoType && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
                 <StepHeader number={3} label="Choose Platform" done={!!platform} />
                 <div className="flex flex-wrap gap-2">
                   {PLATFORMS.map((p) => (
@@ -621,9 +621,9 @@ export default function PromoClip() {
               </div>
             )}
 
-            {/* ── Clip Selector (if project has clips) ── */}
+            {/* ── Clip Selector (if project has clips) — tweak option (3) ── */}
             {selectedProject && promoType && platform && projectClips.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="3">
                 <button
                   type="button"
                   onClick={() => setClipsOpen((v) => !v)}
@@ -686,9 +686,9 @@ export default function PromoClip() {
               </div>
             )}
 
-            {/* ── Advanced Options ── */}
+            {/* ── Advanced Options — manual prompt editing (4) ── */}
             {selectedProject && promoType && platform && (
-              <div className="rounded-2xl border border-white/[0.06] bg-transparent overflow-hidden">
+              <div className="rounded-2xl border border-white/[0.06] bg-transparent overflow-hidden" data-min-stars="4">
                 <button
                   type="button"
                   onClick={() => setAdvancedOpen((v) => !v)}
@@ -782,16 +782,19 @@ export default function PromoClip() {
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
               <form onSubmit={handleSubmit(generateFromScratch)} className="space-y-8">
 
-                <ArtistVaultSelector
-                  onLoad={(vault) => {
-                    if (!watched.artistName) setValue("artistName", vault.artist_name);
-                    if (!watched.genre && vault.genre) setValue("genre", vault.genre);
-                    setLoadedVault(vault);
-                  }}
-                  loadedVaultId={loadedVault?.id}
-                  loadedVault={loadedVault}
-                  context="promo"
-                />
+                {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
+                <div data-min-stars="2">
+                  <ArtistVaultSelector
+                    onLoad={(vault) => {
+                      if (!watched.artistName) setValue("artistName", vault.artist_name);
+                      if (!watched.genre && vault.genre) setValue("genre", vault.genre);
+                      setLoadedVault(vault);
+                    }}
+                    loadedVaultId={loadedVault?.id}
+                    loadedVault={loadedVault}
+                    context="promo"
+                  />
+                </div>
 
                 {/* Step 1: Artist & Track */}
                 <div className="space-y-4">
@@ -813,10 +816,10 @@ export default function PromoClip() {
                   </div>
                 </div>
 
-                {/* Step 2: Sound & Style */}
+                {/* Step 2: Sound & Style — style picks (2) */}
                 <div className="space-y-4">
                   <StepHeader number={2} label="Sound & Style" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                     <div className="space-y-2">
                       <FieldLabel>Genre</FieldLabel>
                       <StyledSelect name="genre" placeholder="Select genre…" options={GENRES}
@@ -830,10 +833,10 @@ export default function PromoClip() {
                   </div>
                 </div>
 
-                {/* Step 3: Campaign */}
+                {/* Step 3: Campaign — platform & goal preset picks (2); song hook is required input and stays visible */}
                 <div className="space-y-4">
                   <StepHeader number={3} label="Campaign" />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                     <div className="space-y-2">
                       <FieldLabel>Platform</FieldLabel>
                       <StyledSelect name="platform" placeholder="Select platform…"
@@ -858,8 +861,8 @@ export default function PromoClip() {
                   </div>
                 </div>
 
-                {/* Advanced */}
-                <div className="border border-white/[0.06] rounded-xl overflow-hidden">
+                {/* Advanced — special instructions = manual prompt editing (4) */}
+                <div className="border border-white/[0.06] rounded-xl overflow-hidden" data-min-stars="4">
                   <button
                     type="button"
                     onClick={() => setScratchAdvancedOpen((v) => !v)}

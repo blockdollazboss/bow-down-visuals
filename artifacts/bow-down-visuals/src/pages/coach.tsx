@@ -208,10 +208,10 @@ export default function MonetizationCoach() {
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
         <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           {/* niche */}
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Your niche
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div data-min-stars="2" className="flex flex-wrap gap-2">
             {NICHE_PRESETS.map((n) => {
               const selected = !customNiche.trim() && niche === n;
               return (
@@ -275,6 +275,7 @@ export default function MonetizationCoach() {
                   </button>
                   {selected && (
                     <input
+                      data-min-stars="3"
                       value={followers[p.key]}
                       onChange={(e) => setFollowerCount(p.key, e.target.value)}
                       inputMode="numeric"
@@ -289,10 +290,11 @@ export default function MonetizationCoach() {
           </div>
 
           {/* cadence */}
-          <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="3" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Videos per week
           </p>
           <input
+            data-min-stars="3"
             value={cadence}
             onChange={(e) => setCadence(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
             inputMode="numeric"

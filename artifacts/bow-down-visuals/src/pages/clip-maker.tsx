@@ -337,7 +337,7 @@ export default function ClipMaker() {
 
           {/* Preferences */}
           <div className="mt-6 grid gap-5 sm:grid-cols-3">
-            <div>
+            <div data-min-stars="2">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Clip length</div>
               <div className="flex gap-2">
                 {CLIP_LENGTHS.map((len) => (
@@ -355,7 +355,7 @@ export default function ClipMaker() {
                 ))}
               </div>
             </div>
-            <div>
+            <div data-min-stars="3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">
                 Max clips · <span className="text-primary">{maxClips}</span>
               </div>
@@ -368,7 +368,7 @@ export default function ClipMaker() {
                 className="w-full accent-amber-400"
               />
             </div>
-            <div>
+            <div data-min-stars="2">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/45">Vibe</div>
               <div className="flex gap-2">
                 {VIBES.map((v) => (

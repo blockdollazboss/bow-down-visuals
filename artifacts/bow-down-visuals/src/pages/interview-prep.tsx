@@ -246,7 +246,7 @@ export default function InterviewPrep() {
         </div>
 
         {/* interview type picker */}
-        <div className="relative mt-10">
+        <div data-min-stars="2" className="relative mt-10">
           <h2 className={labelClass + " text-center"}>1 · Pick your interview</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {TYPE_OPTIONS.map((t) => {
@@ -282,19 +282,19 @@ export default function InterviewPrep() {
               <label className={labelClass} htmlFor="ip-name">Artist name</label>
               <input id="ip-name" className={inputClass} value={artistName} onChange={(e) => setArtistName(e.target.value)} placeholder="King Shark" maxLength={100} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass} htmlFor="ip-genre">Genre</label>
               <input id="ip-genre" className={inputClass} value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Hip-Hop" maxLength={100} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass} htmlFor="ip-project">Latest project</label>
               <input id="ip-project" className={inputClass} value={latestProject} onChange={(e) => setLatestProject(e.target.value)} placeholder="Deep Water EP — out now" maxLength={300} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass} htmlFor="ip-audience">Audience size</label>
               <input id="ip-audience" className={inputClass} value={audienceSize} onChange={(e) => setAudienceSize(e.target.value)} placeholder="250K" maxLength={50} />
             </div>
-            <div className="md:col-span-2">
+            <div data-min-stars="3" className="md:col-span-2">
               <label className={labelClass} htmlFor="ip-story">What's happening right now? <span className="text-white/30 normal-case">(the story interviewers will chase)</span></label>
               <textarea id="ip-story" className={inputClass} rows={2} value={currentStory} onChange={(e) => setCurrentStory(e.target.value)} placeholder="Just announced a 20-city tour, single going viral on TikTok…" maxLength={500} />
             </div>

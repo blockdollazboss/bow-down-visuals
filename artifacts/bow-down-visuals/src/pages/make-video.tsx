@@ -970,7 +970,8 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Genre + Mood — style picks (2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                 <FieldWrapper label="Genre">
                   <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
                     value={watched.genre} onChange={(v) => setValue("genre", v)} />
@@ -1031,8 +1032,9 @@ export default function MakeVideo() {
 
               {songStructure && <SongSectionAnalysis analysis={songStructure} />}
 
+              {/* "Skip the text plan" — pro alternate generation flow (5) */}
               {audioUrl && watched.lyrics.length > 10 && (
-                <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-primary shrink-0" /> Skip the text plan
@@ -1076,7 +1078,10 @@ export default function MakeVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
+                  {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
+                  <div data-min-stars="2">
+                    <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
+                  </div>
 
                   <FieldWrapper label="Artist Description">
                     <Textarea
@@ -1088,31 +1093,40 @@ export default function MakeVideo() {
                     {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
                   </FieldWrapper>
 
-                  <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
-                    <Input
-                      {...register("brandColors")}
-                      placeholder="e.g. All black, silver accents, deep purple"
-                      className={inputClass}
-                    />
-                  </FieldWrapper>
+                  {/* Brand Colors — tweak option (3) */}
+                  <div data-min-stars="3">
+                    <FieldWrapper label="Brand Colors" hint="Primary colors to use in visuals (e.g. black, gold, deep purple).">
+                      <Input
+                        {...register("brandColors")}
+                        placeholder="e.g. All black, silver accents, deep purple"
+                        className={inputClass}
+                      />
+                    </FieldWrapper>
+                  </div>
 
-                  <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
-                    <Textarea
-                      {...register("visualStyleRules")}
-                      placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
-                      className={textareaClass}
-                      style={{ minHeight: "90px" }}
-                    />
-                  </FieldWrapper>
+                  {/* Visual Style Rules — tweak options (3) */}
+                  <div data-min-stars="3">
+                    <FieldWrapper label="Visual Style Rules" hint="Always-on rules for every visual — lock in the brand's look.">
+                      <Textarea
+                        {...register("visualStyleRules")}
+                        placeholder="e.g. All black wardrobe only. No bright colors. Cinematic dark tones always."
+                        className={textareaClass}
+                        style={{ minHeight: "90px" }}
+                      />
+                    </FieldWrapper>
+                  </div>
 
-                  <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
-                    <Textarea
-                      {...register("doNotChangeRules")}
-                      placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
-                      className={textareaClass}
-                      style={{ minHeight: "90px" }}
-                    />
-                  </FieldWrapper>
+                  {/* Do Not Change Rules — manual overrides (4) */}
+                  <div data-min-stars="4">
+                    <FieldWrapper label="Do Not Change Rules" hint="Hard limits — the AI will never violate these.">
+                      <Textarea
+                        {...register("doNotChangeRules")}
+                        placeholder="e.g. Never show the artist without their chain. Never use cartoonish styles."
+                        className={textareaClass}
+                        style={{ minHeight: "90px" }}
+                      />
+                    </FieldWrapper>
+                  </div>
                 </>
               )}
             </div>
@@ -1126,7 +1140,8 @@ export default function MakeVideo() {
                 <p className="text-sm text-white/40">Choose the style, platform, and creative direction for your video.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Video Style + Platform — style picks (2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                 <FieldWrapper label="Video Style">
                   <StyledSelect name="videoStyle" placeholder="Select style..." options={VIDEO_STYLES}
                     value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
@@ -1137,28 +1152,37 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
-              <FieldWrapper label="Video Length">
-                <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
-                  value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
-              </FieldWrapper>
+              {/* Video Length — tweak option (3) */}
+              <div data-min-stars="3">
+                <FieldWrapper label="Video Length">
+                  <StyledSelect name="videoLength" placeholder="Select length..." options={LENGTHS}
+                    value={watched.videoLength} onChange={(v) => setValue("videoLength", v)} />
+                </FieldWrapper>
+              </div>
 
-              <FieldWrapper label="Location Ideas" hint="Suggest locations, environments, or settings for your scenes.">
-                <Textarea
-                  {...register("locationIdeas")}
-                  placeholder="e.g. Brooklyn streets at night, rooftop overlooking the city, abandoned warehouse..."
-                  className={textareaClass}
-                  style={{ minHeight: "90px" }}
-                />
-              </FieldWrapper>
+              {/* Location Ideas — tweak options (3) */}
+              <div data-min-stars="3">
+                <FieldWrapper label="Location Ideas" hint="Suggest locations, environments, or settings for your scenes.">
+                  <Textarea
+                    {...register("locationIdeas")}
+                    placeholder="e.g. Brooklyn streets at night, rooftop overlooking the city, abandoned warehouse..."
+                    className={textareaClass}
+                    style={{ minHeight: "90px" }}
+                  />
+                </FieldWrapper>
+              </div>
 
-              <FieldWrapper label="Special Visual Instructions" hint="Specific shots, themes, cultural references, or things to avoid.">
-                <Textarea
-                  {...register("specialInstructions")}
-                  placeholder="Any specific shots, visual themes, cultural elements, or things to avoid..."
-                  className={textareaClass}
-                  style={{ minHeight: "90px" }}
-                />
-              </FieldWrapper>
+              {/* Special Visual Instructions — manual prompt editing (4) */}
+              <div data-min-stars="4">
+                <FieldWrapper label="Special Visual Instructions" hint="Specific shots, themes, cultural references, or things to avoid.">
+                  <Textarea
+                    {...register("specialInstructions")}
+                    placeholder="Any specific shots, visual themes, cultural elements, or things to avoid..."
+                    className={textareaClass}
+                    style={{ minHeight: "90px" }}
+                  />
+                </FieldWrapper>
+              </div>
             </div>
           )}
 

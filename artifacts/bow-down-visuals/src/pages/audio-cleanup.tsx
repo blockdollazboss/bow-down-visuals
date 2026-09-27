@@ -349,7 +349,7 @@ export default function AudioCleanup() {
             </div>
 
             {/* Mode picker */}
-            <div>
+            <div data-min-stars="2">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Cleanup mode</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {MODES.map((m) => {

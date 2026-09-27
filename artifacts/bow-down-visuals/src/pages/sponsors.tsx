@@ -174,7 +174,7 @@ export default function Sponsors() {
         )}
 
         {/* filter */}
-        <div className="mt-8 flex max-w-sm items-center gap-2">
+        <div className="mt-8 flex max-w-sm items-center gap-2" data-min-stars="2">
           <input value={nicheFilter} onChange={(e) => setNicheFilter(e.target.value)} maxLength={60}
             placeholder="Filter by niche…" className={inputClass} />
         </div>
@@ -258,12 +258,12 @@ export default function Sponsors() {
               <input value={matchNiche} onChange={(e) => setMatchNiche(e.target.value)} maxLength={120}
                 placeholder="e.g. Music" className={inputClass} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <p className={sectionLabel}>Followers</p>
               <input value={matchFollowers} onChange={(e) => setMatchFollowers(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
                 inputMode="numeric" placeholder="25000" className={inputClass} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <p className={sectionLabel}>Platforms (comma separated)</p>
               <input value={matchPlatforms} onChange={(e) => setMatchPlatforms(e.target.value)} maxLength={200}
                 placeholder="tiktok, instagram" className={inputClass} />

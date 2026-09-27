@@ -309,7 +309,7 @@ export default function BrandDealFinder() {
                 placeholder={niche}
                 className={inputClass}
               />
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-2 flex flex-wrap gap-1.5" data-min-stars="2">
                 {NICHE_PRESETS.map((n) => (
                   <button
                     key={n}
@@ -326,10 +326,10 @@ export default function BrandDealFinder() {
               </div>
             </div>
             <div>
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
                 <Users className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> Audience size
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2" data-min-stars="2">
                 {AUDIENCE_OPTS.map((a) => (
                   <button
                     key={a.key}
@@ -344,11 +344,12 @@ export default function BrandDealFinder() {
                   </button>
                 ))}
               </div>
-              <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
+              <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="3">
                 Your name <span className="text-white/25 normal-case tracking-normal">(for outreach)</span>
               </p>
               <input
                 value={creatorName}
+                data-min-stars="3"
                 onChange={(e) => setCreatorName(e.target.value)}
                 maxLength={100}
                 placeholder="e.g. TRGDY TRBLZ"
@@ -358,10 +359,10 @@ export default function BrandDealFinder() {
           </div>
 
           {/* platforms */}
-          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             Where do you post?
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-min-stars="2">
             {PLATFORM_PRESETS.map((p) => {
               const selected = platforms.includes(p);
               return (
@@ -402,10 +403,10 @@ export default function BrandDealFinder() {
           />
 
           {/* deal types */}
-          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             What kind of deals?
           </p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-min-stars="2">
             {DEAL_OPTS.map((d) => {
               const Icon = d.icon;
               const selected = dealTypes.includes(d.key);

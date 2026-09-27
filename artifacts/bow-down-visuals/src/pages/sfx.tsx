@@ -311,10 +311,10 @@ export default function TextToSfx() {
           </div>
 
           {/* categories */}
-          <p className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="2" className="mt-8 mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
             Category
           </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div data-min-stars="2" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {CATEGORIES.map(({ key, label, icon: Icon, blurb }) => (
               <button
                 key={key}
@@ -350,7 +350,7 @@ export default function TextToSfx() {
           />
 
           {/* duration */}
-          <div className="mt-6 flex items-center gap-4">
+          <div data-min-stars="3" className="mt-6 flex items-center gap-4">
             <label htmlFor="sfx-duration" className="text-[11px] font-bold uppercase tracking-widest text-white/40 shrink-0">
               Duration
             </label>
@@ -439,6 +439,7 @@ export default function TextToSfx() {
             {selectedCount > 0 && (
               <button
                 type="button"
+                data-min-stars="5"
                 onClick={() => void downloadPack()}
                 disabled={packing}
                 className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#f7dd7f] to-[#C9A84C] px-4 py-2.5 text-xs font-black uppercase tracking-widest text-black transition hover:brightness-110 disabled:opacity-40"
@@ -469,6 +470,7 @@ export default function TextToSfx() {
                     <button
                       type="button"
                       onClick={() => toggleSelect(item.id)}
+                      data-min-stars="5"
                       aria-label={isSel ? "Deselect" : "Select for pack"}
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition ${
                         isSel ? "border-primary bg-primary text-black" : "border-white/20 text-transparent hover:border-white/40"

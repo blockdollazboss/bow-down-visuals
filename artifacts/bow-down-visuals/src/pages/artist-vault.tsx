@@ -227,7 +227,7 @@ function ConsistencyModal({
         </div>
 
         {/* Character Detail Level toggle */}
-        <div className="mb-5">
+        <div data-min-stars="5" className="mb-5">
           <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Character Detail Level</p>
           <div className="flex gap-2">
             <button
@@ -279,6 +279,7 @@ function ConsistencyModal({
         <button
           type="button"
           onClick={handleImproveRealism}
+          data-min-stars="4"
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 transition-all mb-3"
         >
           <Zap className="h-4 w-4" /> Improve Video Realism
@@ -544,7 +545,7 @@ function LockedVoiceSection({ vault, onChanged }: {
   }
 
   return (
-    <div className="lux-card-static p-4 mb-3">
+    <div data-min-stars="4" className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Lock className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Locked Voice</p>
@@ -781,7 +782,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
   const hasPhoto = !!vault.reference_image_url;
 
   return (
-    <div className="lux-card-static p-4 mb-3">
+    <div data-min-stars="4" className="lux-card-static p-4 mb-3">
       <div className="flex items-center gap-2 mb-1">
         <Video className="h-4 w-4 text-primary" />
         <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">Reference Video</p>
@@ -1023,7 +1024,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
   };
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
+    <div data-min-stars="3" className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 mb-3">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <p className="text-xs font-bold text-white/30 uppercase tracking-wider">👔 Wardrobe</p>
@@ -1846,7 +1847,7 @@ export default function ArtistVault() {
 
             {/* Subject Type */}
             <FieldWrapper label="Subject Type" hint="What kind of subject is this profile for?">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div data-min-stars="2" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {(Object.keys(SUBJECT_TYPE_META) as SubjectType[]).map((t) => {
                   const meta = SUBJECT_TYPE_META[t];
                   const active = watched.artistType === t;
@@ -1883,7 +1884,7 @@ export default function ArtistVault() {
             </FieldWrapper>
 
             {/* Row 2: Genre + Visual Style */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div data-min-stars="2" className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <FieldWrapper label="Music Genre">
                 <StyledSelect name="genre" placeholder="Select genre..." options={GENRES}
                   value={watched.genre} onChange={(v) => setValue("genre", v)} />
@@ -1895,7 +1896,7 @@ export default function ArtistVault() {
             </div>
 
             {/* Appearance section */}
-            <div>
+            <div data-min-stars="3">
               <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Appearance & Wardrobe</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FieldWrapper label="Hair" hint="Color, length, style, any signature looks">
@@ -1914,7 +1915,7 @@ export default function ArtistVault() {
             </div>
 
             {/* Brand section */}
-            <div>
+            <div data-min-stars="2">
               <p className="text-xs font-bold text-white/30 uppercase tracking-wider mb-4">Brand Identity</p>
               {/* Character theme picker — their colors, their identity */}
               <div className="mb-5">
@@ -2031,7 +2032,7 @@ export default function ArtistVault() {
             </div>
 
             {/* Do Not Change Rules */}
-            <div className="rounded-xl border border-red-500/15 bg-red-500/[0.03] p-5">
+            <div data-min-stars="4" className="rounded-xl border border-red-500/15 bg-red-500/[0.03] p-5">
               <FieldWrapper label="⛔ Do Not Change Rules" hint="Hard rules the AI must NEVER violate for this artist">
                 <Textarea
                   {...register("doNotChangeRules")}
@@ -2043,7 +2044,7 @@ export default function ArtistVault() {
             </div>
 
             {/* Character Detail Level */}
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-4">
+            <div data-min-stars="5" className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5 space-y-4">
               <div>
                 <p className="text-sm font-bold text-white/70 uppercase tracking-wider mb-1">Character Detail Level</p>
                 <p className="text-xs text-white/35">

@@ -283,7 +283,7 @@ export default function VocalRemover() {
             </div>
 
             {/* Karaoke toggle */}
-            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
+            <label data-min-stars="3" className="flex items-start gap-3 cursor-pointer rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3.5">
               <input
                 type="checkbox"
                 checked={karaoke}

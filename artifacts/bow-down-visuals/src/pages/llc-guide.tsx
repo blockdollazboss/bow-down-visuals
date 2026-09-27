@@ -386,6 +386,7 @@ export default function LlcGuide() {
 
             <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
               <select
+                data-min-stars="3"
                 value={chatState}
                 onChange={(e) => setChatState(e.target.value)}
                 aria-label="Your state (optional, for fee-accurate answers)"
@@ -471,8 +472,8 @@ export default function LlcGuide() {
             </div>
           </div>
 
-          <p className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">What kind of creator are you?</p>
-          <div className="flex flex-wrap gap-2">
+          <p data-min-stars="2" className="mb-2 mt-5 text-[11px] font-bold uppercase tracking-widest text-white/40">What kind of creator are you?</p>
+          <div data-min-stars="2" className="flex flex-wrap gap-2">
             {CREATOR_TYPES.map((t) => {
               const selected = creatorType === t.key;
               return (
@@ -669,6 +670,7 @@ export default function LlcGuide() {
                 ))}
               </select>
               <select
+                data-min-stars="2"
                 value={agentTier}
                 onChange={(e) => setAgentTier(e.target.value as RegisteredAgentTier)}
                 aria-label="Registered agent option"

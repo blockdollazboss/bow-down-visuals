@@ -129,7 +129,7 @@ function isAudioFile(f: File): boolean {
 
 function GenreGrid({ value, onChange }: { value: GenreKey; onChange: (g: GenreKey) => void }) {
   return (
-    <div>
+    <div data-min-stars="2">
       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Genre sound</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {GENRES.map((g) => (
@@ -154,7 +154,7 @@ function GenreGrid({ value, onChange }: { value: GenreKey; onChange: (g: GenreKe
 
 function IntensityPicker({ value, onChange }: { value: IntensityKey; onChange: (v: IntensityKey) => void }) {
   return (
-    <div>
+    <div data-min-stars="3">
       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Processing intensity</p>
       <div className="grid grid-cols-3 gap-2.5">
         {INTENSITIES.map((opt) => (
@@ -179,7 +179,7 @@ function IntensityPicker({ value, onChange }: { value: IntensityKey; onChange: (
 
 function LoudnessPicker({ value, onChange }: { value: LoudnessKey; onChange: (v: LoudnessKey) => void }) {
   return (
-    <div>
+    <div data-min-stars="5">
       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Target loudness</p>
       <div className="grid grid-cols-3 gap-2.5">
         {LOUDNESS.map((t) => (
@@ -208,7 +208,7 @@ function ReferenceUpload({
 }: { file: File | null; onPick: (f: File) => void; onClear: () => void }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
-    <div>
+    <div data-min-stars="5">
       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
         Reference track <span className="text-white/25 normal-case font-medium">(optional — match its loudness)</span>
       </p>
@@ -300,7 +300,7 @@ function JobResult({
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Before / After</p>
           <div className="flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer select-none">
+            <label data-min-stars="3" className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={loudnessMatch}
@@ -367,7 +367,7 @@ function JobResult({
 
       {/* Master Report */}
       {stats && (
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+        <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
           <div className="flex items-center gap-2 mb-3">
             <Gauge className="h-3.5 w-3.5 text-[#C9A84C]" />
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Master report</p>
@@ -791,7 +791,7 @@ function MixPanel() {
           <IntensityPicker value={intensity} onChange={setIntensity} />
 
           {/* Vocal level */}
-          <div>
+          <div data-min-stars="3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Vocal level</p>
               <span className="text-xs font-mono text-[#f7dd7f]">

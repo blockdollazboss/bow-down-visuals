@@ -308,10 +308,10 @@ export default function HookStudio() {
             </div>
 
             {/* video type picker */}
-            <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+            <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
               What kind of video?
             </p>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               {VIDEO_TYPES.map((v) => {
                 const Icon = v.icon;
                 const selected = v.key === videoType;
@@ -392,6 +392,7 @@ export default function HookStudio() {
                     <button
                       onClick={generateHooks}
                       disabled={hooksLoading}
+                      data-min-stars="2"
                       className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                     >
                       <Zap className="h-3.5 w-3.5" aria-hidden="true" />
@@ -447,8 +448,8 @@ export default function HookStudio() {
 
             <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
-                <div className="grid grid-cols-2 gap-2">
+                <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
+                <div data-min-stars="2" className="grid grid-cols-2 gap-2">
                   {(["tiktok", "instagram", "youtube", "twitter"] as const).map((p) => (
                     <button
                       key={p}
@@ -464,7 +465,7 @@ export default function HookStudio() {
                   ))}
                 </div>
               </div>
-              <div>
+              <div data-min-stars="3">
                 <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                   Tone / vibe <span className="normal-case font-normal text-white/30">(optional)</span>
                 </p>
@@ -585,7 +586,7 @@ export default function HookStudio() {
                   className={inputClass}
                 />
               </div>
-              <div>
+              <div data-min-stars="3">
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-caption">
                   Caption
                 </label>
@@ -599,7 +600,7 @@ export default function HookStudio() {
                   className={`${inputClass} resize-none`}
                 />
               </div>
-              <div>
+              <div data-min-stars="3">
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-hashtags">
                   Hashtags
                 </label>
@@ -612,7 +613,7 @@ export default function HookStudio() {
                   className={inputClass}
                 />
               </div>
-              <div>
+              <div data-min-stars="3">
                 <label className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40" htmlFor="pf-desc">
                   What's the video?
                 </label>

@@ -157,7 +157,10 @@ export default function Thumbnail() {
 
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-            <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="thumbnail" />
+            {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
+            <div data-min-stars="2">
+              <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} context="thumbnail" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Artist Name</Label>
@@ -169,7 +172,8 @@ export default function Thumbnail() {
                 <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Platform + Art Style — style picks (2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Platform</Label>
                 <StyledSelect name="platform" placeholder="Select platform..." options={PLATFORMS} value={watched.platform} onChange={(v) => setValue("platform", v)} />
@@ -179,7 +183,8 @@ export default function Thumbnail() {
                 <StyledSelect name="artStyle" placeholder="Select style..." options={ART_STYLES} value={watched.artStyle} onChange={(v) => setValue("artStyle", v)} />
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Color Theme + Mood — style picks (2) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Color Theme</Label>
                 <Input {...register("colorTheme")} placeholder="e.g. black and gold, purple and white..." className={inputClass} />
@@ -189,11 +194,13 @@ export default function Thumbnail() {
                 <StyledSelect name="mood" placeholder="Select mood..." options={MOODS} value={watched.mood} onChange={(v) => setValue("mood", v)} />
               </div>
             </div>
-            <div className="space-y-2">
+            {/* Featured Text — tweak option (3) */}
+            <div className="space-y-2" data-min-stars="3">
               <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Featured Text <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span></Label>
               <Input {...register("featuredText")} placeholder="e.g. OUT NOW, NEW SINGLE, FT. ARTIST..." className={inputClass} />
             </div>
-            <div className="space-y-2">
+            {/* Special Requests — manual prompt editing (4) */}
+            <div className="space-y-2" data-min-stars="4">
               <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">Special Requests <span className="text-white/25 font-normal normal-case tracking-normal">(optional)</span></Label>
               <Textarea {...register("specialRequests")} placeholder="Specific visual elements, references, things to include or avoid, cultural context..." className={textareaClass} style={{ minHeight: "100px" }} />
             </div>

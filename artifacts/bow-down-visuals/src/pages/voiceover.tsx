@@ -258,7 +258,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
             </section>
 
             {/* voice picker */}
-            <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+            <section data-min-stars="2" className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Volume2 className="h-4 w-4 text-primary" />
                 Voice
@@ -319,7 +319,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                 <Sparkles className="h-4 w-4 text-primary" />
                 Direction
               </h2>
-              <div className="flex flex-wrap gap-2">
+              <div data-min-stars="2" className="flex flex-wrap gap-2">
                 {EMOTIONS.map((e) => (
                   <button
                     key={e.key}
@@ -331,12 +331,12 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-white/35">
+              <p data-min-stars="2" className="mt-2 text-xs text-white/35">
                 {EMOTIONS.find((e) => e.key === emotion)?.blurb}
               </p>
 
               {/* speed */}
-              <div className="mt-4">
+              <div data-min-stars="3" className="mt-4">
                 <label className="mb-1 flex justify-between text-xs text-white/50">
                   <span>Speaking speed</span>
                   <span className="text-white/70">{speed.toFixed(2)}×</span>
@@ -353,7 +353,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
               </div>
 
               {/* format */}
-              <div className="mt-4 flex gap-2">
+              <div data-min-stars="3" className="mt-4 flex gap-2">
                 {(["mp3", "wav"] as const).map((f) => (
                   <button
                     key={f}

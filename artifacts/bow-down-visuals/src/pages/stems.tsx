@@ -405,7 +405,7 @@ export default function StemSplitter() {
                     preload="auto"
                     onEnded={() => setPlaying(false)}
                   />
-                  <div className="mt-2.5 flex gap-2">
+                  <div data-min-stars="3" className="mt-2.5 flex gap-2">
                     <button
                       type="button"
                       onClick={() => {
@@ -449,7 +449,7 @@ export default function StemSplitter() {
             </div>
 
             {/* Remix mode */}
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
+            <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-5 py-4">
               <button
                 type="button"
                 onClick={() => setRemixOpen((v) => !v)}

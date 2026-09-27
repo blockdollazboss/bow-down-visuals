@@ -265,7 +265,7 @@ export default function Mastering() {
             </div>
 
             {/* Preset picker */}
-            <div>
+            <div data-min-stars="2">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Mastering preset</p>
               <div className="grid grid-cols-2 gap-3">
                 {PRESETS.map((p) => (
@@ -377,7 +377,7 @@ export default function Mastering() {
 
             {/* Loudness stats */}
             {stats && (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+              <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
                 <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">Loudness report</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[

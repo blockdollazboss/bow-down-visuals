@@ -499,7 +499,7 @@ function DraftCard({ draft, onDelete }: { draft: DraftRow; onDelete: (id: string
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <button onClick={handleDownload} title="Download Backup JSON"
+          <button onClick={handleDownload} title="Download Backup JSON" data-min-stars="6"
             className="h-8 w-8 rounded-lg flex items-center justify-center text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors">
             <Download className="h-4 w-4" />
           </button>
@@ -569,7 +569,7 @@ function ClipCard({ clip, onDelete }: { clip: ClipRow; onDelete: (id: string) =>
           </div>
         </div>
         {clip.prompt && (
-          <button onClick={() => setShowPrompt(!showPrompt)}
+          <button onClick={() => setShowPrompt(!showPrompt)} data-min-stars="4"
             className="text-[11px] text-white/30 hover:text-white/50 transition-colors text-left w-full">
             {showPrompt ? "Hide prompt ▲" : "Show prompt ▼"}
           </button>

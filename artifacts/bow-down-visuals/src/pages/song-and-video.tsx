@@ -864,7 +864,8 @@ export default function SongAndVideo() {
                 </FieldWrapper>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Genre + Mood — style picks (2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                 <FieldWrapper label="Genre">
                   <Sel name="genre" placeholder="Select genre…" options={GENRES}
                     value={watched.genre} onChange={(v) => setValue("genre", v)} />
@@ -883,7 +884,8 @@ export default function SongAndVideo() {
                 {errors.songTopic && <p className="text-red-400 text-xs mt-1">Required</p>}
               </FieldWrapper>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {/* Clean/Explicit + Voice Style + Song Length — tweak options (3) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5" data-min-stars="3">
                 <FieldWrapper label="Clean or Explicit">
                   <Sel name="cleanOrExplicit" placeholder="Select…" options={["Clean","Explicit"]}
                     value={watched.cleanOrExplicit} onChange={(v) => setValue("cleanOrExplicit", v)} />
@@ -896,9 +898,12 @@ export default function SongAndVideo() {
                 </FieldWrapper>
               </div>
 
-              <FieldWrapper label="Beat Style" hint="optional">
-                <Input {...register("beatStyle")} placeholder="e.g. dark 808s, trap drums, live piano, boom bap…" className={inputCls} />
-              </FieldWrapper>
+              {/* Beat Style — tweak option (3) */}
+              <div data-min-stars="3">
+                <FieldWrapper label="Beat Style" hint="optional">
+                  <Input {...register("beatStyle")} placeholder="e.g. dark 808s, trap drums, live piano, boom bap…" className={inputCls} />
+                </FieldWrapper>
+              </div>
 
               {/* Existing Lyrics */}
               <div className="space-y-2 pt-1">
@@ -954,7 +959,10 @@ export default function SongAndVideo() {
                 />
               ) : (
                 <>
-                  <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
+                  {/* Artist vault preset pick — gated at level 2 (key presets / style picks) */}
+                  <div data-min-stars="2">
+                    <ArtistVaultSelector onLoad={handleVaultLoad} loadedVaultId={loadedVault?.id} loadedVault={loadedVault} context="video" />
+                  </div>
 
                   <FieldWrapper label="Artist Description">
                     <Textarea {...register("artistDescription", { required: !loadedVault })}
@@ -964,24 +972,31 @@ export default function SongAndVideo() {
                     {errors.artistDescription && <p className="text-red-400 text-xs mt-1">Required</p>}
                   </FieldWrapper>
 
-                  <FieldWrapper label="Visual Style Rules" hint="optional">
-                    <Textarea {...register("visualStyleRules")}
-                      placeholder="Describe the visual aesthetic, cinematography style, color palette rules, or references…"
-                      className={textCls} style={{ minHeight: "90px" }} />
-                  </FieldWrapper>
+                  {/* Visual Style Rules — tweak options (3) */}
+                  <div data-min-stars="3">
+                    <FieldWrapper label="Visual Style Rules" hint="optional">
+                      <Textarea {...register("visualStyleRules")}
+                        placeholder="Describe the visual aesthetic, cinematography style, color palette rules, or references…"
+                        className={textCls} style={{ minHeight: "90px" }} />
+                    </FieldWrapper>
+                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  {/* Brand Colors — tweak option (3) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
                     <FieldWrapper label="Brand Colors" hint="optional">
                       <Input {...register("brandColors")} placeholder="e.g. black, gold, deep purple" className={inputCls} />
                     </FieldWrapper>
                     <div />
                   </div>
 
-                  <FieldWrapper label="Do Not Change Rules" hint="optional">
-                    <Textarea {...register("doNotChangeRules")}
-                      placeholder="List anything the AI should NEVER change — artist name spelling, signature phrases, visual elements, etc…"
-                      className={textCls} style={{ minHeight: "80px" }} />
-                  </FieldWrapper>
+                  {/* Do Not Change Rules — manual overrides (4) */}
+                  <div data-min-stars="4">
+                    <FieldWrapper label="Do Not Change Rules" hint="optional">
+                      <Textarea {...register("doNotChangeRules")}
+                        placeholder="List anything the AI should NEVER change — artist name spelling, signature phrases, visual elements, etc…"
+                        className={textCls} style={{ minHeight: "80px" }} />
+                    </FieldWrapper>
+                  </div>
                 </>
               )}
             </StepShell>
@@ -1000,7 +1015,8 @@ export default function SongAndVideo() {
           <div className="space-y-6">
             <StepShell icon={Video} title="Video Direction" subtitle="Set the visual world for your music video">
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Video Style + Platform — style picks (2) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                 <FieldWrapper label="Video Style">
                   <Sel name="videoStyle" placeholder="Select style…" options={VIDEO_STYLES}
                     value={watched.videoStyle} onChange={(v) => setValue("videoStyle", v)} />
@@ -1011,24 +1027,31 @@ export default function SongAndVideo() {
                 </FieldWrapper>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Video Length — tweak option (3) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="3">
                 <FieldWrapper label="Video Length" hint="optional">
                   <Input {...register("videoLength")} placeholder="e.g. 3 minutes, match song length…" className={inputCls} />
                 </FieldWrapper>
                 <div />
               </div>
 
-              <FieldWrapper label="Location Ideas" hint="optional">
-                <Textarea {...register("locationIdeas")}
-                  placeholder="Describe location concepts — city streets, rooftop, beach, abandoned warehouse, studio, specific cities or vibes…"
-                  className={textCls} style={{ minHeight: "90px" }} />
-              </FieldWrapper>
+              {/* Location Ideas — tweak options (3) */}
+              <div data-min-stars="3">
+                <FieldWrapper label="Location Ideas" hint="optional">
+                  <Textarea {...register("locationIdeas")}
+                    placeholder="Describe location concepts — city streets, rooftop, beach, abandoned warehouse, studio, specific cities or vibes…"
+                    className={textCls} style={{ minHeight: "90px" }} />
+                </FieldWrapper>
+              </div>
 
-              <FieldWrapper label="Special Visual Instructions" hint="optional">
-                <Textarea {...register("specialInstructions")}
-                  placeholder="Specific shots, cultural elements, visual references, things to avoid, color notes, or anything else the AI should know…"
-                  className={textCls} style={{ minHeight: "90px" }} />
-              </FieldWrapper>
+              {/* Special Visual Instructions — manual prompt editing (4) */}
+              <div data-min-stars="4">
+                <FieldWrapper label="Special Visual Instructions" hint="optional">
+                  <Textarea {...register("specialInstructions")}
+                    placeholder="Specific shots, cultural elements, visual references, things to avoid, color notes, or anything else the AI should know…"
+                    className={textCls} style={{ minHeight: "90px" }} />
+                </FieldWrapper>
+              </div>
 
             </StepShell>
 

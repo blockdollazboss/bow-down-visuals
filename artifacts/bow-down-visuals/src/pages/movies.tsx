@@ -224,7 +224,7 @@ export default function Movies() {
               <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 What are you making?
               </label>
-              <div className="flex flex-wrap gap-2 mb-6">
+              <div data-min-stars="2" className="flex flex-wrap gap-2 mb-6">
                 {FORMATS.map((f) => (
                   <button
                     key={f.key}
@@ -241,11 +241,12 @@ export default function Movies() {
                 ))}
               </div>
 
-              <label className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
+              <label data-min-stars="3" className="block text-xs font-bold uppercase tracking-widest text-white/40 mb-3">
                 Genre <span className="text-white/25 normal-case">(optional)</span>
               </label>
               <input
                 value={genre}
+                data-min-stars="3"
                 onChange={(e) => setGenre(e.target.value)}
                 placeholder="e.g. sci-fi thriller, street drama, dark comedy…"
                 className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/80 placeholder:text-white/25 focus:outline-none focus:border-amber-400/50 mb-6"

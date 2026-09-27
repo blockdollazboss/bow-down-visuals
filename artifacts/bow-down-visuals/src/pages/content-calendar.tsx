@@ -237,7 +237,7 @@ export default function ContentCalendar() {
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Your niche
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div data-min-stars="2" className="flex flex-wrap gap-2">
             {NICHE_PRESETS.map((n) => {
               const selected = !customNiche.trim() && niche === n;
               return (
@@ -264,10 +264,10 @@ export default function ContentCalendar() {
           />
 
           {/* platforms */}
-          <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p data-min-stars="2" className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
             Platforms
           </p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          <div data-min-stars="2" className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {PLATFORM_OPTS.map((p) => {
               const Icon = p.icon;
               const selected = platforms.includes(p.key);
@@ -298,7 +298,7 @@ export default function ContentCalendar() {
           </div>
 
           {/* cadence + start date */}
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div data-min-stars="3" className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Posts per week
@@ -385,6 +385,7 @@ export default function ContentCalendar() {
                   <button
                     onClick={generate}
                     disabled={loading}
+                    data-min-stars="2"
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-4 py-2 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     {loading ? (

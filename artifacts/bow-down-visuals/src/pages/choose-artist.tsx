@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Loader2, Plus, ArrowRight, CheckCircle2, User, Palette, Music2, Sparkles, Crown, Star, Aperture, Camera } from "lucide-react";
-import { TopBar } from "@/components/layout/top-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
@@ -64,7 +63,6 @@ export default function ChooseArtist() {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
-      <TopBar />
 
       {/* Photography studio lighting — overhead softbox beams */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

@@ -351,7 +351,7 @@ export default function Scheduler() {
         )}
 
         {/* ── AI best-time ── */}
-        <section className="relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+        <section data-min-stars="3" className="relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <h2 className="font-display text-2xl font-black">AI best-time suggestions</h2>
@@ -1009,6 +1009,7 @@ function ComposerModal(props: {
             <button
               onClick={handleAiCaption}
               disabled={aiCaptionLoading}
+              data-min-stars="2"
               className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1 text-[12px] font-bold text-primary transition hover:bg-primary/10"
               title="AI writes a hook for your caption · 1 credit"
             >

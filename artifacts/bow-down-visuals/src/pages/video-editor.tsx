@@ -159,6 +159,17 @@ export default function VideoEditor() {
   /** Simple mode hides the technical/advanced panels behind the sidebar mode toggle;
    *  the underlying settings/tabs are untouched so switching to Advanced reveals everything. */
   const SIMPLE_VISIBLE_TABS: EditorTab[] = ["music", "clips", "pre-production", "lip-sync", "timeline", "export"];
+  /** Creator Level star thresholds per rail tab — clips / music / timeline /
+   *  export are core (level 1) and never gated. */
+  const TAB_MIN_STARS: Partial<Record<EditorTab, number>> = {
+    branding: 2,
+    "pre-production": 2,
+    captions: 3,
+    effects: 3,
+    studio: 4,
+    "lip-sync": 5,
+    "pro-tools": 5,
+  };
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -942,6 +953,7 @@ export default function VideoEditor() {
                         type="button"
                         onClick={() => setTab(item.id as EditorTab)}
                         data-testid={item.testId}
+                        data-min-stars={TAB_MIN_STARS[item.id as EditorTab]}
                         title={item.label}
                         className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-lg w-14 border transition-colors ${
                           tab === item.id ? "bg-primary/15 text-primary border-primary/30" : "text-white/45 hover:text-white hover:bg-white/5 border-transparent"
@@ -1034,9 +1046,10 @@ export default function VideoEditor() {
                           )}
                           {/* Generate Scenes From Song — surfaced when there's no saved plan to rebuild
                               from, but the song's audio + lyrics are already available. */}
+                          {/* Generate Scenes From Song — pro alternate generation flow (5) */}
                           {scenes.length === 0 && !rawResult && (
                             previewAudioUrl && lyricsForCaptions && lyricsForCaptions.trim().length > 10 ? (
-                              <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                              <div className="rounded-xl border border-primary/20 bg-primary/[0.06] p-4 flex flex-col sm:flex-row sm:items-center gap-3" data-min-stars="5">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-bold text-white flex items-center gap-2">
                                     <Sparkles className="h-4 w-4 text-primary shrink-0" /> Generate scenes from your song
@@ -1415,10 +1428,10 @@ export default function VideoEditor() {
                       </button>
                     </div>
                   )}
-                  {/* ── Collapsible Debug Panel — only with ?debug=1; the editor
-                      should feel like a finished product, not a sandbox. ── */}
+                  {/* ── Collapsible Debug Panel — only with ?debug=1 and at 6 stars (debug/experimental).
+                      The editor should feel like a finished product, not a sandbox. ── */}
                   {typeof window !== "undefined" && new URLSearchParams(window.location.search).get("debug") === "1" && (
-                  <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="rounded-xl border border-white/[0.06] overflow-hidden" data-min-stars="6">
                     <button
                       type="button"
                       onClick={() => setDebugOpen((o) => !o)}

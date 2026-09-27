@@ -520,7 +520,7 @@ export default function Tour() {
                 className={inputClass}
               />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label htmlFor="tour-crew" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Crew size
               </label>
@@ -534,7 +534,7 @@ export default function Tour() {
                 className={inputClass}
               />
             </div>
-            <div className="sm:col-span-1">
+            <div data-min-stars="2" className="sm:col-span-1">
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Transport
               </p>

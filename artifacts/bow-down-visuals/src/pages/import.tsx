@@ -215,7 +215,7 @@ export default function MediaImport() {
               </p>
             </div>
 
-            <div>
+            <div data-min-stars="2">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Format</p>
               <div className="grid grid-cols-2 gap-3">
                 {FORMATS.map((f) => {

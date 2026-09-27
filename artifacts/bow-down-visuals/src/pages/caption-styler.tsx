@@ -211,8 +211,8 @@ export default function CaptionStyler() {
           </div>
 
           {/* Style presets */}
-          <p className="mt-6 text-sm font-semibold text-zinc-300">Caption style</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <p data-min-stars="2" className="mt-6 text-sm font-semibold text-zinc-300">Caption style</p>
+          <div data-min-stars="2" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {STYLES.map((s) => (
               <button
                 key={s.key}
@@ -230,7 +230,7 @@ export default function CaptionStyler() {
           </div>
 
           {/* Position + size */}
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div data-min-stars="3" className="mt-4 grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-semibold text-zinc-300">Position</p>
               <div className="mt-2 flex gap-2">
@@ -270,7 +270,7 @@ export default function CaptionStyler() {
           </div>
 
           {/* Emoji toggle */}
-          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+          <label data-min-stars="3" className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
             <input
               type="checkbox"
               checked={withEmoji}

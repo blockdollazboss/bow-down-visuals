@@ -282,7 +282,7 @@ export default function ViralSoundFinder() {
                 className="w-full rounded-xl border border-white/10 bg-black/60 py-3 pl-10 pr-4 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60"
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div data-min-stars="2" className="flex flex-wrap gap-2">
               {NICHES.map((n) => (
                 <button
                   key={n.key}
@@ -298,7 +298,7 @@ export default function ViralSoundFinder() {
               ))}
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div data-min-stars="2" className="mt-3 flex flex-wrap gap-2">
             {MOODS.map((m) => (
               <button
                 key={m.key}
@@ -434,7 +434,7 @@ export default function ViralSoundFinder() {
           />
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div>
+            <div data-min-stars="2">
               <p className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/40">Niche</p>
               <div className="flex flex-wrap gap-2">
                 {NICHES.filter((n) => n.key !== "all").map((n) => (
@@ -452,7 +452,7 @@ export default function ViralSoundFinder() {
                 ))}
               </div>
             </div>
-            <div>
+            <div data-min-stars="2">
               <p className="mb-2.5 text-[11px] font-bold uppercase tracking-widest text-white/40">Platform</p>
               <div className="flex flex-wrap gap-2">
                 {PLATFORMS.map((p) => (
@@ -553,6 +553,7 @@ export default function ViralSoundFinder() {
                   <button
                     onClick={runMatch}
                     disabled={matchLoading}
+                    data-min-stars="2"
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Sparkles className="h-4 w-4" aria-hidden="true" />

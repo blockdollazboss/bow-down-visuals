@@ -351,7 +351,7 @@ export default function LyricVideo() {
 
         {/* ── Step 3: timing review ── */}
         {lines.length > 0 && (
-          <section id="lyric-timing" className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+          <section id="lyric-timing" data-min-stars="3" className="mb-6 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary">3</span>
               Fine-tune the timing <span className="text-xs font-normal text-white/40">(free)</span>
@@ -439,7 +439,7 @@ export default function LyricVideo() {
               Style it & render
             </h2>
 
-            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div data-min-stars="2" className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {(Object.keys(STYLE_META) as LyricVideoStyleKey[]).map((key) => (
                 <button
                   key={key}
@@ -460,7 +460,7 @@ export default function LyricVideo() {
               ))}
             </div>
 
-            <div className="mb-5 flex gap-2">
+            <div data-min-stars="2" className="mb-5 flex gap-2">
               {ASPECTS.map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}

@@ -246,13 +246,14 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           </div>
 
           {/* Location picker */}
-          <div>
+          <div data-min-stars="2">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Watermark location</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {PRESETS.map((p) => (
                 <button
                   key={p.key}
                   type="button"
+                  data-min-stars={p.key === "custom" ? "6" : undefined}
                   onClick={() => setPreset(p.key)}
                   className={`rounded-xl border px-4 py-3.5 text-left transition ${
                     preset === p.key
@@ -269,7 +270,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
 
           {/* Custom region inputs */}
           {preset === "custom" && (
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4">
+            <div data-min-stars="6" className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-4">
               <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-3">
                 Region (% of frame — x, y from top-left)
               </p>

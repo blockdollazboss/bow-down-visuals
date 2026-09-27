@@ -198,10 +198,10 @@ export default function BrandDealCalculator() {
         {/* ── INPUTS ─────────────────────────────────────────────────── */}
         <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           {/* platform */}
-          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             Platform
           </p>
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5" data-min-stars="2">
             {PLATFORM_OPTS.map((p) => {
               const selected = platform === p.key;
               return (
@@ -238,7 +238,7 @@ export default function BrandDealCalculator() {
                 className={inputClass}
               />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label htmlFor="avgviews" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Avg views per post
               </label>
@@ -251,7 +251,7 @@ export default function BrandDealCalculator() {
                 className={inputClass}
               />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label htmlFor="engagement" className="mb-2 block text-[11px] font-bold uppercase tracking-widest text-white/40">
                 Engagement rate %
               </label>
@@ -267,10 +267,10 @@ export default function BrandDealCalculator() {
           </div>
 
           {/* content type */}
-          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             Content type
           </p>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3" data-min-stars="2">
             {CONTENT_TYPE_OPTS.map((c) => {
               const selected = contentType === c.key;
               return (
@@ -293,10 +293,10 @@ export default function BrandDealCalculator() {
           </div>
 
           {/* niche */}
-          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40">
+          <p className="mb-3 mt-8 text-[11px] font-bold uppercase tracking-widest text-white/40" data-min-stars="2">
             Your niche
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-min-stars="2">
             {NICHE_PRESETS.map((n) => {
               const selected = !customNiche.trim() && niche === n;
               return (

@@ -490,6 +490,7 @@ export default function Analytics() {
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
                 placeholder="Your niche (e.g. Music, Gaming) — optional"
+                data-min-stars="3"
                 maxLength={80}
                 className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40 sm:max-w-xs"
               />

@@ -346,7 +346,7 @@ export default function CopyrightAssistant() {
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
+            <div data-min-stars="2">
               <label className={labelClass}>Work type</label>
               <div className="flex flex-wrap gap-2">
                 {WORK_TYPE_OPTS.map((o) => (
@@ -374,11 +374,11 @@ export default function CopyrightAssistant() {
               <label className={labelClass} htmlFor="cr-authors">Author(s) / claimant(s)</label>
               <input id="cr-authors" className={inputClass} value={authors} onChange={(e) => setAuthors(e.target.value)} placeholder="Legal names, comma-separated" maxLength={500} />
             </div>
-            <div>
+            <div data-min-stars="3">
               <label className={labelClass} htmlFor="cr-created">Year / date of creation</label>
               <input id="cr-created" className={inputClass} value={creationDate} onChange={(e) => setCreationDate(e.target.value)} placeholder="e.g. 2026" maxLength={20} />
             </div>
-            <div className="flex items-end gap-4">
+            <div data-min-stars="3" className="flex items-end gap-4">
               <label className="flex cursor-pointer items-center gap-2.5 text-sm text-white/70">
                 <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} className="h-4 w-4 accent-[#d4af37]" />
                 Already published / released
@@ -387,7 +387,7 @@ export default function CopyrightAssistant() {
                 <input className={inputClass} value={publishedDate} onChange={(e) => setPublishedDate(e.target.value)} placeholder="Release date" maxLength={20} />
               )}
             </div>
-            <div className="sm:col-span-2">
+            <div data-min-stars="3" className="sm:col-span-2">
               <label className={labelClass} htmlFor="cr-notes">Anything else the AI should know (optional)</label>
               <textarea id="cr-notes" className={`${inputClass} min-h-[72px] resize-y`} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Co-writers, samples used, AI tools involved in production…" maxLength={1000} />
             </div>
