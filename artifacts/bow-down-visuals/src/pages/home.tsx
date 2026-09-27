@@ -1523,10 +1523,11 @@ export default function Home() {
     <>
       {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all
           content. Sibling of the page root (NOT inside it) so it never
-          paints above the footer: at -z-10 it stays behind everything. */}
+          paints above the footer: at z-0 it stays behind the page root
+          (z-[1]) and everything in it. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 -z-10"
+        className="pointer-events-none fixed inset-0 z-0"
         style={{
           backgroundImage: "url(/images/home-bg-gold-curtain-stage.webp)",
           backgroundSize: "cover",
