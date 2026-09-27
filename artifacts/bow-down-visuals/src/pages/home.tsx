@@ -609,7 +609,7 @@ function HeroSection() {
         </Link>
 
         {/* Headline */}
-        <h1 className="text-5xl sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95]">
+        <h1 className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
           Your competitors will think you{" "}
           <span className="gold-text-shine">hired a team.</span>
         </h1>

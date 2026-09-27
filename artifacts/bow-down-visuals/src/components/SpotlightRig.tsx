@@ -19,11 +19,24 @@ const BEAM_DELAYS = [0, 0.45, 0.9, 1.35];
 
 export function SpotlightRig({ className = "" }: { className?: string }) {
   const rigRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const rig = rigRef.current;
+    const stage = stageRef.current;
     if (!rig || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Fit the 1200px stage to narrow viewports (width only — beams stay
+    // full height). Without this, each 460px beam is wider than a phone
+    // screen and they read as giant blobs instead of light shafts.
+    const fit = () => {
+      if (!stage) return;
+      const s = Math.min(1, window.innerWidth / 1200);
+      stage.style.transform = `scaleX(${s.toFixed(3)})`;
+    };
+    fit();
+    window.addEventListener("resize", fit);
 
     let targetX = 0; // -1 … 1 across the viewport
     let cx = 0;
@@ -52,14 +65,16 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       cancelled = true;
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("resize", fit);
     };
   }, []);
 
   return (
     <div aria-hidden className={`pointer-events-none overflow-hidden ${className}`}>
       <div
+        ref={stageRef}
         className="absolute left-1/2 top-0 h-full w-[1200px]"
-        style={{ marginLeft: -600 }}
+        style={{ marginLeft: -600, transformOrigin: "center top" }}
       >
         <div ref={rigRef} className="absolute inset-0 will-change-transform">
           {[0, 1, 2, 3].map((i) => (
