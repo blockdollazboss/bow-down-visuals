@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { SubjectBadge, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -233,14 +234,8 @@ export default function ChooseArtist() {
                   {vault.artist_type && (
                     <div style={{
                       position: "absolute", top: isSelected ? 42 : 10, right: 10, zIndex: 3,
-                      display: "flex", alignItems: "center",
-                      background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.18)",
-                      borderRadius: 7, padding: "3px 8px",
-                      backdropFilter: "blur(8px)",
                     }}>
-                      <span style={{ fontSize: 8.5, fontWeight: 900, color: "rgba(255,255,255,0.85)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
-                        {vault.artist_type}
-                      </span>
+                      <SubjectBadge type={normalizeSubjectType(vault.artist_type)} />
                     </div>
                   )}
 
