@@ -54,9 +54,10 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       cx += (targetX - cx) * (reduce ? 1 : 0.08);
       if (Math.abs(targetX - cx) < 0.001) cx = targetX;
       // The rig is 1440px wide — clamp travel so the beams stay on screen.
+      // Generous range so the beams have room to glide with the cursor.
       const section = rig.closest("section");
       const half = (section?.clientWidth || window.innerWidth) / 2;
-      const range = Math.max(0, half - 740);
+      const range = Math.max(0, half - 480);
       rig.style.transform = `translate3d(${(cx * range).toFixed(1)}px, 0, 0)`;
       raf = requestAnimationFrame(loop);
     };
@@ -98,9 +99,9 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                       "radial-gradient(ellipse at center, rgba(255,252,230,1) 0%, rgba(255,228,140,0.95) 45%, transparent 70%)",
                   }}
                 />
-                {/* Beam cone */}
+                {/* Beam cone — shorter, landing near the King's feet */}
                 <div
-                  className="absolute left-1/2 top-[1%] h-[80%] w-[360px] -translate-x-1/2"
+                  className="absolute left-1/2 top-[1%] h-[54%] w-[360px] -translate-x-1/2"
                   style={{
                     clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                     background:
@@ -109,7 +110,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                 />
                 {/* Light pool where the beam lands — at the King's feet */}
                 <div
-                  className="absolute left-1/2 bottom-[1%] h-[11%] w-[420px] -translate-x-1/2 rounded-[50%]"
+                  className="absolute left-1/2 top-[49%] h-[10%] w-[420px] -translate-x-1/2 rounded-[50%]"
                   style={{
                     background:
                       "radial-gradient(ellipse at center, rgba(255,224,128,0.7) 0%, rgba(255,206,98,0.3) 55%, transparent 72%)",
