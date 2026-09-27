@@ -587,7 +587,7 @@ function HeroSection() {
           stack independently against the fixed curtain overlay (z-[5]).
           The shark (z-[4]) slides BEHIND the curtain drapes when scrolling;
           the copy (z-10) stays on top. */}
-      <div className="relative mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[26%] sm:pr-[18%] lg:pr-0">
+      <div className="relative mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[26%] sm:pr-[18%] lg:pr-[12%]">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page.
             z-[4]: below the fixed curtain overlay (z-[5]) so the King scrolls
             behind the drapes when the hero scrolls away; above the beams. */}
@@ -597,7 +597,7 @@ function HeroSection() {
 
         {/* Copy — right side. z-10: headline, subtext and buttons stay
             above the fixed curtain overlay (z-[5]). */}
-        <div className="relative z-10 text-center lg:text-left space-y-5">
+        <div className="relative z-10 text-center lg:text-left space-y-5 lg:pt-[10%]">
 
         {/* Positioning — the quiet luxury whisper */}
         <p className="font-display italic text-xl sm:text-2xl text-primary/90 leading-snug">
