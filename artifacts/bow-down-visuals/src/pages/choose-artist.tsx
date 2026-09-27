@@ -156,7 +156,9 @@ export default function ChooseArtist() {
                     position: "absolute", inset: 0, zIndex: 1, pointerEvents: "none",
                     background: `linear-gradient(135deg, ${T(0.14)} 0%, transparent 55%)`,
                   }} />
-                  {/* Living portrait video — plays over the still photo when available */}
+                  {/* Living portrait video — plays over the still photo when available.
+                      Native loop + onEnded replay fallback: some mobile browsers
+                      silently drop the loop after a few iterations. */}
                   {vault.reference_video_url && (
                     <video
                       src={vault.reference_video_url}
@@ -165,6 +167,8 @@ export default function ChooseArtist() {
                       muted
                       loop
                       playsInline
+                      ref={(v) => { if (v) v.muted = true; }}
+                      onEnded={(e) => { const v = e.currentTarget; v.currentTime = 0; v.play().catch(() => {}); }}
                       style={{
                         position: "absolute", inset: 0, zIndex: 1,
                         width: "100%", height: "100%", objectFit: "cover",
