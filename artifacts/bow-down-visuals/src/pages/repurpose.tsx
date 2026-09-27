@@ -4,7 +4,6 @@ import {
   AlertTriangle, RefreshCw, Clapperboard, Image as ImageIcon,
   MessageSquareText, Share2, Sparkles, Film,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -676,7 +675,7 @@ export default function Repurpose() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

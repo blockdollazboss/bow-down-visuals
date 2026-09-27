@@ -5,7 +5,6 @@ import {
   Users, CheckCircle2, Dices, Image as ImageIcon, Download,
   ShieldCheck, Copy,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -694,7 +693,7 @@ export default function Contests() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

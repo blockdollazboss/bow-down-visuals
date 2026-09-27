@@ -4,7 +4,6 @@ import {
   Link2, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Import, ShieldCheck, Music, Clapperboard, RefreshCw,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -315,7 +314,7 @@ export default function MediaImport() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

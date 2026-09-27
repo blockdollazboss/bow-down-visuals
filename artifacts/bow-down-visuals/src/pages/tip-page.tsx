@@ -3,7 +3,6 @@ import { useRoute, Link } from "wouter";
 import {
   HandCoins, Loader2, Heart, BadgeAlert, Check, PiggyBank, ChevronLeft,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Public tip page — /tips/:handle ──────────────────────────────────────
    Fans land here from a creator's shared link, pick an amount, and record a
@@ -189,7 +188,7 @@ export default function TipPage() {
           </>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

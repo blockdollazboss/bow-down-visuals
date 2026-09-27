@@ -4,7 +4,6 @@ import {
   Store, Loader2, Sparkles, ArrowRight, ArrowLeft, Check, Globe,
   Copy, BadgeCheck, Crown, AlertTriangle, ShoppingBag, Plus, X,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -425,7 +424,7 @@ export default function StorefrontBuilder() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

@@ -5,7 +5,6 @@ import {
   ShieldCheck, BadgeDollarSign, BookOpen, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { MarketingBadge } from "@/components/MarketingBadge";
-import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Guides & Services ─────────────────────────────────────────────────
    The business side of being a creator — free-to-read guides:
@@ -166,7 +165,7 @@ export default function Guides() {
         </p>
       </section>
 
-      <SiteFooter />
+
     </div>
   );
 }

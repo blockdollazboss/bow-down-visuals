@@ -5,7 +5,6 @@ import {
   ArrowLeft, AudioWaveform, AudioLines, Info, RefreshCw,
   Play, Pause, FileAudio, X, SlidersHorizontal, Gauge, Disc3,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -923,7 +922,7 @@ export default function MixMaster() {
 
         {tab === "master" ? <MasterPanel /> : <MixPanel />}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

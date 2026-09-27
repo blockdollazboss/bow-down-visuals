@@ -5,7 +5,6 @@ import {
   Briefcase, CalendarClock, BadgeDollarSign, Megaphone,
   LayoutDashboard, PlusCircle, Sparkles,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
@@ -291,7 +290,7 @@ export default function Sponsors() {
           )}
         </div>
       </main>
-      <SiteFooter />
+
       {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
     </div>
   );

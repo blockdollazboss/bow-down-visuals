@@ -5,7 +5,6 @@ import {
   ArrowLeft, AudioWaveform, Info, RefreshCw, Play, Pause,
   Volume2, VolumeX, SlidersHorizontal, Music4,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -522,7 +521,7 @@ export default function StemSplitter() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

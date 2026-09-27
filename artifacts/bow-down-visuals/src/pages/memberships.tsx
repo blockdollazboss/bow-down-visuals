@@ -4,7 +4,6 @@ import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
   Sparkles, Loader2, Check, X, AlertTriangle, BadgePercent,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -584,7 +583,7 @@ export default function Memberships() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

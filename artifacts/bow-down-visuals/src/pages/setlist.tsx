@@ -5,7 +5,6 @@ import {
   Sparkles, Loader2, Printer, Clock, Music2, StickyNote, X,
   CheckCircle2, AlertTriangle, Library,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -628,7 +627,7 @@ export default function SetlistBuilder() {
       )}
 
       <div className="no-print">
-        <SiteFooter />
+
       </div>
     </div>
   );

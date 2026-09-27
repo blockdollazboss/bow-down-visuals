@@ -4,7 +4,6 @@ import {
   DollarSign, Loader2, Sparkles, Handshake, FileDown,
   BadgeDollarSign, Package, ShieldCheck, Lightbulb, AlertTriangle,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -482,7 +481,7 @@ export default function BrandDealCalculator() {
       `}</style>
 
       <div className="no-print">
-        <SiteFooter />
+
       </div>
     </div>
   );

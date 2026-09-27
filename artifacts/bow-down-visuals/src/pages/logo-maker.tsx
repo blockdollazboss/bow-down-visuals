@@ -4,7 +4,6 @@ import {
   Crown, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -330,7 +329,7 @@ export default function LogoMaker() {
   return (
     <div className="min-h-screen bg-black text-white">
       <LogoMakerTool />
-      <SiteFooter />
+
     </div>
   );
 }

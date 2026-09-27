@@ -4,7 +4,6 @@ import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Captions, Info, Sparkles,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -333,7 +332,7 @@ export default function CaptionStyler() {
           </p>
         </div>
       </main>
-      <SiteFooter />
+
 
       {outOfCredits && (
         <div className="mt-4">

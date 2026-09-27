@@ -4,7 +4,6 @@ import {
   MonitorPlay, Music2, Smartphone, Sparkles, Clock, Zap,
   Eye, Clapperboard, Megaphone, FileText,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -452,7 +451,7 @@ export default function ScriptWriter() {
           </section>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

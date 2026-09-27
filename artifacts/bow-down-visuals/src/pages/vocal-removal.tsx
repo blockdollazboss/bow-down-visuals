@@ -5,7 +5,6 @@ import {
   ArrowLeft, Mic2, Info, RefreshCw, Music2, AudioLines,
   Play, Pause, MicOff,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -424,7 +423,7 @@ export default function VocalRemover() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

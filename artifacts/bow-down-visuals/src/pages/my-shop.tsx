@@ -4,7 +4,6 @@ import {
   Store, Plus, Loader2, Sparkles, Trash2, Pencil, ExternalLink,
   ShoppingBag, ImagePlus, Check, X, Globe, Palette, ArrowLeft, Copy, BadgeCheck,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { centsToDisplay, dollarsToCents } from "@/lib/shops";
@@ -352,7 +351,7 @@ export default function MyShop() {
           <p className="mt-4 text-white/55">Sign in to build your shop on the Bow Down Visuals platform.</p>
           <Link href="/login" className={`${goldBtn} mt-8`}>Sign In</Link>
         </main>
-        <SiteFooter />
+
       </div>
     );
   }
@@ -619,7 +618,7 @@ export default function MyShop() {
           <ArrowLeft className="w-4 h-4" /> Back to dashboard
         </Link>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

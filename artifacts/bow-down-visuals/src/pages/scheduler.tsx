@@ -6,7 +6,6 @@ import {
   History, GripVertical, RefreshCw, ExternalLink,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -245,7 +244,7 @@ export default function Scheduler() {
             <a href="/login">Sign in</a>
           </Button>
         </main>
-        <SiteFooter />
+
       </div>
     );
   }
@@ -453,7 +452,7 @@ export default function Scheduler() {
         </section>
       </main>
 
-      <SiteFooter />
+
 
       {composerOpen && (
         <ComposerModal

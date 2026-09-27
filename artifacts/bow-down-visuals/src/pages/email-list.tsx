@@ -4,7 +4,6 @@ import {
   Download, Trash2, Code2, ExternalLink, AlertTriangle, Sparkles,
   Inbox, Send, FileText,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -556,7 +555,7 @@ export default function EmailListBuilder() {
         </p>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

@@ -3,7 +3,6 @@ import {
   Music4, Loader2, Sparkles, Upload, ListMusic, Type, SlidersHorizontal,
   Play, Download, AlertTriangle, Check, Minus, Plus, MonitorPlay, Smartphone,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -522,7 +521,7 @@ export default function LyricVideo() {
           </p>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

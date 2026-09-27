@@ -4,7 +4,6 @@ import {
   Users, ClipboardList, Plus, Trash2, Send, Clock, Trophy, XCircle,
   AlertTriangle, ChevronDown, Music2,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -854,7 +853,7 @@ export default function PlaylistPitcher() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
 import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { platformLabel } from "@/lib/distribution";
 
 /* ─── Public pre-save landing page (/presave/:slug) ─────────────────────────
@@ -107,7 +106,7 @@ export default function PresaveLanding() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

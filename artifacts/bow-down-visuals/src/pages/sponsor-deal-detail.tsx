@@ -5,7 +5,6 @@ import {
   PenLine, Sparkles, Copy, CheckCircle2, ShieldCheck, Wallet,
   Play, PackageCheck, Banknote, Users, XCircle, AlertTriangle,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { formatBudgetRange, daysLeftLabel } from "@/lib/sponsors";
@@ -570,7 +569,7 @@ export default function SponsorDealDetail() {
           </>
         )}
       </main>
-      <SiteFooter />
+
       {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
     </div>
   );

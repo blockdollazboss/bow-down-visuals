@@ -4,7 +4,6 @@ import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
   ArrowLeft, Eraser, Info, RefreshCw,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -358,7 +357,7 @@ export default function WatermarkRemoval() {
       <main className="mx-auto max-w-3xl px-4 py-10">
         <WatermarkRemovalTool />
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

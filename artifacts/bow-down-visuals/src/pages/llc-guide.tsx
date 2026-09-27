@@ -5,7 +5,6 @@ import {
   DollarSign, MapPin, FileText, Landmark, Wallet, BookOpen,
   AlertTriangle, ArrowRight, Building2, BadgeCheck, Search, RotateCcw,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -801,7 +800,7 @@ export default function LlcGuide() {
         </p>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

@@ -4,7 +4,6 @@ import {
   AudioWaveform, Sparkles, Loader2, Heart, Search, ArrowRight,
   Music2, Clock3, Lightbulb, Timer, Clapperboard,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -564,7 +563,7 @@ export default function ViralSoundFinder() {
         </section>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

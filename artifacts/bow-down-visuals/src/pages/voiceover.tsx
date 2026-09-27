@@ -4,7 +4,6 @@ import {
   Mic, Loader2, Play, Pause, Download, Clapperboard, Volume2,
   AlertTriangle, Sparkles, FileText, Timer, Coins,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -450,7 +449,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
         </div>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

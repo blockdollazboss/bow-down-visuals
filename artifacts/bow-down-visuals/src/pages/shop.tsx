@@ -4,7 +4,6 @@ import {
   ShoppingBag, Loader2, X, Plus, Minus, Trash2,
   Store, ArrowLeft, Check, BadgeCheck,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import {
   centsToDisplay, cartKey, addToCartLines, setCartLineQty,
   type CartLine,
@@ -394,7 +393,7 @@ export default function ShopStorefront() {
           <ArrowLeft className="w-4 h-4" /> Open my own shop
         </Link>
       </div>
-      <SiteFooter />
+
     </div>
   );
 }

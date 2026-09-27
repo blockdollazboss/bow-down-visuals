@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRoute } from "wouter";
 import { Mail, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Hosted signup landing page: /join/:handle ─────────────────────────
    Public page (no auth) — fans land here from the creator's link-in-bio,
@@ -108,7 +107,7 @@ export default function JoinList() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

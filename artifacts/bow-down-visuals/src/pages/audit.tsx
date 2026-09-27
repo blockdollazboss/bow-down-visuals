@@ -4,7 +4,6 @@ import {
   ClipboardCheck, Loader2, Sparkles, ArrowRight, Wrench, AlertTriangle,
   Trophy, Target, Megaphone, PenLine, Gauge,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -402,7 +401,7 @@ export default function ChannelAudit() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

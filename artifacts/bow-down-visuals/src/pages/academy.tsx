@@ -5,7 +5,6 @@ import {
   CheckCircle2, Circle, Play, MessageCircleQuestion, Send, Lightbulb,
   CalendarDays, Target, BookOpen, ChevronRight, Zap,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -566,7 +565,7 @@ export default function CreatorAcademy() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

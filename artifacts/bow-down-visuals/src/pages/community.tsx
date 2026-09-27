@@ -3,7 +3,6 @@ import {
   ShieldAlert, MessageSquareHeart, BarChart3, Star, Loader2, Sparkles,
   CheckCircle2, XCircle, AlertTriangle, Copy, Bell, Users,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -512,7 +511,7 @@ export default function CommunityManager() {
           The AI suggests — you decide. Nothing is deleted or posted without your approval.
         </p>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

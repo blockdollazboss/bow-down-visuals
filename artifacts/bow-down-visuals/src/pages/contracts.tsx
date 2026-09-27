@@ -3,7 +3,6 @@ import {
   FileText, Loader2, Sparkles, AlertTriangle, ShieldCheck, ShieldAlert,
   Scale, Lightbulb, CheckCircle2, XCircle, MinusCircle, Gavel,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -355,7 +354,7 @@ export default function Contracts() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
       <OutOfCredits />
     </div>
   );

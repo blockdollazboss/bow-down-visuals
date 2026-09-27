@@ -4,7 +4,6 @@ import {
   LayoutDashboard, Loader2, Briefcase, BadgeDollarSign, Banknote,
   ArrowRight, PlusCircle, PenLine, CheckCircle2, Clock,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatBudgetRange } from "@/lib/sponsors";
 
@@ -263,7 +262,7 @@ export default function SponsorDashboard() {
           )}
         </div>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

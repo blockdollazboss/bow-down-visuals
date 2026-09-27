@@ -4,7 +4,6 @@ import {
   Disc3, Loader2, Download, AlertTriangle, ArrowLeft, RefreshCw,
   Sparkles, Type, Palette,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -343,7 +342,7 @@ export default function CoverArt() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

@@ -5,7 +5,6 @@ import {
   Copy, Plus, Trash2, ShieldCheck, Clock3, BadgeDollarSign, ArrowRight,
   ChevronDown, AlertTriangle, ListChecks,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -584,7 +583,7 @@ export default function CopyrightAssistant() {
           <p className="text-sm leading-relaxed text-white/60">{DISCLAIMER}</p>
         </div>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

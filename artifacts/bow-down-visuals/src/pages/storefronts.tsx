@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Store, Search, Loader2, ArrowRight, Sparkles, BadgeCheck } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 /* ─── Storefronts hub — browse every creator shop on the platform ──────────
@@ -136,7 +135,7 @@ export default function Storefronts() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

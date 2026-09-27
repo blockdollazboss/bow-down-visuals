@@ -5,7 +5,6 @@ import {
   ArrowLeft, AudioWaveform, Info, RefreshCw, Mic, Music4, Sparkles,
   Play, Pause, Volume2,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -484,7 +483,7 @@ export default function AudioCleanup() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

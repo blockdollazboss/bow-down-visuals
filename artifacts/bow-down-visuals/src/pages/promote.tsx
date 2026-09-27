@@ -4,7 +4,6 @@ import {
   Megaphone, Loader2, Copy, Check, Sparkles, ArrowLeft, Hash,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { SITE_FEATURES } from "@/data/features";
@@ -347,7 +346,7 @@ export default function Promote() {
         )}
       </section>
 
-      <SiteFooter />
+
     </div>
   );
 }

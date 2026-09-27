@@ -3,7 +3,6 @@ import {
   Video, Loader2, Sparkles, Settings2, Inbox, BarChart3, CheckCircle2,
   X, Clock, BadgeDollarSign, AlertTriangle, Megaphone, Send, Wand2, Upload,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -584,7 +583,7 @@ export default function Shoutouts() {
           </>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

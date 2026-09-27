@@ -4,7 +4,6 @@ import {
   Disc3, Loader2, Download, Play, Pause, ArrowLeft, Sparkles,
   CheckCircle2, AlertTriangle, FileArchive, Music4, AudioWaveform,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -439,7 +438,7 @@ export default function SamplePack() {
           </section>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

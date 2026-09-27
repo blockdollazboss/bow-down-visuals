@@ -4,7 +4,6 @@ import {
   Newspaper, Loader2, Sparkles, Plus, Trash2, Copy, Check, Download,
   RefreshCw, Globe, Mail, ExternalLink, ArrowLeft, Eye, EyeOff, Pencil,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { Button } from "@/components/ui/button";
@@ -629,7 +628,7 @@ export default function PressKitBuilder() {
           </section>
         </div>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

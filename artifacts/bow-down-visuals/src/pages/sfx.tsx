@@ -5,7 +5,6 @@ import {
   Cloud, Footprints,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -512,7 +511,7 @@ export default function TextToSfx() {
         </div>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

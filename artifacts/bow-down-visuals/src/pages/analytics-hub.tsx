@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { Link } from "wouter";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -770,7 +769,7 @@ export default function AnalyticsHub() {
         </p>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

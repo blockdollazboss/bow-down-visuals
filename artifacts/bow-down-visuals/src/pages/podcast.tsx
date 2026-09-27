@@ -5,7 +5,6 @@ import {
   AlertTriangle, Sparkles, FileText, Timer, Coins, Copy, Check,
   Users, User, Music, Video, PenLine, Lightbulb,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -629,7 +628,7 @@ Tips:
         </div>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

@@ -5,7 +5,6 @@ import {
   Bell, Pin, PinOff, Play, Square, TrendingUp, AlertTriangle,
   CheckCircle2, ExternalLink, DollarSign, Users, Zap, X,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { buildAlertText } from "@/lib/live-shopping";
@@ -686,7 +685,7 @@ export default function LiveShopping() {
           <Link href="/stream-pack" className="font-semibold text-primary hover:underline">Stream Pack Generator</Link>.
         </p>
       </main>
-      <SiteFooter />
+
       {outOfCredits && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setOutOfCredits(false)}>
           <div onClick={(e) => e.stopPropagation()}>

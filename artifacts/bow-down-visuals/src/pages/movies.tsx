@@ -4,7 +4,6 @@ import {
   Users, ListVideo, Quote, Target, TrendingUp, Scissors, Clock,
   Zap, MessageSquareText, CalendarClock,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -486,7 +485,7 @@ export default function Movies() {
           )
         )}
       </main>
-      <SiteFooter />
+
       <OutOfCredits />
     </div>
   );

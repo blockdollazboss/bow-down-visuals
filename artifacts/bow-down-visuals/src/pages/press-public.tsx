@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { Loader2, MapPin, Mail, Globe, ExternalLink, Music2, Quote, Trophy, Camera, Download } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 
 /* ─── Public Press Kit ────────────────────────────────────────────────────
    The shareable EPK page at /press/:handle. No auth required — this is what
@@ -54,7 +53,7 @@ export default function PublicPressKit() {
         <div className="flex items-center justify-center py-32">
           <Loader2 className="h-8 w-8 animate-spin text-[#d4af37]" />
         </div>
-        <SiteFooter />
+
       </div>
     );
   }
@@ -67,7 +66,7 @@ export default function PublicPressKit() {
           <p className="text-white/50 mb-6">This press kit doesn't exist or isn't public.</p>
           <Link href="/" className="text-[#d4af37] hover:underline">Back to home</Link>
         </div>
-        <SiteFooter />
+
       </div>
     );
   }
@@ -204,7 +203,6 @@ export default function PublicPressKit() {
         </div>
       </main>
 
-      <div className="print:hidden"><SiteFooter /></div>
     </div>
   );
 }

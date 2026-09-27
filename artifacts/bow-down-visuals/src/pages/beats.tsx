@@ -5,7 +5,6 @@ import {
   Tag, BadgeDollarSign, Store, BarChart3, Music2, AlertTriangle, CheckCircle2,
   X,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -538,7 +537,7 @@ export default function Beats() {
 
       {outOfCredits && <OutOfCredits />}
 
-      <SiteFooter />
+
     </div>
   );
 }

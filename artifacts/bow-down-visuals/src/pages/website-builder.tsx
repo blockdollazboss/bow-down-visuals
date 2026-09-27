@@ -3,7 +3,6 @@ import {
   Globe, Loader2, Sparkles, Download, Eye, FileCode2, Wand2,
   Mic2, Newspaper, Link2, MapPin, CheckCircle2, AlertTriangle,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -448,7 +447,7 @@ export default function WebsiteBuilder() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

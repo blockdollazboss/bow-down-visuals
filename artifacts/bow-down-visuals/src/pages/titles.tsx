@@ -4,7 +4,6 @@ import {
   RotateCcw, History, ChevronDown, Flame, Briefcase, Laugh,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -465,7 +464,7 @@ export default function TitleStudio() {
         </p>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

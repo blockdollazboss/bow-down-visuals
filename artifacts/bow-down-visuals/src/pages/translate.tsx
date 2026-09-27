@@ -3,7 +3,6 @@ import {
   Languages, Loader2, Upload, Play, Download, AlertTriangle, Check,
   FileText, Globe, Mic2, X, RefreshCw,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -490,7 +489,7 @@ export default function Translate() {
           </>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

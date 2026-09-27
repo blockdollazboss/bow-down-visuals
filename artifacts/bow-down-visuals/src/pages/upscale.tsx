@@ -5,7 +5,6 @@ import {
   ArrowLeft, MonitorUp, Image as ImageIcon, Eraser, Sparkles,
   Info, RefreshCw, ChevronsLeftRight,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -679,7 +678,7 @@ export default function Upscale() {
           {tab === "watermark" && <WatermarkRemovalTool showBackLink={false} />}
         </div>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

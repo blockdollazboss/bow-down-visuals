@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Search, ArrowRight, Crown, Megaphone, Sparkles } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import {
   SITE_FEATURES,
   FEATURE_CATEGORIES,
@@ -198,7 +197,7 @@ export default function Features() {
         </div>
       </section>
 
-      <SiteFooter />
+
     </div>
   );
 }

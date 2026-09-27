@@ -3,7 +3,6 @@ import {
   TrendingUp, Loader2, Sparkles, Lightbulb, Bookmark, BookmarkCheck,
   Radar, AlertTriangle, ChevronRight, X, Eye,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -592,7 +591,7 @@ export default function TrendPredictor() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

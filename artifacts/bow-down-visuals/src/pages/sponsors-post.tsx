@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Megaphone, Loader2, ArrowLeft, BadgeDollarSign } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -162,7 +161,7 @@ export default function SponsorPost() {
           </div>
         )}
       </main>
-      <SiteFooter />
+
       {outOfCredits && <OutOfCredits onClose={() => setOutOfCredits(false)} />}
     </div>
   );

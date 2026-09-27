@@ -4,7 +4,6 @@ import {
   MapPin, Loader2, Sparkles, Plus, Pencil, Trash2, X, Route,
   Wallet, CheckCircle2, Circle, CalendarDays, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -774,7 +773,7 @@ export default function Tour() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

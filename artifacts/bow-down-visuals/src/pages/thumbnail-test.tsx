@@ -4,7 +4,6 @@ import {
   Upload, Loader2, AlertTriangle, CheckCircle2, ArrowLeft,
   Trophy, Sparkles, RefreshCw, X, Image as ImageIcon, Wand2,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { scoreBand, scoreBandClass, filterImageFiles } from "@/lib/thumbnail-test";
@@ -386,7 +385,7 @@ export default function ThumbnailTest() {
           </p>
         </section>
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

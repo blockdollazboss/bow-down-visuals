@@ -4,7 +4,6 @@ import {
   Bot, UserCheck, HelpCircle, ChevronRight, ShieldAlert,
   Image as ImageIcon, Film, Music4, FileWarning,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -443,7 +442,7 @@ export default function MediaDetector() {
 
         <OutOfCredits />
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

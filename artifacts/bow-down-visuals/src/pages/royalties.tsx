@@ -3,7 +3,6 @@ import {
   DollarSign, TrendingUp, Music2, Upload, Sparkles, Loader2,
   Wallet, Link2, CheckCircle2, Clock3, AlertTriangle, Copy,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
@@ -502,7 +501,7 @@ export default function RoyaltyTracker() {
           </>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }

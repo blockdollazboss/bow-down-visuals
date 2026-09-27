@@ -5,7 +5,6 @@ import {
   Clapperboard, Film, GraduationCap, Wrench, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
@@ -735,7 +734,7 @@ export default function HookStudio() {
         </p>
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

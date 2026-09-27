@@ -5,7 +5,6 @@ import {
   ListMusic, ChevronRight, BadgeCheck, ArrowLeft, ArrowRight,
   Users, Copy, Check, FlaskConical, Clock, Hourglass, X, Tag, Hash,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -1702,7 +1701,7 @@ export default function Distribute() {
         )}
       </main>
 
-      <SiteFooter />
+
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Palette, Clapperboard, Tv } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { LogoMakerTool } from "@/pages/logo-maker";
 import { IntrosOutrosTool } from "@/pages/intros-outros";
@@ -75,7 +74,7 @@ export default function BrandingKit() {
         {tab === "stream" && <StreamPackTool key="stream" />}
       </div>
 
-      <SiteFooter />
+
     </div>
   );
 }

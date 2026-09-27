@@ -5,7 +5,6 @@ import {
   ArrowLeft, Sparkles, RefreshCw, Image as ImageIcon, Layers,
   MonitorPlay, Bell, LayoutPanelTop, Tv,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -454,7 +453,7 @@ export default function StreamPack() {
   return (
     <div className="min-h-screen bg-black text-white">
       <StreamPackTool />
-      <SiteFooter />
+
     </div>
   );
 }

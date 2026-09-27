@@ -3,7 +3,6 @@ import {
   HandCoins, Loader2, Copy, Check, Link2, PiggyBank, Users, TrendingUp,
   MessageCircleHeart, Sparkles, BadgeAlert,
 } from "lucide-react";
-import { SiteFooter } from "@/components/layout/footer";
 import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Tip Jar — creator dashboard ──────────────────────────────────────────
@@ -297,7 +296,7 @@ export default function Tips() {
           </>
         )}
       </main>
-      <SiteFooter />
+
     </div>
   );
 }
