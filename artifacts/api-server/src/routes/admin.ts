@@ -244,6 +244,42 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     await pool.query(readFileSync(sqlPath, "utf8"));
     results.migration_0040 = "applied";
 
+    // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
+    //    point the Shark King vault's reference video at the new seamless
+    //    loop file shipped in public/videos/. Updates only when exactly one
+    //    live "shark king" vault is found (preferring the requesting admin's).
+    const LOOP_URL = "/videos/shark-king-360-loop.mp4";
+    const matches = await pool.query(
+      `SELECT id, user_id, artist_name, reference_video_url
+       FROM artist_vaults
+       WHERE deleted_at IS NULL AND artist_name ILIKE $1
+       ORDER BY updated_at DESC`,
+      ["%shark king%"]
+    );
+    if (matches.rowCount === 0) {
+      results.loop_video = "skipped: no live Shark King vault found";
+    } else {
+      const rows = matches.rows as Array<{
+        id: string; user_id: string; artist_name: string; reference_video_url: string | null;
+      }>;
+      const mine = rows.find((r) => r.user_id === (req as { userId?: string }).userId);
+      const target = mine ?? (rows.length === 1 ? rows[0] : null);
+      if (!target) {
+        results.loop_video = `skipped: ${rows.length} matching vaults, ambiguous`;
+      } else if (target.reference_video_url === LOOP_URL) {
+        results.loop_video = `already set on "${target.artist_name}"`;
+      } else {
+        const before = target.reference_video_url ?? "(none)";
+        await pool.query(
+          `UPDATE artist_vaults
+           SET reference_video_url = $1, reference_video_path = NULL, updated_at = now()
+           WHERE id = $2`,
+          [LOOP_URL, target.id]
+        );
+        results.loop_video = `updated "${target.artist_name}": ${before} -> ${LOOP_URL}`;
+      }
+    }
+
     res.json({ ok: true, results });
   } catch (err) {
     req.log.error({ err }, "admin: schema repair failed");
