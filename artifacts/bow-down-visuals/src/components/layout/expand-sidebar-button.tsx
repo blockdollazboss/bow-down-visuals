@@ -26,7 +26,7 @@ export function ExpandSidebarButton({
       aria-label="Show sidebar"
       data-testid="btn-expand-sidebar"
       className={cn(
-        "fixed left-3 top-24 z-30 hidden h-9 w-9 items-center justify-center rounded-full",
+        "fixed left-3 top-24 z-[9999] hidden h-9 w-9 items-center justify-center rounded-full",
         "border border-primary/30 bg-black/85 text-primary backdrop-blur",
         "shadow-[0_0_16px_rgba(218,165,32,0.25)]",
         "transition-all duration-200 hover:bg-primary hover:text-black",

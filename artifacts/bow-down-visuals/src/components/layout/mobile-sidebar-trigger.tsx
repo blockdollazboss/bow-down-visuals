@@ -7,6 +7,8 @@ import { useSidebar } from "@/components/ui/sidebar";
  * visible trigger once closed — this thumb-reachable button (bottom-left,
  * clear of the bottom-right AI chat widget) opens it. Hidden on md+.
  * Must render inside a SidebarProvider.
+ * Always visible on mobile (z-index above all overlays) — the user must
+ * never be left without a way to open navigation.
  */
 export function MobileSidebarTrigger() {
   const { toggleSidebar } = useSidebar();
@@ -17,7 +19,7 @@ export function MobileSidebarTrigger() {
       title="Open navigation"
       aria-label="Open navigation"
       data-testid="btn-open-sidebar-mobile"
-      className="fixed bottom-24 left-5 z-40 flex h-12 w-12 items-center justify-center rounded-full md:hidden
+      className="fixed bottom-24 left-5 z-[9999] flex h-12 w-12 items-center justify-center rounded-full md:hidden
         border border-primary/40 bg-black/85 text-primary backdrop-blur
         shadow-[0_0_20px_rgba(218,165,32,0.35)]
         transition-all duration-200 hover:bg-primary hover:text-black active:scale-95"
