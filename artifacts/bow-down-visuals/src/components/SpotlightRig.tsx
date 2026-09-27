@@ -1,21 +1,22 @@
 import { useEffect, useRef } from "react";
 
 /* ─────────────────── Homepage hero spotlight rig ─────────────────── */
-/* Four gold beams washing down over the hero, landing near the Shark
+/* Five gold beams washing down over the hero, landing near the Shark
    King's feet. Anchored to the hero (absolute) so the lights live at the
    top of the page and scroll away naturally — they never follow the
    visitor down the page.
 
    Layering: hero copy sits ABOVE the beams (text stays on top), the
    curtain overlay sits above the beams too (beams read as shining from
-   behind the drapes).
+   behind the drapes). The Shark King sits just below the curtain
+   overlay — he scrolls behind the drapes, not over them.
 
    Each beam: lamp glow → smooth cone → light pool where it lands. Beams
    flash on staggered phases (CSS), the whole row eases toward the cursor
    horizontally (rAF). Pure decoration: pointer-events-none, translucent,
    reduced-motion safe. */
 
-const BEAM_DELAYS = [0, 0.45, 0.9, 1.35];
+const BEAM_DELAYS = [0, 0.45, 0.9, 1.35, 1.8];
 
 export function SpotlightRig({ className = "" }: { className?: string }) {
   const rigRef = useRef<HTMLDivElement | null>(null);
@@ -77,11 +78,13 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
         style={{ marginLeft: -600, transformOrigin: "center top" }}
       >
         <div ref={rigRef} className="absolute inset-0 will-change-transform">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
               className="absolute top-0 h-full w-[460px]"
-              style={{ left: 150 + i * 300 - 230 }}
+              /* Five beams, 240px apart, centered on the 1200px stage:
+                 beam centers at 120 / 360 / 600 / 840 / 1080. */
+              style={{ left: i * 240 - 110 }}
             >
               <div
                 className="spotlight-beam absolute inset-0"
