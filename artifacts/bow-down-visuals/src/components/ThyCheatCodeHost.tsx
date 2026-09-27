@@ -72,7 +72,7 @@ export function ThyCheatCodeHost() {
   /* ── Collapsed: slim in-flow chip ── */
   if (dismissed) {
     return (
-      <div className="px-4 pt-4 sm:px-6 lg:px-8">
+      <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
         <button
           onClick={expand}
           className="inline-flex items-center gap-2 border-2 border-[#C9A84C]/40 bg-black/60 py-1.5 pl-2 pr-4 text-sm text-neutral-300 transition hover:border-[#C9A84C]/70 hover:text-white"
@@ -100,7 +100,7 @@ export function ThyCheatCodeHost() {
 
   /* ── Full coach card ── */
   return (
-    <div className="px-4 pt-4 sm:px-6 lg:px-8">
+    <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
       <section
         aria-label="Thy Cheat Code — your coach on this page"
         className="overflow-hidden border-4 border-[#C9A84C]/40 bg-gradient-to-br from-[#171208] via-black to-black shadow-[0_8px_32px_rgba(0,0,0,0.6)]"
