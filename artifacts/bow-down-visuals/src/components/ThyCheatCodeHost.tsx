@@ -45,6 +45,10 @@ export function ThyCheatCodeHost() {
 
   if (EXCLUDED_RE.test(route)) return null;
 
+  /* Homepage: always show the full coach card (never the slim dismissed chip),
+     so the hero sits directly under real content, not an empty black strip. */
+  const showFull = route === "/" ? true : !dismissed;
+
   const guide = getGuideForRoute(route);
 
   const dismiss = () => {
@@ -70,7 +74,7 @@ export function ThyCheatCodeHost() {
   };
 
   /* ── Collapsed: slim in-flow chip ── */
-  if (dismissed) {
+  if (!showFull) {
     return (
       <div className="px-4 pt-4 sm:px-6 lg:px-8 relative z-[10]">
         <button
