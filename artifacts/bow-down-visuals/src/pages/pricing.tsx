@@ -351,7 +351,7 @@ export default function Pricing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white lux-page">
+    <div className="min-h-screen text-white lux-page">
       <JsonLd data={PRICING_JSON_LD} />
       <JsonLd data={PRICING_FAQ_JSON_LD} />
 
@@ -361,7 +361,7 @@ export default function Pricing() {
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-yellow-900/6 rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 max-w-6xl mx-auto my-6 md:my-10 content-panel p-4 md:p-8">
 
         {/* ── PAYMENT CANCELLED BANNER ── */}
         {showCancelled && (
