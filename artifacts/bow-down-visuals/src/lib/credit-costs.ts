@@ -105,6 +105,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/press-kit/generate": { cost: 3, feature: "Press Kit Generator" },
   "/api/gamers/ideas": { cost: 1, feature: "Gamer Content Ideas" },
   "/api/show-finder/pitch": { cost: 1, feature: "Show Pitch Draft" },
+  "/api/label-pitch/kit": { cost: 3, feature: "Label Pitch Demo Kit" },
   "/api/show-finder": { cost: 2, feature: "Show Finder" },
   "/api/brand-deals/outreach": { cost: 1, feature: "Brand Outreach Draft" },
   "/api/brand-deals": { cost: 2, feature: "Brand Deal Finder" },
