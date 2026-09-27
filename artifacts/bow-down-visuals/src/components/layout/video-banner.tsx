@@ -32,11 +32,13 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const glowRef = useRef<HTMLDivElement | null>(null);
+  const spotRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const media = mediaRef.current;
     const glow = glowRef.current;
+    const spot = spotRef.current;
     if (!wrap || !media || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -46,13 +48,16 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     let glowTY = 0;
     let glowCX = 0;
     let glowCY = 0;
+    let spotCX = 0;
     let raf = 0;
     let cancelled = false;
 
     const onPointerMove = (e: PointerEvent) => {
       const r = wrap.getBoundingClientRect();
       // Ignore movement far above/below the strip (e.g. scrolled away).
-      if (e.clientY < r.top - 120 || e.clientY > r.bottom + 120) return;
+      // The +340 tolerance keeps the spotlight tracking while the cursor
+      // is in the beam zone shining down below the banner.
+      if (e.clientY < r.top - 120 || e.clientY > r.bottom + 340) return;
       targetX = ((e.clientX - r.left) / Math.max(1, r.width)) * 2 - 1;
       glowTX = e.clientX - r.left;
       glowTY = e.clientY - r.top;
@@ -72,12 +77,19 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       currentX += (targetX - currentX) * k;
       glowCX += (glowTX - glowCX) * k;
       glowCY += (glowTY - glowCY) * k;
+      spotCX += (targetX - spotCX) * k;
       if (Math.abs(targetX - currentX) < 0.002) currentX = targetX;
       // Prowl pan toward the cursor; 1.14 scale hides the pan edges.
       media.style.transform = `translate3d(${(currentX * 28).toFixed(2)}px, 0, 0) scale(1.14)`;
       if (glow) {
         glow.style.transform = `translate3d(${glowCX.toFixed(1)}px, ${glowCY.toFixed(1)}px, 0) translate(-50%, -50%)`;
         glow.style.opacity = reduce ? "0" : "1";
+      }
+      // Spotlight rig swings toward the cursor, eased like the pan.
+      if (spot) {
+        const half = wrap.clientWidth / 2;
+        const range = Math.max(0, half - 160);
+        spot.style.transform = `translate3d(${(spotCX * range).toFixed(1)}px, 0, 0)`;
       }
       raf = requestAnimationFrame(loop);
     };
@@ -105,9 +117,10 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const base = import.meta.env.BASE_URL;
 
   return (
+    <div className={`relative w-full ${className ?? ""}`}>
     <div
       ref={wrapRef}
-      className={`bdv-banner relative w-full overflow-hidden h-[72px] md:h-[88px] ${className ?? ""}`}
+      className="bdv-banner relative w-full overflow-hidden h-[72px] md:h-[88px]"
       style={{ backgroundColor: PAGE_BG }}
       aria-label="Bow Down Visuals banner"
     >
@@ -236,6 +249,60 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
       />
+    </div>
+
+      {/* ── Spotlight rig — hangs below the banner, shines down over the page ──
+          Mouse-tracked (eased in the rAF loop), flashing (CSS), with a
+          volumetric ray pattern drifting inside the beam. Pure decoration:
+          pointer-events-none, translucent, respects reduced motion. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-full z-30 h-[300px] overflow-hidden"
+      >
+        <div
+          className="absolute left-1/2 top-0 h-full w-[600px]"
+          style={{ marginLeft: -300 }}
+        >
+          <div ref={spotRef} className="spotlight-rig absolute inset-0 will-change-transform">
+            <div className="spotlight-beam absolute inset-0">
+              {/* Lamp source glow */}
+              <div
+                className="absolute left-1/2 top-0 h-12 w-44 -translate-x-1/2 rounded-[50%]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(255,246,208,0.95) 0%, rgba(255,220,120,0.45) 45%, transparent 70%)",
+                }}
+              />
+              {/* Beam cone */}
+              <div
+                className="absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                style={{
+                  clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
+                  background:
+                    "linear-gradient(to bottom, rgba(255,216,112,0.34) 0%, rgba(255,202,92,0.13) 55%, transparent 92%)",
+                }}
+              />
+              {/* Volumetric ray pattern drifting inside the beam */}
+              <div
+                className="spotlight-rays absolute left-1/2 top-3 h-[248px] w-[460px] -translate-x-1/2"
+                style={{
+                  clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
+                  background:
+                    "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,242,196,0.08) 16px 19px, transparent 19px 34px, rgba(255,236,170,0.05) 34px 37px)",
+                }}
+              />
+              {/* Light pool where the beam lands */}
+              <div
+                className="absolute left-1/2 bottom-1 h-24 w-[540px] -translate-x-1/2 rounded-[50%]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(255,216,112,0.30) 0%, rgba(255,200,90,0.10) 55%, transparent 72%)",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

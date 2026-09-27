@@ -268,6 +268,35 @@ body::before {
   100% { background-position: 200% 0; }
 }
 
+/* ─── Banner spotlight rig — flashing beam under the top strip ─── */
+.spotlight-beam {
+  animation: spotlight-flash 2.8s ease-in-out infinite;
+}
+@keyframes spotlight-flash {
+  0%, 100% { opacity: 0.55; }
+  7%       { opacity: 1; }
+  14%      { opacity: 0.62; }
+  22%      { opacity: 0.96; }
+  38%      { opacity: 0.58; }
+  55%      { opacity: 0.88; }
+  70%      { opacity: 0.6; }
+  82%      { opacity: 1; }
+  90%      { opacity: 0.66; }
+}
+.spotlight-rays {
+  animation: rays-drift 7s linear infinite;
+}
+@keyframes rays-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 74px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spotlight-beam,
+  .spotlight-rays {
+    animation: none;
+  }
+}
+
 /* ─── Crown badge — gold pill ─── */
 .crown-badge {
   background: linear-gradient(135deg, hsl(45 95% 50%), hsl(43 80% 38%));
