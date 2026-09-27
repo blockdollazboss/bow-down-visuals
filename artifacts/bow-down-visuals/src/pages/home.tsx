@@ -1529,10 +1529,11 @@ export default function Home() {
 
   return (
     <>
-      {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all
-          content. Sibling of the page root (NOT inside it) so it never
-          paints above the footer: at z-0 it stays behind the page root
-          (z-[1]) and everything in it. */}
+    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
+      {/* Page backdrop — gold-curtain stage, fixed full-viewport. INSIDE the
+          isolated page root so the body's dark background can't cover it:
+          at z-0 it stays behind the content but above the page root's
+          (transparent) background. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0"
@@ -1543,7 +1544,6 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes,
           OVER the Shark King so he scrolls behind the curtains like
