@@ -583,14 +583,21 @@ function HeroSection() {
           beams). */}
       <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
 
-      <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[26%] sm:pr-[18%] lg:pr-0">
-        {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}
-        <div className="flex justify-center">
+      {/* Hero grid — no z-index here on purpose: the shark and the copy
+          stack independently against the fixed curtain overlay (z-[5]).
+          The shark (z-[4]) slides BEHIND the curtain drapes when scrolling;
+          the copy (z-10) stays on top. */}
+      <div className="relative mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2 pr-[26%] sm:pr-[18%] lg:pr-0">
+        {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page.
+            z-[4]: below the fixed curtain overlay (z-[5]) so the King scrolls
+            behind the drapes when the hero scrolls away; above the beams. */}
+        <div className="relative z-[4] flex justify-center">
           <HeroLogo3D />
         </div>
 
-        {/* Copy — right side */}
-        <div className="text-center lg:text-left space-y-5">
+        {/* Copy — right side. z-10: headline, subtext and buttons stay
+            above the fixed curtain overlay (z-[5]). */}
+        <div className="relative z-10 text-center lg:text-left space-y-5">
 
         {/* Positioning — the quiet luxury whisper */}
         <p className="font-display italic text-xl sm:text-2xl text-primary/90 leading-snug">
@@ -1526,10 +1533,12 @@ export default function Home() {
         }}
       />
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
-          spotlights so the beams read as shining from behind the drapes.
+          spotlights so the beams read as shining from behind the drapes,
+          and OVER the Shark King so he scrolls behind the curtains like
+          going backstage (he sits at z-[4], just below this layer).
           Same geometry as the backdrop so the curtains align pixel-perfect.
-          z-[5]: above the beams, BELOW the hero copy — text, buttons and
-          the Shark King always stay on top of the curtains. */}
+          z-[5]: above the beams and the King, BELOW the hero copy — text
+          and buttons always stay on top. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[5]"
