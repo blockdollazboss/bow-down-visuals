@@ -81,10 +81,10 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
-              className="absolute top-0 h-full w-[460px]"
+              className="absolute top-0 h-full w-[360px]"
               /* Six beams, 240px apart, centered on the 1440px stage:
                  beam centers at 120 / 360 / 600 / 840 / 1080 / 1320. */
-              style={{ left: i * 240 - 110 }}
+              style={{ left: i * 240 - 60 }}
             >
               <div
                 className="spotlight-beam absolute inset-0"
@@ -100,7 +100,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                 />
                 {/* Beam cone */}
                 <div
-                  className="absolute left-1/2 top-[1%] h-[80%] w-[460px] -translate-x-1/2"
+                  className="absolute left-1/2 top-[1%] h-[80%] w-[360px] -translate-x-1/2"
                   style={{
                     clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
                     background:
@@ -109,7 +109,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
                 />
                 {/* Light pool where the beam lands — at the King's feet */}
                 <div
-                  className="absolute left-1/2 bottom-[1%] h-[11%] w-[540px] -translate-x-1/2 rounded-[50%]"
+                  className="absolute left-1/2 bottom-[1%] h-[11%] w-[420px] -translate-x-1/2 rounded-[50%]"
                   style={{
                     background:
                       "radial-gradient(ellipse at center, rgba(255,224,128,0.7) 0%, rgba(255,206,98,0.3) 55%, transparent 72%)",
