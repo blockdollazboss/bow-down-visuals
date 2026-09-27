@@ -6,9 +6,9 @@ import { STAR_RANKS } from "@/lib/creator-level";
 
 const POS_KEY = "bdv_star_widget_snap";
 
-/* 12 snap slots: 4 columns × 3 rows. Margin keeps the widget fully on screen. */
-const COLS = 4;
-const ROWS = 3;
+/* 20 snap slots: 5 columns × 4 rows. Margin keeps the widget fully on screen. */
+const COLS = 5;
+const ROWS = 4;
 const MARGIN = 12;
 
 function widgetSize(el: HTMLElement | null): { w: number; h: number } {
