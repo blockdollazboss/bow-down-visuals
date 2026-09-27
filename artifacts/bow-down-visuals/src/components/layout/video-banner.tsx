@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useLocation } from "wouter";
 import { Crown } from "lucide-react";
 
 /* ─────────────────── Shark King banner ─────────────────── */
@@ -33,17 +32,11 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const mediaRef = useRef<HTMLDivElement | null>(null);
   const glowRef = useRef<HTMLDivElement | null>(null);
-  const spotRef = useRef<HTMLDivElement | null>(null);
-  // The spotlight rig is a homepage-only moment — the banner itself stays
-  // global, but the beams render only on "/".
-  const [location] = useLocation();
-  const showSpotlight = location.split("?")[0].split("#")[0] === "/";
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const media = mediaRef.current;
     const glow = glowRef.current;
-    const spot = spotRef.current;
     if (!wrap || !media || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -53,16 +46,13 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     let glowTY = 0;
     let glowCX = 0;
     let glowCY = 0;
-    let spotCX = 0;
     let raf = 0;
     let cancelled = false;
 
     const onPointerMove = (e: PointerEvent) => {
       const r = wrap.getBoundingClientRect();
       // Ignore movement far above/below the strip (e.g. scrolled away).
-      // The +340 tolerance keeps the spotlight tracking while the cursor
-      // is in the beam zone shining down below the banner.
-      if (e.clientY < r.top - 120 || e.clientY > r.bottom + 340) return;
+      if (e.clientY < r.top - 120 || e.clientY > r.bottom + 120) return;
       targetX = ((e.clientX - r.left) / Math.max(1, r.width)) * 2 - 1;
       glowTX = e.clientX - r.left;
       glowTY = e.clientY - r.top;
@@ -82,20 +72,12 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       currentX += (targetX - currentX) * k;
       glowCX += (glowTX - glowCX) * k;
       glowCY += (glowTY - glowCY) * k;
-      spotCX += (targetX - spotCX) * k;
       if (Math.abs(targetX - currentX) < 0.002) currentX = targetX;
       // Prowl pan toward the cursor; 1.14 scale hides the pan edges.
       media.style.transform = `translate3d(${(currentX * 28).toFixed(2)}px, 0, 0) scale(1.14)`;
       if (glow) {
         glow.style.transform = `translate3d(${glowCX.toFixed(1)}px, ${glowCY.toFixed(1)}px, 0) translate(-50%, -50%)`;
         glow.style.opacity = reduce ? "0" : "1";
-      }
-      // Spotlight rig swings toward the cursor, eased like the pan.
-      // The rig is 1200px wide, so clamp travel to keep the beams on screen.
-      if (spot) {
-        const half = wrap.clientWidth / 2;
-        const range = Math.max(0, half - 620);
-        spot.style.transform = `translate3d(${(spotCX * range).toFixed(1)}px, 0, 0)`;
       }
       raf = requestAnimationFrame(loop);
     };
@@ -257,73 +239,6 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
       />
     </div>
 
-      {/* ── Spotlight rig — homepage only. Hangs below the banner, shines down
-          over the page: four mouse-tracked beams, flashing on staggered
-          phases (CSS), volumetric ray pattern drifting inside each beam.
-          Pure decoration: pointer-events-none, translucent, reduced-motion
-          safe. */}
-      {showSpotlight && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-full z-30 h-[680px] overflow-hidden"
-        >
-          <div
-            className="absolute left-1/2 top-0 h-full w-[1200px]"
-            style={{ marginLeft: -600 }}
-          >
-            <div ref={spotRef} className="spotlight-rig absolute inset-0 will-change-transform">
-              {[0, 1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="absolute top-0 h-full w-[460px]"
-                  style={{ left: 150 + i * 300 - 230 }}
-                >
-                  <div
-                    className="spotlight-beam absolute inset-0"
-                    style={{ animationDelay: `${(i * 0.45).toFixed(2)}s` }}
-                  >
-                    {/* Lamp source glow */}
-                    <div
-                      className="absolute left-1/2 top-0 h-12 w-44 -translate-x-1/2 rounded-[50%]"
-                      style={{
-                        background:
-                          "radial-gradient(ellipse at center, rgba(255,252,230,1) 0%, rgba(255,228,140,0.75) 45%, transparent 70%)",
-                      }}
-                    />
-                    {/* Beam cone */}
-                    <div
-                      className="absolute left-1/2 top-3 h-[600px] w-[460px] -translate-x-1/2"
-                      style={{
-                        clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
-                        background:
-                          "linear-gradient(to bottom, rgba(255,226,130,0.62) 0%, rgba(255,210,100,0.28) 55%, transparent 94%)",
-                      }}
-                    />
-                    {/* Volumetric ray pattern drifting inside the beam */}
-                    <div
-                      className="spotlight-rays absolute left-1/2 top-3 h-[600px] w-[460px] -translate-x-1/2"
-                      style={{
-                        clipPath: "polygon(37% 0, 63% 0, 100% 100%, 0 100%)",
-                        background:
-                          "repeating-linear-gradient(100deg, transparent 0 16px, rgba(255,246,205,0.17) 16px 19px, transparent 19px 34px, rgba(255,240,180,0.12) 34px 37px)",
-                        animationDelay: `${(i * 0.9).toFixed(2)}s`,
-                      }}
-                    />
-                    {/* Light pool where the beam lands */}
-                    <div
-                      className="absolute left-1/2 bottom-1 h-24 w-[540px] -translate-x-1/2 rounded-[50%]"
-                      style={{
-                        background:
-                          "radial-gradient(ellipse at center, rgba(255,224,128,0.55) 0%, rgba(255,206,98,0.22) 55%, transparent 72%)",
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

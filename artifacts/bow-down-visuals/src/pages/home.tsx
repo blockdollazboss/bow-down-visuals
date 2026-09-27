@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
+import { SpotlightRig } from "@/components/SpotlightRig";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -572,6 +573,13 @@ function HeroSection() {
       {/* Film grain + vignette — quiet cinematic depth */}
       <div className="lux-grain z-[1]" aria-hidden="true" />
       <div className="lux-vignette z-[1]" aria-hidden="true" />
+
+      {/* Hero spotlights — four beams washing down to the King's feet.
+          z-[2]: above the backdrop grain, BELOW the hero copy (text stays
+          on top) and below the curtain overlay (curtains drape over the
+          beams). Anchored to the hero so the lights never follow the
+          visitor down the page. */}
+      <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl grid items-center gap-10 lg:grid-cols-2">
         {/* Hero Logo — cinematic 3D mouse-tracked motion, middle of the page */}
@@ -1510,6 +1518,20 @@ export default function Home() {
         className="pointer-events-none fixed inset-0 -z-10"
         style={{
           backgroundImage: "url(/images/home-bg-gold-curtain-stage.webp)",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
+          spotlights so the beams read as shining from behind the drapes.
+          Same geometry as the backdrop so the curtains align pixel-perfect;
+          z-30 sits above page content but below the sticky banner. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-30"
+        style={{
+          backgroundImage: "url(/images/home-curtains-overlay.png)",
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat",
