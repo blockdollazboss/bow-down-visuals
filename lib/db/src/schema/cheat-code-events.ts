@@ -9,8 +9,9 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 
-/* Cheat Code Jackpot: a 6-month promotional event. One secret directional
-   sequence per cycle; the first player to enter it wins prize_credits.
+/* Cheat Code Jackpot: a MONTHLY promotional event. One secret directional
+   sequence per calendar month (auto-created by the API server with a fresh
+   crypto-random code); the first player to enter it wins prize_credits.
    The secret is NEVER stored in plaintext (the repo is public) — only a
    SHA-256 hash of the canonical encoding ("bowdown-cheatcode-v1:" +
    JSON of the direction array). All validation is server-side.

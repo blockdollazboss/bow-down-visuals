@@ -38,13 +38,13 @@ function toDatetimeLocal(d: Date): string {
 function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit> }) {
   const [events, setEvents] = useState<JackpotEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("Season 1");
+  const [name, setName] = useState("Special Event");
   const [sequence, setSequence] = useState<Direction[]>([]);
   const [prize, setPrize] = useState("100");
   const [startsAt, setStartsAt] = useState(() => toDatetimeLocal(new Date()));
   const [endsAt, setEndsAt] = useState(() => {
     const d = new Date();
-    d.setMonth(d.getMonth() + 6);
+    d.setMonth(d.getMonth() + 1);
     return toDatetimeLocal(d);
   });
   const [saving, setSaving] = useState(false);
@@ -83,7 +83,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       return;
     }
     if (!name.trim()) {
-      setError("Give the season a name.");
+      setError("Give the event a name.");
       return;
     }
     setSaving(true);
@@ -100,12 +100,12 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         }),
       });
       const data = (await res.json()) as { error?: string; event?: JackpotEvent };
-      if (!res.ok) throw new Error(data.error || "Could not create the season.");
+      if (!res.ok) throw new Error(data.error || "Could not create the event.");
       setMessage(`"${data.event?.name}" created — only the code's hash is stored, never the code itself. Activate it below to go live.`);
       setSequence([]);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create the season.");
+      setError(e instanceof Error ? e.message : "Could not create the event.");
     } finally {
       setSaving(false);
     }
@@ -123,7 +123,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) throw new Error(data.error || `Could not ${action}.`);
-      setMessage(ev.isActive ? "Season deactivated." : `"${ev.name}" is LIVE — players can hunt the code now.`);
+      setMessage(ev.isActive ? "Event deactivated." : `"${ev.name}" is LIVE — players can hunt the code now.`);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
@@ -148,16 +148,18 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
         </p>
       </div>
       <p className="text-sm text-white/60 mb-4">
-        Set the secret D-pad code. Players enter it on the site to win the prize —
-        only a hash of your code is ever stored.
+        The jackpot runs itself every month — the server creates each month's
+        event with a fresh random code automatically. Use this panel to pause a
+        month, or to run a special manual event with a code you choose (only a
+        hash of a manual code is ever stored).
       </p>
 
-      {/* Create a season */}
+      {/* Create a manual event */}
       <div className="rounded-xl bg-black/40 border border-white/10 p-4 mb-4">
-        <p className="text-sm font-semibold text-white mb-3">Set the cheat code</p>
+        <p className="text-sm font-semibold text-white mb-3">Run a special event</p>
         <div className="grid gap-3 sm:grid-cols-2 mb-4">
           <label className="block">
-            <span className="text-xs text-white/50">Season name</span>
+            <span className="text-xs text-white/50">Event name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -254,18 +256,18 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
 
         <Button onClick={() => { void handleCreate(); }} disabled={saving} className="rounded-xl w-full sm:w-auto">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Create season
+          Create event
         </Button>
         {message && <p className="mt-3 text-sm text-green-400">{message}</p>}
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       </div>
 
-      {/* Existing seasons */}
-      <p className="text-sm font-semibold text-white mb-2">Seasons</p>
+      {/* Existing events */}
+      <p className="text-sm font-semibold text-white mb-2">Events</p>
       {loading ? (
         <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-white/40" /></div>
       ) : events.length === 0 ? (
-        <p className="text-sm text-white/40 py-4 text-center">No jackpot seasons yet — set the code above.</p>
+        <p className="text-sm text-white/40 py-4 text-center">No jackpot events yet.</p>
       ) : (
         <div className="space-y-2">
           {events.map((ev) => {

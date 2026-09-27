@@ -127,7 +127,8 @@ CREATE TABLE cheat_code_attempts (
   ip text,
   success boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
-);`;
+);
+CREATE UNIQUE INDEX cheat_code_events_name_ux ON cheat_code_events (name);`;
 
 const SEQ = ["up", "up", "down", "left", "right", "left", "down", "down", "right", "up"];
 const WRONG = ["up", "down", "up", "down", "left", "left", "right", "right", "up", "down"];
@@ -192,9 +193,64 @@ async function seedEvent(overrides: {
 }
 
 describe("GET /api/cheat-code/status", () => {
-  it("returns phase none when no events exist", async () => {
+  it("auto-creates the current month's jackpot when none exists", async () => {
     const { status, json } = await req("GET", "/cheat-code/status");
     expect(status).toBe(200);
+    expect(json.phase).toBe("live");
+    expect(json.prizeCredits).toBe(100);
+    expect(json.codeLength).toBeGreaterThanOrEqual(8);
+    expect(json.codeLength).toBeLessThanOrEqual(10);
+    expect(json.name).toMatch(/^Cheat Code Jackpot — /);
+    // Window is the calendar month in UTC.
+    const start = new Date(json.startsAt);
+    const end = new Date(json.endsAt);
+    expect(start.getUTCDate()).toBe(1);
+    expect(start.getUTCHours()).toBe(0);
+    expect(end.getUTCDate()).toBe(1);
+    const monthMs = end.getTime() - start.getTime();
+    expect(monthMs).toBeGreaterThan(27 * 86400000);
+    expect(monthMs).toBeLessThan(32 * 86400000);
+    // The secret and its hash are never exposed.
+    const raw = JSON.stringify(json).toLowerCase();
+    expect(raw).not.toContain("code_hash");
+    // Idempotent: a second call does not duplicate the month.
+    await req("GET", "/cheat-code/status");
+    const count = await testState.db.execute(
+      sql`SELECT COUNT(*) AS n FROM cheat_code_events`,
+    );
+    expect(Number((count.rows as any[])[0]?.n ?? 0)).toBe(1);
+  });
+
+  it("generates a different code each month", async () => {
+    // Seed last month as an ended event with a known code.
+    const lastMonth = new Date(Date.now() - 86400000 * 40);
+    const ls = new Date(Date.UTC(lastMonth.getUTCFullYear(), lastMonth.getUTCMonth(), 1));
+    const le = new Date(Date.UTC(lastMonth.getUTCFullYear(), lastMonth.getUTCMonth() + 1, 1));
+    const lastName = `Cheat Code Jackpot — ${lastMonth.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" })}`;
+    await testState.db.execute(sql`
+      INSERT INTO cheat_code_events
+        (id, name, code_hash, code_length, prize_credits, starts_at, ends_at, is_active)
+      VALUES
+        (${randomUUID()}, ${lastName}, ${hashCodeSequence(SEQ)}, ${SEQ.length}, 100, ${ls}, ${le}, false)
+    `);
+    const { json } = await req("GET", "/cheat-code/status");
+    expect(json.phase).toBe("live");
+    const rows = (
+      await testState.db.execute(
+        sql`SELECT name, code_hash FROM cheat_code_events ORDER BY starts_at DESC`,
+      )
+    ).rows as any[];
+    expect(rows).toHaveLength(2);
+    expect(rows[0].code_hash).not.toBe(rows[1].code_hash);
+  });
+
+  it("respects an admin pause: no live event while this month is deactivated", async () => {
+    await req("GET", "/cheat-code/status"); // auto-creates
+    await testState.db.execute(sql`
+      UPDATE cheat_code_events SET is_active = false
+      WHERE name LIKE 'Cheat Code Jackpot — %'
+    `);
+    const { json } = await req("GET", "/cheat-code/status");
     expect(json.phase).toBe("none");
   });
 
@@ -231,7 +287,12 @@ describe("POST /api/cheat-code/attempt", () => {
     expect(status).toBe(401);
   });
 
-  it("404s when no live event exists", async () => {
+  it("404s when this month is paused", async () => {
+    await req("GET", "/cheat-code/status"); // auto-creates
+    await testState.db.execute(sql`
+      UPDATE cheat_code_events SET is_active = false
+      WHERE name LIKE 'Cheat Code Jackpot — %'
+    `);
     const { status } = await req("POST", "/cheat-code/attempt", { sequence: SEQ });
     expect(status).toBe(404);
   });
@@ -276,6 +337,26 @@ describe("POST /api/cheat-code/attempt", () => {
       action: "Cheat Code Jackpot",
       creditsUsed: -100,
     });
+  });
+
+  it("the auto-created monthly jackpot is winnable", async () => {
+    await req("GET", "/cheat-code/status"); // auto-creates this month
+    // Point the monthly event at a known code (test-only; prod codes are random).
+    await testState.db.execute(sql`
+      UPDATE cheat_code_events
+      SET code_hash = ${hashCodeSequence(SEQ)}, code_length = ${SEQ.length}
+      WHERE name LIKE 'Cheat Code Jackpot — %'
+    `);
+    const { status, json } = await req("POST", "/cheat-code/attempt", {
+      sequence: SEQ,
+    });
+    expect(status).toBe(200);
+    expect(json.correct).toBe(true);
+    expect(json.prizeCredits).toBe(100);
+    expect(testState.grantCalls).toHaveLength(1);
+    const after = await req("GET", "/cheat-code/status");
+    expect(after.json.phase).toBe("claimed");
+    expect(after.json.winnerDisplayName).toBe("Test Shark");
   });
 
   it("a second winner cannot double-claim", async () => {

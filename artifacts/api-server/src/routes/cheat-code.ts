@@ -1,9 +1,15 @@
 /**
  * cheat-code.ts — Cheat Code Jackpot promotional event.
  *
- * One secret directional-pad sequence per 6-month cycle. The first signed-in
- * player to enter it wins prize_credits (100). One winner per cycle — an
+ * One secret directional-pad sequence per CALENDAR MONTH. The first signed-in
+ * player to enter it wins prize_credits (100). One winner per month — an
  * atomic conditional UPDATE is the claim, so races can't double-award.
+ *
+ * Monthly rollover is automatic: the first status/attempt request of a new
+ * month creates that month's event with a fresh crypto-random code. Only the
+ * SHA-256 hash is ever persisted — the plaintext code is never stored, never
+ * sent to any client, and not even the owner can look it up. The admin can
+ * pause a month (deactivate) or tune the prize; auto-creation respects a pause.
  *
  * Security contract:
  *  - The secret sequence is NEVER stored in plaintext (the repo is public);
@@ -18,12 +24,12 @@
  *
  *  GET    /api/cheat-code/status                 public event status
  *  POST   /api/cheat-code/attempt                { sequence: [...] } (auth)
- *  GET    /api/cheat-code/admin/events           list cycles (admin)
- *  POST   /api/cheat-code/admin/events           create a cycle (admin)
+ *  GET    /api/cheat-code/admin/events           list monthly events (admin)
+ *  POST   /api/cheat-code/admin/events           create a manual event (admin)
  *  POST   /api/cheat-code/admin/events/:id/activate    (admin)
  *  POST   /api/cheat-code/admin/events/:id/deactivate  (admin)
  */
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { sql } from "drizzle-orm";
@@ -59,6 +65,64 @@ function sequencesEqual(a: string, b: string): boolean {
   const ba = Buffer.from(a, "utf8");
   const bb = Buffer.from(b, "utf8");
   return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
+
+/* ------------------------------------------------------------------ */
+/* Monthly cycle                                                        */
+/* ------------------------------------------------------------------ */
+
+/** Prize credits for each monthly jackpot. */
+const MONTHLY_PRIZE_CREDITS = 100;
+
+/** Calendar-month window in UTC: [1st 00:00, 1st of next month 00:00). */
+function monthWindow(d: Date): [Date, Date] {
+  const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+  return [start, end];
+}
+
+/** Display name — unique per month, e.g. "Cheat Code Jackpot — October 2026". */
+function monthEventName(d: Date): string {
+  const label = d.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return `Cheat Code Jackpot — ${label}`;
+}
+
+const CODE_DIRECTIONS = ["up", "down", "left", "right"] as const;
+
+/**
+ * Crypto-random direction sequence, 8–10 moves. The plaintext is used once —
+ * to compute the hash below — and never persisted or transmitted.
+ */
+function randomCodeSequence(): string[] {
+  const len = 8 + randomInt(3);
+  return Array.from(
+    { length: len },
+    () => CODE_DIRECTIONS[randomInt(CODE_DIRECTIONS.length)],
+  );
+}
+
+/**
+ * Ensure the current calendar month has a jackpot event. Creates it (active,
+ * with a fresh random code) on the first call of the month. Race-safe: the
+ * event name is unique per month, so concurrent creators collapse onto one
+ * row via ON CONFLICT DO NOTHING. Respects an admin pause — an existing
+ * inactive row for this month is left alone.
+ */
+async function ensureCurrentMonthEvent(now = new Date()): Promise<void> {
+  const [startsAt, endsAt] = monthWindow(now);
+  const name = monthEventName(now);
+  const sequence = randomCodeSequence();
+  await db.execute(sql`
+    INSERT INTO cheat_code_events
+      (id, name, code_hash, code_length, prize_credits, starts_at, ends_at, is_active)
+    VALUES
+      (${randomUUID()}, ${name}, ${hashCodeSequence(sequence)}, ${sequence.length}, ${MONTHLY_PRIZE_CREDITS}, ${startsAt}, ${endsAt}, true)
+    ON CONFLICT (name) DO NOTHING
+  `);
 }
 
 const DirectionSchema = z.enum(CHEAT_CODE_DIRECTIONS);
@@ -153,6 +217,7 @@ async function getSpotlightEvent(): Promise<{
 
   const recentRes = await db.execute(sql`
     SELECT ${EVENT_COLUMNS} FROM cheat_code_events
+    WHERE ends_at <= ${now}
     ORDER BY ends_at DESC LIMIT 1
   `);
   const recent = (recentRes.rows as unknown as CheatCodeEventRow[])[0];
@@ -185,6 +250,7 @@ function publicEvent(event: CheatCodeEventRow, phase: JackpotPhase) {
 
 router.get("/cheat-code/status", async (req: Request, res: Response) => {
   try {
+    await ensureCurrentMonthEvent();
     const { event, phase } = await getSpotlightEvent();
     if (!event) {
       res.json({ phase: "none" satisfies JackpotPhase });
@@ -281,6 +347,7 @@ router.post(
         ?.trim() || req.ip;
 
     try {
+      await ensureCurrentMonthEvent();
       const { event } = await getSpotlightEvent();
       /* A claimed-but-still-live event reports "already claimed"; anything
          outside the live window is a 404. */
@@ -294,7 +361,7 @@ router.post(
           correct: false,
           claimed: true,
           winnerDisplayName: event.winner_display_name,
-          message: "Someone already cracked it — better luck next season.",
+          message: "Someone already cracked it — better luck next month.",
         });
         return;
       }
