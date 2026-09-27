@@ -213,6 +213,18 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     );
     results.theme_id = "applied";
 
+    // 1b. artist_vaults.deleted_at (soft delete — used by save/list/delete)
+    await pool.query(
+      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;"
+    );
+    results.deleted_at = "applied";
+
+    // 1c. artist_vaults.reference_video_url (video reference — used by save)
+    await pool.query(
+      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_video_url TEXT NULL;"
+    );
+    results.reference_video_url = "applied";
+
     // 2. Bow race tables (idempotent)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS bow_race_months (
