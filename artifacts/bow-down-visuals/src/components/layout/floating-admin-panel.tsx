@@ -262,25 +262,28 @@ function BowRaceControls({
   async function load() {
     if (loaded || busy) return;
     setBusy(true);
+    setMsg(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/admin/bow-challenge", {
+      const res = await fetch("/api/admin/bow-challenge", {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = (await res.json()) as {
+        error?: string;
         rewardCredits?: number;
         enabled?: boolean;
         targetOverride?: number | null;
         race?: { totalBows?: number; target?: number } | null;
       };
-      if (res.ok) {
-        setReward(String(data.rewardCredits ?? 50));
-        setEnabled(data.enabled ?? true);
-        setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
-        setLiveCount(data.race?.totalBows ?? null);
-        setLiveTarget(data.race?.target ?? null);
-        setLoaded(true);
-      }
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      setReward(String(data.rewardCredits ?? 50));
+      setEnabled(data.enabled ?? true);
+      setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
+      setLiveCount(data.race?.totalBows ?? null);
+      setLiveTarget(data.race?.target ?? null);
+      setLoaded(true);
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to load."}`);
     } finally {
       setBusy(false);
     }
@@ -292,7 +295,7 @@ function BowRaceControls({
     try {
       const token = await getAccessToken();
       const override = targetOverride.trim() === "" ? null : parseInt(targetOverride, 10);
-      const res = await fetch("/admin/bow-challenge", {
+      const res = await fetch("/api/admin/bow-challenge", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -327,6 +330,7 @@ function BowRaceControls({
         <p className="text-[10px] text-white/40 flex items-center gap-1">
           <Loader2 className="h-3 w-3 animate-spin" /> Loading race...
         </p>
+        {msg && <p className="text-[10px] mt-1 text-red-400/80 break-words">{msg}</p>}
       </div>
     );
   }
