@@ -255,6 +255,9 @@ function RouteFallback() {
 function AuthedLayout({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
   const userTouchedSidebar = useRef(false);
+  const [location] = useLocation();
+  /* Homepage keeps its full-bleed stage design — no content panel. */
+  const isHome = location === "/";
 
   // Sidebar preview: start open so the user sees where everything is,
   // then auto-close after a moment. Manual toggle cancels the auto-close.
@@ -285,7 +288,13 @@ function AuthedLayout({ children }: { children: ReactNode }) {
           </div>
           <main className="min-w-0 flex-1 relative">
             <ThyCheatCodeHost />
-            {children}
+            {isHome ? (
+              children
+            ) : (
+              <div className="content-panel mx-4 my-4 md:mx-6 md:my-6 p-4 md:p-6 min-h-[calc(100%-2rem)]">
+                {children}
+              </div>
+            )}
           </main>
         </div>
         <ExpandSidebarButton
