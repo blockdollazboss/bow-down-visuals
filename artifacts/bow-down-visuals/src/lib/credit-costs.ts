@@ -124,12 +124,21 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 /**
  * Get the credit cost for an API endpoint.
  * Returns null if the endpoint doesn't cost credits (or isn't registered).
+ *
+ * Matching: exact endpoint wins; otherwise the LONGEST registered prefix
+ * wins (so /api/cover-art/premium doesn't match /api/cover-art).
  */
 export function getCreditCost(endpoint: string): { cost: number; feature: string } | null {
-  // Match exact endpoint or prefix
-  for (const [key, value] of Object.entries(CREDIT_COSTS)) {
-    if (endpoint === key || endpoint.startsWith(key + "/") || endpoint.startsWith(key + "?")) {
-      return value;
+  // Exact match first
+  const exact = CREDIT_COSTS[endpoint];
+  if (exact) return exact;
+
+  // Longest prefix match — sort keys by length descending so more
+  // specific routes (e.g. /api/cover-art/premium) beat their parents.
+  const keys = Object.keys(CREDIT_COSTS).sort((a, b) => b.length - a.length);
+  for (const key of keys) {
+    if (endpoint.startsWith(key + "/") || endpoint.startsWith(key + "?")) {
+      return CREDIT_COSTS[key];
     }
   }
   return null;
