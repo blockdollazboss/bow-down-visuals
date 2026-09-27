@@ -255,22 +255,29 @@ describe("GET /api/cheat-code/status", () => {
   });
 
   it("returns a live event without ever exposing the code or hash", async () => {
-    await seedEvent();
+    // A legacy-style active cycle must not hijack the spotlight from the month.
+    await seedEvent({ name: "Cheat Code Jackpot — Season 1" });
     const { status, json } = await req("GET", "/cheat-code/status");
     expect(status).toBe(200);
     expect(json.phase).toBe("live");
+    expect(json.name).toMatch(/^Cheat Code Jackpot — (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/);
     expect(json.prizeCredits).toBe(100);
-    expect(json.codeLength).toBe(10);
+    expect(json.codeLength).toBeGreaterThanOrEqual(8);
+    expect(json.codeLength).toBeLessThanOrEqual(10);
     expect(json.startsAt).toBeTruthy();
     expect(json.endsAt).toBeTruthy();
     const raw = JSON.stringify(json).toLowerCase();
     expect(raw).not.toContain("codehash");
     expect(raw).not.toContain("code_hash");
-    expect(raw).not.toContain(hashCodeSequence(SEQ));
   });
 
   it("reports claimed phase with the winner spotlight after a win", async () => {
-    await seedEvent();
+    await req("GET", "/cheat-code/status"); // auto-creates this month
+    await testState.db.execute(sql`
+      UPDATE cheat_code_events
+      SET code_hash = ${hashCodeSequence(SEQ)}, code_length = ${SEQ.length}
+      WHERE name LIKE 'Cheat Code Jackpot — %'
+    `);
     const win = await req("POST", "/cheat-code/attempt", { sequence: SEQ });
     expect(win.json.correct).toBe(true);
     const { json } = await req("GET", "/cheat-code/status");

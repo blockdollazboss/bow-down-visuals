@@ -197,6 +197,21 @@ async function getSpotlightEvent(): Promise<{
 }> {
   const now = new Date();
 
+  /* The current month's auto-created event takes the spotlight whenever it
+     is live — this retires legacy cycles (e.g. the old 6-month event) without
+     a destructive update, and an admin pause (deactivate) yields to a manual
+     special event via the fallback below. */
+  const monthlyRes = await db.execute(sql`
+    SELECT ${EVENT_COLUMNS} FROM cheat_code_events
+    WHERE name = ${monthEventName(now)}
+      AND is_active = true AND starts_at <= ${now} AND ends_at > ${now}
+    LIMIT 1
+  `);
+  const monthly = (monthlyRes.rows as unknown as CheatCodeEventRow[])[0];
+  if (monthly) {
+    return { event: monthly, phase: monthly.winner_user_id ? "claimed" : "live" };
+  }
+
   const liveRes = await db.execute(sql`
     SELECT ${EVENT_COLUMNS} FROM cheat_code_events
     WHERE is_active = true AND starts_at <= ${now} AND ends_at > ${now}
@@ -347,7 +362,6 @@ router.post(
         ?.trim() || req.ip;
 
     try {
-      await ensureCurrentMonthEvent();
       const { event } = await getSpotlightEvent();
       /* A claimed-but-still-live event reports "already claimed"; anything
          outside the live window is a 404. */
