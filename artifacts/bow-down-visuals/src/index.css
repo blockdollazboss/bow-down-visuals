@@ -143,9 +143,14 @@ html, body {
 }
 
 /* --- Site-wide subpage backdrop: the throne room (shark on his golden throne).
-   Baked scrim keeps text readable. The homepage keeps its gold-curtain stage
-   and the auth pages keep their video — both override below. --- */
-html, body, .bg-background, [class*="min-h-screen"] {
+   Baked scrim keeps text readable. Applied ONLY to subpage containers —
+   never to html/body, so the throne can never flash through on the
+   homepage (gold-curtain stage) or the auth pages (video) while their
+   cover layers are still loading. --- */
+html, body {
+  background-color: #050505;
+}
+.bg-background, [class*="min-h-screen"] {
   background-color: #050505;
   background-image:
     linear-gradient(rgba(0, 0, 0, 0.52), rgba(0, 0, 0, 0.52)),

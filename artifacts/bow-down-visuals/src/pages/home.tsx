@@ -1513,7 +1513,7 @@ export default function Home() {
   if (authLoading || user) return null;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden relative isolate">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden relative isolate no-throne-bg">
       {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all content */}
       <div
         aria-hidden="true"
