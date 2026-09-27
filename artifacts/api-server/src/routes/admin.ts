@@ -192,4 +192,52 @@ router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({ error: `Could not set plan tier: ${detail}` });
   }
 });
+
+/* ── TEMPORARY: one-shot production schema repair ──────────────────────
+   Admin-only. Runs the missing non-destructive schema changes that the
+   failed drizzle-kit push skipped. Idempotent — safe to call multiple
+   times. REMOVE THIS ENDPOINT after the repair is verified. */
+router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) => {
+  const { Pool } = await import("pg");
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) {
+    res.status(500).json({ ok: false, error: "DATABASE_URL not configured" });
+    return;
+  }
+  const pool = new Pool({ connectionString, max: 2, ssl: { rejectUnauthorized: false } });
+  const results: Record<string, string> = {};
+  try {
+    // 1. artist_vaults.theme_id (fixes Creator Vault 500)
+    await pool.query(
+      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS theme_id TEXT NOT NULL DEFAULT 'gold-royalty';"
+    );
+    results.theme_id = "applied";
+
+    // 2. Bow race tables (idempotent)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bow_race_months (
+        period TEXT PRIMARY KEY,
+        target INTEGER NOT NULL,
+        total_bows INTEGER NOT NULL DEFAULT 0,
+        winner_user_id UUID NULL,
+        winner_email TEXT NULL,
+        won_at TIMESTAMPTZ NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+    `);
+    results.bow_race_months = "applied";
+
+    await pool.query(`
+      ALTER TABLE bow_challenge_config ADD COLUMN IF NOT EXISTS target_override INTEGER NULL;
+    `);
+    results.target_override = "applied";
+
+    res.json({ ok: true, results });
+  } catch (err) {
+    req.log.error({ err }, "admin: schema repair failed");
+    res.status(500).json({ ok: false, results, error: err instanceof Error ? err.message : "Unknown" });
+  } finally {
+    await pool.end();
+  }
+});
 export default router;
