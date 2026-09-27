@@ -37,6 +37,7 @@ import {
   Megaphone,
   CalendarCheck,
   DollarSign,
+  Gift,
   Scissors,
   BadgeDollarSign,
   Rocket,
@@ -1291,6 +1292,48 @@ function PricingSection() {
   );
 }
 
+function ReferralPromo() {
+  return (
+    <section className="py-20 md:py-28 px-5">
+      <LuxReveal className="max-w-5xl mx-auto">
+        <div className="relative overflow-hidden rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 via-black to-black p-8 md:p-12">
+          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="relative z-10 text-center space-y-6">
+            <MarketingBadge variant="kicker">
+              Refer & Earn
+            </MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              Bring creators. <span className="text-[#e8c86a]">Get paid in credits.</span>
+            </h2>
+            <p className="text-white/60 text-lg max-w-2xl mx-auto">
+              Share your link. Your friends get <span className="text-white font-semibold">10 free credits</span> to start creating.
+              You earn <span className="text-white font-semibold">25% of everything they buy</span> for 90 days.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+              <a
+                href="/referrals"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+              >
+                <Gift className="h-5 w-5" />
+                Get My Referral Link
+              </a>
+              <a
+                href="/signup"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
+              >
+                Start Creating
+              </a>
+            </div>
+            <p className="text-white/30 text-sm">
+              No limits. No gimmicks. Just creators helping creators.
+            </p>
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
 function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
@@ -1578,6 +1621,8 @@ export default function Home() {
       <ManifestoBand />
       <StudioShowcase />
       <PricingSection />
+      <SectionDivider />
+      <ReferralPromo />
       <SectionDivider />
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
