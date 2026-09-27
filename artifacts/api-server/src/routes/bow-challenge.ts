@@ -149,16 +149,18 @@ router.post("/bow", requireAuth, async (req: Request, res: Response) => {
    Admin-only. NEVER exposed publicly: the counter, target, and winner
    stay secret everywhere else. */
 router.get("/admin/bow-challenge", requireAuth, requireAdmin, async (_req: Request, res: Response) => {
-  const supabase = getSupabaseAdmin();
-  const { data: cfg, error: cfgErr } = await supabase
-    .from("bow_challenge_config")
-    .select("reward_credits, enabled, target_override, updated_at")
-    .eq("id", 1)
-    .single();
-  if (cfgErr) {
-    res.status(500).json({ error: "Could not load race config." });
-    return;
-  }
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data: cfg, error: cfgErr } = await supabase
+      .from("bow_challenge_config")
+      .select("reward_credits, enabled, target_override, updated_at")
+      .eq("id", 1)
+      .single();
+    if (cfgErr) {
+      console.error("[bow-challenge] config load failed:", cfgErr.message);
+      res.status(500).json({ error: `Could not load race config: ${cfgErr.message}` });
+      return;
+    }
 
   const period = currentPeriod();
   const { data: race } = await supabase
@@ -197,7 +199,11 @@ router.get("/admin/bow-challenge", requireAuth, requireAdmin, async (_req: Reque
       winnerEmail: h.winner_email,
       wonAt: h.won_at,
     })),
-  });
+    });
+  } catch (e) {
+    console.error("[bow-challenge] GET failed:", e instanceof Error ? e.message : e);
+    res.status(500).json({ error: `Race load failed: ${e instanceof Error ? e.message : "unknown"}` });
+  }
 });
 
 const ConfigSchema = z.object({

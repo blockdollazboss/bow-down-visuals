@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STAR_RANKS } from "@/lib/creator-level";
+import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 
 /**
  * Floating admin quick-actions panel — completely separate from the star widget.
@@ -254,26 +255,64 @@ function BowRaceControls({
   const [targetOverride, setTargetOverride] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [testPopup, setTestPopup] = useState(false);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [liveTarget, setLiveTarget] = useState<number | null>(null);
+  /* TEMPORARY (remove with /api/admin/schema-repair): one-click fix for
+     missing bow-race schema — the container-startup drizzle push wasn't
+     applying it. Shown only when the race config fails to load. */
+  const [repairing, setRepairing] = useState(false);
+
+  async function repair() {
+    setRepairing(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/schema-repair", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        credentials: "include",
+        body: "{}",
+      });
+      const data = (await res.json()) as { ok?: boolean; results?: unknown; error?: string };
+      if (!data.ok) throw new Error(data.error || "Repair failed");
+      setMsg(`✓ Repair done: ${JSON.stringify(data.results)} — reloading…`);
+      await load();
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Repair failed."}`);
+    } finally {
+      setRepairing(false);
+    }
+  }
 
   async function load() {
     if (loaded || busy) return;
     setBusy(true);
+    setMsg(null);
     try {
       const token = await getAccessToken();
-      const res = await fetch("/admin/bow-challenge", {
+      const res = await fetch("/api/admin/bow-challenge", {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       const data = (await res.json()) as {
+        error?: string;
         rewardCredits?: number;
         enabled?: boolean;
         targetOverride?: number | null;
+        race?: { totalBows?: number; target?: number } | null;
       };
-      if (res.ok) {
-        setReward(String(data.rewardCredits ?? 50));
-        setEnabled(data.enabled ?? true);
-        setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
-        setLoaded(true);
-      }
+      if (!res.ok) throw new Error(data.error || `Failed (${res.status})`);
+      setReward(String(data.rewardCredits ?? 50));
+      setEnabled(data.enabled ?? true);
+      setTargetOverride(data.targetOverride != null ? String(data.targetOverride) : "");
+      setLiveCount(data.race?.totalBows ?? null);
+      setLiveTarget(data.race?.target ?? null);
+      setLoaded(true);
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to load."}`);
     } finally {
       setBusy(false);
     }
@@ -285,7 +324,7 @@ function BowRaceControls({
     try {
       const token = await getAccessToken();
       const override = targetOverride.trim() === "" ? null : parseInt(targetOverride, 10);
-      const res = await fetch("/admin/bow-challenge", {
+      const res = await fetch("/api/admin/bow-challenge", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -307,13 +346,32 @@ function BowRaceControls({
     }
   }
 
+  // Auto-load race data when the panel opens — no button click needed.
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!loaded) {
     return (
       <div>
         <p className={labelCls}>Bow race</p>
-        <button type="button" onClick={() => void load()} disabled={busy} className={btnCls}>
-          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Load race settings"}
-        </button>
+        <p className="text-[10px] text-white/40 flex items-center gap-1">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading race...
+        </p>
+        {msg && <p className="text-[10px] mt-1 text-red-400/80 break-words">{msg}</p>}
+        {/* TEMPORARY: one-click schema repair — remove with the endpoint. */}
+        {msg && (
+          <button
+            type="button"
+            onClick={() => void repair()}
+            disabled={repairing || busy}
+            className="mt-2 rounded-lg border border-[#C9A84C]/40 px-3 py-1.5 text-[11px] font-bold text-[#C9A84C] hover:bg-[#C9A84C]/10 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {repairing ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            Run schema repair
+          </button>
+        )}
       </div>
     );
   }
@@ -321,6 +379,15 @@ function BowRaceControls({
   return (
     <div>
       <p className={labelCls}>Bow race</p>
+      <div className="flex items-center justify-between mb-1.5 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+        <span className="text-xs text-white/50 font-semibold">Live bow count</span>
+        <span className="text-sm font-black text-[#C9A84C]">
+          {liveCount != null ? liveCount.toLocaleString() : "—"}
+          {liveTarget != null && (
+            <span className="text-white/40 font-semibold"> / {liveTarget.toLocaleString()}</span>
+          )}
+        </span>
+      </div>
       <div className="flex items-center gap-2 mb-1">
         <input
           type="number"
@@ -352,7 +419,22 @@ function BowRaceControls({
       <button type="button" onClick={() => void save()} disabled={busy} className={btnCls}>
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save race"}
       </button>
+      <button
+        type="button"
+        onClick={() => setTestPopup(true)}
+        className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:border-white/40 transition-colors ml-1"
+        title="Preview the winner popup (no credits granted, no race state changed)"
+      >
+        Test winner popup
+      </button>
       {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
+      {/* Test-only preview: purely client-side, grants nothing. */}
+      {testPopup && (
+        <SecretChallengePopup
+          credits={parseInt(reward, 10) || 50}
+          onClaim={() => setTestPopup(false)}
+        />
+      )}
     </div>
   );
 }

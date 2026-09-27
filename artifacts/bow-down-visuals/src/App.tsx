@@ -110,6 +110,7 @@ const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
 const PlaylistPitcher = lazyWithRetry(() => import("@/pages/playlist-pitch"));
+const LabelPitch = lazyWithRetry(() => import("@/pages/label-pitch"));
 const ChannelAudit = lazyWithRetry(() => import("@/pages/audit"));
 const Contracts = lazyWithRetry(() => import("@/pages/contracts"));
 const Movies = lazyWithRetry(() => import("@/pages/movies"));
@@ -288,7 +289,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
       onOpenChange={handleOpenChange}
     >
       <div className="flex min-h-svh w-full">
-        <AppSidebar />
+        {!isHome && <AppSidebar />}
         <div className="min-w-0 flex-1 flex flex-col">
           <div className="sticky top-0 z-40">
             <VideoBanner />
@@ -304,12 +305,14 @@ function AuthedLayout({ children }: { children: ReactNode }) {
             )}
           </main>
         </div>
-        <ExpandSidebarButton
-          collapsed={sidebarCollapsed}
-          onExpand={() => setSidebarCollapsed(false)}
-        />
+        {!isHome && (
+          <ExpandSidebarButton
+            collapsed={sidebarCollapsed}
+            onExpand={() => setSidebarCollapsed(false)}
+          />
+        )}
         <LiveBadge />
-        <MobileSidebarTrigger />
+        {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
         <FloatingAdminPanel />
         {typeof window !== "undefined" && <OnboardingTour />}      </div>
@@ -436,6 +439,7 @@ function AppShell() {
                 <Route path="/thumbnail-maker"><ProtectedRoute><ThumbnailMaker /></ProtectedRoute></Route>
                 <Route path="/merch"><ProtectedRoute><Merch /></ProtectedRoute></Route>
                 <Route path="/playlist-pitch"><ProtectedRoute><PlaylistPitcher /></ProtectedRoute></Route>
+                <Route path="/label-pitch"><ProtectedRoute><LabelPitch /></ProtectedRoute></Route>
                 <Route path="/channel-audit"><ProtectedRoute><ChannelAudit /></ProtectedRoute></Route>
                 <Route path="/contracts"><ProtectedRoute><Contracts /></ProtectedRoute></Route>
                 <Route path="/movies"><ProtectedRoute><Movies /></ProtectedRoute></Route>

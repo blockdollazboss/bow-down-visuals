@@ -48,6 +48,7 @@ export * from "./live-shopping";
 export * from "./scheduled-posts";
 export * from "./merch";
 export * from "./playlist-pitch";
+export * from "./label-pitch";
 export * from "./contests";
 export * from "./fan-shoutouts";
 export * from "./collab";

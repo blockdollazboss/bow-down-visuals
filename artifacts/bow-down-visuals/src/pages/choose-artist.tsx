@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { SubjectBadge, normalizeSubjectType } from "@/components/ArtistVaultSelector";
 import { getCharacterTheme, themeAlpha } from "@/lib/character-themes";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -51,15 +52,13 @@ export default function ChooseArtist() {
     setLocation("/dashboard");
   }
 
-  /* Top 3 featured (active artist first, then most recent), max 10 total. */
+  /* All vaults in the spotlight (active artist first, then most recent) — no cap. */
   const sortedVaults = [...vaults].sort((a, b) => {
     if (a.id === activeArtist?.id) return -1;
     if (b.id === activeArtist?.id) return 1;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
-  const featuredVaults = sortedVaults.slice(0, 3);
-  const remainingVaults = sortedVaults.slice(3, 10);
-  const hiddenCount = sortedVaults.length - 10;
+  const featuredVaults = sortedVaults;
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
@@ -110,7 +109,7 @@ export default function ChooseArtist() {
           </div>
         ) : (
           <>
-            {/* Featured top 3 — studio spotlight */}
+            {/* All characters — studio spotlight */}
             <div className="flex items-center justify-center gap-2 mb-4">
               <Camera className="h-4 w-4 text-[#C9A84C]" />
               <p className="text-[#C9A84C] text-[11px] font-bold uppercase tracking-[0.25em]">
@@ -191,7 +190,7 @@ export default function ChooseArtist() {
                     </div>
                   )}
 
-                  {/* VIP rank badge */}
+                  {/* Artist name badge */}
                   <div style={{
                     position: "absolute", top: 10, left: 10, zIndex: 3,
                     display: "flex", alignItems: "center", gap: 5,
@@ -202,8 +201,8 @@ export default function ChooseArtist() {
                     boxShadow: `0 0 15px ${T(0.3)}`,
                   }}>
                     <Crown className="h-3 w-3" style={{ color: THEME }} />
-                    <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em" }}>
-                      #{index + 1} SPOTLIGHT
+                    <span style={{ fontSize: 9, fontWeight: 900, color: THEME, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                      {vault.artist_name}
                     </span>
                   </div>
 
@@ -228,6 +227,15 @@ export default function ChooseArtist() {
                     }}>
                       <div style={{ width: 5, height: 5, borderRadius: "50%", background: THEME, boxShadow: `0 0 5px ${THEME}` }} />
                       <span style={{ fontSize: 8.5, fontWeight: 900, color: THEME, letterSpacing: "0.14em" }}>SELECTED</span>
+                    </div>
+                  )}
+
+                  {/* Subject type badge — top-right (shifts down when SELECTED shows) */}
+                  {vault.artist_type && (
+                    <div style={{
+                      position: "absolute", top: isSelected ? 42 : 10, right: 10, zIndex: 3,
+                    }}>
+                      <SubjectBadge type={normalizeSubjectType(vault.artist_type)} />
                     </div>
                   )}
 
@@ -267,72 +275,6 @@ export default function ChooseArtist() {
               );
             })}
             </div>
-
-            {/* Remaining artists (up to 7 more, max 10 total) */}
-            {remainingVaults.length > 0 && (
-              <>
-                <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  More artists
-                </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
-                  {remainingVaults.map((vault) => {
-                    const isSelected = selectedId === vault.id;
-                    const rTheme = getCharacterTheme(vault.theme_id);
-                    const initials = vault.artist_name.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
-                    return (
-                      <button
-                        key={vault.id}
-                        type="button"
-                        onClick={() => setSelectedId(isSelected ? null : vault.id)}
-                        className="rounded-xl border p-3 text-left transition"
-                        style={isSelected ? {
-                          borderColor: themeAlpha(rTheme.primary, 0.6),
-                          background: rTheme.cardTint,
-                          boxShadow: `0 0 20px ${themeAlpha(rTheme.primary, 0.25)}`,
-                        } : undefined}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          {vault.reference_video_url ? (
-                            <video
-                              src={vault.reference_video_url}
-                              poster={vault.reference_image_url ?? undefined}
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="h-10 w-10 rounded-full object-cover"
-                              style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined}
-                            />
-                          ) : vault.reference_image_url ? (
-                            <img src={vault.reference_image_url} alt="" className="h-10 w-10 rounded-full object-cover" style={isSelected ? { border: `2px solid ${themeAlpha(rTheme.primary, 0.6)}` } : undefined} />
-                          ) : (
-                            <div
-                              className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
-                              style={isSelected ? {
-                                background: `linear-gradient(135deg, ${themeAlpha(rTheme.primary, 0.3)}, ${themeAlpha(rTheme.primary, 0.08)})`,
-                                color: rTheme.primary,
-                                border: `1px solid ${themeAlpha(rTheme.primary, 0.5)}`,
-                              } : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
-                            >
-                              {initials}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-white">{vault.artist_name}</p>
-                            {vault.genre && <p className="truncate text-xs text-white/40">{vault.genre}</p>}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            {hiddenCount > 0 && (
-              <p className="mb-6 text-center text-sm text-white/35">
-                +{hiddenCount} more artist{hiddenCount === 1 ? "" : "s"} — showing your top 10
-              </p>
-            )}
           </>
         )}
 

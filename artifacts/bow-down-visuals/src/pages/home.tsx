@@ -37,14 +37,25 @@ import {
   Megaphone,
   CalendarCheck,
   DollarSign,
+  Gift,
   Scissors,
   BadgeDollarSign,
   Rocket,
   Fingerprint,
+<<<<<<< HEAD
   Palette,
   BookOpen,
   GraduationCap,
   Trophy,
+=======
+  Trophy,
+  GraduationCap,
+  BookOpen,
+  Palette,
+  Podcast,
+  Tv,
+  Store,
+>>>>>>> origin/staging
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -659,6 +670,14 @@ function HeroSection() {
           </Button>
         </div>
 
+        {/* Returning users */}
+        <p className="text-sm text-white/40">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors">
+            Sign in
+          </Link>
+        </p>
+
         {/* Social proof — true claims only */}
         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
@@ -1052,6 +1071,35 @@ function BuiltForCreators() {
             </div>
           ))}
         </div>
+
+        {/* Formats strip — not just music: movies, podcasts, streaming */}
+        <div className="mt-12 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-6">
+            Not a musician? Good. It&rsquo;s not just music.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { icon: Film, title: "Movies & Series", body: "Your next binge-worthy hit starts here.", href: "/movies" },
+              { icon: Podcast, title: "Podcasts", body: "Record, polish, and publish — all in the studio.", href: "/podcast" },
+              { icon: Tv, title: "Streamers", body: "Stream packs and go-live tools for your broadcast.", href: "/go-live" },
+            ].map((f) => (
+              <Link
+                key={f.title}
+                href={f.href}
+                className="group flex items-center gap-4 p-4 rounded-xl hover:bg-white/[0.04] transition-colors"
+              >
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <f.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white text-sm">{f.title}</h4>
+                  <p className="text-white/45 text-xs mt-0.5">{f.body}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 ml-auto text-primary/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
       </LuxReveal>
     </section>
   );
@@ -1283,6 +1331,48 @@ function PricingSection() {
           <Lock className="h-3 w-3" />
           Sign in to purchase credits.
         </p>
+      </LuxReveal>
+    </section>
+  );
+}
+
+function ReferralPromo() {
+  return (
+    <section className="py-20 md:py-28 px-5">
+      <LuxReveal className="max-w-5xl mx-auto">
+        <div className="relative overflow-hidden rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 via-black to-black p-8 md:p-12">
+          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="relative z-10 text-center space-y-6">
+            <MarketingBadge variant="kicker">
+              Refer & Earn
+            </MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              Bring creators. <span className="text-[#e8c86a]">Get paid in credits.</span>
+            </h2>
+            <p className="text-white/60 text-lg max-w-2xl mx-auto">
+              Share your link. Your friends get <span className="text-white font-semibold">10 free credits</span> to start creating.
+              You earn <span className="text-white font-semibold">25% of everything they buy</span> for 90 days.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+              <a
+                href="/referrals"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+              >
+                <Gift className="h-5 w-5" />
+                Get My Referral Link
+              </a>
+              <a
+                href="/signup"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
+              >
+                Start Creating
+              </a>
+            </div>
+            <p className="text-white/30 text-sm">
+              No limits. No gimmicks. Just creators helping creators.
+            </p>
+          </div>
+        </div>
       </LuxReveal>
     </section>
   );
@@ -1766,6 +1856,270 @@ function AcademySection() {
 
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
+/* ───── Creator Vault — the moat: persistent identity across every generation ───── */
+
+const VAULT_PILLARS = [
+  {
+    icon: Mic2,
+    title: "Your Voice, Cloned",
+    body: "Clone your voice once. Every song, voiceover, and ad read comes out in your voice — not a stranger's.",
+  },
+  {
+    icon: Sparkles,
+    title: "Your Face, Locked",
+    body: "Photos, style, and character locked in. Thumbnails, cover art, and videos stay unmistakably you.",
+  },
+  {
+    icon: Fingerprint,
+    title: "Your Brand, Everywhere",
+    body: "Colors, logos, and visual identity ride along on every generation. No re-explaining your look, ever.",
+  },
+];
+
+function CreatorVaultSection() {
+  return (
+    <section className="py-20 md:py-28 px-5 relative overflow-hidden">
+      <LuxReveal className="max-w-6xl mx-auto">
+        <div className="relative rounded-3xl border border-primary/25 bg-gradient-to-br from-primary/[0.08] via-black to-black p-8 md:p-14 overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-[380px] h-[380px] bg-primary/10 rounded-full blur-[110px] pointer-events-none" />
+          <div className="relative z-10 grid md:grid-cols-2 gap-10 items-center">
+            <div className="space-y-6">
+              <MarketingBadge variant="kicker">
+                The Creator Vault
+              </MarketingBadge>
+              <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight">
+                Your sound. Your face. Your voice.{" "}
+                <span className="gold-text-shine">Locked in.</span>
+              </h2>
+              <p className="text-white/55 text-lg leading-relaxed">
+                Generic AI tools make generic output. Build your Creator Vault
+                once — photos, voice, style, brand assets — and every song,
+                video, and thumbnail comes out unmistakably{" "}
+                <span className="text-white font-semibold">you</span>.
+              </p>
+              <Link
+                href="/artist-vault"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-7 py-3.5 text-black font-bold hover:brightness-110 transition shadow-[0_0_25px_rgba(201,168,76,0.25)]"
+              >
+                Build My Vault <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {VAULT_PILLARS.map((p) => (
+                <div
+                  key={p.title}
+                  className="flex gap-4 p-5 rounded-2xl bg-white/[0.03] border border-white/[0.07] hover:border-primary/30 transition-colors"
+                >
+                  <div className="h-11 w-11 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <p.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white mb-1">{p.title}</h3>
+                    <p className="text-white/50 text-sm leading-relaxed">{p.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Branding Shop — AI designs it ───── */
+
+const BRANDING_ITEMS = [
+  { icon: Shirt, title: "Merch & Apparel", body: "AI-designed merch in your Vault identity. (Dropship fulfillment coming soon.)" },
+  { icon: Palette, title: "Logos & Brand Kits", body: "Logos, color systems, and full brand kits generated around your look." },
+  { icon: Clapperboard, title: "Stream Packs", body: "Overlays, alerts, panels, and emotes for Twitch, YouTube, and Kick." },
+  { icon: Video, title: "Intros & Outros", body: "Branded video intros, outros, and transitions that open every upload right." },
+];
+
+function BrandingShopSection() {
+  return (
+    <section className="py-20 md:py-28 px-5">
+      <LuxReveal className="max-w-6xl mx-auto">
+        <div className="text-center mb-14 space-y-4">
+          <MarketingBadge variant="kicker">
+            The Branding Shop
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+            Look like a brand <span className="gold-text-shine">before you are one.</span>
+          </h2>
+          <p className="text-white/50 text-lg max-w-2xl mx-auto">
+            AI designs it. Logos, merch mockups, stream packs,
+            intros — all in your Vault identity. (Dropship fulfillment coming soon.)
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+          {BRANDING_ITEMS.map((item) => (
+            <div
+              key={item.title}
+              className="group p-7 rounded-2xl lux-panel lux-card-lift text-center"
+            >
+              <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-5 group-hover:bg-primary/20 transition-colors">
+                <item.icon className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="font-semibold text-white text-lg mb-2">{item.title}</h3>
+              <p className="text-white/50 text-sm leading-relaxed">{item.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-center">
+          <Link
+            href="/branding-shop"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/40 px-8 py-4 text-primary font-bold hover:bg-primary/10 transition"
+          >
+            Open the Shop <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Label Pitch + music-business stack — demo to deal ───── */
+
+const BIZ_PIPELINE = [
+  {
+    icon: Megaphone,
+    title: "Pitch",
+    body: "AI demo kit + 13-label directory. Pitch like you have a team behind you.",
+    href: "/label-pitch",
+  },
+  {
+    icon: Globe,
+    title: "Distribute",
+    body: "Music distribution to Spotify, Apple Music, YouTube & more — coming soon.",
+    href: "/distribute",
+  },
+  {
+    icon: Lock,
+    title: "Protect",
+    body: "Copyright registration guidance so your work stays yours.",
+    href: "/copyright",
+  },
+  {
+    icon: BadgeDollarSign,
+    title: "Collect",
+    body: "Royalty tracking that shows where your money is.",
+    href: "/royalties",
+  },
+];
+
+function LabelPitchSection() {
+  return (
+    <section className="py-20 md:py-28 px-5 bg-gradient-to-b from-transparent via-yellow-950/10 to-transparent">
+      <LuxReveal className="max-w-6xl mx-auto">
+        <div className="text-center mb-14 space-y-4">
+          <MarketingBadge variant="kicker">
+            The Business End
+          </MarketingBadge>
+          <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+            Make the song. Pitch the label.{" "}
+            <span className="gold-text-shine">Keep the royalties.</span>
+          </h2>
+          <p className="text-white/50 text-lg max-w-2xl mx-auto">
+            The pipeline from demo to deal, built in. No manager required.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {BIZ_PIPELINE.map((step, i) => (
+            <div key={step.title} className="relative">
+              <Link
+                href={step.href}
+                className="group block h-full p-7 rounded-2xl lux-panel lux-card-lift"
+              >
+                <div className="flex items-center justify-between mb-5">
+                  <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                    <step.icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <span className="text-4xl font-black text-primary/25 select-none">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-white text-lg mb-2">{step.title}</h3>
+                <p className="text-white/50 text-sm leading-relaxed mb-4">{step.body}</p>
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary group-hover:text-yellow-300 transition-colors">
+                  Open <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                </span>
+              </Link>
+            </div>
+          ))}
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Jackpot band — monthly win mechanic ───── */
+
+function JackpotBand() {
+  return (
+    <section className="py-10 px-5">
+      <LuxReveal className="max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center sm:text-left px-8 py-6 rounded-2xl border border-primary/25 bg-primary/[0.06]">
+          <Trophy className="h-8 w-8 text-primary shrink-0" />
+          <p className="text-white/70">
+            <span className="text-white font-bold">Every month, one cheat code wins.</span>{" "}
+            The Cheat Code Jackpot — a secret arrow-code drops every month.
+            First to crack it and enter it wins 100 credits.
+          </p>
+          <Link
+            href="/signup"
+            className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-primary/15 border border-primary/40 px-6 py-3 text-primary font-bold hover:bg-primary/25 transition text-sm"
+          >
+            Crack the Code <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ───── Creator Academy — free learning library ───── */
+
+function AcademySection() {
+  return (
+    <section className="py-20 md:py-28 px-5">
+      <LuxReveal className="max-w-5xl mx-auto">
+        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] via-black to-black p-8 md:p-14 text-center">
+          <div className="absolute -bottom-24 -left-24 w-[320px] h-[320px] bg-primary/[0.07] rounded-full blur-[100px] pointer-events-none" />
+          <div className="relative z-10 space-y-6">
+            <div className="flex justify-center">
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 border border-primary/25 flex items-center justify-center">
+                <GraduationCap className="h-7 w-7 text-primary" />
+              </div>
+            </div>
+            <MarketingBadge variant="kicker">
+              Creator Academy
+            </MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              The cheat code <span className="gold-text-shine">comes with a manual.</span>
+            </h2>
+            <p className="text-white/55 text-lg max-w-2xl mx-auto leading-relaxed">
+              A free catalog of masterclasses in video, music, and branding — the same
+              playbook the tools run on, taught straight. AI lessons from 1 credit each.
+            </p>
+            <Link
+              href="/academy"
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
+            >
+              <BookOpen className="h-4 w-4" /> Explore the Academy
+            </Link>
+          </div>
+        </div>
+      </LuxReveal>
+    </section>
+  );
+}
+
+/* ─────────────────────────── PAGE ─────────────────────────── */
+
 export default function Home() {
   usePageTitle(
     "Bow Down Visuals — The Content Creator's Cheat Code",
@@ -1788,10 +2142,11 @@ export default function Home() {
 
   return (
     <>
-      {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all
-          content. Sibling of the page root (NOT inside it) so it never
-          paints above the footer: at z-0 it stays behind the page root
-          (z-[1]) and everything in it. */}
+    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
+      {/* Page backdrop — gold-curtain stage, fixed full-viewport. INSIDE the
+          isolated page root so the body's dark background can't cover it:
+          at z-0 it stays behind the content but above the page root's
+          (transparent) background. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0"
@@ -1802,7 +2157,6 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes,
           OVER the Shark King so he scrolls behind the curtains like
@@ -1842,6 +2196,10 @@ export default function Home() {
       <PricingSection />
       <JackpotBand />
       <SectionDivider />
+<<<<<<< HEAD
+=======
+      <ReferralPromo />
+>>>>>>> origin/staging
       <AcademySection />
       <SectionDivider />
       <FAQSection />

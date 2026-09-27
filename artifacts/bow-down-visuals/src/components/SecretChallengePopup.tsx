@@ -32,8 +32,8 @@ export function SecretChallengePopup({
           src={`${base}images/bow-winner-popup.webp`}
           alt="You cracked the code — you've been awarded credits"
           draggable={false}
-          className="block h-auto w-auto select-none"
-          style={{ maxWidth: "min(96vw, 145vh)", maxHeight: "94vh" }}
+          className="block h-auto select-none"
+          style={{ width: "min(94vw, calc(90vh * 1.5))", maxHeight: "90vh" }}
         />
 
         {/* Live credit amount — opaque backing covers the baked-in
