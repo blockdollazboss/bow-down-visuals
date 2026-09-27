@@ -124,7 +124,7 @@ export default function Login() {
     <div className="min-h-screen flex flex-col relative overflow-hidden no-throne-bg"
       onMouseMove={handleMouseScrub}
     >
-      {/* Drone video background — scrub through with your mouse */}
+      {/* Drone video background — scrub through with your mouse, full brightness */}
       <video
         ref={bgVideoRef}
         src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
@@ -134,9 +134,6 @@ export default function Login() {
         disablePictureInPicture
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
-      {/* Cinematic vignette + dark overlay for readability */}
-      <div className="pointer-events-none absolute inset-0 bg-black/55" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_35%,rgba(0,0,0,0.55)_100%)]" />
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
 
