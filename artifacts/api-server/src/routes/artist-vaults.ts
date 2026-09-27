@@ -38,31 +38,40 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
   }
   const d = parsed.data;
 
-  const [row] = await db
-    .insert(artistVaultsTable)
-    .values({
-      user_id: req.userId!,
-      artist_name: d.artistName,
-      artist_type: d.artistType ?? null,
-      genre: d.genre ?? null,
-      voice_style: d.voiceStyle ?? null,
-      visual_style: d.visualStyle ?? null,
-      hair: d.hair ?? null,
-      tattoos: d.tattoos ?? null,
-      jewelry: d.jewelry ?? null,
-      clothing_style: d.clothingStyle ?? null,
-      brand_colors: d.brandColors ?? null,
-      theme_id: d.themeId ?? "gold-royalty",
-      personality: d.personality ?? null,
-      do_not_change_rules: d.doNotChangeRules ?? null,
-      reference_image_url: d.referenceImageUrl ?? null,
-      reference_image_path: d.referenceImagePath ?? null,
-      consistency_prompt: d.consistencyPrompt ?? null,
-      is_active: false,
-    })
-    .returning({ id: artistVaultsTable.id });
+  try {
+    const [row] = await db
+      .insert(artistVaultsTable)
+      .values({
+        user_id: req.userId!,
+        artist_name: d.artistName,
+        artist_type: d.artistType ?? null,
+        genre: d.genre ?? null,
+        voice_style: d.voiceStyle ?? null,
+        visual_style: d.visualStyle ?? null,
+        hair: d.hair ?? null,
+        tattoos: d.tattoos ?? null,
+        jewelry: d.jewelry ?? null,
+        clothing_style: d.clothingStyle ?? null,
+        brand_colors: d.brandColors ?? null,
+        theme_id: d.themeId ?? "gold-royalty",
+        personality: d.personality ?? null,
+        do_not_change_rules: d.doNotChangeRules ?? null,
+        reference_image_url: d.referenceImageUrl ?? null,
+        reference_image_path: d.referenceImagePath ?? null,
+        consistency_prompt: d.consistencyPrompt ?? null,
+        is_active: false,
+      })
+      .returning({ id: artistVaultsTable.id });
 
-  res.status(201).json({ id: row?.id });
+    res.status(201).json({ id: row?.id });
+  } catch (err) {
+    // TEMPORARY: detailed error for debugging (remove after fix)
+    req.log.error({ err }, "artist-vaults: insert failed");
+    res.status(500).json({
+      error: "Internal server error",
+      detail: err instanceof Error ? err.message : String(err),
+    });
+  }
 });
 
 router.get("/artist-vaults", requireAuth, async (req, res) => {
