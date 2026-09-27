@@ -574,7 +574,7 @@ function HeroSection() {
       <div className="lux-grain z-[1]" aria-hidden="true" />
       <div className="lux-vignette z-[1]" aria-hidden="true" />
 
-      {/* Hero spotlights — four beams living at the top of the page, washing
+      {/* Hero spotlights — six beams living at the top of the page, washing
           down to the King's feet. Anchored to the hero (absolute): they
           stay at the top and scroll away naturally — they never follow
           you down the page.

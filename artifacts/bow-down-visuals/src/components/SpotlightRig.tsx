@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /* ─────────────────── Homepage hero spotlight rig ─────────────────── */
-/* Five gold beams washing down over the hero, landing near the Shark
+/* Six gold beams washing down over the hero, landing near the Shark
    King's feet. Anchored to the hero (absolute) so the lights live at the
    top of the page and scroll away naturally — they never follow the
    visitor down the page.
@@ -16,7 +16,7 @@ import { useEffect, useRef } from "react";
    horizontally (rAF). Pure decoration: pointer-events-none, translucent,
    reduced-motion safe. */
 
-const BEAM_DELAYS = [0, 0.45, 0.9, 1.35, 1.8];
+const BEAM_DELAYS = [0, 0.45, 0.9, 1.35, 1.8, 2.25];
 
 export function SpotlightRig({ className = "" }: { className?: string }) {
   const rigRef = useRef<HTMLDivElement | null>(null);
@@ -28,12 +28,12 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
     if (!rig || typeof window === "undefined") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Fit the 1200px stage to narrow viewports (width only — beams stay
+    // Fit the 1440px stage to narrow viewports (width only — beams stay
     // full height). Without this, each 460px beam is wider than a phone
     // screen and they read as giant blobs instead of light shafts.
     const fit = () => {
       if (!stage) return;
-      const s = Math.min(1, window.innerWidth / 1200);
+      const s = Math.min(1, window.innerWidth / 1440);
       stage.style.transform = `scaleX(${s.toFixed(3)})`;
     };
     fit();
@@ -53,10 +53,10 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       if (cancelled) return;
       cx += (targetX - cx) * (reduce ? 1 : 0.08);
       if (Math.abs(targetX - cx) < 0.001) cx = targetX;
-      // The rig is 1200px wide — clamp travel so the beams stay on screen.
+      // The rig is 1440px wide — clamp travel so the beams stay on screen.
       const section = rig.closest("section");
       const half = (section?.clientWidth || window.innerWidth) / 2;
-      const range = Math.max(0, half - 620);
+      const range = Math.max(0, half - 740);
       rig.style.transform = `translate3d(${(cx * range).toFixed(1)}px, 0, 0)`;
       raf = requestAnimationFrame(loop);
     };
@@ -74,16 +74,16 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
     <div aria-hidden className={`pointer-events-none overflow-hidden ${className}`}>
       <div
         ref={stageRef}
-        className="absolute left-1/2 top-0 h-full w-[1200px]"
-        style={{ marginLeft: -600, transformOrigin: "center top" }}
+        className="absolute left-1/2 top-0 h-full w-[1440px]"
+        style={{ marginLeft: -720, transformOrigin: "center top" }}
       >
         <div ref={rigRef} className="absolute inset-0 will-change-transform">
-          {[0, 1, 2, 3, 4].map((i) => (
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <div
               key={i}
               className="absolute top-0 h-full w-[460px]"
-              /* Five beams, 240px apart, centered on the 1200px stage:
-                 beam centers at 120 / 360 / 600 / 840 / 1080. */
+              /* Six beams, 240px apart, centered on the 1440px stage:
+                 beam centers at 120 / 360 / 600 / 840 / 1080 / 1320. */
               style={{ left: i * 240 - 110 }}
             >
               <div
