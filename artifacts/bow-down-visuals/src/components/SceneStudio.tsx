@@ -14,6 +14,7 @@ import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
 import type { SceneData } from "@/lib/scene-parser";
 import { getPreviousClipUrl } from "@/lib/scene-chaining";
 import type { ArtistVault } from "@/components/ArtistVaultSelector";
+import { getSupabase } from "@/lib/supabase";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { vaultToPayload, requestImprovedPrompt, sceneSeedPrompt, isWeakPrompt, ImprovePromptError, type ImprovePromptErrorType } from "@/lib/prompt-improve";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
@@ -117,6 +118,77 @@ function hasUsableClip(url: string | null | undefined): boolean {
   return !!url && /^https:\/\//i.test(url);
 }
 
+/* ─── Composite cast reference ───────────────────────────────────
+   When multiple characters share a scene, stitch their reference photos
+   side-by-side (with name labels) into one image so the video model sees
+   every face. Uploads to the artist-references bucket and returns a URL. */
+async function buildCastReference(
+  characters: { name: string; imageUrl: string }[],
+  userId: string,
+): Promise<string | null> {
+  const withPhotos = characters.filter((c) => /^https:\/\//i.test(c.imageUrl));
+  if (withPhotos.length < 2) return withPhotos[0]?.imageUrl ?? null;
+
+  try {
+    const imgs = await Promise.all(
+      withPhotos.map(
+        (c) =>
+          new Promise<{ img: HTMLImageElement; name: string }>((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve({ img, name: c.name });
+            img.onerror = reject;
+            img.src = c.imageUrl;
+          }),
+      ),
+    );
+
+    const tileW = 512;
+    const tileH = 768;
+    const labelH = 44;
+    const canvas = document.createElement("canvas");
+    canvas.width = tileW * imgs.length;
+    canvas.height = tileH + labelH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return withPhotos[0]?.imageUrl ?? null;
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    imgs.forEach(({ img, name }, i) => {
+      const x = i * tileW;
+      /* cover-fit */
+      const scale = Math.max(tileW / img.width, tileH / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, x + (tileW - dw) / 2, (tileH - dh) / 2, dw, dh);
+      /* name label */
+      ctx.fillStyle = "rgba(0,0,0,0.75)";
+      ctx.fillRect(x, tileH, tileW, labelH);
+      ctx.fillStyle = "#C9A84C";
+      ctx.font = "bold 24px Georgia, serif";
+      ctx.textAlign = "center";
+      ctx.fillText(name.slice(0, 24), x + tileW / 2, tileH + 30);
+    });
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", 0.9),
+    );
+    if (!blob) return withPhotos[0]?.imageUrl ?? null;
+
+    const sb = getSupabase();
+    const filePath = `${userId}/cast/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+    const { error: uploadError } = await sb.storage
+      .from("artist-references")
+      .upload(filePath, blob, { upsert: true, contentType: "image/jpeg" });
+    if (uploadError) throw uploadError;
+    const { data: { publicUrl } } = sb.storage.from("artist-references").getPublicUrl(filePath);
+    return publicUrl;
+  } catch {
+    /* fall back to the main character's photo */
+    return withPhotos[0]?.imageUrl ?? null;
+  }
+}
+
 /* Wardrobe outfit as returned by GET /api/artist-vaults/:vaultId/outfits */
 interface WardrobeOutfit { id: string; label: string; image_url: string; is_default: boolean; }
 
@@ -136,6 +208,7 @@ interface WardrobeOutfit { id: string; label: string; image_url: string; is_defa
 
 export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId, createAllTrigger, previousClipUrl }: RunwayGeneratorProps) {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -408,6 +481,27 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
     try {
       const token = await getAccessToken();
+
+      /* Build the visual reference: composite cast photo when co-stars are in the scene. */
+      let referenceImageUrl: string | null =
+        outfitRefUrl ??
+        scene.locationImageUrl ??
+        (artistVault && hasReferencePhoto(artistVault)
+          ? artistVault.reference_image_url
+          : null);
+      const castMembers = [
+        ...(artistVault && hasReferencePhoto(artistVault)
+          ? [{ name: artistVault.artist_name, imageUrl: artistVault.reference_image_url! }]
+          : []),
+        ...allVaults
+          .filter((v) => pickedCoStarIds.has(v.id) && hasReferencePhoto(v))
+          .map((v) => ({ name: v.artist_name, imageUrl: v.reference_image_url! })),
+      ];
+      if (castMembers.length >= 2 && !chaining && !outfitRefUrl && !scene.locationImageUrl) {
+        const composite = await buildCastReference(castMembers, user?.id ?? "anon");
+        if (composite) referenceImageUrl = composite;
+      }
+
       const res = await confirmedFetch("/api/generate-runway-clip", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
@@ -415,12 +509,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
           promptText: finalPrompt,
           negativePrompt: scene.negativePrompt ?? "",
           ratio: "720:1280",
-          referenceImageUrl:
-            outfitRefUrl ??
-            scene.locationImageUrl ??
-            (artistVault && hasReferencePhoto(artistVault)
-              ? artistVault.reference_image_url
-              : null),
+          referenceImageUrl,
           previousClipUrl: chaining ? previousClipUrl : null,
           model: clipModel,
           durationSec: clipModel === "seedance2_5" ? clipDuration : 5,
