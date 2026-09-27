@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureCheatCodeTables } from "./lib/ensure-cheat-code-tables";
 import { recoverInterruptedExportJobs } from "./routes/generate/export-video";
 import { resumeActiveDeliveries } from "./routes/generate/distribution";
 import { startPublishAttemptSweeper } from "./lib/social-sweeper";
@@ -20,6 +21,12 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Guarantee the Cheat Code Jackpot tables exist (idempotent). This is a
+  // safety net in case the pre-boot `drizzle-kit push` ever fails silently.
+  ensureCheatCodeTables().catch((ddlErr) =>
+    logger.error({ ddlErr }, "Cheat Code table ensure failed"),
+  );
 
   // Re-queue export jobs orphaned by a previous process (deploy/restart/crash).
   // Runs after listen so the server is already serving polls for recovered jobs.
