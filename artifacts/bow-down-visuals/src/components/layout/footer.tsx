@@ -43,7 +43,7 @@ export function SiteFooter() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
 
           {/* Navigate */}
-          <nav className="flex flex-col gap-2.5" aria-label="Footer">
+          <nav className="flex flex-col gap-2.5 md:col-start-2" aria-label="Footer">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Navigate</p>
             {NAVIGATE.map((l) => (
               <Link
@@ -57,7 +57,7 @@ export function SiteFooter() {
           </nav>
 
           {/* Legal */}
-          <nav className="flex flex-col gap-2.5" aria-label="Legal">
+          <nav className="flex flex-col gap-2.5 md:col-start-3" aria-label="Legal">
             <p className="text-white/20 text-[10px] font-bold uppercase tracking-widest mb-1">Legal</p>
             {LEGAL.map((l) => (
               <Link
