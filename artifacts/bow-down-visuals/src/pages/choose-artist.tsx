@@ -231,6 +231,21 @@ export default function ChooseArtist() {
                     </div>
                   )}
 
+                  {/* Subject type badge — top-right (shifts down when SELECTED shows) */}
+                  {vault.artist_type && (
+                    <div style={{
+                      position: "absolute", top: isSelected ? 42 : 10, right: 10, zIndex: 3,
+                      display: "flex", alignItems: "center",
+                      background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.18)",
+                      borderRadius: 7, padding: "3px 8px",
+                      backdropFilter: "blur(8px)",
+                    }}>
+                      <span style={{ fontSize: 8.5, fontWeight: 900, color: "rgba(255,255,255,0.85)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                        {vault.artist_type}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Bottom name strip — only covers bottom 20% */}
                   <div style={{
                     position: "absolute", left: 0, right: 0, bottom: 0,
@@ -319,6 +334,12 @@ export default function ChooseArtist() {
                           )}
                           <div className="min-w-0">
                             <p className="truncate text-sm font-semibold text-white">{vault.artist_name}</p>
+                            {vault.artist_type && (
+                              <span className="mt-0.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white/70"
+                                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                                {vault.artist_type}
+                              </span>
+                            )}
                             {vault.genre && <p className="truncate text-xs text-white/40">{vault.genre}</p>}
                           </div>
                         </div>
