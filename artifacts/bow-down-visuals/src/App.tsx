@@ -49,6 +49,7 @@ const Thumbnail     = lazyWithRetry(() => import("@/pages/thumbnail"));
 const Thumbnails    = lazyWithRetry(() => import("@/pages/thumbnails"));
 const ArtistVault   = lazyWithRetry(() => import("@/pages/artist-vault"));
 const MyProjects    = lazyWithRetry(() => import("@/pages/my-projects"));
+const Generations   = lazyWithRetry(() => import("@/pages/generations"));
 const VideoEditor   = lazyWithRetry(() => import("@/pages/video-editor"));
 const BetaAccess    = lazyWithRetry(() => import("@/pages/beta-access"));
 const Contact       = lazyWithRetry(() => import("@/pages/contact"));
@@ -408,6 +409,7 @@ function AppShell() {
                 <Route path="/dashboard"><ProtectedRoute><Dashboard /></ProtectedRoute></Route>
                 <Route path="/choose-artist"><ProtectedRoute><ChooseArtist /></ProtectedRoute></Route>
                 <Route path="/my-projects"><ProtectedRoute><MyProjects /></ProtectedRoute></Route>
+                <Route path="/generations"><ProtectedRoute><Generations /></ProtectedRoute></Route>
                 <Route path="/artist-vault"><ProtectedRoute><ArtistVault /></ProtectedRoute></Route>
                 <Route path="/make-song"><ProtectedRoute><MakeSong /></ProtectedRoute></Route>
                 <Route path="/make-video"><ProtectedRoute><MakeVideo /></ProtectedRoute></Route>

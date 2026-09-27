@@ -23,7 +23,7 @@ export default function Terms() {
   return (
     <div className="min-h-screen bg-background">
       <PolicyNav />
-      <main className="max-w-4xl mx-auto px-5 py-16">
+      <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
         <h1 className="text-3xl font-black text-white mb-2">Terms of Service</h1>
         <p className="text-white/30 text-sm mb-10">Last updated: June 2026</p>
 
@@ -131,6 +131,7 @@ export default function Terms() {
               or visit our <Link href="/contact" className="text-primary hover:underline">Contact page</Link>.
             </p>
           </section>
+        </div>
         </div>
       </main>
     </div>

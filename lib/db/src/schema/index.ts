@@ -25,6 +25,7 @@ export * from "./artist-character-links";
 export * from "./generated-clips";
 export * from "./project-drafts";
 export * from "./generation-history";
+export * from "./generations";
 export * from "./contact-messages";
 export * from "./export-jobs";
 export * from "./lip-sync-jobs";
