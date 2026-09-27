@@ -7,7 +7,7 @@ import { HeroLogo3D } from "@/components/CinematicHero";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
-import { InstagramIcon, ThreadsIcon } from "@/components/social-icons";
+import { ThreadsIcon } from "@/components/social-icons";
 import {
   Music,
   Video,
@@ -397,8 +397,6 @@ function ShareRow({ label = "Spread the code" }: { label?: string }) {
   const xHref = `https://twitter.com/intent/tweet?text=${encodeURIComponent(SHARE_TEXT)}&url=${encodeURIComponent(SHARE_URL)}`;
   const fbHref = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(SHARE_URL)}`;
   const threadsHref = `https://www.threads.com/intent/post?text=${encodeURIComponent(`${SHARE_TEXT} ${SHARE_URL}`)}`;
-  // Instagram has no web share intent — open Instagram so the link can be pasted in.
-  const instagramHref = "https://www.instagram.com/";
 
   async function copyLink() {
     try {
@@ -426,9 +424,6 @@ function ShareRow({ label = "Spread the code" }: { label?: string }) {
       </a>
       <a href={fbHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Facebook" className={btn}>
         <FacebookIcon className="h-3.5 w-3.5" />
-      </a>
-      <a href={instagramHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Instagram" className={btn}>
-        <InstagramIcon className="h-3.5 w-3.5" />
       </a>
       <a href={threadsHref} target="_blank" rel="noopener noreferrer" aria-label="Share on Threads" className={btn}>
         <ThreadsIcon className="h-3.5 w-3.5" />
