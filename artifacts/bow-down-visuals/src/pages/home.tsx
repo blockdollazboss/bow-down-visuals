@@ -525,7 +525,7 @@ function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 py-16 overflow-hidden">
+    <section className="relative min-h-[calc(100svh-4rem)] flex items-center px-5 pb-16 pt-[136px] md:pt-[152px] -mt-[72px] md:-mt-[88px] overflow-hidden">
       {/* Background — glows + grid dissolve into the next section: one continuous surface, no seam */}
       <div
         className="absolute inset-0 z-0"
@@ -1527,11 +1527,12 @@ export default function Home() {
       />
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes.
-          Same geometry as the backdrop so the curtains align pixel-perfect;
-          z-30 sits above page content but below the sticky banner. */}
+          Same geometry as the backdrop so the curtains align pixel-perfect.
+          z-[5]: above the beams, BELOW the hero copy — text, buttons and
+          the Shark King always stay on top of the curtains. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-30"
+        className="pointer-events-none fixed inset-0 z-[5]"
         style={{
           backgroundImage: "url(/images/home-curtains-overlay.png)",
           backgroundSize: "cover",
