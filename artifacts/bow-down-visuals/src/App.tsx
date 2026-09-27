@@ -151,6 +151,10 @@ const MyShop = lazyWithRetry(() => import("@/pages/my-shop"));
 const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
+const Beats = lazyWithRetry(() => import("@/pages/beats"));
+const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
+const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
+const Royalties = lazyWithRetry(() => import("@/pages/royalties"));
 const Join = lazyWithRetry(() => import("@/pages/join"));/**
  * lazy() with a retry for chunk-load failures.
  *
@@ -469,6 +473,10 @@ function AppShell() {
                 <Route path="/sfx"><ProtectedRoute><Sfx /></ProtectedRoute></Route>
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
+                <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
+                <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
+                <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
+                <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>
                 <Route path="/my-shop"><ProtectedRoute><MyShop /></ProtectedRoute></Route>
                 <Route path="/storefronts/builder"><ProtectedRoute><StorefrontBuilder /></ProtectedRoute></Route>
                 <Route path="/clip-maker"><ProtectedRoute><ClipMaker /></ProtectedRoute></Route>
