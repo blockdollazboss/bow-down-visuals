@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { deductCredits, OutOfCreditsError } from "../lib/credits";
@@ -84,7 +84,7 @@ router.get("/teams", requireAuth, async (req, res) => {
     const teamIds = [...new Set(memberships.map((m) => m.teamId))];
     const teams =
       teamIds.length > 0
-        ? await db.select().from(teamsTable).where(sql`${teamsTable.id} IN (${sql.join(teamIds.map((id) => sql`${id}`), sql`, `)})}`)
+        ? await db.select().from(teamsTable).where(inArray(teamsTable.id, teamIds))
         : [];
 
     // Pending invites addressed to this user's email (not yet accepted).
@@ -97,9 +97,10 @@ router.get("/teams", requireAuth, async (req, res) => {
         : [];
     const inviteTeams =
       invites.length > 0
-        ? await db.select().from(teamsTable).where(
-            sql`${teamsTable.id} IN (${sql.join([...new Set(invites.map((i) => i.teamId))].map((id) => sql`${id}`), sql`, `)})`,
-          )
+        ? await db
+            .select()
+            .from(teamsTable)
+            .where(inArray(teamsTable.id, [...new Set(invites.map((i) => i.teamId))]))
         : [];
     const inviteTeamById = new Map(inviteTeams.map((t) => [t.id, t]));
 
