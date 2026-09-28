@@ -610,6 +610,8 @@ function HeroSection() {
           The content creator&rsquo;s cheat code
         </p>
 
+        {/* Top badges — clearance + refer & earn */}
+        <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
         {/* Clearance badge */}
         <Link href="/beta-access">
           <div
@@ -620,6 +622,14 @@ function HeroSection() {
             Restricted beta — clearance open
           </div>
         </Link>
+        {/* Refer & Earn badge — gentle attention nudge, links to /referrals */}
+        <Link href="/referrals">
+          <div className="refer-nudge inline-flex items-center gap-2 bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] rounded-full px-4 py-1.5 text-sm font-bold text-black hover:brightness-110 transition cursor-pointer">
+            <Gift className="h-3.5 w-3.5" />
+            Refer &amp; Earn · 25%
+          </div>
+        </Link>
+        </div>
 
         {/* Headline */}
         <h1 className="text-[32px] sm:text-6xl xl:text-7xl font-black tracking-[-0.02em] text-white leading-[0.95] break-words">
