@@ -4,11 +4,21 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin, addCreditsToProfile } from "../lib/supabase-admin";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
-const REFERRER_REWARD = 5;
-const REFEREE_REWARD = 3;
+/* ── Referral revenue-share program ──────────────────────────────────────
+   - Referee (new user) gets 10 welcome credits when they apply a code.
+   - Referrer gets 25% of the referee's credit PURCHASES, paid in site
+     credits, for 90 days after the referral. No upfront referrer payout,
+     so fake signups earn nothing.
+   - One referral per user. No self-referrals.
+   - Purchase payouts are idempotent: one referral_payouts row per Stripe
+     session, so webhook retries can never double-pay. */
+const REFEREE_WELCOME_CREDITS = 10;
+const REVENUE_SHARE_PCT = 25;
+const SHARE_WINDOW_DAYS = 90;
 
 /* Boot-time self-heal: create tables if they don't exist (idempotent). */
 let tablesEnsured = false;
@@ -28,12 +38,31 @@ async function ensureReferralTables(): Promise<void> {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       referrer_user_id UUID NOT NULL,
       referee_user_id UUID NOT NULL UNIQUE,
-      referrer_credits_awarded INTEGER NOT NULL DEFAULT 5,
-      referee_credits_awarded INTEGER NOT NULL DEFAULT 3,
+      referrer_credits_awarded INTEGER NOT NULL DEFAULT 0,
+      referee_credits_awarded INTEGER NOT NULL DEFAULT 10,
+      revenue_share_pct INTEGER NOT NULL DEFAULT 25,
+      share_expires_at TIMESTAMPTZ,
+      total_referrer_earned INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS referrals_referrer_idx ON referrals (referrer_user_id);
     CREATE INDEX IF NOT EXISTS referrals_referee_idx ON referrals (referee_user_id);
+    ALTER TABLE referrals
+      ADD COLUMN IF NOT EXISTS revenue_share_pct INTEGER NOT NULL DEFAULT 25,
+      ADD COLUMN IF NOT EXISTS share_expires_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS total_referrer_earned INTEGER NOT NULL DEFAULT 0;
+    UPDATE referrals
+    SET share_expires_at = created_at + INTERVAL '90 days'
+    WHERE share_expires_at IS NULL;
+    CREATE TABLE IF NOT EXISTS referral_payouts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      referral_id UUID NOT NULL REFERENCES referrals(id) ON DELETE CASCADE,
+      stripe_session_id TEXT NOT NULL UNIQUE,
+      referee_credits_purchased INTEGER NOT NULL,
+      referrer_credits_awarded INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS referral_payouts_referral_idx ON referral_payouts (referral_id);
   `));
 }
 
@@ -83,28 +112,29 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
       }
     }
 
-    // Stats
-    const { count: totalReferrals } = await supabase
+    // Stats: referrals + revenue-share earnings
+    const { data: referralRows } = await supabase
       .from("referrals")
-      .select("id", { count: "exact", head: true })
+      .select("id, referee_user_id, total_referrer_earned, share_expires_at, created_at")
       .eq("referrer_user_id", userId);
 
-    const { data: creditRows } = await supabase
-      .from("referrals")
-      .select("referrer_credits_awarded")
-      .eq("referrer_user_id", userId);
-
-    const creditsEarned = (creditRows ?? []).reduce(
-      (sum, r) => sum + (r.referrer_credits_awarded ?? 0),
+    const now = new Date();
+    const activeReferrals = (referralRows ?? []).filter(
+      (r) => r.share_expires_at && new Date(r.share_expires_at) > now
+    );
+    const totalEarned = (referralRows ?? []).reduce(
+      (sum, r) => sum + (r.total_referrer_earned ?? 0),
       0
     );
 
     res.json({
       code: codeRow.code,
-      totalReferrals: totalReferrals ?? 0,
-      creditsEarned,
-      referrerReward: REFERRER_REWARD,
-      refereeReward: REFEREE_REWARD,
+      totalReferrals: (referralRows ?? []).length,
+      activeReferrals: activeReferrals.length,
+      creditsEarned: totalEarned,
+      revenueSharePct: REVENUE_SHARE_PCT,
+      shareWindowDays: SHARE_WINDOW_DAYS,
+      refereeReward: REFEREE_WELCOME_CREDITS,
     });
   } catch (err: unknown) {
     req.log.error({ err }, "referrals/me error");
@@ -156,12 +186,21 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
-    // Record + award (5 to referrer, 3 to referee)
+    // Record the referral with a 90-day revenue-share window.
+    // Referee gets 10 welcome credits now; referrer earns 25% of future
+    // purchases — no upfront referrer payout.
+    const shareExpiresAt = new Date(
+      Date.now() + SHARE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+    ).toISOString();
+
     const { error: insertError } = await supabase.from("referrals").insert({
       referrer_user_id: codeRow.user_id,
       referee_user_id: userId,
-      referrer_credits_awarded: REFERRER_REWARD,
-      referee_credits_awarded: REFEREE_REWARD,
+      referrer_credits_awarded: 0,
+      referee_credits_awarded: REFEREE_WELCOME_CREDITS,
+      revenue_share_pct: REVENUE_SHARE_PCT,
+      share_expires_at: shareExpiresAt,
+      total_referrer_earned: 0,
     });
     if (insertError) {
       // Race: someone else already recorded this referee
@@ -169,20 +208,98 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
       return;
     }
 
-    await Promise.all([
-      addCreditsToProfile(codeRow.user_id, REFERRER_REWARD),
-      addCreditsToProfile(userId, REFEREE_REWARD),
-    ]);
+    await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
 
     res.json({
       ok: true,
-      referrerReward: REFERRER_REWARD,
-      refereeReward: REFEREE_REWARD,
+      refereeReward: REFEREE_WELCOME_CREDITS,
+      revenueSharePct: REVENUE_SHARE_PCT,
+      shareWindowDays: SHARE_WINDOW_DAYS,
     });
   } catch (err: unknown) {
     req.log.error({ err }, "referrals/apply error");
     res.status(500).json({ error: "Failed to apply referral code." });
   }
 });
+
+/* ── Revenue-share payout ────────────────────────────────────────────────
+   Called by the Stripe webhook after a successful credit-pack purchase.
+   Awards the referrer 25% of the purchased credits (rounded down) if the
+   referral is still inside its 90-day window. Idempotent: the UNIQUE
+   constraint on referral_payouts.stripe_session_id means a retried webhook
+   can never double-pay. Returns the awarded amount (0 when no payout). */
+export async function awardReferralPayout(
+  refereeUserId: string,
+  creditsPurchased: number,
+  stripeSessionId: string,
+): Promise<number> {
+  try {
+    await ensureReferralTables();
+    const supabase = getSupabaseAdmin();
+
+    // Find an active referral for this buyer
+    const { data: referral } = await supabase
+      .from("referrals")
+      .select("id, referrer_user_id, revenue_share_pct, share_expires_at")
+      .eq("referee_user_id", refereeUserId)
+      .single();
+    if (!referral) return 0;
+
+    if (!referral.share_expires_at || new Date(referral.share_expires_at) <= new Date()) {
+      return 0; // window expired
+    }
+
+    const pct = referral.revenue_share_pct ?? REVENUE_SHARE_PCT;
+    const awarded = Math.floor((creditsPurchased * pct) / 100);
+    if (awarded <= 0) return 0;
+
+    // Idempotent insert — UNIQUE(stripe_session_id) dedupes retries
+    const { error: payoutError } = await supabase.from("referral_payouts").insert({
+      referral_id: referral.id,
+      stripe_session_id: stripeSessionId,
+      referee_credits_purchased: creditsPurchased,
+      referrer_credits_awarded: awarded,
+    });
+    if (payoutError) {
+      // Duplicate session (webhook retry) or other conflict — never double-pay
+      logger.info(
+        { stripeSessionId, refereeUserId, payoutError: payoutError.message },
+        "Referral payout skipped (likely duplicate webhook)"
+      );
+      return 0;
+    }
+
+    await addCreditsToProfile(referral.referrer_user_id, awarded);
+
+    // Bump the running total (best-effort; the payouts table is the ledger)
+    await supabase.rpc("increment_referrer_earned", {
+      p_referral_id: referral.id,
+      p_amount: awarded,
+    }).then(
+      () => {},
+      async () => {
+        // Fallback if the RPC doesn't exist: read-modify-write
+        const { data: cur } = await supabase
+          .from("referrals")
+          .select("total_referrer_earned")
+          .eq("id", referral.id)
+          .single();
+        await supabase
+          .from("referrals")
+          .update({ total_referrer_earned: (cur?.total_referrer_earned ?? 0) + awarded })
+          .eq("id", referral.id);
+      }
+    );
+
+    logger.info(
+      { referralId: referral.id, referrer: referral.referrer_user_id, awarded, stripeSessionId },
+      "Referral revenue-share payout awarded"
+    );
+    return awarded;
+  } catch (err: unknown) {
+    logger.error({ err, refereeUserId, stripeSessionId }, "Referral payout failed");
+    return 0;
+  }
+}
 
 export default router;

@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { logger } from "./logger";
 import { addCreditsToProfile, getSupabaseAdmin } from "./supabase-admin";
 import { isPaymentAlreadyRecorded, recordStripePayment } from "./payment-record";
+import { awardReferralPayout } from "../routes/referrals";
 
 export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
   const secretKey = process.env["STRIPE_SECRET_KEY"];
@@ -181,7 +182,11 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
       currency:     session.currency,
     });
 
-    res.status(200).json({ received: true, success: true, credits: newCredits });
+    // Referral revenue share: 25% of purchased credits to the referrer
+    // (idempotent — retried webhooks can't double-pay).
+    const referralAwarded = await awardReferralPayout(userId, creditsAmount, session.id);
+
+    res.status(200).json({ received: true, success: true, credits: newCredits, referralAwarded });
   } catch (err: unknown) {
     const msg = (err as { message?: string })?.message ?? "unknown";
     logger.error({ err, msg, userId, creditsAmount }, "Stripe webhook: credit update failed");
