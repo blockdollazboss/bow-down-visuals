@@ -1503,14 +1503,25 @@ function MusicVideoTeaser() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /* Play only while the teaser is actually on screen — pause the moment
-     the user scrolls away, resume when they scroll back. */
+     the user scrolls away, resume when they scroll back.
+     The teaser plays WITH sound: entering the viewport unmutes it (the
+     theme song auto-ducks via ThemePlayerContext and comes back when the
+     video stops, unless the user paused the theme themselves). If the
+     browser blocks unmuted playback, fall back to muted. */
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    const playWithSound = () => {
+      video.muted = false;
+      video.play().catch(() => {
+        video.muted = true;
+        video.play().catch(() => {});
+      });
+    };
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
-          video.play().catch(() => {});
+          playWithSound();
         } else {
           video.pause();
         }
@@ -1532,7 +1543,6 @@ function MusicVideoTeaser() {
             ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
             src="/official-teaser.mp4"
-            autoPlay
             muted
             loop
             playsInline
