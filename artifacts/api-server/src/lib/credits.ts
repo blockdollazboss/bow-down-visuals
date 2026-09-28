@@ -56,22 +56,34 @@ export async function deductCredits(userId: string, cost: number): Promise<numbe
   const admin = getSupabaseAdmin();
   const { data: profile, error: readErr } = await admin
     .from("profiles")
-    .select("credits")
+    .select("credits, bonus_credits, bonus_credits_expires_at")
     .eq("id", userId)
     .single();
   if (readErr) {
     logger.warn({ userId, cost, err: readErr.message }, "[credits] failed to read profile for deduction");
     throw new OutOfCreditsError();
   }
-  const current = (profile as { credits?: number } | null)?.credits ?? 0;
-  if (current < cost) {
-    logger.warn({ userId, cost, current }, "[credits] insufficient balance");
+  const typed = profile as { credits?: number; bonus_credits?: number; bonus_credits_expires_at?: string | null } | null;
+  const current = typed?.credits ?? 0;
+  // Bonus pool: spend first, but only if not expired. Expired bonus is
+  // treated as zero (and cleared below so it never resurrects).
+  let bonus = typed?.bonus_credits ?? 0;
+  const bonusExpired = !!typed?.bonus_credits_expires_at && new Date(typed.bonus_credits_expires_at).getTime() < Date.now();
+  if (bonusExpired) bonus = 0;
+  const total = current + bonus;
+  if (total < cost) {
+    logger.warn({ userId, cost, current, bonus }, "[credits] insufficient balance");
     throw new OutOfCreditsError();
   }
-  const creditsAfter = current - cost;
+  const fromBonus = Math.min(bonus, cost);
+  const fromRegular = cost - fromBonus;
+  const bonusAfter = bonus - fromBonus;
+  const creditsAfter = current - fromRegular;
+  const update: Record<string, unknown> = { credits: creditsAfter, bonus_credits: bonusAfter };
+  if (bonusAfter <= 0 || bonusExpired) update.bonus_credits_expires_at = null;
   const { error: updateErr } = await admin
     .from("profiles")
-    .update({ credits: creditsAfter })
+    .update(update)
     .eq("id", userId);
   if (updateErr) {
     logger.error({ userId, cost, err: updateErr.message }, "[credits] deduction write failed");
