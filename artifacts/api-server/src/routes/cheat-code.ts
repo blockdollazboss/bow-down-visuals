@@ -140,6 +140,7 @@ interface CheatCodeEventRow {
   id: string;
   name: string;
   code_hash: string;
+  code_sequence: string | null;
   code_length: number;
   prize_credits: number;
   starts_at: string | Date;
@@ -163,7 +164,7 @@ function toDate(v: string | Date): Date {
   return v instanceof Date ? v : new Date(String(v));
 }
 
-const EVENT_COLUMNS = sql`id, name, code_hash, code_length, prize_credits, starts_at, ends_at, is_active, winner_user_id, winner_display_name, claimed_at, created_at, updated_at`;
+const EVENT_COLUMNS = sql`id, name, code_hash, code_sequence, code_length, prize_credits, starts_at, ends_at, is_active, winner_user_id, winner_display_name, claimed_at, created_at, updated_at`;
 
 async function getEventById(id: string): Promise<CheatCodeEventRow | null> {
   const result = await db.execute(sql`
@@ -557,12 +558,14 @@ const CreateEventSchema = z.object({
   prizeCredits: z.number().int().min(1).max(10000).default(100),
 });
 
-/** Admin shape — code_hash is never serialized. */
+/** Admin shape — code_hash is never serialized, but the plaintext
+    sequence is included so the owner can see the active code. */
 function adminEventShape(event: CheatCodeEventRow) {
   return {
     id: event.id,
     name: event.name,
     codeLength: event.code_length,
+    codeSequence: event.code_sequence ?? null,
     prizeCredits: event.prize_credits,
     startsAt: toISO(event.starts_at),
     endsAt: toISO(event.ends_at),
@@ -617,9 +620,9 @@ router.post(
     try {
       const result = await db.execute(sql`
         INSERT INTO cheat_code_events
-          (id, name, code_hash, code_length, prize_credits, starts_at, ends_at, is_active)
+          (id, name, code_hash, code_sequence, code_length, prize_credits, starts_at, ends_at, is_active)
         VALUES
-          (${randomUUID()}, ${name}, ${hashCodeSequence(codeSequence)}, ${codeSequence.length}, ${prizeCredits}, ${startsAt}, ${endsAt}, false)
+          (${randomUUID()}, ${name}, ${hashCodeSequence(codeSequence)}, ${codeSequence.join(",")}, ${codeSequence.length}, ${prizeCredits}, ${startsAt}, ${endsAt}, false)
         RETURNING ${EVENT_COLUMNS}
       `);
       const rows = result.rows as unknown as CheatCodeEventRow[];
