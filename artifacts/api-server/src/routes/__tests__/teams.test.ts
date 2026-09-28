@@ -29,12 +29,14 @@ const testState = vi.hoisted(() => ({
   activeTeam: null as any,
   deductCalls: [] as { userId: string; amount: number }[],
   refundCalls: [] as { userId: string; amount: number }[],
+  failTx: false,
 }));
 
 const dbState = vi.hoisted(() => ({
   teams: [] as any[],
   teamMembers: [] as any[],
   creditUsage: [] as any[],
+  fundingOps: [] as any[],
   idSeq: 0,
 }));
 
@@ -48,6 +50,16 @@ function matchRow(row: any, where: any): boolean {
   if (where.__eq) return row[where.col] === where.val;
   if (where.__and) return (where.conds as any[]).every((c: any) => matchRow(row, c));
   if (where.__inArray) return (where.vals as any[]).includes(row[where.col]);
+  if (where.__sql) {
+    // Comparison predicates like sql`${col} < ${cutoff}` (reconciler lease).
+    const col = (where.values as any[]).find((v: any) => v?.__col)?.__col;
+    const cmp = (where.values as any[]).find((v: any) => v instanceof Date || typeof v === "number");
+    const joined: string = (where.strings as string[]).join("");
+    if (col === undefined || cmp === undefined) return true;
+    if (joined.includes("<")) return row[col] < cmp;
+    if (joined.includes(">")) return row[col] > cmp;
+    return true;
+  }
   return true;
 }
 
@@ -58,7 +70,7 @@ vi.mock("drizzle-orm", () => ({
   sql: (strings: TemplateStringsArray, ...values: any[]) => ({ __sql: true, strings, values }),
 }));
 
-function mkTable(name: string, rowsKey: "teams" | "teamMembers" | "creditUsage", cols: string[]) {
+function mkTable(name: string, rowsKey: "teams" | "teamMembers" | "creditUsage" | "fundingOps", cols: string[]) {
   const t: any = { __table: name, __rowsKey: rowsKey };
   for (const c of cols) t[c] = { __col: c };
   return t;
@@ -85,6 +97,7 @@ vi.mock("@workspace/db", () => {
   const teamsTable = mkTable("teams", "teams", ["id", "name", "ownerId", "credits", "allowPersonalFallback", "updatedAt"]);
   const teamMembersTable = mkTable("team_members", "teamMembers", ["id", "teamId", "userId", "email", "role", "status", "joinedAt"]);
   const creditUsageTable = mkTable("credit_usage", "creditUsage", ["id", "userId", "action", "creditsUsed", "teamId", "idempotencyKey"]);
+  const teamFundingOpsTable = mkTable("team_funding_ops", "fundingOps", ["id", "teamId", "userId", "idempotencyKey", "amount", "status", "createdAt", "updatedAt"]);
 
   const rowsOf = (t: any): any[] => (dbState as any)[t.__rowsKey];
 
@@ -102,20 +115,30 @@ vi.mock("@workspace/db", () => {
     }),
   });
   // values() is thenable (real drizzle builders are awaitable with or
-  // without .returning()).
+  // without .returning()). onConflictDoNothing() skips rows whose
+  // (teamId, idempotencyKey) already exists — the funding mutex.
   const insertValues = (table: any) => (vals: any) => {
-    const doInsert = () => {
+    const doInsert = (ignoreConflicts: boolean) => {
       const arr = Array.isArray(vals) ? vals : [vals];
-      return arr.map((v) => {
-        const row = { id: nextId("row"), ...v };
+      const out: any[] = [];
+      for (const v of arr) {
+        if (ignoreConflicts && table.__table === "team_funding_ops") {
+          const dup = (dbState as any).fundingOps.find(
+            (r: any) => r.teamId === v.teamId && r.idempotencyKey === v.idempotencyKey,
+          );
+          if (dup) continue;
+        }
+        const row = { id: nextId("row"), createdAt: new Date(), updatedAt: new Date(), ...v };
         (dbState as any)[table.__rowsKey].push(row);
-        return row;
-      });
+        out.push(row);
+      }
+      return out;
     };
-    return {
-      returning: () => Promise.resolve(doInsert()),
-      then: (resolve: any) => Promise.resolve(doInsert()).then(resolve),
-    };
+    const chain = (ignoreConflicts: boolean) => ({
+      returning: () => Promise.resolve(doInsert(ignoreConflicts)),
+      then: (resolve: any) => Promise.resolve(doInsert(ignoreConflicts)).then(resolve),
+    });
+    return { ...chain(false), onConflictDoNothing: () => chain(true) };
   };
   // insert needs the table captured: rebuild per-table via closure below.
   let currentTable: any = null;
@@ -159,6 +182,7 @@ vi.mock("@workspace/db", () => {
       return deleteBuilder();
     },
     transaction: async (fn: any) => {
+      if ((testState as any).failTx) throw new Error("tx boom (test)");
       const tx = {
         select: (_fields?: any) => selectBuilder(),
         insert: (table: any) => {
@@ -178,7 +202,7 @@ vi.mock("@workspace/db", () => {
     },
   };
 
-  return { db, teamsTable, teamMembersTable, creditUsageTable };
+  return { db, teamsTable, teamMembersTable, creditUsageTable, teamFundingOpsTable };
 });
 
 vi.mock("../../middlewares/require-auth", () => ({
@@ -251,10 +275,12 @@ beforeEach(() => {
   dbState.teams = [];
   dbState.teamMembers = [];
   dbState.creditUsage = [];
+  dbState.fundingOps = [];
   testState.entitled = true;
   testState.activeTeam = null;
   testState.deductCalls = [];
   testState.refundCalls = [];
+  testState.failTx = false;
   testState.userId = "user-1";
   testState.userEmail = "user-1@example.com";
 });
@@ -350,7 +376,7 @@ describe("GET /api/teams — creation is the entitlement boundary", () => {
   });
 });
 
-describe("POST /api/teams/:id/fund — membership + idempotency", () => {
+describe("POST /api/teams/:id/fund — funding saga", () => {
   it("403s for non-members", async () => {
     dbState.teams.push({ id: "team-1", name: "T", ownerId: "owner-9", credits: 50 });
     const { status } = await post("/api/teams/team-1/fund", { credits: 10, idempotencyKey: "k-1" });
@@ -358,32 +384,47 @@ describe("POST /api/teams/:id/fund — membership + idempotency", () => {
     expect(testState.deductCalls).toHaveLength(0);
   });
 
+  it("requires an idempotencyKey", async () => {
+    seedTeam();
+    const { status } = await post("/api/teams/team-1/fund", { credits: 10 });
+    expect(status).toBe(400);
+    expect(testState.deductCalls).toHaveLength(0);
+  });
+
   it("returns the original result on a duplicate idempotency key without charging again", async () => {
     seedTeam({ credits: 100 });
-    dbState.creditUsage.push({
-      id: "cu-1",
-      userId: "user-1",
-      action: "team_fund",
-      creditsUsed: -25,
-      teamId: "team-1",
-      idempotencyKey: "key-dup",
+    dbState.fundingOps.push({
+      id: "op-1", teamId: "team-1", userId: "user-1",
+      idempotencyKey: "key-dup", amount: 25, status: "completed",
+      createdAt: new Date(), updatedAt: new Date(),
     });
     const { status, body } = await post("/api/teams/team-1/fund", { credits: 25, idempotencyKey: "key-dup" });
     expect(status).toBe(200);
     expect(body.duplicate).toBe(true);
     expect(testState.deductCalls).toHaveLength(0);
     expect(dbState.teams[0].credits).toBe(100);
+    expect(dbState.fundingOps).toHaveLength(1); // mutex held: no second op row
+  });
+
+  it("409s when the same key is already in flight (no double personal deduction)", async () => {
+    seedTeam({ credits: 100 });
+    dbState.fundingOps.push({
+      id: "op-1", teamId: "team-1", userId: "user-1",
+      idempotencyKey: "key-flight", amount: 25, status: "started",
+      createdAt: new Date(), updatedAt: new Date(), // fresh: not stale
+    });
+    const { status } = await post("/api/teams/team-1/fund", { credits: 25, idempotencyKey: "key-flight" });
+    expect(status).toBe(409);
+    expect(testState.deductCalls).toHaveLength(0);
+    expect(dbState.teams[0].credits).toBe(100);
   });
 
   it("does not treat another team's key as a duplicate", async () => {
     seedTeam({ credits: 100 });
-    dbState.creditUsage.push({
-      id: "cu-1",
-      userId: "user-9",
-      action: "team_fund",
-      creditsUsed: -25,
-      teamId: "team-other",
-      idempotencyKey: "key-shared",
+    dbState.fundingOps.push({
+      id: "op-9", teamId: "team-other", userId: "user-9",
+      idempotencyKey: "key-shared", amount: 25, status: "completed",
+      createdAt: new Date(), updatedAt: new Date(),
     });
     const { status, body } = await post("/api/teams/team-1/fund", { credits: 25, idempotencyKey: "key-shared" });
     expect(status).toBe(200);
@@ -392,7 +433,7 @@ describe("POST /api/teams/:id/fund — membership + idempotency", () => {
     expect(dbState.teams[0].credits).toBe(125);
   });
 
-  it("funds the pool and writes exactly one ledger row on success", async () => {
+  it("funds the pool, writes exactly one ledger row, and completes the op", async () => {
     seedTeam({ credits: 100 });
     const { status, body } = await post("/api/teams/team-1/fund", { credits: 30, idempotencyKey: "key-ok" });
     expect(status).toBe(200);
@@ -403,6 +444,19 @@ describe("POST /api/teams/:id/fund — membership + idempotency", () => {
     expect(ledger[0].creditsUsed).toBe(-30);
     expect(ledger[0].teamId).toBe("team-1");
     expect(ledger[0].idempotencyKey).toBe("key-ok");
+    expect(dbState.fundingOps).toHaveLength(1);
+    expect(dbState.fundingOps[0].status).toBe("completed");
+  });
+
+  it("refunds the personal deduction and marks the op refunded when the pool credit fails", async () => {
+    seedTeam({ credits: 100 });
+    testState.failTx = true;
+    const { status } = await post("/api/teams/team-1/fund", { credits: 30, idempotencyKey: "key-poolfail" });
+    expect(status).toBe(500);
+    expect(testState.deductCalls).toHaveLength(1);
+    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 30 }]);
+    expect(dbState.teams[0].credits).toBe(100);
+    expect(dbState.fundingOps[0].status).toBe("refunded");
   });
 
   it("rejects non-positive amounts", async () => {
@@ -410,6 +464,53 @@ describe("POST /api/teams/:id/fund — membership + idempotency", () => {
     const { status } = await post("/api/teams/team-1/fund", { credits: 0, idempotencyKey: "k-0" });
     expect(status).toBe(400);
     expect(testState.deductCalls).toHaveLength(0);
+  });
+
+  describe("stuck-op reconciliation", () => {
+    const stale = (over: any) => ({
+      id: "op-stale", teamId: "team-1", userId: "user-1",
+      idempotencyKey: "key-stale", amount: 40, status: "personal_deducted",
+      createdAt: new Date(Date.now() - 10 * 60 * 1000),
+      updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+      ...over,
+    });
+
+    it("refunds a stale personal_deducted op whose pool credit never landed", async () => {
+      seedTeam({ credits: 100 });
+      dbState.fundingOps.push(stale({}));
+      const { status, body } = await post("/api/teams/team-1/fund", { credits: 10, idempotencyKey: "key-fresh" });
+      expect(status).toBe(200);
+      expect(body.team.credits).toBe(110);
+      // The crashed attempt was healed: personal balance refunded...
+      expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 40 }]);
+      // ...and the fresh fund still went through exactly once.
+      expect(testState.deductCalls).toEqual([{ userId: "user-1", amount: 10 }]);
+      expect(dbState.fundingOps.find((o: any) => o.id === "op-stale")!.status).toBe("refunded");
+    });
+
+    it("completes a stale personal_deducted op when the ledger shows the pool credit", async () => {
+      seedTeam({ credits: 100 });
+      dbState.fundingOps.push(stale({}));
+      dbState.creditUsage.push({
+        id: "cu-1", userId: "user-1", action: "team_fund",
+        creditsUsed: -40, teamId: "team-1", idempotencyKey: "key-stale",
+      });
+      const { status } = await post("/api/teams/team-1/fund", { credits: 10, idempotencyKey: "key-fresh" });
+      expect(status).toBe(200);
+      expect(testState.refundCalls).toHaveLength(0); // no refund: pool got it
+      expect(dbState.fundingOps.find((o: any) => o.id === "op-stale")!.status).toBe("completed");
+    });
+
+    it("abandons a stale started op instead of auto-retrying (fail-safe)", async () => {
+      seedTeam({ credits: 100 });
+      dbState.fundingOps.push(stale({ status: "started" }));
+      const { status } = await post("/api/teams/team-1/fund", { credits: 10, idempotencyKey: "key-fresh" });
+      expect(status).toBe(200);
+      // Ambiguous whether the deduct happened: never auto-retry, no refund.
+      expect(testState.refundCalls).toHaveLength(0);
+      expect(testState.deductCalls).toEqual([{ userId: "user-1", amount: 10 }]);
+      expect(dbState.fundingOps.find((o: any) => o.id === "op-stale")!.status).toBe("abandoned");
+    });
   });
 });
 

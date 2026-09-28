@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, and, sql, inArray } from "drizzle-orm";
-import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
+import { db, teamsTable, teamMembersTable, creditUsageTable, teamFundingOpsTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { deductCredits, OutOfCreditsError } from "../lib/credits";
 import { addCreditsToProfile } from "../lib/supabase-admin";
@@ -8,6 +8,128 @@ import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
 
 const router = Router();
+
+/** How long a funding op may sit in a non-terminal state before it's considered crashed. */
+const FUNDING_OP_LEASE_MS = 5 * 60 * 1000;
+
+type FundingOpStatus =
+  | "started"
+  | "personal_deducted"
+  | "reconciling"
+  | "completed"
+  | "refunded"
+  | "refund_failed"
+  | "abandoned"
+  | "failed";
+
+async function markFundingOp(opId: string, status: FundingOpStatus) {
+  await db
+    .update(teamFundingOpsTable)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(teamFundingOpsTable.id, opId));
+}
+
+/**
+ * Lazy reconciler for the cross-database funding saga. Personal Visual Bucs
+ * live in Supabase; the team pool + ledger live in Render Postgres, so no
+ * single transaction can cover both. This sweeper claims the caller's stale
+ * (lease-expired) ops and resolves them:
+ *
+ * - `personal_deducted` / `reconciling`: the deduct definitely happened
+ *   (we only mark after deductCredits returns). If the ledger already has
+ *   the pool credit, mark `completed`; otherwise refund the personal
+ *   balance and mark `refunded` (or `refund_failed` + CRITICAL log if the
+ *   refund itself fails — needs human eyes).
+ * - `started`: ambiguous — the process may have crashed before OR after the
+ *   personal deduct. Fail SAFE: mark `abandoned` for manual review, never
+ *   auto-retry (auto-retry could double-charge the personal balance).
+ *
+ * Best-effort: never throws. Runs inline on every fund attempt, so no
+ * separate cron infrastructure is needed — the next fund attempt heals the
+ * previous crash.
+ */
+async function reconcileStuckFundingOps(
+  userId: string,
+  log: { error: (obj: unknown, msg: string) => void },
+): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - FUNDING_OP_LEASE_MS);
+    const stuck = await db
+      .select()
+      .from(teamFundingOpsTable)
+      .where(
+        and(
+          eq(teamFundingOpsTable.userId, userId),
+          inArray(teamFundingOpsTable.status, ["started", "personal_deducted", "reconciling"]),
+          sql`${teamFundingOpsTable.updatedAt} < ${cutoff}`,
+        ),
+      );
+    for (const op of stuck) {
+      if (op.status === "started") {
+        // Ambiguous: fail safe, manual review, never auto-retry.
+        const [abandoned] = await db
+          .update(teamFundingOpsTable)
+          .set({ status: "abandoned", updatedAt: new Date() })
+          .where(
+            and(
+              eq(teamFundingOpsTable.id, op.id),
+              eq(teamFundingOpsTable.status, "started"),
+            ),
+          )
+          .returning();
+        if (abandoned) {
+          log.error(
+            { opId: op.id, teamId: op.teamId, amount: op.amount },
+            "teams: funding op abandoned after going stale in `started` — manual review needed",
+          );
+        }
+        continue;
+      }
+      // Atomic claim: exactly one reconciler owns this op. The claim also
+      // extends the lease (updatedAt), so a crashed reconciler's op becomes
+      // claimable again after the lease expires.
+      const [claimed] = await db
+        .update(teamFundingOpsTable)
+        .set({ status: "reconciling", updatedAt: new Date() })
+        .where(
+          and(
+            eq(teamFundingOpsTable.id, op.id),
+            inArray(teamFundingOpsTable.status, ["personal_deducted", "reconciling"]),
+            sql`${teamFundingOpsTable.updatedAt} < ${cutoff}`,
+          ),
+        )
+        .returning();
+      if (!claimed) continue; // another reconciler (or retry) claimed it
+      // Did the pool credit land? The ledger row is the source of truth.
+      const [ledger] = await db
+        .select({ id: creditUsageTable.id })
+        .from(creditUsageTable)
+        .where(
+          and(
+            eq(creditUsageTable.teamId, claimed.teamId),
+            eq(creditUsageTable.idempotencyKey, claimed.idempotencyKey),
+          ),
+        )
+        .limit(1);
+      if (ledger) {
+        await markFundingOp(claimed.id, "completed");
+        continue;
+      }
+      try {
+        await addCreditsToProfile(claimed.userId, claimed.amount);
+        await markFundingOp(claimed.id, "refunded");
+      } catch (refundErr) {
+        await markFundingOp(claimed.id, "refund_failed");
+        log.error(
+          { err: refundErr, opId: claimed.id, teamId: claimed.teamId, amount: claimed.amount },
+          "teams: CRITICAL — stuck funding op refund failed, manual reconciliation needed",
+        );
+      }
+    }
+  } catch (err) {
+    log.error({ err, userId }, "teams: funding reconciler failed (best-effort, continuing)");
+  }
+}
 
 /** Express 5 types params as string | string[]; our routes use single values. */
 function paramId(v: string | string[] | undefined): string {
@@ -381,7 +503,21 @@ router.post("/teams/:id/leave", requireAuth, async (req, res) => {
   }
 });
 
-/* ── Fund the team pool from personal credits ─────────────────── */
+/* ── Fund the team pool from personal credits ───────────────────
+ *
+ * Cross-database saga (Supabase personal balance -> Render Postgres pool),
+ * made safe via the team_funding_ops state machine:
+ *
+ * 1. The (team_id, idempotency_key) unique index is the mutex: concurrent
+ *    retries with the same key serialize here. Exactly one attempt wins;
+ *    the losers get the completed result (duplicate) or a 409 while the
+ *    winner is still in flight — never a double personal deduction.
+ * 2. Personal deduct happens first; the op is marked `personal_deducted`
+ *    immediately after, so a crash past this point is recoverable.
+ * 3. Pool credit + ledger + op completion happen in ONE Render transaction.
+ * 4. Any stale ops from crashed attempts are reconciled first
+ *    (reconcileStuckFundingOps) — complete-or-refund, never silent loss.
+ */
 router.post("/teams/:id/fund", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
@@ -396,40 +532,77 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Enter a credit amount greater than 0." });
       return;
     }
-    // Idempotency: client sends a key per fund operation. If we've seen it
-    // for THIS team, return the original result instead of double-funding.
-    // Scoped to the team: a key is only a duplicate within the same team.
-    const idempotencyKey = String(req.body?.idempotencyKey ?? "").trim() || null;
-    if (idempotencyKey) {
+    const idempotencyKey = String(req.body?.idempotencyKey ?? "").trim();
+    if (!idempotencyKey) {
+      res.status(400).json({ error: "idempotencyKey is required." });
+      return;
+    }
+
+    // Best-effort: heal this user's crashed funding attempts before starting
+    // a new one, so no money is ever left in limbo.
+    await reconcileStuckFundingOps(userId, req.log);
+
+    // Claim the idempotency mutex. ON CONFLICT DO NOTHING: exactly one
+    // concurrent attempt with this key inserts; the rest see the existing op.
+    const [op] = await db
+      .insert(teamFundingOpsTable)
+      .values({ teamId, userId, idempotencyKey, amount, status: "started" })
+      .onConflictDoNothing()
+      .returning();
+    if (!op) {
       const [existing] = await db
         .select()
-        .from(creditUsageTable)
+        .from(teamFundingOpsTable)
         .where(
           and(
-            eq(creditUsageTable.idempotencyKey, idempotencyKey),
-            eq(creditUsageTable.teamId, teamId),
+            eq(teamFundingOpsTable.teamId, teamId),
+            eq(teamFundingOpsTable.idempotencyKey, idempotencyKey),
           ),
         )
         .limit(1);
-      if (existing) {
+      if (existing?.status === "completed") {
         const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId)).limit(1);
         res.json({ team, duplicate: true });
         return;
       }
+      res.status(409).json({
+        error: "A funding operation with this key is already in progress. Wait a moment, then check the pool balance before retrying.",
+      });
+      return;
     }
-    // Deduct from personal Supabase balance first (throws 402 if short).
+
+    // Deduct from personal Supabase balance first (throws 402 if short —
+    // no money moved, op goes to `failed` for the audit trail).
+    let personalBalance: number;
     try {
-      await deductCredits(userId, amount);
+      personalBalance = await deductCredits(userId, amount);
     } catch (e) {
       if (e instanceof OutOfCreditsError) {
+        await markFundingOp(op.id, "failed");
         res.status(402).json({ error: "out_of_credits" });
         return;
       }
       throw e;
     }
-    // Credit the team pool + ledger in a single transaction. Either both
-    // happen or neither — no partial state where team credits exist without
-    // a ledger record. If this fails, refund the personal deduction.
+    // Record the deduct immediately. A crash after this point leaves
+    // `personal_deducted`, which the reconciler can complete-or-refund.
+    // A crash before it leaves `started`, which the reconciler treats as
+    // ambiguous -> manual review (fail-safe: never auto double-charges).
+    try {
+      await markFundingOp(op.id, "personal_deducted");
+    } catch (markErr) {
+      req.log.error(
+        { err: markErr, opId: op.id, userId, teamId, amount },
+        "teams: CRITICAL — personal deducted but op mark failed; manual reconciliation needed",
+      );
+      res.status(500).json({
+        error: "Your credits were deducted but the pool credit could not be confirmed. Support has been notified.",
+      });
+      return;
+    }
+
+    // Credit the pool + write the ledger + complete the op atomically.
+    // Either all three happen or none do.
     try {
       const team = await db.transaction(async (tx) => {
         const [updated] = await tx
@@ -445,18 +618,29 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
           teamId,
           idempotencyKey,
         });
+        await tx
+          .update(teamFundingOpsTable)
+          .set({ status: "completed", updatedAt: new Date() })
+          .where(eq(teamFundingOpsTable.id, op.id));
         return updated;
       });
-      res.json({ team });
+      res.json({ team, personalBalance, idempotencyKey });
     } catch (poolErr) {
-      req.log.error({ err: poolErr, userId, teamId, amount }, "teams: pool credit failed, refunding personal deduction");
+      req.log.error({ err: poolErr, opId: op.id, userId, teamId, amount }, "teams: pool credit failed, refunding personal deduction");
       try {
         await addCreditsToProfile(userId, amount);
+        await markFundingOp(op.id, "refunded");
+        res.status(500).json({ error: "Failed to fund the team pool. Your credits were refunded." });
       } catch (refundErr) {
-        // Both legs failed — this needs human eyes. Log loudly.
-        req.log.error({ err: refundErr, userId, teamId, amount }, "teams: CRITICAL — personal refund failed after pool credit failure");
+        await markFundingOp(op.id, "refund_failed");
+        req.log.error(
+          { err: refundErr, opId: op.id, userId, teamId, amount },
+          "teams: CRITICAL — personal refund failed after pool credit failure",
+        );
+        res.status(500).json({
+          error: "Failed to fund the team pool and the automatic refund failed. Support has been notified.",
+        });
       }
-      res.status(500).json({ error: "Failed to fund the team pool. Your credits were refunded." });
     }
   } catch (err: unknown) {
     req.log.error({ err }, "teams: fund failed");
