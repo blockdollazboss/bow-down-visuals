@@ -42,11 +42,13 @@ router.post("/teams", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Team name is required (max 80 characters)." });
       return;
     }
-    // ENTITLEMENT: Teams are positioned for Shot Caller tier and above.
-    // No reliable subscription-tier data exists yet (Stripe webhook records
-    // purchases but no tier/plan), so this is intentionally fail-open for the
-    // beta. When tiers launch, enforce here: look up the user's plan and
-    // return 403 unless Shot Caller or higher.
+    // ENTITLEMENT: Teams require Shot Caller tier (4) or higher.
+    // Fail-closed: unknown tier = no access.
+    const { isShotCallerOrHigher } = await import("../lib/teams");
+    if (!(await isShotCallerOrHigher(userId))) {
+      res.status(403).json({ error: "Team Workspace requires Shot Caller tier or higher." });
+      return;
+    }
     // V1: one active team per user.
     const existing = await getUserActiveTeam(userId);
     if (existing) {
@@ -75,6 +77,12 @@ router.post("/teams", requireAuth, async (req, res) => {
 router.get("/teams", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
+    // ENTITLEMENT: Teams require Shot Caller tier or higher.
+    const { isShotCallerOrHigher } = await import("../lib/teams");
+    if (!(await isShotCallerOrHigher(userId))) {
+      res.status(403).json({ error: "Team Workspace requires Shot Caller tier or higher." });
+      return;
+    }
     const email = await getUserEmail(userId);
 
     const memberships = await db
