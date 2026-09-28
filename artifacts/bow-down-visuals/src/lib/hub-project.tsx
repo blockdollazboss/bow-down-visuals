@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
-export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "podcast" | "release" | "grow" | "monetize" | "learn" | "business";
+export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "podcast" | "release" | "grow" | "influencer" | "monetize" | "learn" | "business";
 
 export interface HubAsset {
   id: string;
@@ -76,7 +76,7 @@ function loadProject(): HubProject {
     }
     // Blob URLs die with the page session — drop them on reload.
     parsed.assets = parsed.assets.filter((a) => !a.url.startsWith("blob:"));
-    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "monetize", "learn", "business"];
+    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "monetize", "learn", "business"];
     return {
       ...parsed,
       id: parsed.id || freshProject().id,
