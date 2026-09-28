@@ -12,6 +12,7 @@ import { useActiveArtist } from "@/contexts/ActiveArtistContext";
 import { useUserMode } from "@/contexts/UserModeContext";
 import { StudioPipeline } from "@/components/StudioPipeline";
 import { usePageTitle } from "@/hooks/use-page-title";
+import SpotlightBanner from "@/components/SpotlightBanner";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -317,6 +318,9 @@ export default function Dashboard() {
             Create the Song. Create the Video. Promote the Release.
           </p>
         </div>
+
+        {/* ── SPOTLIGHT TAKEOVER PROMO (ad slot for sale) ── */}
+        <SpotlightBanner />
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}
         {activeArtist ? (() => {

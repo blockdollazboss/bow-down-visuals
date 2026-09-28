@@ -125,17 +125,23 @@ export function Chip({
   onClick,
   children,
   title,
+  draggable,
+  onDragStart,
 }: {
   active: boolean;
   onClick: () => void;
   children: ReactNode;
   title?: string;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
+      draggable={draggable}
+      onDragStart={onDragStart}
       className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
         active
           ? "border-primary/50 bg-primary/15 text-primary"

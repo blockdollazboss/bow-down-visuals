@@ -313,6 +313,23 @@ body::before {
   }
 }
 
+/* ─── Hero ground fog — slow drifting banks around the King's feet ─── */
+.hero-fog-blob {
+  animation-name: fog-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+@keyframes fog-drift {
+  0%, 100% { transform: translateX(-7%); }
+  50%      { transform: translateX(7%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-fog-blob {
+    animation: none;
+  }
+}
+
 /* ─── Crown badge — gold pill ─── */
 .crown-badge {
   background: linear-gradient(135deg, hsl(45 95% 50%), hsl(43 80% 38%));

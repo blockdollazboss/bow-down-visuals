@@ -75,6 +75,11 @@ import {
   buildProToolsClipPath,
 } from "@/lib/pro-tools-preview";
 import { TimelineDock } from "@/components/editor/TimelineDock";
+import TemplatePicker from "@/components/TemplatePicker";
+import {
+  getVideoTemplate, setLastTemplate, getLastTemplate,
+  type VideoTemplateId,
+} from "@/lib/video-templates";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import {
   AUDIO_EXPORT_BUTTONS,
@@ -179,6 +184,41 @@ export default function VideoEditor() {
   const [settings, setSettingsState] = useState<EditorSettings>(normalizeEditorSettings(null));
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [tab, setRawTab] = useState<EditorTab>("clips");
+  /* ── Template system: "what are you making?" drives format, tool order,
+     and which presets each feature shows. Fully customizable after pick. ── */
+  const [templateId, setTemplateId] = useState<VideoTemplateId | null>(() => getLastTemplate());
+  const [showTemplatePicker, setShowTemplatePicker] = useState(() => getLastTemplate() == null);
+  const [previewDropActive, setPreviewDropActive] = useState(false);
+  const template = getVideoTemplate(templateId);
+
+  function applyTemplate(id: VideoTemplateId) {
+    const t = getVideoTemplate(id);
+    setTemplateId(id);
+    setLastTemplate(id);
+    setShowTemplatePicker(false);
+    // Template defaults: aspect format + caption style. Everything else
+    // stays exactly as the user had it (customizable, not a reset).
+    setSettingsState((prev) => ({
+      ...prev,
+      export: { ...prev.export, format: t.defaultFormat },
+      captions: { ...prev.captions, stylePreset: t.defaultCaptionPreset },
+    }));
+    if (t.priorityTabs.length > 0) setTab(t.priorityTabs[0] as EditorTab);
+  }
+
+  interface RailTabItem { id: string; label: string; icon: React.ReactNode; testId: string }
+  function orderedRailTabs(items: RailTabItem[]): RailTabItem[] {
+    if (templateId == null || template.priorityTabs.length === 0) return items;
+    const prio = template.priorityTabs;
+    return [...items].sort((a, b) => {
+      const ai = prio.indexOf(a.id);
+      const bi = prio.indexOf(b.id);
+      if (ai === -1 && bi === -1) return 0;
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }
   const [requestedAudioExport, setRequestedAudioExport] = useState<AudioExportType | null>(null);
   const [directAudioExportStatus, setDirectAudioExportStatus] = useState<DirectAudioExportStatus>({ status: "idle" });
   function setTab(t: EditorTab) {
@@ -881,6 +921,7 @@ export default function VideoEditor() {
   ].filter(Boolean) as string[];
 
   return (
+    <>
     <div className="h-screen flex flex-col bg-black text-white overflow-hidden">
       <VideoBanner onHeightChange={setHeaderHeight} />
 
@@ -913,6 +954,16 @@ export default function VideoEditor() {
               </div>
               <SaveIndicator state={saveState} />
               <div className="flex-1" />
+              <Button
+                onClick={() => setShowTemplatePicker(true)}
+                size="sm"
+                variant="ghost"
+                className="text-[#C9A84C] hover:text-[#C9A84C] hover:bg-[#C9A84C]/10 gap-2 h-8 border border-[#C9A84C]/30"
+                title="Change template — what are you making?"
+                data-testid="btn-template-picker"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> <span className="hidden md:inline">{template.name}</span>
+              </Button>
               <Button onClick={handleUndo} disabled={!canUndo} size="sm" variant="ghost" className="text-white/60 hover:text-white hover:bg-white/5 gap-2 h-8 disabled:opacity-30" title="Undo (Ctrl+Z)" data-testid="btn-undo-editor">
                 <Undo2 className="h-3.5 w-3.5" /> <span className="hidden md:inline">Undo</span>
               </Button>
@@ -932,8 +983,7 @@ export default function VideoEditor() {
 
               {/* ── LEFT RAIL: icon nav ── */}
               <nav className="w-[68px] shrink-0 bg-[#080808] border-r border-white/10 flex flex-col items-center py-3 gap-1 overflow-y-auto" aria-label="Editor sections">
-                {(
-                  [
+                {orderedRailTabs([
                     { id: "clips", label: "Media", icon: <Film className="h-5 w-5" />, testId: "rail-clips" },
                     { id: "music", label: "Audio", icon: <Music2 className="h-5 w-5" />, testId: "rail-music" },
                     { id: "timeline", label: "Timeline", icon: <ListVideo className="h-5 w-5" />, testId: "rail-timeline" },
@@ -945,7 +995,7 @@ export default function VideoEditor() {
                     { id: "export", label: "Export", icon: <Download className="h-5 w-5" />, testId: "rail-export" },
                     { id: "studio", label: "Advanced", icon: <Clapperboard className="h-5 w-5" />, testId: "rail-studio" },
                     { id: "pro-tools", label: "Pro Tools", icon: <SlidersHorizontal className="h-5 w-5" />, testId: "rail-pro-tools" },
-                  ]
+                  ])
                     .filter((item) => !isSimple || (["clips", "music", "lip-sync", "timeline", "export"] as string[]).includes(item.id))
                     .map((item) => (
                       <button
@@ -962,8 +1012,7 @@ export default function VideoEditor() {
                         {item.icon}
                         <span className="text-[9px] font-bold leading-none">{item.label}</span>
                       </button>
-                    ))
-                )}
+                    ))}
               </nav>
 
               {/* ── LEFT PANEL: active section ── */}
@@ -1209,6 +1258,7 @@ export default function VideoEditor() {
                       onSelectCaption={setSelectedCaptionId}
                       audioUrl={previewAudioUrl}
                       getAccessToken={getAccessToken}
+                      visiblePresetIds={template.captionPresets}
                     />
                   )}
 
@@ -1223,6 +1273,8 @@ export default function VideoEditor() {
                       onTestOverlay={triggerTestOverlay}
                       activeTransitionType={transitionState?.type ?? null}
                       onPreviewTransition={handlePreviewTransition}
+                      visibleEffects={template.effects}
+                      visibleColorGrades={template.colorGrades}
                     />
                   )}
 
@@ -1312,7 +1364,34 @@ export default function VideoEditor() {
               </aside>
 
               {/* ── CENTER: preview ── */}
-              <main className="flex-1 min-w-0 bg-black flex flex-col min-h-0 overflow-y-auto">
+              <main
+                className="flex-1 min-w-0 bg-black flex flex-col min-h-0 overflow-y-auto relative"
+                onDragOver={(e) => { e.preventDefault(); setPreviewDropActive(true); }}
+                onDragLeave={() => setPreviewDropActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setPreviewDropActive(false);
+                  const captionPreset = e.dataTransfer.getData("application/x-bdv-caption-preset");
+                  const effect = e.dataTransfer.getData("application/x-bdv-effect");
+                  if (captionPreset) {
+                    setSettings((prev: EditorSettings) => ({
+                      ...prev,
+                      captions: { ...prev.captions, stylePreset: captionPreset as typeof prev.captions.stylePreset },
+                    }));
+                    setTab("captions");
+                  } else if (effect) {
+                    setSettings((prev: EditorSettings) => ({
+                      ...prev,
+                      effects: prev.effects.includes(effect) ? prev.effects : [...prev.effects, effect],
+                    }));
+                  }
+                }}
+              >
+                {previewDropActive && (
+                  <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#C9A84C]/10 border-2 border-dashed border-[#C9A84C]/60 rounded-xl m-2">
+                    <p className="text-[#C9A84C] font-black text-sm bg-black/70 px-4 py-2 rounded-full">Drop to apply</p>
+                  </div>
+                )}
                 {/* ── MASTER PLAYER — pinned to the top of the workspace column.
                     Sticky + solid background so it stays fixed in view while the
                     panels below scroll; it never drifts or pops out while editing. ── */}
@@ -1565,6 +1644,14 @@ export default function VideoEditor() {
         />
       )}
     </div>
+    {showTemplatePicker && (
+      <TemplatePicker
+        activeId={templateId}
+        onSelect={applyTemplate}
+        onClose={() => setShowTemplatePicker(false)}
+      />
+    )}
+    </>
   );
 }
 

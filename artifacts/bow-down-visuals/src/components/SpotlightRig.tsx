@@ -15,12 +15,15 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    Each beam: lamp glow → smooth cone → light pool where it lands.
 
    Motion, three layers that stack:
-   1. CSS staggered flash (always on) — the idle shimmer.
+   1. CSS staggered flash (idle) — the shimmer while no music plays.
    2. Mouse glide (rAF) — the whole row eases toward the cursor
       horizontally. Still works while the beat drives the flash.
    3. BEAT SYNC (rAF) — when the theme song is playing, every detected
       kick drum hit slams all six beams to full brightness together,
-      then they decay back. Real light-rig feel, locked to the tempo.
+      then they decay back. The idle shimmer is switched off while the
+      beat drives (CSS animations would otherwise override it), and
+      returns when the song stops. Real light-rig feel, locked to
+      the tempo.
 
    Pure decoration: pointer-events-none, translucent, reduced-motion safe
    (beat flash is disabled when the user prefers reduced motion). */
@@ -53,6 +56,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
     let cx = 0;
     let raf = 0;
     let cancelled = false;
+    let lastPulseAt = 0; // last rAF tick where the kick pulse was hot
 
     const onMove = (e: PointerEvent) => {
       targetX = (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
@@ -72,15 +76,24 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       rig.style.transform = `translate3d(${(cx * range).toFixed(1)}px, 0, 0)`;
 
       // — Beat sync: slam beams to full brightness on every kick —
+      // The idle CSS shimmer animates opacity, and CSS animations override
+      // inline styles — so while the theme is driving we switch the shimmer
+      // off and drive opacity/brightness directly from the kick pulse. A
+      // short hold keeps the handoff from flickering between kicks; when the
+      // song stops the shimmer comes back on its own.
       const beat = reduce ? null : getThemeBeat();
       const beams = beamsRef.current;
-      if (beat && beat.pulse > 0.02) {
-        // pulse 1 → full blast, decaying back toward the CSS idle shimmer.
+      const nowMs = performance.now();
+      if (beat && beat.pulse > 0.02) lastPulseAt = nowMs;
+      const driving = !!beat && nowMs - lastPulseAt < 1500;
+      if (driving && beat) {
+        // pulse 1 → full blast, decaying back toward the idle level.
         // Slight per-beam stagger (12ms apart) reads as a wave rolling
         // across the rig while still landing on the beat.
         for (let i = 0; i < beams.length; i++) {
           const el = beams[i];
           if (!el) continue;
+          if (el.style.animation !== "none") el.style.animation = "none";
           const stagger = Math.max(0, beat.pulse - i * 0.06);
           const boost = Math.min(1, stagger * 1.15);
           el.style.opacity = (0.55 + boost * 0.45).toFixed(3);
@@ -90,6 +103,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
         // No beat (song paused/stopped) — hand brightness back to CSS.
         for (const el of beams) {
           if (!el) continue;
+          if (el.style.animation) el.style.animation = "";
           if (el.style.opacity) el.style.opacity = "";
           if (el.style.filter) el.style.filter = "";
         }

@@ -20,6 +20,7 @@ import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
 import { DailyBonusModal } from "@/components/DailyBonusModal";
+import { WheelPopup } from "@/components/WheelPopup";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
@@ -86,7 +87,6 @@ const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
 const TeamPage = lazyWithRetry(() => import("@/pages/team"));
-const WheelPage = lazyWithRetry(() => import("@/pages/wheel"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
@@ -359,6 +359,7 @@ function AppShell() {
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
       {typeof window !== "undefined" && <DailyBonusModal />}
+      {typeof window !== "undefined" && <WheelPopup />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
@@ -395,7 +396,6 @@ function AppShell() {
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/referrals"><Referrals /></Route>
           <Route path="/team"><TeamPage /></Route>
-          <Route path="/wheel"><WheelPage /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
