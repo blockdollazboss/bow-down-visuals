@@ -9,10 +9,10 @@ import { useAuth } from "@/contexts/AuthContext";
    a fast cache, and synced to the account (PUT /api/hub/project, debounced)
    when signed in — so the project follows the user across devices. */
 
-export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "other";
+export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
-export type HubProjectType = "song" | "video" | "visual" | "movie" | "release" | "grow" | "monetize" | "learn" | "business";
+export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "release" | "grow" | "monetize" | "learn" | "business";
 
 export interface HubAsset {
   id: string;

@@ -12,7 +12,7 @@ router.use(json({ limit: "5mb" }));
 
 const HubAssetSchema = z.object({
   id: z.string().max(80),
-  kind: z.enum(["beat", "stems", "song", "video", "image", "thumbnail", "clip", "script", "other"]),
+  kind: z.enum(["beat", "stems", "song", "video", "image", "thumbnail", "clip", "script", "sfx", "other"]),
   url: z.string().max(1_000_000),
   label: z.string().max(200),
   detail: z.string().max(300).optional(),
@@ -22,7 +22,7 @@ const HubAssetSchema = z.object({
 
 const SaveHubProjectSchema = z.object({
   name: z.string().min(1).max(80),
-  type: z.enum(["song", "video", "visual", "movie", "release", "grow", "monetize", "learn", "business"]),
+  type: z.enum(["song", "video", "visual", "movie", "game", "release", "grow", "monetize", "learn", "business"]),
   assets: z.array(HubAssetSchema).max(200),
   updatedAt: z.number(),
 });

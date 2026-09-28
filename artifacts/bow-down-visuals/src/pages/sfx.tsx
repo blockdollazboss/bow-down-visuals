@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import {
   loadSfxLibrary,
   saveSfxItem,
@@ -104,6 +105,7 @@ export default function TextToSfx() {
   const [category, setCategory] = useState("impacts");
   const [duration, setDuration] = useState(3);
   const [result, setResult] = useState<SfxItem | null>(null);
+  const { addAsset } = useHubProject();
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +195,12 @@ export default function TextToSfx() {
       };
       setResult(item);
       setLibrary((prev) => saveSfxItem(prev, item));
+      addAsset({
+        kind: "sfx",
+        url: item.url,
+        label: item.prompt.length > 60 ? item.prompt.slice(0, 60) + "…" : item.prompt,
+        detail: `SFX · ${item.category} · ${item.durationSeconds}s`,
+      });
       void refreshProfile();
       setTimeout(() => {
         document.getElementById("sfx-result")?.scrollIntoView({ behavior: "smooth", block: "nearest" });

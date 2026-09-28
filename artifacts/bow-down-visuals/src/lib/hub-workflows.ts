@@ -4,7 +4,7 @@ import {
   Users, MapPin, Copyright, Rocket, ListChecks, CalendarDays, Coins,
   TrendingUp, BarChart3, GraduationCap, BookOpen, Scale, Briefcase,
   FileText, Newspaper, Mail, Handshake, Store, Banknote, Shirt, Flame,
-  Type as TypeIcon,
+  Type as TypeIcon, Gamepad2, Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { HubAssetKind, HubProjectType } from "./hub-project";
@@ -158,6 +158,36 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
     ],
   },
   {
+    type: "game",
+    family: "create",
+    title: "Video Game",
+    tagline: "Concept → story → characters → art → soundtrack → sound FX → voices. Every asset your game needs, one step after the other.",
+    icon: Gamepad2,
+    steps: [
+      { key: "concept", label: "Concept", icon: Lightbulb, assetKind: null, href: "/randomizer",
+        blurb: "The spark — genre, hook, and title for your game.",
+        creditNote: "free" },
+      { key: "story", label: "Story", icon: PenLine, assetKind: "script", href: "/script-writer",
+        blurb: "The full story — world, quests, and dialogue trees.",
+        creditNote: "2 credits" },
+      { key: "characters", label: "Characters", icon: Users, assetKind: null, href: "/artist-vault",
+        blurb: "Design and lock every character's look so the AI never redraws them mid-game.",
+        creditNote: "free" },
+      { key: "art", label: "Game Art", icon: ImageIcon, assetKind: "image", href: "/cover-art",
+        blurb: "Sprites, key art, backgrounds, and item icons.",
+        creditNote: "2–3 credits" },
+      { key: "soundtrack", label: "Soundtrack", icon: Drum, assetKind: "beat", href: "/hub",
+        blurb: "The score — battle themes, ambient loops, victory stingers.",
+        creditNote: "3 credits · sequencer free", embed: "beat-maker" },
+      { key: "sfx", label: "Sound FX", icon: Zap, assetKind: "sfx", href: "/sfx",
+        blurb: "Jumps, hits, coins, UI clicks — every sound your game makes.",
+        creditNote: "1 credit each" },
+      { key: "voices", label: "Voices", icon: Mic2, assetKind: "song", href: "/voiceover",
+        blurb: "Every line delivered in each character's own voice.",
+        creditNote: "2 credits" },
+    ],
+  },
+  {
     type: "release",
     family: "launch",
     title: "Release",
@@ -290,10 +320,10 @@ export function getWorkflow(type: HubProjectType): ProjectWorkflow {
 
 export const KIND_LABEL: Record<HubAssetKind, string> = {
   beat: "Beat", stems: "Stems", song: "Song", video: "Video",
-  clip: "Clip", thumbnail: "Thumbnail", image: "Image", script: "Script", other: "Asset",
+  clip: "Clip", thumbnail: "Thumbnail", image: "Image", script: "Script", sfx: "SFX", other: "Asset",
 };
 
-export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip"];
+export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip", "sfx"];
 
 /* Where each finished asset naturally wants to go next. */
 export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]> = {
@@ -326,5 +356,6 @@ export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]>
     { label: "Make a thumbnail", href: "/thumbnail-maker" },
   ],
   script: [{ label: "Voice it", href: "/voiceover" }],
+  sfx: [{ label: "Add character voices", href: "/voiceover" }],
   other: [],
 };
