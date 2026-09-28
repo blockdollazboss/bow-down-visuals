@@ -1,5 +1,5 @@
-import { eq, and, sql } from "drizzle-orm";
-import { db, teamsTable, teamMembersTable } from "@workspace/db";
+import { eq, and, sql, isNull } from "drizzle-orm";
+import { db, teamsTable, teamMembersTable, artistVaultsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getSupabaseAdmin } from "./supabase-admin";
 
@@ -53,6 +53,29 @@ export async function getUserActiveTeam(userId: string) {
   const teams = await db.select().from(teamsTable).where(eq(teamsTable.id, membership.teamId)).limit(1);
   if (teams.length === 0) return null;
   return { team: teams[0]!, membership };
+}
+
+/**
+ * Returns a vault if the user can USE it: they own it, or it's shared with
+ * their active team. Use for generation/read operations.
+ * For MANAGE operations (edit, delete, share, outfits, voice lock), require
+ * strict ownership via eq(artistVaultsTable.user_id, userId) instead.
+ */
+export async function getAccessibleVault(userId: string, vaultId: string) {
+  const [vault] = await db
+    .select()
+    .from(artistVaultsTable)
+    .where(and(eq(artistVaultsTable.id, vaultId), isNull(artistVaultsTable.deleted_at)))
+    .limit(1);
+  if (!vault) return null;
+  // Owner always has access.
+  if (vault.user_id === userId) return vault;
+  // Team members can use vaults shared with their active team.
+  if (vault.team_id) {
+    const activeTeam = await getUserActiveTeam(userId);
+    if (activeTeam && activeTeam.team.id === vault.team_id) return vault;
+  }
+  return null;
 }
 
 /**

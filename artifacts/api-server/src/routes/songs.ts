@@ -19,6 +19,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { getAccessibleVault } from "../lib/teams";
 import {
   uploadMediaToSupabaseStorage,
   refreshSupabaseStorageUrl,
@@ -160,11 +161,8 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
     return;
   }
 
-  const [vault] = await db
-    .select()
-    .from(artistVaultsTable)
-    .where(and(eq(artistVaultsTable.id, String(artistVaultId)), eq(artistVaultsTable.user_id, req.userId!)))
-    .limit(1);
+  // USE access: the caller owns the vault or it's shared with their active team.
+  const vault = await getAccessibleVault(req.userId!, String(artistVaultId));
   if (!vault) {
     res.status(404).json({ error: "Artist not found." });
     return;

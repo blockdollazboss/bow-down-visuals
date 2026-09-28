@@ -77,12 +77,11 @@ router.post("/teams", requireAuth, async (req, res) => {
 router.get("/teams", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    // ENTITLEMENT: Teams require Shot Caller tier or higher.
+    // Entitlement gates team CREATION, not membership: anyone can be invited
+    // onto a team, but only Shot Caller tier or higher can create one.
+    // (Fail-closed: unknown tier = no creation rights.)
     const { isShotCallerOrHigher } = await import("../lib/teams");
-    if (!(await isShotCallerOrHigher(userId))) {
-      res.status(403).json({ error: "Team Workspace requires Shot Caller tier or higher." });
-      return;
-    }
+    const canCreate = await isShotCallerOrHigher(userId);
     const email = await getUserEmail(userId);
 
     const memberships = await db
@@ -113,6 +112,7 @@ router.get("/teams", requireAuth, async (req, res) => {
     const inviteTeamById = new Map(inviteTeams.map((t) => [t.id, t]));
 
     res.json({
+      canCreate,
       teams: teams.map((t) => ({
         ...t,
         myRole: memberships.find((m) => m.teamId === t.id)?.role ?? null,
@@ -396,14 +396,20 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Enter a credit amount greater than 0." });
       return;
     }
-    // Idempotency: client sends a key per fund operation. If we've seen it,
-    // return the original result instead of double-funding.
+    // Idempotency: client sends a key per fund operation. If we've seen it
+    // for THIS team, return the original result instead of double-funding.
+    // Scoped to the team: a key is only a duplicate within the same team.
     const idempotencyKey = String(req.body?.idempotencyKey ?? "").trim() || null;
     if (idempotencyKey) {
       const [existing] = await db
         .select()
         .from(creditUsageTable)
-        .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
+        .where(
+          and(
+            eq(creditUsageTable.idempotencyKey, idempotencyKey),
+            eq(creditUsageTable.teamId, teamId),
+          ),
+        )
         .limit(1);
       if (existing) {
         const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId)).limit(1);
@@ -493,6 +499,67 @@ router.get("/teams/:id/spending", requireAuth, async (req, res) => {
   }
 });
 
+/* ── Transfer ownership (owner only) ─────────────────────────── */
+router.post("/teams/:id/transfer", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const teamId = paramId(req.params.id);
+    const caller = await requireMembership(userId, teamId, "owner");
+    if (!caller) {
+      res.status(403).json({ error: "Only the team owner can transfer ownership." });
+      return;
+    }
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: "Enter a valid email address." });
+      return;
+    }
+    const [target] = await db
+      .select()
+      .from(teamMembersTable)
+      .where(
+        and(
+          eq(teamMembersTable.teamId, teamId),
+          eq(teamMembersTable.email, email),
+          eq(teamMembersTable.status, "active"),
+        ),
+      )
+      .limit(1);
+    if (!target || !target.userId) {
+      res.status(400).json({ error: "That person isn't an active member of this team." });
+      return;
+    }
+    if (target.userId === userId) {
+      res.status(400).json({ error: "You're already the owner." });
+      return;
+    }
+    const newOwnerId: string = target.userId;
+    // Atomic role swap + owner_id update: no window where the team has
+    // zero owners or two owners.
+    const [team] = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(teamsTable)
+        .set({ ownerId: newOwnerId, updatedAt: new Date() })
+        .where(eq(teamsTable.id, teamId))
+        .returning();
+      if (!updated) throw new Error("Team not found during transfer");
+      await tx
+        .update(teamMembersTable)
+        .set({ role: "owner" })
+        .where(eq(teamMembersTable.id, target.id));
+      await tx
+        .update(teamMembersTable)
+        .set({ role: "admin" })
+        .where(eq(teamMembersTable.id, caller.id));
+      return [updated];
+    });
+    res.json({ team });
+  } catch (err: unknown) {
+    req.log.error({ err }, "teams: transfer failed");
+    res.status(500).json({ error: "Failed to transfer ownership." });
+  }
+});
+
 /* ── Delete a team (owner only) ───────────────────────────────── */
 router.delete("/teams/:id", requireAuth, async (req, res) => {
   try {
@@ -526,7 +593,10 @@ async function getUserEmail(userId: string): Promise<string | null> {
 async function getUserIdByEmail(email: string): Promise<string | null> {
   try {
     const admin = getSupabaseAdmin();
-    const { data, error } = await admin.auth.admin.listUsers();
+    // listUsers paginates (default 50/page): use a large page so existing
+    // users aren't missed on bigger sites. A miss is still harmless — the
+    // accept flow matches invites by email — but linking eagerly is better.
+    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (error) return null;
     const found = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
     return found?.id ?? null;

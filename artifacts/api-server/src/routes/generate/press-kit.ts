@@ -5,6 +5,7 @@ import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema } from "@wo
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
+import { getAccessibleVault } from "../../lib/teams";
 import { publicApiLimiter } from "../../lib/rate-limit";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
@@ -189,12 +190,8 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
   try {
     let vault: typeof artistVaultsTable.$inferSelect | null = null;
     if (parsed.data.artist_vault_id) {
-      const rows = await db
-        .select()
-        .from(artistVaultsTable)
-        .where(and(eq(artistVaultsTable.id, parsed.data.artist_vault_id), eq(artistVaultsTable.user_id, req.userId!)))
-        .limit(1);
-      vault = rows[0] ?? null;
+      // USE access: the caller owns the vault or it's shared with their active team.
+      vault = await getAccessibleVault(req.userId!, parsed.data.artist_vault_id);
     }
 
     const bio = await writeArtistBio({
@@ -285,12 +282,8 @@ router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, asyn
   try {
     let vault: typeof artistVaultsTable.$inferSelect | null = null;
     if (kit.artist_vault_id) {
-      const vrows = await db
-        .select()
-        .from(artistVaultsTable)
-        .where(and(eq(artistVaultsTable.id, kit.artist_vault_id), eq(artistVaultsTable.user_id, req.userId!)))
-        .limit(1);
-      vault = vrows[0] ?? null;
+      // USE access: the caller owns the vault or it's shared with their active team.
+      vault = await getAccessibleVault(req.userId!, kit.artist_vault_id);
     }
 
     const bio = await writeArtistBio({

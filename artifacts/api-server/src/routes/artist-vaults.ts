@@ -6,7 +6,7 @@ import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db"
 import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
-import { getUserActiveTeam } from "../lib/teams";
+import { getUserActiveTeam, getAccessibleVault } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
@@ -14,29 +14,6 @@ import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
 
 
 const router = Router();
-
-/**
- * Returns a vault if the user can USE it: they own it, or it's shared with
- * their active team. Use for generation/read operations.
- * For MANAGE operations (edit, delete, share), require strict ownership
- * via eq(artistVaultsTable.user_id, userId) instead.
- */
-async function getAccessibleVault(userId: string, vaultId: string) {
-  const [vault] = await db
-    .select()
-    .from(artistVaultsTable)
-    .where(and(eq(artistVaultsTable.id, vaultId), isNull(artistVaultsTable.deleted_at)))
-    .limit(1);
-  if (!vault) return null;
-  // Owner always has access.
-  if (vault.user_id === userId) return vault;
-  // Team members can use vaults shared with their active team.
-  if (vault.team_id) {
-    const activeTeam = await getUserActiveTeam(userId);
-    if (activeTeam && activeTeam.team.id === vault.team_id) return vault;
-  }
-  return null;
-}
 
 const ArtistVaultSchema = z.object({
   artistName: z.string().min(1),

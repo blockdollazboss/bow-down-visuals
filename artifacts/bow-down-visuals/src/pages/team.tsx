@@ -52,6 +52,7 @@ export default function TeamPage() {
   const [spending, setSpending] = useState<SpendRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [canCreate, setCanCreate] = useState(true);
 
   const [newTeamName, setNewTeamName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -60,6 +61,8 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
   const [funding, setFunding] = useState(false);
+  const [transferEmail, setTransferEmail] = useState("");
+  const [transferring, setTransferring] = useState(false);
 
   async function api(path: string, opts?: RequestInit) {
     const token = await getAccessToken();
@@ -83,6 +86,7 @@ export default function TeamPage() {
       const data = await api("/api/teams");
       setTeams(data.teams ?? []);
       setInvites(data.invites ?? []);
+      setCanCreate(data.canCreate !== false);
       const mine = (data.teams ?? []).find((t: Team) => t.myStatus === "active") ?? null;
       setActiveTeam(mine);
       if (mine) {
@@ -261,6 +265,26 @@ export default function TeamPage() {
     }
   }
 
+  async function handleTransfer() {
+    if (!activeTeam || !transferEmail) return;
+    if (!confirm(`Transfer ownership of ${activeTeam.name} to ${transferEmail}? You will become an admin.`)) return;
+    setTransferring(true);
+    setMsg(null);
+    try {
+      await api(`/api/teams/${activeTeam.id}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({ email: transferEmail }),
+      });
+      setTransferEmail("");
+      await load();
+      setMsg("✓ Ownership transferred.");
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to transfer ownership."}`);
+    } finally {
+      setTransferring(false);
+    }
+  }
+
   const roleIcon = (role: string) =>
     role === "owner" ? <Crown className="h-3.5 w-3.5 text-[#C9A84C]" /> :
     role === "admin" ? <Shield className="h-3.5 w-3.5 text-blue-400" /> :
@@ -324,18 +348,29 @@ export default function TeamPage() {
           <p className="text-sm text-white/50 mb-4">
             Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.
           </p>
-          <div className="flex gap-2">
-            <Input
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Team name — e.g. Blockdollaz Media"
-              maxLength={80}
-              className="bg-white/[0.05] border-white/10 text-white"
-            />
-            <Button onClick={() => void handleCreate()} disabled={creating || !newTeamName.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold shrink-0">
-              {creating ? "Creating…" : "Create team"}
-            </Button>
-          </div>
+          {canCreate ? (
+            <div className="flex gap-2">
+              <Input
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="Team name — e.g. Blockdollaz Media"
+                maxLength={80}
+                className="bg-white/[0.05] border-white/10 text-white"
+              />
+              <Button onClick={() => void handleCreate()} disabled={creating || !newTeamName.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold shrink-0">
+                {creating ? "Creating…" : "Create team"}
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-[#C9A84C]/40 bg-[#C9A84C]/10 px-4 py-3">
+              <p className="text-sm text-[#C9A84C] font-semibold flex items-center gap-2">
+                <Crown className="h-4 w-4" /> Shot Caller tier required
+              </p>
+              <p className="text-xs text-white/50 mt-1">
+                Upgrade to Shot Caller ($199/mo) to create your own team. You can still join teams you're invited to.
+              </p>
+            </div>
+          )}
         </Card>
       ) : (
         <>
@@ -472,6 +507,34 @@ export default function TeamPage() {
 
           {/* Danger zone */}
           <Card className="p-5 bg-white/[0.03] border-white/10">
+            {activeTeam.myRole === "owner" && (
+              <div className="mb-4 pb-4 border-b border-white/10">
+                <p className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-[#C9A84C]" /> Transfer ownership
+                </p>
+                <div className="flex gap-2">
+                  <select
+                    value={transferEmail}
+                    onChange={(e) => setTransferEmail(e.target.value)}
+                    className="flex-1 bg-white/[0.05] border border-white/10 rounded-md px-3 py-2 text-sm text-white"
+                  >
+                    <option value="">Choose a member…</option>
+                    {members
+                      .filter((m) => m.status === "active" && m.role !== "owner" && m.userId)
+                      .map((m) => (
+                        <option key={m.id} value={m.email}>{m.email} ({m.role})</option>
+                      ))}
+                  </select>
+                  <Button
+                    onClick={() => void handleTransfer()}
+                    disabled={transferring || !transferEmail}
+                    className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold shrink-0"
+                  >
+                    {transferring ? "Transferring…" : "Transfer"}
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="flex gap-3 flex-wrap">
               {activeTeam.myRole !== "owner" ? (
                 <Button variant="ghost" onClick={() => void handleLeave()} className="text-white/60">

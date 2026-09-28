@@ -2,9 +2,8 @@ import { Router } from "express";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
-import { db, artistVaultsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
 import { swapSongVocalsToVoice } from "../../lib/voice-swap";
+import { getAccessibleVault } from "../../lib/teams";
 
 const router = Router();
 const BUCKET = "audio-stems";
@@ -112,16 +111,8 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     let voiceSwapped = false;
     if (artistVaultId) {
       try {
-        const [vault] = await db
-          .select({ voice_id: artistVaultsTable.voice_id })
-          .from(artistVaultsTable)
-          .where(
-            and(
-              eq(artistVaultsTable.id, artistVaultId),
-              eq(artistVaultsTable.user_id, req.userId!),
-            ),
-          )
-          .limit(1);
+        // USE access: the caller owns the vault or it's shared with their active team.
+        const vault = await getAccessibleVault(req.userId!, artistVaultId);
         if (vault?.voice_id && process.env["ARTIST_VOICE_SWAP_ENABLED"] !== "false") {
           finalBuffer = await swapSongVocalsToVoice(buffer, vault.voice_id, apiKey);
           voiceSwapped = true;
