@@ -25,7 +25,7 @@ export default function RefundPolicy() {
       <PolicyNav />
       <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
         <h1 className="text-3xl font-black text-white mb-2">Refund Policy</h1>
-        <p className="text-white/30 text-sm mb-10">Last updated: June 2026</p>
+        <p className="text-white/30 text-sm mb-10">Last updated: September 2026</p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
@@ -33,8 +33,8 @@ export default function RefundPolicy() {
             <h2 className="text-white font-bold text-lg mb-3">What We Sell</h2>
             <p>
               Bow Down Visuals sells <strong className="text-white/90">digital AI creator credits</strong> — 
-              pre-purchased units used to generate lyrics, music video treatment plans, video prompts, 
-              caption sets, thumbnails, promo clip scripts, and other digital creator content. 
+              pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos,
+              lyrics, thumbnails, caption sets, promo clips, and other digital creator content. 
               All products are digital and delivered instantly upon credit use. No physical goods are sold or shipped.
             </p>
           </section>
@@ -45,6 +45,8 @@ export default function RefundPolicy() {
               Because our products are digital and consumed immediately upon generation, 
               <strong className="text-white/90"> all sales are generally final</strong>. 
               Once credits have been used to generate content, those credits cannot be refunded.
+              Bonus credits earned through referrals or promotions have no cash value and are
+              non-refundable.
             </p>
           </section>
 
