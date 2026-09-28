@@ -17,7 +17,7 @@ export function SecretChallengePopup({
 
   return (
     <div
-      className="fixed inset-0 z-[9995] flex items-center justify-center bg-black/85 p-4"
+      className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/85 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="You cracked the code"
