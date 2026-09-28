@@ -6,20 +6,28 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
-  Sparkles, Loader2, Download, Play, Pause, Square, Shuffle,
+  Sparkles, Loader2, Download, Play, Square, Shuffle,
   Trash2, Wand2, Disc3, Scissors, Store, Music4, Timer, KeyRound,
+  SlidersHorizontal, Lock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMode } from "@/contexts/UserModeContext";
+import { MinStars } from "@/components/MinStars";
+import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
+/* Single source of truth for the AI beat price — the credit-cost registry. */
+const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 3;
+
 /* ─── Beat Maker ────────────────────────────────────────────────────────────
-   The first module of the One Unified Creation Hub: make beats two ways.
-   Tab 1 — AI Beat: describe the vibe, get a studio instrumental (3 credits,
-   ElevenLabs Music, instrumental-only prompt). Hands off to the Stem Splitter
-   and the Beats Marketplace.
-   Tab 2 — Step Sequencer: 16-step drum machine, 100% client-side Web Audio
-   synthesis (zero provider cost → free). Presets, swing, WAV export. */
+   The first module of the One Unified Creation Hub.
+   AI Beat (default, dead simple): describe the vibe, get a studio instrumental
+   (3 Visual Bucs, ElevenLabs Music, instrumental-only prompt). Hands off to
+   the Stem Splitter and the Beats Marketplace.
+   Step Sequencer (Advanced mode — Creator Level 6): 16-step drum machine,
+   100% client-side Web Audio synthesis (zero provider cost → free). Presets,
+   swing, WAV export. */
 
 const GENRES = [
   "hip-hop", "trap", "drill", "r&b", "afrobeats", "pop",
@@ -200,7 +208,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           {generating ? (
             <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cooking your beat…</>
           ) : (
-            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · 3 Visual Bucs</>
+            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · {BEAT_COST} Visual Bucs</>
           )}
         </Button>
         <p className="text-xs text-white/40 text-center -mt-2">
@@ -688,10 +696,46 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
   return new Blob([ab], { type: "audio/wav" });
 }
 
+/* ─── Advanced-mode gate ────────────────────────────────────────────────────
+   Shown instead of the step sequencer when the user is below Creator Level 6.
+   One tap flips the site into Advanced mode (clamped to the plan's max). */
+
+function SequencerGate({ onEnable }: { onEnable: () => void }) {
+  return (
+    <div className="rounded-2xl border border-primary/30 bg-white/[0.03] p-8 text-center space-y-4">
+      <div className="mx-auto w-12 h-12 rounded-full bg-primary/15 border border-primary/40 flex items-center justify-center">
+        <Lock className="w-5 h-5 text-primary" />
+      </div>
+      <div>
+        <h3 className="text-white font-bold text-lg">Step Sequencer lives in Advanced mode</h3>
+        <p className="text-white/50 text-sm mt-1 max-w-md mx-auto">
+          The AI beat maker above is the fast path. The hands-on drum machine —
+          every hit programmed by you — unlocks at Creator Level 6.
+        </p>
+      </div>
+      <Button
+        onClick={onEnable}
+        className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
+      >
+        <SlidersHorizontal className="w-4 h-4 mr-2" /> Switch to Advanced mode
+      </Button>
+    </div>
+  );
+}
+
 /* ─── Page shell ──────────────────────────────────────────────────────────── */
 
 export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const [tab, setTab] = useState<"ai" | "seq">("ai");
+  const { stars, setStars } = useUserMode();
+  const advanced = stars >= 6;
+
+  // Drop back to the AI tab if the user leaves Advanced mode mid-session.
+  useEffect(() => {
+    if (!advanced) setTab("ai");
+  }, [advanced]);
+
+  const enableAdvanced = () => setStars(6);
 
   return (
     <div className="space-y-6">
@@ -706,19 +750,40 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
         >
           <Sparkles className="w-4 h-4" /> AI Beat
         </button>
-        <button
-          type="button"
-          onClick={() => setTab("seq")}
-          className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
-            tab === "seq" ? "bg-primary text-black" : "text-white/60 hover:text-white"
-          }`}
+        <MinStars
+          level={6}
+          fallback={
+            <button
+              type="button"
+              onClick={enableAdvanced}
+              title="The Step Sequencer is an Advanced mode tool"
+              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white/60 hover:text-white"
+            >
+              <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">ADVANCED</span>
+            </button>
+          }
         >
-          <Pause className="w-4 h-4 rotate-90" /> Step Sequencer
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">FREE</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setTab("seq")}
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 ${
+              tab === "seq" ? "bg-primary text-black" : "text-white/60 hover:text-white"
+            }`}
+          >
+            <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">FREE</span>
+          </button>
+        </MinStars>
       </div>
 
-      {tab === "ai" ? <AiBeatTab onGenerated={onGenerated} /> : <SequencerTab onGenerated={onGenerated} />}
+      {tab === "ai" ? (
+        <AiBeatTab onGenerated={onGenerated} />
+      ) : (
+        <MinStars level={6} fallback={<SequencerGate onEnable={enableAdvanced} />}>
+          <SequencerTab onGenerated={onGenerated} />
+        </MinStars>
+      )}
     </div>
   );
 }
@@ -732,9 +797,9 @@ export default function BeatMaker() {
           <MarketingBadge variant="muted">New</MarketingBadge>
         </div>
         <p className="text-white/50 mt-2 max-w-2xl">
-          Make the beat two ways: describe the vibe and let AI cook a full instrumental,
-          or program drums yourself on the step sequencer. Either way, it flows straight
-          into stems, songs, and the marketplace.
+          Describe the vibe and let AI cook a full instrumental — or flip on
+          Advanced mode to program drums yourself on the step sequencer.
+          Either way, your beat flows straight into stems, songs, and the marketplace.
         </p>
       </div>
 
