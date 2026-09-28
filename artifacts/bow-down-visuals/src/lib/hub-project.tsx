@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
-export type HubProjectType = "song" | "video" | "visual";
+export type HubProjectType = "song" | "video" | "visual" | "movie";
 
 export interface HubAsset {
   id: string;
@@ -71,7 +71,7 @@ function loadProject(): HubProject {
     }
     // Blob URLs die with the page session — drop them on reload.
     parsed.assets = parsed.assets.filter((a) => !a.url.startsWith("blob:"));
-    const validTypes: HubProjectType[] = ["song", "video", "visual"];
+    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie"];
     return {
       ...parsed,
       id: parsed.id || freshProject().id,
@@ -140,7 +140,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
           const adopted: HubProject = {
             id: local.id,
             name: server.name,
-            type: ["song", "video", "visual"].includes(server.type) ? server.type : "song",
+            type: ["song", "video", "visual", "movie"].includes(server.type) ? server.type : "song",
             assets: Array.isArray(server.assets) ? server.assets : [],
             updatedAt: server.updatedAt,
           };

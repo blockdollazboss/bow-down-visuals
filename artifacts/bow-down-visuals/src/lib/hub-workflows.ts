@@ -1,6 +1,7 @@
 import {
   Drum, Scissors, Disc3, Clapperboard, Megaphone, Lightbulb, PenLine,
   Mic2, Film, Image as ImageIcon, ShieldCheck, Palette, FlaskConical,
+  Users, MapPin,
   type LucideIcon,
 } from "lucide-react";
 import type { HubAssetKind, HubProjectType } from "./hub-project";
@@ -102,6 +103,41 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
         creditNote: "1 credit" },
     ],
   },
+  {
+    type: "movie",
+    title: "Movie",
+    tagline: "Idea → script → cast → locations → scenes → dialogue → score → edit → premiere. The whole production, one step after the other.",
+    icon: Film,
+    steps: [
+      { key: "idea", label: "Idea", icon: Lightbulb, assetKind: null, href: "/randomizer",
+        blurb: "The spark — concept, title, and logline for your film.",
+        creditNote: "free" },
+      { key: "script", label: "Script", icon: PenLine, assetKind: "script", href: "/script-writer",
+        blurb: "The full screenplay — beats, dialogue, and pacing.",
+        creditNote: "2 credits" },
+      { key: "cast", label: "Cast", icon: Users, assetKind: null, href: "/artist-vault",
+        blurb: "Lock your characters' faces so the AI never recasts them mid-film.",
+        creditNote: "free" },
+      { key: "locations", label: "Locations", icon: MapPin, assetKind: null, href: "/locations",
+        blurb: "Scout and lock every set before cameras roll.",
+        creditNote: "free" },
+      { key: "scenes", label: "Scenes", icon: Clapperboard, assetKind: "video", href: "/make-video",
+        blurb: "Generate every scene — storyboard to final frame.",
+        creditNote: "from 4 credits" },
+      { key: "dialogue", label: "Dialogue", icon: Mic2, assetKind: "song", href: "/voiceover",
+        blurb: "Every line delivered, in every character's own voice.",
+        creditNote: "2 credits" },
+      { key: "score", label: "Score", icon: Drum, assetKind: "beat", href: "/hub",
+        blurb: "The soundtrack — AI-composed or programmed to picture.",
+        creditNote: "3 credits · sequencer free", embed: "beat-maker" },
+      { key: "edit", label: "Edit", icon: Scissors, assetKind: null, href: "/video-editor",
+        blurb: "The final cut — scenes, dialogue, and score assembled.",
+        creditNote: "4 credits" },
+      { key: "premiere", label: "Premiere", icon: Megaphone, assetKind: "clip", href: "/promo-clip",
+        blurb: "Trailer, poster, and the big launch.",
+        creditNote: "from 1 credit" },
+    ],
+  },
 ];
 
 export function getWorkflow(type: HubProjectType): ProjectWorkflow {
@@ -129,6 +165,7 @@ export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]>
     { label: "Cut a promo clip", href: "/promo-clip" },
   ],
   video: [
+    { label: "Edit the final cut", href: "/video-editor" },
     { label: "Cut a promo clip", href: "/promo-clip" },
     { label: "Make a thumbnail", href: "/thumbnail-maker" },
   ],

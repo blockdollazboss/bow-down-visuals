@@ -22,7 +22,7 @@ const HubAssetSchema = z.object({
 
 const SaveHubProjectSchema = z.object({
   name: z.string().min(1).max(80),
-  type: z.enum(["song", "video", "visual"]),
+  type: z.enum(["song", "video", "visual", "movie"]),
   assets: z.array(HubAssetSchema).max(200),
   updatedAt: z.number(),
 });

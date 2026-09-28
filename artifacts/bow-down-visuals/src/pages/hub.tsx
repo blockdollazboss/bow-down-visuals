@@ -86,7 +86,7 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
         The hub lays out the right chain for the job — every step flows into the next.
       </p>
-      <div className="grid sm:grid-cols-3 gap-3 text-left">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left">
         {PROJECT_WORKFLOWS.map((w) => {
           const Icon: LucideIcon = w.icon;
           return (
@@ -216,10 +216,7 @@ export default function Hub() {
           </div>
 
           {/* Workflow rail */}
-          <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${workflow.steps.length}, minmax(0, 1fr))` }}
-          >
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
             {workflow.steps.map((s, i) => {
               const done = s.assetKind ? hasKind(s.assetKind) : false;
               const active = s.key === step.key;
@@ -230,7 +227,7 @@ export default function Hub() {
                   key={s.key}
                   type="button"
                   onClick={() => setActiveStep(s.key)}
-                  className={`relative rounded-2xl border p-4 text-left transition-all ${
+                  className={`relative rounded-2xl border p-4 text-left transition-all shrink-0 w-[132px] sm:w-auto sm:shrink sm:flex-1 ${
                     active
                       ? "border-primary bg-primary/[0.08] shadow-[0_0_24px_rgba(218,165,32,0.15)]"
                       : "border-white/10 bg-white/[0.03] hover:border-white/25"

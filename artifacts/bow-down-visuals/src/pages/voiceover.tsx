@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useHubProject } from "@/lib/hub-project";
 import {
   EMOTIONS,
   estimateVoiceoverCost,
@@ -54,6 +55,7 @@ const pillClass = (active: boolean) =>
   }`;
 
 export default function VoiceoverStudio() {
+  const { addAsset } = useHubProject();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -165,6 +167,14 @@ export default function VoiceoverStudio() {
       }
       setResult(data);
       refreshProfile();
+      if (data.audioUrl) {
+        addAsset({
+          kind: "song",
+          url: data.audioUrl,
+          label: `Voiceover — ${script.trim().slice(0, 40) || "script"}`,
+          detail: `${data.wordCount ?? 0} words · ${data.format ?? "mp3"}`,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Voiceover failed — try again.");
     } finally {
