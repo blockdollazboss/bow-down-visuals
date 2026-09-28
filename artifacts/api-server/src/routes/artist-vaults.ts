@@ -92,10 +92,9 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
 
     res.status(201).json({ id: row?.id });
   } catch (err) {
-    // TEMPORARY: detailed error for debugging (remove after fix)
-    req.log.error({ err }, "artist-vaults: insert failed");
+    req.log.error({ err, userId: req.userId }, "artist-vaults: insert failed");
     res.status(500).json({
-      error: "Internal server error",
+      error: "Could not save the vault. Please try again.",
       detail: err instanceof Error ? err.message : String(err),
     });
   }
