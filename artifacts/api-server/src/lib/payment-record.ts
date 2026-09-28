@@ -18,6 +18,8 @@ export interface CreditUsageRecord {
   action: string;
   creditsUsed: number;
   projectId?: string | null;
+  /** When the spend came from a team pool, the team that was charged. */
+  teamId?: string | null;
 }
 
 /**
@@ -102,6 +104,7 @@ export async function recordCreditUsageStrict(record: CreditUsageRecord): Promis
         action:      record.action,
         creditsUsed: record.creditsUsed,
         projectId:   record.projectId ?? null,
+        teamId:      record.teamId ?? null,
       });
       return;
     } catch (err) {

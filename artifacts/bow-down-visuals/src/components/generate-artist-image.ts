@@ -34,7 +34,7 @@ export const ARTIST_IMAGE_RATIOS: { id: ArtistImageRatio; label: string }[] = [
 /** Pre-fills the image prompt from the artist profile's own fields. */
 export function buildArtistImagePrompt(v: ArtistProfileFormLike): string {
   const parts: string[] = [
-    "Professional artist portrait photograph, front-facing, looking at camera, upper body, studio lighting",
+    "Professional artist portrait photograph, front-facing, looking at camera, upper body, studio lighting, on a clean light grey studio background",
   ];
   if (v.visualStyle) parts.push(v.visualStyle);
   if (v.artistType) parts.push(v.artistType);

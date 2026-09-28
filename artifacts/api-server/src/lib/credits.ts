@@ -1,6 +1,9 @@
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
+import { getUserActiveTeam, deductTeamCredits } from "./teams";
+import { db, teamsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 
 /**
  * Thrown by deductCredits() when the profile is missing or the balance is
@@ -109,7 +112,26 @@ export async function chargeCredits(
   record: ChargeLedgerRecord,
   opts?: { rollbackOnLedgerFailure?: boolean },
 ): Promise<number> {
-  const creditsAfter = await deductCredits(userId, cost);
+  // Team pool first: if the user is an active member of a team with enough
+  // pooled credits, the spend comes from the team — not their personal balance.
+  let teamId: string | null = null;
+  let creditsAfter: number;
+  try {
+    const activeTeam = await getUserActiveTeam(userId);
+    if (activeTeam && activeTeam.team.credits >= cost) {
+      const tid: string = activeTeam.team.id;
+      teamId = tid;
+      creditsAfter = await deductTeamCredits(tid, cost);
+    } else {
+      creditsAfter = await deductCredits(userId, cost);
+    }
+  } catch (e) {
+    // Team-pool deduction failed (race on the pool balance, or a lookup
+    // error) — fall back to the personal balance before giving up.
+    logger.warn({ userId, cost, err: e instanceof Error ? e.message : String(e) }, "[credits] team pool unavailable, falling back to personal balance");
+    teamId = null;
+    creditsAfter = await deductCredits(userId, cost);
+  }
   const rollback = opts?.rollbackOnLedgerFailure ?? true;
   try {
     await recordCreditUsageStrict({
@@ -117,6 +139,7 @@ export async function chargeCredits(
       action: record.action,
       creditsUsed: cost,
       projectId: record.projectId ?? null,
+      teamId,
     });
   } catch (err) {
     if (rollback) {
@@ -125,7 +148,13 @@ export async function chargeCredits(
         "[credits] ledger write failed after deduction — rolling back the charge",
       );
       try {
-        await addCreditsToProfile(userId, cost);
+        if (teamId) {
+          await db.update(teamsTable)
+            .set({ credits: sql`${teamsTable.credits} + ${cost}`, updatedAt: new Date() })
+            .where(eq(teamsTable.id, teamId));
+        } else {
+          await addCreditsToProfile(userId, cost);
+        }
       } catch (rollbackErr) {
         logger.error(
           { userId, cost, action: record.action, rollbackErr },

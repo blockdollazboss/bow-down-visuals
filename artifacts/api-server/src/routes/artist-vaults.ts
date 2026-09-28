@@ -3,9 +3,10 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
 import { randomUUID } from "crypto";
 import { readFile, rm } from "fs/promises";
@@ -78,13 +79,20 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
 });
 
 router.get("/artist-vaults", requireAuth, async (req, res) => {
+  const activeTeam = await getUserActiveTeam(req.userId!);
+
   const vaults = await db
     .select()
     .from(artistVaultsTable)
     .where(
       and(
-        eq(artistVaultsTable.user_id, req.userId!),
         isNull(artistVaultsTable.deleted_at),
+        activeTeam
+          ? or(
+              eq(artistVaultsTable.user_id, req.userId!),
+              eq(artistVaultsTable.team_id, activeTeam.team.id),
+            )
+          : eq(artistVaultsTable.user_id, req.userId!),
       ),
     )
     .orderBy(desc(artistVaultsTable.created_at));
@@ -577,6 +585,39 @@ async function runRefVideoLoop(taskId: string, videoUrl: string) {
     if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/** Share a vault with the caller's team (or unshare it). Only the vault owner can change sharing. */
+router.post("/artist-vaults/:id/share", requireAuth, async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0]! : rawId;
+    const [vault] = await db
+      .select()
+      .from(artistVaultsTable)
+      .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)))
+      .limit(1);
+    if (!vault) {
+      res.status(404).json({ error: "Vault not found." });
+      return;
+    }
+    const share = req.body?.share === true;
+    if (share) {
+      const activeTeam = await getUserActiveTeam(req.userId!);
+      if (!activeTeam) {
+        res.status(400).json({ error: "Join a team first to share this vault." });
+        return;
+      }
+      await db.update(artistVaultsTable).set({ team_id: activeTeam.team.id }).where(eq(artistVaultsTable.id, id));
+      res.json({ ok: true, teamId: activeTeam.team.id });
+    } else {
+      await db.update(artistVaultsTable).set({ team_id: null }).where(eq(artistVaultsTable.id, id));
+      res.json({ ok: true, teamId: null });
+    }
+  } catch (err: unknown) {
+    req.log.error({ err }, "artist-vaults: share failed");
+    res.status(500).json({ error: "Failed to update sharing." });
+  }
+});
 
 /** Start a seamless-loop job for the vault's current reference video. Credits pre-checked; charged on poll. */
 router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, res) => {

@@ -1817,7 +1817,7 @@ export default function ArtistVault() {
         initialPrompt={(() => {
           const wv = wardrobeGenVaultId ? (vaults.find((v) => v.id === wardrobeGenVaultId) ?? openVault) : null;
           return wv
-            ? `Full-body studio photo of ${wv.artist_name} wearing a brand new signature outfit — keep the exact same face, identity and art style as the reference photo`
+            ? `Full-body studio photo of ${wv.artist_name} wearing a brand new signature outfit on a clean light grey studio background — keep the exact same face, identity and art style as the reference photo`
             : buildArtistImagePrompt(watch());
         })()}
         hasReferencePhoto={(() => {

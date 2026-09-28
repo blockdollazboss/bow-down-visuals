@@ -58,3 +58,4 @@ export * from "./cheat-code-events";
 export * from "./tour";
 export * from "./preproduction-packs";
 export * from "./bow-challenge";
+export * from "./teams";

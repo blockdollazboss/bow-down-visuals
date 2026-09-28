@@ -83,6 +83,7 @@ const Presave = lazyWithRetry(() => import("@/pages/presave"));
 const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
+const TeamPage = lazyWithRetry(() => import("@/pages/team"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
@@ -384,6 +385,7 @@ function AppShell() {
           <Route path="/tips"><Tips /></Route>
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/referrals"><Referrals /></Route>
+          <Route path="/team"><TeamPage /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>

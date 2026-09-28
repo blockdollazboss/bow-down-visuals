@@ -8,6 +8,8 @@ export const creditUsageTable = pgTable("credit_usage", {
   action:     text("action").notNull(),
   creditsUsed: integer("credits_used").notNull(),
   projectId:  uuid("project_id"),
+  /** When the spend came from a team pool, the team that was charged. */
+  teamId:     uuid("team_id"),
   createdAt:  timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
