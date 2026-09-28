@@ -112,24 +112,38 @@ export async function chargeCredits(
   record: ChargeLedgerRecord,
   opts?: { rollbackOnLedgerFailure?: boolean },
 ): Promise<number> {
-  // Team pool first: if the user is an active member of a team with enough
-  // pooled credits, the spend comes from the team — not their personal balance.
+  // Team pool first: if the user is an active member of a team, the spend
+  // comes from the shared pool — not their personal balance — unless the
+  // team's policy allows falling back to personal credits.
   let teamId: string | null = null;
   let creditsAfter: number;
-  try {
-    const activeTeam = await getUserActiveTeam(userId);
-    if (activeTeam && activeTeam.team.credits >= cost) {
-      const tid: string = activeTeam.team.id;
-      teamId = tid;
-      creditsAfter = await deductTeamCredits(tid, cost);
-    } else {
+  const activeTeam = await getUserActiveTeam(userId);
+  if (activeTeam) {
+    const tid: string = activeTeam.team.id;
+    const poolBalance: number = activeTeam.team.credits;
+    const allowFallback: boolean = activeTeam.team.allowPersonalFallback ?? true;
+    if (poolBalance >= cost) {
+      try {
+        teamId = tid;
+        creditsAfter = await deductTeamCredits(tid, cost);
+      } catch (e) {
+        // Race: pool dropped below cost between the check and the deduction.
+        // Honor the team's fallback policy instead of silently charging personal.
+        if (!allowFallback) throw e;
+        logger.warn({ userId, cost, teamId: tid, err: e instanceof Error ? e.message : String(e) }, "[credits] team pool race lost, falling back to personal balance per team policy");
+        teamId = null;
+        creditsAfter = await deductCredits(userId, cost);
+      }
+    } else if (allowFallback) {
+      // Pool insufficient and team allows it: explicit (logged) personal fallback.
+      logger.info({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient, using personal balance per team policy");
       creditsAfter = await deductCredits(userId, cost);
+    } else {
+      // Pool insufficient and team forbids personal fallback: fail loudly.
+      logger.warn({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient and personal fallback disabled — rejecting charge");
+      throw new OutOfCreditsError();
     }
-  } catch (e) {
-    // Team-pool deduction failed (race on the pool balance, or a lookup
-    // error) — fall back to the personal balance before giving up.
-    logger.warn({ userId, cost, err: e instanceof Error ? e.message : String(e) }, "[credits] team pool unavailable, falling back to personal balance");
-    teamId = null;
+  } else {
     creditsAfter = await deductCredits(userId, cost);
   }
   const rollback = opts?.rollbackOnLedgerFailure ?? true;

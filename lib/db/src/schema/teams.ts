@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -22,6 +22,13 @@ export const teamsTable = pgTable("teams", {
   ownerId:   uuid("owner_id").notNull(),
   /** Shared credit pool. Members spend from this via chargeCredits(). */
   credits:   integer("credits").notNull().default(0),
+  /**
+   * When true (default), member spending falls back to personal credits if
+   * the shared pool is insufficient. When false, spending fails with
+   * OutOfCreditsError instead of touching personal balances.
+   * Owner/admin configurable via PATCH /api/teams/:id.
+   */
+  allowPersonalFallback: boolean("allow_personal_fallback").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

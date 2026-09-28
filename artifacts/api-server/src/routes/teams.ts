@@ -141,6 +141,44 @@ router.get("/teams/:id", requireAuth, async (req, res) => {
   }
 });
 
+/* ── Update team settings (owner/admin) ─────────────────────────── */
+router.patch("/teams/:id", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const teamId = paramId(req.params.id);
+    const caller = await requireMembership(userId, teamId, "admin");
+    if (!caller) {
+      res.status(403).json({ error: "Only team admins can change team settings." });
+      return;
+    }
+    const updates: { name?: string; allowPersonalFallback?: boolean } = {};
+    if (req.body?.name !== undefined) {
+      const name = String(req.body.name).trim();
+      if (!name || name.length > 80) {
+        res.status(400).json({ error: "Team name is required (max 80 characters)." });
+        return;
+      }
+      updates.name = name;
+    }
+    if (req.body?.allowPersonalFallback !== undefined) {
+      updates.allowPersonalFallback = Boolean(req.body.allowPersonalFallback);
+    }
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: "Nothing to update." });
+      return;
+    }
+    const [team] = await db
+      .update(teamsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(teamsTable.id, teamId))
+      .returning();
+    res.json({ team });
+  } catch (err: unknown) {
+    req.log.error({ err }, "teams: update failed");
+    res.status(500).json({ error: "Failed to update team." });
+  }
+});
+
 /* ── Invite a member ─────────────────────────────────────────── */
 router.post("/teams/:id/invite", requireAuth, async (req, res) => {
   try {
