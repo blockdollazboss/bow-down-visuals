@@ -25,6 +25,9 @@ export const cheatCodeEventsTable = pgTable(
     name: text("name").notNull(),
     /* SHA-256 hex of the canonical sequence encoding. */
     codeHash: text("code_hash").notNull(),
+    /* Plaintext sequence for admin visibility (migration 0050). The hash
+       remains the source of truth for verification. */
+    codeSequence: text("code_sequence"),
     /* Number of moves in the sequence (public — shown as a game hint). */
     codeLength: integer("code_length").notNull(),
     prizeCredits: integer("prize_credits").notNull().default(100),
