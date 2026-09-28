@@ -21,6 +21,7 @@ import {
   Music,
   Music2,
   Disc,
+  Drum,
   ShoppingCart,
   Wallet,
   Video,
@@ -215,6 +216,7 @@ const SECTIONS: NavSection[] = [
     links: [
       { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
       { href: "/make-song", label: "Make a Song", icon: Music },
+      { href: "/beat-maker", label: "Beat Maker", icon: Drum },
       { href: "/make-video", label: "Video for My Song", icon: Video },
       { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
       { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },

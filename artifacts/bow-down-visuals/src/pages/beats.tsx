@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import {
   Disc3, Loader2, Play, Pause, Sparkles, Plus, Search, SlidersHorizontal,
   Tag, BadgeDollarSign, Store, BarChart3, Music2, AlertTriangle, CheckCircle2,
-  X,
+  X, Wand2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -257,6 +257,12 @@ export default function Beats() {
           <p className="text-white/50 mt-3 max-w-xl mx-auto">
             Producers list for free. Artists license in one click. 15% site commission on sales.
           </p>
+          <Link
+            href="/beat-maker"
+            className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl bg-primary text-black text-sm font-bold hover:bg-primary/90 transition-colors"
+          >
+            <Wand2 className="w-4 h-4" /> Make your own beat instead
+          </Link>
         </div>
 
         {/* Tabs */}
