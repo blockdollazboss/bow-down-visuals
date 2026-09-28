@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { getThemeBeat } from "@/lib/theme-analyser";
 
 /* ─────────────────── Homepage hero spotlight rig ─────────────────── */
 /* Six gold beams washing down over the hero, landing near the Shark
@@ -11,16 +12,25 @@ import { useEffect, useRef } from "react";
    behind the drapes). The Shark King sits just below the curtain
    overlay — he scrolls behind the drapes, not over them.
 
-   Each beam: lamp glow → smooth cone → light pool where it lands. Beams
-   flash on staggered phases (CSS), the whole row eases toward the cursor
-   horizontally (rAF). Pure decoration: pointer-events-none, translucent,
-   reduced-motion safe. */
+   Each beam: lamp glow → smooth cone → light pool where it lands.
+
+   Motion, three layers that stack:
+   1. CSS staggered flash (always on) — the idle shimmer.
+   2. Mouse glide (rAF) — the whole row eases toward the cursor
+      horizontally. Still works while the beat drives the flash.
+   3. BEAT SYNC (rAF) — when the theme song is playing, every detected
+      kick drum hit slams all six beams to full brightness together,
+      then they decay back. Real light-rig feel, locked to the tempo.
+
+   Pure decoration: pointer-events-none, translucent, reduced-motion safe
+   (beat flash is disabled when the user prefers reduced motion). */
 
 const BEAM_DELAYS = [0, 0.45, 0.9, 1.35, 1.8, 2.25];
 
 export function SpotlightRig({ className = "" }: { className?: string }) {
   const rigRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const beamsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     const rig = rigRef.current;
@@ -51,6 +61,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
 
     const loop = () => {
       if (cancelled) return;
+      // — Mouse glide (keeps working whether or not music plays) —
       cx += (targetX - cx) * (reduce ? 1 : 0.08);
       if (Math.abs(targetX - cx) < 0.001) cx = targetX;
       // The rig is 1440px wide — clamp travel so the beams stay on screen.
@@ -59,6 +70,31 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       const half = (section?.clientWidth || window.innerWidth) / 2;
       const range = Math.max(0, half - 480);
       rig.style.transform = `translate3d(${(cx * range).toFixed(1)}px, 0, 0)`;
+
+      // — Beat sync: slam beams to full brightness on every kick —
+      const beat = reduce ? null : getThemeBeat();
+      const beams = beamsRef.current;
+      if (beat && beat.pulse > 0.02) {
+        // pulse 1 → full blast, decaying back toward the CSS idle shimmer.
+        // Slight per-beam stagger (12ms apart) reads as a wave rolling
+        // across the rig while still landing on the beat.
+        for (let i = 0; i < beams.length; i++) {
+          const el = beams[i];
+          if (!el) continue;
+          const stagger = Math.max(0, beat.pulse - i * 0.06);
+          const boost = Math.min(1, stagger * 1.15);
+          el.style.opacity = (0.55 + boost * 0.45).toFixed(3);
+          el.style.filter = boost > 0.03 ? `brightness(${(1 + boost * 0.55).toFixed(3)})` : "";
+        }
+      } else if (beams.length) {
+        // No beat (song paused/stopped) — hand brightness back to CSS.
+        for (const el of beams) {
+          if (!el) continue;
+          if (el.style.opacity) el.style.opacity = "";
+          if (el.style.filter) el.style.filter = "";
+        }
+      }
+
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -88,6 +124,7 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
               style={{ left: i * 240 - 60 }}
             >
               <div
+                ref={(el) => { beamsRef.current[i] = el; }}
                 className="spotlight-beam absolute inset-0"
                 style={{ animationDelay: `${BEAM_DELAYS[i]}s` }}
               >
