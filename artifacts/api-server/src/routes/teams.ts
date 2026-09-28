@@ -42,6 +42,11 @@ router.post("/teams", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Team name is required (max 80 characters)." });
       return;
     }
+    // ENTITLEMENT: Teams are positioned for Shot Caller tier and above.
+    // No reliable subscription-tier data exists yet (Stripe webhook records
+    // purchases but no tier/plan), so this is intentionally fail-open for the
+    // beta. When tiers launch, enforce here: look up the user's plan and
+    // return 403 unless Shot Caller or higher.
     // V1: one active team per user.
     const existing = await getUserActiveTeam(userId);
     if (existing) {
