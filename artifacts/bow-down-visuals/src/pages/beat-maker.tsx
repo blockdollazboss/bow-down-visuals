@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserMode } from "@/contexts/UserModeContext";
-import { MinStars } from "@/components/MinStars";
 import { CREDIT_COSTS } from "@/lib/credit-costs";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -750,20 +749,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
         >
           <Sparkles className="w-4 h-4" /> AI Beat
         </button>
-        <MinStars
-          level={6}
-          fallback={
-            <button
-              type="button"
-              onClick={enableAdvanced}
-              title="The Step Sequencer is an Advanced mode tool"
-              className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white/60 hover:text-white"
-            >
-              <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">ADVANCED</span>
-            </button>
-          }
-        >
+        {advanced ? (
           <button
             type="button"
             onClick={() => setTab("seq")}
@@ -774,15 +760,25 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
             <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300 font-bold">FREE</span>
           </button>
-        </MinStars>
+        ) : (
+          <button
+            type="button"
+            onClick={enableAdvanced}
+            title="The Step Sequencer is an Advanced mode tool"
+            className="px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 text-white/60 hover:text-white"
+          >
+            <SlidersHorizontal className="w-4 h-4" /> Step Sequencer
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">ADVANCED</span>
+          </button>
+        )}
       </div>
 
       {tab === "ai" ? (
         <AiBeatTab onGenerated={onGenerated} />
+      ) : advanced ? (
+        <SequencerTab onGenerated={onGenerated} />
       ) : (
-        <MinStars level={6} fallback={<SequencerGate onEnable={enableAdvanced} />}>
-          <SequencerTab onGenerated={onGenerated} />
-        </MinStars>
+        <SequencerGate onEnable={enableAdvanced} />
       )}
     </div>
   );
