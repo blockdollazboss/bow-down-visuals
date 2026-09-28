@@ -211,7 +211,7 @@ export default function TeamPage() {
       setMsg("✗ Enter a credit amount greater than 0.");
       return;
     }
-    if (!confirm(`Move ${amount} credits from your balance to the team pool?`)) return;
+    if (!confirm(`Move ${amount} Visual Bucs from your balance to the team pool?`)) return;
     setFunding(true);
     setMsg(null);
     try {
@@ -226,7 +226,7 @@ export default function TeamPage() {
       });
       setFundAmount("");
       await load();
-      setMsg(data?.duplicate ? `✓ Already funded — no duplicate charge.` : `✓ ${amount} credits added to the team pool.`);
+      setMsg(data?.duplicate ? `✓ Already funded — no duplicate charge.` : `✓ ${amount} Visual Bucs added to the team pool.`);
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed to fund the pool."}`);
     } finally {
@@ -322,7 +322,7 @@ export default function TeamPage() {
         <Card className="p-6 bg-white/[0.03] border-white/10">
           <h2 className="font-bold text-white mb-2">Create a team</h2>
           <p className="text-sm text-white/50 mb-4">
-            Included with Shot Caller ($199/mo). Pool your credits, share artist vaults, and create together.
+            Included with Shot Caller ($199/mo). Pool your Visual Bucs, share artist vaults, and create together.
           </p>
           <div className="flex gap-2">
             <Input
@@ -347,7 +347,7 @@ export default function TeamPage() {
                 <p className="text-4xl font-black text-[#C9A84C] flex items-center gap-2">
                   <Coins className="h-7 w-7" /> {activeTeam.credits.toLocaleString()}
                 </p>
-                <p className="text-xs text-white/40 mt-1">credits shared across all members</p>
+                <p className="text-xs text-white/40 mt-1">Visual Bucs shared across all members</p>
               </div>
               {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
                 <div className="flex gap-2 items-center">
@@ -371,8 +371,8 @@ export default function TeamPage() {
                   <p className="text-sm font-semibold text-white">Personal credit fallback</p>
                   <p className="text-xs text-white/40">
                     {activeTeam.allowPersonalFallback
-                      ? "When the pool runs low, member spending uses personal credits."
-                      : "Pool-only: spending stops when the pool is empty. Personal credits are never touched."}
+                      ? "When the pool runs low, member spending uses personal Visual Bucs."
+                      : "Pool-only: spending stops when the pool is empty. Personal Visual Bucs are never touched."}
                   </p>
                 </div>
                 <Button
