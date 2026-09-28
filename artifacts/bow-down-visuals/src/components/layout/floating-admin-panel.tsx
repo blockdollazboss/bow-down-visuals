@@ -453,7 +453,7 @@ function BowRaceControls({
         type="button"
         onClick={() => setTestPopup(true)}
         className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/70 hover:text-white hover:border-white/40 transition-colors ml-1"
-        title="Preview the winner popup (no credits granted, no race state changed)"
+        title="Preview the winner popup (no Visual Bucs granted, no race state changed)"
       >
         Test winner popup
       </button>
