@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { BowTestLogo } from "@/components/BowTestLogo";
+import SpotlightPromo from "@/components/SpotlightPromo";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -134,6 +135,8 @@ export default function Login() {
         disablePictureInPicture
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
       />
+      {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
+      <SpotlightPromo />
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
 
