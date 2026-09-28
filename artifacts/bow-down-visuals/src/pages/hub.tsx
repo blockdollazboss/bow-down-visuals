@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useHubProject, type HubAsset, type HubAssetKind, type HubProjectType } from "@/lib/hub-project";
 import {
-  getWorkflow, PROJECT_WORKFLOWS, KIND_LABEL, AUDIO_KINDS, NEXT_STEPS,
+  getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, NEXT_STEPS,
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { BeatMakerModule } from "./beat-maker";
@@ -80,26 +80,38 @@ function AssetCard({ asset }: { asset: HubAsset }) {
 
 function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 text-center max-w-3xl mx-auto">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 text-center max-w-4xl mx-auto">
       <Layers className="w-10 h-10 text-primary mx-auto mb-4" />
-      <h2 className="text-white font-black text-2xl mb-2">What are you making?</h2>
+      <h2 className="text-white font-black text-2xl mb-2">What are we working on?</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
         The hub lays out the right chain for the job — every step flows into the next.
       </p>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left">
-        {PROJECT_WORKFLOWS.map((w) => {
-          const Icon: LucideIcon = w.icon;
+      <div className="space-y-8 text-left">
+        {FAMILIES.map((f) => {
+          const members = PROJECT_WORKFLOWS.filter((w) => w.family === f.key);
+          if (members.length === 0) return null;
           return (
-            <button
-              key={w.type}
-              type="button"
-              onClick={() => onPick(w.type)}
-              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-primary/60 hover:bg-primary/[0.06] transition-all group"
-            >
-              <Icon className="w-7 h-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
-              <p className="text-white font-bold mb-1">{w.title}</p>
-              <p className="text-white/40 text-xs leading-relaxed">{w.tagline}</p>
-            </button>
+            <div key={f.key}>
+              <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">{f.label}</p>
+              <p className="text-white/35 text-xs mb-3">{f.blurb}</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {members.map((w) => {
+                  const Icon: LucideIcon = w.icon;
+                  return (
+                    <button
+                      key={w.type}
+                      type="button"
+                      onClick={() => onPick(w.type)}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-primary/60 hover:bg-primary/[0.06] transition-all group text-left"
+                    >
+                      <Icon className="w-7 h-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
+                      <p className="text-white font-bold mb-1">{w.title}</p>
+                      <p className="text-white/40 text-xs leading-relaxed">{w.tagline}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </div>
@@ -154,7 +166,7 @@ export default function Hub() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-black text-white">Creation Hub</h1>
+          <h1 className="text-3xl font-black text-white">Hub</h1>
           <MarketingBadge variant="muted">Beta</MarketingBadge>
         </div>
         <Button
@@ -196,13 +208,13 @@ export default function Hub() {
               </button>
             )}
             <span className="text-white/30 text-sm">·</span>
-            <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.04] border border-white/10">
+            <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.04] border border-white/10 max-w-full overflow-x-auto">
               {PROJECT_WORKFLOWS.map((w) => (
                 <button
                   key={w.type}
                   type="button"
                   onClick={() => { setProjectType(w.type); setActiveStep(null); }}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
                     w.type === project.type ? "bg-primary text-black" : "text-white/50 hover:text-white"
                   }`}
                 >
