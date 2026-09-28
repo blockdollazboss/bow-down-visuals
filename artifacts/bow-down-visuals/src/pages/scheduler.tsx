@@ -9,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import { Button } from "@/components/ui/button";
 import type { SocialAccountInfo } from "@/components/ConnectedAccounts";
 import {
@@ -957,6 +958,21 @@ function ComposerModal(props: {
             ? "Changes save instantly."
             : "Scheduling costs 1 credit per post — charged now, refunded automatically if you cancel."}
         </p>
+
+        {!isEdit && (
+          <ProjectFlowBar
+            kinds={["clip", "video"]}
+            actionLabel="Schedule it"
+            onPick={(asset) => {
+              if (!/^https:\/\//.test(asset.url)) {
+                toast({ title: "Needs a hosted file", description: "That asset lives only in this browser session — generate or upload a hosted video first." });
+                return;
+              }
+              setMediaRef(asset.url);
+              setPreviewUrl(asset.url);
+            }}
+          />
+        )}
 
         {/* media */}
         <div className="mt-6">

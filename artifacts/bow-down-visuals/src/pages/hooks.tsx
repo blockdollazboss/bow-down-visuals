@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
    Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -94,6 +95,11 @@ export default function HookStudio() {
   /* hook generator state */
   const [videoType, setVideoType] = useState<VideoTypeKey>("music-promo");
   const [topic, setTopic] = useState("");
+  const { project } = useHubProject();
+  useEffect(() => {
+    if (!topic && project.name) setTopic(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.name]);
   const [hooks, setHooks] = useState<string[]>([]);
   const [hooksLoading, setHooksLoading] = useState(false);
 

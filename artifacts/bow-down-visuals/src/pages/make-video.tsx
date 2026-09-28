@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
+import { useHubProject } from "@/lib/hub-project";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -225,6 +226,8 @@ export default function MakeVideo() {
   const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const { addAsset } = useHubProject();
+  const reportedClipUrls = useRef<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -664,6 +667,18 @@ export default function MakeVideo() {
   /* ── Autosave scenes ── */
   async function handleScenesChange(updated: SceneData[]) {
     setScenes(updated);
+    for (const sc of updated) {
+      const url = sc.demoClipUrl;
+      if (url && !reportedClipUrls.current.has(url)) {
+        reportedClipUrls.current.add(url);
+        addAsset({
+          kind: "video",
+          url,
+          label: `Scene ${sc.sceneNumber} — ${sc.section || "clip"}`,
+          detail: sc.action ? sc.action.slice(0, 60) : "AI scene clip",
+        });
+      }
+    }
     if (!savedProjectId) return;
     try {
       const token = await getAccessToken();

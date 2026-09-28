@@ -3,6 +3,7 @@ import { EditorSettings, getClipEdit } from "@/lib/editor-settings";
 import { pollExportJob } from "@/lib/export-job-poll";
 import { useConfirmedApi, type FetchImpl } from "@/hooks/use-confirmed-api";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
+import { useHubProject } from "@/lib/hub-project";
 import { Button } from "@/components/ui/button";
 import { Scissors, Loader2, Download, RotateCcw, X } from "lucide-react";
 
@@ -97,6 +98,7 @@ export function AutoClipSection({
 }: AutoClipSectionProps) {
   const { confirmedFetch } = useConfirmedApi();
   const { confirmSpend } = useCreditConfirm();
+  const { addAsset } = useHubProject();
   const [clipCount, setClipCount] = useState(3);
   const [clipLen, setClipLen] = useState(15);
   const [jobs, setJobs] = useState<ClipJob[]>([]);
@@ -203,6 +205,12 @@ export function AutoClipSection({
       try {
         const url = await renderOne(initial[i]!, skipConfirmFetch);
         setJobs((prev) => prev.map((j) => (j.id === i ? { ...j, status: "done", url } : j)));
+        addAsset({
+          kind: "clip",
+          url,
+          label: initial[i]!.label,
+          detail: "Auto Clip · vertical promo",
+        });
       } catch (e) {
         setJobs((prev) =>
           prev.map((j) =>

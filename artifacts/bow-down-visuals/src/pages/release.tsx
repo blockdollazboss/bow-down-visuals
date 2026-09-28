@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Release Checklist ─────────────────────────────────────────────────
    AI-powered song/album release planner. POSTs to /api/release-checklist
@@ -106,6 +107,11 @@ export default function ReleaseChecklist() {
 
   const [releaseType, setReleaseType] = useState<ReleaseType>("single");
   const [title, setTitle] = useState("");
+  const { project } = useHubProject();
+  useEffect(() => {
+    if (!title && project.name) setTitle(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.name]);
   const [genre, setGenre] = useState("");
   const [releaseDate, setReleaseDate] = useState(defaultDate);
 

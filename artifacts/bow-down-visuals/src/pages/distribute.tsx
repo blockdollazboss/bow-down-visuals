@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import {
   DISTRIBUTION_PLATFORMS,
   DISTRIBUTION_AI_CREDIT_COST,
@@ -447,6 +448,16 @@ function NewReleaseWizard(props: {
       {/* ── step 1: music ── */}
       {step === 0 && (
         <Section title="Pick your music" icon={<Music2 className="h-5 w-5 text-primary" />}>
+          <ProjectFlowBar
+            kinds={["song"]}
+            actionLabel="Distribute it"
+            onPick={(asset) => {
+              setSongId(null);
+              setAudioUrl(asset.url);
+              if (!title.trim()) setTitle(asset.label);
+              if (tracks.length === 1 && !tracks[0]!.title.trim()) setTracks([{ title: asset.label }]);
+            }}
+          />
           <p className={labelClass}>From your song library <span className="font-normal normal-case text-white/30">(free — selecting one prefills title + audio)</span></p>
           {songsLoading ? (
             <p className="py-6 text-center text-sm text-white/40"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /></p>
