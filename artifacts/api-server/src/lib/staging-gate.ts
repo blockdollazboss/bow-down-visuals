@@ -98,7 +98,8 @@ export function stagingGate(req: Request, res: Response, next: NextFunction): vo
     return;
   }
   if (req.path === LOGOUT_PATH) {
-    res.clearCookie(COOKIE_NAME, { path: "/" });
+    const secure = req.secure || req.headers["x-forwarded-proto"] === "https";
+    res.clearCookie(COOKIE_NAME, { path: "/", httpOnly: true, sameSite: "lax", secure });
     res.redirect(LOGIN_PATH);
     return;
   }
