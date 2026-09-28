@@ -198,6 +198,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(null);
     setProfile(null);
+
+    /* Staging gate: signing out of the app also drops the staging pass
+       cookie, so the password is asked again on the next visit. Nobody
+       but the owner should see the staging site. Best-effort — this
+       endpoint only exists where the gate is deployed. */
+    try {
+      await fetch("/__staging_logout", { credentials: "same-origin" });
+    } catch {
+      /* ignore — no staging gate here */
+    }
+
     window.history.pushState({}, "", "/");
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
