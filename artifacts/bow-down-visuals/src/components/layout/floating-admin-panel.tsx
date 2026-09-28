@@ -382,7 +382,7 @@ function BowRaceControls({
       <div className="flex items-center justify-between mb-1.5 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
         <span className="text-xs text-white/50 font-semibold">Live bow count</span>
         <span className="text-sm font-black text-[#C9A84C]">
-          {liveCount != null ? liveCount.toLocaleString() : "—"}
+          {(liveCount ?? 0).toLocaleString()}
           {liveTarget != null && (
             <span className="text-white/40 font-semibold"> / {liveTarget.toLocaleString()}</span>
           )}
