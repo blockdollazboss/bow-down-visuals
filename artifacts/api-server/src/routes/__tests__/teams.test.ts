@@ -549,6 +549,65 @@ describe("POST /api/teams/:id/fund — funding saga", () => {
   });
 });
 
+describe("POST /api/teams/:id/accept + decline — idempotent invites", () => {
+  const seedInvite = (over: any = {}) => {
+    dbState.teamMembers.push({
+      id: "inv-1",
+      teamId: "team-1",
+      userId: null,
+      email: testState.userEmail.toLowerCase(),
+      role: "member",
+      status: "invited",
+      ...over,
+    });
+    dbState.teams.push({ id: "team-1", name: "T", ownerId: "owner-9", credits: 50 });
+  };
+
+  it("activates the invite and links the user", async () => {
+    seedInvite();
+    const { status, body } = await post("/api/teams/team-1/accept", {});
+    expect(status).toBe(200);
+    expect(body.ok).toBe(true);
+    const inv = dbState.teamMembers.find((m: any) => m.id === "inv-1");
+    expect(inv.status).toBe("active");
+    expect(inv.userId).toBe("user-1");
+  });
+
+  it("is idempotent: re-accept returns ok without duplicating", async () => {
+    seedInvite({ status: "active", userId: "user-1" });
+    const { status, body } = await post("/api/teams/team-1/accept", {});
+    expect(status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.duplicate).toBe(true);
+    expect(dbState.teamMembers.filter((m: any) => m.status === "active" && m.userId === "user-1")).toHaveLength(1);
+  });
+
+  it("400s when already on another team", async () => {
+    seedInvite();
+    dbState.teamMembers.push({ id: "m-active", teamId: "team-9", userId: "user-1", email: "x@y.z", role: "member", status: "active" });
+    dbState.teams.push({ id: "team-9", name: "Other", ownerId: "owner-9", credits: 0 });
+    testState.activeTeam = { team: { id: "team-9" }, membership: { id: "m-active" } };
+    const { status } = await post("/api/teams/team-1/accept", {});
+    expect(status).toBe(400);
+    expect(dbState.teamMembers.find((m: any) => m.id === "inv-1").status).toBe("invited");
+  });
+
+  it("404s with no invite", async () => {
+    dbState.teams.push({ id: "team-1", name: "T", ownerId: "owner-9", credits: 50 });
+    const { status } = await post("/api/teams/team-1/accept", {});
+    expect(status).toBe(404);
+  });
+
+  it("decline removes the invite and is a no-op the second time", async () => {
+    seedInvite();
+    const first = await post("/api/teams/team-1/decline", {});
+    expect(first.status).toBe(200);
+    expect(dbState.teamMembers.find((m: any) => m.id === "inv-1")).toBeUndefined();
+    const second = await post("/api/teams/team-1/decline", {});
+    expect(second.status).toBe(200);
+  });
+});
+
 describe("POST /api/teams/:id/transfer — owner-only atomic handoff", () => {
   it("403s for non-owners", async () => {
     seedTeam({ memberRole: "admin" });

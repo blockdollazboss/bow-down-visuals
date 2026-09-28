@@ -372,11 +372,19 @@ router.post("/teams/:id/accept", requireAuth, async (req, res) => {
         and(
           eq(teamMembersTable.teamId, teamId),
           eq(teamMembersTable.email, email.toLowerCase()),
-          eq(teamMembersTable.status, "invited"),
         ),
       )
       .limit(1);
     if (!invite) {
+      res.status(404).json({ error: "No pending invite for this team." });
+      return;
+    }
+    // Idempotent: re-accepting an already-accepted invite returns success.
+    if (invite.status === "active" && invite.userId === userId) {
+      res.json({ ok: true, duplicate: true });
+      return;
+    }
+    if (invite.status !== "invited") {
       res.status(404).json({ error: "No pending invite for this team." });
       return;
     }
@@ -385,10 +393,33 @@ router.post("/teams/:id/accept", requireAuth, async (req, res) => {
       res.status(400).json({ error: "You're already on a team. Leave it before joining another." });
       return;
     }
-    await db
-      .update(teamMembersTable)
-      .set({ status: "active", userId, joinedAt: new Date() })
-      .where(eq(teamMembersTable.id, invite.id));
+    // Atomic activation: the NOT EXISTS guard makes concurrent accepts of two
+    // different teams safe — only the first wins. The partial unique index
+    // team_members_one_active_per_user_uidx is the backstop; a 23505 means we
+    // lost the race and gets the same friendly 400.
+    try {
+      const [activated] = await db
+        .update(teamMembersTable)
+        .set({ status: "active", userId, joinedAt: new Date() })
+        .where(
+          and(
+            eq(teamMembersTable.id, invite.id),
+            eq(teamMembersTable.status, "invited"),
+            sql`NOT EXISTS (SELECT 1 FROM ${teamMembersTable} AS tm WHERE tm.user_id = ${userId} AND tm.status = 'active')`,
+          ),
+        )
+        .returning();
+      if (!activated) {
+        res.status(400).json({ error: "You're already on a team. Leave it before joining another." });
+        return;
+      }
+    } catch (updateErr: unknown) {
+      if ((updateErr as { code?: string })?.code === "23505") {
+        res.status(400).json({ error: "You're already on a team. Leave it before joining another." });
+        return;
+      }
+      throw updateErr;
+    }
     res.json({ ok: true });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: accept failed");

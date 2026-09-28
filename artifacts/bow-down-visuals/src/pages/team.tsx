@@ -146,7 +146,7 @@ export default function TeamPage() {
       });
       setInviteEmail("");
       await load();
-      setMsg("✓ Invite sent.");
+      setMsg("✓ Invite created — they'll see it on their Team Workspace page.");
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed to send invite."}`);
     } finally {
@@ -457,9 +457,10 @@ export default function TeamPage() {
                   <option value="admin">Admin</option>
                 </select>
                 <Button onClick={() => void handleInvite()} disabled={inviting || !inviteEmail.trim()} className="bg-[#C9A84C] text-black hover:bg-[#C9A84C]/90 font-bold">
-                  {inviting ? "Sending…" : "Send invite"}
+                  {inviting ? "Inviting…" : "Invite"}
                 </Button>
               </div>
+              <p className="text-xs text-white/40 mt-2">In-app invite — they'll see it on their Team Workspace page. No email is sent.</p>
             </Card>
           )}
 
