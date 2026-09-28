@@ -202,6 +202,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new PopStateEvent("popstate"));
   }
 
+  /* One-time trial credits: covers email + social signups. The endpoint is
+   * idempotent; localStorage gates the call so it only fires until the first
+   * success (or confirmed already-claimed). Best-effort — it must never
+   * break sign-in. */
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (localStorage.getItem("bdv_trial_claimed") === "1") return;
+      } catch {
+        return;
+      }
+      const token = await getAccessToken();
+      if (cancelled || !token) return;
+      try {
+        const res = await fetch("/api/credits/claim-trial", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        try {
+          localStorage.setItem("bdv_trial_claimed", "1");
+        } catch { /* noop */ }
+        // Show the new balance immediately.
+        await refreshProfile();
+      } catch { /* noop */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   return (
     <AuthContext.Provider value={{ user, profile, supabase, loading, signUp, signIn, signInWithGoogle, signInWithProvider, signOut, refreshProfile, getAccessToken }}>
       {children}
