@@ -21,7 +21,7 @@ export interface WorkflowStep {
   blurb: string;
   creditNote: string;
   /** Inline module rendered in the hub stage instead of a launcher card. */
-  embed?: "beat-maker";
+  embed?: "beat-maker" | "thumbnail-maker";
 }
 
 export interface ProjectWorkflow {
@@ -76,7 +76,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
         creditNote: "from 1 credit" },
       { key: "thumbnail", label: "Thumbnail", icon: ImageIcon, assetKind: "thumbnail", href: "/thumbnail-maker",
         blurb: "The thumbnail that gets the click — then A/B test it.",
-        creditNote: "2 credits" },
+        creditNote: "2 credits", embed: "thumbnail-maker" },
     ],
   },
   {
@@ -90,7 +90,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
         creditNote: "free" },
       { key: "thumbnail", label: "Thumbnail", icon: ImageIcon, assetKind: "thumbnail", href: "/thumbnail-maker",
         blurb: "Scroll-stopping thumbnails in your locked identity.",
-        creditNote: "2 credits" },
+        creditNote: "2 credits", embed: "thumbnail-maker" },
       { key: "cover", label: "Cover Art", icon: Disc3, assetKind: "image", href: "/cover-art",
         blurb: "Single and album artwork with art direction that matches the music.",
         creditNote: "2–3 credits" },

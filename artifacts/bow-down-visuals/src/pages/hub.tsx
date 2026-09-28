@@ -13,6 +13,7 @@ import {
   type WorkflowStep,
 } from "@/lib/hub-workflows";
 import { BeatMakerModule } from "./beat-maker";
+import { ThumbnailMakerModule } from "./thumbnail-maker";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────
    One place for everything. Pick what you're making — a song, a video, or a
@@ -112,10 +113,14 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
             url: beat.url,
             label: beat.title,
             detail: `${Math.round(beat.durationMs / 1000)}s · AI generated`,
+            meta: beat.meta,
           })
         }
       />
     );
+  }
+  if (step.embed === "thumbnail-maker") {
+    return <ThumbnailMakerModule />;
   }
   return null;
 }

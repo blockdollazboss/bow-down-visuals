@@ -18,6 +18,8 @@ export interface HubAsset {
   url: string;
   label: string;
   detail?: string;
+  /** Structured context the next step can prefill from (genre, bpm, style…). */
+  meta?: Record<string, string>;
   createdAt: number;
 }
 

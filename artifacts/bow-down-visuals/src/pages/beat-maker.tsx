@@ -48,6 +48,7 @@ interface GeneratedBeat {
   url: string;
   title: string;
   durationMs: number;
+  meta?: Record<string, string>;
 }
 
 function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
@@ -97,6 +98,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
         url: data.url,
         title: title.trim() || `${genre} beat · ${bpm} BPM`,
         durationMs: data.durationMs ?? duration * 1000,
+        meta: { genre, bpm: String(bpm), key: musicalKey },
       };
       setBeat(generated);
       onGenerated?.(generated);

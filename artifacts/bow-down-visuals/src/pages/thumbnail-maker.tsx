@@ -75,7 +75,7 @@ const textareaClass =
   "focus:border-primary/50 focus:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-primary/25 " +
   "focus-visible:ring-offset-0 transition-colors rounded-xl resize-none";
 
-export default function ThumbnailMaker() {
+export function ThumbnailMakerModule() {
   const { getAccessToken, refreshProfile } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
@@ -191,35 +191,8 @@ export default function ThumbnailMaker() {
   const selectedImage = images.find((i) => i.variation === selected) ?? images[0] ?? null;
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
-      </div>
-      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
-        >
-          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </Link>
-
-        <div className="mb-10">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
-              <ImageIcon className="h-5 w-5 text-primary" />
-            </div>
-            <MarketingBadge variant="muted">2 credits · 4 variations</MarketingBadge>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            AI Thumbnail Generator
-          </h1>
-          <p className="text-white/50 text-lg max-w-2xl">
-            Describe your video, pick a style, and get 4 scroll-stopping thumbnails in one shot.
-            Add your face for identity lock.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
+    <>
+      <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 space-y-8">
           {/* Prompt */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-white/70 uppercase tracking-wider">
@@ -456,8 +429,6 @@ export default function ThumbnailMaker() {
             )}
           </div>
         )}
-      </div>
-
       {/* Lightbox */}
       {lightbox && (
         <div
@@ -479,6 +450,42 @@ export default function ThumbnailMaker() {
           />
         </div>
       )}
+    </>
+  );
+}
+
+export default function ThumbnailMaker() {
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-yellow-600/8 rounded-full blur-[100px]" />
+      </div>
+      <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-14">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
+        </Link>
+
+        <div className="mb-10">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <ImageIcon className="h-5 w-5 text-primary" />
+            </div>
+            <MarketingBadge variant="muted">2 credits · 4 variations</MarketingBadge>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
+            AI Thumbnail Generator
+          </h1>
+          <p className="text-white/50 text-lg max-w-2xl">
+            Describe your video, pick a style, and get 4 scroll-stopping thumbnails in one shot.
+            Add your face for identity lock.
+          </p>
+        </div>
+
+        <ThumbnailMakerModule />
+      </div>
     </div>
   );
 }

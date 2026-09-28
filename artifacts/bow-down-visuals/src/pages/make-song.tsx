@@ -12,6 +12,8 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import type { HubAsset } from "@/lib/hub-project";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -117,6 +119,7 @@ export default function MakeSong() {
   const [uploadedLyrics, setUploadedLyrics] = useState<string>("");
   const [uploadedSongUrl, setUploadedSongUrl] = useState<string | null>(null);
   const [uploadedSongFile, setUploadedSongFile] = useState<File | null>(null);
+  const [projectBeat, setProjectBeat] = useState<HubAsset | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SongFormValues>({
     defaultValues: {
@@ -201,6 +204,29 @@ export default function MakeSong() {
             Create lyrics, hooks, verses, beat direction, vocal style, and AI music prompts for your next release.
           </p>
         </div>
+
+        <ProjectFlowBar
+          kinds={["beat"]}
+          actionLabel="Build on it"
+          onPick={(beat) => {
+            setProjectBeat(beat);
+            const genre = beat.meta?.genre;
+            const bpm = beat.meta?.bpm;
+            if (!watched.beatStyle) {
+              setValue("beatStyle", genre && bpm ? `${genre} at ${bpm} BPM` : beat.label, { shouldDirty: true });
+            }
+            if (genre && !watched.genre) setValue("genre", genre, { shouldDirty: true });
+          }}
+        />
+
+        {projectBeat && (
+          <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 mb-6 flex items-center gap-3">
+            <audio src={projectBeat.url} controls className="h-8 flex-1 min-w-0" />
+            <p className="text-xs text-white/60 shrink-0">
+              Building on <span className="text-white font-semibold">{projectBeat.label}</span>
+            </p>
+          </div>
+        )}
 
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
