@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
-export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "release" | "grow" | "monetize" | "learn" | "business";
+export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "release" | "grow" | "monetize" | "learn" | "business";
 
 export interface HubAsset {
   id: string;
