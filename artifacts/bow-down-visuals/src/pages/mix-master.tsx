@@ -593,7 +593,7 @@ function MasterPanel() {
             disabled={!file || !user}
             className="w-full rounded-xl bg-gradient-to-br from-[#f7dd7f] to-[#C9A84C] py-3.5 font-black text-black hover:brightness-110 active:scale-[0.99] transition disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {!user ? "Sign in to master" : `Master my track — ${MASTER_CREDIT_COST} credits`}
+            {!user ? "Sign in to master" : `Master my track — ${MASTER_CREDIT_COST} Visual Bucs`}
           </button>
           {typeof creditsRemaining === "number" && (
             <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
