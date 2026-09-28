@@ -22,8 +22,10 @@ const HubAssetSchema = z.object({
 
 const SaveHubProjectSchema = z.object({
   name: z.string().min(1).max(80),
-  type: z.enum(["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "monetize", "learn", "business"]),
+  type: z.enum(["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"]),
   assets: z.array(HubAssetSchema).max(200),
+  concept: z.string().max(2000).default(""),
+  templateKey: z.string().max(80).nullable().default(null),
   updatedAt: z.number(),
 });
 
@@ -45,6 +47,8 @@ router.get("/hub/project", requireAuth, async (req, res) => {
       name: row.name,
       type: row.type,
       assets: Array.isArray(row.assets) ? row.assets : [],
+      concept: row.concept ?? "",
+      templateKey: row.templateKey ?? null,
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
     },
   });
@@ -67,6 +71,8 @@ router.put("/hub/project", requireAuth, async (req, res) => {
       name: d.name,
       type: d.type,
       assets: d.assets,
+      concept: d.concept,
+      templateKey: d.templateKey,
       updated_at: new Date(d.updatedAt),
     })
     .onConflictDoUpdate({
@@ -75,6 +81,8 @@ router.put("/hub/project", requireAuth, async (req, res) => {
         name: d.name,
         type: d.type,
         assets: d.assets,
+        concept: d.concept,
+        templateKey: d.templateKey,
         updated_at: new Date(d.updatedAt),
       },
     });

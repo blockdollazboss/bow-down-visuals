@@ -7,6 +7,8 @@ export const hubProjectsTable = pgTable("hub_projects", {
   name: text("name").notNull().default("Untitled Project"),
   type: text("type").notNull().default("song"),
   assets: jsonb("assets").notNull().default([]),
+  concept: text("concept").notNull().default(""),
+  templateKey: text("template_key"),
   updated_at: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   created_at: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

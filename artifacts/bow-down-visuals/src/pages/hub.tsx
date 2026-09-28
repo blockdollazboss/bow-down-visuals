@@ -5,13 +5,14 @@ import { Input } from "@/components/ui/input";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Plus, Trash2, Download, ArrowRight, FolderOpen, Sparkles, Music4,
-  Layers, ChevronLeft, type LucideIcon,
+  Layers, ChevronLeft, Zap, FilePlus2, type LucideIcon,
 } from "lucide-react";
 import { useHubProject, type HubAsset, type HubAssetKind, type HubProjectType } from "@/lib/hub-project";
 import {
   getWorkflow, PROJECT_WORKFLOWS, FAMILIES, KIND_LABEL, AUDIO_KINDS, NEXT_STEPS,
   type WorkflowStep,
 } from "@/lib/hub-workflows";
+import { getTemplates, getTemplate, type HubTemplate } from "@/lib/hub-templates";
 import { BeatMakerModule } from "./beat-maker";
 import { ThumbnailMakerModule } from "./thumbnail-maker";
 
@@ -127,6 +128,58 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
   );
 }
 
+/* ─── Template picker: CapCut-style preloaded starters ───────────────────── */
+
+function TemplatePicker({ type, onPick, onBack }: { type: HubProjectType; onPick: (t: HubTemplate | null) => void; onBack: () => void }) {
+  const workflow = getWorkflow(type);
+  const templates = getTemplates(type);
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 md:p-12 max-w-4xl mx-auto">
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1 text-white/40 hover:text-white text-sm mb-6 transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" /> All project types
+      </button>
+      <h2 className="text-white font-black text-2xl mb-2">Start your {workflow.title} from a template?</h2>
+      <p className="text-white/45 text-sm mb-8 max-w-md">
+        Preloaded with the concept, settings, and step-by-step starters — pick one and you're already moving.
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3 text-left">
+        <button
+          key="__blank"
+          type="button"
+          onClick={() => onPick(null)}
+          className="rounded-2xl border border-dashed border-white/15 bg-transparent p-5 hover:border-primary/60 hover:bg-primary/[0.04] transition-all group text-left"
+        >
+          <FilePlus2 className="w-7 h-7 text-white/40 mb-3 group-hover:text-primary group-hover:scale-110 transition-all" />
+          <p className="text-white font-bold mb-1">Start blank</p>
+          <p className="text-white/40 text-xs leading-relaxed">A clean slate — the guide walks you through everything.</p>
+        </button>
+        {templates.map((t) => {
+          const Icon: LucideIcon = t.icon;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onPick(t)}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 hover:border-primary/60 hover:bg-primary/[0.06] transition-all group text-left"
+            >
+              <Icon className="w-7 h-7 text-primary mb-3 group-hover:scale-110 transition-transform" />
+              <p className="text-white font-bold mb-1">{t.name}</p>
+              <p className="text-white/40 text-xs leading-relaxed mb-2">{t.blurb}</p>
+              <p className="text-primary/70 text-[11px] font-semibold flex items-center gap-1">
+                <Zap className="w-3 h-3" /> Preloaded: concept + {t.preload.length} step starters
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EmbeddedModule({ step }: { step: WorkflowStep }) {
   const { addAsset } = useHubProject();
   if (step.embed === "beat-maker") {
@@ -156,6 +209,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
   const { project, hasKind, stepDones, markStepDone } = useHubProject();
   const workflow = getWorkflow(project.type);
   const steps = workflow.steps;
+  const template = getTemplate(project.type, project.templateKey);
 
   const isDone = (s: WorkflowStep) =>
     (s.assetKind ? hasKind(s.assetKind) : false) || stepDones.includes(s.key);
@@ -179,6 +233,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
   const next = steps[safeIdx + 1] ?? null;
   const Icon = step.icon;
   const assets = step.assetKind ? project.assets.filter((a) => a.kind === step.assetKind) : [];
+  const stepHint = template?.preload.find((ph) => ph.step === step.key);
 
   const advance = () => {
     if (next) setIdx(safeIdx + 1);
@@ -190,6 +245,17 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
+      {/* Preloaded concept */}
+      {project.concept && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-2">
+            Your concept
+            {template && <span className="text-primary/70 normal-case"> · {template.name} template</span>}
+          </p>
+          <p className="text-white/70 text-sm leading-relaxed">{project.concept}</p>
+        </div>
+      )}
+
       {/* Progress */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -240,7 +306,17 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
               </span>
             )}
           </div>
-          <p className="text-white/50 text-sm leading-relaxed mb-6">{step.blurb}</p>
+          <p className="text-white/50 text-sm leading-relaxed mb-4">{step.blurb}</p>
+
+          {stepHint && (
+            <div className="rounded-xl border border-primary/25 bg-primary/[0.06] p-4 mb-6 flex gap-3">
+              <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="text-primary text-[11px] font-bold uppercase tracking-widest mb-1">Preloaded starter</p>
+                <p className="text-white/75 text-sm leading-relaxed">{stepHint.hint}</p>
+              </div>
+            </div>
+          )}
 
           {done ? (
             <div className="space-y-4">
@@ -467,18 +543,30 @@ function AllStepsView() {
 }
 
 export default function Hub() {
-  const { project, setProjectName, setProjectType, newProject, clearStepDones } = useHubProject();
+  const { project, setProjectName, setProjectType, setProjectConcept, setTemplateKey, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [pickingType, setPickingType] = useState(project.assets.length === 0);
+  const [templateType, setTemplateType] = useState<HubProjectType | null>(null);
   const [view, setView] = useState<"guided" | "all">("guided");
 
-  const startType = (t: HubProjectType) => {
+  const startWithTemplate = (t: HubProjectType, tpl: HubTemplate | null) => {
     clearStepDones(t);
     newProject();
     setProjectType(t);
+    if (tpl) {
+      setProjectName(tpl.projectName);
+      setProjectConcept(tpl.concept);
+      setTemplateKey(tpl.key);
+    }
+    setTemplateType(null);
     setPickingType(false);
     setView("guided");
+  };
+
+  const backToPicker = () => {
+    setTemplateType(null);
+    setPickingType(true);
   };
 
   return (
@@ -524,7 +612,7 @@ export default function Hub() {
           )}
           <Button
             variant="outline"
-            onClick={() => setPickingType(true)}
+            onClick={backToPicker}
             className="rounded-xl border-white/15 text-white/70 hover:text-white hover:border-white/30"
           >
             <Plus className="w-4 h-4 mr-2" /> New project
@@ -533,7 +621,15 @@ export default function Hub() {
       </div>
 
       {pickingType ? (
-        <TypePicker onPick={startType} />
+        templateType ? (
+          <TemplatePicker
+            type={templateType}
+            onPick={(tpl) => startWithTemplate(templateType, tpl)}
+            onBack={() => setTemplateType(null)}
+          />
+        ) : (
+          <TypePicker onPick={setTemplateType} />
+        )
       ) : (
         <>
           {/* Project name */}

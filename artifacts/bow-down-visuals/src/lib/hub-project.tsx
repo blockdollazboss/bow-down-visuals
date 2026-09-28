@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "sfx" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
-export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "podcast" | "release" | "grow" | "influencer" | "ai-influencer" | "ai-producer" | "monetize" | "learn" | "business";
+export type HubProjectType = "song" | "video" | "visual" | "movie" | "game" | "series" | "podcast" | "release" | "grow" | "influencer" | "ai-influencer" | "ai-producer" | "clipper" | "monetize" | "learn" | "business";
 
 export interface HubAsset {
   id: string;
@@ -31,6 +31,10 @@ export interface HubProject {
   type: HubProjectType;
   assets: HubAsset[];
   updatedAt: number;
+  /** Preloaded creative brief (from a template) — carried through the chain. */
+  concept: string;
+  /** Template key the concept came from (for per-step preloaded hints). */
+  templateKey: string | null;
 }
 
 export type HubSyncStatus = "local" | "syncing" | "synced" | "error";
@@ -40,6 +44,8 @@ interface HubProjectContextValue {
   syncStatus: HubSyncStatus;
   setProjectName: (name: string) => void;
   setProjectType: (type: HubProjectType) => void;
+  setProjectConcept: (concept: string) => void;
+  setTemplateKey: (key: string | null) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
   removeAsset: (id: string) => void;
   newProject: () => void;
@@ -63,6 +69,8 @@ function freshProject(): HubProject {
     type: "song",
     assets: [],
     updatedAt: Date.now(),
+    concept: "",
+    templateKey: null,
   };
 }
 
@@ -76,11 +84,13 @@ function loadProject(): HubProject {
     }
     // Blob URLs die with the page session — drop them on reload.
     parsed.assets = parsed.assets.filter((a) => !a.url.startsWith("blob:"));
-    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "monetize", "learn", "business"];
+    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"];
     return {
       ...parsed,
       id: parsed.id || freshProject().id,
       type: validTypes.includes(parsed.type) ? parsed.type : "song",
+      concept: typeof parsed.concept === "string" ? parsed.concept : "",
+      templateKey: typeof parsed.templateKey === "string" ? parsed.templateKey : null,
     };
   } catch {
     return freshProject();
@@ -133,6 +143,8 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         name: snapshot.name,
         type: snapshot.type,
         assets: snapshot.assets,
+        concept: snapshot.concept,
+        templateKey: snapshot.templateKey,
         updatedAt: snapshot.updatedAt,
       }),
     });
@@ -155,7 +167,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
         });
         if (!res.ok) throw new Error(`hub pull failed: ${res.status}`);
         const data = (await res.json()) as {
-          project: { name: string; type: HubProjectType; assets: HubAsset[]; updatedAt: number } | null;
+          project: { name: string; type: HubProjectType; assets: HubAsset[]; concept?: string; templateKey?: string | null; updatedAt: number } | null;
         };
         if (cancelled) return;
         const local = projectRef.current;
@@ -164,8 +176,10 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
           const adopted: HubProject = {
             id: local.id,
             name: server.name,
-            type: ["song", "video", "visual", "movie", "game", "series", "release", "grow", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
+            type: ["song", "video", "visual", "movie", "game", "series", "podcast", "release", "grow", "influencer", "ai-influencer", "ai-producer", "clipper", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
             assets: Array.isArray(server.assets) ? server.assets : [],
+            concept: typeof server.concept === "string" ? server.concept : "",
+            templateKey: typeof server.templateKey === "string" ? server.templateKey : null,
             updatedAt: server.updatedAt,
           };
           lastSyncedJson.current = JSON.stringify(adopted);
@@ -216,6 +230,14 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject((p) => ({ ...p, type, updatedAt: Date.now() }));
   }, []);
 
+  const setProjectConcept = useCallback((concept: string) => {
+    setProject((p) => ({ ...p, concept: concept.slice(0, 2000), updatedAt: Date.now() }));
+  }, []);
+
+  const setTemplateKey = useCallback((key: string | null) => {
+    setProject((p) => ({ ...p, templateKey: key, updatedAt: Date.now() }));
+  }, []);
+
   const addAsset = useCallback((asset: Omit<HubAsset, "id" | "createdAt">) => {
     const full: HubAsset = {
       ...asset,
@@ -263,6 +285,8 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       syncStatus,
       setProjectName,
       setProjectType,
+      setProjectConcept,
+      setTemplateKey,
       addAsset,
       removeAsset,
       newProject,
@@ -272,7 +296,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       markStepDone,
       clearStepDones,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones]);
+  }, [project, syncStatus, setProjectName, setProjectType, setProjectConcept, setTemplateKey, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -289,6 +313,8 @@ export function useHubProject(): HubProjectContextValue {
       syncStatus: "local",
       setProjectName: () => {},
       setProjectType: () => {},
+      setProjectConcept: () => {},
+      setTemplateKey: () => {},
       addAsset: noopAsset,
       removeAsset: () => {},
       newProject: () => {},
