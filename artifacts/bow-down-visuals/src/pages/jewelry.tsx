@@ -541,7 +541,7 @@ export default function JewelryStudio() {
             <h2 className="text-xl font-bold text-yellow-200">AI preview</h2>
             <p className="mt-1 text-sm text-zinc-400">
               A luxury product render of your design —{" "}
-              <span className="font-semibold text-yellow-300">{catalog?.previewCreditCost ?? 2} credits</span> per render.
+              <span className="font-semibold text-yellow-300">{catalog?.previewCreditCost ?? 2} Visual Bucs</span> per render.
             </p>
             <div className="mx-auto mt-6 flex h-80 max-w-md items-center justify-center overflow-hidden rounded-2xl border border-yellow-500/25 bg-black/80">
               {previewBusy ? (
@@ -561,7 +561,7 @@ export default function JewelryStudio() {
             <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
               <button onClick={generatePreview} disabled={previewBusy || !logoFile} className={goldBtn}>
                 {previewBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {previewUrl ? "Regenerate" : "Generate preview"} ({catalog?.previewCreditCost ?? 2} cr)
+                {previewUrl ? "Regenerate" : "Generate preview"} ({catalog?.previewCreditCost ?? 2} VB)
               </button>
               {previewUrl && (
                 <button onClick={generatePreview} disabled={previewBusy} className={ghostBtn}>
@@ -599,12 +599,12 @@ export default function JewelryStudio() {
                   Your logo is converted into a real <span className="font-semibold text-yellow-200">binary STL</span> —
                   a 35mm medallion with your logo in raised relief, a chain bail
                   {jOpts.nfc ? ", and an NFC tag cavity in the back" : ""}.{" "}
-                  <span className="font-semibold text-yellow-300">{catalog?.stlCreditCost ?? 4} credits</span>.
+                  <span className="font-semibold text-yellow-300">{catalog?.stlCreditCost ?? 4} Visual Bucs</span>.
                 </p>
                 {!stlInfo ? (
                   <button onClick={exportSTL} disabled={stlBusy || !logoFile} className={`${goldBtn} mt-5`}>
                     {stlBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileBox className="h-4 w-4" />}
-                    {stlBusy ? "Building your STL…" : `Export STL (${catalog?.stlCreditCost ?? 4} cr)`}
+                    {stlBusy ? "Building your STL…" : `Export STL (${catalog?.stlCreditCost ?? 4} VB)`}
                   </button>
                 ) : (
                   <div className="mt-5 rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-5 text-left">
@@ -640,7 +640,7 @@ export default function JewelryStudio() {
           <div className={`${card} mx-auto max-w-2xl`}>
             <h2 className="text-center text-xl font-bold text-yellow-200">What will it cost?</h2>
             <p className="mt-1 text-center text-sm text-zinc-400">
-              Instant estimate from your exact options — free, no credits.
+              Instant estimate from your exact options — free, no Visual Bucs.
             </p>
             {estimateBusy && (
               <div className="mt-6 flex items-center justify-center gap-2 text-yellow-300">
@@ -797,7 +797,7 @@ export default function JewelryStudio() {
           <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
             <div>
               <div className="text-sm font-bold text-yellow-200">🦈 Jewelry Consultant</div>
-              <div className="text-xs text-zinc-500">{catalog?.consultCreditCost ?? 1} credit per message · knows your design</div>
+              <div className="text-xs text-zinc-500">{catalog?.consultCreditCost ?? 1} Visual Buc per message · knows your design</div>
             </div>
             <button onClick={() => setConsultOpen(false)} className="text-zinc-400 hover:text-white">
               <X className="h-5 w-5" />

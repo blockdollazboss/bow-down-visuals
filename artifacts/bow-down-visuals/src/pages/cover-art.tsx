@@ -110,7 +110,7 @@ export default function CoverArt() {
           <div>
             <h1 className="text-2xl font-black">AI Cover Art Generator</h1>
             <p className="text-sm text-white/45">
-              Release-ready artwork with pro typography direction — {tierInfo.credits} credits
+              Release-ready artwork with pro typography direction — {tierInfo.credits} Visual Bucs
             </p>
           </div>
         </div>
@@ -227,7 +227,7 @@ export default function CoverArt() {
                     }`}
                   >
                     <span className="block text-xs font-bold">
-                      {t.label} <span className="text-primary">· {t.credits} cr</span>
+                      {t.label} <span className="text-primary">· {t.credits} VB</span>
                     </span>
                     <span className="block text-[10px] text-white/40">{t.blurb}</span>
                   </button>
@@ -246,7 +246,7 @@ export default function CoverArt() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate cover · {tierInfo.credits} credits
+                  <Sparkles className="h-4 w-4" /> Generate cover · {tierInfo.credits} Visual Bucs
                 </>
               )}
             </button>

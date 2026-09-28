@@ -178,7 +178,7 @@ async function chargeOr402(
   if (balance < cost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to run an AI match report.",
+      message: "You're out of Visual Bucs — top up to run an AI match report.",
     });
     return null;
   }
@@ -188,7 +188,7 @@ async function chargeOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to run an AI match report.",
+        message: "You're out of Visual Bucs — top up to run an AI match report.",
       });
       return null;
     }
@@ -380,20 +380,20 @@ router.post("/collabs/match", publicApiLimiter, requireAuth, async (req, res) =>
     }).catch(() => {});
     const status = (err as { status?: number }).status;
     if (status === 400) {
-      res.status(400).json({ error: "Set up your collab profile first — it takes 30 seconds. (Credit refunded.)" });
+      res.status(400).json({ error: "Set up your collab profile first — it takes 30 seconds. (Visual Buc refunded.)" });
       return;
     }
     if (status === 404) {
-      res.status(404).json({ error: "That creator's profile isn't available. (Credit refunded.)" });
+      res.status(404).json({ error: "That creator's profile isn't available. (Visual Buc refunded.)" });
       return;
     }
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[collabs] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The matcher is catching its breath — try again in a moment. (Credit refunded.)" });
+      res.status(503).json({ error: "The matcher is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[collabs] match failed");
-    res.status(502).json({ error: "The matcher hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "The matcher hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 

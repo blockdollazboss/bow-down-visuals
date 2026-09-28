@@ -310,7 +310,7 @@ export default function TextToSfx() {
             <div>
               <h2 className="text-xl font-bold">Generate a sound</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} credit per SFX · 1–{MAX_DURATION}s · WAV + MP3 downloads
+                {CREDIT_COST} Visual Buc per SFX · 1–{MAX_DURATION}s · WAV + MP3 downloads
               </p>
             </div>
           </div>
@@ -381,7 +381,7 @@ export default function TextToSfx() {
             {loading ? (
               <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Generating…</>
             ) : (
-              <><Zap className="h-4 w-4" aria-hidden="true" /> Generate SFX · {CREDIT_COST} credit</>
+              <><Zap className="h-4 w-4" aria-hidden="true" /> Generate SFX · {CREDIT_COST} Visual Buc</>
             )}
           </button>
           {!user && (

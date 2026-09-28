@@ -81,7 +81,7 @@ router.post("/generate-promo-clips", requireAuth, async (req, res) => {
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+      message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
     });
     return;
   }
@@ -163,12 +163,12 @@ Write a specific description of the perfect thumbnail or cover frame for this pr
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
         });
         return;
       }
       if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw deductErr;

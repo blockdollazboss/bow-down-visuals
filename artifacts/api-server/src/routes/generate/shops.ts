@@ -418,7 +418,7 @@ router.post("/shops/ai/shop-description", publicApiLimiter, requireAuth, async (
   }
   const balance = req.userCredits ?? 0;
   if (balance < SHOP_AI_CREDIT_COST) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to use the AI shop writer." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI shop writer." });
     return;
   }
   let creditsRemaining = balance;
@@ -426,7 +426,7 @@ router.post("/shops/ai/shop-description", publicApiLimiter, requireAuth, async (
     creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Shop Description" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to use the AI shop writer." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI shop writer." });
       return;
     }
     throw err;
@@ -475,7 +475,7 @@ router.post("/shops/ai/shop-description", publicApiLimiter, requireAuth, async (
       return;
     }
     logger.error({ err }, "[shops] shop-description generation failed");
-    res.status(502).json({ error: "The studio hiccupped — your credit was refunded. Try again." });
+    res.status(502).json({ error: "The studio hiccupped — your Visual Buc was refunded. Try again." });
   }
 });
 
@@ -491,7 +491,7 @@ router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, asyn
   }
   const balance = req.userCredits ?? 0;
   if (balance < SHOP_AI_CREDIT_COST) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to use the AI product writer." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI product writer." });
     return;
   }
   let creditsRemaining = balance;
@@ -499,7 +499,7 @@ router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, asyn
     creditsRemaining = await chargeCredits(req.userId!, SHOP_AI_CREDIT_COST, { action: "AI Product Description" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to use the AI product writer." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to use the AI product writer." });
       return;
     }
     throw err;
@@ -553,7 +553,7 @@ router.post("/shops/ai/product-description", publicApiLimiter, requireAuth, asyn
       return;
     }
     logger.error({ err }, "[shops] product-description generation failed");
-    res.status(502).json({ error: "The studio hiccupped — your credit was refunded. Try again." });
+    res.status(502).json({ error: "The studio hiccupped — your Visual Buc was refunded. Try again." });
   }
 });
 
@@ -571,7 +571,7 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
     parsed.data.tier === "premium" ? SHOP_IMAGE_PREMIUM_CREDITS : SHOP_IMAGE_STANDARD_CREDITS;
   const balance = req.userCredits ?? 0;
   if (balance < creditCost) {
-    res.status(402).json({ error: "out_of_credits", message: "Not enough credits for this product image." });
+    res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for this product image." });
     return;
   }
   let creditsRemaining = balance;
@@ -581,7 +581,7 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough credits for this product image." });
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for this product image." });
       return;
     }
     throw err;
@@ -629,8 +629,8 @@ router.post("/shops/ai/product-image", publicApiLimiter, requireAuth, async (req
       action: `AI Product Image (${parsed.data.tier}) — Refund (provider failed)`,
     });
     const msg = err instanceof Error ? err.message : "Product image generation failed";
-    logger.error({ err: msg }, "[shops] product-image generation failed — credit refunded");
-    res.status(502).json({ error: `${msg} Your credit was refunded.` });
+    logger.error({ err: msg }, "[shops] product-image generation failed — Visual Buc refunded");
+    res.status(502).json({ error: `${msg} Your Visual Buc was refunded.` });
   }
 });
 

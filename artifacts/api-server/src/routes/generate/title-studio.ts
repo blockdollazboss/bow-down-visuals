@@ -159,7 +159,7 @@ router.post("/title-studio", publicApiLimiter, requireAuth, async (req, res) => 
   if (balance < TITLE_STUDIO_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep using the Title Studio.",
+      message: "You're out of Visual Bucs — top up to keep using the Title Studio.",
     });
     return;
   }
@@ -172,7 +172,7 @@ router.post("/title-studio", publicApiLimiter, requireAuth, async (req, res) => 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep using the Title Studio.",
+        message: "You're out of Visual Bucs — top up to keep using the Title Studio.",
       });
       return;
     }
@@ -226,7 +226,7 @@ router.post("/title-studio", publicApiLimiter, requireAuth, async (req, res) => 
       return;
     }
     logger.error({ err }, "[title-studio] generation failed");
-    res.status(502).json({ error: "The studio hiccupped — try again. Your credit was refunded." });
+    res.status(502).json({ error: "The studio hiccupped — try again. Your Visual Buc was refunded." });
   }
 });
 

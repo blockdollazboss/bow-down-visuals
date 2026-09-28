@@ -595,7 +595,7 @@ export default function BrandingShop() {
                 <Sparkles className="h-5 w-5 text-primary" /> Design my brand kit
               </h2>
               <p className="mt-1 text-xs text-white/45">
-                AI creates your logo plus mockups on up to 3 products — {DESIGN_COST} credits per set.
+                AI creates your logo plus mockups on up to 3 products — {DESIGN_COST} Visual Bucs per set.
               </p>
               <div className="mt-5 space-y-4">
                 <div>
@@ -669,12 +669,12 @@ export default function BrandingShop() {
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-4 w-4" /> Design my brand kit · {DESIGN_COST} credits
+                      <Sparkles className="h-4 w-4" /> Design my brand kit · {DESIGN_COST} Visual Bucs
                     </>
                   )}
                 </button>
                 <p className="text-xs text-white/35">
-                  Credits are only charged on success — if the AI fails, you're refunded automatically.
+                  Visual Bucs are only charged on success — if the AI fails, you're refunded automatically.
                 </p>
               </div>
             </div>
@@ -865,7 +865,7 @@ export default function BrandingShop() {
             <span className="font-bold text-white/70">How fulfillment works:</span> this is a
             pure dropship store — our print partner manufactures and ships your merch
             directly to your fans, so you never touch inventory. AI brand-kit designs cost{" "}
-            {DESIGN_COST} credits; merch is sold at retail in USD via secure Stripe checkout.
+            {DESIGN_COST} Visual Bucs; merch is sold at retail in USD via secure Stripe checkout.
             Tracking appears on your order as soon as the carrier picks it up.
           </p>
         </div>

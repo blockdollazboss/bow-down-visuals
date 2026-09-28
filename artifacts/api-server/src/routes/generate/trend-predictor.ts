@@ -107,7 +107,7 @@ router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (r
   if (balance < FORECAST_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to predict your trends.",
+      message: "You're out of Visual Bucs — top up to predict your trends.",
     });
     return;
   }
@@ -118,7 +118,7 @@ router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (r
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to predict your trends.",
+        message: "You're out of Visual Bucs — top up to predict your trends.",
       });
       return;
     }
@@ -203,7 +203,7 @@ router.post("/trend-predictor/forecast", publicApiLimiter, requireAuth, async (r
       return;
     }
     logger.error({ err }, "[trend-predictor] forecast generation failed");
-    res.status(502).json({ error: "The predictor hiccupped — your credits were refunded." });
+    res.status(502).json({ error: "The predictor hiccupped — your Visual Bucs were refunded." });
   }
 });
 
@@ -224,7 +224,7 @@ router.post("/trend-predictor/ideas", publicApiLimiter, requireAuth, async (req,
   if (balance < IDEAS_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to get content ideas.",
+      message: "You're out of Visual Bucs — top up to get content ideas.",
     });
     return;
   }
@@ -235,7 +235,7 @@ router.post("/trend-predictor/ideas", publicApiLimiter, requireAuth, async (req,
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to get content ideas.",
+        message: "You're out of Visual Bucs — top up to get content ideas.",
       });
       return;
     }
@@ -304,7 +304,7 @@ router.post("/trend-predictor/ideas", publicApiLimiter, requireAuth, async (req,
       return;
     }
     logger.error({ err }, "[trend-predictor] ideas generation failed");
-    res.status(502).json({ error: "The predictor hiccupped — your credits were refunded." });
+    res.status(502).json({ error: "The predictor hiccupped — your Visual Bucs were refunded." });
   }
 });
 

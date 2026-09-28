@@ -104,7 +104,7 @@ router.post("/pro-tools/auto-grade", publicApiLimiter, requireAuth, async (req, 
   if (balance < PRO_TOOLS_AI_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to use AI Auto-Grade.",
+      message: "You're out of Visual Bucs — top up to use AI Auto-Grade.",
     });
     return;
   }
@@ -117,7 +117,7 @@ router.post("/pro-tools/auto-grade", publicApiLimiter, requireAuth, async (req, 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to use AI Auto-Grade.",
+        message: "You're out of Visual Bucs — top up to use AI Auto-Grade.",
       });
       return;
     }

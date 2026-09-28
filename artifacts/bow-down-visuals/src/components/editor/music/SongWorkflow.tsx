@@ -442,7 +442,7 @@ export function SongWorkflow({
         {/* ── Credits note (idle only) ── */}
         {txState === "idle" && (
           <p className="text-[10px] text-white/30 px-1">
-            Transcription uses OpenAI Whisper. No credits charged — billed to platform usage.
+            Transcription uses OpenAI Whisper. No Visual Bucs charged — billed to platform usage.
           </p>
         )}
       </div>

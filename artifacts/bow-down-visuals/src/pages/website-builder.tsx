@@ -140,7 +140,7 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Generation failed — credits were refunded.");
+        throw new Error(data.error || "Generation failed — Visual Bucs were refunded.");
       }
       setFiles(data.files);
       setShowPreview(true);
@@ -170,7 +170,7 @@ export default function WebsiteBuilder() {
       });
       const data = (await res!.json()) as GenerateResponse;
       if (!data.files) {
-        throw new Error(data.error || "Edit failed — credits were refunded.");
+        throw new Error(data.error || "Edit failed — Visual Bucs were refunded.");
       }
       setFiles(data.files);
       setEditRequest("");
@@ -413,7 +413,7 @@ export default function WebsiteBuilder() {
               <p className="mb-4 text-sm text-white/50">
                 "Make the hero section darker", "change the headline to…", "use warmer
                 colors" — each edit regenerates the site at{" "}
-                <span className="text-primary font-semibold">{EDIT_COST} credits</span>.
+                <span className="text-primary font-semibold">{EDIT_COST} Visual Bucs</span>.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input

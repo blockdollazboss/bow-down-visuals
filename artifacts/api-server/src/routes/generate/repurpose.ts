@@ -584,7 +584,7 @@ router.post(
     if (balance < REPURPOSE_PACK_CREDITS) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to repurpose videos.",
+        message: "You're out of Visual Bucs — top up to repurpose videos.",
       });
       return;
     }
@@ -597,12 +597,12 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to repurpose videos.",
+          message: "You're out of Visual Bucs — top up to repurpose videos.",
         });
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+        res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
         return;
       }
       throw err;
@@ -746,7 +746,7 @@ router.post("/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Requ
   if (balance < REPURPOSE_REROLL_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to re-roll.",
+      message: "You're out of Visual Bucs — top up to re-roll.",
     });
     return;
   }
@@ -759,12 +759,12 @@ router.post("/repurpose/reroll", publicApiLimiter, requireAuth, async (req: Requ
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to re-roll.",
+        message: "You're out of Visual Bucs — top up to re-roll.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return;
     }
     throw err;
@@ -816,7 +816,7 @@ router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async 
   if (balance < REPURPOSE_REROLL_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to re-roll.",
+      message: "You're out of Visual Bucs — top up to re-roll.",
     });
     return;
   }
@@ -829,12 +829,12 @@ router.post("/repurpose/reroll-thumbnail", publicApiLimiter, requireAuth, async 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to re-roll.",
+        message: "You're out of Visual Bucs — top up to re-roll.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return;
     }
     throw err;

@@ -163,7 +163,7 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
   if (balance < PRESS_KIT_GENERATE_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to generate a press kit.",
+      message: "You're out of Visual Bucs — top up to generate a press kit.",
     });
     return;
   }
@@ -180,7 +180,7 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to generate a press kit." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to generate a press kit." });
       return;
     }
     throw err;
@@ -239,7 +239,7 @@ router.post("/press-kit/generate", publicApiLimiter, requireAuth, async (req, re
       action: "Press Kit Generation — Refund (generation failed)",
     }).catch(() => {});
     if (err instanceof LedgerWriteError) throw err;
-    res.status(502).json({ error: "generation_failed", message: "The press kit couldn't be generated — your credits were refunded." });
+    res.status(502).json({ error: "generation_failed", message: "The press kit couldn't be generated — your Visual Bucs were refunded." });
   }
 });
 
@@ -265,7 +265,7 @@ router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, asyn
 
   const balance = req.userCredits ?? 0;
   if (balance < PRESS_KIT_BIO_REFRESH_CREDITS) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to refresh the bio." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to refresh the bio." });
     return;
   }
 
@@ -276,7 +276,7 @@ router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, asyn
     });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to refresh the bio." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to refresh the bio." });
       return;
     }
     throw err;
@@ -315,7 +315,7 @@ router.post("/press-kit/:id/regenerate-bio", publicApiLimiter, requireAuth, asyn
       action: "Press Kit Bio Refresh — Refund (generation failed)",
     }).catch(() => {});
     if (err instanceof LedgerWriteError) throw err;
-    res.status(502).json({ error: "generation_failed", message: "The bio couldn't be refreshed — your credits were refunded." });
+    res.status(502).json({ error: "generation_failed", message: "The bio couldn't be refreshed — your Visual Bucs were refunded." });
   }
 });
 

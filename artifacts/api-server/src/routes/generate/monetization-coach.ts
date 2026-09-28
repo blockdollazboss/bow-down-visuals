@@ -63,7 +63,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
   if (balance < COACH_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to build your money plan.",
+      message: "You're out of Visual Bucs — top up to build your money plan.",
     });
     return;
   }
@@ -74,7 +74,7 @@ router.post("/monetization-coach", publicApiLimiter, requireAuth, async (req, re
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to build your money plan.",
+        message: "You're out of Visual Bucs — top up to build your money plan.",
       });
       return;
     }

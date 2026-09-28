@@ -366,7 +366,7 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
   if (balance < EMAIL_NEWSLETTER_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep writing newsletters.",
+      message: "You're out of Visual Bucs — top up to keep writing newsletters.",
     });
     return;
   }
@@ -380,7 +380,7 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep writing newsletters.",
+        message: "You're out of Visual Bucs — top up to keep writing newsletters.",
       });
       return;
     }
@@ -436,7 +436,7 @@ router.post("/email-list/newsletter", publicApiLimiter, requireAuth, async (req,
     }
     logger.error({ err }, "[email-list] newsletter generation failed");
     res.status(502).json({
-      error: "Newsletter generation failed — your credit was refunded.",
+      error: "Newsletter generation failed — your Visual Buc was refunded.",
       code: "provider_failed",
     });
   }

@@ -256,7 +256,7 @@ export default function Randomizer() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
             Stuck staring at a blank page? Roll the dice for a free spark — or let
-            GPT-6 cook up five fresh, made-for-you ideas for a single credit.
+            GPT-6 cook up five fresh, made-for-you ideas for a single Visual Buc.
           </p>
         </div>
 
@@ -350,7 +350,7 @@ export default function Randomizer() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {AI_CREDIT_COST} credit per AI roll · powered by Thy Cheat Code
+              {AI_CREDIT_COST} Visual Buc per AI roll · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -374,7 +374,7 @@ export default function Randomizer() {
                     className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Dices className="h-3.5 w-3.5" aria-hidden="true" />
-                    Re-roll ({AI_CREDIT_COST} credit)
+                    Re-roll ({AI_CREDIT_COST} Visual Buc)
                   </button>
                 )}
               </div>

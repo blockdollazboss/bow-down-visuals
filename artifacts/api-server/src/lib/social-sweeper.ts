@@ -80,7 +80,7 @@ export async function sweepStalePublishAttempts(deps: SweepDeps = {}): Promise<S
   const cutoff = new Date(now.getTime() - staleMs);
   const claimed = await store.claimStaleProcessing(
     cutoff,
-    "stale_sweeper: process died mid-publish, credits refunded",
+    "stale_sweeper: process died mid-publish, Visual Bucs refunded",
   );
 
   let refunded = 0;

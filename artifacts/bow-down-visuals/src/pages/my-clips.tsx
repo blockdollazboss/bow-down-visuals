@@ -187,7 +187,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
             </div>
             <div>
               <p className="text-sm font-bold text-white">Attach to Project Scene</p>
-              <p className="text-[11px] text-white/35">No credits charged</p>
+              <p className="text-[11px] text-white/35">No Visual Bucs charged</p>
             </div>
           </div>
           <button
@@ -573,7 +573,7 @@ export default function MyClips() {
           <div className="mb-6 flex items-start gap-3 p-3.5 rounded-xl border border-primary/15 bg-primary/5">
             <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-[12px] text-white/50 leading-relaxed">
-              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in your Video Editor — no credits charged.
+              Use <span className="text-primary font-semibold">Attach to Project Scene</span> on any clip to link it to a scene in your Video Editor — no Visual Bucs charged.
               Open the Video Editor afterwards to see <span className="text-green-400 font-semibold">Clip Ready</span> on the scene card.
             </p>
           </div>

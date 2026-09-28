@@ -365,7 +365,7 @@ export default function MyShop() {
             <h1 className="mt-2 text-3xl md:text-5xl font-black tracking-tight">My Shop</h1>
             <p className="mt-2 text-white/55 max-w-xl text-sm md:text-base">
               Your own storefront on the platform — live at <span className="text-amber-300 font-mono text-sm">/shop/your-handle</span> the
-              moment you create it. Building is free; the AI writer and AI images cost credits.
+              moment you create it. Building is free; the AI writer and AI images cost Visual Bucs.
             </p>
           </div>
           <button className={goldBtn} onClick={() => setShowCreate((v) => !v)}>
@@ -468,7 +468,7 @@ export default function MyShop() {
                         />
                         <button className={ghostBtn} onClick={generateShopDescription} disabled={aiShopDescLoading}>
                           {aiShopDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                          <span className="text-xs">AI write · 1 credit</span>
+                          <span className="text-xs">AI write · 1 Visual Buc</span>
                         </button>
                       </div>
                     </div>
@@ -531,7 +531,7 @@ export default function MyShop() {
                           <label className="text-xs font-semibold text-white/50">Description</label>
                           <button className={ghostBtn} onClick={generateProductDescription} disabled={aiProdDescLoading}>
                             {aiProdDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                            <span className="text-xs">AI write · 1 credit</span>
+                            <span className="text-xs">AI write · 1 Visual Buc</span>
                           </button>
                         </div>
                         <textarea className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder="What makes it great…" />
@@ -553,11 +553,11 @@ export default function MyShop() {
                             />
                             <button className={ghostBtn} onClick={() => generateProductImage("standard")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "standard" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">AI image · 1 credit</span>
+                              <span className="text-xs">AI image · 1 Visual Buc</span>
                             </button>
                             <button className={ghostBtn} onClick={() => generateProductImage("premium")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "premium" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">Premium · 2 credits</span>
+                              <span className="text-xs">Premium · 2 Visual Bucs</span>
                             </button>
                           </div>
                         )}

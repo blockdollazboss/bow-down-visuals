@@ -211,7 +211,7 @@ export default function VoiceoverStudio() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
             Paste your script, pick a voice and a direction — get broadcast-quality
-            voiceover audio ready to layer under your video. 2 credits per minute.
+            voiceover audio ready to layer under your video. 2 Visual Bucs per minute.
           </p>
         </div>
 
@@ -258,7 +258,7 @@ export default function VoiceoverStudio() {
                   </span>
                   <span className="flex items-center gap-1 text-primary">
                     <Coins className="h-3.5 w-3.5" />
-                    {estimate.credits} credits
+                    {estimate.credits} Visual Bucs
                   </span>
                 </div>
               </div>
@@ -400,7 +400,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
               ) : (
                 <>
                   <Mic className="h-5 w-5" />
-                  Generate voiceover · {estimate.credits} credits
+                  Generate voiceover · {estimate.credits} Visual Bucs
                 </>
               )}
             </button>
@@ -460,7 +460,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                     </button>
                   </div>
                   <p className="text-xs text-white/35">
-                    Used {result.creditsUsed} credits · {result.creditsRemaining} remaining.
+                    Used {result.creditsUsed} Visual Bucs · {result.creditsRemaining} remaining.
                   </p>
                 </div>
               )}

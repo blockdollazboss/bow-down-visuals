@@ -462,7 +462,7 @@ export default function LiveShopping() {
                             <label className="text-xs font-semibold uppercase tracking-wider text-white/40">Description</label>
                             <button onClick={generateAiDescription} disabled={aiDesc} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline disabled:opacity-50">
                               {aiDesc ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                              Write with AI · 1 credit
+                              Write with AI · 1 Visual Buc
                             </button>
                           </div>
                           <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What makes it worth buying on stream?" rows={3} className={`${inputClass} mt-2`} />

@@ -87,7 +87,7 @@ export function LogoMakerTool() {
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
-          setError(data.error || "Logo generation failed — no credits were charged.");
+          setError(data.error || "Logo generation failed — no Visual Bucs were charged.");
         }
       } catch {
         /* keep polling on transient network errors */
@@ -170,7 +170,7 @@ export function LogoMakerTool() {
           </span>
           <div>
             <h1 className="text-2xl font-black">Logo Maker</h1>
-            <p className="text-sm text-white/45">AI brand logos for your channel — from {cost} credit{cost === 1 ? "" : "s"}</p>
+            <p className="text-sm text-white/45">AI brand logos for your channel — from {cost} Visual Buc{cost === 1 ? "" : "s"}</p>
           </div>
         </div>
 
@@ -249,7 +249,7 @@ export function LogoMakerTool() {
                         : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
                     }`}
                   >
-                    <p className="font-bold text-white">{m.label} <span className="text-primary text-sm">· {m.cost} cr</span></p>
+                    <p className="font-bold text-white">{m.label} <span className="text-primary text-sm">· {m.cost} VB</span></p>
                     <p className="text-xs text-white/40 mt-0.5">{m.blurb}</p>
                   </button>
                 ))}
@@ -261,10 +261,10 @@ export function LogoMakerTool() {
               disabled={!canGenerate}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Generate logo · {cost} credits</span>
+              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Generate logo · {cost} Visual Bucs</span>
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         ) : null}

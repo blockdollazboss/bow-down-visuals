@@ -267,7 +267,7 @@ async function chargeOr402(
   if (balance < cost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep using AI earnings insights.",
+      message: "You're out of Visual Bucs — top up to keep using AI earnings insights.",
     });
     return null;
   }
@@ -277,7 +277,7 @@ async function chargeOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep using AI earnings insights.",
+        message: "You're out of Visual Bucs — top up to keep using AI earnings insights.",
       });
       return null;
     }
@@ -593,11 +593,11 @@ router.post("/royalties/insights", publicApiLimiter, requireAuth, async (req, re
     }).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[royalties] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The analyst is catching its breath — try again in a moment. (Credit refunded.)" });
+      res.status(503).json({ error: "The analyst is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[royalties] insights failed");
-    res.status(502).json({ error: "The analyst hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "The analyst hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 

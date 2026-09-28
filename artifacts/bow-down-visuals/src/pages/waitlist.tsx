@@ -20,7 +20,7 @@ const WANT_TO_CREATE = ["Songs", "Music Videos", "Promo Clips", "Thumbnails", "F
 const BENEFITS = [
   { icon: Zap,   title: "First Access",       body: "Get into the platform before the public launch. Be among the first artists to use every tool." },
   { icon: Star,  title: "Founding Rate",      body: "Waitlist members lock in a discounted founding rate — never pay full price." },
-  { icon: Lock,  title: "Bonus Credits",      body: "Join the waitlist and get 100 bonus credits added to your account on launch day." },
+  { icon: Lock,  title: "Bonus Visual Bucs",      body: "Join the waitlist and get 100 bonus Visual Bucs added to your account on launch day." },
   { icon: Users, title: "Creator Community",  body: "Connect with other independent artists building their careers with AI from day one." },
   { icon: Globe, title: "Priority Support",   body: "Founding members get priority responses and direct access to the founding team." },
   { icon: Music, title: "Feature Voting",     body: "Your feedback shapes what we build next. Waitlist members vote on upcoming tools and features." },
@@ -159,7 +159,7 @@ export default function Waitlist() {
                 You're on the Bow Down Visuals waitlist. We'll notify you when early access opens.
               </p>
               <div className="flex flex-col gap-2 text-sm text-white/40 mb-8">
-                <p>🎁 100 bonus credits reserved for you</p>
+                <p>🎁 100 bonus Visual Bucs reserved for you</p>
                 <p>⚡ Early access before public launch</p>
                 <p>🔒 Founding member rate locked in</p>
               </div>
@@ -273,7 +273,7 @@ export default function Waitlist() {
                   {loading ? "Joining the waitlist..." : <><Zap className="h-5 w-5" /> Join the Waitlist <ArrowRight className="h-4 w-4" /></>}
                 </Button>
 
-                <p className="text-white/25 text-xs text-center">No spam. No credit card. Early access when we launch.</p>
+                <p className="text-white/25 text-xs text-center">No spam. No Visual Buc card. Early access when we launch.</p>
               </form>
             </div>
           )}

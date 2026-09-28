@@ -208,7 +208,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <TikTokIcon className="h-5 w-5 text-white" /> Send to TikTok drafts
             </h3>
-            <p className="text-xs text-white/40 mt-1">2 credits · lands in your TikTok inbox — you post it in the app</p>
+            <p className="text-xs text-white/40 mt-1">2 Visual Bucs · lands in your TikTok inbox — you post it in the app</p>
           </div>
           {!uploading && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -321,7 +321,7 @@ export function TikTokPostModal({ open, onClose, videoUrl, accounts }: Props) {
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> Send to TikTok drafts · 2 credits
+                  <Send className="h-4 w-4" /> Send to TikTok drafts · 2 Visual Bucs
                 </>
               )}
             </Button>

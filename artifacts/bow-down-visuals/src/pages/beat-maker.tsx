@@ -200,7 +200,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           {generating ? (
             <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cooking your beat…</>
           ) : (
-            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · 3 credits</>
+            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · 3 Visual Bucs</>
           )}
         </Button>
         <p className="text-xs text-white/40 text-center -mt-2">
@@ -645,7 +645,7 @@ function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => 
         </Link>
       </div>
       <p className="text-xs text-white/40">
-        The sequencer is pure synthesis in your browser — no credits, no uploads. Export the WAV, then split it into stems or list it for sale.
+        The sequencer is pure synthesis in your browser — no Visual Bucs, no uploads. Export the WAV, then split it into stems or list it for sale.
       </p>
     </div>
   );

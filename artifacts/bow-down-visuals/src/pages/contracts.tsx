@@ -216,7 +216,7 @@ export default function Contracts() {
               {loading ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Analyzing contract…</>
               ) : (
-                <><Sparkles className="h-5 w-5" /> Analyze Contract — {CREDIT_COST} credits</>
+                <><Sparkles className="h-5 w-5" /> Analyze Contract — {CREDIT_COST} Visual Bucs</>
               )}
             </button>
             {!user && (

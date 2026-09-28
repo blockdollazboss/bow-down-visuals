@@ -33,7 +33,7 @@ export default function Terms() {
             <h2 className="text-white font-bold text-lg mb-3">1. About Bow Down Visuals</h2>
             <p>
               Bow Down Visuals ("we," "us," or "our") is a digital creator platform that sells
-              AI-powered creator credits. Credits are used to generate digital outputs including
+              AI-powered creator Visual Bucs. Credits are used to generate digital outputs including
               AI videos, music, images, voiceovers, lip-synced videos, thumbnails, lyrics,
               captions, promo clips, and related digital creator tools. All products delivered are
               digital in nature and are not physical goods.
@@ -59,9 +59,9 @@ export default function Terms() {
           <section>
             <h2 className="text-white font-bold text-lg mb-3">4. Credits & Digital Products</h2>
             <p>
-              Credits are a pre-purchased unit of access to our AI generation tools. Each tool
-              consumes a defined number of credits per use. Credits have no cash value and are
-              non-transferable. Unused credits expire in accordance with your subscription plan.
+              Visual Bucs are a pre-purchased unit of access to our AI generation tools. Each tool
+              consumes a defined number of Visual Bucs per use. Credits have no cash value and are
+              non-transferable. Unused Visual Bucs expire in accordance with your subscription plan.
               All generated content is digital — no physical product is shipped.
             </p>
           </section>
@@ -91,7 +91,7 @@ export default function Terms() {
               <li>Reverse-engineer or scrape the platform</li>
               <li>Share account access with others</li>
               <li>Use the service to generate spam, hate speech, or illegal content</li>
-              <li>Attempt to manipulate credits or billing</li>
+              <li>Attempt to manipulate Visual Bucs or billing</li>
             </ul>
           </section>
 
@@ -124,12 +124,12 @@ export default function Terms() {
           <section>
             <h2 className="text-white font-bold text-lg mb-3">11. Referral Program</h2>
             <p>
-              Bow Down Visuals may offer referral rewards, such as bonus credits for you and
-              for new users who sign up through your personal referral link. Referral credits
+              Bow Down Visuals may offer referral rewards, such as bonus Visual Bucs for you and
+              for new users who sign up through your personal referral link. Referral Visual Bucs
               have no cash value, are non-transferable, and cannot be redeemed for cash or
               applied toward refunds. We may change or end the referral program at any time.
               Creating multiple accounts to claim referral rewards, self-referrals, or any
-              other abuse of the program will result in forfeiture of referral credits and
+              other abuse of the program will result in forfeiture of referral Visual Bucs and
               may lead to account suspension.
             </p>
           </section>

@@ -21,7 +21,7 @@ const PLANS = [
     price: 19,
     period: "/month",
     bestFor: "New creators",
-    credits: "25 credits monthly",
+    credits: "25 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Street Punk",
@@ -41,7 +41,7 @@ const PLANS = [
     price: 49,
     period: "/month",
     bestFor: "Active solo creators",
-    credits: "100 credits monthly",
+    credits: "100 Visual Bucs monthly",
     featured: true,
     badge: "Most Popular",
     cta: "Rank Up to Hustler",
@@ -61,7 +61,7 @@ const PLANS = [
     price: 99,
     period: "/month",
     bestFor: "Serious full-time creators",
-    credits: "250 credits monthly",
+    credits: "250 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Gangster",
@@ -81,7 +81,7 @@ const PLANS = [
     price: 199,
     period: "/month",
     bestFor: "Teams & creator brands",
-    credits: "600 credits monthly",
+    credits: "600 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Shot Caller",
@@ -101,7 +101,7 @@ const PLANS = [
     price: 399,
     period: "/month",
     bestFor: "High-volume creators",
-    credits: "1,500 credits monthly",
+    credits: "1,500 Visual Bucs monthly",
     featured: false,
     badge: "Exclusive",
     cta: "Become a Crime Boss",
@@ -121,7 +121,7 @@ const PLANS = [
     price: 799,
     period: "/month",
     bestFor: "Labels, agencies & power users",
-    credits: "4,000 credits monthly",
+    credits: "4,000 Visual Bucs monthly",
     featured: false,
     badge: "Top Tier",
     cta: "Claim the Kingpin Crown",
@@ -137,16 +137,16 @@ const PLANS = [
 ];
 
 const CREDIT_PACKS = [
-  { credits: "10 Credits",  price: "$9",   packKey: "10"  },
-  { credits: "50 Credits",  price: "$39",  packKey: "50"  },
-  { credits: "150 Credits", price: "$99",  packKey: "150" },
-  { credits: "500 Credits", price: "$249", packKey: "500" },
+  { credits: "10 Visual Bucs",  price: "$9",   packKey: "10"  },
+  { credits: "50 Visual Bucs",  price: "$39",  packKey: "50"  },
+  { credits: "150 Visual Bucs", price: "$99",  packKey: "150" },
+  { credits: "500 Visual Bucs", price: "$249", packKey: "500" },
 ];
 
 const FAQ = [
   {
-    q: "What are credits?",
-    a: "Credits are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly credit balance.",
+    q: "What are Visual Bucs?",
+    a: "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly Visual Bucs balance.",
   },
   {
     q: "Are payments live yet?",
@@ -154,11 +154,11 @@ const FAQ = [
   },
   {
     q: "Can I use Bow Down Visuals during beta?",
-    a: "Yes. Beta users can test selected tools with a starter credit balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
+    a: "Yes. Beta users can test selected tools with a starter Visual Bucs balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
   },
   {
-    q: "Do music video clips cost credits?",
-    a: "Yes — music video clip generation is a premium action and uses more credits than standard text generation. The exact cost per clip will be confirmed at launch.",
+    q: "Do music video clips cost Visual Bucs?",
+    a: "Yes — music video clip generation is a premium action and uses more Visual Bucs than standard text generation. The exact cost per clip will be confirmed at launch.",
   },
   {
     q: "Can I cancel later?",
@@ -253,7 +253,7 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
         {loading ? (
           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
         ) : (
-          <><CreditCard className="h-3.5 w-3.5" /> Buy Credits</>
+          <><CreditCard className="h-3.5 w-3.5" /> Buy Visual Bucs</>
         )}
       </Button>
     </div>
@@ -369,7 +369,7 @@ export default function Pricing() {
             <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex items-center justify-center gap-3">
               <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
               <span className="text-sm text-yellow-200/80">
-                Payment cancelled. No credits were added.
+                Payment cancelled. No Visual Bucs were added.
               </span>
               <button
                 onClick={() => setShowCancelled(false)}
@@ -423,7 +423,7 @@ export default function Pricing() {
             Climb from Street Punk to Kingpin — the higher your rank, the more power, credits, automation, and control you unlock.
           </p>
           <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
-            No free generations. No hidden compute charges. See the credit cost before you create.
+            No free generations. No hidden compute charges. See the Visual Buc cost before you create.
           </p>
           <WantedMeter onSelect={jumpToPlan} />
         </section>
@@ -529,8 +529,8 @@ export default function Pricing() {
         {/* ── TEST CREDIT PACKS ── */}
         <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Test Credit Packs</h2>
-            <p className="text-white/40 text-lg">Need extra credits without a subscription? Top up anytime.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Test Visual Buc Packs</h2>
+            <p className="text-white/40 text-lg">Need extra Visual Bucs without a subscription? Top up anytime.</p>
           </div>
 
           {/* Test mode notice */}
@@ -549,7 +549,7 @@ export default function Pricing() {
 
           <p className="text-center text-xs text-white/25 font-medium mt-5 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
-            You must be signed in to purchase credits.
+            You must be signed in to purchase Visual Bucs.
           </p>
         </section>
 
@@ -568,7 +568,7 @@ export default function Pricing() {
         <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 text-center border-t border-white/[0.05]">
           <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">Get in early.</h2>
           <p className="text-white/45 text-lg mb-8">
-            Beta members lock in the founding rate and get 100 bonus credits on launch day.
+            Beta members lock in the founding rate and get 100 bonus Visual Bucs on launch day.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link href="/beta-access">

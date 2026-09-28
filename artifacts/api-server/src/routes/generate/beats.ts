@@ -181,7 +181,7 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
   if (currentCredits < cost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }
@@ -248,7 +248,7 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
 
     if (moodTags.length === 0) {
       await refundCredits(req.userId!, cost, { action: "Beat AI Tag Suggester — Refund (empty output)" });
-      res.status(500).json({ error: "AI returned no usable tags — credits refunded." });
+      res.status(500).json({ error: "AI returned no usable tags — Visual Bucs refunded." });
       return;
     }
 
@@ -256,7 +256,7 @@ router.post("/beats/:id/ai-tags", requireAuth, async (req, res) => {
   } catch (err: unknown) {
     await refundCredits(req.userId!, cost, { action: "Beat AI Tag Suggester — Refund (provider failure)" }).catch(() => {});
     const msg = err instanceof Error ? err.message : "AI tag suggester failed";
-    res.status(500).json({ error: `${msg} — credits refunded.` });
+    res.status(500).json({ error: `${msg} — Visual Bucs refunded.` });
   }
 });
 

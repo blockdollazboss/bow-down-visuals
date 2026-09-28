@@ -39,7 +39,7 @@ const TOOLS = [
 const PERKS = [
   { icon: Zap,   title: "Early Access",      body: "Get into the platform before the public launch. Be among the first artists using every tool." },
   { icon: Star,  title: "Founding Rate",     body: "Beta members lock in a discounted founding rate — never pay full price." },
-  { icon: Lock,  title: "Bonus Credits",     body: "Join the beta and receive 100 bonus credits on launch day." },
+  { icon: Lock,  title: "Bonus Visual Bucs",     body: "Join the beta and receive 100 bonus Visual Bucs on launch day." },
   { icon: Users, title: "Creator Community", body: "Connect with other independent artists building with AI from day one." },
   { icon: Globe, title: "Priority Support",  body: "Beta members get priority responses and direct access to the team." },
   { icon: Music, title: "Feature Voting",    body: "Your feedback shapes what we build. Beta members vote on upcoming tools." },
@@ -157,7 +157,7 @@ export default function BetaAccess() {
                 You're on the Bow Down Visuals beta list. We'll contact you when early access opens.
               </p>
               <div className="flex flex-col gap-2 text-sm text-white/40 mb-8">
-                <p>🎁 100 bonus credits reserved for you</p>
+                <p>🎁 100 bonus Visual Bucs reserved for you</p>
                 <p>⚡ Early access before public launch</p>
                 <p>🔒 Founding member rate locked in</p>
               </div>
@@ -288,7 +288,7 @@ export default function BetaAccess() {
                     : <><Zap className="h-5 w-5" /> Request Beta Access <ArrowRight className="h-4 w-4" /></>}
                 </Button>
 
-                <p className="text-white/25 text-xs text-center">No spam. No credit card required. Early access when we launch.</p>
+                <p className="text-white/25 text-xs text-center">No spam. No Visual Buc card required. Early access when we launch.</p>
               </form>
             </div>
           )}

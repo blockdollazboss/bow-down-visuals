@@ -276,7 +276,7 @@ function NewReleaseWizard(props: {
   async function generateArtwork() {
     if (artWorking || !artPrompt.trim()) return;
     const model = ART_MODELS.find((m) => m.value === artModel)!;
-    if (!window.confirm(`Generate cover art (${model.credits} credits)?`)) return;
+    if (!window.confirm(`Generate cover art (${model.credits} Visual Bucs)?`)) return;
     setArtWorking(true);
     setArtStatus("Submitting image job…");
     onError("");
@@ -306,7 +306,7 @@ function NewReleaseWizard(props: {
           break;
         }
         if (pd.status === "failed" || pd.status === "cancelled") {
-          throw new Error(pd.error || "Image generation failed — no credits charged.");
+          throw new Error(pd.error || "Image generation failed — no Visual Bucs charged.");
         }
         setArtStatus(pd.progress != null ? `Rendering… ${Math.round(pd.progress)}%` : `Rendering… (${attempts * 3}s)`);
         if (attempts >= 60) throw new Error("Image job is taking too long — check back; it may still finish.");
@@ -534,7 +534,7 @@ function NewReleaseWizard(props: {
                 >
                   <p className="flex items-center justify-between text-sm font-black">
                     {t.label}
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">{t.credits} cr</span>
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">{t.credits} VB</span>
                   </p>
                   <p className="mt-1 text-xs text-white/45">{t.blurb}</p>
                 </button>
@@ -683,7 +683,7 @@ function NewReleaseWizard(props: {
                       artModel === m.value ? "border-primary/60 bg-primary/[0.08] text-primary" : "border-white/15 text-white/50 hover:border-white/40"
                     }`}
                   >
-                    {m.label} · {m.credits} cr
+                    {m.label} · {m.credits} VB
                   </button>
                 ))}
               </div>
@@ -782,7 +782,7 @@ function NewReleaseWizard(props: {
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/[0.05] p-5">
             <div>
               <p className="text-sm text-white/50">Submission fee · {tierLabel(releaseType)}</p>
-              <p className="font-display text-3xl font-black text-primary">{tierPrice} <span className="text-base">credits</span></p>
+              <p className="font-display text-3xl font-black text-primary">{tierPrice} <span className="text-base">Visual Bucs</span></p>
               {pricing?.aggregator === "mock" && (
                 <p className="mt-1 flex items-center gap-1.5 text-xs text-violet-300">
                   <FlaskConical className="h-3.5 w-3.5" /> Sandbox mode — statuses will simulate delivery.
@@ -793,7 +793,7 @@ function NewReleaseWizard(props: {
               <button onClick={() => setStep(3)} className={ghostBtn} disabled={creating}><ArrowLeft className="h-4 w-4" /> Back</button>
               <button onClick={createAndSubmit} disabled={creating || !canSubmit} className={goldBtn}>
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                Create & pay {tierPrice} credits
+                Create & pay {tierPrice} Visual Bucs
               </button>
             </div>
           </div>
@@ -1034,7 +1034,7 @@ function ReleaseDetail(props: {
   async function submitRelease() {
     if (submitting || release.status !== "draft") return;
     if (!window.confirm(
-      `Submit "${release.title}" for distribution for ${submitPrice} credits?\n\n` +
+      `Submit "${release.title}" for distribution for ${submitPrice} Visual Bucs?\n\n` +
       `This pays the aggregator delivery fee and queues delivery to ${release.platforms.map(platformLabel).join(", ") || "your platforms"}.`,
     )) return;
     setSubmitting(true);
@@ -1129,7 +1129,7 @@ function ReleaseDetail(props: {
           {release.genre && <p><span className="text-white/30">Genre:</span> {release.genre}</p>}
           {release.isrc && <p><span className="text-white/30">ISRC:</span> {release.isrc}</p>}
           {release.label && <p><span className="text-white/30">Label:</span> {release.label}</p>}
-          {release.creditsCharged > 0 && <p><span className="text-white/30">Submission fee paid:</span> {release.creditsCharged} credits</p>}
+          {release.creditsCharged > 0 && <p><span className="text-white/30">Submission fee paid:</span> {release.creditsCharged} Visual Bucs</p>}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-1.5">
@@ -1330,7 +1330,7 @@ function ReleaseDetail(props: {
           <Section
             title="AI Release Metadata"
             icon={<Sparkles className="h-5 w-5 text-primary" />}
-            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 credit</span>}
+            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 Visual Buc</span>}
           >
             <p className="mb-4 text-sm text-white/50">
               Describe the song — AI writes streaming-ready title options, a release description, and genre tags.
@@ -1346,7 +1346,7 @@ function ReleaseDetail(props: {
               </div>
               <button onClick={generateMetadata} disabled={metaLoading} className={goldBtn}>
                 {metaLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Generate metadata · {pricing?.aiMetadataCost ?? AI_CREDIT_COST} credit{(pricing?.aiMetadataCost ?? AI_CREDIT_COST) === 1 ? "" : "s"}
+                Generate metadata · {pricing?.aiMetadataCost ?? AI_CREDIT_COST} Visual Buc{(pricing?.aiMetadataCost ?? AI_CREDIT_COST) === 1 ? "" : "s"}
               </button>
             </div>
 
@@ -1389,14 +1389,14 @@ function ReleaseDetail(props: {
           <Section
             title="AI Pre-Release Strategy"
             icon={<Rocket className="h-5 w-5 text-primary" />}
-            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 credit</span>}
+            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 Visual Buc</span>}
           >
             <p className="mb-4 text-sm text-white/50">
               Release timing, a 2-week promo plan, and a must-do checklist — tailored to this release.
             </p>
             <button onClick={generateStrategy} disabled={strategyLoading} className={goldBtn}>
               {strategyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-              Generate strategy · {pricing?.aiStrategyCost ?? AI_CREDIT_COST} credit{(pricing?.aiStrategyCost ?? AI_CREDIT_COST) === 1 ? "" : "s"}
+              Generate strategy · {pricing?.aiStrategyCost ?? AI_CREDIT_COST} Visual Buc{(pricing?.aiStrategyCost ?? AI_CREDIT_COST) === 1 ? "" : "s"}
             </button>
 
             {strat?.timing && (
@@ -1439,7 +1439,7 @@ function ReleaseDetail(props: {
             </h3>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/55">
               Pay the <strong className="text-white/85">{tierLabel(release.releaseType)}</strong> submission fee of{" "}
-              <strong className="text-primary">{submitPrice} credits</strong> to queue delivery to{" "}
+              <strong className="text-primary">{submitPrice} Visual Bucs</strong> to queue delivery to{" "}
               {release.platforms.map(platformLabel).join(", ") || "your platforms"}.
               {pricing?.aggregator === "mock" && (
                 <> The aggregator is currently in <strong className="text-violet-300">sandbox mode</strong> — statuses will simulate delivery.</>
@@ -1447,7 +1447,7 @@ function ReleaseDetail(props: {
             </p>
             <button onClick={submitRelease} disabled={submitting} className={`${goldBtn} mt-5`}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-              Submit · {submitPrice} credits
+              Submit · {submitPrice} Visual Bucs
             </button>
           </section>
         </>

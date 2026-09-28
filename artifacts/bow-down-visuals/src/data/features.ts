@@ -47,7 +47,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Cinematic AI video scenes with Seedance 2.5",
     route: "/make-video",
     category: "create",
-    creditCost: "1.5 credits/sec",
+    creditCost: "1.5 Visual Bucs/sec",
     icon: Clapperboard,
     badge: "POPULAR",
   },
@@ -67,7 +67,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Full original songs with vocals in minutes",
     route: "/make-song",
     category: "create",
-    creditCost: "4 credits",
+    creditCost: "4 Visual Bucs",
     icon: Music,
   },
   {
@@ -85,7 +85,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Lock your AI voice across every song",
     route: "/artist-vault",
     category: "create",
-    creditCost: "From 2 credits",
+    creditCost: "From 2 Visual Bucs",
     icon: AudioWaveform,
   },
   {
@@ -94,7 +94,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Pro artist photos in any style or location",
     route: "/artist-vault",
     category: "create",
-    creditCost: "From 1 credit",
+    creditCost: "From 1 Visual Buc",
     icon: Camera,
   },
   {
@@ -103,7 +103,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Pro timeline editor with transitions & effects",
     route: "/video-editor",
     category: "create",
-    creditCost: "4 credits/export",
+    creditCost: "4 Visual Bucs/export",
     icon: Film,
   },
   {
@@ -112,7 +112,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Click-magnet thumbnails that get the click",
     route: "/thumbnail",
     category: "create",
-    creditCost: "From 1 credit",
+    creditCost: "From 1 Visual Buc",
     icon: Image,
   },
   {
@@ -121,7 +121,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "A brand mark worthy of your name",
     route: "/logo-maker",
     category: "create",
-    creditCost: "From 1 credit",
+    creditCost: "From 1 Visual Buc",
     icon: Palette,
   },
   {
@@ -130,7 +130,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Signature openers and closers for your videos",
     route: "/intros-outros",
     category: "create",
-    creditCost: "1.5 credits/sec",
+    creditCost: "1.5 Visual Bucs/sec",
     icon: Play,
   },
 
@@ -141,7 +141,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Scroll-stopping promo clips from your music",
     route: "/promo-clip",
     category: "promote",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: Megaphone,
   },
   {
@@ -150,7 +150,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "First-3-second hooks that stop the scroll",
     route: "/hooks",
     category: "promote",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: Zap,
     badge: "POPULAR",
   },
@@ -160,7 +160,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "An honest 0–100 readiness scorecard for your post",
     route: "/hooks",
     category: "promote",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: Gauge,
   },
   {
@@ -169,7 +169,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "AI replies that turn comments into fans",
     route: "/comment-replies",
     category: "promote",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: MessageCircle,
   },
   {
@@ -178,7 +178,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "A month of content planned in minutes",
     route: "/content-calendar",
     category: "promote",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: CalendarDays,
   },
   {
@@ -187,7 +187,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Overlays, alerts & panels for your stream",
     route: "/stream-pack",
     category: "promote",
-    creditCost: "1 credit/image",
+    creditCost: "1 Visual Buc/image",
     icon: Layers,
   },
   {
@@ -208,7 +208,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Your money plan: eligibility, RPMs, next moves",
     route: "/coach",
     category: "grow",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: TrendingUp,
     badge: "POPULAR",
   },
@@ -227,7 +227,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Never run out of content ideas again",
     route: "/randomizer",
     category: "grow",
-    creditCost: "Free / 1 credit AI",
+    creditCost: "Free / 1 Visual Buc AI",
     icon: Dices,
   },
 
@@ -238,7 +238,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Protect your music the right way",
     route: "/copyright",
     category: "business",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: ShieldCheck,
   },
   {
@@ -247,7 +247,7 @@ export const SITE_FEATURES: SiteFeature[] = [
     tagline: "Form your LLC without the lawyer bill",
     route: "/llc-guide",
     category: "business",
-    creditCost: "1 credit",
+    creditCost: "1 Visual Buc",
     icon: Briefcase,
   },
 ];

@@ -87,7 +87,7 @@ export function SiteFooter() {
               Powered by Thy Cheat Code
             </span>
             <p className="text-white/35 text-xs mt-3 max-w-xs leading-relaxed">
-              AI creator credits for lyrics, music video plans, video prompts,
+              AI creator Visual Bucs for lyrics, music video plans, video prompts,
               captions, thumbnails, promo clips, and more.
             </p>
             <a

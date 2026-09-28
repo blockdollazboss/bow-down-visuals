@@ -380,7 +380,7 @@ export default function ThumbnailTest() {
             <li><span className="text-zinc-200">Face presence</span> — a clear, expressive face boosts clicks. (No face scores neutral.)</li>
           </ul>
           <p className="text-xs text-zinc-500 mt-4">
-            2 credits per test · 2 credits per improved render · refunded automatically if the AI fails.
+            2 Visual Bucs per test · 2 Visual Bucs per improved render · refunded automatically if the AI fails.
             Scores are AI predictions, not guarantees — your title, audience, and timing matter too.
           </p>
         </section>

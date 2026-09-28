@@ -28,7 +28,7 @@ export const makeSongGuide: PageGuide = {
     {
       targetText: "Generate",
       title: "Step 3 — Produce the track",
-      body: "Hit generate and AI produces the full song — vocals in your artist's locked voice over an AI-built beat. This is the credit-costing step, so make sure your lyrics are locked first.",
+      body: "Hit generate and AI produces the full song — vocals in your artist's locked voice over an AI-built beat. This is the Visual Buc-costing step, so make sure your lyrics are locked first.",
       tip: "Preview the lyrics out loud before generating — if it doesn't flow when you read it, it won't flow in the track.",
     },
   ],

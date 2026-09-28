@@ -232,7 +232,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
   if (balance < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits — top up to generate cover art.",
+      message: "Not enough Visual Bucs — top up to generate cover art.",
     });
     return;
   }
@@ -246,7 +246,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "Not enough credits — top up to generate cover art.",
+        message: "Not enough Visual Bucs — top up to generate cover art.",
       });
       return;
     }
@@ -297,7 +297,7 @@ router.post("/cover-art", requireAuth, async (req, res) => {
     try {
       stored = await uploadCoverArt(req.userId!, Buffer.from(b64, "base64"));
     } catch (upErr) {
-      await refundAndFail(500, "Could not save your cover art — credits refunded.", {
+      await refundAndFail(500, "Could not save your cover art — Visual Bucs refunded.", {
         userId: req.userId,
         err: upErr instanceof Error ? upErr.message : upErr,
       });

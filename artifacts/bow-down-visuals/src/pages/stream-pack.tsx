@@ -142,12 +142,12 @@ export function StreamPackTool() {
       if (res.status === 402) {
         setOutOfCredits(true);
         setStates((s) => ({ ...s, [assetKey]: "failed" }));
-        setFailedMsg((f) => ({ ...f, [assetKey]: "Out of credits" }));
+        setFailedMsg((f) => ({ ...f, [assetKey]: "Out of Visual Bucs" }));
         return false;
       }
       if (!res.ok || !data.url) {
         setStates((s) => ({ ...s, [assetKey]: "failed" }));
-        setFailedMsg((f) => ({ ...f, [assetKey]: data.message || data.error || "Generation failed — no credits charged." }));
+        setFailedMsg((f) => ({ ...f, [assetKey]: data.message || data.error || "Generation failed — no Visual Bucs charged." }));
         return false;
       }
       const label = assets.find((a) => a.key === assetKey)?.label ?? assetKey;
@@ -157,7 +157,7 @@ export function StreamPackTool() {
       return true;
     } catch {
       setStates((s) => ({ ...s, [assetKey]: "failed" }));
-      setFailedMsg((f) => ({ ...f, [assetKey]: "Network error — no credits charged." }));
+      setFailedMsg((f) => ({ ...f, [assetKey]: "Network error — no Visual Bucs charged." }));
       return false;
     }
   }
@@ -215,7 +215,7 @@ export function StreamPackTool() {
           <div>
             <h1 className="text-2xl font-black">Stream Pack Generator</h1>
             <p className="text-sm text-white/45">
-              Full branded bundle for your stream — {creditCost} credit per asset
+              Full branded bundle for your stream — {creditCost} Visual Buc per asset
             </p>
           </div>
         </div>
@@ -289,7 +289,7 @@ export function StreamPackTool() {
 
           <div data-min-stars="5">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
-              Assets in this pack ({selectedAssets.length} selected · {totalCost} credits)
+              Assets in this pack ({selectedAssets.length} selected · {totalCost} Visual Bucs)
             </p>
             <div className="space-y-4">
               {GROUP_ORDER.map((group) => {
@@ -356,7 +356,7 @@ export function StreamPackTool() {
                 Generating {doneCount}/{selectedAssets.length}…
               </span>
             ) : (
-              <>Generate Pack · {totalCost} credits</>
+              <>Generate Pack · {totalCost} Visual Bucs</>
             )}
           </button>
 
@@ -396,7 +396,7 @@ export function StreamPackTool() {
                       <span className="ml-auto flex gap-1.5 shrink-0">
                         <button
                           onClick={() => generateOne(a.key)}
-                          title="Regenerate (1 credit)"
+                          title="Regenerate (1 Visual Buc)"
                           data-min-stars="3"
                           className="rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
                         >

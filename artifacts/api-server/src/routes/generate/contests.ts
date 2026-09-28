@@ -476,7 +476,7 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
   if (currentCredits < CONTEST_ANNOUNCE_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }
@@ -549,8 +549,8 @@ router.post("/contests/:id/announce", requireAuth, async (req, res) => {
       await refundCredits(r.userId!, CONTEST_ANNOUNCE_CREDIT_COST, {
         action: `Contest announcement — Refund (storage failed)`,
       });
-      req.log?.error?.({ err: uploadErr }, "[contests] storage upload failed — credit refunded");
-      res.status(500).json({ error: "Could not save the announcement graphic. Your credit was refunded." });
+      req.log?.error?.({ err: uploadErr }, "[contests] storage upload failed — Visual Buc refunded");
+      res.status(500).json({ error: "Could not save the announcement graphic. Your Visual Buc was refunded." });
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Announcement generation failed";

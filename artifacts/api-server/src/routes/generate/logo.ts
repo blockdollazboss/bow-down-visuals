@@ -79,7 +79,7 @@ router.post("/generate-logo", requireAuth, async (req, res) => {
   if (currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }

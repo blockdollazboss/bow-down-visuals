@@ -61,7 +61,7 @@ router.post("/release-checklist", publicApiLimiter, requireAuth, async (req, res
   if (balance < RELEASE_PLAN_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to build your release plan.",
+      message: "You're out of Visual Bucs — top up to build your release plan.",
     });
     return;
   }
@@ -74,7 +74,7 @@ router.post("/release-checklist", publicApiLimiter, requireAuth, async (req, res
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to build your release plan.",
+        message: "You're out of Visual Bucs — top up to build your release plan.",
       });
       return;
     }
@@ -179,7 +179,7 @@ router.post("/release-checklist", publicApiLimiter, requireAuth, async (req, res
     }
     if (weeks.length === 0) {
       await refund("unusable model output");
-      res.status(502).json({ error: "The release planner hiccupped — credits refunded, try again." });
+      res.status(502).json({ error: "The release planner hiccupped — Visual Bucs refunded, try again." });
       return;
     }
 
@@ -192,11 +192,11 @@ router.post("/release-checklist", publicApiLimiter, requireAuth, async (req, res
     await refund("provider failure");
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[release-checklist] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The planner is catching its breath — credits refunded, try again in a moment." });
+      res.status(503).json({ error: "The planner is catching its breath — Visual Bucs refunded, try again in a moment." });
       return;
     }
     logger.error({ err }, "[release-checklist] generation failed");
-    res.status(502).json({ error: "The planner hiccupped — credits refunded, try again." });
+    res.status(502).json({ error: "The planner hiccupped — Visual Bucs refunded, try again." });
   }
 });
 

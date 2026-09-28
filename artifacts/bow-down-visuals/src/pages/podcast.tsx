@@ -301,7 +301,7 @@ export default function PodcastStudio() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
             Script, topic, or video in — finished episode out. AI hosts, intro/outro
-            music, chapters, and a publish-ready RSS feed. 3 credits per 10 minutes.
+            music, chapters, and a publish-ready RSS feed. 3 Visual Bucs per 10 minutes.
           </p>
         </div>
 
@@ -377,7 +377,7 @@ export default function PodcastStudio() {
                     </span>
                     <span className="flex items-center gap-1 text-primary">
                       <Coins className="h-3.5 w-3.5" />
-                      {estimate.credits} credits
+                      {estimate.credits} Visual Bucs
                     </span>
                   </div>
                   <textarea
@@ -405,7 +405,7 @@ Tips:
                     className={inputClass}
                   />
                   <p className="mt-2 text-xs text-white/35">
-                    AI writes an ~8–10 minute script for you (~{estimateTopicModeCost().credits} credits of audio). You can review the script after generation.
+                    AI writes an ~8–10 minute script for you (~{estimateTopicModeCost().credits} Visual Bucs of audio). You can review the script after generation.
                   </p>
                 </>
               )}
@@ -619,7 +619,7 @@ Tips:
                   </div>
 
                   <p className="text-xs text-white/35">
-                    Used {result.creditsUsed} credits · {result.creditsRemaining} remaining.
+                    Used {result.creditsUsed} Visual Bucs · {result.creditsRemaining} remaining.
                   </p>
                 </div>
               )}

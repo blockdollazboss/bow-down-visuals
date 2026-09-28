@@ -223,7 +223,7 @@ export default function Signup() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          3 free credits on signup. No credit card required.
+          3 free Visual Bucs on signup. No Visual Buc card required.
         </p>
       </div>
     </div>

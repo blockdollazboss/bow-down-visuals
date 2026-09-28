@@ -61,7 +61,7 @@ const STEPS = [
   {
     number: "02",
     title: "Generate The Impossible",
-    body: "Songs, videos, promo, branding — full AI generations in seconds, for a few credits. No team, no waiting.",
+    body: "Songs, videos, promo, branding — full AI generations in seconds, for a few Visual Bucs. No team, no waiting.",
     icon: Zap,
   },
   {
@@ -132,7 +132,7 @@ const STUDIO = [
         title: "Make a Song",
         description: "Full songs — lyrics, melody, and production in minutes.",
         icon: Music,
-        cost: "4 cr",
+        cost: "4 VB",
         href: "/make-song",
         featured: false,
       },
@@ -140,7 +140,7 @@ const STUDIO = [
         title: "Make a Music Video",
         description: "Cinematic AI scenes built for your track.",
         icon: Clapperboard,
-        cost: "4 cr",
+        cost: "4 VB",
         href: "/make-video",
         featured: false,
       },
@@ -148,7 +148,7 @@ const STUDIO = [
         title: "Song + Video",
         description: "The full package — song and video in one flow.",
         icon: Mic2,
-        cost: "4 cr",
+        cost: "4 VB",
         href: "/song-and-video",
         featured: true,
       },
@@ -163,7 +163,7 @@ const STUDIO = [
         title: "Video Editor",
         description: "Cut, caption, and grade — with lip sync built in.",
         icon: Scissors,
-        cost: "Lip sync 3 cr",
+        cost: "Lip sync 3 VB",
         href: "/video-editor",
         featured: false,
       },
@@ -171,7 +171,7 @@ const STUDIO = [
         title: "AI Voiceover",
         description: "Studio-quality narration in any voice.",
         icon: AudioLines,
-        cost: "2 cr/min",
+        cost: "2 VB/min",
         href: "/voiceover",
         featured: false,
       },
@@ -179,7 +179,7 @@ const STUDIO = [
         title: "Upscale",
         description: "Honest 1080p and 4K upscaling. No fake “enhance”.",
         icon: Rocket,
-        cost: "3 cr",
+        cost: "3 VB",
         href: "/upscale",
         featured: false,
       },
@@ -194,7 +194,7 @@ const STUDIO = [
         title: "Promo Clips",
         description: "Scroll-stopping clips for TikTok, Reels, and Shorts.",
         icon: Film,
-        cost: "4 cr",
+        cost: "4 VB",
         href: "/promo-clip",
         featured: false,
       },
@@ -202,7 +202,7 @@ const STUDIO = [
         title: "Hook Studio",
         description: "First-3-second hooks plus a virality pre-flight check.",
         icon: Zap,
-        cost: "1 cr",
+        cost: "1 VB",
         href: "/hooks",
         featured: false,
       },
@@ -210,7 +210,7 @@ const STUDIO = [
         title: "Scheduler",
         description: "Auto-post to Instagram, TikTok, and Facebook.",
         icon: CalendarCheck,
-        cost: "1 cr/post",
+        cost: "1 VB/post",
         href: "/scheduler",
         featured: false,
       },
@@ -225,7 +225,7 @@ const STUDIO = [
         title: "Monetization Coach",
         description: "Your 30-day money plan, platform by platform.",
         icon: DollarSign,
-        cost: "1 cr",
+        cost: "1 VB",
         href: "/coach",
         featured: false,
       },
@@ -233,7 +233,7 @@ const STUDIO = [
         title: "Sponsor Match",
         description: "AI-matched brand deals, plus pitches that close.",
         icon: Handshake,
-        cost: "1 cr",
+        cost: "1 VB",
         href: "/sponsors",
         featured: false,
       },
@@ -241,7 +241,7 @@ const STUDIO = [
         title: "Merch Designer",
         description: "AI merch mockups — dropship-ready.",
         icon: Shirt,
-        cost: "3 cr",
+        cost: "3 VB",
         href: "/merch",
         featured: false,
       },
@@ -251,47 +251,47 @@ const STUDIO = [
 
 const CREDIT_PACKS = [
   {
-    credits: "10 Credits",
+    credits: "10 Visual Bucs",
     price: "$9",
     packKey: "10",
     featured: false,
-    perks: ["10 generation credits", "Never expires", "Instant top-up"],
+    perks: ["10 generation Visual Bucs", "Never expires", "Instant top-up"],
   },
   {
-    credits: "50 Credits",
+    credits: "50 Visual Bucs",
     price: "$39",
     packKey: "50",
     featured: false,
-    perks: ["50 generation credits", "Never expires", "Instant top-up"],
+    perks: ["50 generation Visual Bucs", "Never expires", "Instant top-up"],
   },
   {
-    credits: "150 Credits",
+    credits: "150 Visual Bucs",
     price: "$99",
     packKey: "150",
     featured: true,
-    perks: ["150 generation credits", "Never expires", "Best value"],
+    perks: ["150 generation Visual Bucs", "Never expires", "Best value"],
   },
   {
-    credits: "500 Credits",
+    credits: "500 Visual Bucs",
     price: "$249",
     packKey: "500",
     featured: false,
-    perks: ["500 generation credits", "Never expires", "Pro volume"],
+    perks: ["500 generation Visual Bucs", "Never expires", "Pro volume"],
   },
 ];
 
 const FAQS = [
   {
     q: "What is Bow Down Visuals?",
-    a: "The AI studio for content creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one credit system, no team required.",
+    a: "The AI studio for content creators — 80+ tools that write your songs, shoot your videos, cut your promo, design your brand, and run your business. One account, one Visual Buc system, no team required.",
   },
   {
-    q: "How do credits work?",
-    a: "Credits are the fuel. You buy them in packs starting at $9, and every AI generation spends a few — a full song is 4 credits, a music video is 4, a hook idea is 1. Browsing, editing, and viewing are always free. Payments are in test mode right now, so nothing real is charged.",
+    q: "How do Visual Bucs work?",
+    a: "Visual Bucs are the fuel. You buy them in packs starting at $9, and every AI generation spends a few — a full song is 4 Visual Bucs, a music video is 4, a hook idea is 1. Browsing, editing, and viewing are always free. Payments are in test mode right now, so nothing real is charged.",
   },
   {
     q: "What does a full release cost?",
-    a: "A song (4 cr) + a music video (4 cr) + promo clips (4 cr) + a hook pack (1 cr) = 13 credits. The entire release pipeline — song to promo — for less than the cost of one pack.",
+    a: "A song (4 VB) + a music video (4 VB) + promo clips (4 VB) + a hook pack (1 VB) = 13 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack.",
   },
   {
     q: "Do I need experience to use it?",
@@ -318,7 +318,7 @@ const SOFTWARE_APPLICATION_JSON_LD = {
   applicationCategory: "MultimediaApplication",
   operatingSystem: "Web",
   description:
-    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple credit pricing.",
+    "Bow Down Visuals — the AI studio for content creators. Generate songs, music videos, promo clips, branding, and business tools: 80+ AI features on simple Visual Buc pricing.",
   offers: {
     "@type": "AggregateOffer",
     priceCurrency: "USD",
@@ -646,7 +646,7 @@ function HeroSection() {
         <p className="text-lg sm:text-xl text-white/55 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
           Bow Down Visuals is the AI studio that writes your songs, shoots
           your videos, cuts your promo, and runs your business — 80+ tools,
-          one credit system, zero permission needed.
+          one Visual Buc system, zero permission needed.
         </p>
 
         {/* CTAs */}
@@ -921,8 +921,8 @@ function CheatCodeDemo() {
 
 const PROOF_STATS = [
   { value: "81", label: "AI tools under one roof" },
-  { value: "$9", label: "Cheapest credit pack" },
-  { value: "4 cr", label: "A full song, start to finish" },
+  { value: "$9", label: "Cheapest Visual Bucs pack" },
+  { value: "4 VB", label: "A full song, start to finish" },
   { value: "0", label: "Subscriptions. Ever." },
 ];
 
@@ -1225,13 +1225,13 @@ function PricingSection() {
       <LuxReveal className="max-w-5xl mx-auto">
         <div className="text-center mb-12 space-y-4">
           <MarketingBadge variant="kicker">
-            Credit Packs
+            Visual Buc Packs
           </MarketingBadge>
           <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
             Pay per creation. That&rsquo;s it.
           </h2>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            Buy credits once, use them any time. No subscription required.
+            Buy Visual Bucs once, use them any time. No subscription required.
           </p>
         </div>
 
@@ -1284,7 +1284,7 @@ function PricingSection() {
                 className="w-full font-semibold"
                 variant={pack.featured ? "luxury" : "outline"}
               >
-                <Link href="/pricing#credit-packs">Buy Credits</Link>
+                <Link href="/pricing#credit-packs">Buy Visual Bucs</Link>
               </Button>
             </div>
           ))}
@@ -1292,7 +1292,7 @@ function PricingSection() {
 
         <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
           <Lock className="h-3 w-3" />
-          Sign in to purchase credits.
+          Sign in to purchase Visual Bucs.
         </p>
       </LuxReveal>
     </section>
@@ -1452,7 +1452,7 @@ const WaitlistSection = forwardRef<HTMLElement>((_, ref) => {
         )}
 
         <p className="text-white/25 text-xs">
-          No spam. No credit card. Just the unfair advantage.
+          No spam. No Visual Buc card. Just the unfair advantage.
         </p>
 
         <div className="flex justify-center pt-2">
@@ -1756,7 +1756,7 @@ function JackpotBand() {
           <p className="text-white/70">
             <span className="text-white font-bold">Every month, one cheat code wins.</span>{" "}
             The Cheat Code Jackpot — a secret arrow-code drops every month.
-            First to crack it and enter it wins 100 credits.
+            First to crack it and enter it wins 100 Visual Bucs.
           </p>
           <Link
             href="/signup"
@@ -1792,7 +1792,7 @@ function AcademySection() {
             </h2>
             <p className="text-white/55 text-lg max-w-2xl mx-auto leading-relaxed">
               A free catalog of masterclasses in video, music, and branding — the same
-              playbook the tools run on, taught straight. AI lessons from 1 credit each.
+              playbook the tools run on, taught straight. AI lessons from 1 Visual Buc each.
             </p>
             <Link
               href="/academy"

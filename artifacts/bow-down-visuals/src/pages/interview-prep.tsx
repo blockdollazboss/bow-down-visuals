@@ -346,7 +346,7 @@ export default function InterviewPrep() {
               <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary">
                 <ListChecks className="h-4 w-4" /> Likely questions
               </h2>
-              <p className="mt-2 text-xs text-white/40">Hit <span className="text-white/70 font-semibold">Practice</span> on any question to rehearse it — AI scores your answer ({FEEDBACK_COST} credit each).</p>
+              <p className="mt-2 text-xs text-white/40">Hit <span className="text-white/70 font-semibold">Practice</span> on any question to rehearse it — AI scores your answer ({FEEDBACK_COST} Visual Buc each).</p>
               <div className="mt-4 space-y-3">
                 {session.questions.map((q, i) => {
                   const meta = CATEGORY_META[q.category];

@@ -248,7 +248,7 @@ router.post("/sound-finder/match", publicApiLimiter, requireAuth, async (req, re
   if (balance < SOUND_MATCH_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep matching sounds.",
+      message: "You're out of Visual Bucs — top up to keep matching sounds.",
     });
     return;
   }
@@ -261,7 +261,7 @@ router.post("/sound-finder/match", publicApiLimiter, requireAuth, async (req, re
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep matching sounds.",
+        message: "You're out of Visual Bucs — top up to keep matching sounds.",
       });
       return;
     }
@@ -347,7 +347,7 @@ router.post("/sound-finder/match", publicApiLimiter, requireAuth, async (req, re
     }
 
     if (matches.length === 0) {
-      await refundAndFail(502, "The matcher came up empty — credits refunded, try again.");
+      await refundAndFail(502, "The matcher came up empty — Visual Bucs refunded, try again.");
       return;
     }
 
@@ -361,11 +361,11 @@ router.post("/sound-finder/match", publicApiLimiter, requireAuth, async (req, re
   } catch (err) {
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[sound-finder] OpenAI rate limit / quota");
-      await refundAndFail(503, "The matcher is catching its breath — credits refunded, try again in a moment.");
+      await refundAndFail(503, "The matcher is catching its breath — Visual Bucs refunded, try again in a moment.");
       return;
     }
     logger.error({ err }, "[sound-finder] match failed");
-    await refundAndFail(502, "The matcher hiccupped — credits refunded, try again.");
+    await refundAndFail(502, "The matcher hiccupped — Visual Bucs refunded, try again.");
   }
 });
 

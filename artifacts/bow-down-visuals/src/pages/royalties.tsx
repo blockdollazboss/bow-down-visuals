@@ -237,7 +237,7 @@ export default function RoyaltyTracker() {
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
             Import your distributor CSVs and watch your catalog earn. The dashboard is free —
-            only the AI earnings insights cost credits.
+            only the AI earnings insights cost Visual Bucs.
           </p>
         </div>
 
@@ -282,7 +282,7 @@ export default function RoyaltyTracker() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-amber-300" />
                   <h2 className="text-lg font-bold">AI earnings insights</h2>
-                  <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">{INSIGHTS_CREDIT_COST} credit</span>
+                  <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">{INSIGHTS_CREDIT_COST} Visual Buc</span>
                 </div>
                 <button
                   onClick={getInsights}

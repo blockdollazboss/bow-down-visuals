@@ -210,7 +210,7 @@ export default function SongsPage() {
                       className="rounded-xl"
                     >
                       {remixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Remix (3 credits)
+                      Remix (3 Visual Bucs)
                     </Button>
                     <Button
                       size="sm"

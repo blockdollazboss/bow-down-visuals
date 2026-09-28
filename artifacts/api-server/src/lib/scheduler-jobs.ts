@@ -43,7 +43,7 @@ import { refundCredits } from "./credits";
  * provider helpers (publishReelToInstagram / uploadDraftToTikTok /
  * publishVideoToPage) and marks each idempotency attempt as
  * credits-deducted — never charging twice. A completely failed post gets
- * its credit refunded automatically; a partial success (≥1 platform posted)
+ * its Visual Buc refunded automatically; a partial success (≥1 platform posted)
  * is not refunded.
  *
  * Exactly-once per platform comes from the shared publish-attempt ledger:

@@ -1148,7 +1148,7 @@ export default function VideoEditor() {
                                 onClick={() => { setSyncState("idle"); void syncMissingClips(); }}
                                 disabled={syncState === "syncing"}
                                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-black bg-primary hover:bg-primary/80 transition-colors disabled:opacity-50"
-                                title="Scan your generated clips and attach any matching ones to scenes that are missing a clip — no credits charged"
+                                title="Scan your generated clips and attach any matching ones to scenes that are missing a clip — no Visual Bucs charged"
                               >
                                 {syncState === "syncing" ? (
                                   <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Syncing…</>

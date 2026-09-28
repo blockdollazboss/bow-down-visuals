@@ -238,7 +238,7 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
   if (balance < AUDIO_CLEANUP_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to clean up audio.",
+      message: "You're out of Visual Bucs — top up to clean up audio.",
     });
     return;
   }
@@ -252,12 +252,12 @@ router.post("/api/audio-cleanup", requireAuth, upload.single("audio"), async (re
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to clean up audio.",
+        message: "You're out of Visual Bucs — top up to clean up audio.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return;
     }
     throw err;

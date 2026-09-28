@@ -88,7 +88,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "Instagram",
     authPath: "/api/social/instagram/auth-url",
     connectBlurb: "Needs a Business or Creator account linked to a Facebook Page.",
-    readyBlurb: "Ready to post Reels · 2 credits per post",
+    readyBlurb: "Ready to post Reels · 2 Visual Bucs per post",
     Icon: InstagramIcon,
     iconBadgeClass: "bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]",
   },
@@ -97,7 +97,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "TikTok",
     authPath: "/api/social/tiktok/auth-url",
     connectBlurb: "Any TikTok account works — uploads land in your TikTok drafts, never auto-posted.",
-    readyBlurb: "Ready to send to TikTok drafts · 2 credits per upload",
+    readyBlurb: "Ready to send to TikTok drafts · 2 Visual Bucs per upload",
     Icon: TikTokIcon,
     iconBadgeClass: "bg-black border border-white/20",
   },
@@ -106,7 +106,7 @@ const PLATFORMS: PlatformConfig[] = [
     name: "Facebook",
     authPath: "/api/social/facebook/auth-url",
     connectBlurb: "Connect your Facebook Pages — exports post as Reels.",
-    readyBlurb: "Ready to post to Facebook Pages as Reels · 2 credits per post",
+    readyBlurb: "Ready to post to Facebook Pages as Reels · 2 Visual Bucs per post",
     Icon: FacebookIcon,
     iconBadgeClass: "bg-[#1877F2]",
   },
@@ -165,7 +165,7 @@ export function ConnectedAccounts() {
       <div>
         <h2 className="text-lg font-bold text-white">Connected Accounts</h2>
         <p className="text-sm text-white/40 mt-1">
-          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — 2 credits per post.
+          Post your exports straight to Instagram Reels, TikTok drafts, and Facebook Pages — 2 Visual Bucs per post.
         </p>
       </div>
 

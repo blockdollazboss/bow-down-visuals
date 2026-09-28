@@ -486,7 +486,7 @@ function MasterPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || "Mastering failed — your credits were refunded.");
+          setError(data.error || "Mastering failed — your Visual Bucs were refunded.");
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -596,7 +596,7 @@ function MasterPanel() {
             {!user ? "Sign in to master" : `Master my track — ${MASTER_CREDIT_COST} credits`}
           </button>
           {typeof creditsRemaining === "number" && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
       )}
@@ -655,7 +655,7 @@ function MixPanel() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || "Mixing failed — your credits were refunded.");
+          setError(data.error || "Mixing failed — your Visual Bucs were refunded.");
         }
       } catch { /* keep polling */ }
     }, 3000);
@@ -823,7 +823,7 @@ function MixPanel() {
             {!user ? "Sign in to mix" : `Mix & master ${stems.length} stem${stems.length === 1 ? "" : "s"} — ${MIX_CREDIT_COST} credits`}
           </button>
           {typeof creditsRemaining === "number" && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
       )}
@@ -894,7 +894,7 @@ export default function MixMaster() {
             <SlidersHorizontal className="h-4 w-4" />
             AI Master
             <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${tab === "master" ? "bg-black/20" : "bg-white/[0.08] text-white/50"}`}>
-              {MASTER_CREDIT_COST} cr
+              {MASTER_CREDIT_COST} VB
             </span>
           </button>
           <button
@@ -909,7 +909,7 @@ export default function MixMaster() {
             <AudioWaveform className="h-4 w-4" />
             AI Mix <span className="hidden sm:inline">· Stems</span>
             <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${tab === "mix" ? "bg-black/20" : "bg-white/[0.08] text-white/50"}`}>
-              {MIX_CREDIT_COST} cr
+              {MIX_CREDIT_COST} VB
             </span>
           </button>
         </div>

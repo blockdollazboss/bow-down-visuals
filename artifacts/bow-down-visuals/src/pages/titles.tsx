@@ -189,7 +189,7 @@ export default function TitleStudio() {
         <div className="text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            AI Packaging · {CREDIT_COST} credit
+            AI Packaging · {CREDIT_COST} Visual Buc
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
             Title <span className="text-primary">&amp;</span> Description Studio
@@ -341,7 +341,7 @@ export default function TitleStudio() {
               ) : (
                 <>
                   <Sparkles className="h-5 w-5" aria-hidden="true" />
-                  Generate Packaging · {CREDIT_COST} credit
+                  Generate Packaging · {CREDIT_COST} Visual Buc
                 </>
               )}
             </button>
@@ -379,7 +379,7 @@ export default function TitleStudio() {
                   className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                 >
                   <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  Regenerate · {CREDIT_COST} credit
+                  Regenerate · {CREDIT_COST} Visual Buc
                 </button>
               </div>
               <ol className="space-y-3">

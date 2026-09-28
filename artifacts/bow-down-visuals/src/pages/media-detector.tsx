@@ -237,7 +237,7 @@ export default function MediaDetector() {
       if (!res.ok || !data.detection) {
         const msg =
           data.error === "out_of_credits"
-            ? "Out of credits."
+            ? "Out of Visual Bucs."
             : data.message || "Detection failed. Try again.";
         return { ...item, status: "error", error: msg };
       }
@@ -285,7 +285,7 @@ export default function MediaDetector() {
           <p className="text-white/50 max-w-2xl mx-auto">
             Upload an image, video, or audio file — or paste a link — and get a forensic
             AI assessment: verdict, confidence score, and the exact tells it found.
-            <span className="text-amber-300/80 font-semibold"> {CREDIT_COST} credits per check.</span>
+            <span className="text-amber-300/80 font-semibold"> {CREDIT_COST} Visual Bucs per check.</span>
           </p>
         </div>
 
@@ -354,7 +354,7 @@ export default function MediaDetector() {
                 className="px-5 py-2 rounded-full text-sm font-black bg-amber-400 text-black hover:bg-amber-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
               >
                 {batchRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanSearch className="h-4 w-4" />}
-                Check all ({queuedCount * CREDIT_COST} credits)
+                Check all ({queuedCount * CREDIT_COST} Visual Bucs)
               </button>
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function MediaDetector() {
                         onClick={() => analyzeItem(item.id)}
                         className="mt-2 px-4 py-2 rounded-full text-sm font-black bg-amber-400 text-black hover:bg-amber-300 transition-colors inline-flex items-center gap-1.5"
                       >
-                        <ScanSearch className="h-4 w-4" /> Analyze · {CREDIT_COST} credits
+                        <ScanSearch className="h-4 w-4" /> Analyze · {CREDIT_COST} Visual Bucs
                       </button>
                     )}
                     {item.status === "analyzing" && (

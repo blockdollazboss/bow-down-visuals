@@ -18,7 +18,7 @@ router.get("/credits/history", requireAuth, async (req, res) => {
     res.json({ purchases, usage });
   } catch (err: unknown) {
     req.log.error({ err }, "credits/history error");
-    res.status(500).json({ error: "Failed to load credit history." });
+    res.status(500).json({ error: "Failed to load Visual Buc history." });
   }
 });
 
@@ -87,7 +87,7 @@ router.post("/credits/claim-trial", requireAuth, async (req, res) => {
     res.json({ granted: true, credits: TRIAL_CREDITS });
   } catch (err: unknown) {
     req.log.error({ err }, "credits/claim-trial error");
-    res.status(500).json({ error: "Failed to claim trial credits." });
+    res.status(500).json({ error: "Failed to claim trial Visual Bucs." });
   }
 });
 

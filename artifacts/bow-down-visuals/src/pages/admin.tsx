@@ -79,7 +79,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
     }
     const prizeCredits = parseInt(prize, 10);
     if (!Number.isFinite(prizeCredits) || prizeCredits < 1 || prizeCredits > 10000) {
-      setError("Prize must be between 1 and 10000 credits.");
+      setError("Prize must be between 1 and 10000 Visual Bucs.");
       return;
     }
     if (!name.trim()) {
@@ -168,7 +168,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
             />
           </label>
           <label className="block">
-            <span className="text-xs text-white/50">Prize (credits)</span>
+            <span className="text-xs text-white/50">Prize (Visual Bucs)</span>
             <input
               type="number" min={1} max={10000}
               value={prize}
@@ -277,7 +277,7 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
                 <div className="flex-1 min-w-[160px]">
                   <p className="text-sm font-semibold text-white">{ev.name}</p>
                   <p className="text-xs text-white/40">
-                    {ev.prizeCredits} credits · {ev.codeLength}-move code ·{" "}
+                    {ev.prizeCredits} Visual Bucs · {ev.codeLength}-move code ·{" "}
                     {ev.endsAt ? new Date(ev.endsAt).toLocaleDateString() : "no end"} ·{" "}
                     <span className={
                       phase === "live" ? "text-green-400 font-semibold"
@@ -475,7 +475,7 @@ export default function AdminPage() {
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
       if (!res.ok) throw new Error(data.error || "Grant failed.");
-      setMessage(`Granted ${data.granted} credits. New balance: ${data.credits}.`);
+      setMessage(`Granted ${data.granted} Visual Bucs. New balance: ${data.credits}.`);
       await refreshProfile();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Grant failed.");
@@ -505,7 +505,7 @@ export default function AdminPage() {
       });
       const data = (await res.json()) as { granted?: number; credits?: number; error?: string };
       if (!res.ok) throw new Error(data.error || "Grant failed.");
-      setFriendMessage(`Granted ${data.granted} credits to ${friendEmail.trim()}. Their new balance: ${data.credits}.`);
+      setFriendMessage(`Granted ${data.granted} Visual Bucs to ${friendEmail.trim()}. Their new balance: ${data.credits}.`);
       setFriendEmail("");
     } catch (e) {
       setFriendError(e instanceof Error ? e.message : "Grant failed.");
@@ -582,11 +582,11 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 mb-1">
               <Coins className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Give myself credits
+                Give myself Visual Bucs
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Current balance: <span className="font-bold text-white">{profile?.credits ?? "—"}</span> credits
+              Current balance: <span className="font-bold text-white">{profile?.credits ?? "—"}</span> Visual Bucs
             </p>
             <div className="flex gap-2">
               <input
@@ -600,24 +600,24 @@ export default function AdminPage() {
               />
               <Button onClick={() => { void handleGrant(); }} disabled={granting} className="rounded-xl">
                 {granting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Grant credits
+                Grant Visual Bucs
               </Button>
             </div>
             {message && <p className="mt-3 text-sm text-green-400">{message}</p>}
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
             <p className="mt-4 text-[11px] text-white/30">
-              Grants are logged as "Admin Credit Grant" in the credit ledger.
+              Grants are logged as "Admin Visual Buc Grant" in the Visual Buc ledger.
             </p>
           </div>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mt-4">
             <div className="flex items-center gap-2 mb-1">
               <Users className="h-4 w-4 text-primary" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-                Give a friend credits
+                Give a friend Visual Bucs
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Send credits to any user by their sign-in email.
+              Send Visual Bucs to any user by their sign-in email.
             </p>
             <div className="flex flex-wrap gap-2">
               <input
@@ -639,7 +639,7 @@ export default function AdminPage() {
               />
               <Button onClick={() => { void handleFriendGrant(); }} disabled={friendGranting} className="rounded-xl">
                 {friendGranting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Send credits
+                Send Visual Bucs
               </Button>
             </div>
             {friendMessage && <p className="mt-3 text-sm text-green-400">{friendMessage}</p>}
@@ -695,7 +695,7 @@ export default function AdminPage() {
             <p className="text-sm text-white/60 mb-4">
               One secret site-wide race per month. Every signed-in user&rsquo;s bows feed a
               single counter; each month draws a random target of 1,000&ndash;5,000 bows.
-              Whoever&rsquo;s bow lands exactly on the target wins the credit reward and sees
+              Whoever&rsquo;s bow lands exactly on the target wins the Visual Buc reward and sees
               the surprise &ldquo;You Cracked the Code!&rdquo; popup. The race is never announced
               anywhere &mdash; this panel is the only place it surfaces.
             </p>
@@ -711,7 +711,7 @@ export default function AdminPage() {
                   {bowRace.winnerEmail} landed bow #{bowRace.target.toLocaleString()} of{" "}
                   {bowRace.target.toLocaleString()}
                   {bowRace.wonAt ? ` on ${new Date(bowRace.wonAt).toLocaleString()}` : ""} and
-                  was awarded the credit reward.
+                  was awarded the Visual Buc reward.
                 </p>
               </div>
             )}
@@ -731,7 +731,7 @@ export default function AdminPage() {
             )}
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs text-white/40">
-                Credit reward
+                Visual Buc reward
                 <input
                   type="number" min={1} max={10000}
                   value={bowReward}
@@ -769,7 +769,7 @@ export default function AdminPage() {
                 variant="outline"
                 onClick={() => setBowTestPopup(true)}
                 className="rounded-xl"
-                title="Preview the winner popup (no credits granted, no race state changed)"
+                title="Preview the winner popup (no Visual Bucs granted, no race state changed)"
               >
                 Test winner popup
               </Button>
@@ -778,7 +778,7 @@ export default function AdminPage() {
             <p className="mt-4 text-[11px] text-white/30">
               A new month automatically starts a new race with a fresh random target &mdash; no
               manual reset. The override applies one time to the next race month, then
-              clears itself. Rewards are logged as &ldquo;Global Bow Race&rdquo; in the credit ledger.
+              clears itself. Rewards are logged as &ldquo;Global Bow Race&rdquo; in the Visual Buc ledger.
             </p>
             {bowHistory.length > 0 && (
               <div className="mt-4">

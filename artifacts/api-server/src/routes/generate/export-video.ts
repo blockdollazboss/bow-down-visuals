@@ -2462,7 +2462,7 @@ export async function runExportJobInBackground(jobId: string, ctx: ExportJobCont
       } catch (deductErr) {
         if (deductErr instanceof OutOfCreditsError) {
           await failJob(jobId, {
-            message: "Not enough credits. Please buy more credits to continue.",
+            message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
             code: "out_of_credits",
           });
           return;
@@ -2525,7 +2525,7 @@ router.post("/export-final-video", requireAuth, async (req, res) => {
   if (!IS_DEV && currentCredits < EXPORT_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }

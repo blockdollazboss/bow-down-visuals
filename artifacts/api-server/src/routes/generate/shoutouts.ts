@@ -352,7 +352,7 @@ router.post("/shoutouts/ai-message", publicApiLimiter, requireAuth, async (req, 
   if (balance < SHOUTOUT_AI_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to polish your request message.",
+      message: "You're out of Visual Bucs — top up to polish your request message.",
     });
     return;
   }
@@ -365,7 +365,7 @@ router.post("/shoutouts/ai-message", publicApiLimiter, requireAuth, async (req, 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to polish your request message.",
+        message: "You're out of Visual Bucs — top up to polish your request message.",
       });
       return;
     }
@@ -425,7 +425,7 @@ router.post("/shoutouts/ai-message", publicApiLimiter, requireAuth, async (req, 
       return;
     }
     logger.error({ err }, "[shoutouts] AI message helper failed");
-    res.status(502).json({ error: "Couldn't draft your message — credits refunded, try again." });
+    res.status(502).json({ error: "Couldn't draft your message — Visual Bucs refunded, try again." });
   }
 });
 

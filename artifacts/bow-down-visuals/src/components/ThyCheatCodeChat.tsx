@@ -18,7 +18,7 @@ interface ChatMessage { role: ChatRole; content: string }
 
 const QUICK_PROMPTS = [
   "What can this site build?",
-  "How do credits work?",
+  "How do Visual Bucs work?",
   "How much does a song cost?",
 ];
 
@@ -28,7 +28,7 @@ const QUICK_PROMPTS = [
 const SURPRISE_PROMPTS = [
   "Give me a random video idea for my next release",
   "What's a killer hook for a TikTok promo clip?",
-  "How do credits work on this site?",
+  "How do Visual Bucs work on this site?",
   "How much does a song cost to make?",
   "Give me a thumbnail concept for a music video",
   "Walk me through making a music video here",
@@ -37,21 +37,21 @@ const SURPRISE_PROMPTS = [
   "Give me a content challenge for this week",
   "How does the Creator Vault work?",
   "Give me a random niche I could own as a creator",
-  "What does a promo clip cost in credits?",
+  "What does a promo clip cost in Visual Bucs?",
   "Give me 3 opening lines for my next video",
   "How do I lock my artist's voice for songs?",
   "Surprise me with a thumbnail idea",
   "What's the fastest workflow from song to finished video?",
   "Give me a random video idea — make it weird",
   "How do lip-sync videos work here?",
-  "What can I build with 10 credits?",
+  "What can I build with 10 Visual Bucs?",
   "Give me a hook idea for a behind-the-scenes clip",
 ];
 
 const GREETING: ChatMessage = {
   role: "assistant",
   content:
-    "Hey, I'm Thy Cheat Code 🦈 — the King Shark. Ask me anything about Bow Down Visuals: tools, credits, pricing, or how to make your next hit.",
+    "Hey, I'm Thy Cheat Code 🦈 — the King Shark. Ask me anything about Bow Down Visuals: tools, Visual Bucs, pricing, or how to make your next hit.",
 };
 
 const MAX_HISTORY = 6;
@@ -117,11 +117,11 @@ export function ThyCheatCodeChat() {
       let reply: string;
       if (res.status === 401) {
         reply =
-          "Sign in to chat with me — it's 1 credit per message. 🦈";
+          "Sign in to chat with me — it's 1 Visual Buc per message. 🦈";
       } else if (res.status === 402) {
         reply =
           data.message ||
-          "You're out of credits — top up to keep chatting with Thy Cheat Code.";
+          "You're out of Visual Bucs — top up to keep chatting with Thy Cheat Code.";
       } else {
         reply =
           data.reply ||
@@ -333,7 +333,7 @@ export function ThyCheatCodeChat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
-              placeholder="Ask about tools, credits, pricing…"
+              placeholder="Ask about tools, Visual Bucs, pricing…"
               maxLength={2000}
               aria-label="Chat message"
               className="tcc-chat min-w-0 flex-1 border-2 border-white/15 bg-black px-3 py-2.5 text-lg text-white placeholder:text-neutral-500 focus:border-[#C9A84C] focus:outline-none"

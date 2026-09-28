@@ -253,7 +253,7 @@ export default function Memberships() {
       setSuggestions(data.tiers as SuggestedTier[]);
       refreshProfile();
     } catch {
-      setError("The AI suggester hiccuped — credits were refunded, try again.");
+      setError("The AI suggester hiccuped — Visual Bucs were refunded, try again.");
     } finally {
       setSuggesting(false);
     }
@@ -457,7 +457,7 @@ export default function Memberships() {
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-primary" /> AI Tier Suggester
-                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">1 credit</span>
+                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">1 Visual Buc</span>
               </h2>
               <div className={CARD + " space-y-4"}>
                 <p className="text-sm text-white/60">

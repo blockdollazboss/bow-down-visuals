@@ -102,7 +102,7 @@ async function uploadJewelryFile(
 function outOfCredits(res: any) {
   res.status(402).json({
     error: "out_of_credits",
-    message: "Not enough credits. Please buy more credits to continue.",
+    message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
   });
 }
 
@@ -400,7 +400,7 @@ router.post("/jewelry/consult", requireAuth, async (req, res) => {
       return;
     }
     req.log.error({ err: chargeErr }, "[jewelry] consult charge failed");
-    res.status(500).json({ error: "Could not process credits. Please try again." });
+    res.status(500).json({ error: "Could not process Visual Bucs. Please try again." });
     return;
   }
 

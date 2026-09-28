@@ -370,7 +370,7 @@ export default function ViralityCheck() {
                 ) : (
                   <Gauge className="h-6 w-6" aria-hidden="true" />
                 )}
-                {loading ? "Running pre-flight…" : `Run Pre-Flight Check (${CREDIT_COST} credits)`}
+                {loading ? "Running pre-flight…" : `Run Pre-Flight Check (${CREDIT_COST} Visual Bucs)`}
               </button>
             ) : (
               <Link
@@ -383,7 +383,7 @@ export default function ViralityCheck() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credits per scorecard · powered by Thy Cheat Code
+              {CREDIT_COST} Visual Bucs per scorecard · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -499,7 +499,7 @@ export default function ViralityCheck() {
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Gauge className="h-4 w-4" aria-hidden="true" />
-                    Re-run check ({CREDIT_COST} credits)
+                    Re-run check ({CREDIT_COST} Visual Bucs)
                   </button>
                 </div>
               )}

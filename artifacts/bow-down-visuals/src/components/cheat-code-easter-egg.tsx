@@ -173,7 +173,7 @@ export function CheatCodeEasterEgg() {
           +1,000,000 style points
         </p>
         <p className="mt-6 text-white/30 text-xs">
-          (no actual credits were harmed)
+          (no actual Visual Bucs were harmed)
         </p>
         <button
           type="button"

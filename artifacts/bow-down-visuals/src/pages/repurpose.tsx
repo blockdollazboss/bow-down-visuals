@@ -239,7 +239,7 @@ export default function Repurpose() {
           if (pollRef.current) window.clearInterval(pollRef.current);
           refreshProfile();
           if (clipData.status === "failed") {
-            setError(clipData.error || "Clip cutting failed. Your pack credits cover the text outputs — clips can be re-cut from the video editor.");
+            setError(clipData.error || "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.");
           } else if (thumbData && thumbData.status === "failed") {
             setError("Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.");
           }
@@ -411,8 +411,8 @@ export default function Repurpose() {
               {analyzing ? "Building your pack…" : `Repurpose my video · ${PACK_CREDITS} credits`}
             </button>
             <p className="text-xs text-white/40">
-              5 credits covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
-              Re-rolls are {REROLL_CREDITS} credit each. Copying and downloading are free.
+              5 Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
+              Re-rolls are {REROLL_CREDITS} Visual Buc each. Copying and downloading are free.
             </p>
           </div>
         </section>
@@ -460,7 +460,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "moments" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New moments · {REROLL_CREDITS}cr
+                    New moments · {REROLL_CREDITS}VB
                   </button>
                 }
               />
@@ -529,7 +529,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "thumbnailPrompts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New concepts · {REROLL_CREDITS}cr
+                    New concepts · {REROLL_CREDITS}VB
                   </button>
                 }
               />
@@ -573,7 +573,7 @@ export default function Repurpose() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                         >
                           {rerollThumbIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          Re-roll · {REROLL_CREDITS}cr
+                          Re-roll · {REROLL_CREDITS}VB
                         </button>
                       </div>
                     </div>
@@ -603,7 +603,7 @@ export default function Repurpose() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                     >
                       {rerolling === "captions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                      Re-roll · {REROLL_CREDITS}cr
+                      Re-roll · {REROLL_CREDITS}VB
                     </button>
                   </div>
                 }
@@ -640,7 +640,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "descriptions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    Re-roll · {REROLL_CREDITS}cr
+                    Re-roll · {REROLL_CREDITS}VB
                   </button>
                 }
               />

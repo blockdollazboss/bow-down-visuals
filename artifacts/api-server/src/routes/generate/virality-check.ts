@@ -75,7 +75,7 @@ router.post(
       res.status(402).json({
         error: "out_of_credits",
         message:
-          "You're out of credits — top up to keep running pre-flight checks.",
+          "You're out of Visual Bucs — top up to keep running pre-flight checks.",
       });
       return;
     }
@@ -91,7 +91,7 @@ router.post(
         res.status(402).json({
           error: "out_of_credits",
           message:
-            "You're out of credits — top up to keep running pre-flight checks.",
+            "You're out of Visual Bucs — top up to keep running pre-flight checks.",
         });
         return;
       }
@@ -252,7 +252,7 @@ router.post(
       if (!parsedOk) {
         await refund();
         res.status(500).json({
-          error: "The check came back empty — credits refunded, try again.",
+          error: "The check came back empty — Visual Bucs refunded, try again.",
         });
         return;
       }
@@ -275,7 +275,7 @@ router.post(
         logger.warn({ err }, "[virality-check] OpenAI rate limit / quota");
         await refund();
         res.status(503).json({
-          error: "The studio is catching its breath — credits refunded, try again in a moment.",
+          error: "The studio is catching its breath — Visual Bucs refunded, try again in a moment.",
         });
         return;
       }
@@ -285,7 +285,7 @@ router.post(
       logger.error({ err }, "[virality-check] generation failed");
       await refund();
       res.status(502).json({
-        error: "The studio hiccupped — credits refunded, try again.",
+        error: "The studio hiccupped — Visual Bucs refunded, try again.",
       });
     }
   }

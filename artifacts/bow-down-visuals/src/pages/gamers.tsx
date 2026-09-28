@@ -293,7 +293,7 @@ export default function GamersHub() {
             {[
               { n: "5", l: "Gamer tools wired in" },
               { n: "3", l: "Content types" },
-              { n: "1", l: "Credit per idea pack" },
+              { n: "1", l: "Visual Buc per idea pack" },
             ].map((s) => (
               <div key={s.l} className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-4">
                 <p className="gamers-rgb-text text-3xl font-black">{s.n}</p>
@@ -329,7 +329,7 @@ export default function GamersHub() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
-                  <Wand2 className="h-3 w-3" aria-hidden="true" /> AI powered · {CREDIT_COST} credit
+                  <Wand2 className="h-3 w-3" aria-hidden="true" /> AI powered · {CREDIT_COST} Visual Buc
                 </p>
                 <h2 className="text-2xl font-black uppercase tracking-tight md:text-3xl">
                   Stream Title <span className="gamers-rgb-text">&amp; Idea Generator</span>
@@ -403,7 +403,7 @@ export default function GamersHub() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate ideas · {CREDIT_COST} credit
+                  <Sparkles className="h-4 w-4" aria-hidden="true" /> Generate ideas · {CREDIT_COST} Visual Buc
                 </>
               )}
             </button>
