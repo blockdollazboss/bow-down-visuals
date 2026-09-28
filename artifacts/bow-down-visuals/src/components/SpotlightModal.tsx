@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/* Shared Spotlight Takeover inquiry modal, opened by the auth-screen
-   floating badge (SpotlightPromo). */
+/* Shared Spotlight Takeover inquiry modal. Used by the auth-screen floating
+   badge (SpotlightPromo) and the dashboard banner (SpotlightBanner). */
 
 type Offer = {
   name: string;
