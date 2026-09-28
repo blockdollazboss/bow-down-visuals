@@ -62,10 +62,25 @@ export async function recordStripePayment(payment: PaymentRecord): Promise<void>
 
 /**
  * Fetch all payment records for a user, newest first.
+ *
+ * Selects explicit columns (not `select()`) on purpose: the drizzle schema
+ * is the NEWEST schema, but a deployed database can lag behind it (e.g. a
+ * `drizzle-kit push` that hasn't run yet). Selecting every column makes the
+ * whole endpoint 500 if any single newer column is missing; the explicit
+ * list below contains only long-stable columns, so history keeps loading
+ * while migrations catch up.
  */
 export async function getPaymentHistory(userId: string) {
   return db
-    .select()
+    .select({
+      id: stripePaymentsTable.id,
+      createdAt: stripePaymentsTable.createdAt,
+      creditPack: stripePaymentsTable.creditPack,
+      creditsAmount: stripePaymentsTable.creditsAmount,
+      amountTotal: stripePaymentsTable.amountTotal,
+      currency: stripePaymentsTable.currency,
+      status: stripePaymentsTable.status,
+    })
     .from(stripePaymentsTable)
     .where(eq(stripePaymentsTable.userId, userId))
     .orderBy(desc(stripePaymentsTable.createdAt));
@@ -118,10 +133,21 @@ export async function recordCreditUsageStrict(record: CreditUsageRecord): Promis
 
 /**
  * Fetch all credit usage records for a user, newest first.
+ *
+ * Selects explicit columns (not `select()`) on purpose: newer columns such
+ * as `team_id` (teams) and `idempotency_key` may not exist yet on a deployed
+ * database whose schema push is behind, and a single missing column would
+ * 500 the entire history page. The UI only needs the stable columns below.
  */
 export async function getCreditUsage(userId: string) {
   return db
-    .select()
+    .select({
+      id: creditUsageTable.id,
+      createdAt: creditUsageTable.createdAt,
+      action: creditUsageTable.action,
+      creditsUsed: creditUsageTable.creditsUsed,
+      projectId: creditUsageTable.projectId,
+    })
     .from(creditUsageTable)
     .where(eq(creditUsageTable.userId, userId))
     .orderBy(desc(creditUsageTable.createdAt));

@@ -13,6 +13,22 @@ create table if not exists profiles (
   created_at   timestamptz not null default now()
 );
 
+-- Bonus / jackpot-wheel columns (added 2026-09-28). Safe to re-run.
+alter table profiles add column if not exists bonus_credits integer not null default 0;
+alter table profiles add column if not exists bonus_credits_expires_at timestamptz null;
+alter table profiles add column if not exists daily_streak integer not null default 0;
+alter table profiles add column if not exists last_daily_claim date null;
+alter table profiles add column if not exists last_wheel_spin timestamptz null;
+
+create table if not exists wheel_spins (
+  id            uuid        primary key default gen_random_uuid(),
+  user_id       uuid        not null,
+  spun_at       timestamptz not null default now(),
+  prize_credits integer     not null,
+  was_jackpot   boolean     not null default false
+);
+create index if not exists idx_wheel_spins_user on wheel_spins(user_id);
+
 alter table profiles enable row level security;
 
 drop policy if exists "Users can view own profile"   on profiles;

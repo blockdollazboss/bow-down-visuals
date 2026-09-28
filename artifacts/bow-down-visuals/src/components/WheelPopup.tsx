@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Timer, Sparkles, Trophy, X, Gift } from "lucide-react";
+import { Timer, Sparkles, Trophy, X, Gift, Loader2 } from "lucide-react";
 
 interface WheelSegment {
   credits: number;
@@ -35,6 +35,7 @@ export function WheelPopup() {
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<{ prize: number; isJackpot: boolean } | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   // Hide on auth pages and when signed out
   const hidden = !user || location.startsWith("/login") || location.startsWith("/signup");
@@ -45,6 +46,9 @@ export function WheelPopup() {
       ...opts,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts?.headers || {}) },
     });
+    // Fail loudly on HTTP errors — a 500 returning { error } must NOT be
+    // treated as a valid status, or the wheel renders empty with no error.
+    if (!res.ok) throw new Error(`Request failed: ${res.status} ${path}`);
     return res.json();
   }
 
@@ -54,7 +58,10 @@ export function WheelPopup() {
       const s: BonusStatus = await api("/api/bonus/status");
       setStatus(s);
       setCooldown(s.wheelCooldownSeconds);
-    } catch { /* silent */ }
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
   }, [user]);
 
   // Load on mount + refresh every minute so the floating button state stays fresh
@@ -176,7 +183,11 @@ export function WheelPopup() {
 
   if (hidden) return null;
 
-  const ready = cooldown <= 0 && !spinning;
+  // The wheel must never render empty with an active SPIN button: SPIN stays
+  // disabled (and the floating badge stays off) until segments actually load.
+  const segments = status?.wheelSegments ?? [];
+  const segmentsLoaded = segments.length > 0;
+  const ready = cooldown <= 0 && !spinning && segmentsLoaded;
 
   return (
     <>
@@ -192,6 +203,8 @@ export function WheelPopup() {
       >
         {ready ? (
           <Trophy className="h-7 w-7 text-black" />
+        ) : loadError ? (
+          <Trophy className="h-7 w-7 text-[#c9a84c]/60" />
         ) : (
           <span className="text-[#c9a84c] text-[11px] font-bold leading-tight text-center px-1">
             {formatCompact(cooldown)}
@@ -237,15 +250,35 @@ export function WheelPopup() {
               <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
                 <div className="w-0 h-0 border-l-[10px] border-r-[10px] border-t-[16px] border-l-transparent border-r-transparent border-t-[#c9a84c]" />
               </div>
-              <div
-                className="w-full h-full rounded-full border-4 border-[#c9a84c] shadow-[0_0_40px_rgba(201,168,76,0.3)]"
-                style={{
-                  transform: `rotate(${rotation}deg)`,
-                  transition: spinning ? "transform 4s cubic-bezier(0.15, 0.85, 0.25, 1)" : "none",
-                }}
-              >
-                {renderWheel()}
-              </div>
+              {segmentsLoaded ? (
+                <div
+                  className="w-full h-full rounded-full border-4 border-[#c9a84c] shadow-[0_0_40px_rgba(201,168,76,0.3)]"
+                  style={{
+                    transform: `rotate(${rotation}deg)`,
+                    transition: spinning ? "transform 4s cubic-bezier(0.15, 0.85, 0.25, 1)" : "none",
+                  }}
+                >
+                  {renderWheel()}
+                </div>
+              ) : loadError ? (
+                <div className="w-full h-full rounded-full border-4 border-[#c9a84c]/30 flex flex-col items-center justify-center gap-3 p-8">
+                  <p className="text-sm text-muted-foreground">
+                    Couldn't load the Jackpot Wheel. Check your connection and try again.
+                  </p>
+                  <Button
+                    onClick={() => loadStatus()}
+                    variant="outline"
+                    size="sm"
+                    className="border-[#c9a84c]/50 text-[#c9a84c] hover:bg-[#c9a84c]/10 hover:text-[#e8c766]"
+                  >
+                    Try again
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-full border-4 border-[#c9a84c]/30 flex items-center justify-center">
+                  <Loader2 className="h-10 w-10 text-[#c9a84c] animate-spin" />
+                </div>
+              )}
             </div>
 
             {result && (
@@ -260,12 +293,14 @@ export function WheelPopup() {
 
             <Button
               onClick={handleSpin}
-              disabled={spinning || cooldown > 0}
+              disabled={spinning || cooldown > 0 || !segmentsLoaded}
               size="lg"
               className="bg-[#c9a84c] text-black hover:bg-[#e8c766] text-lg px-8 py-5 w-full"
             >
               {spinning ? (
                 <><Sparkles className="h-5 w-5 mr-2 animate-spin" /> Spinning…</>
+              ) : !segmentsLoaded ? (
+                <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading…</>
               ) : cooldown > 0 ? (
                 <><Timer className="h-5 w-5 mr-2" /> Next spin in {formatCooldown(cooldown)}</>
               ) : (
