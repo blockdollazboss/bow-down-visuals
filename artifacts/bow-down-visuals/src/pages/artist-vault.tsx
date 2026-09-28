@@ -10,7 +10,7 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
-  AlertTriangle, Download, Repeat,
+  AlertTriangle, Download, Repeat, Users,
 } from "lucide-react";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,7 @@ import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 interface ArtistVaultRecord {
   id: string;
   user_id: string;
+  team_id?: string | null;
   artist_name: string;
   artist_type: string | null;
   genre: string | null;
@@ -1332,13 +1333,14 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
   );
 }
 
-function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isActive }: {
+function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onShare, isActive }: {
   vault: ArtistVaultRecord;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onLock: () => void;
   onSetActive: () => void;
+  onShare: () => void;
   isActive: boolean;
 }) {
   const G = (o: number) => `rgba(201,168,76,${o})`;
@@ -1484,6 +1486,14 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}>{icon} {label}</button>
             ))}
+            <button onClick={onShare} title={vault.team_id ? "Shared with team — click to unshare" : "Share with team"} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              border: vault.team_id ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.08)",
+              background: vault.team_id ? G(0.1) : "rgba(255,255,255,0.03)",
+              color: vault.team_id ? GOLD : "rgba(255,255,255,0.55)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+            }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? "Shared" : "Share"}</button>
             <button onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
@@ -1742,6 +1752,33 @@ export default function ArtistVault() {
       });
       setVaults((prev) => prev.filter((v) => v.id !== id));
       if (editId === id) { setEditId(null); reset(); setPhotoUrl(null); setPhotoPath(null); }
+    } catch {
+      /* silent */
+    }
+  }
+
+  async function shareVault(id: string) {
+    const vault = vaults.find((v) => v.id === id);
+    if (!vault) return;
+    const sharing = !vault.team_id;
+    if (sharing && !window.confirm("Share this vault with your team? All team members will be able to use it.")) return;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${id}/share`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ share: sharing }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "Could not update sharing.");
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setVaults((prev) => prev.map((v) => v.id === id ? { ...v, team_id: data.teamId ?? (sharing ? "shared" : null) } : v));
     } catch {
       /* silent */
     }
@@ -2223,6 +2260,7 @@ export default function ArtistVault() {
                   onDelete={() => deleteVault(vault.id)}
                   onLock={() => setConsistencyVault(vault)}
                   onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
+                  onShare={() => shareVault(vault.id)}
                   isActive={activeArtist?.id === vault.id}
                 />
               ))}
