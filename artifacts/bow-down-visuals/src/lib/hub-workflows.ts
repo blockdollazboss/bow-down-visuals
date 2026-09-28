@@ -30,6 +30,8 @@ export interface WorkflowStep {
   creditNote: string;
   /** Inline module rendered in the hub stage instead of a launcher card. */
   embed?: "beat-maker" | "thumbnail-maker";
+  /** Custom label for the guided-mode skip button (default: "Skip for now"). */
+  skipLabel?: string;
 }
 
 export type HubFamily = "create" | "launch" | "grow" | "monetize" | "learn" | "business";
@@ -286,8 +288,8 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
         blurb: "Cover art that pops in the feed.",
         creditNote: "from 1 credit" },
       { key: "video", label: "Video Episode", icon: Clapperboard, assetKind: "video", href: "/make-video",
-        blurb: "The visual podcast — your episode as a watchable video.",
-        creditNote: "from 4 credits" },
+        blurb: "The visual podcast — your episode as a watchable video. Or keep it audio-only.",
+        creditNote: "from 4 credits", skipLabel: "Keep it audio-only" },
       { key: "clips", label: "Clips", icon: Film, assetKind: "clip", href: "/promo-clip",
         blurb: "Cut the episode into clips that pull in new listeners.",
         creditNote: "from 1 credit" },

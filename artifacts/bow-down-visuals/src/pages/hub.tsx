@@ -301,7 +301,7 @@ function GuidedView({ onNewProject }: { onNewProject: () => void }) {
                   onClick={finishStep}
                   className="text-white/40 hover:text-white text-xs underline underline-offset-4"
                 >
-                  {step.assetKind ? "Skip for now" : "Done — next"}
+                  {step.skipLabel ?? (step.assetKind ? "Skip for now" : "Done — next")}
                 </button>
               </div>
             </div>
