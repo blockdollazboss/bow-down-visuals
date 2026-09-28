@@ -13,6 +13,7 @@ import {
   useSidebar
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -35,7 +36,6 @@ import {
   Mic2,
   LogOut,
   LogIn,
-  Coins,
   ShieldCheck,
   Lock,
   MapPin,
@@ -505,7 +505,7 @@ export function AppSidebar() {
               className="flex items-center justify-between rounded-lg px-1 py-0.5 hover:bg-white/[0.03] transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Coins className="h-4 w-4 text-primary" />
+                <VisualBucsIcon className="h-4 w-4" />
                 <span className="text-sm text-sidebar-foreground/70 font-medium">Visual Bucs</span>
               </div>
               <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">

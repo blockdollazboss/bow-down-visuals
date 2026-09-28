@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import { Coins, X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle } from "lucide-react";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -57,7 +58,7 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 border border-primary/30">
-                  <Coins className="h-6 w-6 text-primary" />
+                  <VisualBucsIcon className="h-6 w-6" />
                 </div>
                 <div>
                   <h3 className="font-black text-white text-lg leading-tight">Spend Credits?</h3>

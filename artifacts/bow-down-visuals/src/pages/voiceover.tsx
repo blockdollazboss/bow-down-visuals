@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Mic, Loader2, Play, Pause, Download, Clapperboard, Volume2,
-  AlertTriangle, Sparkles, FileText, Timer, Coins,
+  AlertTriangle, Sparkles, FileText, Timer,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
@@ -257,7 +258,7 @@ export default function VoiceoverStudio() {
                     ~{formatDuration(estimate.estimatedSeconds)}
                   </span>
                   <span className="flex items-center gap-1 text-primary">
-                    <Coins className="h-3.5 w-3.5" />
+                    <VisualBucsIcon className="h-3.5 w-3.5" />
                     {estimate.credits} Visual Bucs
                   </span>
                 </div>

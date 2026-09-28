@@ -1,3 +1,6 @@
+import { useState } from "react";
+import popupArt from "@/assets/bow-winner-popup.webp";
+
 /* ============================================================
    Winner popup — uses the exact approved mockup image.
    The generated scene (fireworks, gold frame, card, shark) is shown
@@ -6,6 +9,11 @@
    only when the awarded amount differs, so the popup never shows a
    stale amount. A working Claim button sits over the baked-in Claim
    button art.
+
+   The artwork is bundled through Vite (content-hashed URL), never a
+   bare public/ path, so a stale cache can never 404 it. If the image
+   still fails to load for any reason, a pure-CSS fallback card renders
+   instead — the popup (and its Claim button) always works.
    ============================================================ */
 
 /** Amount baked into bow-winner-popup.webp — keep in sync with the artwork. */
@@ -18,7 +26,7 @@ export function SecretChallengePopup({
   credits: number;
   onClaim: () => void;
 }) {
-  const base = import.meta.env.BASE_URL;
+  const [imgFailed, setImgFailed] = useState(false);
   // Cover the baked-in amount only when the real award differs from it.
   const needsAmountOverlay = credits !== BAKED_IN_CREDITS;
 
@@ -29,53 +37,78 @@ export function SecretChallengePopup({
       aria-modal="true"
       aria-label="You cracked the code"
     >
-      {/* The exact generated scene. Wrapper is a sized container so the
-          overlays below can use cqw units and track the image exactly. */}
-      <div
-        className="relative w-fit animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
-        style={{ containerType: "inline-size" }}
-      >
-        <img
-          src={`${base}images/bow-winner-popup.webp`}
-          alt="You cracked the code — you've been awarded Visual Bucs"
-          draggable={false}
-          className="block h-auto select-none"
-          style={{ width: "min(94vw, calc(90vh * 1.5))", maxHeight: "90vh" }}
-        />
-
-        {/* Live credit amount — opaque backing fully covers the baked-in
-            "50 Visual Bucs" text (measured at 35–63.7% x, 55.3–61.5% y),
-            then the real awarded amount goes on top. */}
-        {needsAmountOverlay && (
-          <div
-            aria-hidden="true"
-            className="absolute flex items-center justify-center bg-black"
-            style={{ left: "33%", top: "53.5%", width: "34%", height: "10%" }}
-          >
-            <span
-              className="font-display font-bold whitespace-nowrap text-[#e8c86a]"
-              style={{
-                fontSize: "4.4cqw",
-                textShadow: "0 0 2cqw rgba(232,200,106,0.55)",
-              }}
-            >
-              {credits} Visual Bucs
-            </span>
+      {imgFailed ? (
+        /* Fallback card — no image dependency, always tappable. */
+        <div className="w-[min(94vw,560px)] rounded-3xl border-2 border-[#C9A84C] bg-gradient-to-b from-[#1a1408] to-black p-8 text-center shadow-[0_0_60px_rgba(201,168,76,0.35)]">
+          <div className="text-5xl" aria-hidden="true">
+            👑
           </div>
-        )}
-        {/* Screen-reader announcement of the real amount */}
-        <span className="sr-only">You&rsquo;ve been awarded {credits} Visual Bucs.</span>
+          <h2 className="font-display mt-3 text-4xl font-black text-[#e8c86a]">
+            You Cracked the Code!
+          </h2>
+          <p className="mt-2 text-white/70">You&rsquo;ve been awarded</p>
+          <p className="font-display mt-1 text-3xl font-black text-[#e8c86a]">
+            {credits} Visual Bucs
+          </p>
+          <button
+            type="button"
+            onClick={onClaim}
+            className="mt-6 w-full rounded-xl bg-gradient-to-b from-[#f0d878] to-[#C9A84C] py-3 text-lg font-black text-black transition hover:brightness-110 active:brightness-95"
+          >
+            Claim
+          </button>
+          <p className="mt-3 text-sm italic text-white/40">Shhh... don&rsquo;t tell nobody.</p>
+        </div>
+      ) : (
+        /* The exact generated scene. Wrapper is a sized container so the
+           overlays below can use cqw units and track the image exactly. */
+        <div
+          className="relative w-fit animate-[popIn_0.45s_cubic-bezier(0.34,1.56,0.64,1)_both]"
+          style={{ containerType: "inline-size" }}
+        >
+          <img
+            src={popupArt}
+            alt="You cracked the code — you've been awarded Visual Bucs"
+            draggable={false}
+            onError={() => setImgFailed(true)}
+            className="block h-auto select-none"
+            style={{ width: "min(94vw, calc(90vh * 1.5))", maxHeight: "90vh" }}
+          />
 
-        {/* Working Claim button over the baked-in Claim art
-            (measured at 38.8–60.4% x, 65.4–71.6% y). */}
-        <button
-          type="button"
-          onClick={onClaim}
-          aria-label="Claim your Visual Bucs"
-          className="absolute cursor-pointer rounded-[1cqw] transition hover:bg-[#C9A84C]/15 active:bg-[#C9A84C]/25"
-          style={{ left: "38.5%", top: "65%", width: "22%", height: "7%" }}
-        />
-      </div>
+          {/* Live credit amount — opaque backing fully covers the baked-in
+              "50 Visual Bucs" text (measured at 35–63.7% x, 55.3–61.5% y),
+              then the real awarded amount goes on top. */}
+          {needsAmountOverlay && (
+            <div
+              aria-hidden="true"
+              className="absolute flex items-center justify-center bg-black"
+              style={{ left: "33%", top: "53.5%", width: "34%", height: "10%" }}
+            >
+              <span
+                className="font-display font-bold whitespace-nowrap text-[#e8c86a]"
+                style={{
+                  fontSize: "4.4cqw",
+                  textShadow: "0 0 2cqw rgba(232,200,106,0.55)",
+                }}
+              >
+                {credits} Visual Bucs
+              </span>
+            </div>
+          )}
+          {/* Screen-reader announcement of the real amount */}
+          <span className="sr-only">You&rsquo;ve been awarded {credits} Visual Bucs.</span>
+
+          {/* Working Claim button over the baked-in Claim art
+              (measured at 38.8–60.4% x, 65.4–71.6% y). */}
+          <button
+            type="button"
+            onClick={onClaim}
+            aria-label="Claim your Visual Bucs"
+            className="absolute cursor-pointer rounded-[1cqw] transition hover:bg-[#C9A84C]/15 active:bg-[#C9A84C]/25"
+            style={{ left: "38.5%", top: "65%", width: "22%", height: "7%" }}
+          />
+        </div>
+      )}
       <style>{`@keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }`}</style>
     </div>
   );

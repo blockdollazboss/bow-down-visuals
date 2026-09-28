@@ -4,7 +4,8 @@ import { usePageTitle } from "@/hooks/use-page-title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Users, UserPlus, Coins, Trash2, LogOut, Crown, Shield, User as UserIcon } from "lucide-react";
+import { Users, UserPlus, Trash2, LogOut, Crown, Shield, User as UserIcon } from "lucide-react";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 
 interface Team {
   id: string;
@@ -345,7 +346,7 @@ export default function TeamPage() {
               <div>
                 <p className="text-xs uppercase tracking-wider text-white/40 font-semibold">Team pool</p>
                 <p className="text-4xl font-black text-[#C9A84C] flex items-center gap-2">
-                  <Coins className="h-7 w-7" /> {activeTeam.credits.toLocaleString()}
+                  <VisualBucsIcon className="h-7 w-7" /> {activeTeam.credits.toLocaleString()}
                 </p>
                 <p className="text-xs text-white/40 mt-1">Visual Bucs shared across all members</p>
               </div>

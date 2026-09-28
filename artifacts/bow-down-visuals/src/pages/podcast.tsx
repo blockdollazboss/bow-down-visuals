@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   Podcast as PodcastIcon, Loader2, Play, Pause, Download, Rss,
-  AlertTriangle, Sparkles, FileText, Timer, Coins, Copy, Check,
+  AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
   Users, User, Music, Video, PenLine, Lightbulb,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import {
@@ -376,7 +377,7 @@ export default function PodcastStudio() {
                       ~{formatDuration(estimate.estimatedSeconds)}
                     </span>
                     <span className="flex items-center gap-1 text-primary">
-                      <Coins className="h-3.5 w-3.5" />
+                      <VisualBucsIcon className="h-3.5 w-3.5" />
                       {estimate.credits} Visual Bucs
                     </span>
                   </div>

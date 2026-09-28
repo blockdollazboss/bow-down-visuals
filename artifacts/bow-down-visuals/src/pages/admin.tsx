@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Loader2, Coins, ShieldCheck, Trophy, Delete, RotateCcw,
+  Loader2, ShieldCheck, Trophy, Delete, RotateCcw,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, Square, Crown, Users, Star, Wrench,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
@@ -594,7 +595,7 @@ export default function AdminPage() {
         <>
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5">
             <div className="flex items-center gap-2 mb-1">
-              <Coins className="h-4 w-4 text-primary" />
+              <VisualBucsIcon className="h-4 w-4" />
               <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
                 Give myself Visual Bucs
               </p>
