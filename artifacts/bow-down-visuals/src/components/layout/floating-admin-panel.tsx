@@ -406,6 +406,7 @@ function BowRaceControls({
   }
 
   return (
+    <>
     <div>
       <p className={labelCls}>Bow race</p>
       <div className="flex items-center justify-between mb-1.5 rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
@@ -457,14 +458,17 @@ function BowRaceControls({
         Test winner popup
       </button>
       {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
-      {/* Test-only preview: purely client-side, grants nothing. */}
-      {testPopup && (
-        <SecretChallengePopup
-          credits={parseInt(reward, 10) || 50}
-          onClaim={() => setTestPopup(false)}
-        />
-      )}
     </div>
+    {/* Test-only preview: purely client-side, grants nothing.
+        Rendered outside the panel div so the panel's backdrop-blur
+        doesn't trap its fixed positioning. */}
+    {testPopup && (
+      <SecretChallengePopup
+        credits={parseInt(reward, 10) || 50}
+        onClaim={() => setTestPopup(false)}
+      />
+    )}
+    </>
   );
 }
 
