@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 import {
   COVER_ART_STYLES,
   COVER_ART_RATIOS,
@@ -26,6 +27,7 @@ interface GenerateResponse extends CoverArtResult {
 
 export default function CoverArt() {
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
@@ -79,6 +81,14 @@ export default function CoverArt() {
       };
       setResult(cover);
       setHistory((h) => [cover, ...h].slice(0, 12));
+      if (cover.url) {
+        addAsset({
+          kind: "image",
+          url: cover.url,
+          label: songTitle ? `Cover art — ${songTitle}` : "Cover art",
+          detail: artistName || undefined,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cover art generation failed.");
     } finally {

@@ -9,6 +9,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "other";
 
+/** What kind of thing this project is making — drives the workflow rail. */
+export type HubProjectType = "song" | "video" | "visual";
+
 export interface HubAsset {
   id: string;
   kind: HubAssetKind;
@@ -21,6 +24,7 @@ export interface HubAsset {
 export interface HubProject {
   id: string;
   name: string;
+  type: HubProjectType;
   assets: HubAsset[];
   updatedAt: number;
 }
@@ -28,6 +32,7 @@ export interface HubProject {
 interface HubProjectContextValue {
   project: HubProject;
   setProjectName: (name: string) => void;
+  setProjectType: (type: HubProjectType) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
   removeAsset: (id: string) => void;
   newProject: () => void;
@@ -43,6 +48,7 @@ function freshProject(): HubProject {
   return {
     id: `proj-${Date.now().toString(36)}`,
     name: "Untitled Project",
+    type: "song",
     assets: [],
     updatedAt: Date.now(),
   };
@@ -56,7 +62,12 @@ function loadProject(): HubProject {
     if (!parsed || !Array.isArray(parsed.assets) || typeof parsed.name !== "string") {
       return freshProject();
     }
-    return { ...parsed, id: parsed.id || freshProject().id };
+    const validTypes: HubProjectType[] = ["song", "video", "visual"];
+    return {
+      ...parsed,
+      id: parsed.id || freshProject().id,
+      type: validTypes.includes(parsed.type) ? parsed.type : "song",
+    };
   } catch {
     return freshProject();
   }
@@ -75,6 +86,10 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
 
   const setProjectName = useCallback((name: string) => {
     setProject((p) => ({ ...p, name: name.slice(0, 80) || "Untitled Project", updatedAt: Date.now() }));
+  }, []);
+
+  const setProjectType = useCallback((type: HubProjectType) => {
+    setProject((p) => ({ ...p, type, updatedAt: Date.now() }));
   }, []);
 
   const addAsset = useCallback((asset: Omit<HubAsset, "id" | "createdAt">) => {
@@ -104,13 +119,14 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     return {
       project,
       setProjectName,
+      setProjectType,
       addAsset,
       removeAsset,
       newProject,
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
     };
-  }, [project, setProjectName, addAsset, removeAsset, newProject]);
+  }, [project, setProjectName, setProjectType, addAsset, removeAsset, newProject]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -125,6 +141,7 @@ export function useHubProject(): HubProjectContextValue {
     return {
       project: freshProject(),
       setProjectName: () => {},
+      setProjectType: () => {},
       addAsset: noopAsset,
       removeAsset: () => {},
       newProject: () => {},
