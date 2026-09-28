@@ -291,7 +291,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
       onOpenChange={handleOpenChange}
     >
       <div className="flex min-h-svh w-full">
-        <AppSidebar />
+        {!isHome && <AppSidebar />}
         <div className="min-w-0 flex-1 flex flex-col">
           <div className="sticky top-0 z-40">
             <VideoBanner />
@@ -307,12 +307,14 @@ function AuthedLayout({ children }: { children: ReactNode }) {
             )}
           </main>
         </div>
-        <ExpandSidebarButton
-          collapsed={sidebarCollapsed}
-          onExpand={() => setSidebarCollapsed(false)}
-        />
+        {!isHome && (
+          <ExpandSidebarButton
+            collapsed={sidebarCollapsed}
+            onExpand={() => setSidebarCollapsed(false)}
+          />
+        )}
         <LiveBadge />
-        <MobileSidebarTrigger />
+        {!isHome && <MobileSidebarTrigger />}
         <FloatingStarLevel />
         <FloatingAdminPanel />
         {typeof window !== "undefined" && <OnboardingTour />}      </div>
