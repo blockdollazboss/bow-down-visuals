@@ -10,7 +10,7 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
-  AlertTriangle, Download,
+  AlertTriangle, Download, Repeat, Users,
 } from "lucide-react";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +36,7 @@ import { LinkedCharactersSection } from "@/components/LinkedCharactersSection";
 interface ArtistVaultRecord {
   id: string;
   user_id: string;
+  team_id?: string | null;
   artist_name: string;
   artist_type: string | null;
   genre: string | null;
@@ -708,6 +709,7 @@ function LockedVoiceSection({ vault, onChanged }: {
 /* ─────────────────────── REFERENCE VIDEO ─────────────────────── */
 
 const REF_VIDEO_CREDITS = 15;
+const LOOP_VIDEO_CREDITS = 2;
 
 function ReferenceVideoSection({ vault, onChanged }: {
   vault: ArtistVaultRecord;
@@ -718,6 +720,8 @@ function ReferenceVideoSection({ vault, onChanged }: {
   const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [loopBusy, setLoopBusy] = useState(false);
+  const [loopStage, setLoopStage] = useState<string | null>(null);
 
   async function authHeaders(): Promise<HeadersInit> {
     const token = await getAccessToken();
@@ -780,6 +784,37 @@ function ReferenceVideoSection({ vault, onChanged }: {
     }
   }
 
+  async function handleMakeLoop() {
+    setLoopBusy(true);
+    setError(null);
+    try {
+      setLoopStage("Smoothing the loop seam…");
+      const res = await fetch(`/api/artist-vaults/${vault.id}/reference-video/loop`, {
+        method: "POST",
+        headers: await authHeaders(),
+      });
+      const data = await res.json().catch(() => ({} as { taskId?: string; error?: string }));
+      if (!res.ok) throw new Error(data.error || "Could not start the loop job.");
+      // Poll — FFmpeg takes ~30s; charged only on success.
+      for (let i = 0; i < 100; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const pres = await fetch(`/api/artist-vaults/${vault.id}/reference-video/loop/${data.taskId}`, {
+          headers: await authHeaders(),
+        });
+        const pdata = await pres.json().catch(() => ({} as { status?: string; error?: string }));
+        if (pdata.status === "succeeded") break;
+        if (pdata.status === "failed") throw new Error(pdata.error || "Loop processing failed. No credits were charged.");
+      }
+      setLoopStage(null);
+      await onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Loop failed.");
+    } finally {
+      setLoopBusy(false);
+      setLoopStage(null);
+    }
+  }
+
   const hasPhoto = !!vault.reference_image_url;
 
   return (
@@ -808,16 +843,33 @@ function ReferenceVideoSection({ vault, onChanged }: {
             <p className="text-xs text-white/40 mb-3">
               Character pickers across the site will autoplay this video.
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { void handleDelete(); }}
-              disabled={busy}
-              className="text-white/50 hover:text-red-400 gap-2"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Remove video
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() => { void handleMakeLoop(); }}
+                disabled={busy || loopBusy}
+                title="Blend the last frames into the first so the video loops without a visible jump"
+                className="gap-2 rounded-xl border border-primary/30 bg-primary/[0.08] text-primary hover:bg-primary/20 font-bold"
+              >
+                {loopBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Repeat className="h-4 w-4" />}
+                Make it loop — {LOOP_VIDEO_CREDITS} credits
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { void handleDelete(); }}
+                disabled={busy || loopBusy}
+                className="text-white/50 hover:text-red-400 gap-2"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Remove video
+              </Button>
+            </div>
+            {loopBusy && loopStage && (
+              <p className="mt-2 text-[11px] text-white/40 flex items-center gap-1.5">
+                <Loader2 className="h-3 w-3 animate-spin" /> {loopStage}
+              </p>
+            )}
           </div>
         </div>
       ) : confirming ? (
@@ -1281,13 +1333,14 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
   );
 }
 
-function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isActive }: {
+function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, onShare, isActive }: {
   vault: ArtistVaultRecord;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onLock: () => void;
   onSetActive: () => void;
+  onShare: () => void;
   isActive: boolean;
 }) {
   const G = (o: number) => `rgba(201,168,76,${o})`;
@@ -1433,6 +1486,14 @@ function VaultCard({ vault, onOpen, onEdit, onDelete, onLock, onSetActive, isAct
                 fontSize: 11, fontWeight: 600, cursor: "pointer",
               }}>{icon} {label}</button>
             ))}
+            <button onClick={onShare} title={vault.team_id ? "Shared with team — click to unshare" : "Share with team"} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              padding: "6px 12px", borderRadius: 8,
+              border: vault.team_id ? `1px solid ${G(0.4)}` : "1px solid rgba(255,255,255,0.08)",
+              background: vault.team_id ? G(0.1) : "rgba(255,255,255,0.03)",
+              color: vault.team_id ? GOLD : "rgba(255,255,255,0.55)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+            }}><Users className="h-3.5 w-3.5" /> {vault.team_id ? "Shared" : "Share"}</button>
             <button onClick={onDelete} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "6px 10px", borderRadius: 8,
@@ -1696,6 +1757,33 @@ export default function ArtistVault() {
     }
   }
 
+  async function shareVault(id: string) {
+    const vault = vaults.find((v) => v.id === id);
+    if (!vault) return;
+    const sharing = !vault.team_id;
+    if (sharing && !window.confirm("Share this vault with your team? All team members will be able to use it.")) return;
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/artist-vaults/${id}/share`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ share: sharing }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "Could not update sharing.");
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      setVaults((prev) => prev.map((v) => v.id === id ? { ...v, team_id: data.teamId ?? (sharing ? "shared" : null) } : v));
+    } catch {
+      /* silent */
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white lux-page">
 
@@ -1766,7 +1854,7 @@ export default function ArtistVault() {
         initialPrompt={(() => {
           const wv = wardrobeGenVaultId ? (vaults.find((v) => v.id === wardrobeGenVaultId) ?? openVault) : null;
           return wv
-            ? `Full-body studio photo of ${wv.artist_name} wearing a brand new signature outfit — keep the exact same face, identity and art style as the reference photo`
+            ? `Full-body studio photo of ${wv.artist_name} wearing a brand new signature outfit on a clean light grey studio background — keep the exact same face, identity and art style as the reference photo`
             : buildArtistImagePrompt(watch());
         })()}
         hasReferencePhoto={(() => {
@@ -2172,6 +2260,7 @@ export default function ArtistVault() {
                   onDelete={() => deleteVault(vault.id)}
                   onLock={() => setConsistencyVault(vault)}
                   onSetActive={() => setActiveArtist(vault as unknown as ArtistVault)}
+                  onShare={() => shareVault(vault.id)}
                   isActive={activeArtist?.id === vault.id}
                 />
               ))}

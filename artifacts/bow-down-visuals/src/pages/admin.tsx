@@ -395,14 +395,20 @@ export default function AdminPage() {
     try {
       const headers = await authHeaders();
       const res = await fetch("/api/admin/bow-challenge", { headers });
-      if (!res.ok) return;
+      if (!res.ok) {
+        setBowMsg(`Bow race data unavailable (API ${res.status}) — database tables may not be set up yet.`);
+        return;
+      }
       const data = await res.json();
       setBowReward(String(data.rewardCredits));
       setBowEnabled(data.enabled);
       setBowOverride(data.targetOverride == null ? "" : String(data.targetOverride));
       setBowRace(data.race);
       setBowHistory(data.history ?? []);
-    } catch { /* silent */ }
+      setBowMsg(null);
+    } catch (err) {
+      setBowMsg(`Could not load bow race data: ${err instanceof Error ? err.message : "network error"}`);
+    }
   }, [authHeaders]);
 
   useEffect(() => {

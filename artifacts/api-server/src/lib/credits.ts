@@ -1,6 +1,9 @@
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
+import { getUserActiveTeam, deductTeamCredits } from "./teams";
+import { db, teamsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 
 /**
  * Thrown by deductCredits() when the profile is missing or the balance is
@@ -109,7 +112,40 @@ export async function chargeCredits(
   record: ChargeLedgerRecord,
   opts?: { rollbackOnLedgerFailure?: boolean },
 ): Promise<number> {
-  const creditsAfter = await deductCredits(userId, cost);
+  // Team pool first: if the user is an active member of a team, the spend
+  // comes from the shared pool — not their personal balance — unless the
+  // team's policy allows falling back to personal credits.
+  let teamId: string | null = null;
+  let creditsAfter: number;
+  const activeTeam = await getUserActiveTeam(userId);
+  if (activeTeam) {
+    const tid: string = activeTeam.team.id;
+    const poolBalance: number = activeTeam.team.credits;
+    const allowFallback: boolean = activeTeam.team.allowPersonalFallback ?? true;
+    if (poolBalance >= cost) {
+      try {
+        teamId = tid;
+        creditsAfter = await deductTeamCredits(tid, cost);
+      } catch (e) {
+        // Race: pool dropped below cost between the check and the deduction.
+        // Honor the team's fallback policy instead of silently charging personal.
+        if (!allowFallback) throw e;
+        logger.warn({ userId, cost, teamId: tid, err: e instanceof Error ? e.message : String(e) }, "[credits] team pool race lost, falling back to personal balance per team policy");
+        teamId = null;
+        creditsAfter = await deductCredits(userId, cost);
+      }
+    } else if (allowFallback) {
+      // Pool insufficient and team allows it: explicit (logged) personal fallback.
+      logger.info({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient, using personal balance per team policy");
+      creditsAfter = await deductCredits(userId, cost);
+    } else {
+      // Pool insufficient and team forbids personal fallback: fail loudly.
+      logger.warn({ userId, cost, teamId: tid, poolBalance }, "[credits] team pool insufficient and personal fallback disabled — rejecting charge");
+      throw new OutOfCreditsError();
+    }
+  } else {
+    creditsAfter = await deductCredits(userId, cost);
+  }
   const rollback = opts?.rollbackOnLedgerFailure ?? true;
   try {
     await recordCreditUsageStrict({
@@ -117,6 +153,7 @@ export async function chargeCredits(
       action: record.action,
       creditsUsed: cost,
       projectId: record.projectId ?? null,
+      teamId,
     });
   } catch (err) {
     if (rollback) {
@@ -125,7 +162,13 @@ export async function chargeCredits(
         "[credits] ledger write failed after deduction — rolling back the charge",
       );
       try {
-        await addCreditsToProfile(userId, cost);
+        if (teamId) {
+          await db.update(teamsTable)
+            .set({ credits: sql`${teamsTable.credits} + ${cost}`, updatedAt: new Date() })
+            .where(eq(teamsTable.id, teamId));
+        } else {
+          await addCreditsToProfile(userId, cost);
+        }
       } catch (rollbackErr) {
         logger.error(
           { userId, cost, action: record.action, rollbackErr },

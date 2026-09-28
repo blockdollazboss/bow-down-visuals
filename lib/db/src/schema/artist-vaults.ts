@@ -36,6 +36,9 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   /* Soft delete: when set, the vault is hidden but the data is preserved.
      Never hard-delete vaults — user data must never be permanently lost. */
   deleted_at: timestamp("deleted_at", { withTimezone: true }),
+  /* Team sharing: when set, every active member of the team can view and
+     use this vault. Null = personal vault, visible only to the owner. */
+  team_id: uuid("team_id"),
 });
 
 export const insertArtistVaultSchema = createInsertSchema(artistVaultsTable).omit({

@@ -3,10 +3,14 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import RunwayML from "@runwayml/sdk";
 import { db, artistVaultsTable, artistCharacterLinksTable } from "@workspace/db";
-import { eq, and, desc, isNull } from "drizzle-orm";
+import { eq, and, desc, isNull, or } from "drizzle-orm";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../lib/credits";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
+import { getUserActiveTeam } from "../lib/teams";
 import { SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT } from "./generate/clip-pricing";
+import { randomUUID } from "crypto";
+import { readFile, rm } from "fs/promises";
+import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
 
 
 const router = Router();
@@ -75,13 +79,20 @@ router.post("/artist-vaults", requireAuth, async (req, res) => {
 });
 
 router.get("/artist-vaults", requireAuth, async (req, res) => {
+  const activeTeam = await getUserActiveTeam(req.userId!);
+
   const vaults = await db
     .select()
     .from(artistVaultsTable)
     .where(
       and(
-        eq(artistVaultsTable.user_id, req.userId!),
         isNull(artistVaultsTable.deleted_at),
+        activeTeam
+          ? or(
+              eq(artistVaultsTable.user_id, req.userId!),
+              eq(artistVaultsTable.team_id, activeTeam.team.id),
+            )
+          : eq(artistVaultsTable.user_id, req.userId!),
       ),
     )
     .orderBy(desc(artistVaultsTable.created_at));
@@ -528,6 +539,165 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
   } catch (err: unknown) {
     req.log.error({ err }, "[ref-video] attach failed");
     res.status(500).json({ error: err instanceof Error ? err.message : "Attach failed." });
+  }
+});
+
+/* ── Seamless loop: make the current reference video loop without a jump ── */
+
+const LOOP_VIDEO_CREDITS = 2;
+
+interface RefVideoLoopTask {
+  userId: string;
+  vaultId: string;
+  credits: number;
+  status: "processing" | "done" | "failed";
+  url?: string;
+  path?: string | null;
+  error?: string;
+}
+
+/** In-memory; mirrors refVideoTasks (durable export-jobs upgrade tracked separately). */
+const refVideoLoopTasks = new Map<string, RefVideoLoopTask>();
+
+async function runRefVideoLoop(taskId: string, videoUrl: string) {
+  const task = refVideoLoopTasks.get(taskId);
+  if (!task) return;
+  let workDir: string | null = null;
+  try {
+    const { outPath, workDir: wd } = await loopVideoFromUrl(videoUrl);
+    workDir = wd;
+    const fileBytes = await readFile(outPath);
+    const filePath = `${task.userId}/reference-videos/${randomUUID()}-loop.mp4`;
+    const { error: upErr } = await getSupabaseAdmin()
+      .storage.from("artist-references")
+      .upload(filePath, fileBytes, { contentType: "video/mp4", upsert: false });
+    if (upErr) throw new VideoLoopError(upErr.message);
+    const {
+      data: { publicUrl },
+    } = getSupabaseAdmin().storage.from("artist-references").getPublicUrl(filePath);
+    task.status = "done";
+    task.url = publicUrl;
+    task.path = filePath;
+  } catch (err) {
+    task.status = "failed";
+    task.error = err instanceof Error ? err.message : "Loop processing failed.";
+  } finally {
+    if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/** Share a vault with the caller's team (or unshare it). Only the vault owner can change sharing. */
+router.post("/artist-vaults/:id/share", requireAuth, async (req, res) => {
+  try {
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0]! : rawId;
+    const [vault] = await db
+      .select()
+      .from(artistVaultsTable)
+      .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)))
+      .limit(1);
+    if (!vault) {
+      res.status(404).json({ error: "Vault not found." });
+      return;
+    }
+    const share = req.body?.share === true;
+    if (share) {
+      const activeTeam = await getUserActiveTeam(req.userId!);
+      if (!activeTeam) {
+        res.status(400).json({ error: "Join a team first to share this vault." });
+        return;
+      }
+      await db.update(artistVaultsTable).set({ team_id: activeTeam.team.id }).where(eq(artistVaultsTable.id, id));
+      res.json({ ok: true, teamId: activeTeam.team.id });
+    } else {
+      await db.update(artistVaultsTable).set({ team_id: null }).where(eq(artistVaultsTable.id, id));
+      res.json({ ok: true, teamId: null });
+    }
+  } catch (err: unknown) {
+    req.log.error({ err }, "artist-vaults: share failed");
+    res.status(500).json({ error: "Failed to update sharing." });
+  }
+});
+
+/** Start a seamless-loop job for the vault's current reference video. Credits pre-checked; charged on poll. */
+router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, res) => {
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0]! : rawId;
+  try {
+    const [vault] = await db
+      .select()
+      .from(artistVaultsTable)
+      .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)))
+      .limit(1);
+    if (!vault) {
+      res.status(404).json({ error: "Artist vault not found." });
+      return;
+    }
+    const src = vault.reference_video_url;
+    if (!src || !src.startsWith("https://")) {
+      res.status(400).json({ error: "This vault has no reference video to loop yet." });
+      return;
+    }
+    const { data: profile } = await req.userSupabase!
+      .from("profiles")
+      .select("credits")
+      .eq("id", req.userId!)
+      .single();
+    const balance: number = (profile as { credits?: number } | null)?.credits ?? 0;
+    if (balance < LOOP_VIDEO_CREDITS) {
+      res.status(402).json({ error: `Not enough credits. This costs ${LOOP_VIDEO_CREDITS} credits.`, required: LOOP_VIDEO_CREDITS, balance });
+      return;
+    }
+    const taskId = randomUUID();
+    refVideoLoopTasks.set(taskId, { userId: req.userId!, vaultId: id, credits: LOOP_VIDEO_CREDITS, status: "processing" });
+    void runRefVideoLoop(taskId, src);
+    res.json({ taskId, creditCost: LOOP_VIDEO_CREDITS, status: "processing" });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Loop failed to start." });
+  }
+});
+
+/** Poll a seamless-loop job. On success: charge once (2cr) and swap the vault's video to the looped version. */
+router.get("/artist-vaults/:id/reference-video/loop/:taskId", requireAuth, async (req, res) => {
+  const rawId = req.params.id;
+  const rawTaskId = req.params.taskId;
+  const id = Array.isArray(rawId) ? rawId[0]! : rawId;
+  const taskId = Array.isArray(rawTaskId) ? rawTaskId[0]! : rawTaskId;
+  const task = refVideoLoopTasks.get(taskId);
+  if (!task || task.userId !== req.userId || task.vaultId !== id) {
+    res.status(404).json({ error: "Loop job not found." });
+    return;
+  }
+  if (task.status === "processing") {
+    res.json({ status: "processing" });
+    return;
+  }
+  // Terminal — delete first so charging happens exactly once even on retry.
+  refVideoLoopTasks.delete(taskId);
+  if (task.status === "failed" || !task.url) {
+    res.json({ status: "failed", error: task.error ?? "Loop processing failed." });
+    return;
+  }
+  try {
+    const newBalance = await chargeCreditsAtomic(req.userId!, task.credits, {
+      action: "Artist Vault Video Loop",
+      projectId: null,
+    });
+    await db
+      .update(artistVaultsTable)
+      .set({
+        reference_video_url: task.url,
+        reference_video_path: task.path ?? null,
+        updated_at: new Date(),
+      })
+      .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)));
+    res.json({ status: "succeeded", url: task.url, newBalance });
+  } catch (err) {
+    if (err instanceof LedgerWriteError) {
+      res.json({ status: "failed", error: "Credit ledger write failed — no video was changed." });
+      return;
+    }
+    res.json({ status: "failed", error: err instanceof Error ? err.message : "Loop failed." });
   }
 });
 

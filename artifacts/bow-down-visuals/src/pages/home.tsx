@@ -42,10 +42,13 @@ import {
   BadgeDollarSign,
   Rocket,
   Fingerprint,
-  Palette,
-  BookOpen,
-  GraduationCap,
   Trophy,
+  GraduationCap,
+  BookOpen,
+  Palette,
+  Podcast,
+  Tv,
+  Store,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
 
@@ -670,6 +673,14 @@ function HeroSection() {
           </Button>
         </div>
 
+        {/* Returning users */}
+        <p className="text-sm text-white/40">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-primary hover:text-primary/80 underline underline-offset-4 transition-colors">
+            Sign in
+          </Link>
+        </p>
+
         {/* Social proof — true claims only */}
         <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-8 gap-y-3 pt-4 text-sm text-white/35 font-medium">
           <span className="flex items-center gap-1.5">
@@ -1063,6 +1074,35 @@ function BuiltForCreators() {
             </div>
           ))}
         </div>
+
+        {/* Formats strip — not just music: movies, podcasts, streaming */}
+        <div className="mt-12 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
+          <p className="text-center text-[11px] font-bold uppercase tracking-[0.3em] text-primary/80 mb-6">
+            Not a musician? Good. It&rsquo;s not just music.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { icon: Film, title: "Movies & Series", body: "Your next binge-worthy hit starts here.", href: "/movies" },
+              { icon: Podcast, title: "Podcasts", body: "Record, polish, and publish — all in the studio.", href: "/podcast" },
+              { icon: Tv, title: "Streamers", body: "Stream packs and go-live tools for your broadcast.", href: "/go-live" },
+            ].map((f) => (
+              <Link
+                key={f.title}
+                href={f.href}
+                className="group flex items-center gap-4 p-4 rounded-xl hover:bg-white/[0.04] transition-colors"
+              >
+                <div className="h-10 w-10 shrink-0 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <f.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-white text-sm">{f.title}</h4>
+                  <p className="text-white/45 text-xs mt-0.5">{f.body}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 ml-auto text-primary/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+              </Link>
+            ))}
+          </div>
+        </div>
       </LuxReveal>
     </section>
   );
@@ -1294,6 +1334,48 @@ function PricingSection() {
           <Lock className="h-3 w-3" />
           Sign in to purchase Visual Bucs.
         </p>
+      </LuxReveal>
+    </section>
+  );
+}
+
+function ReferralPromo() {
+  return (
+    <section className="py-20 md:py-28 px-5">
+      <LuxReveal className="max-w-5xl mx-auto">
+        <div className="relative overflow-hidden rounded-3xl border border-[#C9A84C]/30 bg-gradient-to-br from-[#C9A84C]/10 via-black to-black p-8 md:p-12">
+          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
+          <div className="relative z-10 text-center space-y-6">
+            <MarketingBadge variant="kicker">
+              Refer & Earn
+            </MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
+              Bring creators. <span className="text-[#e8c86a]">Get paid in credits.</span>
+            </h2>
+            <p className="text-white/60 text-lg max-w-2xl mx-auto">
+              Share your link. Your friends get <span className="text-white font-semibold">10 free credits</span> to start creating.
+              You earn <span className="text-white font-semibold">25% of everything they buy</span> for 90 days.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+              <a
+                href="/referrals"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+              >
+                <Gift className="h-5 w-5" />
+                Get My Referral Link
+              </a>
+              <a
+                href="/signup"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/20 px-8 py-4 text-white font-semibold hover:bg-white/5 transition"
+              >
+                Start Creating
+              </a>
+            </div>
+            <p className="text-white/30 text-sm">
+              No limits. No gimmicks. Just creators helping creators.
+            </p>
+          </div>
+        </div>
       </LuxReveal>
     </section>
   );
@@ -1544,6 +1626,8 @@ function MusicVideoTeaser() {
     </section>
   );
 }
+
+/* ─────────────────────────── PAGE ─────────────────────────── */
 
 /* ───── Creator Vault — the moat: persistent identity across every generation ───── */
 
@@ -1831,10 +1915,11 @@ export default function Home() {
 
   return (
     <>
-      {/* Page backdrop — gold-curtain stage, fixed full-viewport behind all
-          content. Sibling of the page root (NOT inside it) so it never
-          paints above the footer: at z-0 it stays behind the page root
-          (z-[1]) and everything in it. */}
+    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
+      {/* Page backdrop — gold-curtain stage, fixed full-viewport. INSIDE the
+          isolated page root so the body's dark background can't cover it:
+          at z-0 it stays behind the content but above the page root's
+          (transparent) background. */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0"
@@ -1845,7 +1930,6 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-    <div className="min-h-screen text-white overflow-x-hidden relative isolate z-[1] no-throne-bg">
       {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
           spotlights so the beams read as shining from behind the drapes,
           OVER the Shark King so he scrolls behind the curtains like
@@ -1885,6 +1969,7 @@ export default function Home() {
       <PricingSection />
       <JackpotBand />
       <SectionDivider />
+      <ReferralPromo />
       <AcademySection />
       <SectionDivider />
       <FAQSection />

@@ -111,9 +111,9 @@ export const SUBJECT_TYPE_META: Record<
   },
   streamer: {
     label: "Streamer",
-    badge: "text-red-300 border-red-400/40 bg-gradient-to-r from-red-500/25 via-red-400/15 to-red-500/25",
-    dot: "bg-red-300 shadow-[0_0_6px_rgba(252,165,165,0.8)]",
-    glow: "shadow-[0_0_12px_rgba(248,113,113,0.35)]",
+    badge: "text-lime-300 border-lime-400/40 bg-gradient-to-r from-lime-500/25 via-lime-400/15 to-lime-500/25",
+    dot: "bg-lime-300 shadow-[0_0_6px_rgba(190,242,100,0.8)]",
+    glow: "shadow-[0_0_12px_rgba(163,230,53,0.35)]",
     description: "Streamers, live creators, broadcasters - for live content and community streams",
   },
   podcaster: {

@@ -192,68 +192,93 @@ router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
     res.status(500).json({ error: `Could not set plan tier: ${detail}` });
   }
 });
-
-/* ── TEMPORARY: one-shot production schema repair ──────────────────────
-   Admin-only. Runs the missing non-destructive schema changes that the
-   failed drizzle-kit push skipped. Idempotent — safe to call multiple
-   times. REMOVE THIS ENDPOINT after the repair is verified. */
+/* ── TEMPORARY one-shot staging schema repair (REMOVE AFTER USE) ──
+   Applies the bow-race schema (0038 config table + full 0040 global race
+   migration) directly through the runtime database connection.
+   The container-startup drizzle-kit push was not applying these, leaving
+   the shield's Bow Race section broken
+   ("column bow_challenge_config.target_override does not exist").
+   Admin-only. Delete this route once the shield loads. */
 router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) => {
   const { Pool } = await import("pg");
+  const { readFileSync, existsSync } = await import("fs");
+  const path = await import("path");
   const connectionString = process.env["DATABASE_URL"];
   if (!connectionString) {
     res.status(500).json({ ok: false, error: "DATABASE_URL not configured" });
     return;
   }
-  const pool = new Pool({ connectionString, max: 2, ssl: { rejectUnauthorized: false } });
   const results: Record<string, string> = {};
+  const pool = new Pool({ connectionString, max: 2, ssl: { rejectUnauthorized: false } });
   try {
-    // 1. artist_vaults.theme_id (fixes Creator Vault 500)
-    await pool.query(
-      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS theme_id TEXT NOT NULL DEFAULT 'gold-royalty';"
-    );
-    results.theme_id = "applied";
-
-    // 1b. artist_vaults.deleted_at (soft delete — used by save/list/delete)
-    await pool.query(
-      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;"
-    );
-    results.deleted_at = "applied";
-
-    // 1c. artist_vaults.reference_video_url (video reference — used by save)
-    await pool.query(
-      "ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_video_url TEXT NULL;"
-    );
-    results.reference_video_url = "applied";
-
-    // 2. Bow race tables (idempotent)
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS bow_race_months (
-        period TEXT PRIMARY KEY,
-        target INTEGER NOT NULL,
-        total_bows INTEGER NOT NULL DEFAULT 0,
-        winner_user_id UUID NULL,
-        winner_email TEXT NULL,
-        won_at TIMESTAMPTZ NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      );
-    `);
-    results.bow_race_months = "applied";
-
+    // 1. Ensure bow_challenge_config exists with every column (0038 table
+    //    plus the 0040 target_override column) and the singleton row.
     await pool.query(`
       CREATE TABLE IF NOT EXISTS bow_challenge_config (
         id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
         target_bows INTEGER NOT NULL DEFAULT 100,
-        reward_credits INTEGER NOT NULL DEFAULT 5,
+        reward_credits INTEGER NOT NULL DEFAULT 50,
         enabled BOOLEAN NOT NULL DEFAULT true,
+        target_override INTEGER NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+      INSERT INTO bow_challenge_config (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING;
+      ALTER TABLE bow_challenge_config ADD COLUMN IF NOT EXISTS target_override INTEGER NULL;
     `);
     results.bow_challenge_config = "applied";
 
-    await pool.query(`
-      ALTER TABLE bow_challenge_config ADD COLUMN IF NOT EXISTS target_override INTEGER NULL;
-    `);
-    results.target_override = "applied";
+    // 2. Apply the full 0040 global bow race migration from the repo file
+    //    (bow_race_months, winner index, reward default 50, bow_race_record
+    //    + bow_race_undo_win functions). The file is fully idempotent.
+    const candidates = [
+      path.join(process.cwd(), "lib/db/migrations/0040_global_bow_race.sql"),
+      path.join(process.cwd(), "../lib/db/migrations/0040_global_bow_race.sql"),
+    ];
+    const sqlPath = candidates.find((p) => existsSync(p));
+    if (!sqlPath) {
+      res.status(500).json({ ok: false, results, error: "0040 migration file not found on disk" });
+      return;
+    }
+    await pool.query(readFileSync(sqlPath, "utf8"));
+    results.migration_0040 = "applied";
+
+    // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
+    //    point the Shark King vault's reference video at the new seamless
+    //    loop file shipped in public/videos/. Updates only when exactly one
+    //    live "shark king" vault is found (preferring the requesting admin's).
+    const LOOP_URL = "/videos/shark-king-360-loop.mp4";
+    const matches = await pool.query(
+      `SELECT id, user_id, artist_name, reference_video_url
+       FROM artist_vaults
+       WHERE deleted_at IS NULL AND artist_name ILIKE $1
+       ORDER BY updated_at DESC`,
+      ["%shark king%"]
+    );
+    if (matches.rowCount === 0) {
+      results.loop_video = "skipped: no live Shark King vault found";
+    } else {
+      const rows = matches.rows as Array<{
+        id: string; user_id: string; artist_name: string; reference_video_url: string | null;
+      }>;
+      const mine = rows.find((r) => r.user_id === (req as { userId?: string }).userId);
+      const target = mine ?? (rows.length === 1 ? rows[0] : null);
+      if (!target) {
+        results.loop_video = `skipped: ${rows.length} matching vaults, ambiguous`;
+      } else if (target.reference_video_url === LOOP_URL) {
+        results.loop_video = `already set on "${target.artist_name}"`;
+      } else {
+        const before = target.reference_video_url ?? "(none)";
+        await pool.query(
+          `UPDATE artist_vaults
+           SET reference_video_url = $1, reference_video_path = NULL, updated_at = now()
+           WHERE id = $2`,
+          [LOOP_URL, target.id]
+        );
+        results.loop_video = `updated "${target.artist_name}": ${before} -> ${LOOP_URL}`;
+      }
+    }
 
     res.json({ ok: true, results });
   } catch (err) {
@@ -263,4 +288,5 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     await pool.end();
   }
 });
+
 export default router;

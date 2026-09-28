@@ -8,10 +8,22 @@ import { swapSongVocalsToVoice } from "../../lib/voice-swap";
 
 const router = Router();
 const BUCKET = "audio-stems";
-const CREDIT_COST = 4;
 const MIN_LENGTH_MS = 10_000;
 const MAX_LENGTH_MS = 300_000;
 const DEFAULT_LENGTH_MS = 60_000;
+
+/**
+ * Tiered pricing by song length — provider cost scales with duration,
+ * so the credit price does too. Keeps margins at ~4x+ across all tiers.
+ * - Up to 1 min:  4 credits (~$2.00, ~$0.30 cost)
+ * - Up to 3 min:  8 credits (~$4.00, ~$0.90 cost)
+ * - Up to 5 min: 12 credits (~$6.00, ~$1.50 cost)
+ */
+function creditCostForLength(lengthMs: number): number {
+  if (lengthMs <= 60_000) return 4;
+  if (lengthMs <= 180_000) return 8;
+  return 12;
+}
 
 function clampLengthMs(raw: unknown): number {
   const n = Number(raw);
@@ -46,7 +58,9 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
 
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
-  if (!isDev && currentCredits < CREDIT_COST) {
+  const musicLengthMs = clampLengthMs(lengthSeconds);
+  const creditCost = creditCostForLength(musicLengthMs);
+  if (!isDev && currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
       message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
@@ -54,7 +68,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     return;
   }
 
-  const musicLengthMs = clampLengthMs(lengthSeconds);
+
   // Pin the music model explicitly — the API default can lag behind releases.
   // Override with ELEVENLABS_MUSIC_MODEL if a newer model ships.
   const musicModel = process.env["ELEVENLABS_MUSIC_MODEL"] ?? "music_v2_5";
@@ -147,14 +161,14 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
       content:        data.publicUrl,
       artistName:     artistName || undefined,
       songTitle:      songTitle || undefined,
-      creditsUsed:    CREDIT_COST,
+      creditsUsed:    creditCost,
     });
 
     // Step 2: Deduct credits only after history is confirmed saved.
     // Atomic single-statement deduction — race-safe (no read-modify-write).
     let creditsAfter: number;
     try {
-      creditsAfter = await chargeCredits(req.userId!, CREDIT_COST, { action: "Generate Audio" });
+      creditsAfter = await chargeCredits(req.userId!, creditCost, { action: "Generate Audio" });
     } catch (deductErr) {
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({

@@ -179,7 +179,7 @@ export default function Login() {
             )
           ) : (
             <>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-wrap">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="flex items-center justify-center gap-2 md:gap-3 flex-nowrap">
                 {/* Click-to-bow shark: big, hanging over the toolbar into the video */}
                 <div className="relative h-11 w-28 shrink-0">
                   <div className="absolute -top-20 left-1/2 -translate-x-1/2 scale-125">
@@ -198,7 +198,7 @@ export default function Login() {
                   aria-label="Email"
                   placeholder="Email"
                   autoComplete="email"
-                  className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
                   {...form.register("email")}
                 />
                 <Input
@@ -207,10 +207,10 @@ export default function Login() {
                   aria-label="Password"
                   placeholder="Password"
                   autoComplete="current-password"
-                  className="h-9 w-40 md:w-52 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25"
+                  className="h-9 w-32 md:w-40 text-sm bg-white/5 border-white/10 focus:border-[#c9a84c]/60 placeholder:text-white/25 shrink-0"
                   {...form.register("password")}
                 />
-                <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)]" disabled={loading}>
+                <Button data-testid="btn-login" type="submit" className="h-9 px-6 text-sm font-semibold bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110 shadow-[0_0_24px_rgba(201,168,76,0.35)] whitespace-nowrap shrink-0" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
                 </Button>
               </form>
