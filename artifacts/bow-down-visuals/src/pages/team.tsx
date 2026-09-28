@@ -12,6 +12,7 @@ interface Team {
   logoUrl: string | null;
   ownerId: string;
   credits: number;
+  allowPersonalFallback: boolean;
   myRole: string | null;
   myStatus: string | null;
 }
@@ -228,6 +229,22 @@ export default function TeamPage() {
     }
   }
 
+  async function handleToggleFallback() {
+    if (!activeTeam) return;
+    const next = !activeTeam.allowPersonalFallback;
+    setMsg(null);
+    try {
+      const data = await api(`/api/teams/${activeTeam.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ allowPersonalFallback: next }),
+      });
+      setActiveTeam((prev) => (prev ? { ...prev, allowPersonalFallback: data.team.allowPersonalFallback } : prev));
+      setMsg(next ? "✓ Personal credit fallback enabled." : "✓ Personal credit fallback disabled — pool-only spending.");
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed to update setting."}`);
+    }
+  }
+
   async function handleDelete() {
     if (!activeTeam || !confirm(`Delete ${activeTeam.name}? This cannot be undone.`)) return;
     try {
@@ -343,6 +360,25 @@ export default function TeamPage() {
                 </div>
               )}
             </div>
+            {(activeTeam.myRole === "owner" || activeTeam.myRole === "admin") && (
+              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-sm font-semibold text-white">Personal credit fallback</p>
+                  <p className="text-xs text-white/40">
+                    {activeTeam.allowPersonalFallback
+                      ? "When the pool runs low, member spending uses personal credits."
+                      : "Pool-only: spending stops when the pool is empty. Personal credits are never touched."}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => void handleToggleFallback()}
+                  variant="outline"
+                  className={activeTeam.allowPersonalFallback ? "border-[#C9A84C]/50 text-[#C9A84C]" : "border-white/10 text-white/60"}
+                >
+                  {activeTeam.allowPersonalFallback ? "Fallback ON" : "Fallback OFF"}
+                </Button>
+              </div>
+            )}
           </Card>
 
           {/* Invite */}
