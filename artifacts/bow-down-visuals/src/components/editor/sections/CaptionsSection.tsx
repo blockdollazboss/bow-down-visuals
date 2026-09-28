@@ -26,6 +26,7 @@ import { LayoutTemplate } from "lucide-react";
 import { smartSplitLyrics } from "@/lib/lyric-splitter";
 import { CAPTION_FONTS, FONT_VIBES, getCaptionFont } from "@/lib/fonts";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
+import { detectBeatGrid, snapToNearestBeat, type BeatGrid } from "@/lib/beat-grid";
 
 interface Props {
   settings: EditorSettings;
@@ -637,6 +638,50 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
   const [aiSyncDetails,  setAiSyncDetails ] = useState<AiSyncDetails | null>(null);
   const [showAiConfirm,  setShowAiConfirm ] = useState(false);
 
+  /* ── Beat sync state ── */
+  const [beatGrid, setBeatGrid] = useState<BeatGrid | null>(null);
+  const [beatSyncEnabled, setBeatSyncEnabled] = useState(true);
+
+  /* Detect the song's beat grid when audio is available (cached per URL). */
+  useEffect(() => {
+    let cancelled = false;
+    if (!audioUrl) { setBeatGrid(null); return; }
+    detectBeatGrid(audioUrl, songDuration ?? null).then((grid) => {
+      if (!cancelled) setBeatGrid(grid);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioUrl]);
+
+  /**
+   * Snap every caption boundary to the nearest beat so captions always
+   * land on the song's beat grid. Start snaps to nearest beat; end snaps
+   * to nearest beat at least one beat after start.
+   */
+  function snapLinesToBeat(lines: CaptionLine[]): CaptionLine[] {
+    const beats = beatGrid?.beats;
+    if (!beats || beats.length === 0) return lines;
+    return lines.map((line) => {
+      const start = snapToNearestBeat(line.startSec, beats);
+      let end = snapToNearestBeat(line.endSec, beats);
+      if (end <= start) {
+        // ensure the caption covers at least one beat
+        const idx = beats.findIndex((b) => b >= start);
+        end = beats[Math.min(beats.length - 1, (idx < 0 ? beats.length - 1 : idx) + 1)]!;
+      }
+      return {
+        ...line,
+        startSec: parseFloat(start.toFixed(2)),
+        endSec: parseFloat(end.toFixed(2)),
+      };
+    });
+  }
+
+  /** Apply beat snapping to a line list when beat sync is on and a grid exists. */
+  function maybeBeatSnap(lines: CaptionLine[]): CaptionLine[] {
+    return beatSyncEnabled && beatGrid ? snapLinesToBeat(lines) : lines;
+  }
+
   /* ── Repair / Reset state ── */
   const [repairStatus, setRepairStatus] = useState<Status | null>(null);
 
@@ -694,17 +739,19 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       });
       return;
     }
+    const beatSnapped = maybeBeatSnap(lines);
     setSettings({
       ...settings,
-      captions: { ...c, mode: "auto", lyricsText: text, lines },
+      captions: { ...c, mode: "auto", lyricsText: text, lines: beatSnapped },
     });
     setLinesVisible(true);
     const timingNote = songDuration
       ? `Spread evenly across ${fmtDuration(songDuration)}.`
       : "Caption timing is estimated. Adjust manually to sync with your song.";
+    const beatNote = beatSnapped !== lines ? " Snapped to the song's beat." : "";
     setGenerateStatus({
       type: "success",
-      message: `Captions generated — ${lines.length} caption${lines.length !== 1 ? "s" : ""} saved. ${timingNote}`,
+      message: `Captions generated — ${beatSnapped.length} caption${beatSnapped.length !== 1 ? "s" : ""} saved. ${timingNote}${beatNote}`,
     });
   }
 
@@ -714,7 +761,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
     if (c.mode === "auto") lines = buildCaptionLines(c.lyricsText, splitStyle, songDuration);
     else if (c.mode === "hook") lines = generateHookLines(c.hookText, songDuration);
     else if (c.mode === "best-bar") lines = generateBestBarLines(c.bestBarText);
-    setCaption("lines", lines);
+    setCaption("lines", maybeBeatSnap(lines));
     setLinesVisible(true);
   }
 
@@ -787,7 +834,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       /* Partially bad: auto-repair before saving */
       const finalLines = bad > 0 ? repairCaptionTimings(syncedLines, songDuration) : syncedLines;
 
-      setCaption("lines", finalLines);
+      setCaption("lines", maybeBeatSnap(finalLines));
       setLinesVisible(true);
       setAiSyncDetails({
         audioFound: true,
@@ -862,7 +909,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
     /* Ensure last caption ends exactly at song end */
     synced[synced.length - 1]!.endSec = parseFloat(songDuration.toFixed(2));
 
-    setCaption("lines", synced);
+    setCaption("lines", maybeBeatSnap(synced));
     setLinesVisible(true);
     const offsetNote = vocalOffset > 0 ? ` First caption starts at ${vocalOffset}s (vocal offset applied).` : "";
     setSyncStatus({
@@ -1053,7 +1100,7 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
       /* Backup existing captions before overwriting */
       if (c.lines.length > 0) setCaptionBackup(c.lines);
 
-      setCaption("lines", newLines);
+      setCaption("lines", maybeBeatSnap(newLines));
       setLinesVisible(true);
       setRebuildDetails({ ...details, saved: true });
       setRebuildStatus({
@@ -1510,6 +1557,32 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             </div>
             <p className="text-[10px] text-white/25 leading-relaxed">
               Seconds of instrumental intro before lyrics start. Used by Auto Sync and Apply Offset above.
+            </p>
+          </div>
+
+          {/* Beat sync — captions always land on the song's beat grid */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-wider">Beat Sync</p>
+              <Switch
+                checked={beatSyncEnabled}
+                onCheckedChange={setBeatSyncEnabled}
+                aria-label="Snap captions to the song's beat"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (c.lines.length === 0 || !beatGrid) return;
+                setCaption("lines", snapLinesToBeat(c.lines));
+              }}
+              disabled={c.lines.length === 0 || !beatGrid}
+              className="w-full px-3 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-xs font-bold text-white/55 hover:text-white/80 hover:border-white/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+            >
+              {beatGrid ? `Snap To Beat (${beatGrid.bpm} BPM)` : "Snap To Beat (detecting…)"}
+            </button>
+            <p className="text-[10px] text-white/25 leading-relaxed">
+              Every caption boundary lands exactly on a beat. Auto-applies when generating or syncing captions.
             </p>
           </div>
 
