@@ -53,7 +53,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    decimal strings and the frontend formats them — never float math. */
 
 export const ROYALTY_INSIGHTS_CREDITS =
-  Number(process.env["ROYALTY_INSIGHTS_CREDIT_COST"]) || 1;
+  Number(process.env["ROYALTY_INSIGHTS_CREDIT_COST"]) || 100;
 
 /* Platforms with a real connection path in v1. Everything else shows as
    "coming soon" in the UI. Spotify/Apple/YouTube have no public

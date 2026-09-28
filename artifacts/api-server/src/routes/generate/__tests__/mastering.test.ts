@@ -119,7 +119,7 @@ function mockExecFileImpl(
 
 describe("MASTERING_CREDIT_COST", () => {
   it("charges 4 credits per master", () => {
-    expect(MASTERING_CREDIT_COST).toBe(4);
+    expect(MASTERING_CREDIT_COST).toBe(400);
   });
 });
 
@@ -232,7 +232,7 @@ describe("runMasteringJob — refund on failure", () => {
     expect(job.status).toBe("failed");
     expect(job.error).toContain("loudness");
     expect(mockRefund).toHaveBeenCalledTimes(1);
-    expect(mockRefund).toHaveBeenCalledWith("user-456", 4, {
+    expect(mockRefund).toHaveBeenCalledWith("user-456", 400, {
       action: "AI Mastering — Refund (job failed)",
     });
   });

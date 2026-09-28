@@ -30,7 +30,7 @@ export const cheatCodeEventsTable = pgTable(
     codeSequence: text("code_sequence"),
     /* Number of moves in the sequence (public — shown as a game hint). */
     codeLength: integer("code_length").notNull(),
-    prizeCredits: integer("prize_credits").notNull().default(100),
+    prizeCredits: integer("prize_credits").notNull().default(10000),
     startsAt: timestamp("starts_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

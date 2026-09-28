@@ -95,7 +95,7 @@ function makeJob(overrides: Partial<VocalRemovalJob> = {}): VocalRemovalJob {
 
 describe("VOCAL_REMOVAL_CREDIT_COST", () => {
   it("charges 3 credits per song", () => {
-    expect(VOCAL_REMOVAL_CREDIT_COST).toBe(3);
+    expect(VOCAL_REMOVAL_CREDIT_COST).toBe(300);
   });
 });
 
@@ -176,7 +176,7 @@ describe("runVocalRemovalJob", () => {
     await runVocalRemovalJob(job, Buffer.from("song-bytes"), "song.mp3");
     expect(job.status).toBe("failed");
     expect(job.error).toContain("Demucs");
-    expect(mockRefund).toHaveBeenCalledWith("user-456", 3, {
+    expect(mockRefund).toHaveBeenCalledWith("user-456", 300, {
       action: "Vocal Removal — Refund (job failed)",
     });
   });

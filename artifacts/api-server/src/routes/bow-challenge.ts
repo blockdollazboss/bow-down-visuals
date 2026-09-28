@@ -64,7 +64,7 @@ router.post("/bow", requireAuth, async (req: Request, res: Response) => {
       .select("reward_credits, enabled, target_override")
       .eq("id", 1)
       .single();
-    const rewardCredits = cfg?.reward_credits ?? 50;
+    const rewardCredits = cfg?.reward_credits ?? 5000;
     const enabled = cfg?.enabled ?? true;
 
     if (!enabled) {

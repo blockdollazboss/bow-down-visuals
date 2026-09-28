@@ -29,7 +29,7 @@ const sbState = vi.hoisted(() => ({
 vi.mock("../../middlewares/require-auth", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
     req.userId = "user-1";
-    req.userCredits = 10;
+    req.userCredits = 1000;
     req.log = { info: () => {}, error: () => {} };
     next();
   },
@@ -54,13 +54,13 @@ vi.mock("../../lib/supabase-admin", () => ({
       return chain;
     });
     chain.eq = vi.fn(() => chain);
-    chain.single = vi.fn(() => Promise.resolve({ data: { credits: 10 }, error: null }));
+    chain.single = vi.fn(() => Promise.resolve({ data: { credits: 1000 }, error: null }));
     return chain;
   }),
   // refundCredits() restores via addCreditsToProfile — simulate the credit-back.
   addCreditsToProfile: vi.fn(async (_userId: string, amount: number) => {
-    sbState.updates.push({ credits: 10 });
-    return { oldCredits: 10 - amount, newCredits: 10, created: false };
+    sbState.updates.push({ credits: 1000 });
+    return { oldCredits: 1000 - amount, newCredits: 1000, created: false };
   }),
 }));
 
@@ -182,7 +182,7 @@ describe("POST /api/artist-vaults/:id/voice/from-song hardening", () => {
     expect(contentType).toContain("application/json");
     expect(json.error).toContain("137");
     expect(sbState.updates).toHaveLength(2);
-    expect(sbState.updates[0]).toEqual({ credits: 8 }); // deducted
+    expect(sbState.updates[0]).toEqual({ credits: 800 }); // deducted
     expect(sbState.updates[1]).toEqual({ credits: 10 }); // refunded
   });
 

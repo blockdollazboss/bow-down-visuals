@@ -31,10 +31,10 @@ const router = Router();
    provider fees), so 2 credits holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
 export const BRAND_DEAL_CREDIT_COST =
-  Number(process.env["BRAND_DEAL_CREDIT_COST"]) || 2;
+  Number(process.env["BRAND_DEAL_CREDIT_COST"]) || 200;
 
 export const BRAND_DEAL_OUTREACH_CREDIT_COST =
-  Number(process.env["BRAND_DEAL_OUTREACH_CREDIT_COST"]) || 1;
+  Number(process.env["BRAND_DEAL_OUTREACH_CREDIT_COST"]) || 100;
 
 const DEAL_TYPES = [
   "sponsored-post",

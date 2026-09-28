@@ -7,7 +7,7 @@
     sound-generation call is a fraction of a cent in provider fees, so
     1 credit holds a deep margin while staying an impulse buy. */
 export const SFX_CREDIT_COST =
-  Number(process.env["SFX_CREDIT_COST"]) || 1;
+  Number(process.env["SFX_CREDIT_COST"]) || 100;
 
 /** Duration bounds (seconds) exposed in the UI. */
 export const SFX_MIN_DURATION = 1;

@@ -30,8 +30,8 @@ const router = Router();
    a reconnect prompt instead of crashing. */
 
 /* 1 credit per AI call — env-overridable without a deploy. */
-export const ANALYTICS_INSIGHTS_CREDITS = Number(process.env["ANALYTICS_INSIGHTS_CREDITS"]) || 1;
-export const ANALYTICS_SUGGESTIONS_CREDITS = Number(process.env["ANALYTICS_SUGGESTIONS_CREDITS"]) || 1;
+export const ANALYTICS_INSIGHTS_CREDITS = Number(process.env["ANALYTICS_INSIGHTS_CREDITS"]) || 100;
+export const ANALYTICS_SUGGESTIONS_CREDITS = Number(process.env["ANALYTICS_SUGGESTIONS_CREDITS"]) || 100;
 
 export type FetchImpl = (url: string, init?: RequestInit) => Promise<globalThis.Response>;
 

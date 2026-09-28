@@ -264,7 +264,7 @@ router.delete("/artist-vaults/:id/voice", requireAuth, async (req, res) => {
    FROM_SONG_TRIM_SECONDS-second window (default 90): ElevenLabs IVC only
    needs ~30s of clean vocals, and Demucs on a full-length song timed out
    after 10 min on the 2GB Render box (2026-09-25 incident). */
-const FROM_SONG_CREDIT_COST = 2;
+const FROM_SONG_CREDIT_COST = 200;
 const FROM_SONG_DEMUCS_MODEL = process.env["FROM_SONG_DEMUCS_MODEL"] ?? "htdemucs";
 
 /**

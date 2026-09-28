@@ -21,7 +21,7 @@ const router = Router();
 
 /** Site credits per generated stream-pack asset. Env-overridable. */
 export const STREAM_PACK_CREDIT_COST =
-  Number(process.env["STREAM_PACK_CREDITS_PER_IMAGE"]) || 1;
+  Number(process.env["STREAM_PACK_CREDITS_PER_IMAGE"]) || 100;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5";

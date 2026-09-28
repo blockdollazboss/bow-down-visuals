@@ -16,7 +16,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const UPSCALE_IMAGE_CREDIT_COST = 3;
+export const UPSCALE_IMAGE_CREDIT_COST = 300;
 const UPSCALE_IMAGE_MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 export type ImageUpscaleFactor = "2x" | "4x";

@@ -80,7 +80,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Removal failed — your 2 Visual Bucs were refunded.");
+          setError(data.error || "Removal failed — your 200 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }

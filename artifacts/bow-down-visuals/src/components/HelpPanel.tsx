@@ -36,7 +36,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     ],
     tips: [
       "Set an active artist first — it unlocks character consistency across all AI tools.",
-      "Songs, video plans, promos, and thumbnails cost 1–2 Visual Bucs each. Video clips cost 5 Visual Bucs.",
+      "Songs, video plans, promos, and thumbnails cost 100–200 Visual Bucs each. Video clips cost 500 Visual Bucs.",
     ],
   },
 
@@ -60,7 +60,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     steps: [
       { n: 1, title: "Rebuild scenes if needed",  desc: "If your scene list is empty, click Rebuild Scenes to regenerate from your video plan." },
       { n: 2, title: "Select one scene",          desc: "Click on any scene in the timeline to expand it and see its details." },
-      { n: 3, title: "Generate a video clip",     desc: "Click Generate Clip in the scene card. This uses 5 Visual Bucs and takes 30–90 seconds." },
+      { n: 3, title: "Generate a video clip",     desc: "Click Generate Clip in the scene card. This uses 500 Visual Bucs and takes 30–90 seconds." },
       { n: 4, title: "Preview your clip",         desc: "When the clip is ready, the master player at the top updates automatically." },
       { n: 5, title: "Add music and captions",    desc: "Go to the Music tab to upload your track. Go to Captions to add lyrics-based captions." },
       { n: 6, title: "Add visual effects",        desc: "Go to Effects and click any effect chip. The preview updates instantly." },
@@ -130,7 +130,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   pricing: {
     title: "Visual Bucs & Pricing — Guide",
     steps: [
-      { n: 1, title: "What Visual Bucs are for",     desc: "Visual Bucs power every AI generation. Songs, video plans, promos, and thumbnails cost 1–2 Visual Bucs each; video clips cost 5 Visual Bucs and take 30–90 seconds." },
+      { n: 1, title: "What Visual Bucs are for",     desc: "Visual Bucs power every AI generation. Songs, video plans, promos, and thumbnails cost 100–200 Visual Bucs each; video clips cost 500 Visual Bucs and take 30–90 seconds." },
       { n: 2, title: "Free vs paid features",    desc: "Creating artist profiles is free. Every AI generation — songs, video plans, promos, thumbnails, and video clips — uses Visual Bucs." },
       { n: 3, title: "Buy Visual Bucs",              desc: "Choose a Visual Bucs pack below and check out. Visual Bucs appear in your account instantly." },
       { n: 4, title: "Check your balance",       desc: "Your Visual Bucs balance is always visible in the top bar. Click it to view your full Visual Buc history." },

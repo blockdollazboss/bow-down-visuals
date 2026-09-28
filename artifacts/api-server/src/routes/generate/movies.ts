@@ -21,8 +21,8 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 const router = Router();
 
 /* Credits per generation — env-overridable. */
-const CONCEPT_CREDITS = Number(process.env["MOVIE_CONCEPT_CREDIT_COST"]) || 4;
-const CLIP_DETECT_CREDITS = Number(process.env["CLIP_DETECT_CREDIT_COST"]) || 3;
+const CONCEPT_CREDITS = Number(process.env["MOVIE_CONCEPT_CREDIT_COST"]) || 400;
+const CLIP_DETECT_CREDITS = Number(process.env["CLIP_DETECT_CREDIT_COST"]) || 300;
 export { CONCEPT_CREDITS, CLIP_DETECT_CREDITS };
 
 const FORMAT_TYPES = ["movie", "web-series", "limited-series"] as const;

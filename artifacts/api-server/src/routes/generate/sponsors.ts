@@ -27,10 +27,10 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 /* 5 credits per deal posting — a business listing that can close real money,
    so it prices above impulse AI tools. Env-overridable without a deploy. */
 export const SPONSOR_POST_CREDIT_COST =
-  Number(process.env["SPONSOR_POST_CREDIT_COST"]) || 5;
+  Number(process.env["SPONSOR_POST_CREDIT_COST"]) || 500;
 /* 1 credit per AI assist — same impulse price as the coach/hooks tools. */
 export const SPONSOR_AI_CREDIT_COST =
-  Number(process.env["SPONSOR_AI_CREDIT_COST"]) || 1;
+  Number(process.env["SPONSOR_AI_CREDIT_COST"]) || 100;
 
 const MAX_ACTIVE_DEALS_FOR_MATCH = 20;
 

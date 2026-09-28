@@ -457,7 +457,7 @@ export default function Memberships() {
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-primary" /> AI Tier Suggester
-                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">1 Visual Buc</span>
+                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">100 Visual Bucs</span>
               </h2>
               <div className={CARD + " space-y-4"}>
                 <p className="text-sm text-white/60">

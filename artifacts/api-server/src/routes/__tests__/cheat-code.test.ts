@@ -110,7 +110,7 @@ CREATE TABLE cheat_code_events (
   name text NOT NULL,
   code_hash text NOT NULL,
   code_length integer NOT NULL,
-  prize_credits integer NOT NULL DEFAULT 100,
+  prize_credits integer NOT NULL DEFAULT 10000,
   starts_at timestamptz NOT NULL DEFAULT now(),
   ends_at timestamptz NOT NULL,
   is_active boolean NOT NULL DEFAULT false,
@@ -197,7 +197,7 @@ describe("GET /api/cheat-code/status", () => {
     const { status, json } = await req("GET", "/cheat-code/status");
     expect(status).toBe(200);
     expect(json.phase).toBe("live");
-    expect(json.prizeCredits).toBe(100);
+    expect(json.prizeCredits).toBe(10000);
     expect(json.codeLength).toBeGreaterThanOrEqual(8);
     expect(json.codeLength).toBeLessThanOrEqual(10);
     expect(json.name).toMatch(/^Cheat Code Jackpot — /);
@@ -261,7 +261,7 @@ describe("GET /api/cheat-code/status", () => {
     expect(status).toBe(200);
     expect(json.phase).toBe("live");
     expect(json.name).toMatch(/^Cheat Code Jackpot — (January|February|March|April|May|June|July|August|September|October|November|December) \d{4}$/);
-    expect(json.prizeCredits).toBe(100);
+    expect(json.prizeCredits).toBe(10000);
     expect(json.codeLength).toBeGreaterThanOrEqual(8);
     expect(json.codeLength).toBeLessThanOrEqual(10);
     expect(json.startsAt).toBeTruthy();
@@ -326,7 +326,7 @@ describe("POST /api/cheat-code/attempt", () => {
     expect(testState.ledgerCalls).toHaveLength(0);
   });
 
-  it("correct sequence wins exactly once: grants 100 credits + ledger entry", async () => {
+  it("correct sequence wins exactly once: grants 10,000 Visual Bucs + ledger entry", async () => {
     await seedEvent();
     const { status, json } = await req("POST", "/cheat-code/attempt", {
       sequence: SEQ,
@@ -334,7 +334,7 @@ describe("POST /api/cheat-code/attempt", () => {
     expect(status).toBe(200);
     expect(json.correct).toBe(true);
     expect(json.claimed).toBe(true);
-    expect(json.prizeCredits).toBe(100);
+    expect(json.prizeCredits).toBe(10000);
     expect(json.newBalance).toBe(150);
     expect(json.winnerDisplayName).toBe("Test Shark");
     expect(testState.grantCalls).toHaveLength(1);
@@ -359,7 +359,7 @@ describe("POST /api/cheat-code/attempt", () => {
     });
     expect(status).toBe(200);
     expect(json.correct).toBe(true);
-    expect(json.prizeCredits).toBe(100);
+    expect(json.prizeCredits).toBe(10000);
     expect(testState.grantCalls).toHaveLength(1);
     const after = await req("GET", "/cheat-code/status");
     expect(after.json.phase).toBe("claimed");
@@ -430,7 +430,7 @@ describe("admin event management", () => {
       name: "Cheat Code Jackpot — Season 2",
       codeSequence: newSeq,
       endsAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 180).toISOString(),
-      prizeCredits: 100,
+      prizeCredits: 10000,
     });
     expect(created.status).toBe(201);
     expect(created.json.event.name).toBe("Cheat Code Jackpot — Season 2");

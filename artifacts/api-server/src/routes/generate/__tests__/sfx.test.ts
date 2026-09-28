@@ -21,14 +21,14 @@ import {
 
 describe("sfx pricing contract", () => {
   it("costs 1 credit per SFX", () => {
-    expect(SFX_CREDIT_COST).toBe(1);
+    expect(SFX_CREDIT_COST).toBe(100);
   });
 
   it("the route rejects when balance < cost (documents the 402 contract)", () => {
     // POST /generate-sfx checks req.userCredits < SFX_CREDIT_COST → 402
     // before touching the provider.
     expect(0 < SFX_CREDIT_COST).toBe(true); // 0 credits → 402
-    expect(1 < SFX_CREDIT_COST).toBe(false); // exact balance → allowed
+    expect(100 < SFX_CREDIT_COST).toBe(false); // exact balance → allowed
   });
 });
 

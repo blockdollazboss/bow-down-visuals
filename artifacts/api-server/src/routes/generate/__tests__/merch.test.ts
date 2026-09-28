@@ -25,7 +25,7 @@ import {
 
 describe("merch pricing contract", () => {
   it("design batch costs 3 credits", () => {
-    expect(MERCH_DESIGN_CREDIT_COST).toBe(3);
+    expect(MERCH_DESIGN_CREDIT_COST).toBe(300);
   });
 
   it("batch generates 2 mockups", () => {
@@ -39,7 +39,7 @@ describe("merch pricing contract", () => {
   it("the route rejects when balance < cost (documents the 402 contract)", () => {
     // POST /api/merch/design charges before generating → 402 via OutOfCreditsError
     expect(2 < MERCH_DESIGN_CREDIT_COST).toBe(true); // 2 credits → 402
-    expect(3 < MERCH_DESIGN_CREDIT_COST).toBe(false); // exact balance → allowed
+    expect(300 < MERCH_DESIGN_CREDIT_COST).toBe(false); // exact balance → allowed
   });
 });
 

@@ -28,7 +28,7 @@ const dbState = vi.hoisted(() => ({
   authedUserId: "user-1",
   cryptoReady: true,
   savedCiphertext: "",
-  credits: 10,
+  credits: 1000,
 }));
 
 const fetchState = vi.hoisted(() => ({
@@ -204,7 +204,7 @@ beforeEach(() => {
   dbState.authedUserId = "user-1";
   dbState.cryptoReady = true;
   dbState.savedCiphertext = "";
-  dbState.credits = 10;
+  dbState.credits = 1000;
   creditsState.charged = [];
   creditsState.refunded = [];
   creditsState.chargeImpl = null;
@@ -427,7 +427,7 @@ describe("POST /discord/ai-announcement", () => {
     expect(aiState.create).not.toHaveBeenCalled();
   });
 
-  it("generates a title + message for 1 credit", async () => {
+  it("generates a title + message for 100 Visual Bucs", async () => {
     const { status, json } = await post("/discord/ai-announcement", {
       type: "live",
       topic: "Friday beat-making stream",
@@ -436,9 +436,9 @@ describe("POST /discord/ai-announcement", () => {
     expect(status).toBe(200);
     expect(json.title).toContain("LIVE NOW");
     expect(json.message).toContain("live");
-    expect(json.creditsUsed).toBe(1);
-    expect(json.creditsRemaining).toBe(9);
-    expect(creditsState.charged).toEqual([{ userId: "user-1", amount: 1 }]);
+    expect(json.creditsUsed).toBe(100);
+    expect(json.creditsRemaining).toBe(900);
+    expect(creditsState.charged).toEqual([{ userId: "user-1", amount: 100 }]);
     // Uses the centralized text model (mocked) — never a hardcoded model id.
     expect(aiState.create.mock.calls[0][0].model).toBe("gpt-6-sol-test");
   });
@@ -452,7 +452,7 @@ describe("POST /discord/ai-announcement", () => {
     expect(status).toBe(502);
     expect(json.error).toMatch(/refunded/);
     expect(creditsState.charged).toHaveLength(1);
-    expect(creditsState.refunded).toEqual([{ userId: "user-1", amount: 1 }]);
+    expect(creditsState.refunded).toEqual([{ userId: "user-1", amount: 100 }]);
   });
 
   it("refunds when the model returns unusable output", async () => {

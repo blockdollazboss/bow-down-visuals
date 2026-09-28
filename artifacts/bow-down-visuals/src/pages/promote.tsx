@@ -45,7 +45,7 @@ const TONES: Tone[] = [
   { key: "luxury", label: "Luxury" },
 ];
 
-const CREDIT_COST = 1;
+const CREDIT_COST = 100;
 
 interface PromoResponse {
   title?: string;

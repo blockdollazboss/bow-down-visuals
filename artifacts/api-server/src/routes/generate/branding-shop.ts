@@ -79,7 +79,7 @@ const STYLE_DIRECTION: Record<BrandStyle, string> = {
    The set burns one GPT-6 text call plus up to 4 Runway gen4_image
    generations — 2 credits holds a healthy margin at that provider cost.
    Env-overridable without a deploy. */
-const DESIGN_CREDIT_COST = Number(process.env["BRANDING_SHOP_DESIGN_COST"]) || 2;
+const DESIGN_CREDIT_COST = Number(process.env["BRANDING_SHOP_DESIGN_COST"]) || 200;
 
 /* Server-side poll budget for the parallel Runway design tasks. */
 const DESIGN_TIMEOUT_MS = Number(process.env["BRANDING_SHOP_DESIGN_TIMEOUT_MS"]) || 180_000;

@@ -7,7 +7,7 @@ import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/cr
 
 const router = Router();
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 const SYSTEM_PROMPT = `You are Bow Down Visuals, a premium AI creative director for music creators.
 

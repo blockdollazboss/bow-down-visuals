@@ -19,10 +19,10 @@ const router = Router();
 /* 2 credits per session — env-overridable. One session is a single GPT-6 Sol
    completion (questions + talking points); ~pennies in provider fees, so the
    2-credit price holds a deep margin while staying an impulse buy. */
-export const INTERVIEW_PREP_CREDIT_COST = Number(process.env["INTERVIEW_PREP_CREDIT_COST"]) || 2;
+export const INTERVIEW_PREP_CREDIT_COST = Number(process.env["INTERVIEW_PREP_CREDIT_COST"]) || 200;
 /* 1 credit per answer feedback — env-overridable. One scored GPT-6 Sol
    completion per answer, same cost profile as a chat message. */
-export const INTERVIEW_FEEDBACK_CREDIT_COST = Number(process.env["INTERVIEW_FEEDBACK_CREDIT_COST"]) || 1;
+export const INTERVIEW_FEEDBACK_CREDIT_COST = Number(process.env["INTERVIEW_FEEDBACK_CREDIT_COST"]) || 100;
 
 export const INTERVIEW_TYPES = ["podcast", "press", "red-carpet", "live-stream"] as const;
 export type InterviewType = (typeof INTERVIEW_TYPES)[number];

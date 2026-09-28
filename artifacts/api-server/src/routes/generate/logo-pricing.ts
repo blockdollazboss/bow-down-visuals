@@ -6,8 +6,8 @@
 /** The two logo quality tiers. Premium = GPT Image 2.5 (best, synchronous). Standard = Runway Gen4 (async). */
 export type LogoModel = "premium" | "standard";
 
-export const LOGO_PREMIUM_CREDIT_COST = 2;
-export const LOGO_STANDARD_CREDIT_COST = 1;
+export const LOGO_PREMIUM_CREDIT_COST = 200;
+export const LOGO_STANDARD_CREDIT_COST = 100;
 
 export interface LogoPlan {
   model: LogoModel;

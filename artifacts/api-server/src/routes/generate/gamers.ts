@@ -26,7 +26,7 @@ const CONTENT_TYPE_DIRECTION: Record<GamersContentType, string> = {
    call is a short GPT-6 Sol completion (a fraction of a cent in provider
    fees), so 1 credit holds a deep margin while staying an impulse buy —
    and honors the standing rule that every AI feature costs a fee. */
-export const GAMERS_CREDIT_COST = Number(process.env["GAMERS_CREDIT_COST"]) || 1;
+export const GAMERS_CREDIT_COST = Number(process.env["GAMERS_CREDIT_COST"]) || 100;
 
 export const gamersIdeasSchema = z.object({
   game: z.string().min(1, "Tell us which game.").max(120),

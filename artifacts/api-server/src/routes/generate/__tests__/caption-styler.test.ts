@@ -84,7 +84,7 @@ function makeJob(overrides: Partial<CaptionStylerJob> = {}): CaptionStylerJob {
 
 describe("CAPTION_STYLER_CREDIT_COST", () => {
   it("charges 3 credits per captioned video", () => {
-    expect(CAPTION_STYLER_CREDIT_COST).toBe(3);
+    expect(CAPTION_STYLER_CREDIT_COST).toBe(300);
   });
 });
 

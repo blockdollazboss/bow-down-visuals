@@ -24,10 +24,10 @@ describe("intro/outro pricing contract", () => {
     expect(INTRO_OUTRO_RATIO).toBe("1280:720");
   });
 
-  it("costs 8 credits at the 1.5 cr/sec Seedance rate", () => {
-    expect(INTRO_OUTRO_CREDITS_PER_SEC_FALLBACK).toBe(1.5);
-    expect(resolveIntroOutroCost()).toBe(8);
-    expect(resolveIntroOutroCost(1.5)).toBe(8);
+  it("costs 750 Visual Bucs at the 150/sec Seedance rate", () => {
+    expect(INTRO_OUTRO_CREDITS_PER_SEC_FALLBACK).toBe(150);
+    expect(resolveIntroOutroCost()).toBe(750);
+    expect(resolveIntroOutroCost(1.5)).toBe(8); // explicit legacy rate still rounds correctly
   });
 
   it("rounds up fractional credit costs (never undercharges)", () => {
@@ -36,9 +36,9 @@ describe("intro/outro pricing contract", () => {
   });
 
   it("the route rejects when balance < cost (documents the 402 contract)", () => {
-    // POST /generate-intro-outro checks req.userCredits < 8 → 402
-    expect(7 < resolveIntroOutroCost()).toBe(true); // 7 credits → 402
-    expect(8 < resolveIntroOutroCost()).toBe(false); // exact balance → allowed
+    // POST /generate-intro-outro checks req.userCredits < 750 → 402
+    expect(749 < resolveIntroOutroCost()).toBe(true); // 749 → 402
+    expect(750 < resolveIntroOutroCost()).toBe(false); // exact balance → allowed
   });
 });
 
@@ -49,7 +49,7 @@ describe("resolveIntroOutroRequest", () => {
     if (r.ok) {
       expect(r.channelName).toBe("Bow Down Visuals");
       expect(r.type).toBe("intro");
-      expect(r.creditCost).toBe(8);
+      expect(r.creditCost).toBe(750);
     }
   });
 

@@ -40,7 +40,7 @@ const upload = multer({
 });
 
 /** Site credits for a vocal-remix (Demucs + ElevenLabs STS, no music gen). */
-const REMIX_CREDIT_COST = 3;
+const REMIX_CREDIT_COST = 300;
 
 function extOf(name: string): string {
   const m = /\.([a-z0-9]+)$/i.exec(name || "");

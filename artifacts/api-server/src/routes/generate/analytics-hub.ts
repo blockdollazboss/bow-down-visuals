@@ -26,7 +26,7 @@ const PLATFORM_LABELS: Record<PlatformKey, string> = {
    growth-plan call is a medium-length GPT-6 Sol completion (a fraction of a
    cent in provider fees), so 2 credits holds a deep margin while honoring
    the standing rule that every AI feature costs a fee. */
-const ANALYTICS_HUB_CREDITS = Number(process.env["ANALYTICS_HUB_CREDIT_COST"]) || 2;
+const ANALYTICS_HUB_CREDITS = Number(process.env["ANALYTICS_HUB_CREDIT_COST"]) || 200;
 
 const platformSnapshotSchema = z.object({
   platform: z.enum(PLATFORMS),

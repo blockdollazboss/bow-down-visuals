@@ -71,7 +71,7 @@ export function DailyBonusModal() {
         {claimed ? (
           <>
             <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-[#c9a84c] mb-2">+{claimed.bonus} Visual Bucs!</h2>
+            <h2 className="text-2xl font-bold text-[#c9a84c] mb-2">+{claimed.bonus.toLocaleString("en-US")} Visual Bucs!</h2>
             <p className="text-sm text-muted-foreground mb-1">
               {claimed.milestone ? "🏆 7-day streak milestone!" : `${claimed.streak}-day streak 🔥`}
             </p>

@@ -14,7 +14,7 @@ import {
 
 describe("OUTREACH_CREDIT_COST", () => {
   it("charges 2 credits per outreach kit", () => {
-    expect(OUTREACH_CREDIT_COST).toBe(2);
+    expect(OUTREACH_CREDIT_COST).toBe(200);
   });
 });
 

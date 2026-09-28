@@ -162,10 +162,10 @@ async function seedDeal(postedBy = USER_B, overrides: Record<string, unknown> = 
 /* ── pricing ─────────────────────────────────────────────────────────── */
 describe("pricing constants", () => {
   it("charges 5 credits to post a deal (brands pay)", () => {
-    expect(SPONSOR_POST_CREDIT_COST).toBe(5);
+    expect(SPONSOR_POST_CREDIT_COST).toBe(500);
   });
   it("charges 1 credit per AI assist", () => {
-    expect(SPONSOR_AI_CREDIT_COST).toBe(1);
+    expect(SPONSOR_AI_CREDIT_COST).toBe(100);
   });
 });
 
@@ -282,8 +282,8 @@ describe("POST /api/sponsors/deals", () => {
     const { status, json } = await req("POST", "/sponsors/deals", validDeal());
     expect(status).toBe(200);
     expect(json.deal.brandName).toBe("Golden Audio");
-    expect(json.creditsUsed).toBe(5);
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 5, { action: "Sponsor Deal Posting" });
+    expect(json.creditsUsed).toBe(500);
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 500, { action: "Sponsor Deal Posting" });
   });
 
   it("returns 402 out_of_credits without touching the DB", async () => {
@@ -351,8 +351,8 @@ describe("POST /api/sponsors/pitch", () => {
     });
     expect(status).toBe(200);
     expect(json.pitch).toBe("Dear brand, hire me.");
-    expect(json.creditsUsed).toBe(1);
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 1, { action: "Sponsor AI Pitch Writer" });
+    expect(json.creditsUsed).toBe(100);
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Pitch Writer" });
   });
 
   it("refunds the credit when the provider fails", async () => {
@@ -362,7 +362,7 @@ describe("POST /api/sponsors/pitch", () => {
     };
     const { status } = await req("POST", "/sponsors/pitch", { dealId: id, niche: "Music" });
     expect(status).toBe(502);
-    expect(mockRefund).toHaveBeenCalledWith(USER_A, 1, {
+    expect(mockRefund).toHaveBeenCalledWith(USER_A, 100, {
       action: "Sponsor AI Pitch Writer — Refund (provider failed)",
     });
   });
@@ -412,7 +412,7 @@ describe("POST /api/sponsors/match", () => {
     expect(json.matches[0].dealId).toBe(id);
     expect(json.matches[0].score).toBe(92);
     expect(json.note).toBe("Apply fast.");
-    expect(mockCharge).toHaveBeenCalledWith(USER_A, 1, { action: "Sponsor AI Deal Matcher" });
+    expect(mockCharge).toHaveBeenCalledWith(USER_A, 100, { action: "Sponsor AI Deal Matcher" });
   });
 
   it("refunds when there are no active deals", async () => {
@@ -430,7 +430,7 @@ describe("POST /api/sponsors/match", () => {
     };
     const { status } = await req("POST", "/sponsors/match", { niche: "Music" });
     expect(status).toBe(502);
-    expect(mockRefund).toHaveBeenCalledWith(USER_A, 1, {
+    expect(mockRefund).toHaveBeenCalledWith(USER_A, 100, {
       action: "Sponsor AI Deal Matcher — Refund (provider failed)",
     });
   });

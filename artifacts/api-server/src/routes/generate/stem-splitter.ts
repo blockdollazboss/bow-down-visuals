@@ -14,7 +14,7 @@ import {
 
 const router = Router();
 
-export const STEM_SPLITTER_CREDIT_COST = 4;
+export const STEM_SPLITTER_CREDIT_COST = 400;
 const STEM_UPLOAD_MAX_BYTES = 25 * 1024 * 1024; // 25 MB — same guard as song uploads
 const STEM_MAX_DURATION_SECONDS = 600; // 10 min ceiling: 4-stem Demucs on CPU is the heaviest job we run
 

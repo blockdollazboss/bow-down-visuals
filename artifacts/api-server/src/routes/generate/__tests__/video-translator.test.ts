@@ -77,7 +77,7 @@ function makeJob(overrides: Partial<TranslateJob> = {}): TranslateJob {
 
 describe("pricing", () => {
   it("charges 5 credits per minute per language by default", () => {
-    expect(VIDEO_TRANSLATOR_CREDITS_PER_MINUTE).toBe(5);
+    expect(VIDEO_TRANSLATOR_CREDITS_PER_MINUTE).toBe(500);
   });
 
   it("estimates cost as billable minutes × languages × rate", () => {
@@ -85,12 +85,12 @@ describe("pricing", () => {
     expect(estimateTranslateCost(90, 2)).toEqual({
       billableMinutes: 2,
       languageCount: 2,
-      credits: 20,
+      credits: 2000,
     });
   });
 
   it("floors at 1 billable minute", () => {
-    expect(estimateTranslateCost(10, 1).credits).toBe(5);
+    expect(estimateTranslateCost(10, 1).credits).toBe(500);
     expect(estimateTranslateCost(10, 1).billableMinutes).toBe(1);
   });
 

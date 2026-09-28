@@ -10,9 +10,9 @@ import { z } from "zod";
 export const SAMPLE_PACK_SIZES = [10, 25, 50] as const;
 export type SamplePackSize = (typeof SAMPLE_PACK_SIZES)[number];
 
-export const SAMPLE_PACK_10_CREDITS = 5;
-export const SAMPLE_PACK_25_CREDITS = 12;
-export const SAMPLE_PACK_50_CREDITS = 20;
+export const SAMPLE_PACK_10_CREDITS = 500;
+export const SAMPLE_PACK_25_CREDITS = 1200;
+export const SAMPLE_PACK_50_CREDITS = 2000;
 
 export function creditCostForPackSize(size: number): number {
   if (size === 10) return Number(process.env["SAMPLE_PACK_10_CREDITS"]) || SAMPLE_PACK_10_CREDITS;

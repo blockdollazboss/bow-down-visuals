@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe("SCRIPT_WRITER_CREDIT_COST", () => {
   it("charges 2 credits per script", () => {
-    expect(SCRIPT_WRITER_CREDIT_COST).toBe(2);
+    expect(SCRIPT_WRITER_CREDIT_COST).toBe(200);
   });
 });
 

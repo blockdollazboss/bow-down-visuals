@@ -94,13 +94,13 @@ function makePNG(width: number, height: number, rgba: Uint8Array): Buffer {
 
 describe("jewelry credit pricing", () => {
   it("preview costs 2 credits", () => {
-    expect(JEWELRY_PREVIEW_CREDIT_COST).toBe(2);
+    expect(JEWELRY_PREVIEW_CREDIT_COST).toBe(200);
   });
   it("STL export costs 4 credits", () => {
-    expect(JEWELRY_STL_CREDIT_COST).toBe(4);
+    expect(JEWELRY_STL_CREDIT_COST).toBe(400);
   });
   it("consultant costs 1 credit per message", () => {
-    expect(JEWELRY_CONSULT_CREDIT_COST).toBe(1);
+    expect(JEWELRY_CONSULT_CREDIT_COST).toBe(100);
   });
 });
 

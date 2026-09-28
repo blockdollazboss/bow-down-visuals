@@ -18,7 +18,7 @@ import {
 
 describe("GAMERS_CREDIT_COST", () => {
   it("charges 1 credit per generation", () => {
-    expect(GAMERS_CREDIT_COST).toBe(1);
+    expect(GAMERS_CREDIT_COST).toBe(100);
   });
 });
 

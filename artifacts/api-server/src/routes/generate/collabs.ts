@@ -29,7 +29,7 @@ import {
    - Outreach templates: static copy in the frontend (zero runtime compute),
      so proposals stay genuinely free. */
 
-export const COLLAB_MATCH_CREDITS = Number(process.env["COLLAB_MATCH_CREDIT_COST"]) || 1;
+export const COLLAB_MATCH_CREDITS = Number(process.env["COLLAB_MATCH_CREDIT_COST"]) || 100;
 
 /* Re-exported for route consumers + tests. */
 export { isCollabNicheKey, isCollabPlatformKey, COLLAB_NICHES, COLLAB_PLATFORMS };

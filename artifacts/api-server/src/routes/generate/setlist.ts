@@ -14,7 +14,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
    Charged BEFORE the model call, refunded on any failure. */
 
 /* 1 credit per AI flow suggestion — env-overridable without a deploy. */
-export const SETLIST_FLOW_CREDIT_COST = Number(process.env["SETLIST_FLOW_CREDIT_COST"]) || 1;
+export const SETLIST_FLOW_CREDIT_COST = Number(process.env["SETLIST_FLOW_CREDIT_COST"]) || 100;
 
 export const MAX_SETLIST_SONGS = 40;
 

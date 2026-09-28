@@ -21,8 +21,8 @@ import { chargeCredits, OutOfCreditsError } from "../../lib/credits";
    model call, 402 when broke. Uses max_completion_tokens (GPT-6 does not
    accept max_tokens). */
 
-export const COPYRIGHT_DRAFT_CREDITS = Number(process.env["COPYRIGHT_DRAFT_CREDIT_COST"]) || 1;
-export const COPYRIGHT_ASK_CREDITS = Number(process.env["COPYRIGHT_ASK_CREDIT_COST"]) || 1;
+export const COPYRIGHT_DRAFT_CREDITS = Number(process.env["COPYRIGHT_DRAFT_CREDIT_COST"]) || 100;
+export const COPYRIGHT_ASK_CREDITS = Number(process.env["COPYRIGHT_ASK_CREDIT_COST"]) || 100;
 
 export const WORK_TYPES = [
   "song",

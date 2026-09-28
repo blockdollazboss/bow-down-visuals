@@ -26,7 +26,7 @@ describe("beat marketplace pricing contract", () => {
   it("listing beats is free (no list-price constant exists)", () => {
     // Listing costs nothing — the route charges 0 credits. This test pins
     // that no listing fee was accidentally introduced in the pricing module.
-    expect(BEAT_AI_TAGS_CREDIT_COST).toBe(1); // only the AI suggester charges
+    expect(BEAT_AI_TAGS_CREDIT_COST).toBe(100); // only the AI suggester charges
   });
 
   it("site commission is 15%", () => {
@@ -34,9 +34,9 @@ describe("beat marketplace pricing contract", () => {
     expect(getBeatCommissionPct()).toBe(15);
   });
 
-  it("AI tag suggester costs 1 credit", () => {
-    expect(BEAT_AI_TAGS_CREDIT_COST).toBe(1);
-    expect(getBeatAiTagsCost()).toBe(1);
+  it("AI tag suggester costs 100 Visual Bucs", () => {
+    expect(BEAT_AI_TAGS_CREDIT_COST).toBe(100);
+    expect(getBeatAiTagsCost()).toBe(100);
   });
 
   it("commission math: 15% of $29.99 = $4.50 (rounded)", () => {
@@ -72,7 +72,7 @@ describe("beat marketplace pricing contract", () => {
 
   it("invalid env values fall back to defaults", () => {
     process.env["BEAT_AI_TAGS_CREDITS"] = "not-a-number";
-    expect(getBeatAiTagsCost()).toBe(1);
+    expect(getBeatAiTagsCost()).toBe(100);
     process.env["BEAT_SALE_COMMISSION_PCT"] = "150";
     expect(getBeatCommissionPct()).toBe(15);
     delete process.env["BEAT_AI_TAGS_CREDITS"];

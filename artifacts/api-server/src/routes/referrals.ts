@@ -16,7 +16,7 @@ const router = Router();
    - One referral per user. No self-referrals.
    - Purchase payouts are idempotent: one referral_payouts row per Stripe
      session, so webhook retries can never double-pay. */
-const REFEREE_WELCOME_CREDITS = 10;
+const REFEREE_WELCOME_CREDITS = 1000;
 const REVENUE_SHARE_PCT = 25;
 const SHARE_WINDOW_DAYS = 90;
 
@@ -36,11 +36,11 @@ interface PromoterTier {
 }
 const PROMOTER_TIERS: PromoterTier[] = [
   { stars: 1, title: "Street Soldier", minReferrals: 1,  ratePct: 25, milestoneBonus: 0 },
-  { stars: 2, title: "Hustler",        minReferrals: 3,  ratePct: 28, milestoneBonus: 15 },
-  { stars: 3, title: "Shot Caller",    minReferrals: 6,  ratePct: 30, milestoneBonus: 40 },
-  { stars: 4, title: "Big Boss",       minReferrals: 12, ratePct: 33, milestoneBonus: 100 },
-  { stars: 5, title: "Kingpin",        minReferrals: 25, ratePct: 35, milestoneBonus: 250 },
-  { stars: 6, title: "The Don",        minReferrals: 50, ratePct: 40, milestoneBonus: 600 },
+  { stars: 2, title: "Hustler",        minReferrals: 3,  ratePct: 28, milestoneBonus: 1500 },
+  { stars: 3, title: "Shot Caller",    minReferrals: 6,  ratePct: 30, milestoneBonus: 4000 },
+  { stars: 4, title: "Big Boss",       minReferrals: 12, ratePct: 33, milestoneBonus: 10000 },
+  { stars: 5, title: "Kingpin",        minReferrals: 25, ratePct: 35, milestoneBonus: 25000 },
+  { stars: 6, title: "The Don",        minReferrals: 50, ratePct: 40, milestoneBonus: 60000 },
 ];
 function getPromoterTier(referralCount: number): { tier: PromoterTier | null; next: PromoterTier | null } {
   let tier: PromoterTier | null = null;

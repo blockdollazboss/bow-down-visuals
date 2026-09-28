@@ -25,7 +25,7 @@ type Category = (typeof CATEGORIES)[number];
    pricing a 5-idea roll costs a fraction of a cent in provider fees, so the
    margin is deep; 1 credit keeps it an impulse buy while honoring the
    standing rule that every AI feature costs a fee. */
-const RANDOMIZER_CREDITS = Number(process.env["RANDOMIZER_CREDIT_COST"]) || 1;
+const RANDOMIZER_CREDITS = Number(process.env["RANDOMIZER_CREDIT_COST"]) || 100;
 
 const randomizerSchema = z.object({
   category: z.enum(CATEGORIES),

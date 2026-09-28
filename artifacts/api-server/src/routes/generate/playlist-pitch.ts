@@ -33,7 +33,7 @@ const router = Router();
 /* 2 credits per pitch kit — env-overridable without a deploy. One GPT-6 Sol
    JSON completion per kit; the margin holds comfortably at 2 credits. */
 export const PLAYLIST_PITCH_CREDIT_COST =
-  Number(process.env["PLAYLIST_PITCH_CREDIT_COST"]) || 2;
+  Number(process.env["PLAYLIST_PITCH_CREDIT_COST"]) || 200;
 
 export const PITCH_KIT_DISCLAIMER =
   "Pitching improves your odds — it never guarantees placement. " +

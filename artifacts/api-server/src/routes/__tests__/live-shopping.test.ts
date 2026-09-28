@@ -65,7 +65,7 @@ describe("formatPrice", () => {
 
 describe("AI_DESCRIPTION_CREDIT_COST", () => {
   it("charges 1 credit for an AI product description", () => {
-    expect(AI_DESCRIPTION_CREDIT_COST).toBe(1);
+    expect(AI_DESCRIPTION_CREDIT_COST).toBe(100);
   });
 });
 

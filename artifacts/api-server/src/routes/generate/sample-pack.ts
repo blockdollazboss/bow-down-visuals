@@ -173,7 +173,7 @@ router.post("/sample-pack/generate", requireAuth, async (req, res) => {
   if (currentCredits < creditCost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: `This pack costs ${creditCost} credits.`,
+      message: `This pack costs ${creditCost.toLocaleString("en-US")} Visual Bucs.`,
       creditCost,
     });
     return;

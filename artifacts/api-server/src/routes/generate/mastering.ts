@@ -16,7 +16,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const MASTERING_CREDIT_COST = 4;
+export const MASTERING_CREDIT_COST = 400;
 const MASTERING_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 const FFMPEG_TIMEOUT_MS = 600_000; // 10 min cap per pass
 

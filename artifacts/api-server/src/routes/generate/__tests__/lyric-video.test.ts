@@ -69,8 +69,8 @@ beforeEach(() => {
 
 describe("pricing", () => {
   it("charges 2 credits for alignment and 5 for render", () => {
-    expect(LYRIC_ALIGN_CREDIT_COST).toBe(2);
-    expect(LYRIC_RENDER_CREDIT_COST).toBe(5);
+    expect(LYRIC_ALIGN_CREDIT_COST).toBe(200);
+    expect(LYRIC_RENDER_CREDIT_COST).toBe(500);
   });
 
   it("offers the four documented style presets", () => {

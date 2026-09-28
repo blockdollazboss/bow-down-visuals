@@ -215,7 +215,7 @@ router.get("/sounds/trending", publicApiLimiter, async (req, res) => {
    (fraction of a cent), so 1 credit holds a deep margin while honoring the
    standing rule that every AI feature costs a fee. */
 
-const SOUND_MATCH_CREDITS = Number(process.env["SOUND_MATCH_CREDIT_COST"]) || 1;
+const SOUND_MATCH_CREDITS = Number(process.env["SOUND_MATCH_CREDIT_COST"]) || 100;
 export const SOUND_MATCH_CREDIT_COST = SOUND_MATCH_CREDITS;
 
 const matchSchema = z.object({

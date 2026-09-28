@@ -33,7 +33,7 @@ const router = Router();
 
 /** Credits charged per minute of generated audio. */
 export const VOICEOVER_CREDITS_PER_MINUTE =
-  Number(process.env["VOICEOVER_CREDITS_PER_MINUTE"]) || 2;
+  Number(process.env["VOICEOVER_CREDITS_PER_MINUTE"]) || 200;
 
 /** Average English speaking rate used for duration estimates. */
 export const WORDS_PER_MINUTE = 150;

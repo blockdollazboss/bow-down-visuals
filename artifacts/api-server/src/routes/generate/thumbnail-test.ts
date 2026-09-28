@@ -13,9 +13,9 @@ import {
 const router = Router();
 
 /** 2 credits per A/B test — one GPT vision call analyzing up to 4 thumbnails. */
-export const THUMBNAIL_TEST_CREDIT_COST = Number(process.env["THUMBNAIL_TEST_CREDIT_COST"]) || 2;
+export const THUMBNAIL_TEST_CREDIT_COST = Number(process.env["THUMBNAIL_TEST_CREDIT_COST"]) || 200;
 /** 2 credits to render an improved version ("Apply suggestions"). */
-export const THUMBNAIL_IMPROVE_CREDIT_COST = Number(process.env["THUMBNAIL_IMPROVE_CREDIT_COST"]) || 2;
+export const THUMBNAIL_IMPROVE_CREDIT_COST = Number(process.env["THUMBNAIL_IMPROVE_CREDIT_COST"]) || 200;
 
 const MAX_THUMBNAILS = 4;
 const MIN_THUMBNAILS = 2;

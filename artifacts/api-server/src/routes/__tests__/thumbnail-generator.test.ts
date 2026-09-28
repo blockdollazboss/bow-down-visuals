@@ -17,7 +17,7 @@ import type { AddressInfo } from "node:net";
 
 const mockState = vi.hoisted(() => ({
   authedUserId: "user-1" as string | null,
-  userCredits: 10,
+  userCredits: 1000,
   deductedCredits: null as number | null,
   refundedCredits: 0,
   imageGenerateCalls: 0,
@@ -65,8 +65,8 @@ vi.mock("../../lib/supabase-admin", () => ({
     from: () => ({
       update: () => ({
         eq: vi.fn(async () => {
-          mockState.deductedCredits = 2;
-          mockState.userCredits -= 2;
+          mockState.deductedCredits = 200;
+          mockState.userCredits -= 200;
           return { data: null, error: null };
         }),
       }),
@@ -113,7 +113,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   mockState.authedUserId = "user-1";
-  mockState.userCredits = 10;
+  mockState.userCredits = 1000;
   mockState.deductedCredits = null;
   mockState.refundedCredits = 0;
   mockState.imageGenerateCalls = 0;
@@ -132,7 +132,7 @@ async function postBatch(body: Record<string, unknown>) {
 }
 
 describe("POST /api/thumbnail-generator", () => {
-  it("generates 4 variations for 2 credits", async () => {
+  it("generates 4 variations for 200 Visual Bucs", async () => {
     const { status, json } = await postBatch({
       prompt: "Shark king on a golden throne, dramatic lighting",
       stylePreset: "luxury",
@@ -144,9 +144,9 @@ describe("POST /api/thumbnail-generator", () => {
     expect(json.images[0]).toHaveProperty("url");
     expect(json.images[0]).toHaveProperty("variation", 1);
     expect(json.images[3]).toHaveProperty("variation", 4);
-    expect(json.creditsUsed).toBe(2);
-    expect(json.creditsRemaining).toBe(8);
-    expect(mockState.deductedCredits).toBe(2);
+    expect(json.creditsUsed).toBe(200);
+    expect(json.creditsRemaining).toBe(800);
+    expect(mockState.deductedCredits).toBe(200);
     expect(mockState.imageGenerateCalls).toBe(4);
     expect(mockState.uploadedObjects).toHaveLength(4);
   });
@@ -202,9 +202,9 @@ describe("POST /api/thumbnail-generator", () => {
     const { status, json } = await postBatch({ prompt: "Something cool" });
     expect(status).toBe(500);
     expect(json.creditsRefunded).toBe(true);
-    expect(mockState.refundedCredits).toBe(2);
-    // Credits were deducted (10 -> 8) then refunded (8 -> 10)
-    expect(mockState.userCredits).toBe(10);
+    expect(mockState.refundedCredits).toBe(200);
+    // Credits were deducted (1000 -> 800) then refunded (800 -> 1000)
+    expect(mockState.userCredits).toBe(1000);
   });
 
   it("uses GPT Image 2.5 (never gpt-image-1) for generation", async () => {

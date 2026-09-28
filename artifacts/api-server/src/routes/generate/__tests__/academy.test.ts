@@ -24,7 +24,7 @@ import {
 
 describe("ACADEMY_CREDIT_COST", () => {
   it("charges 1 credit per AI academy call", () => {
-    expect(ACADEMY_CREDIT_COST).toBe(1);
+    expect(ACADEMY_CREDIT_COST).toBe(100);
   });
 });
 

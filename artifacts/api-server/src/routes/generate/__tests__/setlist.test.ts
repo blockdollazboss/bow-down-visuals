@@ -29,7 +29,7 @@ const sampleSongs: SetlistSongInput[] = [
 
 describe("SETLIST_FLOW_CREDIT_COST", () => {
   it("charges exactly 1 credit per AI flow suggestion", () => {
-    expect(SETLIST_FLOW_CREDIT_COST).toBe(1);
+    expect(SETLIST_FLOW_CREDIT_COST).toBe(100);
   });
 
   it("caps the setlist at a sane song count", () => {

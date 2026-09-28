@@ -28,7 +28,7 @@ const router = Router();
    (1 credit, charge-before-generate, refund on provider failure). */
 
 /* 1 credit per AI message draft — env-overridable without a deploy. */
-export const SHOUTOUT_AI_CREDITS = Number(process.env["SHOUTOUT_AI_CREDIT_COST"]) || 1;
+export const SHOUTOUT_AI_CREDITS = Number(process.env["SHOUTOUT_AI_CREDIT_COST"]) || 100;
 
 /* Platform fee intent for v1 — recorded for transparency; no money moves
    until payment processing ships. */

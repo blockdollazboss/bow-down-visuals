@@ -18,8 +18,8 @@ import type {
 
 const router = Router();
 
-const TEXT_CREDIT_COST = 1;
-const IMAGE_CREDIT_COST = 2;
+const TEXT_CREDIT_COST = 100;
+const IMAGE_CREDIT_COST = 200;
 
 interface VaultInput {
   artistType?: string | null;
@@ -294,7 +294,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
    /pack/:id/finalize, which locks everything in. Only locked packs feed
    scene generation. */
 
-const PACK_TEXT_CREDIT_COST = 3; // bible + storyboard + props/ingredients
+const PACK_TEXT_CREDIT_COST = 300; // bible + storyboard + props/ingredients
 const PACK_MAX_SHOTS = 10;
 const PACK_MAX_PROPS = 6;
 

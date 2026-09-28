@@ -27,9 +27,9 @@ const router = Router();
    DISTRIBUTION_RELEASE_CREDITS). This is a service/packaging fee for
    preparing the release package — v1 does NOT submit to Spotify/Apple
    APIs, and the UI says so honestly. */
-export const AI_CREDIT_COST = Number(process.env["DISTRIBUTION_AI_CREDIT_COST"]) || 1;
+export const AI_CREDIT_COST = Number(process.env["DISTRIBUTION_AI_CREDIT_COST"]) || 100;
 export const DISTRIBUTION_RELEASE_CREDITS =
-  Number(process.env["DISTRIBUTION_RELEASE_CREDITS"]) || 10;
+  Number(process.env["DISTRIBUTION_RELEASE_CREDITS"]) || 1000;
 
 /* ─── Tiered release pricing (v2) ───────────────────────────────────────────
    MARGIN LOGIC (documented assumptions — verify against real aggregator
@@ -46,8 +46,8 @@ export const DISTRIBUTION_RELEASE_CREDITS =
    upsell — listed as coming-soon until billing supports subscriptions. */
 export const RELEASE_TIER_CREDITS = {
   single: Number(process.env["DISTRIBUTION_SINGLE_CREDITS"]) || DISTRIBUTION_RELEASE_CREDITS,
-  ep: Number(process.env["DISTRIBUTION_EP_CREDITS"]) || 20,
-  album: Number(process.env["DISTRIBUTION_ALBUM_CREDITS"]) || 30,
+  ep: Number(process.env["DISTRIBUTION_EP_CREDITS"]) || 2000,
+  album: Number(process.env["DISTRIBUTION_ALBUM_CREDITS"]) || 3000,
 } as const;
 export type ReleaseType = keyof typeof RELEASE_TIER_CREDITS;
 

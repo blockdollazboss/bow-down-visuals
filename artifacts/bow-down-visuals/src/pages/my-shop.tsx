@@ -468,7 +468,7 @@ export default function MyShop() {
                         />
                         <button className={ghostBtn} onClick={generateShopDescription} disabled={aiShopDescLoading}>
                           {aiShopDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                          <span className="text-xs">AI write · 1 Visual Buc</span>
+                          <span className="text-xs">AI write · 100 Visual Bucs</span>
                         </button>
                       </div>
                     </div>
@@ -531,7 +531,7 @@ export default function MyShop() {
                           <label className="text-xs font-semibold text-white/50">Description</label>
                           <button className={ghostBtn} onClick={generateProductDescription} disabled={aiProdDescLoading}>
                             {aiProdDescLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                            <span className="text-xs">AI write · 1 Visual Buc</span>
+                            <span className="text-xs">AI write · 100 Visual Bucs</span>
                           </button>
                         </div>
                         <textarea className={`${inputClass} mt-1 min-h-[80px]`} value={pDesc} onChange={(e) => setPDesc(e.target.value)} maxLength={2000} placeholder="What makes it great…" />
@@ -553,11 +553,11 @@ export default function MyShop() {
                             />
                             <button className={ghostBtn} onClick={() => generateProductImage("standard")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "standard" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">AI image · 1 Visual Buc</span>
+                              <span className="text-xs">AI image · 100 Visual Bucs</span>
                             </button>
                             <button className={ghostBtn} onClick={() => generateProductImage("premium")} disabled={!!aiImageLoading}>
                               {aiImageLoading === "premium" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-300" />}
-                              <span className="text-xs">Premium · 2 Visual Bucs</span>
+                              <span className="text-xs">Premium · 200 Visual Bucs</span>
                             </button>
                           </div>
                         )}

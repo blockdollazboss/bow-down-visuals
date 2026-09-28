@@ -345,12 +345,12 @@ export function ThumbnailMakerModule() {
                 </>
               ) : (
                 <>
-                  <ImageIcon className="h-5 w-5" /> Generate 4 Variations · 2 Visual Bucs
+                  <ImageIcon className="h-5 w-5" /> Generate 4 Variations · 200 Visual Bucs
                 </>
               )}
             </Button>
             <p className="text-white/25 text-xs mt-3">
-              2 Visual Bucs per batch of 4. Credits refunded automatically if generation fails.
+              200 Visual Bucs per batch of 4. Credits refunded automatically if generation fails.
             </p>
           </div>
         </div>
@@ -473,7 +473,7 @@ export default function ThumbnailMaker() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <ImageIcon className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">2 Visual Bucs · 4 variations</MarketingBadge>
+            <MarketingBadge variant="muted">200 Visual Bucs · 4 variations</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             AI Thumbnail Generator

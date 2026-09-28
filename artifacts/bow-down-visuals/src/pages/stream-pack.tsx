@@ -396,7 +396,7 @@ export function StreamPackTool() {
                       <span className="ml-auto flex gap-1.5 shrink-0">
                         <button
                           onClick={() => generateOne(a.key)}
-                          title="Regenerate (1 Visual Buc)"
+                          title="Regenerate (100 Visual Bucs)"
                           data-min-stars="3"
                           className="rounded-lg border border-white/[0.12] p-2 text-white/60 hover:border-white/25 hover:text-white transition"
                         >

@@ -29,7 +29,7 @@ import type { AddressInfo } from "node:net";
 const testState = vi.hoisted(() => ({
   db: null as any,
   userId: "",
-  userCredits: 10,
+  userCredits: 1000,
   userPlan: "pro",
 }));
 
@@ -147,7 +147,7 @@ beforeEach(async () => {
   mem.public.none(SHOPS_DDL);
   testState.db = db;
   testState.userId = USER_A;
-  testState.userCredits = 10;
+  testState.userCredits = 1000;
   vi.clearAllMocks();
   mockCharge.mockImplementation(async (_userId: string, cost: number) => {
     testState.userCredits -= cost;
@@ -186,11 +186,11 @@ async function seedProduct(shopId: string, userId: string, name = "Test Product"
 /* ── Pricing constants ─────────────────────────────────────────────────── */
 describe("pricing constants", () => {
   it("AI descriptions cost 1 credit", () => {
-    expect(SHOP_AI_CREDIT_COST).toBe(1);
+    expect(SHOP_AI_CREDIT_COST).toBe(100);
   });
   it("standard product images cost 1 credit, premium cost 2", () => {
-    expect(SHOP_IMAGE_STANDARD_CREDITS).toBe(1);
-    expect(SHOP_IMAGE_PREMIUM_CREDITS).toBe(2);
+    expect(SHOP_IMAGE_STANDARD_CREDITS).toBe(100);
+    expect(SHOP_IMAGE_PREMIUM_CREDITS).toBe(200);
   });
 });
 
@@ -431,8 +431,8 @@ describe("POST /api/shops/ai/shop-description", () => {
     expect(status).toBe(200);
     expect(json.description).toBe("Luxury merch for the bold.");
     expect(mockCharge).toHaveBeenCalledTimes(1);
-    expect(mockCharge.mock.calls[0]![1]).toBe(1);
-    expect(json.creditsUsed).toBe(1);
+    expect(mockCharge.mock.calls[0]![1]).toBe(100);
+    expect(json.creditsUsed).toBe(100);
   });
 
   it("returns 402 when out of credits (no charge attempted)", async () => {
@@ -452,7 +452,7 @@ describe("POST /api/shops/ai/shop-description", () => {
     expect(status).toBe(502);
     expect(mockCharge).toHaveBeenCalledTimes(1);
     expect(mockRefund).toHaveBeenCalledTimes(1);
-    expect(mockRefund.mock.calls[0]![1]).toBe(1);
+    expect(mockRefund.mock.calls[0]![1]).toBe(100);
   });
 
   it("uses max_completion_tokens (GPT-6 rejects max_tokens)", async () => {
@@ -509,7 +509,7 @@ describe("POST /api/shops/ai/product-image", () => {
     expect(status).toBe(200);
     expect(json.url).toContain("cdn.example.com");
     expect(mockCharge).toHaveBeenCalledTimes(1);
-    expect(mockCharge.mock.calls[0]![1]).toBe(1);
+    expect(mockCharge.mock.calls[0]![1]).toBe(100);
     expect(generate.mock.calls[0]![0].quality).toBe("medium");
   });
 
@@ -520,8 +520,8 @@ describe("POST /api/shops/ai/product-image", () => {
       tier: "premium",
     });
     expect(status).toBe(200);
-    expect(json.creditsUsed).toBe(2);
-    expect(mockCharge.mock.calls[0]![1]).toBe(2);
+    expect(json.creditsUsed).toBe(200);
+    expect(mockCharge.mock.calls[0]![1]).toBe(200);
     expect(generate.mock.calls[0]![0].quality).toBe("high");
   });
 
@@ -547,7 +547,7 @@ describe("POST /api/shops/ai/product-image", () => {
     expect(status).toBe(502);
     expect(mockCharge).toHaveBeenCalledTimes(1);
     expect(mockRefund).toHaveBeenCalledTimes(1);
-    expect(mockRefund.mock.calls[0]![1]).toBe(1);
+    expect(mockRefund.mock.calls[0]![1]).toBe(100);
   });
 
   it("ensures the bucket exists before uploading (self-healing storage)", async () => {

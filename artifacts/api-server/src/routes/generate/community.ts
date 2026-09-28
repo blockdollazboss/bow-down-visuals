@@ -19,14 +19,14 @@ const router = Router();
    are 1 credit per run — short GPT-6 Sol completions, deep margins, and the
    standing rule that every AI feature costs a fee. */
 export const COMMUNITY_MODERATE_CREDITS =
-  Number(process.env["COMMUNITY_MODERATE_CREDITS"]) || 1;
+  Number(process.env["COMMUNITY_MODERATE_CREDITS"]) || 100;
 export const COMMUNITY_MODERATE_BATCH = 50;
 export const COMMUNITY_SENTIMENT_CREDITS =
-  Number(process.env["COMMUNITY_SENTIMENT_CREDITS"]) || 1;
+  Number(process.env["COMMUNITY_SENTIMENT_CREDITS"]) || 100;
 export const COMMUNITY_SUPERFAN_CREDITS =
-  Number(process.env["COMMUNITY_SUPERFAN_CREDITS"]) || 1;
+  Number(process.env["COMMUNITY_SUPERFAN_CREDITS"]) || 100;
 export const COMMUNITY_REPLY_CREDITS =
-  Number(process.env["COMMUNITY_REPLY_CREDITS"]) || 1;
+  Number(process.env["COMMUNITY_REPLY_CREDITS"]) || 100;
 
 export function moderateCreditCost(commentCount: number): number {
   if (commentCount <= 0) return 0;

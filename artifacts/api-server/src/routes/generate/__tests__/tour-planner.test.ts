@@ -19,7 +19,7 @@ import {
 
 describe("TOUR_PLANNER_CREDIT_COST", () => {
   it("charges 3 credits per AI routing + budget plan", () => {
-    expect(TOUR_PLANNER_CREDIT_COST).toBe(3);
+    expect(TOUR_PLANNER_CREDIT_COST).toBe(300);
   });
 });
 

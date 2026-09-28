@@ -24,7 +24,7 @@ const PLATFORM_LABEL: Record<Platform, string> = {
    medium-length GPT-6 Sol completion (a fraction of a cent in provider fees),
    so 1 credit holds a deep margin while staying an impulse buy — and honors
    the standing rule that every AI feature costs a fee. */
-const COACH_CREDITS = Number(process.env["MONETIZATION_COACH_CREDIT_COST"]) || 1;
+const COACH_CREDITS = Number(process.env["MONETIZATION_COACH_CREDIT_COST"]) || 100;
 
 const coachSchema = z.object({
   niche: z.string().min(1, "Niche is required.").max(120),

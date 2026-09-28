@@ -39,10 +39,10 @@ function describeUsage(u: Usage): { type: string; amount: string; tone: "charge"
   const n = u.creditsUsed;
   if (n < 0) {
     const label = /grant/i.test(u.action) ? "Grant" : /refund/i.test(u.action) ? "Refund" : "Visual Buc back";
-    return { type: label, amount: `+${Math.abs(n)}`, tone: "credit" };
+    return { type: label, amount: `+${Math.abs(n).toLocaleString("en-US")}`, tone: "credit" };
   }
   if (n === 0) return { type: "Free", amount: "0", tone: "free" };
-  return { type: "Charge", amount: `−${n}`, tone: "charge" };
+  return { type: "Charge", amount: `−${n.toLocaleString("en-US")}`, tone: "charge" };
 }
 
 function fmt(dateStr: string) {
@@ -122,7 +122,7 @@ export default function CreditHistory() {
             <div>
               <p className="text-sm text-white/50 font-medium uppercase tracking-widest">Current Balance</p>
               <p className="text-4xl font-extrabold text-primary leading-tight">
-                {profile?.credits ?? "—"}
+                {profile?.credits?.toLocaleString("en-US") ?? "—"}
               </p>
               <p className="text-xs text-white/30 mt-0.5">Visual Bucs available</p>
             </div>
@@ -178,7 +178,7 @@ export default function CreditHistory() {
                           <td className="px-4 py-3 text-white/70">{p.creditPack ?? "—"}</td>
                           <td className="px-4 py-3">
                             <span className="flex items-center gap-1 text-primary font-semibold">
-                              <Zap className="h-3.5 w-3.5" />+{p.creditsAmount}
+                              <Zap className="h-3.5 w-3.5" />+{p.creditsAmount.toLocaleString("en-US")}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-white/50">{fmtMoney(p.amountTotal, p.currency)}</td>

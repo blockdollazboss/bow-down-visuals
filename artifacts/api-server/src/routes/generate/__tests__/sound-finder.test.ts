@@ -22,8 +22,8 @@ const ROUTE_SRC = readFileSync(
 );
 
 describe("sound finder pricing contract", () => {
-  it("AI sound match costs 1 credit", () => {
-    expect(SOUND_MATCH_CREDIT_COST).toBe(1);
+  it("AI sound match costs 100 Visual Bucs", () => {
+    expect(SOUND_MATCH_CREDIT_COST).toBe(100);
   });
 
   it("the cost is env-overridable without a deploy", () => {
@@ -42,8 +42,8 @@ describe("sound finder pricing contract", () => {
   });
 
   it("the route rejects when balance < cost (documents the 402 contract)", () => {
-    expect(0 < SOUND_MATCH_CREDIT_COST).toBe(true); // 0 credits → 402
-    expect(1 < SOUND_MATCH_CREDIT_COST).toBe(false); // exact balance → allowed
+    expect(99 < SOUND_MATCH_CREDIT_COST).toBe(true); // 99 → 402
+    expect(100 < SOUND_MATCH_CREDIT_COST).toBe(false); // exact balance → allowed
   });
 
   it("refunds credits when the match fails", () => {

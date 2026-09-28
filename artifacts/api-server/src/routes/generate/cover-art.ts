@@ -17,9 +17,9 @@ const router = Router();
    2 credits standard / 3 credits premium — in line with site image pricing
    (Pro 2cr, Turbo 1cr, Sunburst 1-2cr). Env-overridable without a deploy. */
 export const COVER_ART_STANDARD_CREDITS =
-  Number(process.env["COVER_ART_STANDARD_CREDITS"]) || 2;
+  Number(process.env["COVER_ART_STANDARD_CREDITS"]) || 200;
 export const COVER_ART_PREMIUM_CREDITS =
-  Number(process.env["COVER_ART_PREMIUM_CREDITS"]) || 3;
+  Number(process.env["COVER_ART_PREMIUM_CREDITS"]) || 300;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";

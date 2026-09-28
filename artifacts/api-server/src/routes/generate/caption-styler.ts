@@ -18,7 +18,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const CAPTION_STYLER_CREDIT_COST = Number(process.env["CAPTION_STYLER_CREDITS"]) || 3;
+export const CAPTION_STYLER_CREDIT_COST = Number(process.env["CAPTION_STYLER_CREDITS"]) || 300;
 const CAPTION_STYLER_MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip uploads
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // Whisper's hard limit
 const WHISPER_TIMEOUT_MS = 240_000; // 4 minutes

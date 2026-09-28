@@ -48,7 +48,7 @@ beforeEach(() => {
 
 describe("MEMBERSHIPS_AI_CREDITS", () => {
   it("charges 1 credit per AI perk suggestion", () => {
-    expect(MEMBERSHIPS_AI_CREDITS).toBe(1);
+    expect(MEMBERSHIPS_AI_CREDITS).toBe(100);
   });
 
   it("reads the env override", async () => {

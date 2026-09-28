@@ -16,7 +16,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const AUDIO_CLEANUP_CREDIT_COST = 3;
+export const AUDIO_CLEANUP_CREDIT_COST = 300;
 const AUDIO_CLEANUP_MAX_BYTES = 50 * 1024 * 1024; // 50 MB upload cap
 
 export type AudioCleanupMode = "voice" | "music" | "denoise";

@@ -17,7 +17,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 /* Single source of truth for the AI beat price — the credit-cost registry. */
-const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 3;
+const BEAT_COST = CREDIT_COSTS["/api/beat/generate"]?.cost ?? 300;
 
 /* ─── Beat Maker ────────────────────────────────────────────────────────────
    The first module of the One Unified Creation Hub.
@@ -207,7 +207,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           {generating ? (
             <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cooking your beat…</>
           ) : (
-            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · {BEAT_COST} Visual Bucs</>
+            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · {BEAT_COST.toLocaleString("en-US")} Visual Bucs</>
           )}
         </Button>
         <p className="text-xs text-white/40 text-center -mt-2">

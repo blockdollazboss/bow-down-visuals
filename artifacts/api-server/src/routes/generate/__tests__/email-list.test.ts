@@ -27,7 +27,7 @@ import {
 
 describe("newsletter pricing contract", () => {
   it("costs 1 credit per AI newsletter draft", () => {
-    expect(EMAIL_NEWSLETTER_CREDIT_COST).toBe(1);
+    expect(EMAIL_NEWSLETTER_CREDIT_COST).toBe(100);
   });
 
   it("free tier allows 1,000 subscribers per list", () => {

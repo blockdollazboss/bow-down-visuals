@@ -27,7 +27,7 @@ const routeSource = readFileSync(
 
 describe("branding shop pricing", () => {
   it("charges 2 credits per AI brand-kit design set", () => {
-    expect(DESIGN_CREDIT_COST).toBe(2);
+    expect(DESIGN_CREDIT_COST).toBe(200);
   });
 
   it("catalog prices are positive integers (cents)", () => {

@@ -27,7 +27,7 @@ router.get("/credits/history", requireAuth, async (req, res) => {
    try the tools before buying. Idempotent: the trial_credits_claimed flag on
    profiles makes repeat calls a no-op, and the frontend gates on
    localStorage so it only attempts the call until the first success. */
-const TRIAL_CREDITS = 10;
+const TRIAL_CREDITS = 1000;
 let trialColumnEnsured = false;
 
 async function ensureTrialColumn(): Promise<void> {

@@ -899,7 +899,7 @@ export default function MakeVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Video className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">1 Visual Buc</MarketingBadge>
+            <MarketingBadge variant="muted">100 Visual Bucs</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Music Video
@@ -1268,7 +1268,7 @@ export default function MakeVideo() {
                         ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
                         : <><Sparkles className="h-5 w-5" /> Create Video Plan</>}
                     </Button>
-                    <p className="text-white/25 text-xs text-center">Uses 1 Visual Buc per generation</p>
+                    <p className="text-white/25 text-xs text-center">Uses 100 Visual Bucs per generation</p>
                   </div>
                 </div>
               ) : (

@@ -17,7 +17,7 @@ import {
 
 describe("TITLE_STUDIO_CREDITS", () => {
   it("charges 1 credit per generation", () => {
-    expect(TITLE_STUDIO_CREDITS).toBe(1);
+    expect(TITLE_STUDIO_CREDITS).toBe(100);
   });
 });
 

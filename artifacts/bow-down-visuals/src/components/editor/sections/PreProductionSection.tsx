@@ -247,7 +247,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
               className="bg-[#C9A84C] hover:bg-[#b8963f] text-black font-bold text-xs"
             >
               {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
-              {generating ? "Writing Bible…" : "Generate Bible (1 Visual Buc)"}
+              {generating ? "Writing Bible…" : "Generate Bible (100 Visual Bucs)"}
             </Button>
             <button
               onClick={() => updateBible({ locked: !pp.bible.locked })}
@@ -292,7 +292,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
               className="bg-[#C9A84C] hover:bg-[#b8963f] text-black font-bold text-xs"
             >
               {generating ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Sparkles className="w-3.5 h-3.5 mr-1.5" />}
-              {generating ? "Boarding…" : "Generate Storyboard (1 Visual Buc)"}
+              {generating ? "Boarding…" : "Generate Storyboard (100 Visual Bucs)"}
             </Button>
             {!pp.bible.locked && pp.storyboard.length > 0 && (
               <span className="text-[11px] text-amber-300/70">Tip: lock your bible first so frames stay on-vision.</span>
@@ -363,7 +363,7 @@ export function PreProductionSection({ settings, setSettings, songTitle, genre, 
                               <Plus className="w-5 h-5" />
                             )}
                             <span className="text-[10px] font-bold">
-                              {f.status === "generating" ? "Generating…" : f.status === "error" ? "Retry (2 Visual Bucs)" : "Generate (2 Visual Bucs)"}
+                              {f.status === "generating" ? "Generating…" : f.status === "error" ? "Retry (200 Visual Bucs)" : "Generate (200 Visual Bucs)"}
                             </span>
                             {f.status === "error" && f.err && (
                               <span className="text-[9px] text-red-300/70 px-2 text-center">{f.err}</span>

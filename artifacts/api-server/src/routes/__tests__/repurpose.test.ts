@@ -22,8 +22,8 @@ import {
 
 describe("pricing constants", () => {
   it("charges 5 credits for the full pack and 1 per re-roll", () => {
-    expect(REPURPOSE_PACK_CREDITS).toBe(5);
-    expect(REPURPOSE_REROLL_CREDITS).toBe(1);
+    expect(REPURPOSE_PACK_CREDITS).toBe(500);
+    expect(REPURPOSE_REROLL_CREDITS).toBe(100);
   });
 });
 

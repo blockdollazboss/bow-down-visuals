@@ -48,7 +48,7 @@ export function SecretChallengePopup({
           </h2>
           <p className="mt-2 text-white/70">You&rsquo;ve been awarded</p>
           <p className="font-display mt-1 text-3xl font-black text-[#e8c86a]">
-            {credits} Visual Bucs
+            {credits.toLocaleString("en-US")} Visual Bucs
           </p>
           <button
             type="button"
@@ -74,7 +74,6 @@ export function SecretChallengePopup({
             className="block h-auto select-none"
             style={{ width: "min(94vw, calc(90vh * 1.5))", maxHeight: "90vh" }}
           />
-
           {/* Live credit amount — opaque backing fully covers the baked-in
               "50 Visual Bucs" text (measured at 35–63.7% x, 55.3–61.5% y),
               then the real awarded amount goes on top. */}
@@ -91,12 +90,12 @@ export function SecretChallengePopup({
                   textShadow: "0 0 2cqw rgba(232,200,106,0.55)",
                 }}
               >
-                {credits} Visual Bucs
+                {credits.toLocaleString("en-US")} Visual Bucs
               </span>
             </div>
           )}
           {/* Screen-reader announcement of the real amount */}
-          <span className="sr-only">You&rsquo;ve been awarded {credits} Visual Bucs.</span>
+          <span className="sr-only">You&rsquo;ve been awarded {credits.toLocaleString("en-US")} Visual Bucs.</span>
 
           {/* Working Claim button over the baked-in Claim art
               (measured at 38.8–60.4% x, 65.4–71.6% y). */}

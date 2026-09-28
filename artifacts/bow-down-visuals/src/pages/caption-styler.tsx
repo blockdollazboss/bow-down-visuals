@@ -88,7 +88,7 @@ export default function CaptionStyler() {
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Caption styling failed — your 3 Visual Bucs were refunded.");
+          setError(data.error || "Caption styling failed — your 300 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }

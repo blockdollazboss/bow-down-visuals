@@ -44,7 +44,7 @@ const SURPRISE_PROMPTS = [
   "What's the fastest workflow from song to finished video?",
   "Give me a random video idea — make it weird",
   "How do lip-sync videos work here?",
-  "What can I build with 10 Visual Bucs?",
+  "What can I build with 1,000 Visual Bucs?",
   "Give me a hook idea for a behind-the-scenes clip",
 ];
 
@@ -117,7 +117,7 @@ export function ThyCheatCodeChat() {
       let reply: string;
       if (res.status === 401) {
         reply =
-          "Sign in to chat with me — it's 1 Visual Buc per message. 🦈";
+          "Sign in to chat with me — it's 100 Visual Bucs per message. 🦈";
       } else if (res.status === 402) {
         reply =
           data.message ||

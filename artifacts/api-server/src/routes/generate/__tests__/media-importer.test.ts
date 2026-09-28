@@ -68,7 +68,7 @@ function makeJob(overrides: Partial<MediaImportJob> = {}): MediaImportJob {
 
 describe("pricing", () => {
   it("charges 2 credits per import", () => {
-    expect(MEDIA_IMPORT_CREDIT_COST).toBe(2);
+    expect(MEDIA_IMPORT_CREDIT_COST).toBe(200);
   });
 
   it("caps imports at 500 MB", () => {

@@ -19,7 +19,7 @@ import {
 
 describe("CALENDAR_CREDIT_COST", () => {
   it("charges 1 credit per calendar", () => {
-    expect(CALENDAR_CREDIT_COST).toBe(1);
+    expect(CALENDAR_CREDIT_COST).toBe(100);
   });
 });
 

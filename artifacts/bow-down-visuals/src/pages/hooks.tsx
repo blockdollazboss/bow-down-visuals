@@ -434,7 +434,7 @@ export default function HookStudio() {
               </span>
               <div>
                 <h2 className="text-xl font-bold">Captions & Hashtags</h2>
-                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 Visual Buc.</p>
+                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 100 Visual Bucs.</p>
               </div>
             </div>
 
@@ -489,7 +489,7 @@ export default function HookStudio() {
               {capLoading ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
               ) : (
-                <><Sparkles className="h-5 w-5" /> Generate — 1 Visual Buc</>
+                <><Sparkles className="h-5 w-5" /> Generate — 100 Visual Bucs</>
               )}
             </button>
 

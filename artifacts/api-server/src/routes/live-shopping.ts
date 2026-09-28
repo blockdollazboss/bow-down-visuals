@@ -53,7 +53,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 export const AI_DESCRIPTION_CREDIT_COST =
-  Number(process.env["LIVE_SHOPPING_AI_DESC_CREDITS"]) || 1;
+  Number(process.env["LIVE_SHOPPING_AI_DESC_CREDITS"]) || 100;
 
 export const productSchema = z.object({
   name: z.string().trim().min(1, "Product name is required").max(120),

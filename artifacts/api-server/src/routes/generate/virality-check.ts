@@ -31,7 +31,7 @@ const PLATFORM_DIRECTION: Record<Platform, string> = {
    2 credits holds a deep margin while honoring the standing rule that every
    AI feature costs a fee. */
 const VIRALITY_CHECK_CREDITS =
-  Number(process.env["VIRALITY_CHECK_CREDIT_COST"]) || 2;
+  Number(process.env["VIRALITY_CHECK_CREDIT_COST"]) || 200;
 
 const viralityCheckSchema = z.object({
   caption: z

@@ -26,7 +26,7 @@ const router = Router();
 
 /** Site credits per AI winner-announcement graphic. Env-overridable. */
 export const CONTEST_ANNOUNCE_CREDIT_COST =
-  Number(process.env["CONTEST_ANNOUNCE_CREDITS"]) || 1;
+  Number(process.env["CONTEST_ANNOUNCE_CREDITS"]) || 100;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL"] || "gpt-image-2.5";

@@ -238,7 +238,7 @@ export default function SetlistBuilder() {
               <ListMusic className="h-5 w-5 text-primary" />
             </div>
             <span className="text-xs font-semibold uppercase tracking-widest text-primary/80 border border-primary/25 rounded-full px-3 py-1">
-              Free to plan · 1 Visual Buc for AI flow
+              Free to plan · 100 Visual Bucs for AI flow
             </span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">

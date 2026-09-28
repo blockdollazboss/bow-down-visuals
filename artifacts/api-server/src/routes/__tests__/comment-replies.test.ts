@@ -15,7 +15,7 @@ import type { AddressInfo } from "node:net";
 
 const testState = vi.hoisted(() => ({
   userId: "user-1",
-  userCredits: 10,
+  userCredits: 1000,
   chargeCalls: [] as Array<{ userId: string; amount: number }>,
   refundCalls: [] as Array<{ userId: string; amount: number }>,
   modelPayload: { replies: ["Love you back! What's your favorite track?"] },
@@ -88,7 +88,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   testState.userId = "user-1";
-  testState.userCredits = 10;
+  testState.userCredits = 1000;
   testState.chargeCalls = [];
   testState.refundCalls = [];
   testState.modelPayload = { replies: ["Love you back! What's your favorite track?"] };
@@ -134,7 +134,7 @@ describe("POST /api/comment-replies", () => {
     expect(testState.chargeCalls).toHaveLength(0);
   });
 
-  it("happy path: charges 1 credit and returns one reply per comment", async () => {
+  it("happy path: charges 100 Visual Bucs and returns one reply per comment", async () => {
     testState.modelPayload = {
       replies: ["Reply one — what's your favorite part?", "Reply two — thanks for riding with me!"],
     };
@@ -145,9 +145,9 @@ describe("POST /api/comment-replies", () => {
     });
     expect(status).toBe(200);
     expect(json.replies).toHaveLength(2);
-    expect(json.creditsUsed).toBe(1);
-    expect(json.creditsRemaining).toBe(9);
-    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 1 }]);
+    expect(json.creditsUsed).toBe(100);
+    expect(json.creditsRemaining).toBe(900);
+    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 100 }]);
     expect(testState.refundCalls).toHaveLength(0);
   });
 
@@ -172,8 +172,8 @@ describe("POST /api/comment-replies", () => {
     expect(status).toBe(502);
     expect(json.error).toBeTruthy();
     expect(testState.chargeCalls).toHaveLength(1);
-    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 1 }]);
-    expect(testState.userCredits).toBe(10); // charged then refunded
+    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 100 }]);
+    expect(testState.userCredits).toBe(1000); // charged then refunded
   });
 
   it("refunds the credit when the model returns an incomplete reply set", async () => {
@@ -184,7 +184,7 @@ describe("POST /api/comment-replies", () => {
     });
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.userCredits).toBe(1000);
   });
 
   it("trims whitespace-only lines server-side via schema (empty comment rejected)", async () => {

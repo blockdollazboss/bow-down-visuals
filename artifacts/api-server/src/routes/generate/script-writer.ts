@@ -51,7 +51,7 @@ const TONE_DIRECTION: Record<ScriptWriterTone, string> = {
    2 credits holds a deep margin while staying an impulse buy — and honors the
    standing rule that every AI feature costs a fee. */
 export const SCRIPT_WRITER_CREDIT_COST =
-  Number(process.env["SCRIPT_WRITER_CREDIT_COST"]) || 2;
+  Number(process.env["SCRIPT_WRITER_CREDIT_COST"]) || 200;
 
 const scriptWriterSchema = z.object({
   platform: z.enum(SCRIPT_WRITER_PLATFORMS),

@@ -37,7 +37,7 @@ beforeEach(() => {
 
 describe("STREAM_PACK_CREDIT_COST", () => {
   it("charges 1 credit per generated asset", () => {
-    expect(STREAM_PACK_CREDIT_COST).toBe(1);
+    expect(STREAM_PACK_CREDIT_COST).toBe(100);
   });
 });
 
@@ -163,8 +163,8 @@ describe("buildStreamPackPrompt", () => {
 });
 
 describe("money-flow contracts", () => {
-  it("full 12-asset bundle costs 12 credits total", () => {
-    expect(STREAM_PACK_ASSETS.length * STREAM_PACK_CREDIT_COST).toBe(12);
+  it("full 12-asset bundle costs 1,200 Visual Bucs total", () => {
+    expect(STREAM_PACK_ASSETS.length * STREAM_PACK_CREDIT_COST).toBe(1200);
   });
 
   it("the route rejects when balance < cost (documents the 402 contract)", () => {

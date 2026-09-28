@@ -470,7 +470,7 @@ export function AppSidebar() {
                       <span className="font-medium">{link.label}</span>
                       {link.href === "/credit-history" && profile && (
                         <span className="ml-auto text-xs font-black text-primary">
-                          {profile.credits}
+                          {profile.credits.toLocaleString("en-US")}
                         </span>
                       )}
                     </Link>
@@ -509,7 +509,7 @@ export function AppSidebar() {
                 <span className="text-sm text-sidebar-foreground/70 font-medium">Visual Bucs</span>
               </div>
               <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
-                {profile.credits} left
+                {profile.credits.toLocaleString("en-US")} left
               </Badge>
             </Link>
             {/* Dev-only quick credits — lived in the old toolbar. */}

@@ -232,7 +232,7 @@ export default function Merch() {
           </span>
           <div>
             <h1 className="text-2xl font-black">Merch Designer</h1>
-            <p className="text-sm text-white/45">AI-designed merch for your brand — 3 Visual Bucs per design batch</p>
+            <p className="text-sm text-white/45">AI-designed merch for your brand — 300 Visual Bucs per design batch</p>
           </div>
         </div>
 
@@ -347,7 +347,7 @@ export default function Merch() {
               disabled={!canGenerate}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Generate 2 mockups · 3 Visual Bucs</span>
+              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Generate 2 mockups · 300 Visual Bucs</span>
             </button>
             {creditsRemaining != null && (
               <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>

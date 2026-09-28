@@ -61,7 +61,7 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
                   <VisualBucsIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="font-black text-white text-lg leading-tight">Spend Credits?</h3>
+                  <h3 className="font-black text-white text-lg leading-tight">Spend Visual Bucs?</h3>
                   <p className="text-xs text-white/50">{request.feature}</p>
                 </div>
               </div>
@@ -81,16 +81,16 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
             <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 mb-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Cost</span>
-                <span className="font-black text-primary">{request.cost} Visual Bucs</span>
+                <span className="font-black text-primary">{request.cost.toLocaleString("en-US")} Visual Bucs</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Your balance</span>
-                <span className="font-bold text-white">{balance} Visual Bucs</span>
+                <span className="font-bold text-white">{balance.toLocaleString("en-US")} Visual Bucs</span>
               </div>
               <div className="flex justify-between text-sm border-t border-white/10 pt-2">
                 <span className="text-white/50">After</span>
                 <span className={`font-bold ${affordable ? "text-white" : "text-red-400"}`}>
-                  {balance - request.cost} Visual Bucs
+                  {(balance - request.cost).toLocaleString("en-US")} Visual Bucs
                 </span>
               </div>
             </div>

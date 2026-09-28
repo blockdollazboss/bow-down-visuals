@@ -19,7 +19,7 @@ const router = Router();
    follow-ups), a fraction of a cent in provider fees, so 2 credits holds a
    deep margin while staying an impulse buy — and honors the standing rule
    that every AI feature costs a fee. */
-export const OUTREACH_CREDIT_COST = Number(process.env["OUTREACH_CREDIT_COST"]) || 2;
+export const OUTREACH_CREDIT_COST = Number(process.env["OUTREACH_CREDIT_COST"]) || 200;
 
 export const outreachSchema = z.object({
   /* Creator profile */

@@ -141,7 +141,7 @@ function buildFallbackPlan(input: Input): unknown {
   };
 }
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 router.post("/mix-plan", requireAuth, async (req, res) => {
   const parsed = Schema.safeParse(req.body);

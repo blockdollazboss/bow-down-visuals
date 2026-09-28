@@ -16,7 +16,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const UPSCALE_CREDIT_COST = 3;
+export const UPSCALE_CREDIT_COST = 300;
 const UPSCALE_MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip uploads
 
 export type UpscaleTarget = "1080p" | "4k";

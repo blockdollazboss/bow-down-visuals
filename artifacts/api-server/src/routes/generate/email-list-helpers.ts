@@ -10,7 +10,7 @@
    page (lists, subscribers, dashboard, export) is pure interface/data —
    free per the pricing rule. */
 export const EMAIL_NEWSLETTER_CREDIT_COST =
-  Number(process.env["EMAIL_NEWSLETTER_CREDIT_COST"]) || 1;
+  Number(process.env["EMAIL_NEWSLETTER_CREDIT_COST"]) || 100;
 
 export const EMAIL_FREE_SUBSCRIBER_LIMIT = 1000;
 
