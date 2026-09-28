@@ -228,7 +228,7 @@ router.post("/generate-thumbnail", requireAuth, async (req, res) => {
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+      message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
     });
     return;
   }
@@ -299,11 +299,11 @@ Write 5 alternate thumbnail concepts. For each: a short concept description and 
       creditsAfter = await chargeCredits(req.userId!, creditsUsed, { action: "Thumbnail Maker" });
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "You are out of credits. Join the waitlist or upgrade soon to keep creating." });
+        res.status(402).json({ error: "out_of_credits", message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating." });
         return;
       }
       if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw chargeErr;

@@ -38,7 +38,7 @@ interface CreditHistory {
 function describeUsage(u: Usage): { type: string; amount: string; tone: "charge" | "credit" | "free" } {
   const n = u.creditsUsed;
   if (n < 0) {
-    const label = /grant/i.test(u.action) ? "Grant" : /refund/i.test(u.action) ? "Refund" : "Credit back";
+    const label = /grant/i.test(u.action) ? "Grant" : /refund/i.test(u.action) ? "Refund" : "Visual Buc back";
     return { type: label, amount: `+${Math.abs(n)}`, tone: "credit" };
   }
   if (n === 0) return { type: "Free", amount: "0", tone: "free" };
@@ -61,7 +61,7 @@ function fmtMoney(cents: number | null, currency: string | null) {
 }
 
 export default function CreditHistory() {
-  usePageTitle("Credit History", "View your credit balance and transaction history.");
+  usePageTitle("Visual Buc History", "View your Visual Bucs balance and transaction history.");
   const { profile, getAccessToken } = useAuth();
   const [payments, setPayments] = useState<Payment[] | null>(null);
   const [usage, setUsage] = useState<Usage[] | null>(null);
@@ -80,7 +80,7 @@ export default function CreditHistory() {
           fetch("/api/credits/history", { headers }),
         ]);
         if (!payRes.ok) throw new Error("Failed to load purchase history");
-        if (!histRes.ok) throw new Error("Failed to load credit history");
+        if (!histRes.ok) throw new Error("Failed to load Visual Buc history");
         const payData = (await payRes.json()) as { payments?: Payment[] };
         const histData = (await histRes.json()) as { usage?: Usage[] };
         if (!cancelled) {
@@ -88,7 +88,7 @@ export default function CreditHistory() {
           setUsage(histData.usage ?? []);
         }
       } catch {
-        if (!cancelled) setError("Could not load credit history.");
+        if (!cancelled) setError("Could not load Visual Buc history.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -109,8 +109,8 @@ export default function CreditHistory() {
         </div>
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Credit History</h1>
-          <p className="text-white/40 mt-1 text-sm">Track your purchases and credit usage</p>
+          <h1 className="text-3xl font-bold tracking-tight">Visual Buc History</h1>
+          <p className="text-white/40 mt-1 text-sm">Track your purchases and Visual Buc usage</p>
         </div>
 
         {/* Section 1: Current Balance */}
@@ -124,11 +124,11 @@ export default function CreditHistory() {
               <p className="text-4xl font-extrabold text-primary leading-tight">
                 {profile?.credits ?? "—"}
               </p>
-              <p className="text-xs text-white/30 mt-0.5">credits available</p>
+              <p className="text-xs text-white/30 mt-0.5">Visual Bucs available</p>
             </div>
           </div>
           <Button asChild className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_16px_rgba(218,165,32,0.35)]">
-            <Link href="/pricing#credit-packs">Buy More Credits</Link>
+            <Link href="/pricing#credit-packs">Buy More Visual Bucs</Link>
           </Button>
         </section>
 
@@ -157,7 +157,7 @@ export default function CreditHistory() {
               {payments.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
                   No purchases yet.{" "}
-                  <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy credits</Link> to get started.
+                  <Link href="/pricing#credit-packs" className="text-primary hover:underline">Buy Visual Bucs</Link> to get started.
                 </div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">
@@ -166,7 +166,7 @@ export default function CreditHistory() {
                       <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Date</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Pack</th>
-                        <th className="text-left px-4 py-3 text-white/40 font-medium">Credits Added</th>
+                        <th className="text-left px-4 py-3 text-white/40 font-medium">Visual Bucs Added</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Amount Paid</th>
                         <th className="text-left px-4 py-3 text-white/40 font-medium">Status</th>
                       </tr>
@@ -199,7 +199,7 @@ export default function CreditHistory() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-white/50" />
-                <h2 className="text-lg font-bold">Credit Activity</h2>
+                <h2 className="text-lg font-bold">Visual Buc Activity</h2>
                 {usage.length > 0 && (
                   <span className="ml-auto text-xs text-white/30">{usage.length} transaction{usage.length !== 1 ? "s" : ""}</span>
                 )}
@@ -207,7 +207,7 @@ export default function CreditHistory() {
 
               {usage.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-white/30 text-sm">
-                  No credit activity yet. Start creating to see your transactions here.
+                  No Visual Buc activity yet. Start creating to see your transactions here.
                 </div>
               ) : (
                 <div className="rounded-xl border border-white/[0.06] overflow-x-auto">

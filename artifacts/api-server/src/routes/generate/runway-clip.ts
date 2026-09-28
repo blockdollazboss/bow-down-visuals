@@ -230,7 +230,7 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     res.status(402).json({
       error: "seedance_pricing_pending_approval",
       message:
-        "Seedance 2.5 scene pricing is pending approval, so generations are paused. No credits were charged and no video was generated.",
+        "Seedance 2.5 scene pricing is pending approval, so generations are paused. No Visual Bucs were charged and no video was generated.",
       pricingVersion: SEEDANCE_PRICING_VERSION,
     });
     return;
@@ -295,7 +295,7 @@ router.post("/generate-runway-clip", requireAuth, async (req, res) => {
     );
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }

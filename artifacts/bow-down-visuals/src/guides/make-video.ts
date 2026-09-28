@@ -10,7 +10,7 @@ export const makeVideoGuide: PageGuide = {
       target: "main h1",
       title: "From song to screen",
       body: "This is the video pipeline: pick your song, set the direction, get an AI treatment and storyboard, then generate actual video clips scene by scene.",
-      tip: "The plan step is cheap — spend your credits on clips only for scenes you love.",
+      tip: "The plan step is cheap — spend your Visual Bucs on clips only for scenes you love.",
       askPrompt: "How do I make a music video from my song?",
     },
     {

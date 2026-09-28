@@ -8,6 +8,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
    Real 4-stem Demucs separation: upload any song, get back isolated
@@ -43,6 +45,7 @@ interface StemJobResponse {
 
 export default function StemSplitter() {
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -92,9 +95,18 @@ export default function StemSplitter() {
         if (data.status === "done") {
           setStatus("done");
           setStems(data.stems ?? null);
+          const stemUrls = data.stems;
+          if (stemUrls) {
+            addAsset({
+              kind: "stems",
+              url: stemUrls.vocals || stemUrls.drums || stemUrls.bass || stemUrls.other || "",
+              label: `Stem split — ${file?.name || "audio"}`,
+              detail: "vocals · drums · bass · melody",
+            });
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Stem splitting failed — your 4 credits were refunded.");
+          setError(data.error || "Stem splitting failed — your 4 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -251,7 +263,7 @@ export default function StemSplitter() {
           </span>
           <div>
             <h1 className="text-2xl font-black">AI Stem Splitter</h1>
-            <p className="text-sm text-white/45">Vocals · Drums · Bass · Melody — {CREDIT_COST} credits per song</p>
+            <p className="text-sm text-white/45">Vocals · Drums · Bass · Melody — {CREDIT_COST} Visual Bucs per song</p>
           </div>
         </div>
 
@@ -260,7 +272,7 @@ export default function StemSplitter() {
           <p className="text-xs text-white/55 leading-relaxed">
             Real Demucs 4-stem separation running on our servers — the same engine
             producers use to pull acapellas and instrumentals. Splits take a few
-            minutes depending on song length (capped at 10 minutes). Your 4 credits
+            minutes depending on song length (capped at 10 minutes). Your 4 Visual Bucs
             are refunded automatically if the split fails.
           </p>
         </div>
@@ -275,6 +287,22 @@ export default function StemSplitter() {
             <p className="text-sm text-red-200/80">{error}</p>
           </div>
         )}
+
+        <ProjectFlowBar
+          kinds={["beat", "song"]}
+          actionLabel="Split it"
+          onPick={async (asset) => {
+            try {
+              const res = await fetch(asset.url);
+              const blob = await res.blob();
+              const safeName = (asset.label || "audio").replace(/[^a-z0-9-_ ]/gi, "").slice(0, 40) || "audio";
+              const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mpeg") ? "mp3" : "wav";
+              pickFile(new File([blob], `${safeName}.${ext}`, { type: blob.type || "audio/wav" }));
+            } catch {
+              setError("Could not load that project audio — try downloading it and uploading the file instead.");
+            }
+          }}
+        />
 
         {/* Upload zone */}
         {(status === "idle" || status === "failed") && (
@@ -314,10 +342,10 @@ export default function StemSplitter() {
               disabled={!file || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Split into 4 stems · {CREDIT_COST} credits
+              Split into 4 stems · {CREDIT_COST} Visual Bucs
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         )}

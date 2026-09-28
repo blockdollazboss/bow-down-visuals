@@ -245,7 +245,7 @@ export default function ViralSoundFinder() {
             Browse what's moving on TikTok, Reels &amp; Shorts — then let AI match
             the perfect sound type to your exact video idea.
           </p>
-          <p className="mt-2 text-xs text-white/35">Browsing is free · AI sound match is {MATCH_CREDIT_COST} credit</p>
+          <p className="mt-2 text-xs text-white/35">Browsing is free · AI sound match is {MATCH_CREDIT_COST} Visual Buc</p>
         </div>
 
         {/* ── BROWSE ─────────────────────────────────────────────────── */}
@@ -494,7 +494,7 @@ export default function ViralSoundFinder() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {MATCH_CREDIT_COST} credit per match · powered by Thy Cheat Code · refunded if it fails
+              {MATCH_CREDIT_COST} Visual Buc per match · powered by Thy Cheat Code · refunded if it fails
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {matchError && !outOfCredits && (
@@ -554,7 +554,7 @@ export default function ViralSoundFinder() {
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    Re-roll ({MATCH_CREDIT_COST} credit)
+                    Re-roll ({MATCH_CREDIT_COST} Visual Buc)
                   </button>
                 </div>
               )}

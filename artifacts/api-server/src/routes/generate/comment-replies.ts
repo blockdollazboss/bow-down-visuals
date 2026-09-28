@@ -77,7 +77,7 @@ router.post(
       res.status(402).json({
         error: "out_of_credits",
         message:
-          "You're out of credits — top up to keep using the Comment Reply Assistant.",
+          "You're out of Visual Bucs — top up to keep using the Comment Reply Assistant.",
       });
       return;
     }
@@ -91,7 +91,7 @@ router.post(
         res.status(402).json({
           error: "out_of_credits",
           message:
-            "You're out of credits — top up to keep using the Comment Reply Assistant.",
+            "You're out of Visual Bucs — top up to keep using the Comment Reply Assistant.",
         });
         return;
       }

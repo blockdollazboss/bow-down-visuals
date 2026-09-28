@@ -9,6 +9,7 @@ import { FacebookIcon } from "@/components/ui/facebook-icon";
 import { TikTokIcon } from "@/components/ui/tiktok-icon";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHubProject } from "@/lib/hub-project";
 import { useToast } from "@/hooks/use-toast";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -241,6 +242,7 @@ export function FinalVideoExport({
   overlayIntensity,
   fitMode,
 }: FinalVideoExportProps) {
+  const { addAsset } = useHubProject();
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const { toast } = useToast();
@@ -651,6 +653,12 @@ export function FinalVideoExport({
         timeline_order: timelineOrder,
       };
       onExportComplete?.(record);
+      addAsset({
+        kind: "video",
+        url: record.final_video_url,
+        label: "Final export",
+        detail: `${record.clips_used} clips · ${record.aspect_ratio ?? ""}${record.audio_used ? " · with audio" : ""}`,
+      });
       toast({
         title: "Export complete!",
         description: `${data.clipCount} clip${data.clipCount > 1 ? "s" : ""} · ${aspectRatio}${data.audioIncluded ? " · with audio" : " · video only"}.`,

@@ -406,7 +406,7 @@ export function LipSyncStudio({
               <ul className="text-[11px] text-amber-100/75 leading-relaxed list-disc pl-4 space-y-1">
                 <li>
                   <span className="font-bold text-amber-100">
-                    5 site credits
+                    5 site Visual Bucs
                   </span>{" "}
                   for the final export (charged only if the export succeeds).
                 </li>

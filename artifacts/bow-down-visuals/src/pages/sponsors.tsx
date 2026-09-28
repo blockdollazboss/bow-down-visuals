@@ -243,7 +243,7 @@ export default function Sponsors() {
         {/* ── AI DEAL MATCHER ──────────────────────────────────────── */}
         <div className="relative mt-12 rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <p className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-            <Target className="h-3.5 w-3.5" aria-hidden="true" /> AI deal matcher · {AI_COST} credit
+            <Target className="h-3.5 w-3.5" aria-hidden="true" /> AI deal matcher · {AI_COST} Visual Buc
           </p>
           <h2 className="font-display text-2xl font-black">Which deals fit <span className="text-primary">you?</span></h2>
           <p className="mt-2 max-w-xl text-sm text-white/55">

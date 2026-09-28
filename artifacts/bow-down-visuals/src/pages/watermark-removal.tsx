@@ -80,7 +80,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Removal failed — your 2 credits were refunded.");
+          setError(data.error || "Removal failed — your 2 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -183,7 +183,7 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
         </span>
         <div>
           <h2 className="text-xl font-black">Watermark Removal</h2>
-          <p className="text-sm text-white/45">Clean logos off your own videos — {CREDIT_COST} credits</p>
+          <p className="text-sm text-white/45">Clean logos off your own videos — {CREDIT_COST} Visual Bucs</p>
         </div>
       </div>
 
@@ -300,10 +300,10 @@ export function WatermarkRemovalTool({ showBackLink = true }: { showBackLink?: b
             disabled={!file || !user || (preset === "custom" && !customValid())}
             className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Remove watermark · {CREDIT_COST} credits
+            Remove watermark · {CREDIT_COST} Visual Bucs
           </button>
           {creditsRemaining != null && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
       ) : null}

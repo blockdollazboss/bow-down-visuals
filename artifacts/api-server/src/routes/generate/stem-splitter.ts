@@ -366,7 +366,7 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
   if (balance < STEM_SPLITTER_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to split stems.",
+      message: "You're out of Visual Bucs — top up to split stems.",
     });
     return;
   }
@@ -380,12 +380,12 @@ router.post("/stems", requireAuth, upload.single("audio"), async (req, res) => {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to split stems.",
+        message: "You're out of Visual Bucs — top up to split stems.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return;
     }
     throw err;

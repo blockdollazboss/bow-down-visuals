@@ -128,7 +128,7 @@ export default function SamplePack() {
     setError(null);
     setOutOfCredits(false);
     setSamples([]);
-    setProgress("Charging credits and warming up the studio…");
+    setProgress("Charging Visual Bucs and warming up the studio…");
     try {
       const res = await confirmedFetch("/api/sample-pack/generate", {
         method: "POST",
@@ -214,7 +214,7 @@ export default function SamplePack() {
           <div>
             <h1 className="text-2xl font-black">Sample Pack Generator</h1>
             <p className="text-sm text-white/45">
-              Custom drum kits, loops &amp; FX in your genre, BPM, and key — {cost} credits for {packSize} samples
+              Custom drum kits, loops &amp; FX in your genre, BPM, and key — {cost} Visual Bucs for {packSize} samples
             </p>
           </div>
         </div>
@@ -315,7 +315,7 @@ export default function SamplePack() {
                     }`}
                   >
                     <div className={`text-lg font-black ${packSize === o.size ? "text-primary" : "text-white/80"}`}>{o.size}</div>
-                    <div className="text-[10px] text-white/40">{o.credits} credits</div>
+                    <div className="text-[10px] text-white/40">{o.credits} Visual Bucs</div>
                   </button>
                 ))}
               </div>
@@ -378,7 +378,7 @@ export default function SamplePack() {
                 <h2 className="text-lg font-black">
                   Your pack — {samples.length} samples
                   {creditsRemaining !== null && (
-                    <span className="ml-2 text-xs font-normal text-white/40">{creditsRemaining} credits left</span>
+                    <span className="ml-2 text-xs font-normal text-white/40">{creditsRemaining} Visual Bucs left</span>
                   )}
                 </h2>
               </div>

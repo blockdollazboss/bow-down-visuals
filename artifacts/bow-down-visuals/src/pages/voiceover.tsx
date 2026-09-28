@@ -7,6 +7,8 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import { useHubProject } from "@/lib/hub-project";
 import {
   EMOTIONS,
   estimateVoiceoverCost,
@@ -53,6 +55,7 @@ const pillClass = (active: boolean) =>
   }`;
 
 export default function VoiceoverStudio() {
+  const { addAsset } = useHubProject();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -164,6 +167,14 @@ export default function VoiceoverStudio() {
       }
       setResult(data);
       refreshProfile();
+      if (data.audioUrl) {
+        addAsset({
+          kind: "song",
+          url: data.audioUrl,
+          label: `Voiceover — ${script.trim().slice(0, 40) || "script"}`,
+          detail: `${data.wordCount ?? 0} words · ${data.format ?? "mp3"}`,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Voiceover failed — try again.");
     } finally {
@@ -200,7 +211,7 @@ export default function VoiceoverStudio() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
             Paste your script, pick a voice and a direction — get broadcast-quality
-            voiceover audio ready to layer under your video. 2 credits per minute.
+            voiceover audio ready to layer under your video. 2 Visual Bucs per minute.
           </p>
         </div>
 
@@ -209,6 +220,15 @@ export default function VoiceoverStudio() {
             <OutOfCredits />
           </div>
         )}
+
+        <ProjectFlowBar
+          kinds={["script"]}
+          actionLabel="Voice it"
+          onPick={(asset) => {
+            const text = asset.meta?.text || "";
+            if (text) setScript(text);
+          }}
+        />
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -238,7 +258,7 @@ export default function VoiceoverStudio() {
                   </span>
                   <span className="flex items-center gap-1 text-primary">
                     <Coins className="h-3.5 w-3.5" />
-                    {estimate.credits} credits
+                    {estimate.credits} Visual Bucs
                   </span>
                 </div>
               </div>
@@ -380,7 +400,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
               ) : (
                 <>
                   <Mic className="h-5 w-5" />
-                  Generate voiceover · {estimate.credits} credits
+                  Generate voiceover · {estimate.credits} Visual Bucs
                 </>
               )}
             </button>
@@ -440,7 +460,7 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                     </button>
                   </div>
                   <p className="text-xs text-white/35">
-                    Used {result.creditsUsed} credits · {result.creditsRemaining} remaining.
+                    Used {result.creditsUsed} Visual Bucs · {result.creditsRemaining} remaining.
                   </p>
                 </div>
               )}

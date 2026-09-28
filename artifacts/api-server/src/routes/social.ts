@@ -452,7 +452,7 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw err;
@@ -542,7 +542,7 @@ router.post("/social/instagram/publish", requireAuth, async (req: Request, res: 
       return;
     }
     logger.error({ err, userId: req.userId }, "[social] Instagram publish failed");
-    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Instagram. Your credits were refunded." });
+    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Instagram. Your Visual Bucs were refunded." });
   }
 });
 
@@ -861,7 +861,7 @@ router.post("/social/tiktok/publish", requireAuth, async (req: Request, res: Res
       return;
     }
     logger.error({ err, userId: req.userId }, "[social] TikTok publish failed");
-    res.status(500).json({ error: "publish_failed", message: "Couldn't send the video to TikTok. Your credits were refunded." });
+    res.status(500).json({ error: "publish_failed", message: "Couldn't send the video to TikTok. Your Visual Bucs were refunded." });
   }
 });
 
@@ -1044,7 +1044,7 @@ router.post("/social/facebook/publish", requireAuth, async (req: Request, res: R
       return;
     }
     logger.error({ err, userId: req.userId }, "[social] Facebook publish failed");
-    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Facebook. Your credits were refunded." });
+    res.status(500).json({ error: "publish_failed", message: "Couldn't publish to Facebook. Your Visual Bucs were refunded." });
   }
 });
 

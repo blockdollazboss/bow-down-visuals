@@ -165,7 +165,7 @@ router.post("/mix-plan", requireAuth, async (req, res) => {
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "Not enough credits. Please buy more credits to continue.",
+      message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
     });
     return;
   }
@@ -248,7 +248,7 @@ Rules:
         if (deductErr instanceof OutOfCreditsError) {
           res.status(402).json({
             error: "out_of_credits",
-            message: "Not enough credits. Please buy more credits to continue.",
+            message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
           });
           return;
         }

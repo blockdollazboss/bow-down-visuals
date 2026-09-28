@@ -231,7 +231,7 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
   if (balance < DESIGN_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to design your brand kit.",
+      message: "You're out of Visual Bucs — top up to design your brand kit.",
     });
     return;
   }
@@ -244,7 +244,7 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to design your brand kit.",
+        message: "You're out of Visual Bucs — top up to design your brand kit.",
       });
       return;
     }
@@ -328,8 +328,8 @@ router.post("/branding-shop/design", publicApiLimiter, requireAuth, async (req, 
       return;
     }
     if (err instanceof LedgerWriteError) throw err;
-    logger.error({ err }, "[branding-shop] brand kit generation failed — credits refunded");
-    res.status(502).json({ error: "The design studio hiccupped — your credits were refunded.", refunded: true });
+    logger.error({ err }, "[branding-shop] brand kit generation failed — Visual Bucs refunded");
+    res.status(502).json({ error: "The design studio hiccupped — your Visual Bucs were refunded.", refunded: true });
   }
 });
 

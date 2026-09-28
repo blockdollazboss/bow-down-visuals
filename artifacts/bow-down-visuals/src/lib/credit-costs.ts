@@ -9,25 +9,22 @@
  * Matching: exact endpoint, or prefix (endpoint + "/" or endpoint + "?").
  * Callers must only route actual SPENDING calls through confirmedFetch —
  * status/health/list/download endpoints stay on plain fetch.
- *
- * Tiered pricing: /api/generate-music-audio charges 4cr (≤1min), 8cr (≤3min),
- * or 12cr (≤5min). The registry value (4) is the minimum; callers with a
- * length selector must compute the tier and pass overrideCost.
  */
 export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── Songs & audio ──────────────────────────────────────────────
-  "/api/generate-song": { cost: 1, feature: "Generate Song Concept" },
-  "/api/generate-song-video": { cost: 3, feature: "Generate Song + Video" },
+  "/api/generate-song": { cost: 4, feature: "Generate Song" },
+  "/api/generate-song-video": { cost: 4, feature: "Generate Song + Video" },
   "/api/generate-music-audio": { cost: 4, feature: "Generate Music Audio" },
+  "/api/beat/generate": { cost: 3, feature: "Generate Beat" },
   "/api/music/export": { cost: 4, feature: "Export Audio" },
   "/api/music/preview-render": { cost: 1, feature: "Preview Render" },
   "/api/voiceover/generate": { cost: 2, feature: "AI Voiceover" },
   "/api/podcast/generate": { cost: 3, feature: "Generate Podcast" },
-  "/api/mastering": { cost: 4, feature: "AI Mastering" },
+  "/api/mastering": { cost: 2, feature: "AI Mastering" },
   "/api/mix-master/master": { cost: 8, feature: "AI Master (Mix & Master)" },
   "/api/mix-master/mix": { cost: 15, feature: "AI Mix — Stems (Mix & Master)" },
-  "/api/stems": { cost: 4, feature: "Stem Separation" },
-  "/api/vocal-removal": { cost: 3, feature: "Vocal Removal" },
+  "/api/stems": { cost: 2, feature: "Stem Separation" },
+  "/api/vocal-removal": { cost: 2, feature: "Vocal Removal" },
 
   // ── Video ──────────────────────────────────────────────────────
   "/api/generate-video": { cost: 4, feature: "Generate Video Clip" },
@@ -65,19 +62,17 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 
   // ── Images & design ────────────────────────────────────────────
   "/api/generate-artist-image": { cost: 2, feature: "Generate Artist Image (Pro)" },
-  "/api/generate-thumbnail": { cost: 2, feature: "Generate Thumbnail" },
+  "/api/generate-thumbnail": { cost: 1, feature: "Generate Thumbnail" },
   "/api/thumbnail-generator": { cost: 2, feature: "Generate Thumbnail" },
-  "/api/thumbnail-test": { cost: 2, feature: "Thumbnail A/B Test" },
+  "/api/thumbnail-test": { cost: 1, feature: "Thumbnail A/B Test" },
   "/api/generate-logo": { cost: 1, feature: "Logo Generator" },
-  "/api/generate-logo/premium": { cost: 2, feature: "Logo Generator (Premium)" },
   "/api/generate-intro-outro": { cost: 2, feature: "Intro/Outro Generator" },
   "/api/cover-art": { cost: 2, feature: "Cover Art" },
-  "/api/cover-art/premium": { cost: 3, feature: "Cover Art (Premium)" },
   "/api/merch/design": { cost: 3, feature: "Merch Design" },
   "/api/stream-pack/generate": { cost: 2, feature: "Stream Pack Generator" },
   "/api/sample-pack/generate": { cost: 1, feature: "Sample Pack Generator" },
   "/api/jewelry/design": { cost: 2, feature: "Jewelry Design" },
-  "/api/jewelry/export-stl": { cost: 4, feature: "Export Jewelry STL" },
+  "/api/jewelry/export-stl": { cost: 2, feature: "Export Jewelry STL" },
   "/api/jewelry/consult": { cost: 1, feature: "Jewelry Consult" },
   "/api/jewelry/estimate": { cost: 1, feature: "Jewelry Estimate" },
 
@@ -105,7 +100,6 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/press-kit/generate": { cost: 3, feature: "Press Kit Generator" },
   "/api/gamers/ideas": { cost: 1, feature: "Gamer Content Ideas" },
   "/api/show-finder/pitch": { cost: 1, feature: "Show Pitch Draft" },
-  "/api/label-pitch/kit": { cost: 3, feature: "Label Pitch Demo Kit" },
   "/api/show-finder": { cost: 2, feature: "Show Finder" },
   "/api/brand-deals/outreach": { cost: 1, feature: "Brand Outreach Draft" },
   "/api/brand-deals": { cost: 2, feature: "Brand Deal Finder" },
@@ -129,21 +123,12 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
 /**
  * Get the credit cost for an API endpoint.
  * Returns null if the endpoint doesn't cost credits (or isn't registered).
- *
- * Matching: exact endpoint wins; otherwise the LONGEST registered prefix
- * wins (so /api/cover-art/premium doesn't match /api/cover-art).
  */
 export function getCreditCost(endpoint: string): { cost: number; feature: string } | null {
-  // Exact match first
-  const exact = CREDIT_COSTS[endpoint];
-  if (exact) return exact;
-
-  // Longest prefix match — sort keys by length descending so more
-  // specific routes (e.g. /api/cover-art/premium) beat their parents.
-  const keys = Object.keys(CREDIT_COSTS).sort((a, b) => b.length - a.length);
-  for (const key of keys) {
-    if (endpoint.startsWith(key + "/") || endpoint.startsWith(key + "?")) {
-      return CREDIT_COSTS[key];
+  // Match exact endpoint or prefix
+  for (const [key, value] of Object.entries(CREDIT_COSTS)) {
+    if (endpoint === key || endpoint.startsWith(key + "/") || endpoint.startsWith(key + "?")) {
+      return value;
     }
   }
   return null;

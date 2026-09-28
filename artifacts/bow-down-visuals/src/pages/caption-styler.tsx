@@ -88,7 +88,7 @@ export default function CaptionStyler() {
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Caption styling failed — your 3 credits were refunded.");
+          setError(data.error || "Caption styling failed — your 3 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -319,7 +319,7 @@ export default function CaptionStyler() {
           )}
 
           {typeof creditsRemaining === "number" && (
-            <p className="mt-3 text-center text-xs text-zinc-500">{creditsRemaining} credits remaining</p>
+            <p className="mt-3 text-center text-xs text-zinc-500">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
 

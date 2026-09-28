@@ -370,7 +370,7 @@ router.post(
       if (!isDev && currentCredits < FROM_SONG_CREDIT_COST) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You are out of credits. Upgrade to keep creating.",
+          message: "You are out of Visual Bucs. Upgrade to keep creating.",
           required: FROM_SONG_CREDIT_COST,
         });
         return;
@@ -383,7 +383,7 @@ router.post(
           await chargeCredits(req.userId!, FROM_SONG_CREDIT_COST, { action: "Voice From Song" });
         } catch (chargeErr) {
           if (chargeErr instanceof LedgerWriteError) {
-            res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+            res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
             return;
           }
           throw chargeErr;

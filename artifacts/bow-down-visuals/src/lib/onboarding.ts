@@ -74,8 +74,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: "credits",
-    title: "Credits fuel everything",
-    body: "Every AI generation costs a few credits. This badge shows your balance — top up anytime on the Pricing page.",
+    title: "Visual Bucs fuel everything",
+    body: "Every AI generation costs a few Visual Bucs. This badge shows your balance — top up anytime on the Pricing page.",
     target: '[data-tour="credits"]',
   },
   {

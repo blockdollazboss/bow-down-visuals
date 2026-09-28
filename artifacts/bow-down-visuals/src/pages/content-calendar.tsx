@@ -349,7 +349,7 @@ export default function ContentCalendar() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credit per calendar · powered by Thy Cheat Code · viewing & check-offs are free
+              {CREDIT_COST} Visual Buc per calendar · powered by Thy Cheat Code · viewing & check-offs are free
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -390,7 +390,7 @@ export default function ContentCalendar() {
                     ) : (
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     )}
-                    Regenerate ({CREDIT_COST} credit)
+                    Regenerate ({CREDIT_COST} Visual Buc)
                   </button>
                 )}
               </div>

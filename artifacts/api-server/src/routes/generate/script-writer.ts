@@ -124,7 +124,7 @@ router.post("/script-writer", publicApiLimiter, requireAuth, async (req, res) =>
   if (balance < SCRIPT_WRITER_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep writing scripts.",
+      message: "You're out of Visual Bucs — top up to keep writing scripts.",
     });
     return;
   }
@@ -137,7 +137,7 @@ router.post("/script-writer", publicApiLimiter, requireAuth, async (req, res) =>
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep writing scripts.",
+        message: "You're out of Visual Bucs — top up to keep writing scripts.",
       });
       return;
     }
@@ -258,7 +258,7 @@ router.post("/script-writer", publicApiLimiter, requireAuth, async (req, res) =>
       return;
     }
     logger.error({ err }, "[script-writer] generation failed");
-    res.status(502).json({ error: "The studio hiccupped — your credits were refunded. Try again." });
+    res.status(502).json({ error: "The studio hiccupped — your Visual Bucs were refunded. Try again." });
   }
 });
 

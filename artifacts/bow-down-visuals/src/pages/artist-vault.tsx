@@ -652,7 +652,7 @@ function LockedVoiceSection({ vault, onChanged }: {
       {songPickerOpen && !vault.voice_id && (
         <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
           <p className="px-3 py-2 text-xs text-white/40">
-            Pick a song — its vocals get stripped and cloned into the locked voice (2 credits).
+            Pick a song — its vocals get stripped and cloned into the locked voice (2 Visual Bucs).
             Best with clear lead vocals; heavy effects or buried vocals may fail.
           </p>
           {songs.map((s) => (
@@ -737,10 +737,10 @@ function ReferenceVideoSection({ vault, onChanged }: {
       const data = await res.json().catch(() => ({} as { status?: string; error?: string }));
       if (data.status === "SUCCEEDED") return;
       if (data.status === "FAILED" || data.status === "CANCELLED") {
-        throw new Error(data.error || "Video generation failed. No credits were charged.");
+        throw new Error(data.error || "Video generation failed. No Visual Bucs were charged.");
       }
     }
-    throw new Error("Still processing — check back shortly. No credits charged yet.");
+    throw new Error("Still processing — check back shortly. No Visual Bucs charged yet.");
   }
 
   async function handleGenerate() {
@@ -877,7 +877,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
           <p className="text-sm font-bold text-white mb-1">Generate a living portrait?</p>
           <p className="text-xs text-white/50 mb-3">
             AI animates {vault.artist_name}'s reference photo into a 5-second portrait video.{" "}
-            <span className="text-primary font-semibold">{REF_VIDEO_CREDITS} credits</span> are charged only if it succeeds.
+            <span className="text-primary font-semibold">{REF_VIDEO_CREDITS} Visual Bucs</span> are charged only if it succeeds.
           </p>
           <div className="flex gap-2">
             <Button
@@ -887,7 +887,7 @@ function ReferenceVideoSection({ vault, onChanged }: {
               className="gold-glow font-bold gap-2"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              Generate — {REF_VIDEO_CREDITS} credits
+              Generate — {REF_VIDEO_CREDITS} Visual Bucs
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy} className="text-white/50">
               Cancel
@@ -2211,7 +2211,7 @@ export default function ArtistVault() {
                   Cancel
                 </Button>
               )}
-              <p className="w-full text-white/25 text-xs">Free — no credits required</p>
+              <p className="w-full text-white/25 text-xs">Free — no Visual Bucs required</p>
             </div>
 
           </form>

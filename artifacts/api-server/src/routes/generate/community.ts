@@ -173,7 +173,7 @@ router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, re
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to moderate comments." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to moderate comments." });
     return;
   }
   let creditsRemaining = balance;
@@ -181,7 +181,7 @@ router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, re
     creditsRemaining = await chargeCredits(req.userId!, cost, { action: "Community Moderation" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to moderate comments." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to moderate comments." });
       return;
     }
     throw err;
@@ -211,7 +211,7 @@ router.post("/community/moderate", publicApiLimiter, requireAuth, async (req, re
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Moderation (provider failure refund)");
     logger.error({ err }, "[community] moderate failed");
-    res.status(502).json({ error: "Moderation hiccupped — try again. (Credits refunded.)" });
+    res.status(502).json({ error: "Moderation hiccupped — try again. (Visual Bucs refunded.)" });
   }
 });
 
@@ -230,7 +230,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to draft replies." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to draft replies." });
     return;
   }
   let creditsRemaining = balance;
@@ -238,7 +238,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
     creditsRemaining = await chargeCredits(req.userId!, cost, { action: "Community Reply Drafts" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to draft replies." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to draft replies." });
       return;
     }
     throw err;
@@ -272,7 +272,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
     }
     if (drafts.length === 0) {
       await refundOnFailure(req.userId!, cost, "Community Reply Drafts (empty output refund)");
-      res.status(502).json({ error: "Couldn't draft replies — try again. (Credit refunded.)" });
+      res.status(502).json({ error: "Couldn't draft replies — try again. (Visual Buc refunded.)" });
       return;
     }
     recordCreditUsage({ userId: req.userId!, action: "Community Reply Drafts", creditsUsed: cost }).catch(() => {});
@@ -280,7 +280,7 @@ router.post("/community/reply-draft", publicApiLimiter, requireAuth, async (req,
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Reply Drafts (provider failure refund)");
     logger.error({ err }, "[community] reply-draft failed");
-    res.status(502).json({ error: "Reply drafting hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "Reply drafting hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 
@@ -299,7 +299,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up for a sentiment report." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up for a sentiment report." });
     return;
   }
   let creditsRemaining = balance;
@@ -307,7 +307,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
     creditsRemaining = await chargeCredits(req.userId!, cost, { action: "Community Sentiment Report" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up for a sentiment report." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up for a sentiment report." });
       return;
     }
     throw err;
@@ -335,7 +335,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
     }
     if (!report) {
       await refundOnFailure(req.userId!, cost, "Community Sentiment (unusable output refund)");
-      res.status(502).json({ error: "Couldn't build the sentiment report — try again. (Credit refunded.)" });
+      res.status(502).json({ error: "Couldn't build the sentiment report — try again. (Visual Buc refunded.)" });
       return;
     }
     recordCreditUsage({ userId: req.userId!, action: "Community Sentiment Report", creditsUsed: cost }).catch(() => {});
@@ -343,7 +343,7 @@ router.post("/community/sentiment", publicApiLimiter, requireAuth, async (req, r
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Sentiment (provider failure refund)");
     logger.error({ err }, "[community] sentiment failed");
-    res.status(502).json({ error: "Sentiment analysis hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "Sentiment analysis hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 
@@ -362,7 +362,7 @@ router.post("/community/superfans", publicApiLimiter, requireAuth, async (req, r
 
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up for superfan radar." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up for superfan radar." });
     return;
   }
   let creditsRemaining = balance;
@@ -370,7 +370,7 @@ router.post("/community/superfans", publicApiLimiter, requireAuth, async (req, r
     creditsRemaining = await chargeCredits(req.userId!, cost, { action: "Community Superfan Radar" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up for superfan radar." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up for superfan radar." });
       return;
     }
     throw err;
@@ -413,7 +413,7 @@ router.post("/community/superfans", publicApiLimiter, requireAuth, async (req, r
   } catch (err) {
     await refundOnFailure(req.userId!, cost, "Community Superfan Radar (provider failure refund)");
     logger.error({ err }, "[community] superfans failed");
-    res.status(502).json({ error: "Superfan radar hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "Superfan radar hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 

@@ -133,7 +133,7 @@ export function ManualDAW({
             status: "error",
             exportType: btn.id,
             label: btn.label,
-            message: "Export cancelled before spending credits.",
+            message: "Export cancelled before spending Visual Bucs.",
           });
         }
         return;

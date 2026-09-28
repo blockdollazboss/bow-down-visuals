@@ -139,7 +139,7 @@ router.post(
     if (!isDev && currentCredits < BATCH_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You are out of credits. Buy more credits to keep creating.",
+        message: "You are out of Visual Bucs. Buy more Visual Bucs to keep creating.",
       });
       return;
     }
@@ -212,7 +212,7 @@ router.post(
       const message = err instanceof Error ? err.message : "Thumbnail generation failed";
       req.log.error(
         { userId: req.userId, err: message, completedVariations: images.length },
-        "[thumbnail-generator] batch failed — credits refunded",
+        "[thumbnail-generator] batch failed — Visual Bucs refunded",
       );
       res.status(500).json({
         error: message,

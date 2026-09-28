@@ -355,7 +355,7 @@ router.post(
     if (balance < PLAYLIST_PITCH_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate a pitch kit.",
+        message: "You're out of Visual Bucs — top up to generate a pitch kit.",
       });
       return;
     }
@@ -369,7 +369,7 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to generate a pitch kit.",
+          message: "You're out of Visual Bucs — top up to generate a pitch kit.",
         });
         return;
       }
@@ -425,7 +425,7 @@ router.post(
         return;
       }
       logger.error({ err }, "[playlist-pitch] pitch kit generation failed");
-      res.status(502).json({ error: "The pitch kit didn't come together — credits refunded. Try again." });
+      res.status(502).json({ error: "The pitch kit didn't come together — Visual Bucs refunded. Try again." });
     }
   },
 );

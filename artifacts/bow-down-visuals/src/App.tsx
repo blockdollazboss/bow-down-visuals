@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { HubProjectProvider } from "@/lib/hub-project";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
@@ -18,6 +19,7 @@ import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
+import { DailyBonusModal } from "@/components/DailyBonusModal";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
@@ -84,6 +86,7 @@ const Scheduler = lazyWithRetry(() => import("@/pages/scheduler"));
 const Tips = lazyWithRetry(() => import("@/pages/tips"));
 const Referrals = lazyWithRetry(() => import("@/pages/referrals"));
 const TeamPage = lazyWithRetry(() => import("@/pages/team"));
+const WheelPage = lazyWithRetry(() => import("@/pages/wheel"));
 const TipPage = lazyWithRetry(() => import("@/pages/tip-page"));
 const InterviewPrep = lazyWithRetry(() => import("@/pages/interview-prep"));
 const Upscale = lazyWithRetry(() => import("@/pages/upscale"));
@@ -155,6 +158,8 @@ const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
+const BeatMaker = lazyWithRetry(() => import("@/pages/beat-maker"));
+const Hub = lazyWithRetry(() => import("@/pages/hub"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Royalties = lazyWithRetry(() => import("@/pages/royalties"));
@@ -350,6 +355,7 @@ function AppShell() {
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
+      {typeof window !== "undefined" && <DailyBonusModal />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>
@@ -386,6 +392,7 @@ function AppShell() {
           <Route path="/tips/:handle"><TipPage /></Route>
           <Route path="/referrals"><Referrals /></Route>
           <Route path="/team"><TeamPage /></Route>
+          <Route path="/wheel"><WheelPage /></Route>
           <Route path="/storefronts"><Storefronts /></Route>
           <Route path="/shop/:slug"><ShopStorefront /></Route>          <Route path="/interview-prep"><InterviewPrep /></Route>          <Route path="/upscale"><Upscale /></Route>
           <Route path="/watermark-removal"><WatermarkRemoval /></Route>
@@ -482,6 +489,8 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
+                <Route path="/beat-maker"><ProtectedRoute><BeatMaker /></ProtectedRoute></Route>
+                <Route path="/hub"><ProtectedRoute><Hub /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>
@@ -517,6 +526,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
         >
           <ThemePlayerProvider>
             <AuthProvider>
+              <HubProjectProvider>
               <UserModeProvider>
                 <CreditConfirmProvider>
                   <ActiveArtistProvider>
@@ -525,6 +535,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>
               </UserModeProvider>
+              </HubProjectProvider>
             </AuthProvider>
           </ThemePlayerProvider>
         </WouterRouter>

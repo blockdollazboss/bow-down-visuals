@@ -81,7 +81,7 @@ export interface ParsedAudit {
 function outOfCreditsJson() {
   return {
     error: "out_of_credits",
-    message: "You're out of credits — top up to run a channel audit.",
+    message: "You're out of Visual Bucs — top up to run a channel audit.",
   };
 }
 
@@ -304,7 +304,7 @@ router.post("/channel-audit", publicApiLimiter, requireAuth, async (req, res) =>
     if (!audit.usable) {
       await refundOnFailure(req.userId!);
       logger.warn("[channel-audit] model returned unusable output — refunded");
-      res.status(502).json({ error: "The audit came back empty — credits refunded, try again." });
+      res.status(502).json({ error: "The audit came back empty — Visual Bucs refunded, try again." });
       return;
     }
 
@@ -333,11 +333,11 @@ router.post("/channel-audit", publicApiLimiter, requireAuth, async (req, res) =>
     await refundOnFailure(req.userId!);
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[channel-audit] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The auditor is catching its breath — credits refunded, try again in a moment." });
+      res.status(503).json({ error: "The auditor is catching its breath — Visual Bucs refunded, try again in a moment." });
       return;
     }
     logger.error({ err }, "[channel-audit] generation failed");
-    res.status(502).json({ error: "The audit hiccupped — credits refunded, try again." });
+    res.status(502).json({ error: "The audit hiccupped — Visual Bucs refunded, try again." });
   }
 });
 

@@ -98,7 +98,7 @@ router.post("/promo-generator", publicApiLimiter, requireAuth, async (req, res) 
   if (balance < PROMO_GENERATOR_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to generate promo content.",
+      message: "You're out of Visual Bucs — top up to generate promo content.",
     });
     return;
   }
@@ -111,7 +111,7 @@ router.post("/promo-generator", publicApiLimiter, requireAuth, async (req, res) 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate promo content.",
+        message: "You're out of Visual Bucs — top up to generate promo content.",
       });
       return;
     }

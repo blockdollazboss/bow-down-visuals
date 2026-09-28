@@ -337,14 +337,14 @@ export default function CreatorAcademy() {
               <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
                 Courses on production, growth, monetization, and branding —
                 taught by AI, personalized to your goals. Browse free,
-                learn for 1 credit a lesson.
+                learn for 1 Visual Buc a lesson.
               </p>
             </div>
 
             {/* ── AI LEARNING PATH ─────────────────────────────────── */}
             <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
               <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI learning path · {CREDIT_COST} credit
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> AI learning path · {CREDIT_COST} Visual Buc
               </p>
               <h2 className="mt-2 font-display text-2xl font-black">Your personalized course path</h2>
               <p className="mt-1.5 text-sm text-white/50">
@@ -448,7 +448,7 @@ export default function CreatorAcademy() {
                     <ArrowRight className="h-5 w-5" aria-hidden="true" />
                   </Link>
                 )}
-                <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} credit per path · powered by Thy Cheat Code</p>
+                <p className="mt-2.5 text-xs text-white/35">{CREDIT_COST} Visual Buc per path · powered by Thy Cheat Code</p>
               </div>
 
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -636,7 +636,7 @@ function CourseDetail(props: CourseDetailProps) {
 
       {/* lessons */}
       <p className="mb-4 mt-10 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-        <Play className="h-3.5 w-3.5" aria-hidden="true" /> Lessons · AI-taught, {CREDIT_COST} credit each
+        <Play className="h-3.5 w-3.5" aria-hidden="true" /> Lessons · AI-taught, {CREDIT_COST} Visual Buc each
       </p>
       <div className="grid gap-3">
         {course.lessons.map((lesson, i) => {
@@ -677,7 +677,7 @@ function CourseDetail(props: CourseDetailProps) {
                       : "bg-primary text-black hover:brightness-110"
                   }`}
                 >
-                  {cached ? "Read" : `Learn · ${CREDIT_COST}cr`}
+                  {cached ? "Read" : `Learn · ${CREDIT_COST}VB`}
                 </button>
               </div>
 
@@ -740,7 +740,7 @@ function CourseDetail(props: CourseDetailProps) {
                   ) : !user ? (
                     <p className="text-sm text-white/50">
                       <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link>
-                      {" "}to generate this AI lesson ({CREDIT_COST} credit).
+                      {" "}to generate this AI lesson ({CREDIT_COST} Visual Buc).
                     </p>
                   ) : null}
                 </div>
@@ -753,7 +753,7 @@ function CourseDetail(props: CourseDetailProps) {
       {/* ask the coach */}
       <div className="mt-12 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8">
         <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
-          <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> Ask the coach · {CREDIT_COST} credit per answer
+          <MessageCircleQuestion className="h-3.5 w-3.5" aria-hidden="true" /> Ask the coach · {CREDIT_COST} Visual Buc per answer
         </p>
         <h3 className="mt-2 font-display text-xl font-black">Stuck on {course.title}?</h3>
         <p className="mt-1 text-sm text-white/50">

@@ -155,7 +155,7 @@ router.post("/sponsors/deals", publicApiLimiter, requireAuth, async (req, res) =
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to post your deal.",
+        message: "You're out of Visual Bucs — top up to post your deal.",
       });
       return;
     }
@@ -181,7 +181,7 @@ router.post("/sponsors/deals", publicApiLimiter, requireAuth, async (req, res) =
     await refundCredits(req.userId!, SPONSOR_POST_CREDIT_COST, {
       action: "Sponsor Deal Posting — Refund (save failed)",
     });
-    res.status(500).json({ error: "Could not post your deal — credits refunded, try again." });
+    res.status(500).json({ error: "Could not post your deal — Visual Bucs refunded, try again." });
   }
 });
 
@@ -263,7 +263,7 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to write your pitch.",
+        message: "You're out of Visual Bucs — top up to write your pitch.",
       });
       return;
     }
@@ -277,7 +277,7 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
       await refundCredits(req.userId!, SPONSOR_AI_CREDIT_COST, {
         action: "Sponsor AI Pitch Writer — Refund (deal inactive)",
       });
-      res.status(404).json({ error: "That deal is no longer active — credit refunded." });
+      res.status(404).json({ error: "That deal is no longer active — Visual Buc refunded." });
       return;
     }
 
@@ -349,7 +349,7 @@ router.post("/sponsors/pitch", publicApiLimiter, requireAuth, async (req, res) =
       res.status(503).json({ error: "The pitch writer is catching its breath — try again in a moment." });
       return;
     }
-    res.status(502).json({ error: "The pitch writer hiccupped — credit refunded, try again." });
+    res.status(502).json({ error: "The pitch writer hiccupped — Visual Buc refunded, try again." });
   }
 });
 
@@ -371,7 +371,7 @@ router.post("/sponsors/match", publicApiLimiter, requireAuth, async (req, res) =
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to find your matches.",
+        message: "You're out of Visual Bucs — top up to find your matches.",
       });
       return;
     }
@@ -483,7 +483,7 @@ router.post("/sponsors/match", publicApiLimiter, requireAuth, async (req, res) =
       res.status(503).json({ error: "The matcher is catching its breath — try again in a moment." });
       return;
     }
-    res.status(502).json({ error: "The matcher hiccupped — credit refunded, try again." });
+    res.status(502).json({ error: "The matcher hiccupped — Visual Buc refunded, try again." });
   }
 });
 

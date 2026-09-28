@@ -185,7 +185,7 @@ export default function GoLive() {
           </h1>
           <p className="text-white/50 text-sm mt-2 max-w-xl">
             Hype up your Discord before you hit Go Live. Announcements are <span className="text-amber-300 font-semibold">free</span> —
-            pure integration, no credits burned.
+            pure integration, no Visual Bucs burned.
           </p>
         </div>
 

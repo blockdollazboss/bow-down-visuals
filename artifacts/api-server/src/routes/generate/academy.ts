@@ -36,7 +36,7 @@ const PLATFORMS = ["youtube", "tiktok", "instagram", "twitch", "x"] as const;
 function outOfCreditsJson() {
   return {
     error: "out_of_credits",
-    message: "You're out of credits — top up to keep learning.",
+    message: "You're out of Visual Bucs — top up to keep learning.",
   };
 }
 
@@ -182,7 +182,7 @@ router.post("/academy/learning-path", publicApiLimiter, requireAuth, async (req,
       return;
     }
     logger.error({ err }, "[academy] learning-path generation failed");
-    res.status(502).json({ error: "The academy hiccupped — your credit was refunded, try again." });
+    res.status(502).json({ error: "The academy hiccupped — your Visual Buc was refunded, try again." });
   }
 });
 
@@ -283,7 +283,7 @@ router.post("/academy/ask", publicApiLimiter, requireAuth, async (req, res) => {
       return;
     }
     logger.error({ err }, "[academy] ask-the-coach failed");
-    res.status(502).json({ error: "The coach hiccupped — your credit was refunded, try again." });
+    res.status(502).json({ error: "The coach hiccupped — your Visual Buc was refunded, try again." });
   }
 });
 
@@ -419,7 +419,7 @@ router.post("/academy/lesson", publicApiLimiter, requireAuth, async (req, res) =
       return;
     }
     logger.error({ err }, "[academy] lesson generation failed");
-    res.status(502).json({ error: "The lesson failed to generate — your credit was refunded, try again." });
+    res.status(502).json({ error: "The lesson failed to generate — your Visual Buc was refunded, try again." });
   }
 });
 

@@ -26,6 +26,7 @@ export * from "./generated-clips";
 export * from "./project-drafts";
 export * from "./generation-history";
 export * from "./generations";
+export * from "./hub-projects";
 export * from "./contact-messages";
 export * from "./export-jobs";
 export * from "./lip-sync-jobs";

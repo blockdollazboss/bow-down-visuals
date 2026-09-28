@@ -454,7 +454,7 @@ export default function BrandDealFinder() {
               </>
             ) : (
               <>
-                <Search className="h-5 w-5" aria-hidden="true" /> Find My Brand Deals · {SEARCH_COST} credits
+                <Search className="h-5 w-5" aria-hidden="true" /> Find My Brand Deals · {SEARCH_COST} Visual Bucs
               </>
             )}
           </button>

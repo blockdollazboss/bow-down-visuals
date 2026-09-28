@@ -196,7 +196,7 @@ async function chargeOr402(
   if (balance < LLC_GUIDE_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to use the AI LLC guide.",
+      message: "You're out of Visual Bucs — top up to use the AI LLC guide.",
     });
     return null;
   }
@@ -206,7 +206,7 @@ async function chargeOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to use the AI LLC guide.",
+        message: "You're out of Visual Bucs — top up to use the AI LLC guide.",
       });
       return null;
     }
@@ -253,11 +253,11 @@ router.post("/llc-guide/ask", publicApiLimiter, requireAuth, async (req, res) =>
     }).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[llc-guide] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Credit refunded.)" });
+      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[llc-guide] ask failed");
-    res.status(502).json({ error: "The guide hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "The guide hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 
@@ -300,11 +300,11 @@ router.post("/llc-guide/plan", publicApiLimiter, requireAuth, async (req, res) =
     }).catch(() => {});
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[llc-guide] OpenAI rate limit / quota");
-      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Credit refunded.)" });
+      res.status(503).json({ error: "The guide is catching its breath — try again in a moment. (Visual Buc refunded.)" });
       return;
     }
     logger.error({ err }, "[llc-guide] plan failed");
-    res.status(502).json({ error: "The guide hiccupped — try again. (Credit refunded.)" });
+    res.status(502).json({ error: "The guide hiccupped — try again. (Visual Buc refunded.)" });
   }
 });
 

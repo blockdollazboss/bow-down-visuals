@@ -144,7 +144,7 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
   if (!isDev && currentCredits < REMIX_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You are out of credits. Upgrade to keep creating.",
+      message: "You are out of Visual Bucs. Upgrade to keep creating.",
       required: REMIX_CREDIT_COST,
     });
     return;
@@ -189,7 +189,7 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
         return;
       }
       if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
         return;
       }
       throw chargeErr;
@@ -233,7 +233,7 @@ router.post("/songs/:id/remix", requireAuth, async (req, res) => {
         });
     }
     res.status(500).json({
-      error: "Remix failed — your credits were refunded. Please try again.",
+      error: "Remix failed — your Visual Bucs were refunded. Please try again.",
       code: "remix_failed",
     });
   }

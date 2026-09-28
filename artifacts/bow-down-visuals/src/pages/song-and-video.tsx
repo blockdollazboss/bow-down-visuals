@@ -685,7 +685,7 @@ export default function SongAndVideo() {
         if (body.refunded) {
           setCreditRefunded(true);
           refreshProfile();
-          toast({ title: "Credits refunded", description: "Project save failed — credits returned. Your generation is in Generation History.", variant: "destructive" });
+          toast({ title: "Visual Bucs refunded", description: "Project save failed — Visual Bucs returned. Your generation is in Generation History.", variant: "destructive" });
         } else {
           const msg = body.error ?? `Save failed (HTTP ${res.status})`;
           setSaveError(msg);
@@ -765,7 +765,7 @@ export default function SongAndVideo() {
                     <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? "Previous session"}</p>
                     {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
                   </div>
-                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no credits will be charged.</p>
+                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no Visual Bucs will be charged.</p>
                   <div className="space-y-2.5">
                     <Button onClick={() => { void handleRecover(); }} className="w-full gold-glow font-bold gap-2 h-11">
                       <RefreshCcw className="h-4 w-4" /> Recover Draft
@@ -834,7 +834,7 @@ export default function SongAndVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Mic2 className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">2 credits</MarketingBadge>
+            <MarketingBadge variant="muted">2 Visual Bucs</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make Song + Video
@@ -1100,7 +1100,7 @@ export default function SongAndVideo() {
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-white/25 flex items-center gap-1.5">
-                  <Zap className="h-3 w-3 text-primary" /> Uses 2 credits
+                  <Zap className="h-3 w-3 text-primary" /> Uses 2 Visual Bucs
                 </p>
               </div>
 
@@ -1213,7 +1213,7 @@ export default function SongAndVideo() {
                     </p>
                   )}
                   {autoSaveStatus === "failed" && creditRefunded && (
-                    <p className="text-[11px] text-amber-400">Credits refunded — find your content in <strong>Generation History</strong>.</p>
+                    <p className="text-[11px] text-amber-400">Visual Bucs refunded — find your content in <strong>Generation History</strong>.</p>
                   )}
                   {saveError && (
                     <p className="text-[11px] text-red-400">Save failed: {saveError}</p>

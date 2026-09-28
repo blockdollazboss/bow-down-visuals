@@ -94,7 +94,7 @@ export default function VocalRemover() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Vocal removal failed — your 3 credits were refunded.");
+          setError(data.error || "Vocal removal failed — your 3 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -219,7 +219,7 @@ export default function VocalRemover() {
           </span>
           <div>
             <h1 className="text-2xl font-black">AI Vocal Remover</h1>
-            <p className="text-sm text-white/45">Instrumental + acapella from any song — {CREDIT_COST} credits</p>
+            <p className="text-sm text-white/45">Instrumental + acapella from any song — {CREDIT_COST} Visual Bucs</p>
           </div>
         </div>
 
@@ -300,10 +300,10 @@ export default function VocalRemover() {
               disabled={!file || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Remove vocals · {CREDIT_COST} credits
+              Remove vocals · {CREDIT_COST} Visual Bucs
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         ) : null}

@@ -157,7 +157,7 @@ export function ProToolsSection({
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const body = await res.json().catch(() => ({}));
       if (res.status === 402) {
-        toast({ title: "Out of credits", description: "Top up to use AI Auto-Grade.", variant: "destructive" });
+        toast({ title: "Out of Visual Bucs", description: "Top up to use AI Auto-Grade.", variant: "destructive" });
         return;
       }
       if (!res.ok || !body.correction) throw new Error(body.error ?? "Auto-grade failed");
@@ -192,7 +192,7 @@ export function ProToolsSection({
       return;
     }
     patchColor(levels);
-    toast({ title: "Auto-Levels applied", description: "Free instant histogram correction — no credits used." });
+    toast({ title: "Auto-Levels applied", description: "Free instant histogram correction — no Visual Bucs used." });
   }
 
   /* ── AI Auto-Key (client-side dominant-color detection, free) ── */
@@ -216,7 +216,7 @@ export function ProToolsSection({
       patchProTools({
         chromaKey: { ...pt.chromaKey, enabled: true, color: found.color, similarity: found.similarity },
       });
-      toast({ title: "✨ Auto-Key applied", description: `Detected backdrop ${found.color} — free, no credits used.` });
+      toast({ title: "✨ Auto-Key applied", description: `Detected backdrop ${found.color} — free, no Visual Bucs used.` });
     } finally {
       setKeying(false);
     }
@@ -291,13 +291,13 @@ export function ProToolsSection({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <AiButton onClick={handleAutoGrade} loading={grading} testId="pro-ai-auto-grade"
-              title="1 credit — AI analyzes the frame and sets every slider">
-              AI Auto-Grade · 1 credit
+              title="1 Visual Buc — AI analyzes the frame and sets every slider">
+              AI Auto-Grade · 1 Visual Buc
             </AiButton>
             <button
               type="button" onClick={handleAutoLevels}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-white/10 bg-white/[0.03] text-white/60 hover:text-white hover:border-white/25 transition-colors"
-              data-testid="pro-auto-levels" title="Free — instant histogram-based levels, no credits"
+              data-testid="pro-auto-levels" title="Free — instant histogram-based levels, no Visual Bucs"
             >
               <Wand2 className="h-3.5 w-3.5" /> Auto-Levels · Free
             </button>

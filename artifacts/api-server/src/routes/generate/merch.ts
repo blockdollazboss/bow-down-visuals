@@ -79,11 +79,11 @@ router.post("/merch/design", requireAuth, async (req, res) => {
     creditsAfter = await chargeCredits(req.userId!, DESIGN_CREDITS, { action: "Merch Design Batch" });
   } catch (chargeErr) {
     if (chargeErr instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough credits. Please buy more credits to continue." });
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue." });
       return;
     }
     if (chargeErr instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged." });
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
       return;
     }
     throw chargeErr;

@@ -150,7 +150,7 @@ export default function SponsorPost() {
             <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
               <p className="inline-flex items-center gap-1.5 text-sm text-white/50">
                 <BadgeDollarSign className="h-4 w-4 text-primary/70" aria-hidden="true" />
-                Posting costs {POST_COST} credits · escrow has zero fees until a deal closes
+                Posting costs {POST_COST} Visual Bucs · escrow has zero fees until a deal closes
               </p>
               <button onClick={postDeal} disabled={posting}
                 className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-3.5 text-base font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50">

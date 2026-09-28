@@ -12,6 +12,8 @@ import { callGenerateApi } from "@/lib/generate-api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
+import type { HubAsset } from "@/lib/hub-project";
 import { GenerationResult } from "@/components/GenerationResult";
 import { ArtistVaultSelector, type ArtistVault } from "@/components/ArtistVaultSelector";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -117,6 +119,7 @@ export default function MakeSong() {
   const [uploadedLyrics, setUploadedLyrics] = useState<string>("");
   const [uploadedSongUrl, setUploadedSongUrl] = useState<string | null>(null);
   const [uploadedSongFile, setUploadedSongFile] = useState<File | null>(null);
+  const [projectBeat, setProjectBeat] = useState<HubAsset | null>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<SongFormValues>({
     defaultValues: {
@@ -192,7 +195,7 @@ export default function MakeSong() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Music className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">1 credit</MarketingBadge>
+            <MarketingBadge variant="muted">1 Visual Buc</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Song
@@ -201,6 +204,29 @@ export default function MakeSong() {
             Create lyrics, hooks, verses, beat direction, vocal style, and AI music prompts for your next release.
           </p>
         </div>
+
+        <ProjectFlowBar
+          kinds={["beat"]}
+          actionLabel="Build on it"
+          onPick={(beat) => {
+            setProjectBeat(beat);
+            const genre = beat.meta?.genre;
+            const bpm = beat.meta?.bpm;
+            if (!watched.beatStyle) {
+              setValue("beatStyle", genre && bpm ? `${genre} at ${bpm} BPM` : beat.label, { shouldDirty: true });
+            }
+            if (genre && !watched.genre) setValue("genre", genre, { shouldDirty: true });
+          }}
+        />
+
+        {projectBeat && (
+          <div className="rounded-xl border border-primary/30 bg-primary/[0.06] px-4 py-3 mb-6 flex items-center gap-3">
+            <audio src={projectBeat.url} controls className="h-8 flex-1 min-w-0" />
+            <p className="text-xs text-white/60 shrink-0">
+              Building on <span className="text-white font-semibold">{projectBeat.label}</span>
+            </p>
+          </div>
+        )}
 
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
@@ -213,7 +239,7 @@ export default function MakeSong() {
                 <p className="text-sm font-bold text-white">Already have a song?</p>
               </div>
               <p className="text-xs text-white/35 mb-3 leading-relaxed">
-                Upload your track to transcribe lyrics and jump to Step 2 — no generation credit needed.
+                Upload your track to transcribe lyrics and jump to Step 2 — no generation Visual Buc needed.
               </p>
               <AudioTranscribe
                 onTranscript={(text) => setUploadedLyrics(text)}
@@ -364,7 +390,7 @@ export default function MakeSong() {
                   </>
                 )}
               </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>
+              <p className="text-white/25 text-xs mt-3">Uses 1 Visual Buc per generation</p>
             </div>
           </form>
         </div>

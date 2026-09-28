@@ -19,23 +19,23 @@ function PolicyNav() {
 }
 
 export default function RefundPolicy() {
-  usePageTitle("Refund Policy", "Our refund policy for credits and purchases.");
+  usePageTitle("Refund Policy", "Our refund policy for Visual Bucs and purchases.");
   return (
     <div className="min-h-screen bg-background">
       <PolicyNav />
       <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
         <h1 className="text-3xl font-black text-white mb-2">Refund Policy</h1>
-        <p className="text-white/30 text-sm mb-10">Last updated: June 2026</p>
+        <p className="text-white/30 text-sm mb-10">Last updated: September 2026</p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
           <section>
             <h2 className="text-white font-bold text-lg mb-3">What We Sell</h2>
             <p>
-              Bow Down Visuals sells <strong className="text-white/90">digital AI creator credits</strong> — 
-              pre-purchased units used to generate lyrics, music video treatment plans, video prompts, 
-              caption sets, thumbnails, promo clip scripts, and other digital creator content. 
-              All products are digital and delivered instantly upon credit use. No physical goods are sold or shipped.
+              Bow Down Visuals sells <strong className="text-white/90">digital AI creator Visual Bucs</strong> — 
+              pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos,
+              lyrics, thumbnails, caption sets, promo clips, and other digital creator content. 
+              All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped.
             </p>
           </section>
 
@@ -44,7 +44,9 @@ export default function RefundPolicy() {
             <p>
               Because our products are digital and consumed immediately upon generation, 
               <strong className="text-white/90"> all sales are generally final</strong>. 
-              Once credits have been used to generate content, those credits cannot be refunded.
+              Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded.
+              Bonus Visual Bucs earned through referrals or promotions have no cash value and are
+              non-refundable.
             </p>
           </section>
 
@@ -53,7 +55,7 @@ export default function RefundPolicy() {
             <p>We will issue a full or partial refund in the following situations:</p>
             <ul className="list-disc pl-5 space-y-2 mt-3">
               <li>
-                <strong className="text-white/90">Technical failure:</strong> Credits were deducted
+                <strong className="text-white/90">Technical failure:</strong> Visual Bucs were deducted
                 but no content was generated due to a platform error on our end.
               </li>
               <li>
@@ -66,7 +68,7 @@ export default function RefundPolicy() {
               </li>
               <li>
                 <strong className="text-white/90">Within 48 hours of first subscription:</strong> If
-                you subscribed and have not yet used any credits, you may request a full refund
+                you subscribed and have not yet used any Visual Bucs, you may request a full refund
                 within 48 hours of your first payment.
               </li>
             </ul>
@@ -76,7 +78,7 @@ export default function RefundPolicy() {
             <h2 className="text-white font-bold text-lg mb-3">Subscription Cancellations</h2>
             <p>
               You may cancel your subscription at any time. Cancellation stops future billing;
-              you retain access to your remaining credits and subscription benefits through the
+              you retain access to your remaining Visual Bucs and subscription benefits through the
               end of the current billing period. <strong className="text-white/90">Partial-month
               refunds are not issued for cancellations mid-cycle.</strong>
             </p>

@@ -272,7 +272,7 @@ export default function Movies() {
                 {conceptLoading ? (
                   <><Loader2 className="h-5 w-5 animate-spin" /> Developing your concept…</>
                 ) : (
-                  <><Sparkles className="h-5 w-5" /> Generate Concept — {CONCEPT_CREDITS} credits</>
+                  <><Sparkles className="h-5 w-5" /> Generate Concept — {CONCEPT_CREDITS} Visual Bucs</>
                 )}
               </button>
               {!user && (
@@ -414,7 +414,7 @@ export default function Movies() {
                 {clipLoading ? (
                   <><Loader2 className="h-5 w-5 animate-spin" /> Finding your highlights…</>
                 ) : (
-                  <><Scissors className="h-5 w-5" /> Detect Highlights — {CLIP_DETECT_CREDITS} credits</>
+                  <><Scissors className="h-5 w-5" /> Detect Highlights — {CLIP_DETECT_CREDITS} Visual Bucs</>
                 )}
               </button>
               {!user && (

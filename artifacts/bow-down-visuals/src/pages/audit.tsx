@@ -266,7 +266,7 @@ export default function ChannelAudit() {
           {!user && (
             <p className="mt-6 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
               <AlertTriangle className="mr-1.5 inline h-4 w-4" aria-hidden="true" />
-              <Link href="/login" className="font-semibold underline">Sign in</Link> to run an audit — it costs {CREDIT_COST} credits.
+              <Link href="/login" className="font-semibold underline">Sign in</Link> to run an audit — it costs {CREDIT_COST} Visual Bucs.
             </p>
           )}
 
@@ -278,7 +278,7 @@ export default function ChannelAudit() {
             {loading ? (
               <><Loader2 className="h-5 w-5 animate-spin" /> Auditing your channel…</>
             ) : (
-              <><Sparkles className="h-5 w-5" /> Run my audit — {CREDIT_COST} credits</>
+              <><Sparkles className="h-5 w-5" /> Run my audit — {CREDIT_COST} Visual Bucs</>
             )}
           </button>
 
@@ -394,7 +394,7 @@ export default function ChannelAudit() {
               </div>
               <p className="mt-5 flex items-center justify-center gap-2 text-xs text-white/30">
                 <Megaphone className="h-3.5 w-3.5" aria-hidden="true" />
-                Want hooks rewritten for you? The Hook Studio does 5 scroll-stoppers per credit.
+                Want hooks rewritten for you? The Hook Studio does 5 scroll-stoppers per Visual Buc.
               </p>
             </div>
           </div>

@@ -93,7 +93,7 @@ export default function Mastering() {
         } else if (data.status === "failed") {
           if (pollRef.current) window.clearInterval(pollRef.current);
           setStatus("failed");
-          setError(data.error || "Mastering failed — your credits were refunded.");
+          setError(data.error || "Mastering failed — your Visual Bucs were refunded.");
         }
       } catch {
         /* keep polling on transient network errors */
@@ -202,7 +202,7 @@ export default function Mastering() {
           </span>
           <div>
             <h1 className="text-2xl font-black">AI Mastering</h1>
-            <p className="text-sm text-white/45">Release-ready masters from your mix — {CREDIT_COST} credits</p>
+            <p className="text-sm text-white/45">Release-ready masters from your mix — {CREDIT_COST} Visual Bucs</p>
           </div>
         </div>
 
@@ -293,7 +293,7 @@ export default function Mastering() {
               {!user ? "Sign in to master" : `Master my track — ${CREDIT_COST} credits`}
             </button>
             {typeof creditsRemaining === "number" && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         )}

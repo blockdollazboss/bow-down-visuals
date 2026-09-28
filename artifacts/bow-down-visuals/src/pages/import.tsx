@@ -87,7 +87,7 @@ export default function MediaImport() {
           setFileSize(data.fileSize ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || `Import failed — your ${CREDIT_COST} credits were refunded.`);
+          setError(data.error || `Import failed — your ${CREDIT_COST} Visual Bucs were refunded.`);
         } else {
           setStatus(data.status as JobStatus);
           if (data.title) setTitle(data.title);
@@ -162,7 +162,7 @@ export default function MediaImport() {
           </span>
           <div>
             <h1 className="text-2xl font-black">Media Importer</h1>
-            <p className="text-sm text-white/45">Paste a link, pull it into your library — {CREDIT_COST} credits</p>
+            <p className="text-sm text-white/45">Paste a link, pull it into your library — {CREDIT_COST} Visual Bucs</p>
           </div>
         </div>
 
@@ -258,10 +258,10 @@ export default function MediaImport() {
               disabled={!urlLooksValid || !rightsConfirmed || !user}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Import media · {CREDIT_COST} credits
+              Import media · {CREDIT_COST} Visual Bucs
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         )}

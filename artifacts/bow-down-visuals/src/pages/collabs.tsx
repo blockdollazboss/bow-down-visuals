@@ -477,7 +477,7 @@ export default function CollabFinder() {
               <h2 className="mb-2 text-xl font-extrabold">AI Compatibility Report</h2>
               <p className="mb-5 text-sm text-white/50">
                 Pick a creator — the AI scores your fit on niche overlap, audience complement, and collab
-                interests, then gives you 3 collab ideas built for the pair. <span className="font-bold text-amber-300">1 credit per report.</span>
+                interests, then gives you 3 collab ideas built for the pair. <span className="font-bold text-amber-300">1 Visual Buc per report.</span>
               </p>
               <div className="mb-4 flex gap-2">
                 <select value={matchTarget} onChange={(e) => setMatchTarget(e.target.value)} className="flex-1 rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white outline-none focus:border-amber-400/60">

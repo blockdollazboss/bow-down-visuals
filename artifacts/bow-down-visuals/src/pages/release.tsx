@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Release Checklist ─────────────────────────────────────────────────
    AI-powered song/album release planner. POSTs to /api/release-checklist
@@ -106,6 +107,11 @@ export default function ReleaseChecklist() {
 
   const [releaseType, setReleaseType] = useState<ReleaseType>("single");
   const [title, setTitle] = useState("");
+  const { project } = useHubProject();
+  useEffect(() => {
+    if (!title && project.name) setTitle(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.name]);
   const [genre, setGenre] = useState("");
   const [releaseDate, setReleaseDate] = useState(defaultDate);
 
@@ -351,7 +357,7 @@ export default function ReleaseChecklist() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credits per AI plan · checking off tasks is free · powered by Thy Cheat Code
+              {CREDIT_COST} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -477,7 +483,7 @@ export default function ReleaseChecklist() {
                   ) : (
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
                   )}
-                  Rebuild plan ({CREDIT_COST} credits)
+                  Rebuild plan ({CREDIT_COST} Visual Bucs)
                 </button>
               </div>
             )}

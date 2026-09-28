@@ -92,7 +92,7 @@ function VideoUpscaleTool() {
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Upscale failed — your 3 credits were refunded.");
+          setError(data.error || "Upscale failed — your 3 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as VideoJobStatus);
         }
@@ -172,7 +172,7 @@ function VideoUpscaleTool() {
         </span>
         <div>
           <h2 className="text-xl font-black">Video Upscaler</h2>
-          <p className="text-sm text-white/45">Bump your clips to 1080p or 4K — {VIDEO_CREDIT_COST} credits</p>
+          <p className="text-sm text-white/45">Bump your clips to 1080p or 4K — {VIDEO_CREDIT_COST} Visual Bucs</p>
         </div>
       </div>
 
@@ -257,10 +257,10 @@ function VideoUpscaleTool() {
             disabled={!file || !user}
             className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Upscale to {target === "4k" ? "4K" : "1080p"} · {VIDEO_CREDIT_COST} credits
+            Upscale to {target === "4k" ? "4K" : "1080p"} · {VIDEO_CREDIT_COST} Visual Bucs
           </button>
           {creditsRemaining != null && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
       ) : null}
@@ -395,8 +395,8 @@ function ImageUpscaleTool() {
         setStatus("failed");
         setError(
           (data.message || data.error)
-            ? `${data.message || data.error} — your ${IMAGE_CREDIT_COST} credits were refunded.`
-            : `Upscale failed — your ${IMAGE_CREDIT_COST} credits were refunded.`,
+            ? `${data.message || data.error} — your ${IMAGE_CREDIT_COST} Visual Bucs were refunded.`
+            : `Upscale failed — your ${IMAGE_CREDIT_COST} Visual Bucs were refunded.`,
         );
         return;
       }
@@ -405,7 +405,7 @@ function ImageUpscaleTool() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError(`Network error — your ${IMAGE_CREDIT_COST} credits were not spent.`);
+      setError(`Network error — your ${IMAGE_CREDIT_COST} Visual Bucs were not spent.`);
     }
   }
 
@@ -449,7 +449,7 @@ function ImageUpscaleTool() {
         </span>
         <div>
           <h2 className="text-xl font-black">Image Upscaler</h2>
-          <p className="text-sm text-white/45">Sharpen photos, covers & thumbs — {IMAGE_CREDIT_COST} credits</p>
+          <p className="text-sm text-white/45">Sharpen photos, covers & thumbs — {IMAGE_CREDIT_COST} Visual Bucs</p>
         </div>
       </div>
 
@@ -535,10 +535,10 @@ function ImageUpscaleTool() {
             disabled={!file || !user}
             className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Upscale image {scale} · {IMAGE_CREDIT_COST} credits
+            Upscale image {scale} · {IMAGE_CREDIT_COST} Visual Bucs
           </button>
           {creditsRemaining != null && (
-            <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+            <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
           )}
         </div>
       ) : null}

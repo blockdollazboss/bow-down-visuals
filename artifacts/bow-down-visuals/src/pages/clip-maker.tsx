@@ -253,7 +253,7 @@ export default function ClipMaker() {
           setCutting(false);
           refreshProfile();
           if (data.status === "failed") {
-            setError(data.error || "Clip cutting failed — your credits were refunded.");
+            setError(data.error || "Clip cutting failed — your Visual Bucs were refunded.");
           }
         }
       } catch (err) {
@@ -542,7 +542,7 @@ export default function ClipMaker() {
             )}
             {job?.status === "failed" && (
               <p className="mt-3 text-sm text-red-300">
-                Cutting failed{job.error ? `: ${job.error}` : ""} — your credits were refunded automatically.
+                Cutting failed{job.error ? `: ${job.error}` : ""} — your Visual Bucs were refunded automatically.
               </p>
             )}
           </section>

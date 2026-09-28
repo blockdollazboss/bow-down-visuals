@@ -273,6 +273,25 @@ body::before {
   100% { background-position: 200% 0; }
 }
 
+/* ─── Refer & Earn attention nudge — gentle float + glow pulse.
+       Catches the eye without shouting. ─── */
+.refer-nudge {
+  animation: refer-nudge 2.6s ease-in-out infinite;
+}
+@keyframes refer-nudge {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 0 14px rgba(212, 160, 23, 0.25);
+  }
+  50% {
+    transform: translateY(-3px);
+    box-shadow: 0 0 26px rgba(212, 160, 23, 0.55);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .refer-nudge { animation: none; }
+}
+
 /* ─── Banner spotlight rig — flashing beam under the top strip ─── */
 .spotlight-beam {
   animation: spotlight-flash 2.8s ease-in-out infinite;

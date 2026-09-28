@@ -598,7 +598,7 @@ export function ClipGeneratorSection({
     setEnhanceProgress(null);
 
     if (failed === 0) {
-      setEnhanceStatus({ type: "success", message: `All ${scenes.length} scene prompts enhanced with cinematic variety. No credits used.` });
+      setEnhanceStatus({ type: "success", message: `All ${scenes.length} scene prompts enhanced with cinematic variety. No Visual Bucs used.` });
     } else if (failed < scenes.length) {
       setEnhanceStatus({ type: "warning", message: `${scenes.length - failed} of ${scenes.length} prompts enhanced. ${failed} scene${failed !== 1 ? "s" : ""} failed — try again.` });
     } else {
@@ -732,7 +732,7 @@ export function ClipGeneratorSection({
             </p>
             <p className="text-[11px] text-white/40 leading-relaxed">
               Rewrites every AI video prompt to be more cinematic — each scene gets a unique camera angle, location, and action.
-              <span className="ml-1 text-green-400 font-semibold">Free — no credits used.</span>
+              <span className="ml-1 text-green-400 font-semibold">Free — no Visual Bucs used.</span>
             </p>
           </div>
           <Button

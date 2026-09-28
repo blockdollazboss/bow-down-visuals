@@ -123,7 +123,7 @@ router.post("/admin/credits/grant", requireAuth, requireAdmin, async (req, res) 
     });
   } catch (err) {
     req.log.error({ err }, "admin: grant credits failed");
-    res.status(500).json({ error: "Could not grant credits. Please try again." });
+    res.status(500).json({ error: "Could not grant Visual Bucs. Please try again." });
   }
 });
 

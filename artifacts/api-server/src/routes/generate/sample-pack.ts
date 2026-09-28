@@ -192,7 +192,7 @@ router.post("/sample-pack/generate", requireAuth, async (req, res) => {
     if (err instanceof LedgerWriteError) {
       req.log.error({ err }, "[sample-pack] ledger write failed");
     }
-    res.status(500).json({ error: "Could not charge credits. Please try again.", code: "charge_failed" });
+    res.status(500).json({ error: "Could not charge Visual Bucs. Please try again.", code: "charge_failed" });
     return;
   }
 

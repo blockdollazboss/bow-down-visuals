@@ -394,7 +394,7 @@ export default function PromoClip() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Film className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">1 credit</MarketingBadge>
+            <MarketingBadge variant="muted">1 Visual Buc</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Promo Clips
@@ -758,7 +758,7 @@ export default function PromoClip() {
                       ? <><Loader2 className="h-5 w-5 animate-spin" /> Building Promo Pack…</>
                       : <><Megaphone className="h-5 w-5" /> Generate Promo Pack</>}
                   </Button>
-                  <p className="text-white/20 text-xs">Uses 1 credit</p>
+                  <p className="text-white/20 text-xs">Uses 1 Visual Buc</p>
                 </div>
               </div>
             )}
@@ -896,7 +896,7 @@ export default function PromoClip() {
                       ? <><Loader2 className="h-5 w-5 animate-spin" /> Building Promo Pack…</>
                       : <><Megaphone className="h-5 w-5" /> Generate Promo Pack</>}
                   </Button>
-                  <p className="text-white/20 text-xs">Uses 1 credit</p>
+                  <p className="text-white/20 text-xs">Uses 1 Visual Buc</p>
                 </div>
 
               </form>

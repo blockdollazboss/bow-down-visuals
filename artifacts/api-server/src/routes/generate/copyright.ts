@@ -132,7 +132,7 @@ async function chargeOr402(
   if (balance < cost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep using the Copyright Assistant.",
+      message: "You're out of Visual Bucs — top up to keep using the Copyright Assistant.",
     });
     return null;
   }
@@ -142,7 +142,7 @@ async function chargeOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep using the Copyright Assistant.",
+        message: "You're out of Visual Bucs — top up to keep using the Copyright Assistant.",
       });
       return null;
     }

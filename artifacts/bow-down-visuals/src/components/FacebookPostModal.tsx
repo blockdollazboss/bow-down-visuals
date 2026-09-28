@@ -199,7 +199,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-bold text-white">Post to Facebook</h3>
-            <p className="text-xs text-white/40 mt-1">2 credits · publishes to your Page as a Reel</p>
+            <p className="text-xs text-white/40 mt-1">2 Visual Bucs · publishes to your Page as a Reel</p>
           </div>
           {!publishing && (
             <button onClick={onClose} className="text-white/40 hover:text-white transition-colors" aria-label="Close">
@@ -304,7 +304,7 @@ export function FacebookPostModal({ open, onClose, videoUrl, accounts }: Props) 
                 </>
               ) : (
                 <>
-                  <Send className="h-4 w-4" /> Publish · 2 credits
+                  <Send className="h-4 w-4" /> Publish · 2 Visual Bucs
                 </>
               )}
             </Button>

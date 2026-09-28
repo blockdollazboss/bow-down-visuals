@@ -411,11 +411,11 @@ async function chargeOr402(
     return await chargeCredits(req.userId!, cost, { action });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to continue." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to continue." });
       return null;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return null;
     }
     throw err;

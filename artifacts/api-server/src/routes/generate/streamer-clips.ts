@@ -386,7 +386,7 @@ router.post(
     if (balance < ANALYZE_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to analyze VODs.",
+        message: "You're out of Visual Bucs — top up to analyze VODs.",
       });
       return;
     }
@@ -399,12 +399,12 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to analyze VODs.",
+          message: "You're out of Visual Bucs — top up to analyze VODs.",
         });
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+        res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
         return;
       }
       throw err;
@@ -572,12 +572,12 @@ router.post("/streamer-clips/cut", publicApiLimiter, requireAuth, async (req: Re
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to cut clips.",
+        message: "You're out of Visual Bucs — top up to cut clips.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
       return;
     }
     throw err;

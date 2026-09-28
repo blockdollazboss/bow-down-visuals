@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
+import { useHubProject } from "@/lib/hub-project";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,6 +32,7 @@ import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scen
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -224,6 +226,8 @@ export default function MakeVideo() {
   const [audioSceneError, setAudioSceneError] = useState<string | null>(null);
 
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const { addAsset } = useHubProject();
+  const reportedClipUrls = useRef<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -630,7 +634,7 @@ export default function MakeVideo() {
         if (body.refunded) {
           setCreditRefunded(true);
           refreshProfile();
-          toast({ title: "Credits refunded", description: "Project save failed — credits returned. Your generation is in Generation History.", variant: "destructive" });
+          toast({ title: "Visual Bucs refunded", description: "Project save failed — Visual Bucs returned. Your generation is in Generation History.", variant: "destructive" });
         } else {
           const msg = body.error ?? `Save failed (HTTP ${res.status})`;
           setSaveError(msg);
@@ -663,6 +667,18 @@ export default function MakeVideo() {
   /* ── Autosave scenes ── */
   async function handleScenesChange(updated: SceneData[]) {
     setScenes(updated);
+    for (const sc of updated) {
+      const url = sc.demoClipUrl;
+      if (url && !reportedClipUrls.current.has(url)) {
+        reportedClipUrls.current.add(url);
+        addAsset({
+          kind: "video",
+          url,
+          label: `Scene ${sc.sceneNumber} — ${sc.section || "clip"}`,
+          detail: sc.action ? sc.action.slice(0, 60) : "AI scene clip",
+        });
+      }
+    }
     if (!savedProjectId) return;
     try {
       const token = await getAccessToken();
@@ -814,7 +830,7 @@ export default function MakeVideo() {
                     <p className="text-lg font-black text-white leading-tight">{draftInfo?.title ?? "Previous session"}</p>
                     {draftInfo?.updated && <p className="text-xs text-white/35 mt-1">Last saved {draftInfo.updated}</p>}
                   </div>
-                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no credits will be charged.</p>
+                  <p className="text-sm text-white/50">Recover your draft to continue where you left off — no Visual Bucs will be charged.</p>
                   <div className="space-y-2.5">
                     <Button onClick={() => { void handleRecover(); }} className="w-full gold-glow font-bold gap-2 h-11">
                       <RefreshCcw className="h-4 w-4" /> Recover Draft
@@ -883,7 +899,7 @@ export default function MakeVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Video className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">1 credit</MarketingBadge>
+            <MarketingBadge variant="muted">1 Visual Buc</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Music Video
@@ -982,6 +998,11 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
+              <ProjectFlowBar
+                kinds={["song"]}
+                actionLabel="Use track"
+                onPick={(asset) => { setAudioUrl(asset.url); setSongSegment(null); }}
+              />
               <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}
@@ -1247,7 +1268,7 @@ export default function MakeVideo() {
                         ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your video plan...</>
                         : <><Sparkles className="h-5 w-5" /> Create Video Plan</>}
                     </Button>
-                    <p className="text-white/25 text-xs text-center">Uses 1 credit per generation</p>
+                    <p className="text-white/25 text-xs text-center">Uses 1 Visual Buc per generation</p>
                   </div>
                 </div>
               ) : (
@@ -1398,7 +1419,7 @@ export default function MakeVideo() {
                         </p>
                       )}
                       {autoSaveStatus === "failed" && creditRefunded && (
-                        <p className="text-[11px] text-amber-400 text-right max-w-[220px]">Credits refunded — find your content in <strong>Generation History</strong>.</p>
+                        <p className="text-[11px] text-amber-400 text-right max-w-[220px]">Visual Bucs refunded — find your content in <strong>Generation History</strong>.</p>
                       )}
                       <Button
                         onClick={handleSave}

@@ -233,7 +233,7 @@ router.post(
     if (balance < BRAND_CALC_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to price your brand deal.",
+        message: "You're out of Visual Bucs — top up to price your brand deal.",
       });
       return;
     }
@@ -246,7 +246,7 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to price your brand deal.",
+          message: "You're out of Visual Bucs — top up to price your brand deal.",
         });
         return;
       }
@@ -288,13 +288,13 @@ router.post(
         logger.warn({ err }, "[brand-calculator] OpenAI rate limit / quota");
         res.status(503).json({
           error:
-            "The calculator is catching its breath — try again in a moment. (Credit refunded.)",
+            "The calculator is catching its breath — try again in a moment. (Visual Buc refunded.)",
         });
         return;
       }
       logger.error({ err }, "[brand-calculator] calculation failed");
       res.status(502).json({
-        error: "The calculator hiccupped — try again. (Credit refunded.)",
+        error: "The calculator hiccupped — try again. (Visual Buc refunded.)",
       });
     }
   }

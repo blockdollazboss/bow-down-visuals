@@ -36,7 +36,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     ],
     tips: [
       "Set an active artist first — it unlocks character consistency across all AI tools.",
-      "Songs, video plans, promos, and thumbnails cost 1–2 credits each. Video clips cost 5 credits.",
+      "Songs, video plans, promos, and thumbnails cost 1–2 Visual Bucs each. Video clips cost 5 Visual Bucs.",
     ],
   },
 
@@ -60,7 +60,7 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     steps: [
       { n: 1, title: "Rebuild scenes if needed",  desc: "If your scene list is empty, click Rebuild Scenes to regenerate from your video plan." },
       { n: 2, title: "Select one scene",          desc: "Click on any scene in the timeline to expand it and see its details." },
-      { n: 3, title: "Generate a video clip",     desc: "Click Generate Clip in the scene card. This uses 5 credits and takes 30–90 seconds." },
+      { n: 3, title: "Generate a video clip",     desc: "Click Generate Clip in the scene card. This uses 5 Visual Bucs and takes 30–90 seconds." },
       { n: 4, title: "Preview your clip",         desc: "When the clip is ready, the master player at the top updates automatically." },
       { n: 5, title: "Add music and captions",    desc: "Go to the Music tab to upload your track. Go to Captions to add lyrics-based captions." },
       { n: 6, title: "Add visual effects",        desc: "Go to Effects and click any effect chip. The preview updates instantly." },
@@ -77,11 +77,11 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
     steps: [
       { n: 1, title: "Open a saved project",     desc: "Click Open Project on any card. This loads your project in the Video Editor." },
       { n: 2, title: "Check generated clips",    desc: "Switch to the Clips tab in the editor to see all generated video clips for your scenes." },
-      { n: 3, title: "Check generation history", desc: "Go to the Generation History tab to see every AI generation, credit use, and clip preview." },
+      { n: 3, title: "Check generation history", desc: "Go to the Generation History tab to see every AI generation, Visual Buc use, and clip preview." },
       { n: 4, title: "Continue editing",         desc: "Open any project to continue adding clips, music, captions, or effects where you left off." },
     ],
     tips: [
-      "Generation history logs every clip even if the project save fails — your credits are always traceable.",
+      "Generation history logs every clip even if the project save fails — your Visual Bucs are always traceable.",
       "Clip previews appear inline in Generation History. Click Preview Clip to open the full video.",
     ],
   },
@@ -128,29 +128,29 @@ const GUIDES: Record<HelpPage, { title: string; steps: HelpStep[]; tips?: string
   },
 
   pricing: {
-    title: "Credits & Pricing — Guide",
+    title: "Visual Bucs & Pricing — Guide",
     steps: [
-      { n: 1, title: "What credits are for",     desc: "Credits power every AI generation. Songs, video plans, promos, and thumbnails cost 1–2 credits each; video clips cost 5 credits and take 30–90 seconds." },
-      { n: 2, title: "Free vs paid features",    desc: "Creating artist profiles is free. Every AI generation — songs, video plans, promos, thumbnails, and video clips — uses credits." },
-      { n: 3, title: "Buy credits",              desc: "Choose a credit pack below and check out. Credits appear in your account instantly." },
-      { n: 4, title: "Check your balance",       desc: "Your credit balance is always visible in the top bar. Click it to view your full credit history." },
+      { n: 1, title: "What Visual Bucs are for",     desc: "Visual Bucs power every AI generation. Songs, video plans, promos, and thumbnails cost 1–2 Visual Bucs each; video clips cost 5 Visual Bucs and take 30–90 seconds." },
+      { n: 2, title: "Free vs paid features",    desc: "Creating artist profiles is free. Every AI generation — songs, video plans, promos, thumbnails, and video clips — uses Visual Bucs." },
+      { n: 3, title: "Buy Visual Bucs",              desc: "Choose a Visual Bucs pack below and check out. Visual Bucs appear in your account instantly." },
+      { n: 4, title: "Check your balance",       desc: "Your Visual Bucs balance is always visible in the top bar. Click it to view your full Visual Buc history." },
     ],
     tips: [
-      "Credits never expire — they stay in your account until you use them.",
-      "If a clip generation fails, your credits are automatically refunded.",
+      "Visual Bucs never expire — they stay in your account until you use them.",
+      "If a clip generation fails, your Visual Bucs are automatically refunded.",
     ],
   },
 
   "credit-history": {
-    title: "Credit History — Guide",
+    title: "Visual Buc History — Guide",
     steps: [
-      { n: 1, title: "View your credit purchases", desc: "See all credit packs you've bought, dates, and amounts in the Purchases section." },
-      { n: 2, title: "View credit usage",          desc: "The Usage table shows every time credits were spent, including which action used them." },
-      { n: 3, title: "Refunds",                    desc: "If a video clip generation fails, credits are automatically refunded. Check the refunded column." },
-      { n: 4, title: "Buy more credits",           desc: "Click Go to Pricing or visit the Pricing page to buy more credit packs." },
+      { n: 1, title: "View your Visual Buc purchases", desc: "See all Visual Bucs packs you've bought, dates, and amounts in the Purchases section." },
+      { n: 2, title: "View Visual Buc usage",          desc: "The Usage table shows every time Visual Bucs were spent, including which action used them." },
+      { n: 3, title: "Refunds",                    desc: "If a video clip generation fails, Visual Bucs are automatically refunded. Check the refunded column." },
+      { n: 4, title: "Buy more Visual Bucs",           desc: "Click Go to Pricing or visit the Pricing page to buy more Visual Bucs packs." },
     ],
     tips: [
-      "Generation History in My Projects also shows per-clip credit usage with clip previews.",
+      "Generation History in My Projects also shows per-clip Visual Buc usage with clip previews.",
     ],
   },
 };

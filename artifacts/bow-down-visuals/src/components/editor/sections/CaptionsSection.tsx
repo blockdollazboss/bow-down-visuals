@@ -1341,10 +1341,10 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4 space-y-3">
               <p className="text-sm font-bold text-amber-400 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                AI Caption Sync uses credits
+                AI Caption Sync uses Visual Bucs
               </p>
               <p className="text-xs text-white/55 leading-relaxed">
-                This calls Whisper AI to transcribe your song and timestamp every word. It may use credits from your account. Continue?
+                This calls Whisper AI to transcribe your song and timestamp every word. It may use Visual Bucs from your account. Continue?
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => void runAiSync()} className="gold-glow font-bold gap-1.5">

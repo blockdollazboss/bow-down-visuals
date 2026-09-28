@@ -59,7 +59,7 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
     if (balance < chatCreditCost) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep chatting with Thy Cheat Code.",
+        message: "You're out of Visual Bucs — top up to keep chatting with Thy Cheat Code.",
       });
       return;
     }
@@ -69,12 +69,12 @@ router.post("/chat", publicApiLimiter, maybeAuth, async (req, res) => {
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to keep chatting with Thy Cheat Code.",
+          message: "You're out of Visual Bucs — top up to keep chatting with Thy Cheat Code.",
         });
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw err;

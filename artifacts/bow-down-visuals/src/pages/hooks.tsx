@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── Thy Cheat Code's Hook Studio ────────────────────────────────────────
    Two money tools on one page: the Hook Generator (first-3-second openers)
@@ -94,6 +95,11 @@ export default function HookStudio() {
   /* hook generator state */
   const [videoType, setVideoType] = useState<VideoTypeKey>("music-promo");
   const [topic, setTopic] = useState("");
+  const { project } = useHubProject();
+  useEffect(() => {
+    if (!topic && project.name) setTopic(project.name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.name]);
   const [hooks, setHooks] = useState<string[]>([]);
   const [hooksLoading, setHooksLoading] = useState(false);
 
@@ -368,7 +374,7 @@ export default function HookStudio() {
                 </Link>
               )}
               <p className="mt-2.5 text-xs text-white/35">
-                {CREDIT_COST} credit per generation · powered by Thy Cheat Code
+                {CREDIT_COST} Visual Buc per generation · powered by Thy Cheat Code
               </p>
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
               {error && !outOfCredits && (
@@ -393,7 +399,7 @@ export default function HookStudio() {
                       className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                     >
                       <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                      Re-roll ({CREDIT_COST} credit)
+                      Re-roll ({CREDIT_COST} Visual Buc)
                     </button>
                   )}
                 </div>
@@ -428,7 +434,7 @@ export default function HookStudio() {
               </span>
               <div>
                 <h2 className="text-xl font-bold">Captions & Hashtags</h2>
-                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 credit.</p>
+                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 Visual Buc.</p>
               </div>
             </div>
 
@@ -483,7 +489,7 @@ export default function HookStudio() {
               {capLoading ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
               ) : (
-                <><Sparkles className="h-5 w-5" /> Generate — 1 credit</>
+                <><Sparkles className="h-5 w-5" /> Generate — 1 Visual Buc</>
               )}
             </button>
 
@@ -651,7 +657,7 @@ export default function HookStudio() {
                 </Link>
               )}
               <p className="mt-2.5 text-xs text-white/35">
-                {CREDIT_COST} credit per scorecard · powered by Thy Cheat Code
+                {CREDIT_COST} Visual Buc per scorecard · powered by Thy Cheat Code
               </p>
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
               {error && !outOfCredits && (

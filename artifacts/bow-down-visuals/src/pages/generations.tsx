@@ -150,7 +150,7 @@ export default function Generations() {
                     {TYPE_LABELS[gen.type] ?? gen.type}
                   </span>
                   <span className="text-xs text-white/40 ml-auto">
-                    {gen.credits_spent}cr
+                    {gen.credits_spent}VB
                   </span>
                 </div>
                 {gen.title && (

@@ -1483,7 +1483,7 @@ router.post("/lip-sync/run-all", requireAuth, async (req, res) => {
     if (!isDev && (req.userCredits ?? 0) < EXPORT_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "Not enough credits. Please buy more credits to continue.",
+        message: "Not enough Visual Bucs. Please Buy more Visual Bucs to continue.",
       });
       return;
     }

@@ -18,9 +18,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Home,
   LayoutDashboard,
+  Layers,
   Music,
   Music2,
   Disc,
+  Drum,
   ShoppingCart,
   Wallet,
   Video,
@@ -213,8 +215,10 @@ const SECTIONS: NavSection[] = [
   {
     title: "Create",
     links: [
+      { href: "/hub", label: "Creation Hub", icon: Layers },
       { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
       { href: "/make-song", label: "Make a Song", icon: Music },
+      { href: "/beat-maker", label: "Beat Maker", icon: Drum },
       { href: "/make-video", label: "Video for My Song", icon: Video },
       { href: "/video-editor", label: "Video Editor", icon: Clapperboard },
       { href: "/promo-clip", label: "Promo Clip Maker", icon: Film },
@@ -289,7 +293,7 @@ const SECTIONS: NavSection[] = [
       { href: "/contests", label: "Contests", icon: Trophy },
       { href: "/referrals", label: "Referrals", icon: Gift },
       { href: "/team", label: "Team", icon: Users },
-      { href: "/label-pitch", label: "Label Pitch", icon: Disc3 },
+      { href: "/wheel", label: "Jackpot Wheel", icon: Trophy },
     ],
   },
   {
@@ -326,7 +330,7 @@ const SECTIONS: NavSection[] = [
 
 const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", label: "Pricing", icon: CreditCard },
-  { href: "/credit-history", label: "Credit History", icon: Zap },
+  { href: "/credit-history", label: "Visual Buc History", icon: Zap },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -497,13 +501,13 @@ export function AppSidebar() {
           <>
             <Link
               href="/credit-history"
-              title="View Credit History"
+              title="View Visual Buc History"
               data-tour="credits"
               className="flex items-center justify-between rounded-lg px-1 py-0.5 hover:bg-white/[0.03] transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Coins className="h-4 w-4 text-primary" />
-                <span className="text-sm text-sidebar-foreground/70 font-medium">Credits</span>
+                <span className="text-sm text-sidebar-foreground/70 font-medium">Visual Bucs</span>
               </div>
               <Badge variant="secondary" className="bg-primary/20 text-primary border-primary/30">
                 {profile.credits} left
@@ -519,7 +523,7 @@ export function AppSidebar() {
                 className="w-full border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 text-xs"
               >
                 {addingCredits ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Plus className="h-3.5 w-3.5 mr-2" />}
-                Add 10 Test Credits
+                Add 10 Test Visual Bucs
               </Button>
             )}
             <div className="flex items-center justify-between gap-2">

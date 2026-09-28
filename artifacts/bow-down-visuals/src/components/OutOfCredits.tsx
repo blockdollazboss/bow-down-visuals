@@ -22,7 +22,7 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
       const res = await fetch("/api/dev/add-credits", { method: "POST", headers });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed" })) as { error?: string };
-        throw new Error(err.error ?? "Failed to add credits");
+        throw new Error(err.error ?? "Failed to add Visual Bucs");
       }
       await refreshProfile();
       setAdded(true);
@@ -48,21 +48,21 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
         <Zap className="h-8 w-8 text-primary" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-black text-white">Not Enough Credits</h2>
+        <h2 className="text-2xl font-black text-white">Not Enough Visual Bucs</h2>
         <p className="text-white/55 text-base leading-relaxed">
-          Not enough credits. Please buy more credits to continue.
+          Not enough Visual Bucs. Please buy more Visual Bucs to continue.
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-black font-bold shadow-[0_0_16px_rgba(218,165,32,0.35)] gap-2">
           <Link href="/pricing#credit-packs">
-            <Zap className="h-4 w-4" /> Buy More Credits
+            <Zap className="h-4 w-4" /> Buy More Visual Bucs
           </Link>
         </Button>
         <Button asChild size="lg" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10 gap-2">
           <Link href="/credit-history">
-            View Credit History <ArrowRight className="h-4 w-4" />
+            View Visual Buc History <ArrowRight className="h-4 w-4" />
           </Link>
         </Button>
       </div>
@@ -79,9 +79,9 @@ export function OutOfCredits({ onClose }: { onClose?: () => void }) {
             {adding ? (
               <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Adding…</>
             ) : added ? (
-              <><Plus className="h-3.5 w-3.5" /> Credits Added!</>
+              <><Plus className="h-3.5 w-3.5" /> Visual Bucs Added!</>
             ) : (
-              <><Plus className="h-3.5 w-3.5" /> Add 10 Test Credits (dev)</>
+              <><Plus className="h-3.5 w-3.5" /> Add 10 Test Visual Bucs (dev)</>
             )}
           </Button>
           {devError && <p className="text-red-400 text-xs mt-2">{devError}</p>}
