@@ -41,11 +41,21 @@ export const WHEEL_SEGMENTS: WheelSegment[] = [
 
 let bonusColumnsEnsured = false;
 
-/** Idempotent: adds bonus/streak columns to Supabase profiles if missing. */
+/**
+ * Best-effort: adds bonus/streak columns to the Supabase `profiles` table if
+ * missing. NOTE — this ALTER runs against DATABASE_URL (Render Postgres in
+ * production), which is a DIFFERENT database from the Supabase project that
+ * serves the `profiles` table. It only takes effect in setups where
+ * DATABASE_URL *is* the Supabase Postgres. The authoritative fix is the
+ * Supabase-side migration: supabase/migrations/0054_bonus_columns.sql
+ * (run once in the Supabase SQL Editor). Failures here are logged, not
+ * thrown, so a wrong-DB ALTER can never take down the bonus endpoints —
+ * the subsequent Supabase query will surface the real error instead.
+ */
 export async function ensureBonusColumns(): Promise<void> {
   if (bonusColumnsEnsured) return;
-  bonusColumnsEnsured = true;
-  await db.execute(sql.raw(`
+  try {
+    await db.execute(sql.raw(`
     ALTER TABLE profiles
       ADD COLUMN IF NOT EXISTS bonus_credits INTEGER NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS bonus_credits_expires_at TIMESTAMPTZ NULL,
@@ -61,6 +71,14 @@ export async function ensureBonusColumns(): Promise<void> {
     );
     CREATE INDEX IF NOT EXISTS idx_wheel_spins_user ON wheel_spins(user_id);
   `));
+    bonusColumnsEnsured = true;
+  } catch (err) {
+    logger.warn(
+      { err },
+      "ensureBonusColumns: runtime ALTER failed — expected when DATABASE_URL is not the Supabase DB; " +
+        "run supabase/migrations/0054_bonus_columns.sql in the Supabase SQL Editor instead",
+    );
+  }
 }
 
 export interface BonusProfile {
