@@ -453,27 +453,6 @@ export function CheatCodeJackpot() {
         </div>
       )}
 
-      {/* ── D-pad FAB (mobile / touch entry) ──────────────────────── */}
-      {phase === "live" && (
-        <button
-          type="button"
-          onClick={() => setPadOpen((v) => !v)}
-          aria-label={padOpen ? "Close directional pad" : "Open directional pad"}
-          aria-expanded={padOpen}
-          className={cn(
-            "fixed bottom-5 left-5 z-[9990] flex h-14 w-14 items-center justify-center",
-            "rounded-full border-2 border-[#C9A84C] bg-black/90 text-2xl",
-            "text-[#F5DE8E] shadow-[0_0_24px_rgba(201,168,76,0.35)]",
-            "transition-colors hover:bg-[#C9A84C]/25 hover:text-[#FFE9A8]",
-            "active:bg-[#C9A84C]/40 focus-visible:outline-none",
-            "[ -webkit-tap-highlight-color:transparent ]",
-          )}
-          style={{ WebkitTapHighlightColor: "transparent" }}
-        >
-          <span aria-hidden="true">✛</span>
-        </button>
-      )}
-
       {/* ── D-pad panel ───────────────────────────────────────────── */}
       {padOpen && phase === "live" && (
         <div
