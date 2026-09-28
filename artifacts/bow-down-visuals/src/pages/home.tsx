@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { SpotlightRig } from "@/components/SpotlightRig";
+import { HeroFog } from "@/components/HeroFog";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -591,6 +592,11 @@ function HeroSection() {
           on top) and below the curtain overlay (curtains drape over the
           beams). */}
       <SpotlightRig className="absolute inset-x-0 top-0 z-[2] h-[92%]" />
+
+      {/* Ground fog — gold-tinted banks pooling around the King's feet.
+          z-[3]: above the beam bases so it catches the light, below the
+          shark (z-[4]) so it wraps his feet instead of washing over him. */}
+      <HeroFog className="inset-x-0 bottom-0 z-[3] h-[34%]" />
 
       {/* Hero grid — no z-index here on purpose: the shark and the copy
           stack independently against the fixed curtain overlay (z-[5]).
