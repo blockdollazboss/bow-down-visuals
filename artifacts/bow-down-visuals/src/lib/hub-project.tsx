@@ -1,11 +1,13 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Hub project state ─────────────────────────────────────────────────────
    The heart of the One Unified Creation Hub: a single project ("Midnight
    Run") that every tool reports its finished assets into. Any page can call
    useHubProject().addAsset(...) with 2-3 lines — the hub's tray, workflow
-   rail, and handoffs pick it up automatically. Persisted to localStorage so
-   the project survives refreshes and navigation between tools. */
+   rail, and handoffs pick it up automatically. Persisted to localStorage as
+   a fast cache, and synced to the account (PUT /api/hub/project, debounced)
+   when signed in — so the project follows the user across devices. */
 
 export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "other";
 
@@ -31,8 +33,11 @@ export interface HubProject {
   updatedAt: number;
 }
 
+export type HubSyncStatus = "local" | "syncing" | "synced" | "error";
+
 interface HubProjectContextValue {
   project: HubProject;
+  syncStatus: HubSyncStatus;
   setProjectName: (name: string) => void;
   setProjectType: (type: HubProjectType) => void;
   addAsset: (asset: Omit<HubAsset, "id" | "createdAt">) => HubAsset;
@@ -79,14 +84,105 @@ function loadProject(): HubProject {
 
 export function HubProjectProvider({ children }: { children: React.ReactNode }) {
   const [project, setProject] = useState<HubProject>(loadProject);
+  const [syncStatus, setSyncStatus] = useState<HubSyncStatus>("local");
+  const { user, getAccessToken } = useAuth();
+  const projectRef = useRef(project);
+  const lastSyncedJson = useRef<string | null>(null);
 
   useEffect(() => {
+    projectRef.current = project;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
     } catch {
       /* storage full or unavailable — project still works in-memory */
     }
   }, [project]);
+
+  async function pushProject(snapshot: HubProject, token: string | null) {
+    const res = await fetch("/api/hub/project", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        name: snapshot.name,
+        type: snapshot.type,
+        assets: snapshot.assets,
+        updatedAt: snapshot.updatedAt,
+      }),
+    });
+    if (!res.ok) throw new Error(`hub sync failed: ${res.status}`);
+  }
+
+  /* Initial pull + merge when the user is signed in. Newest updatedAt wins. */
+  useEffect(() => {
+    if (!user) {
+      setSyncStatus("local");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setSyncStatus("syncing");
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/hub/project", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`hub pull failed: ${res.status}`);
+        const data = (await res.json()) as {
+          project: { name: string; type: HubProjectType; assets: HubAsset[]; updatedAt: number } | null;
+        };
+        if (cancelled) return;
+        const local = projectRef.current;
+        const server = data.project;
+        if (server && server.updatedAt > local.updatedAt) {
+          const adopted: HubProject = {
+            id: local.id,
+            name: server.name,
+            type: ["song", "video", "visual"].includes(server.type) ? server.type : "song",
+            assets: Array.isArray(server.assets) ? server.assets : [],
+            updatedAt: server.updatedAt,
+          };
+          lastSyncedJson.current = JSON.stringify(adopted);
+          setProject(adopted);
+        } else {
+          // Local is newer (or nothing on the server) — push it up.
+          const t = await getAccessToken();
+          if (cancelled) return;
+          await pushProject(projectRef.current, t);
+          lastSyncedJson.current = JSON.stringify(projectRef.current);
+        }
+        if (!cancelled) setSyncStatus("synced");
+      } catch {
+        if (!cancelled) setSyncStatus("error");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  /* Debounced push on every local change (skips states already synced). */
+  useEffect(() => {
+    if (!user) return;
+    const snapshot = projectRef.current;
+    const json = JSON.stringify(snapshot);
+    if (json === lastSyncedJson.current) return;
+    const timer = setTimeout(async () => {
+      try {
+        const token = await getAccessToken();
+        await pushProject(projectRef.current, token);
+        lastSyncedJson.current = JSON.stringify(projectRef.current);
+        setSyncStatus("synced");
+      } catch {
+        setSyncStatus("error"); // next change retries
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, user]);
 
   const setProjectName = useCallback((name: string) => {
     setProject((p) => ({ ...p, name: name.slice(0, 80) || "Untitled Project", updatedAt: Date.now() }));
@@ -122,6 +218,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     const kinds = new Set(project.assets.map((a) => a.kind));
     return {
       project,
+      syncStatus,
       setProjectName,
       setProjectType,
       addAsset,
@@ -130,7 +227,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
     };
-  }, [project, setProjectName, setProjectType, addAsset, removeAsset, newProject]);
+  }, [project, syncStatus, setProjectName, setProjectType, addAsset, removeAsset, newProject]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -144,6 +241,7 @@ export function useHubProject(): HubProjectContextValue {
     const noopAsset = () => ({ id: "", kind: "other" as HubAssetKind, url: "", label: "", createdAt: 0 });
     return {
       project: freshProject(),
+      syncStatus: "local",
       setProjectName: () => {},
       setProjectType: () => {},
       addAsset: noopAsset,
