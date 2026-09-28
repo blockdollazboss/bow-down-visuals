@@ -75,7 +75,7 @@ export default function TeamPage() {
     return data;
   }
 
-  async function load() {
+  async function load(): Promise<boolean> {
     setLoading(true);
     setMsg(null);
     try {
@@ -101,9 +101,11 @@ export default function TeamPage() {
       }
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Failed to load teams.");
+      return false;
     } finally {
       setLoading(false);
     }
+    return true;
   }
 
   useEffect(() => {
@@ -118,8 +120,8 @@ export default function TeamPage() {
     try {
       await api("/api/teams", { method: "POST", body: JSON.stringify({ name: newTeamName.trim() }) });
       setNewTeamName("");
-      await load();
-      setMsg("✓ Team created.");
+      const loaded = await load();
+      setMsg(loaded ? "✓ Team created." : "✓ Team created, but the team list failed to reload — refresh the page.");
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed to create team."}`);
     } finally {
