@@ -7,6 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
    gets 10 welcome credits. Referrer earns 25% of the referee's credit
    purchases (paid in site credits) for 90 days. No upfront referrer payout. */
 
+interface ReferralEntry {
+  joinedAt: string;
+  creditsEarned: number;
+  shareExpiresAt: string | null;
+  daysLeft: number;
+  active: boolean;
+}
+
 interface ReferralInfo {
   code: string;
   totalReferrals: number;
@@ -15,6 +23,7 @@ interface ReferralInfo {
   revenueSharePct: number;
   shareWindowDays: number;
   refereeReward: number;
+  referrals: ReferralEntry[];
 }
 
 export default function Referrals() {
@@ -149,6 +158,54 @@ export default function Referrals() {
                   </a>
                 ))}
               </div>
+            </div>
+
+            {/* Referral tracker — per-referral detail */}
+            <div className="lux-card p-5 mb-6">
+              <p className="text-xs text-white/45 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" /> Your referrals
+              </p>
+              {!info.referrals || info.referrals.length === 0 ? (
+                <p className="text-center text-white/40 text-sm py-6">
+                  Nobody's joined through your link yet — share it above and
+                  they'll show up here.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {info.referrals.map((r, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-black/40 border border-white/10 px-4 py-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white">
+                          Creator #{info.referrals.length - i}
+                        </p>
+                        <p className="text-xs text-white/40">
+                          Joined{" "}
+                          {new Date(r.joinedAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-primary">
+                          +{r.creditsEarned} cr
+                        </p>
+                        {r.active ? (
+                          <p className="text-xs text-emerald-400 font-medium">
+                            Earning · {r.daysLeft}d left
+                          </p>
+                        ) : (
+                          <p className="text-xs text-white/35">Window ended</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <p className="mt-6 text-center text-xs text-white/35 max-w-md mx-auto">

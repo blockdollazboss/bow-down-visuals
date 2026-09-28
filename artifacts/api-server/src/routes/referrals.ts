@@ -127,6 +127,23 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
       0
     );
 
+    /* Per-referral detail for the manage/track view. No referee PII —
+       only join date, earnings, and window status. */
+    const referralList = (referralRows ?? []).map((r) => {
+      const expires = r.share_expires_at ? new Date(r.share_expires_at) : null;
+      const active = !!expires && expires > now;
+      const daysLeft = active
+        ? Math.max(0, Math.ceil((expires.getTime() - now.getTime()) / 86400000))
+        : 0;
+      return {
+        joinedAt: r.created_at,
+        creditsEarned: r.total_referrer_earned ?? 0,
+        shareExpiresAt: r.share_expires_at,
+        daysLeft,
+        active,
+      };
+    }).sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime());
+
     res.json({
       code: codeRow.code,
       totalReferrals: (referralRows ?? []).length,
@@ -135,6 +152,7 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
       revenueSharePct: REVENUE_SHARE_PCT,
       shareWindowDays: SHARE_WINDOW_DAYS,
       refereeReward: REFEREE_WELCOME_CREDITS,
+      referrals: referralList,
     });
   } catch (err: unknown) {
     req.log.error({ err }, "referrals/me error");
