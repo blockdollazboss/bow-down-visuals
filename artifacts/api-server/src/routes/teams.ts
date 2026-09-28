@@ -388,6 +388,21 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Enter a credit amount greater than 0." });
       return;
     }
+    // Idempotency: client sends a key per fund operation. If we've seen it,
+    // return the original result instead of double-funding.
+    const idempotencyKey = String(req.body?.idempotencyKey ?? "").trim() || null;
+    if (idempotencyKey) {
+      const [existing] = await db
+        .select()
+        .from(creditUsageTable)
+        .where(eq(creditUsageTable.idempotencyKey, idempotencyKey))
+        .limit(1);
+      if (existing) {
+        const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId)).limit(1);
+        res.json({ team, duplicate: true });
+        return;
+      }
+    }
     // Deduct from personal Supabase balance first (throws 402 if short).
     try {
       await deductCredits(userId, amount);
@@ -398,19 +413,25 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       }
       throw e;
     }
-    // Credit the team pool. If this fails, automatically refund the personal
-    // deduction so credits are never silently lost — no manual reconciliation.
+    // Credit the team pool + ledger in a single transaction. Either both
+    // happen or neither — no partial state where team credits exist without
+    // a ledger record. If this fails, refund the personal deduction.
     try {
-      const [team] = await db
-        .update(teamsTable)
-        .set({ credits: sql`${teamsTable.credits} + ${amount}`, updatedAt: new Date() })
-        .where(eq(teamsTable.id, teamId))
-        .returning();
-      await db.insert(creditUsageTable).values({
-        userId,
-        action: "team_fund",
-        creditsUsed: -amount,
-        teamId,
+      const team = await db.transaction(async (tx) => {
+        const [updated] = await tx
+          .update(teamsTable)
+          .set({ credits: sql`${teamsTable.credits} + ${amount}`, updatedAt: new Date() })
+          .where(eq(teamsTable.id, teamId))
+          .returning();
+        if (!updated) throw new Error("Team not found during fund");
+        await tx.insert(creditUsageTable).values({
+          userId,
+          action: "team_fund",
+          creditsUsed: -amount,
+          teamId,
+          idempotencyKey,
+        });
+        return updated;
       });
       res.json({ team });
     } catch (poolErr) {

@@ -215,13 +215,18 @@ export default function TeamPage() {
     setFunding(true);
     setMsg(null);
     try {
-      await api(`/api/teams/${activeTeam.id}/fund`, {
+      // Idempotency key: if the request is retried (network blip, double-click),
+      // the server returns the original result instead of double-funding.
+      const idempotencyKey = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const data = await api(`/api/teams/${activeTeam.id}/fund`, {
         method: "POST",
-        body: JSON.stringify({ credits: amount }),
+        body: JSON.stringify({ credits: amount, idempotencyKey }),
       });
       setFundAmount("");
       await load();
-      setMsg(`✓ ${amount} credits added to the team pool.`);
+      setMsg(data?.duplicate ? `✓ Already funded — no duplicate charge.` : `✓ ${amount} credits added to the team pool.`);
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed to fund the pool."}`);
     } finally {
