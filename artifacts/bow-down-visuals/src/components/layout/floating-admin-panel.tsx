@@ -352,7 +352,7 @@ function BowRaceControls({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Live-poll the bow count every 5s so it updates without a page refresh.
+  // Live-poll the bow count every second so it updates without a page refresh.
   useEffect(() => {
     if (!loaded) return;
     let cancelled = false;
@@ -373,7 +373,7 @@ function BowRaceControls({
         /* keep last known count on poll failure */
       }
     }
-    const id = setInterval(() => void poll(), 5000);
+    const id = setInterval(() => void poll(), 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
