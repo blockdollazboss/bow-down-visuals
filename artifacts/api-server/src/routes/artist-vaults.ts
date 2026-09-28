@@ -385,7 +385,7 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) 
     const client = new RunwayML({ apiKey });
     const prompt =
       `Living portrait of ${vault.artist_name || "this character"}: subtle idle motion, ` +
-      `gentle breathing, slight natural head movement and slow blink, cinematic soft light. ` +
+      `gentle breathing, slight natural head movement and slow blink, clean light grey studio background, soft even lighting. ` +
       `Keep the face, hairstyle, clothing and overall appearance exactly as in the reference photo — ` +
       `no new elements, no camera cuts.`;
     const task = await client.imageToVideo.create({
