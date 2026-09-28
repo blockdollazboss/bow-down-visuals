@@ -25,7 +25,7 @@ export default function Terms() {
       <PolicyNav />
       <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
         <h1 className="text-3xl font-black text-white mb-2">Terms of Service</h1>
-        <p className="text-white/30 text-sm mb-10">Last updated: June 2026</p>
+        <p className="text-white/30 text-sm mb-10">Last updated: September 2026</p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
@@ -34,8 +34,8 @@ export default function Terms() {
             <p>
               Bow Down Visuals ("we," "us," or "our") is a digital creator platform that sells
               AI-powered creator credits. Credits are used to generate digital outputs including
-              song lyrics, music video treatment plans, video prompts, caption sets, thumbnails,
-              promo clip scripts, and related digital creator tools. All products delivered are
+              AI videos, music, images, voiceovers, lip-synced videos, thumbnails, lyrics,
+              captions, promo clips, and related digital creator tools. All products delivered are
               digital in nature and are not physical goods.
             </p>
           </section>
@@ -122,7 +122,20 @@ export default function Terms() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">11. Contact</h2>
+            <h2 className="text-white font-bold text-lg mb-3">11. Referral Program</h2>
+            <p>
+              Bow Down Visuals may offer referral rewards, such as bonus credits for you and
+              for new users who sign up through your personal referral link. Referral credits
+              have no cash value, are non-transferable, and cannot be redeemed for cash or
+              applied toward refunds. We may change or end the referral program at any time.
+              Creating multiple accounts to claim referral rewards, self-referrals, or any
+              other abuse of the program will result in forfeiture of referral credits and
+              may lead to account suspension.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-white font-bold text-lg mb-3">12. Contact</h2>
             <p>
               Questions about these Terms? Email us at{" "}
               <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
