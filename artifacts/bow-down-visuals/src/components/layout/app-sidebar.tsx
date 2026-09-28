@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Home,
   LayoutDashboard,
+  Layers,
   Music,
   Music2,
   Disc,
@@ -214,6 +215,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Create",
     links: [
+      { href: "/hub", label: "Creation Hub", icon: Layers },
       { href: "/song-and-video", label: "Start from Scratch", icon: Mic2 },
       { href: "/make-song", label: "Make a Song", icon: Music },
       { href: "/beat-maker", label: "Beat Maker", icon: Drum },

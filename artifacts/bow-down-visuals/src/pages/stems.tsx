@@ -8,6 +8,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
    Real 4-stem Demucs separation: upload any song, get back isolated
@@ -43,6 +44,7 @@ interface StemJobResponse {
 
 export default function StemSplitter() {
   const { user } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -92,6 +94,15 @@ export default function StemSplitter() {
         if (data.status === "done") {
           setStatus("done");
           setStems(data.stems ?? null);
+          const stemUrls = data.stems;
+          if (stemUrls) {
+            addAsset({
+              kind: "stems",
+              url: stemUrls.vocals || stemUrls.drums || stemUrls.bass || stemUrls.other || "",
+              label: `Stem split — ${file?.name || "audio"}`,
+              detail: "vocals · drums · bass · melody",
+            });
+          }
         } else if (data.status === "failed") {
           setStatus("failed");
           setError(data.error || "Stem splitting failed — your 4 credits were refunded.");

@@ -14,6 +14,7 @@ import type { ArtistVault } from "@/components/ArtistVaultSelector";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useHubProject } from "@/lib/hub-project";
 
 interface Section {
   title: string;
@@ -118,6 +119,7 @@ interface GenerationResultProps {
 }
 
 export function GenerationResult({ result, onReset, saveMetadata, initialScenes, scenes: externalScenes, onScenesChange, artistVault, onSaved, showScenes = true, collapsibleSections = false }: GenerationResultProps) {
+  const { addAsset } = useHubProject();
   const sections = parseSections(result);
   const musicPromptSection = sections.find((s) => /ai music prompt/i.test(s.title));
   const { user, getAccessToken, refreshProfile } = useAuth();
@@ -195,6 +197,12 @@ export function GenerationResult({ result, onReset, saveMetadata, initialScenes,
       }, confirmedFetch);
       if (!resp) return; // user cancelled the credit confirmation
       setGeneratedAudioUrl(resp.url);
+      addAsset({
+        kind: "song",
+        url: resp.url,
+        label: saveMetadata.songTitle || saveMetadata.artistName || "AI Song",
+        detail: saveMetadata.projectType ? `${saveMetadata.projectType} · AI audio` : "AI audio",
+      });
       refreshProfile();
       toast({ title: "Audio generated!", description: "It will be attached to this project when you save." });
     } catch (err) {

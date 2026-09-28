@@ -50,7 +50,7 @@ interface GeneratedBeat {
   durationMs: number;
 }
 
-function AiBeatTab() {
+function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const { refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [vibe, setVibe] = useState("");
@@ -93,11 +93,13 @@ function AiBeatTab() {
         setError(data.error || "Beat generation failed — try again.");
         return;
       }
-      setBeat({
+      const generated: GeneratedBeat = {
         url: data.url,
         title: title.trim() || `${genre} beat · ${bpm} BPM`,
         durationMs: data.durationMs ?? duration * 1000,
-      });
+      };
+      setBeat(generated);
+      onGenerated?.(generated);
       if (data.creditsRemaining !== undefined) refreshProfile();
     } catch {
       setError("Couldn't reach the server — check your connection and try again.");
@@ -680,22 +682,11 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
 
 /* ─── Page shell ──────────────────────────────────────────────────────────── */
 
-export default function BeatMaker() {
+export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const [tab, setTab] = useState<"ai" | "seq">("ai");
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-3xl font-black text-white">Beat Maker</h1>
-          <MarketingBadge variant="muted">New</MarketingBadge>
-        </div>
-        <p className="text-white/50 mt-2 max-w-2xl">
-          Make the beat two ways: describe the vibe and let AI cook a full instrumental,
-          or program drums yourself on the step sequencer. Either way, it flows straight
-          into stems, songs, and the marketplace.
-        </p>
-      </div>
+    <div className="space-y-6">
 
       <div className="flex gap-2 p-1 rounded-xl bg-white/[0.04] border border-white/10 w-fit">
         <button
@@ -719,7 +710,27 @@ export default function BeatMaker() {
         </button>
       </div>
 
-      {tab === "ai" ? <AiBeatTab /> : <SequencerTab />}
+      {tab === "ai" ? <AiBeatTab onGenerated={onGenerated} /> : <SequencerTab />}
+    </div>
+  );
+}
+
+export default function BeatMaker() {
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-3xl font-black text-white">Beat Maker</h1>
+          <MarketingBadge variant="muted">New</MarketingBadge>
+        </div>
+        <p className="text-white/50 mt-2 max-w-2xl">
+          Make the beat two ways: describe the vibe and let AI cook a full instrumental,
+          or program drums yourself on the step sequencer. Either way, it flows straight
+          into stems, songs, and the marketplace.
+        </p>
+      </div>
+
+      <BeatMakerModule />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { HubProjectProvider } from "@/lib/hub-project";
 import { ActiveArtistProvider } from "@/contexts/ActiveArtistContext";
 import { CharacterThemeApplier } from "@/components/CharacterThemeApplier";
 import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
@@ -154,6 +155,7 @@ const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
 const BeatMaker = lazyWithRetry(() => import("@/pages/beat-maker"));
+const Hub = lazyWithRetry(() => import("@/pages/hub"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Royalties = lazyWithRetry(() => import("@/pages/royalties"));
@@ -478,6 +480,7 @@ function AppShell() {
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
                 <Route path="/beat-maker"><ProtectedRoute><BeatMaker /></ProtectedRoute></Route>
+                <Route path="/hub"><ProtectedRoute><Hub /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>
@@ -513,6 +516,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
         >
           <ThemePlayerProvider>
             <AuthProvider>
+              <HubProjectProvider>
               <UserModeProvider>
                 <CreditConfirmProvider>
                   <ActiveArtistProvider>
@@ -521,6 +525,7 @@ function App({ ssrPath }: { ssrPath?: string }) {
                   </ActiveArtistProvider>
                 </CreditConfirmProvider>
               </UserModeProvider>
+              </HubProjectProvider>
             </AuthProvider>
           </ThemePlayerProvider>
         </WouterRouter>

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 
 interface GeneratedImage {
@@ -76,6 +77,7 @@ const textareaClass =
 
 export default function ThumbnailMaker() {
   const { getAccessToken, refreshProfile } = useAuth();
+  const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
   const [prompt, setPrompt] = useState("");
   const [stylePreset, setStylePreset] = useState<string>("bold-text-pop");
@@ -165,6 +167,15 @@ export default function ThumbnailMaker() {
       };
       setImages(data.images ?? []);
       setSelected(data.images?.[0]?.variation ?? null);
+      const first = data.images?.[0];
+      if (first?.url) {
+        addAsset({
+          kind: "thumbnail",
+          url: first.url,
+          label: overlayText ? `Thumbnail — ${overlayText}` : "AI Thumbnail",
+          detail: `${data.images.length} variation${data.images.length === 1 ? "" : "s"} · ${aspectRatio}`,
+        });
+      }
       refreshProfile();
       setTimeout(() => {
         document.getElementById("tg-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
