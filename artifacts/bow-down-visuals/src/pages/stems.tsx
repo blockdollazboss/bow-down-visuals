@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useHubProject } from "@/lib/hub-project";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 
 /* ─── AI Stem Splitter ────────────────────────────────────────────────────
    Real 4-stem Demucs separation: upload any song, get back isolated
@@ -286,6 +287,22 @@ export default function StemSplitter() {
             <p className="text-sm text-red-200/80">{error}</p>
           </div>
         )}
+
+        <ProjectFlowBar
+          kinds={["beat", "song"]}
+          actionLabel="Split it"
+          onPick={async (asset) => {
+            try {
+              const res = await fetch(asset.url);
+              const blob = await res.blob();
+              const safeName = (asset.label || "audio").replace(/[^a-z0-9-_ ]/gi, "").slice(0, 40) || "audio";
+              const ext = blob.type.includes("wav") ? "wav" : blob.type.includes("mpeg") ? "mp3" : "wav";
+              pickFile(new File([blob], `${safeName}.${ext}`, { type: blob.type || "audio/wav" }));
+            } catch {
+              setError("Could not load that project audio — try downloading it and uploading the file instead.");
+            }
+          }}
+        />
 
         {/* Upload zone */}
         {(status === "idle" || status === "failed") && (

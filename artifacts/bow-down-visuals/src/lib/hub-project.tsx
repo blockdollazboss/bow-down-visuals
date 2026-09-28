@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
    rail, and handoffs pick it up automatically. Persisted to localStorage so
    the project survives refreshes and navigation between tools. */
 
-export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "other";
+export type HubAssetKind = "beat" | "stems" | "song" | "video" | "image" | "thumbnail" | "clip" | "script" | "other";
 
 /** What kind of thing this project is making — drives the workflow rail. */
 export type HubProjectType = "song" | "video" | "visual";
@@ -64,6 +64,8 @@ function loadProject(): HubProject {
     if (!parsed || !Array.isArray(parsed.assets) || typeof parsed.name !== "string") {
       return freshProject();
     }
+    // Blob URLs die with the page session — drop them on reload.
+    parsed.assets = parsed.assets.filter((a) => !a.url.startsWith("blob:"));
     const validTypes: HubProjectType[] = ["song", "video", "visual"];
     return {
       ...parsed,

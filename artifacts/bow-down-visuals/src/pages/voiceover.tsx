@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 import {
   EMOTIONS,
   estimateVoiceoverCost,
@@ -209,6 +210,15 @@ export default function VoiceoverStudio() {
             <OutOfCredits />
           </div>
         )}
+
+        <ProjectFlowBar
+          kinds={["script"]}
+          actionLabel="Voice it"
+          onPick={(asset) => {
+            const text = asset.meta?.text || "";
+            if (text) setScript(text);
+          }}
+        />
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">

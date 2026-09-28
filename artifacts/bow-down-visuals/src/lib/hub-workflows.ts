@@ -65,7 +65,7 @@ export const PROJECT_WORKFLOWS: ProjectWorkflow[] = [
       { key: "hook", label: "Hook", icon: Lightbulb, assetKind: null, href: "/hooks",
         blurb: "Generate hooks engineered to stop the scroll in the first 3 seconds.",
         creditNote: "1 credit" },
-      { key: "script", label: "Script", icon: PenLine, assetKind: null, href: "/script-writer",
+      { key: "script", label: "Script", icon: PenLine, assetKind: "script", href: "/script-writer",
         blurb: "Turn the hook into a full script — pacing, beats, and CTAs included.",
         creditNote: "1 credit" },
       { key: "voiceover", label: "Voiceover", icon: Mic2, assetKind: "song", href: "/voiceover",
@@ -112,7 +112,7 @@ export function getWorkflow(type: HubProjectType): ProjectWorkflow {
 
 export const KIND_LABEL: Record<HubAssetKind, string> = {
   beat: "Beat", stems: "Stems", song: "Song", video: "Video",
-  clip: "Clip", thumbnail: "Thumbnail", image: "Image", other: "Asset",
+  clip: "Clip", thumbnail: "Thumbnail", image: "Image", script: "Script", other: "Asset",
 };
 
 export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip"];
@@ -144,5 +144,6 @@ export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]>
     { label: "Make the video", href: "/make-video" },
     { label: "Make a thumbnail", href: "/thumbnail-maker" },
   ],
+  script: [{ label: "Voice it", href: "/voiceover" }],
   other: [],
 };

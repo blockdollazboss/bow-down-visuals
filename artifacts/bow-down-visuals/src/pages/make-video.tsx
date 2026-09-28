@@ -31,6 +31,7 @@ import { parseScenes, extractBreakdownContent, type SceneData } from "@/lib/scen
 import { downloadTxt, downloadPdf } from "@/lib/export-utils";
 import { runAudioSceneFlow } from "@/lib/generate-scenes-from-audio-flow";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { ProjectFlowBar } from "@/components/hub/ProjectFlowBar";
 
 /* ─────────────────────────── TYPES ─────────────────────────── */
 
@@ -982,6 +983,11 @@ export default function MakeVideo() {
                 </FieldWrapper>
               </div>
 
+              <ProjectFlowBar
+                kinds={["song"]}
+                actionLabel="Use track"
+                onPick={(asset) => { setAudioUrl(asset.url); setSongSegment(null); }}
+              />
               <FieldWrapper label="Upload Song" hint="Upload your track to get an audio preview and auto-transcribe lyrics.">
                 <AudioTranscribe
                   onTranscript={(text) => { setValue("lyrics", text); setSongStructure(null); }}

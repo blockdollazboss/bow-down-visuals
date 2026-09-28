@@ -52,6 +52,11 @@ function AssetCard({ asset }: { asset: HubAsset }) {
       {(asset.kind === "image" || asset.kind === "thumbnail") && (
         <img src={asset.url} alt={asset.label} className="w-full rounded-lg max-h-40 object-cover" />
       )}
+      {asset.kind === "script" && asset.meta?.text && (
+        <p className="text-white/50 text-xs leading-relaxed line-clamp-3 border-l-2 border-primary/40 pl-3">
+          {asset.meta.text.slice(0, 180)}{asset.meta.text.length > 180 ? "…" : ""}
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         <a
           href={asset.url} download target="_blank" rel="noreferrer"

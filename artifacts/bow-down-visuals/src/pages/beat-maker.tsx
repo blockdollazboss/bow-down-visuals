@@ -407,7 +407,7 @@ const PRESETS: Record<string, { name: string; bpm: number; grid: boolean[][] }> 
 
 const emptyGrid = () => TRACKS.map(() => Array(STEPS).fill(false));
 
-function SequencerTab() {
+function SequencerTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => void }) {
   const [grid, setGrid] = useState<boolean[][]>(() => PRESETS.trap.grid.map((r) => [...r]));
   const [bpm, setBpm] = useState(140);
   const [swing, setSwing] = useState(0);
@@ -525,7 +525,13 @@ function SequencerTab() {
       a.href = url;
       a.download = `beat-${bpm}bpm.wav`;
       a.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+      // Keep the blob URL alive for this session so the hub project can use it.
+      onGenerated?.({
+        url,
+        title: `Sequencer beat · ${bpm} BPM`,
+        durationMs: Math.round(totalDur * 1000),
+        meta: { bpm: String(bpm), source: "sequencer", sessionOnly: "1" },
+      });
     } finally {
       setExporting(false);
     }
@@ -712,7 +718,7 @@ export function BeatMakerModule({ onGenerated }: { onGenerated?: (beat: Generate
         </button>
       </div>
 
-      {tab === "ai" ? <AiBeatTab onGenerated={onGenerated} /> : <SequencerTab />}
+      {tab === "ai" ? <AiBeatTab onGenerated={onGenerated} /> : <SequencerTab onGenerated={onGenerated} />}
     </div>
   );
 }

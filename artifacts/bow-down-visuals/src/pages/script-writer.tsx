@@ -7,6 +7,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useHubProject } from "@/lib/hub-project";
 
 /* ─── AI Script Writer ────────────────────────────────────────────────────
    High-retention video scripts: platform-optimized hooks, timestamped beats
@@ -69,6 +70,7 @@ const PICK_ACTIVE = "border-amber-400/70 bg-amber-400/10 shadow-[0_0_18px_rgba(2
 const PICK_IDLE = "border-white/10 bg-white/[0.03] hover:border-white/25";
 
 export default function ScriptWriter() {
+  const { addAsset } = useHubProject();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [platform, setPlatform] = useState<Platform>("youtube");
@@ -126,6 +128,15 @@ export default function ScriptWriter() {
         throw new Error(data.error || "The studio hiccupped — try again.");
       }
       setResult(data);
+      if (data.teleprompter) {
+        addAsset({
+          kind: "script",
+          url: `data:text/plain;charset=utf-8,${encodeURIComponent(data.teleprompter)}`,
+          label: data.title || `Script — ${topic.trim().slice(0, 40)}`,
+          detail: data.hook ? data.hook.slice(0, 80) : undefined,
+          meta: { text: data.teleprompter, hook: data.hook || "" },
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
