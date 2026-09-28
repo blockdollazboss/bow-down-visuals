@@ -14,6 +14,7 @@ interface JackpotEvent {
   id: string;
   name: string;
   codeLength: number;
+  codeSequence: string | null;
   prizeCredits: number;
   startsAt: string | null;
   endsAt: string | null;
@@ -287,6 +288,11 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
                       {phase === "live" ? "LIVE" : phase === "claimed" ? `claimed by ${ev.winnerDisplayName ?? "a player"}` : phase}
                     </span>
                   </p>
+                  {ev.codeSequence && (
+                    <p className="text-xs text-primary font-mono mt-1">
+                      Code: {ev.codeSequence.split(",").join(" → ")}
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="outline"
