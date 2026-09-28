@@ -3,6 +3,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, teamsTable, teamMembersTable, creditUsageTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/require-auth";
 import { deductCredits, OutOfCreditsError } from "../lib/credits";
+import { addCreditsToProfile } from "../lib/supabase-admin";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { getUserActiveTeam } from "../lib/teams";
 
@@ -353,20 +354,31 @@ router.post("/teams/:id/fund", requireAuth, async (req, res) => {
       }
       throw e;
     }
-    // Credit the team pool. If this fails, the personal deduction stands and
-    // is logged for manual reconciliation (same policy as ledger failures).
-    const [team] = await db
-      .update(teamsTable)
-      .set({ credits: sql`${teamsTable.credits} + ${amount}`, updatedAt: new Date() })
-      .where(eq(teamsTable.id, teamId))
-      .returning();
-    await db.insert(creditUsageTable).values({
-      userId,
-      action: "team_fund",
-      creditsUsed: -amount,
-      teamId,
-    });
-    res.json({ team });
+    // Credit the team pool. If this fails, automatically refund the personal
+    // deduction so credits are never silently lost — no manual reconciliation.
+    try {
+      const [team] = await db
+        .update(teamsTable)
+        .set({ credits: sql`${teamsTable.credits} + ${amount}`, updatedAt: new Date() })
+        .where(eq(teamsTable.id, teamId))
+        .returning();
+      await db.insert(creditUsageTable).values({
+        userId,
+        action: "team_fund",
+        creditsUsed: -amount,
+        teamId,
+      });
+      res.json({ team });
+    } catch (poolErr) {
+      req.log.error({ err: poolErr, userId, teamId, amount }, "teams: pool credit failed, refunding personal deduction");
+      try {
+        await addCreditsToProfile(userId, amount);
+      } catch (refundErr) {
+        // Both legs failed — this needs human eyes. Log loudly.
+        req.log.error({ err: refundErr, userId, teamId, amount }, "teams: CRITICAL — personal refund failed after pool credit failure");
+      }
+      res.status(500).json({ error: "Failed to fund the team pool. Your credits were refunded." });
+    }
   } catch (err: unknown) {
     req.log.error({ err }, "teams: fund failed");
     res.status(500).json({ error: "Failed to fund the team pool." });

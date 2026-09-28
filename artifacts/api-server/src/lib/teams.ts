@@ -27,18 +27,19 @@ export async function deductTeamCredits(teamId: string, cost: number): Promise<n
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`deductTeamCredits: invalid cost ${cost}`);
   }
-  const [team] = await db.select().from(teamsTable).where(eq(teamsTable.id, teamId)).limit(1);
-  if (!team || team.credits < cost) {
+  // Atomic: single conditional UPDATE — no read-then-write race. Only deducts
+  // when the pool holds enough; zero rows updated means insufficient credits.
+  const [updated] = await db
+    .update(teamsTable)
+    .set({ credits: sql`${teamsTable.credits} - ${cost}`, updatedAt: new Date() })
+    .where(and(eq(teamsTable.id, teamId), sql`${teamsTable.credits} >= ${cost}`))
+    .returning();
+  if (!updated) {
     const err = new Error("out_of_credits") as Error & { status?: number };
     err.name = "OutOfCreditsError";
     err.status = 402;
     throw err;
   }
-  const [updated] = await db
-    .update(teamsTable)
-    .set({ credits: sql`${teamsTable.credits} - ${cost}`, updatedAt: new Date() })
-    .where(eq(teamsTable.id, teamId))
-    .returning();
-  logger.info({ teamId, cost, creditsAfter: updated!.credits }, "[teams] deducted from team pool");
-  return updated!.credits;
+  logger.info({ teamId, cost, creditsAfter: updated.credits }, "[teams] deducted from team pool");
+  return updated.credits;
 }
