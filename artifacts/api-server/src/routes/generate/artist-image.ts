@@ -189,9 +189,16 @@ router.post("/generate-artist-image", requireAuth, async (req, res) => {
   const IDENTITY_DIRECTIVE =
     "Use @artistface as the exact face, identity, and likeness reference for the person in this image. " +
     "Preserve their facial features, skin tone, and identity precisely.";
+  /* ── Character sheet rule: vault reference images (no existing photo)
+     must use a clean light grey studio background. Enforced here as a
+     backend safety net in case the frontend prompt lacks it. ── */
+  const isCharacterSheet = !!vaultId && !useRefImage;
+  const needsGreyBg =
+    isCharacterSheet && !/light gr[ae]y|studio background/i.test(promptText);
+  const bgDirective = needsGreyBg ? " On a clean light grey studio background." : "";
   const finalPrompt = useRefImage
-    ? `${IDENTITY_DIRECTIVE} ${promptText.trim()}`.slice(0, 1000)
-    : promptText.trim().slice(0, 1000);
+    ? `${IDENTITY_DIRECTIVE} ${promptText.trim()}${bgDirective}`.slice(0, 1000)
+    : `${promptText.trim()}${bgDirective}`.slice(0, 1000);
 
   const client = new RunwayML({ apiKey });
   req.log.info(
