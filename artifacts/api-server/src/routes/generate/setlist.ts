@@ -137,7 +137,7 @@ router.post("/setlist/flow", publicApiLimiter, requireAuth, async (req, res) => 
   if (balance < SETLIST_FLOW_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to get an AI setlist flow.",
+      message: "You're out of Visual Bucs — top up to get an AI setlist flow.",
     });
     return;
   }
@@ -150,7 +150,7 @@ router.post("/setlist/flow", publicApiLimiter, requireAuth, async (req, res) => 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to get an AI setlist flow.",
+        message: "You're out of Visual Bucs — top up to get an AI setlist flow.",
       });
       return;
     }
@@ -193,7 +193,7 @@ router.post("/setlist/flow", publicApiLimiter, requireAuth, async (req, res) => 
     } catch {
       await refund();
       logger.warn("[setlist] model returned unusable flow — refunded");
-      res.status(502).json({ error: "The AI fumbled the setlist — credit refunded, try again." });
+      res.status(502).json({ error: "The AI fumbled the setlist — Visual Buc refunded, try again." });
       return;
     }
 
@@ -211,7 +211,7 @@ router.post("/setlist/flow", publicApiLimiter, requireAuth, async (req, res) => 
       return;
     }
     logger.error({ err }, "[setlist] flow generation failed");
-    res.status(502).json({ error: "The studio hiccupped — credit refunded, try again." });
+    res.status(502).json({ error: "The studio hiccupped — Visual Buc refunded, try again." });
   }
 });
 

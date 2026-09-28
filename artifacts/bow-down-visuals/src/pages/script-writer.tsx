@@ -271,7 +271,7 @@ export default function ScriptWriter() {
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                Write my script · {CREDIT_COST} credits
+                Write my script · {CREDIT_COST} Visual Bucs
               </>
             )}
           </button>
@@ -457,7 +457,7 @@ export default function ScriptWriter() {
             )}
 
             <p className="text-xs text-white/35 text-center">
-              {result.creditsUsed} credits used · {result.creditsRemaining} remaining
+              {result.creditsUsed} Visual Bucs used · {result.creditsRemaining} remaining
             </p>
           </section>
         )}

@@ -250,7 +250,7 @@ router.post(
         logger.error({ refundErr }, "voiceover: refund after provider failure failed"),
       );
       res.status(502).json({
-        error: "Voice generation failed — your credits were refunded. Please try again.",
+        error: "Voice generation failed — your Visual Bucs were refunded. Please try again.",
       });
       return;
     }
@@ -267,7 +267,7 @@ router.post(
         logger.error({ refundErr }, "voiceover: refund after upload failure failed"),
       );
       res.status(502).json({
-        error: "Voice generated but upload failed — your credits were refunded. Please try again.",
+        error: "Voice generated but upload failed — your Visual Bucs were refunded. Please try again.",
       });
       return;
     }

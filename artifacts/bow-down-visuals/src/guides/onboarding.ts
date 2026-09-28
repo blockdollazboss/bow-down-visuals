@@ -35,7 +35,7 @@ export const ONBOARDING_TOUR: OnboardingStop[] = [
       target: "main h1",
       title: "Stop 2 — Make your song",
       body: "Now the fun part. Describe your vibe, let AI write the lyrics, then generate the full track in your artist's locked voice. Your song is the foundation — videos, clips, and promos all build on it.",
-      tip: "Nail the lyrics before you generate audio — the track step costs credits, lyric drafts are cheap.",
+      tip: "Nail the lyrics before you generate audio — the track step costs Visual Bucs, lyric drafts are cheap.",
       askPrompt: "Walk me through making my first song",
     },
   },

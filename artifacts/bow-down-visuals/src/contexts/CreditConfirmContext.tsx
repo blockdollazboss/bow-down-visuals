@@ -48,7 +48,7 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
           onClick={() => close(false)}
           role="dialog"
           aria-modal="true"
-          aria-label="Confirm credit spend"
+          aria-label="Confirm Visual Buc spend"
         >
           <div
             className="w-full max-w-sm rounded-2xl border border-primary/30 bg-[#0d0d0f] p-6 shadow-2xl shadow-primary/10"
@@ -80,16 +80,16 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
             <div className="rounded-xl bg-white/[0.04] border border-white/10 p-4 mb-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Cost</span>
-                <span className="font-black text-primary">{request.cost} credits</span>
+                <span className="font-black text-primary">{request.cost} Visual Bucs</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/50">Your balance</span>
-                <span className="font-bold text-white">{balance} credits</span>
+                <span className="font-bold text-white">{balance} Visual Bucs</span>
               </div>
               <div className="flex justify-between text-sm border-t border-white/10 pt-2">
                 <span className="text-white/50">After</span>
                 <span className={`font-bold ${affordable ? "text-white" : "text-red-400"}`}>
-                  {balance - request.cost} credits
+                  {balance - request.cost} Visual Bucs
                 </span>
               </div>
             </div>
@@ -98,9 +98,9 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/30 p-3 mb-4">
                 <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
                 <p className="text-xs text-red-300">
-                  Not enough credits.{" "}
+                  Not enough Visual Bucs.{" "}
                   <a href="/pricing" className="underline font-bold" onClick={() => close(false)}>
-                    Get more credits
+                    Get more Visual Bucs
                   </a>
                 </p>
               </div>
@@ -119,7 +119,7 @@ export function CreditConfirmProvider({ children }: { children: ReactNode }) {
                 onClick={() => close(true)}
                 disabled={!affordable}
               >
-                Confirm — {request.cost} credits
+                Confirm — {request.cost} Visual Bucs
               </Button>
             </div>
           </div>

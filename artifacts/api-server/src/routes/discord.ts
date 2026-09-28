@@ -333,7 +333,7 @@ router.post("/discord/ai-announcement", publicApiLimiter, requireAuth, async (re
   if (balance < AI_ANNOUNCEMENT_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to use the AI announcement assistant.",
+      message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
     });
     return;
   }
@@ -346,13 +346,13 @@ router.post("/discord/ai-announcement", publicApiLimiter, requireAuth, async (re
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to use the AI announcement assistant.",
+        message: "You're out of Visual Bucs — top up to use the AI announcement assistant.",
       });
       return;
     }
     if (err instanceof LedgerWriteError) {
       res.status(500).json({
-        error: "Credit ledger write failed — no credits were charged. Please try again.",
+        error: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
       });
       return;
     }
@@ -425,11 +425,11 @@ router.post("/discord/ai-announcement", publicApiLimiter, requireAuth, async (re
     await refund();
     if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
       logger.warn({ err }, "[discord] AI announcement rate limit / quota");
-      res.status(503).json({ error: "The assistant is catching its breath — your credit was refunded, try again in a moment." });
+      res.status(503).json({ error: "The assistant is catching its breath — your Visual Buc was refunded, try again in a moment." });
       return;
     }
     logger.error({ err }, "[discord] AI announcement failed");
-    res.status(502).json({ error: "The AI assistant hiccupped — your credit was refunded." });
+    res.status(502).json({ error: "The AI assistant hiccupped — your Visual Buc was refunded." });
   }
 });
 

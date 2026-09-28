@@ -184,7 +184,7 @@ export default function Promote() {
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-white/60">
             Pick a feature, pick a format and tone — get ready-to-post copy with
-            hashtags and CTAs. {CREDIT_COST} credit per generation.
+            hashtags and CTAs. {CREDIT_COST} Visual Buc per generation.
           </p>
           <Link href="/features">
             <span className="mt-4 inline-flex cursor-pointer items-center gap-1.5 text-sm text-white/40 transition hover:text-primary">
@@ -253,7 +253,7 @@ export default function Promote() {
           <input
             value={focus}
             onChange={(e) => setFocus(e.target.value)}
-            placeholder="e.g. the 1-credit price, how fast it is, perfect for new artists…"
+            placeholder="e.g. the 1-Visual Buc price, how fast it is, perfect for new artists…"
             maxLength={300}
             className={`${inputClass} mt-2`}
           />
@@ -289,7 +289,7 @@ export default function Promote() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate promo · {CREDIT_COST} credit
+                  <Sparkles className="h-4 w-4" /> Generate promo · {CREDIT_COST} Visual Buc
                 </>
               )}
             </button>

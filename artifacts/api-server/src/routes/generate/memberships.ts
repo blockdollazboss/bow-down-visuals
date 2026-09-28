@@ -336,7 +336,7 @@ router.post("/memberships/ai-perks", publicApiLimiter, requireAuth, async (req, 
   if (balance < MEMBERSHIPS_AI_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to get AI tier suggestions.",
+      message: "You're out of Visual Bucs — top up to get AI tier suggestions.",
     });
     return;
   }
@@ -349,7 +349,7 @@ router.post("/memberships/ai-perks", publicApiLimiter, requireAuth, async (req, 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to get AI tier suggestions.",
+        message: "You're out of Visual Bucs — top up to get AI tier suggestions.",
       });
       return;
     }
@@ -430,7 +430,7 @@ router.post("/memberships/ai-perks", publicApiLimiter, requireAuth, async (req, 
       return;
     }
     logger.error({ err }, "[memberships] AI perk suggester failed");
-    res.status(502).json({ error: "Couldn't generate tier suggestions — credits refunded, try again." });
+    res.status(502).json({ error: "Couldn't generate tier suggestions — Visual Bucs refunded, try again." });
   }
 });
 

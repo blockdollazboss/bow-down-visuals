@@ -571,7 +571,7 @@ router.post(
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "Could not record the credit charge. Please try again." });
+        res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
         return;
       }
       throw err;

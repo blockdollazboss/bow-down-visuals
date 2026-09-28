@@ -9,10 +9,10 @@ import { isPaymentAlreadyRecorded, recordStripePayment, getPaymentHistory } from
 const router = Router();
 
 const PACK_MAP: Record<string, { envKey: string; credits: number; label: string }> = {
-  "10":  { envKey: "STRIPE_PRICE_10_CREDITS",  credits: 10,  label: "10 Credits"  },
-  "50":  { envKey: "STRIPE_PRICE_50_CREDITS",  credits: 50,  label: "50 Credits"  },
-  "150": { envKey: "STRIPE_PRICE_150_CREDITS", credits: 150, label: "150 Credits" },
-  "500": { envKey: "STRIPE_PRICE_500_CREDITS", credits: 500, label: "500 Credits" },
+  "10":  { envKey: "STRIPE_PRICE_10_CREDITS",  credits: 10,  label: "10 Visual Bucs"  },
+  "50":  { envKey: "STRIPE_PRICE_50_CREDITS",  credits: 50,  label: "50 Visual Bucs"  },
+  "150": { envKey: "STRIPE_PRICE_150_CREDITS", credits: 150, label: "150 Visual Bucs" },
+  "500": { envKey: "STRIPE_PRICE_500_CREDITS", credits: 500, label: "500 Visual Bucs" },
 };
 
 function getStripe(): Stripe {
@@ -183,7 +183,7 @@ router.post("/checkout/verify", requireAuth, async (req, res) => {
   const creditsToAdd = parseInt(metaCredits ?? "0", 10);
   if (!creditsToAdd || creditsToAdd <= 0) {
     logger.error({ metaCredits, sessionId }, "checkout/verify: invalid credits_amount in metadata");
-    res.status(400).json({ error: "No valid credit amount found in this session." });
+    res.status(400).json({ error: "No valid Visual Buc amount found in this session." });
     return;
   }
 

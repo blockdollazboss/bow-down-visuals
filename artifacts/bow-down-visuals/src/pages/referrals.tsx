@@ -93,7 +93,7 @@ export default function Referrals() {
     } catch { /* clipboard unavailable */ }
   };
 
-  const shareText = `Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get ${info?.refereeReward ?? 10} free credits to start!`;
+  const shareText = `Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get ${info?.refereeReward ?? 10} free Visual Bucs to start!`;
   const shareLinks = [
     { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}` },
     { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}` },
@@ -113,7 +113,7 @@ export default function Referrals() {
           <p className="mt-3 text-white/55 max-w-md mx-auto">
             This is your job now. Climb the Kingpin ranks — more stars, bigger
             cut. New creators get{" "}
-            <span className="text-primary font-semibold">{info?.refereeReward ?? 10} free credits</span>,
+            <span className="text-primary font-semibold">{info?.refereeReward ?? 10} free Visual Bucs</span>,
             and you earn up to{" "}
             <span className="text-primary font-semibold">40% of everything they buy</span>{" "}
             for <span className="text-primary font-semibold">{info?.shareWindowDays ?? 90} days</span>.
@@ -165,7 +165,7 @@ export default function Referrals() {
                         {info.nextTier.minReferrals - info.totalReferrals} more to{" "}
                         <span className="text-primary font-semibold">{info.nextTier.title}</span>
                       </span>
-                      <span>{info.nextTier.ratePct}% + {info.nextTier.milestoneBonus} cr bonus</span>
+                      <span>{info.nextTier.ratePct}% + {info.nextTier.milestoneBonus} VB bonus</span>
                     </div>
                     <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                       <div
@@ -200,7 +200,7 @@ export default function Referrals() {
               <div className="lux-card p-5 text-center">
                 <Gift className="h-5 w-5 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-black text-white">{info.creditsEarned}</p>
-                <p className="text-xs text-white/45 uppercase tracking-widest mt-1">Credits earned</p>
+                <p className="text-xs text-white/45 uppercase tracking-widest mt-1">Visual Bucs earned</p>
               </div>
             </div>
 
@@ -273,7 +273,7 @@ export default function Referrals() {
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-bold text-primary">
-                          +{r.creditsEarned} cr
+                          +{r.creditsEarned} VB
                         </p>
                         {r.active ? (
                           <p className="text-xs text-emerald-400 font-medium">
@@ -328,7 +328,7 @@ export default function Referrals() {
                             {t.minReferrals}+ creators · {t.ratePct}% cut
                             {t.milestoneBonus > 0 && (
                               <> · <span className={claimed ? "text-emerald-400" : "text-primary/80"}>
-                                {claimed ? "✓" : "+"}{t.milestoneBonus} cr bonus{claimed ? " claimed" : ""}
+                                {claimed ? "✓" : "+"}{t.milestoneBonus} VB bonus{claimed ? " claimed" : ""}
                               </span></>
                             )}
                           </p>
@@ -344,8 +344,8 @@ export default function Referrals() {
             </div>
 
             <p className="mt-6 text-center text-xs text-white/35 max-w-md mx-auto">
-              You earn {info.revenueSharePct}% of each referred creator's credit purchases,
-              paid in credits, for {info.shareWindowDays} days after they join.
+              You earn {info.revenueSharePct}% of each referred creator's Visual Buc purchases,
+              paid in Visual Bucs, for {info.shareWindowDays} days after they join.
               Payouts land automatically when they buy.
             </p>
           </>

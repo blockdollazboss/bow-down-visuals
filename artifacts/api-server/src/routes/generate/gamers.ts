@@ -66,7 +66,7 @@ router.post("/gamers/ideas", publicApiLimiter, requireAuth, async (req, res) => 
   if (balance < GAMERS_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep generating stream ideas.",
+      message: "You're out of Visual Bucs — top up to keep generating stream ideas.",
     });
     return;
   }
@@ -79,7 +79,7 @@ router.post("/gamers/ideas", publicApiLimiter, requireAuth, async (req, res) => 
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep generating stream ideas.",
+        message: "You're out of Visual Bucs — top up to keep generating stream ideas.",
       });
       return;
     }
@@ -151,7 +151,7 @@ router.post("/gamers/ideas", publicApiLimiter, requireAuth, async (req, res) => 
       return;
     }
     logger.error({ err }, "[gamers] ideas generation failed");
-    res.status(502).json({ error: "Lag spike — the generator hiccupped. Your credit was refunded." });
+    res.status(502).json({ error: "Lag spike — the generator hiccupped. Your Visual Buc was refunded." });
   }
 });
 

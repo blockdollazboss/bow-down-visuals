@@ -229,7 +229,7 @@ export default function LyricVideo() {
         setRendering(false);
         refreshProfile();
         if (data.status === "failed") {
-          setError(data.error || "Render failed — your credits were refunded.");
+          setError(data.error || "Render failed — your Visual Bucs were refunded.");
         }
       }
     } catch {
@@ -252,8 +252,8 @@ export default function LyricVideo() {
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-white/55">
             AI syncs every word to your audio with karaoke highlighting, then renders
-            an animated video in your style. {ALIGN_CREDITS} credits to align ·{" "}
-            {RENDER_CREDITS} credits to render.
+            an animated video in your style. {ALIGN_CREDITS} Visual Bucs to align ·{" "}
+            {RENDER_CREDITS} Visual Bucs to render.
           </p>
         </div>
 
@@ -502,7 +502,7 @@ export default function LyricVideo() {
                   </div>
                 ) : job.status === "failed" ? (
                   <div className="flex items-center gap-2 text-sm text-red-300">
-                    <AlertTriangle className="h-4 w-4" /> {job.error || "Render failed — your credits were refunded."}
+                    <AlertTriangle className="h-4 w-4" /> {job.error || "Render failed — your Visual Bucs were refunded."}
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 text-sm text-white/60">

@@ -323,7 +323,7 @@ export default function Contests() {
           <p className="text-xs text-white/55 leading-relaxed">
             Run giveaways with entry tracking and a <span className="text-white/80 font-semibold">verifiable random draw</span> —
             the seed, entry list, and algorithm are published in an audit log so anyone can re-run the draw.
-            Only the AI winner-announcement graphic costs a credit (1). Everything else is free.
+            Only the AI winner-announcement graphic costs a Visual Buc (1). Everything else is free.
           </p>
         </div>
 
@@ -662,7 +662,7 @@ export default function Contests() {
                 {detail.winnerEntryId && (
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
                     <h3 className="font-bold flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Winner announcement</h3>
-                    <p className="text-xs text-white/45 mt-1 mb-4">AI-generated gold/black announcement graphic with the winner's handle — 1 credit.</p>
+                    <p className="text-xs text-white/45 mt-1 mb-4">AI-generated gold/black announcement graphic with the winner's handle — 1 Visual Buc.</p>
                     {announceUrl ? (
                       <div>
                         <img src={announceUrl} alt="Winner announcement" className="rounded-xl w-full max-w-md border border-white/10" />
@@ -683,7 +683,7 @@ export default function Contests() {
                         className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black hover:brightness-110 disabled:opacity-40"
                       >
                         {announcing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        Generate graphic — 1 credit
+                        Generate graphic — 1 Visual Buc
                       </button>
                     )}
                   </div>

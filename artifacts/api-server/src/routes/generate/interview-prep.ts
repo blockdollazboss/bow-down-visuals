@@ -182,7 +182,7 @@ async function deductOr402(
   if ((req.userCredits ?? 0) < cost) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep training.",
+      message: "You're out of Visual Bucs — top up to keep training.",
     });
     return null;
   }
@@ -192,7 +192,7 @@ async function deductOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep training.",
+        message: "You're out of Visual Bucs — top up to keep training.",
       });
       return null;
     }
@@ -259,7 +259,7 @@ router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req
       await refund(req.userId!, INTERVIEW_PREP_CREDIT_COST);
       res.status(502).json({
         error: "generation_failed",
-        message: "The prep session came back unusable — your credits were refunded. Try again.",
+        message: "The prep session came back unusable — your Visual Bucs were refunded. Try again.",
       });
       return;
     }
@@ -268,10 +268,10 @@ router.post("/interview-prep/session", publicApiLimiter, requireAuth, async (req
     res.json({ session, creditsUsed: INTERVIEW_PREP_CREDIT_COST, creditsRemaining: creditsRemaining0 });
   } catch (err) {
     await refund(req.userId!, INTERVIEW_PREP_CREDIT_COST);
-    logger.error({ err }, "interview-prep: session generation failed, credits refunded");
+    logger.error({ err }, "interview-prep: session generation failed, Visual Bucs refunded");
     res.status(502).json({
       error: "generation_failed",
-      message: "Something went wrong building your prep session — your credits were refunded.",
+      message: "Something went wrong building your prep session — your Visual Bucs were refunded.",
     });
   }
 });
@@ -328,7 +328,7 @@ router.post("/interview-prep/feedback", publicApiLimiter, requireAuth, async (re
       await refund(req.userId!, INTERVIEW_FEEDBACK_CREDIT_COST);
       res.status(502).json({
         error: "generation_failed",
-        message: "The feedback came back unusable — your credits were refunded. Try again.",
+        message: "The feedback came back unusable — your Visual Bucs were refunded. Try again.",
       });
       return;
     }
@@ -337,10 +337,10 @@ router.post("/interview-prep/feedback", publicApiLimiter, requireAuth, async (re
     res.json({ feedback, creditsUsed: INTERVIEW_FEEDBACK_CREDIT_COST, creditsRemaining: creditsRemaining0 });
   } catch (err) {
     await refund(req.userId!, INTERVIEW_FEEDBACK_CREDIT_COST);
-    logger.error({ err }, "interview-prep: feedback generation failed, credits refunded");
+    logger.error({ err }, "interview-prep: feedback generation failed, Visual Bucs refunded");
     res.status(502).json({
       error: "generation_failed",
-      message: "Something went wrong scoring your answer — your credits were refunded.",
+      message: "Something went wrong scoring your answer — your Visual Bucs were refunded.",
     });
   }
 });

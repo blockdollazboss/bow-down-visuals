@@ -374,7 +374,7 @@ export default function HookStudio() {
                 </Link>
               )}
               <p className="mt-2.5 text-xs text-white/35">
-                {CREDIT_COST} credit per generation · powered by Thy Cheat Code
+                {CREDIT_COST} Visual Buc per generation · powered by Thy Cheat Code
               </p>
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
               {error && !outOfCredits && (
@@ -399,7 +399,7 @@ export default function HookStudio() {
                       className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                     >
                       <Zap className="h-3.5 w-3.5" aria-hidden="true" />
-                      Re-roll ({CREDIT_COST} credit)
+                      Re-roll ({CREDIT_COST} Visual Buc)
                     </button>
                   )}
                 </div>
@@ -434,7 +434,7 @@ export default function HookStudio() {
               </span>
               <div>
                 <h2 className="text-xl font-bold">Captions & Hashtags</h2>
-                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 credit.</p>
+                <p className="text-sm text-white/45">Ready-to-post captions, tiered hashtags, and a CTA — 1 Visual Buc.</p>
               </div>
             </div>
 
@@ -489,7 +489,7 @@ export default function HookStudio() {
               {capLoading ? (
                 <><Loader2 className="h-5 w-5 animate-spin" /> Writing...</>
               ) : (
-                <><Sparkles className="h-5 w-5" /> Generate — 1 credit</>
+                <><Sparkles className="h-5 w-5" /> Generate — 1 Visual Buc</>
               )}
             </button>
 
@@ -657,7 +657,7 @@ export default function HookStudio() {
                 </Link>
               )}
               <p className="mt-2.5 text-xs text-white/35">
-                {CREDIT_COST} credit per scorecard · powered by Thy Cheat Code
+                {CREDIT_COST} Visual Buc per scorecard · powered by Thy Cheat Code
               </p>
               {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
               {error && !outOfCredits && (

@@ -886,7 +886,7 @@ export function InlineRunwayGenerator({ scene, onUpdate, artistVault, projectId,
 
       {/* Generate controls — credit confirmation handled by the universal popup */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-white/50">Generate costs {clipCost} credits.</span>
+        <span className="text-xs text-white/50">Generate costs {clipCost} Visual Bucs.</span>
         <Button
           size="sm"
           onClick={() => startGeneration()}

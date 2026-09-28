@@ -139,19 +139,19 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
             if (isShoot) setShootSaved(true);
             onGenerated(data.url, data.path ?? null);
           } else {
-            setError("Generation finished but returned no image. Credits were not charged.");
+            setError("Generation finished but returned no image. Visual Bucs were not charged.");
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           stopPolling();
           setGenerating(false);
-          setError(data.error ?? "Image generation failed. Credits were not charged.");
+          setError(data.error ?? "Image generation failed. Visual Bucs were not charged.");
         } else {
           setProgress(typeof data.progress === "number" ? data.progress : null);
         }
       } catch {
         stopPolling();
         setGenerating(false);
-        setError("Network error while polling. Credits were not charged.");
+        setError("Network error while polling. Visual Bucs were not charged.");
       }
     }, 5000);
   }
@@ -199,7 +199,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
     } catch (e) {
       setGenerating(false);
       const msg = e instanceof Error ? e.message : "Failed to start generation";
-      setError(msg === "out_of_credits" ? "Not enough credits. Please buy more credits to continue." : msg);
+      setError(msg === "out_of_credits" ? "Not enough Visual Bucs. Please buy more Visual Bucs to continue." : msg);
     }
   }
 
@@ -318,7 +318,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {isShoot ? (
           <p className="mt-4 text-xs text-white/50 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5">
             <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-            Identity lock on — your Artist Photo is the face reference. Turbo · 2 credits per shoot.
+            Identity lock on — your Artist Photo is the face reference. Turbo · 2 Visual Bucs per shoot.
           </p>
         ) : (
           <>
@@ -341,7 +341,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
                         : "border-white/10 bg-white/5 text-white/50 hover:text-white/80"
                     } ${disabled ? "opacity-40 cursor-not-allowed" : ""} disabled:opacity-50`}
                   >
-                    {m.label} · {m.credits} credits
+                    {m.label} · {m.credits} Visual Bucs
                     <span className="block text-[10px] font-medium opacity-70">{disabled ? "needs photo" : m.hint}</span>
                   </button>
                 );
@@ -385,7 +385,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
             title={isShoot && !hasReferencePhoto ? "Save an Artist Photo first" : undefined}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-black hover:brightness-110 transition-all disabled:opacity-50 gold-glow"
           >
-            {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating…{progress !== null ? ` ${Math.round(progress * 100)}%` : ""}</>) : (<><Sparkles className="h-4 w-4" /> Generate · {effectiveCredits} credits</>)}
+            {generating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Generating…{progress !== null ? ` ${Math.round(progress * 100)}%` : ""}</>) : (<><Sparkles className="h-4 w-4" /> Generate · {effectiveCredits} Visual Bucs</>)}
           </button>
           {!generating && (
             <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white/50 hover:text-white border border-white/10 bg-white/5 transition-colors">

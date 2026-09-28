@@ -346,7 +346,7 @@ function ProjectCard({
               <span className="text-xs text-white/30">{date}</span>
               {project.credits_used > 0 && (
                 <Badge className="text-[10px] border-white/10 bg-white/5 text-white/35 ml-1">
-                  {project.credits_used} credit{project.credits_used !== 1 ? "s" : ""}
+                  {project.credits_used} Visual Buc{project.credits_used !== 1 ? "s" : ""}
                 </Badge>
               )}
             </div>
@@ -998,10 +998,10 @@ export default function MyProjects() {
                           <span className="text-xs font-bold text-white/70">{typeLabel}</span>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
                           {row.refunded && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Credits Refunded</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-amber-400 bg-amber-400/10 border-amber-400/20">Visual Bucs Refunded</span>
                           )}
                           {row.credits_used != null && row.credits_used > 0 && (
-                            <span className="text-[10px] text-white/30">{row.credits_used} credit{row.credits_used !== 1 ? "s" : ""}</span>
+                            <span className="text-[10px] text-white/30">{row.credits_used} Visual Buc{row.credits_used !== 1 ? "s" : ""}</span>
                           )}
                         </div>
                         {projectLabel && (

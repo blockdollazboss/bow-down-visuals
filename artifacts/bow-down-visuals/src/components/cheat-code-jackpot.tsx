@@ -361,14 +361,14 @@ export function CheatCodeJackpot() {
     switch (phase) {
       case "live":
         return {
-          title: `CHEAT CODE JACKPOT — ${status?.prizeCredits ?? 100} credits unclaimed`,
+          title: `CHEAT CODE JACKPOT — ${status?.prizeCredits ?? 100} Visual Bucs unclaimed`,
           sub: `One code for the whole site · ends ${formatJackpotDate(status?.endsAt)}`,
           accent: true,
         };
       case "claimed":
         return {
           title: `🏆 ${status?.winnerDisplayName ?? "a sharp player"} won the jackpot`,
-          sub: `+${status?.prizeCredits ?? 100} credits claimed — think you can beat them? A new code is coming`,
+          sub: `+${status?.prizeCredits ?? 100} Visual Bucs claimed — think you can beat them? A new code is coming`,
           accent: true,
         };
       case "upcoming":
@@ -389,7 +389,7 @@ export function CheatCodeJackpot() {
       default:
         return {
           title: "Cheat Code Jackpot — coming soon",
-          sub: "One secret code for the whole site. One winner takes the credits.",
+          sub: "One secret code for the whole site. One winner takes the Visual Bucs.",
           accent: false,
         };
     }
@@ -604,7 +604,7 @@ export function CheatCodeJackpot() {
             </p>
             <p className="mt-3 text-sm text-white/60 leading-relaxed">
               You need an account to claim the jackpot — otherwise anyone could
-              snatch your 100 credits.
+              snatch your 100 Visual Bucs.
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <a
@@ -661,7 +661,7 @@ export function CheatCodeJackpot() {
               Jackpot!
             </p>
             <p className="pixel-display mt-4 text-sm sm:text-base tracking-[0.2em] text-[#F5DE8E] uppercase">
-              +{celebration.prize} credits
+              +{celebration.prize} Visual Bucs
             </p>
             <div
               className="pixel-divider my-6 justify-center"
@@ -681,7 +681,7 @@ export function CheatCodeJackpot() {
               You cracked the code — the King Shark bows to you. 🦈
             </p>
             <p className="mt-4 text-white/40 text-xs leading-relaxed">
-              One code, one winner, one month. Your credits are already in
+              One code, one winner, one month. Your Visual Bucs are already in
               your balance.
             </p>
             <button

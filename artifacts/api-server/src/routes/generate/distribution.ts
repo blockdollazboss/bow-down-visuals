@@ -158,7 +158,7 @@ const updateReleaseSchema = createReleaseSchema.partial();
 function outOfCredits(res: Response, action: string) {
   res.status(402).json({
     error: "out_of_credits",
-    message: `You're out of credits — top up to ${action}.`,
+    message: `You're out of Visual Bucs — top up to ${action}.`,
   });
 }
 
@@ -480,7 +480,7 @@ router.post("/distribution/metadata", publicApiLimiter, requireAuth, async (req,
       return;
     }
     logger.error({ err }, "[distribution] metadata generation failed");
-    res.status(502).json({ error: "Metadata generation hiccupped — your credit was refunded, try again." });
+    res.status(502).json({ error: "Metadata generation hiccupped — your Visual Buc was refunded, try again." });
   }
 });
 
@@ -570,7 +570,7 @@ router.post("/distribution/strategy", publicApiLimiter, requireAuth, async (req,
       return;
     }
     logger.error({ err }, "[distribution] strategy generation failed");
-    res.status(502).json({ error: "Strategy generation hiccupped — your credit was refunded, try again." });
+    res.status(502).json({ error: "Strategy generation hiccupped — your Visual Buc was refunded, try again." });
   }
 });
 
@@ -1002,7 +1002,7 @@ router.post("/distribution/releases/:id/submit", requireAuth, async (req, res) =
       }
       logger.error({ err }, "[distribution] aggregator submission failed");
       res.status(502).json({
-        error: "The distributor rejected the package — your credits were refunded. Check the checklist and try again.",
+        error: "The distributor rejected the package — your Visual Bucs were refunded. Check the checklist and try again.",
       });
       return;
     }

@@ -137,7 +137,7 @@ function AdminTools({
         amount: n,
         email: friendEmail.trim(),
       });
-      setFriendMsg(`✓ ${String(data.granted)} credits → ${friendEmail.trim()}.`);
+      setFriendMsg(`✓ ${String(data.granted)} Visual Bucs → ${friendEmail.trim()}.`);
       setFriendEmail("");
     } catch (e) {
       setFriendMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
@@ -187,7 +187,7 @@ function AdminTools({
 
       {/* Grant credits (self) */}
       <div>
-        <p className={labelCls}>Grant credits (self)</p>
+        <p className={labelCls}>Grant Visual Bucs (self)</p>
         <div className="flex gap-1">
           <input
             type="number"
@@ -205,7 +205,7 @@ function AdminTools({
 
       {/* Give a friend credits */}
       <div>
-        <p className={labelCls}>Give a friend credits</p>
+        <p className={labelCls}>Give a friend Visual Bucs</p>
         <input
           type="email"
           placeholder="friend@email.com"
@@ -328,7 +328,7 @@ function BowRaceControls({
           value={reward}
           onChange={(e) => setReward(e.target.value)}
           className={inputCls}
-          placeholder="Reward credits"
+          placeholder="Reward Visual Bucs"
         />
         <button
           type="button"
@@ -466,7 +466,7 @@ function JackpotCreator({
           value={prize}
           onChange={(e) => setPrize(e.target.value)}
           className={inputCls}
-          placeholder="Prize credits"
+          placeholder="Prize Visual Bucs"
         />
         <button
           type="button"

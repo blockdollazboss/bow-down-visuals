@@ -345,7 +345,7 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) 
   if (credits < REF_VIDEO_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: `Not enough credits. A character video costs ${REF_VIDEO_CREDITS} credits.`,
+      message: `Not enough Visual Bucs. A character video costs ${REF_VIDEO_CREDITS} credits.`,
       required: REF_VIDEO_CREDITS,
       balance: credits,
     });
@@ -384,7 +384,7 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     req.log.error({ err: msg }, "[ref-video] submission failed — no credits charged");
-    res.status(502).json({ error: "Video generation failed to start. No credits were charged." });
+    res.status(502).json({ error: "Video generation failed to start. No Visual Bucs were charged." });
   }
 });
 

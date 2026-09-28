@@ -30,7 +30,7 @@ export function SecretChallengePopup({
       >
         <img
           src={`${base}images/bow-winner-popup.webp`}
-          alt="You cracked the code — you've been awarded credits"
+          alt="You cracked the code — you've been awarded Visual Bucs"
           draggable={false}
           className="block h-auto w-auto select-none"
           style={{ maxWidth: "min(96vw, 145vh)", maxHeight: "94vh" }}
@@ -50,17 +50,17 @@ export function SecretChallengePopup({
               textShadow: "0 0 2cqw rgba(232,200,106,0.55)",
             }}
           >
-            {credits} credits
+            {credits} Visual Bucs
           </span>
         </div>
         {/* Screen-reader announcement of the real amount */}
-        <span className="sr-only">You&rsquo;ve been awarded {credits} credits.</span>
+        <span className="sr-only">You&rsquo;ve been awarded {credits} Visual Bucs.</span>
 
         {/* Working Claim button over the baked-in Claim art */}
         <button
           type="button"
           onClick={onClaim}
-          aria-label="Claim your credits"
+          aria-label="Claim your Visual Bucs"
           className="absolute cursor-pointer rounded-[1cqw] transition hover:bg-[#C9A84C]/15 active:bg-[#C9A84C]/25"
           style={{ left: "40.5%", top: "64.8%", width: "18.4%", height: "5.7%" }}
         />

@@ -417,7 +417,7 @@ export default function Shoutouts() {
                       <button onClick={polishMessage} disabled={aiBusy}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-300 border border-yellow-500/30 rounded-lg px-2.5 py-1 hover:bg-yellow-500/10 disabled:opacity-50">
                         {aiBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                        AI polish · 1 credit
+                        AI polish · 1 Visual Buc
                       </button>
                     </div>
                     <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4}

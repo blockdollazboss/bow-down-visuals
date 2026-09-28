@@ -84,7 +84,7 @@ export function IntrosOutrosTool() {
           }
         } else if (data.status === "failed" || data.status === "cancelled") {
           setStatus("failed");
-          setError(data.error || "Generation failed — no credits were charged.");
+          setError(data.error || "Generation failed — no Visual Bucs were charged.");
         }
       } catch {
         /* keep polling on transient network errors */
@@ -159,7 +159,7 @@ export function IntrosOutrosTool() {
           </span>
           <div>
             <h1 className="text-2xl font-black">Intros & Outros</h1>
-            <p className="text-sm text-white/45">Branded 5-second video stings — {CREDIT_COST} credits each</p>
+            <p className="text-sm text-white/45">Branded 5-second video stings — {CREDIT_COST} Visual Bucs each</p>
           </div>
         </div>
 
@@ -240,10 +240,10 @@ export function IntrosOutrosTool() {
               disabled={!canGenerate}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Generate {type} · {DURATION_SEC}s · {CREDIT_COST} credits
+              Generate {type} · {DURATION_SEC}s · {CREDIT_COST} Visual Bucs
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} credits remaining</p>
+              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
             )}
           </div>
         ) : null}

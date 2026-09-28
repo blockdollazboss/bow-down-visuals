@@ -141,7 +141,7 @@ export function DiscordAnnounceModal({ open, onClose, videoUrl, videoTitle }: Pr
               </Button>
               <Button onClick={onClose} variant="outline" className="border-white/15">Close</Button>
             </div>
-            <p className="text-[11px] text-white/30 text-center">Posting to Discord is always free — no credits.</p>
+            <p className="text-[11px] text-white/30 text-center">Posting to Discord is always free — no Visual Bucs.</p>
           </>
         )}
       </div>

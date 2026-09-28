@@ -4,7 +4,7 @@ export const dashboardGuide: PageGuide = {
   route: "/dashboard",
   pageName: "Dashboard",
   summary:
-    "Your command center. Pick what to create, jump back into recent projects, and keep your credits topped up — everything starts here.",
+    "Your command center. Pick what to create, jump back into recent projects, and keep your Visual Bucs topped up — everything starts here.",
   steps: [
     {
       targetText: "What do you want to create?",

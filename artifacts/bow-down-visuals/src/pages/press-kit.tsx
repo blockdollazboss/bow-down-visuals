@@ -402,7 +402,7 @@ export default function PressKitBuilder() {
                       <Button size="sm" variant="outline" onClick={handleRefreshBio} disabled={refreshingBio}
                               className="border-white/15 text-xs">
                         {refreshingBio ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                        Refresh bio · {FALLBACK_REFRESH_COST} credit
+                        Refresh bio · {FALLBACK_REFRESH_COST} Visual Buc
                       </Button>
                     </div>
                   </div>
@@ -614,13 +614,13 @@ export default function PressKitBuilder() {
                     <Button onClick={handleGenerate} disabled={generating}
                             className="bg-[#d4af37] text-black hover:bg-[#e5c158] font-semibold">
                       {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                      Generate press kit · {FALLBACK_GENERATE_COST} credits
+                      Generate press kit · {FALLBACK_GENERATE_COST} Visual Bucs
                     </Button>
                   )}
                 </div>
                 {!selectedKit && (
                   <p className="text-xs text-white/30">
-                    The 3 credits cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.
+                    The 3 Visual Bucs cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.
                   </p>
                 )}
               </div>

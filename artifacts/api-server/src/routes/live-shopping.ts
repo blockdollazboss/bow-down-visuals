@@ -570,7 +570,7 @@ router.post(
     if (balance < AI_DESCRIPTION_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate AI product descriptions.",
+        message: "You're out of Visual Bucs — top up to generate AI product descriptions.",
       });
       return;
     }
@@ -583,7 +583,7 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to generate AI product descriptions.",
+          message: "You're out of Visual Bucs — top up to generate AI product descriptions.",
         });
         return;
       }
@@ -634,7 +634,7 @@ router.post(
       await refundCredits(req.userId!, AI_DESCRIPTION_CREDIT_COST, {
         action: "Live Shopping — AI Product Description — Refund (provider failed)",
       });
-      res.status(500).json({ error: "AI description failed — your credit was refunded." });
+      res.status(500).json({ error: "AI description failed — your Visual Buc was refunded." });
     }
   },
 );

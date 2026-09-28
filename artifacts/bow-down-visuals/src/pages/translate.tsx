@@ -196,7 +196,7 @@ export default function Translate() {
       };
       if (res.status === 402) {
         setOutOfCredits(true);
-        setError(data.message ?? "You're out of credits.");
+        setError(data.message ?? "You're out of Visual Bucs.");
         setTranslating(false);
         return;
       }
@@ -377,7 +377,7 @@ export default function Translate() {
                     <span className="font-semibold text-white">{estimate.billableMinutes} min</span>
                     {" × "}
                     <span className="font-semibold text-white">{selectedLangs.length} language{selectedLangs.length === 1 ? "" : "s"}</span>
-                    {" × 5 credits"}
+                    {" × 5 Visual Bucs"}
                   </div>
                   <div className="mt-1 text-xs text-white/40">
                     Subtitle files (SRT) for every language are free.
@@ -385,14 +385,14 @@ export default function Translate() {
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-black text-amber-300">{estimate.credits}</div>
-                  <div className="text-xs uppercase tracking-widest text-white/40">credits</div>
+                  <div className="text-xs uppercase tracking-widest text-white/40">Visual Bucs</div>
                 </div>
               </div>
               <button onClick={startTranslation} disabled={translating || !videoFile} className={`${goldBtn} mt-4 w-full`}>
                 {translating ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Translating…</>
                 ) : (
-                  <><Languages className="h-4 w-4" /> Translate · {estimate.credits} credits</>
+                  <><Languages className="h-4 w-4" /> Translate · {estimate.credits} Visual Bucs</>
                 )}
               </button>
               {error && (
@@ -417,7 +417,7 @@ export default function Translate() {
                   {job.status === "done"
                     ? "Your dubbed videos are ready"
                     : job.status === "failed"
-                      ? "Translation failed — credits refunded"
+                      ? "Translation failed — Visual Bucs refunded"
                       : "Dubbing in progress… feel free to close this tab"}
                 </h2>
                 {job.error && <p className="mb-4 text-sm text-red-300">{job.error}</p>}

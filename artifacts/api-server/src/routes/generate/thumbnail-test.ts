@@ -219,7 +219,7 @@ router.post(
     if (balance < THUMBNAIL_TEST_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to run thumbnail tests.",
+        message: "You're out of Visual Bucs — top up to run thumbnail tests.",
       });
       return;
     }
@@ -233,14 +233,14 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to run thumbnail tests.",
+          message: "You're out of Visual Bucs — top up to run thumbnail tests.",
         });
         return;
       }
       if (err instanceof LedgerWriteError) {
         res.status(500).json({
           error: "ledger_write_failed",
-          message: "Credit ledger write failed — no credits were charged. Please try again.",
+          message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
         });
         return;
       }
@@ -271,7 +271,7 @@ router.post(
       const raw = completion.choices[0]?.message?.content ?? "";
       const result = parseTestResult(raw, files.length);
       if (!result) {
-        throw new Error("The AI returned an unusable analysis. Your credits were refunded.");
+        throw new Error("The AI returned an unusable analysis. Your Visual Bucs were refunded.");
       }
 
       req.log.info(
@@ -321,7 +321,7 @@ router.post(
     if (balance < THUMBNAIL_IMPROVE_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate improved thumbnails.",
+        message: "You're out of Visual Bucs — top up to generate improved thumbnails.",
       });
       return;
     }
@@ -335,14 +335,14 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to generate improved thumbnails.",
+          message: "You're out of Visual Bucs — top up to generate improved thumbnails.",
         });
         return;
       }
       if (err instanceof LedgerWriteError) {
         res.status(500).json({
           error: "ledger_write_failed",
-          message: "Credit ledger write failed — no credits were charged. Please try again.",
+          message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
         });
         return;
       }

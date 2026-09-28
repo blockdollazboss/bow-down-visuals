@@ -200,7 +200,7 @@ export default function SetlistBuilder() {
       }
       setSongs((prev) => applyFlowOrder(prev, data.order!));
       setFlowNotes(data.flowNotes!);
-      setNotice(`Flow applied — ${data.order!.length} songs placed. ${CREDIT_COST} credit used.`);
+      setNotice(`Flow applied — ${data.order!.length} songs placed. ${CREDIT_COST} Visual Buc used.`);
       void refreshProfile();
     } catch (err) {
       setError(err instanceof Error ? err.message : "The AI fumbled the setlist — try again.");
@@ -238,7 +238,7 @@ export default function SetlistBuilder() {
               <ListMusic className="h-5 w-5 text-primary" />
             </div>
             <span className="text-xs font-semibold uppercase tracking-widest text-primary/80 border border-primary/25 rounded-full px-3 py-1">
-              Free to plan · 1 credit for AI flow
+              Free to plan · 1 Visual Buc for AI flow
             </span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">
@@ -369,7 +369,7 @@ export default function SetlistBuilder() {
               </h2>
               <p className="text-xs text-white/45 mb-4">
                 AI orders your songs into a real arc — opener, build, peaks, breather, closer, encore —
-                with stage notes for each placement. {CREDIT_COST} credit per suggestion.
+                with stage notes for each placement. {CREDIT_COST} Visual Buc per suggestion.
               </p>
               <textarea
                 value={showNotes}
@@ -388,7 +388,7 @@ export default function SetlistBuilder() {
                 {flowLoading ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Directing…</>
                 ) : (
-                  <><Sparkles className="h-4 w-4" /> Suggest flow ({CREDIT_COST} credit)</>
+                  <><Sparkles className="h-4 w-4" /> Suggest flow ({CREDIT_COST} Visual Buc)</>
                 )}
               </button>
               {flowNotes && (

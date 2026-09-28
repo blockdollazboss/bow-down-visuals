@@ -38,7 +38,7 @@ import { logger } from "./logger";
 
    The stale-attempt sweeper (social-sweeper.ts) closes the remaining gap:
    `processing` rows older than STALE_PROCESSING_MS are atomically moved to
-   `failed` via claimStaleProcessing() and their deducted credits refunded.
+   `failed` via claimStaleProcessing() and their deducted Visual Bucs refunded.
    A later retry with the same key then flows through the normal
    `failed`→reclaim path above and charges fresh — no double charge, no
    double refund. */

@@ -181,7 +181,7 @@ export default function BrandDealCalculator() {
 
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary">
           <Handshake className="h-4 w-4" aria-hidden="true" />
-          {CREDIT_COST} credits per calculation
+          {CREDIT_COST} Visual Bucs per calculation
         </div>
         <h1 className="text-4xl font-black tracking-tight md:text-5xl">
           Brand Deal <span className="bg-gradient-to-r from-[#f5d67b] to-primary bg-clip-text text-transparent">Calculator</span>
@@ -340,7 +340,7 @@ export default function BrandDealCalculator() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Sign in to calculate ({CREDIT_COST} credits)
+                Sign in to calculate ({CREDIT_COST} Visual Bucs)
               </Link>
             )}
           </div>
@@ -463,7 +463,7 @@ export default function BrandDealCalculator() {
                 onClick={() => { setResult(null); }}
                 className="text-sm font-semibold text-white/40 underline-offset-4 transition hover:text-white hover:underline"
               >
-                Run a new calculation ({CREDIT_COST} credits)
+                Run a new calculation ({CREDIT_COST} Visual Bucs)
               </button>
             </div>
           </div>

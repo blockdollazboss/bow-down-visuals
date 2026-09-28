@@ -117,13 +117,13 @@ router.post("/generated-clips", requireAuth, async (req, res) => {
 
       res.status(500).json({
         error: msg,
-        creditMessage: "Clip generated but saving failed. Your credits were refunded.",
+        creditMessage: "Clip generated but saving failed. Your Visual Bucs were refunded.",
         creditsRefunded: charge.credits,
       });
     } else {
       res.status(500).json({
         error: msg,
-        creditMessage: "Clip generated but saving failed. No credits were charged.",
+        creditMessage: "Clip generated but saving failed. No Visual Bucs were charged.",
       });
     }
   }

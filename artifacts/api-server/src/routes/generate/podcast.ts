@@ -609,7 +609,7 @@ router.post(
         } catch (err) {
           await cleanup();
           if (err instanceof OutOfCreditsError) {
-            res.status(402).json({ error: "out_of_credits", message: "Not enough credits.", creditsRequired: est.credits });
+            res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs.", creditsRequired: est.credits });
             return;
           }
           throw err;
@@ -692,7 +692,7 @@ router.post(
         upload = await uploadEpisode(req.userId!, audioBytes);
       } catch (err) {
         logger.error({ err }, "podcast: upload failed");
-        await failWithRefund(creditsToCharge, 502, "Episode rendered but upload failed — your credits were refunded. Please try again.");
+        await failWithRefund(creditsToCharge, 502, "Episode rendered but upload failed — your Visual Bucs were refunded. Please try again.");
         await cleanup();
         return;
       }
@@ -727,7 +727,7 @@ router.post(
       await failWithRefund(
         creditsToCharge,
         502,
-        "Episode generation failed — your credits were refunded. Please try again.",
+        "Episode generation failed — your Visual Bucs were refunded. Please try again.",
       );
     }
   },

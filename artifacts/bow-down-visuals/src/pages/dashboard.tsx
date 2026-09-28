@@ -167,7 +167,7 @@ export default function Dashboard() {
 
     if (payment === "success" && sessionId) {
       window.history.replaceState({}, "", "/dashboard");
-      setPaymentToast({ type: "success", message: "Payment successful. Adding credits to your account…" });
+      setPaymentToast({ type: "success", message: "Payment successful. Adding Visual Bucs to your account…" });
 
       (async () => {
         try {
@@ -182,14 +182,14 @@ export default function Dashboard() {
           });
           const data = await res.json() as { success?: boolean; credits?: number; added?: number; pack?: string; error?: string };
           if (res.ok && data.success) {
-            setPaymentToast({ type: "success", message: "Payment successful. Your credits were added." });
+            setPaymentToast({ type: "success", message: "Payment successful. Your Visual Bucs were added." });
             refreshProfile();
             setTimeout(() => refreshProfile(), 3000);
           } else {
-            setPaymentToast({ type: "error", message: data.error ?? "Payment recorded but credits could not be applied. Contact support." });
+            setPaymentToast({ type: "error", message: data.error ?? "Payment recorded but Visual Bucs could not be applied. Contact support." });
           }
         } catch {
-          setPaymentToast({ type: "error", message: "Payment recorded but could not apply credits. Try refreshing the page." });
+          setPaymentToast({ type: "error", message: "Payment recorded but could not apply Visual Bucs. Try refreshing the page." });
         }
       })();
     }

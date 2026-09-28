@@ -377,7 +377,7 @@ export default function AnalyticsHub() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-white/55">
             Every platform, one dashboard — TikTok, Instagram, YouTube, and X.
-            Tracking is free forever; the AI Growth Plan is {INSIGHT_COST} credits.
+            Tracking is free forever; the AI Growth Plan is {INSIGHT_COST} Visual Bucs.
           </p>
           {!hasData && hydrated && (
             <a
@@ -680,7 +680,7 @@ export default function AnalyticsHub() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {INSIGHT_COST} credits per plan · built on your real numbers · powered by Thy Cheat Code
+              {INSIGHT_COST} Visual Bucs per plan · built on your real numbers · powered by Thy Cheat Code
             </p>
             {!hasData && (
               <p className="mx-auto mt-3 flex max-w-md items-center justify-center gap-1.5 text-sm text-amber-300/90">
@@ -751,7 +751,7 @@ export default function AnalyticsHub() {
                     ) : (
                       <Sparkles className="h-4 w-4" aria-hidden="true" />
                     )}
-                    Re-run plan ({INSIGHT_COST} credits)
+                    Re-run plan ({INSIGHT_COST} Visual Bucs)
                   </button>
                 </div>
               )}

@@ -168,7 +168,7 @@ export default function Scheduler() {
   }
 
   async function handleCancel(post: ScheduledPostShape) {
-    if (!window.confirm("Cancel this scheduled post? Your reserved credits will be refunded.")) return;
+    if (!window.confirm("Cancel this scheduled post? Your reserved Visual Bucs will be refunded.")) return;
     try {
       const token = await getAccessToken();
       const data = await api<{ canceled?: boolean; refunded?: number; deleted?: boolean }>(
@@ -272,7 +272,7 @@ export default function Scheduler() {
           </p>
           <div className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-white/45">
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Drafts &amp; browsing free</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> 1 credit per post to schedule</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> 1 Visual Buc per post to schedule</span>
             <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Cancel anytime = auto-refund</span>
           </div>
           <div className="mt-6">
@@ -355,7 +355,7 @@ export default function Scheduler() {
           </div>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
             Tell the AI your niche and rhythm — it suggests the smartest upcoming slots
-            across your platforms. <span className="text-white/70 font-semibold">1 credit</span>,
+            across your platforms. <span className="text-white/70 font-semibold">1 Visual Buc</span>,
             refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto]">
@@ -395,7 +395,7 @@ export default function Scheduler() {
                 className="bg-primary font-bold text-black hover:bg-primary/90"
               >
                 {btLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                Suggest times · 1 credit
+                Suggest times · 1 Visual Buc
               </Button>
             </div>
           </div>
@@ -639,8 +639,8 @@ function QueueTab(props: {
             <button
               onClick={() => props.onCancel(p)}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-red-500/50 hover:text-red-400"
-              aria-label="Cancel (refunds credits)"
-              title="Cancel — credits refunded"
+              aria-label="Cancel (refunds Visual Bucs)"
+              title="Cancel — Visual Bucs refunded"
             >
               <XCircle className="h-4 w-4" />
             </button>
@@ -920,7 +920,7 @@ function ComposerModal(props: {
       } else {
         await api("/api/scheduler/posts", token, { method: "POST", body: JSON.stringify(payload) });
         toast({
-          title: forSchedule ? "Scheduled · 1 credit" : "Draft saved",
+          title: forSchedule ? "Scheduled · 1 Visual Buc" : "Draft saved",
           description: forSchedule && scheduledAt ? `${prettyDateTime(scheduledAt)} — cancel anytime for a refund.` : "Drafts are free.",
         });
       }
@@ -929,7 +929,7 @@ function ComposerModal(props: {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits" || (err as { status?: number }).status === 402) {
         props.onOutOfCredits();
-        setError("Not enough credits — top up to schedule.");
+        setError("Not enough Visual Bucs — top up to schedule.");
       } else {
         setError(err instanceof Error ? err.message : "Couldn't save the post.");
       }
@@ -956,7 +956,7 @@ function ComposerModal(props: {
         <p className="mt-1 text-[13px] text-white/45">
           {isEdit && post!.status === "scheduled"
             ? "Changes save instantly."
-            : "Scheduling costs 1 credit per post — charged now, refunded automatically if you cancel."}
+            : "Scheduling costs 1 Visual Buc per post — charged now, refunded automatically if you cancel."}
         </p>
 
         {!isEdit && (
@@ -1023,10 +1023,10 @@ function ComposerModal(props: {
               disabled={aiCaptionLoading}
               data-min-stars="2"
               className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1 text-[12px] font-bold text-primary transition hover:bg-primary/10"
-              title="AI writes a hook for your caption · 1 credit"
+              title="AI writes a hook for your caption · 1 Visual Buc"
             >
               {aiCaptionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              AI caption · 1 credit
+              AI caption · 1 Visual Buc
             </button>
           </div>
           <textarea
@@ -1141,7 +1141,7 @@ function ComposerModal(props: {
             className="flex-1 bg-primary py-6 font-black text-black hover:bg-primary/90"
           >
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Clock3 className="mr-2 h-4 w-4" />}
-            {isEdit && post!.status === "scheduled" ? "Save changes" : "Schedule · 1 credit"}
+            {isEdit && post!.status === "scheduled" ? "Save changes" : "Schedule · 1 Visual Buc"}
           </Button>
           {(!isEdit || post!.status === "draft") && (
             <Button
@@ -1167,7 +1167,7 @@ function ComposerModal(props: {
             }}
             className="mt-3 text-[13px] font-semibold text-white/45 underline-offset-2 hover:text-white hover:underline"
           >
-            Unschedule → move back to drafts (refunds 1 credit)
+            Unschedule → move back to drafts (refunds 1 Visual Buc)
           </button>
         )}
       </div>

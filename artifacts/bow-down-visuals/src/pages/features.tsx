@@ -63,14 +63,14 @@ export default function Features() {
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-white/60 text-base md:text-lg">
             Every AI tool a creator needs — make the music, shoot the video,
-            write the hooks, run the business. One vault, one credit system,
+            write the hooks, run the business. One vault, one Visual Buc system,
             zero excuses.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/pricing">
               <span className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110 cursor-pointer">
                 <Sparkles className="h-4 w-4" />
-                Get Credits
+                Get Visual Bucs
               </span>
             </Link>
             <Link href="/promote">

@@ -143,7 +143,7 @@ router.post("/content-calendar", publicApiLimiter, requireAuth, async (req, res)
   if (balance < CALENDAR_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to generate your content calendar.",
+      message: "You're out of Visual Bucs — top up to generate your content calendar.",
     });
     return;
   }
@@ -156,7 +156,7 @@ router.post("/content-calendar", publicApiLimiter, requireAuth, async (req, res)
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate your content calendar.",
+        message: "You're out of Visual Bucs — top up to generate your content calendar.",
       });
       return;
     }
@@ -225,7 +225,7 @@ router.post("/content-calendar", publicApiLimiter, requireAuth, async (req, res)
       return;
     }
     logger.error({ err }, "[content-calendar] generation failed");
-    res.status(502).json({ error: "The calendar hiccupped — your credit was refunded. Try again." });
+    res.status(502).json({ error: "The calendar hiccupped — your Visual Buc was refunded. Try again." });
   }
 });
 

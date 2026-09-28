@@ -72,7 +72,7 @@ router.post("/analytics-hub/insights", publicApiLimiter, requireAuth, async (req
   if (balance < ANALYTICS_HUB_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to keep getting AI growth plans.",
+      message: "You're out of Visual Bucs — top up to keep getting AI growth plans.",
     });
     return;
   }
@@ -85,7 +85,7 @@ router.post("/analytics-hub/insights", publicApiLimiter, requireAuth, async (req
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep getting AI growth plans.",
+        message: "You're out of Visual Bucs — top up to keep getting AI growth plans.",
       });
       return;
     }

@@ -87,7 +87,7 @@ router.post("/generate-song", requireAuth, async (req, res) => {
   if (!isDev && currentCredits < CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+      message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
     });
     return;
   }
@@ -192,12 +192,12 @@ Write 5 ready-to-post captions for social media — mix of hype, storytelling, a
       if (deductErr instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You are out of credits. Join the waitlist or upgrade soon to keep creating.",
+          message: "You are out of Visual Bucs. Join the waitlist or upgrade soon to keep creating.",
         });
         return;
       }
       if (deductErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
         return;
       }
       throw deductErr;

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /* ── Beat Marketplace pricing contract ─────────────────────────────────────
    Listing beats is FREE. The site takes a 15% commission on sales.
-   The AI tag suggester costs 1 credit (BEAT_AI_TAGS_CREDIT_COST,
+   The AI tag suggester costs 1 Visual Buc (BEAT_AI_TAGS_CREDIT_COST,
    env-overridable).
    NOTE: BEAT_LICENSE_TIERS / BEAT_SALE_COMMISSION_PCT mirror the DB schema
    (lib/db/src/schema/beats.ts). They're defined here (not imported from

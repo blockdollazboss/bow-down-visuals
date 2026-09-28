@@ -84,7 +84,7 @@ router.post(
     if (balance < SFX_CREDIT_COST) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to keep generating sound effects.",
+        message: "You're out of Visual Bucs — top up to keep generating sound effects.",
       });
       return;
     }
@@ -99,7 +99,7 @@ router.post(
       if (err instanceof OutOfCreditsError) {
         res.status(402).json({
           error: "out_of_credits",
-          message: "You're out of credits — top up to keep generating sound effects.",
+          message: "You're out of Visual Bucs — top up to keep generating sound effects.",
         });
         return;
       }
@@ -205,7 +205,7 @@ router.post(
       if (err instanceof LedgerWriteError) {
         res.status(500).json({
           error: "ledger_write_failed",
-          message: "Credit ledger write failed — no credits were charged. Please try again.",
+          message: "Credit ledger write failed — no Visual Bucs were charged. Please try again.",
         });
         return;
       }

@@ -497,7 +497,7 @@ export default function Tour() {
             <div>
               <h2 className="text-xl font-bold">AI routing + budget</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} credits per plan · optimal stop order + full budget breakdown
+                {CREDIT_COST} Visual Bucs per plan · optimal stop order + full budget breakdown
               </p>
             </div>
           </div>
@@ -572,7 +572,7 @@ export default function Tour() {
             ) : (
               <>
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Optimize {dates.length} {dates.length === 1 ? "stop" : "stops"} · {CREDIT_COST} credits
+                Optimize {dates.length} {dates.length === 1 ? "stop" : "stops"} · {CREDIT_COST} Visual Bucs
               </>
             )}
           </button>

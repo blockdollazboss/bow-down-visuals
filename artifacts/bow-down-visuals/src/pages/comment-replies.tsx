@@ -210,7 +210,7 @@ export default function CommentReplies() {
             <div>
               <h2 className="text-xl font-bold">Draft replies</h2>
               <p className="text-sm text-white/45">
-                {CREDIT_COST} credit per batch · up to {MAX_COMMENTS} comments · free to edit &amp; copy
+                {CREDIT_COST} Visual Buc per batch · up to {MAX_COMMENTS} comments · free to edit &amp; copy
               </p>
             </div>
           </div>
@@ -292,7 +292,7 @@ export default function CommentReplies() {
             ) : (
               <>
                 <Sparkles className="h-5 w-5" aria-hidden="true" />
-                Draft {commentCount > 0 ? commentCount : ""} {commentCount === 1 ? "reply" : "replies"} · {CREDIT_COST} credit
+                Draft {commentCount > 0 ? commentCount : ""} {commentCount === 1 ? "reply" : "replies"} · {CREDIT_COST} Visual Buc
               </>
             )}
           </button>

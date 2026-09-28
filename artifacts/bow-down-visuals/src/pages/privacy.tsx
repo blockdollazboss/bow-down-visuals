@@ -33,7 +33,7 @@ export default function Privacy() {
             <h2 className="text-white font-bold text-lg mb-3">1. Who We Are</h2>
             <p>
               Bow Down Visuals operates a digital creator platform that provides AI-powered
-              credits for generating videos, music, images, voiceovers, lip-synced videos,
+              Visual Bucs for generating videos, music, images, voiceovers, lip-synced videos,
               lyrics, captions, thumbnails, promo clips, and related digital content. This
               policy explains how we collect, use, and protect your information.
             </p>
@@ -44,7 +44,7 @@ export default function Privacy() {
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li><strong className="text-white/90">Account info:</strong> email address and password (hashed) when you register, or basic profile information from Google if you sign in with Google</li>
               <li><strong className="text-white/90">Billing info:</strong> handled entirely by Stripe — we never store raw card data</li>
-              <li><strong className="text-white/90">Usage data:</strong> credit usage, tool interactions, and generated content prompts</li>
+              <li><strong className="text-white/90">Usage data:</strong> Visual Buc usage, tool interactions, and generated content prompts</li>
               <li><strong className="text-white/90">Artist profile data:</strong> info you enter to personalize AI outputs (artist name, genre, style preferences)</li>
               <li><strong className="text-white/90">Referral data:</strong> referral codes used at signup and referral rewards earned</li>
               <li><strong className="text-white/90">Technical data:</strong> browser type, IP address, and session data for security and performance</li>

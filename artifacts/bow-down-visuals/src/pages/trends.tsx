@@ -230,7 +230,7 @@ export default function TrendPredictor() {
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as IdeasResponse;
       if (res.status === 402 || data.error === "out_of_credits") {
-        setIdeasError("Out of credits — top up to get content ideas.");
+        setIdeasError("Out of Visual Bucs — top up to get content ideas.");
         refreshProfile();
         return;
       }
@@ -377,7 +377,7 @@ export default function TrendPredictor() {
               ) : (
                 <>
                   <TrendingUp className="h-4 w-4" aria-hidden="true" />
-                  Predict my trends · {FORECAST_CREDITS} credits
+                  Predict my trends · {FORECAST_CREDITS} Visual Bucs
                 </>
               )}
             </button>
@@ -473,7 +473,7 @@ export default function TrendPredictor() {
                       ) : (
                         <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" />
                       )}
-                      10 content ideas · {IDEAS_CREDITS} credit
+                      10 content ideas · {IDEAS_CREDITS} Visual Buc
                     </button>
                     {isTracked(t.trend) ? (
                       <button

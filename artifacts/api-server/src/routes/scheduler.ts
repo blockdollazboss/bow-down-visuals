@@ -179,7 +179,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
     if (balance < cost) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "Scheduling a post costs 1 credit — top up to schedule.",
+        message: "Scheduling a post costs 1 Visual Buc — top up to schedule.",
       });
       return;
     }
@@ -187,11 +187,11 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
       await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" });
     } catch (err) {
       if (err instanceof OutOfCreditsError) {
-        res.status(402).json({ error: "out_of_credits", message: "Not enough credits to schedule this post." });
+        res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs to schedule this post." });
         return;
       }
       if (err instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged. Please try again." });
         return;
       }
       throw err;
@@ -226,7 +226,7 @@ router.post("/scheduler/posts", requireAuth, async (req: Request, res: Response)
       }
     }
     logger.error({ err, userId: req.userId }, "[scheduler] create failed");
-    res.status(500).json({ error: "create_failed", message: "Couldn't save the post. Your credits were refunded." });
+    res.status(500).json({ error: "create_failed", message: "Couldn't save the post. Your Visual Bucs were refunded." });
   }
 });
 
@@ -308,14 +308,14 @@ router.patch("/scheduler/posts/:id", requireAuth, async (req: Request, res: Resp
         const cost = SCHEDULER_POST_CREDITS;
         const balance = req.userCredits ?? 0;
         if (balance < cost) {
-          res.status(402).json({ error: "out_of_credits", message: "Scheduling a post costs 1 credit." });
+          res.status(402).json({ error: "out_of_credits", message: "Scheduling a post costs 1 Visual Buc." });
           return;
         }
         try {
           await chargeCredits(req.userId!, cost, { action: "Content Scheduler — Post reservation" });
         } catch (err) {
           if (err instanceof OutOfCreditsError) {
-            res.status(402).json({ error: "out_of_credits", message: "Not enough credits to schedule this post." });
+            res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs to schedule this post." });
             return;
           }
           throw err;
@@ -426,7 +426,7 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
   if (balance < SCHEDULER_BEST_TIME_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "AI best-time suggestions cost 1 credit — top up to continue.",
+      message: "AI best-time suggestions cost 1 Visual Buc — top up to continue.",
     });
     return;
   }
@@ -434,11 +434,11 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
     await chargeCredits(req.userId!, SCHEDULER_BEST_TIME_CREDITS, { action: "Content Scheduler — AI best-time" });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "Not enough credits for a best-time suggestion." });
+      res.status(402).json({ error: "out_of_credits", message: "Not enough Visual Bucs for a best-time suggestion." });
       return;
     }
     if (err instanceof LedgerWriteError) {
-      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no credits were charged." });
+      res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed — no Visual Bucs were charged." });
       return;
     }
     throw err;
@@ -488,13 +488,13 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
       parsedJson = JSON.parse(text);
     } catch {
       await refund();
-      res.status(502).json({ error: "ai_failed", message: "The AI returned an unusable suggestion — your credit was refunded." });
+      res.status(502).json({ error: "ai_failed", message: "The AI returned an unusable suggestion — your Visual Buc was refunded." });
       return;
     }
     const slots = sanitizeBestTime(parsedJson.slots, platforms);
     if (slots.length === 0) {
       await refund();
-      res.status(502).json({ error: "ai_failed", message: "The AI couldn't build useful slots — your credit was refunded." });
+      res.status(502).json({ error: "ai_failed", message: "The AI couldn't build useful slots — your Visual Buc was refunded." });
       return;
     }
     res.json({
@@ -508,7 +508,7 @@ router.post("/scheduler/best-time", requireAuth, async (req: Request, res: Respo
   } catch (err) {
     await refund();
     logger.error({ err, userId: req.userId }, "[scheduler] best-time failed");
-    res.status(502).json({ error: "ai_failed", message: "Couldn't get a best-time suggestion — your credit was refunded." });
+    res.status(502).json({ error: "ai_failed", message: "Couldn't get a best-time suggestion — your Visual Buc was refunded." });
   }
 });
 

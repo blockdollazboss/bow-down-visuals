@@ -82,7 +82,7 @@ function buildBibleContext(bible: BibleInput | null | undefined): string {
 function outOfCredits(res: any, required: number) {
   res.status(402).json({
     error: "out_of_credits",
-    message: "You are out of credits. Upgrade to keep creating.",
+    message: "You are out of Visual Bucs. Upgrade to keep creating.",
     required,
   });
 }
@@ -136,7 +136,7 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
       if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw chargeErr;
@@ -187,7 +187,7 @@ Cover the full arc: opening hook, verses, chorus peaks, bridge, outro. Vary came
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, TEXT_CREDIT_COST); return; }
       if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw chargeErr;
@@ -276,7 +276,7 @@ Style: ultra-detailed cinematic still, professional music video production quali
     } catch (chargeErr) {
       if (chargeErr instanceof OutOfCreditsError) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
       if (chargeErr instanceof LedgerWriteError) {
-        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no credits were charged. Please try again." });
+        res.status(500).json({ error: "ledger_write_failed", message: "Credit ledger write failed \u2014 no Visual Bucs were charged. Please try again." });
         return;
       }
       throw chargeErr;

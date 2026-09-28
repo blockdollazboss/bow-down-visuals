@@ -120,14 +120,14 @@ async function preCharge(
 ): Promise<number | null> {
   const balance = req.userCredits ?? 0;
   if (balance < cost) {
-    res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to keep hunting." });
+    res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to keep hunting." });
     return null;
   }
   try {
     return await chargeCredits(req.userId!, cost, { action });
   } catch (err) {
     if (err instanceof OutOfCreditsError) {
-      res.status(402).json({ error: "out_of_credits", message: "You're out of credits — top up to keep hunting." });
+      res.status(402).json({ error: "out_of_credits", message: "You're out of Visual Bucs — top up to keep hunting." });
       return null;
     }
     throw err;
@@ -214,7 +214,7 @@ router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
       await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder");
       res.status(502).json({
         error: "generation_failed",
-        message: "The scout came back empty — your credits were refunded. Try broadening the filters.",
+        message: "The scout came back empty — your Visual Bucs were refunded. Try broadening the filters.",
       });
       return;
     }
@@ -233,8 +233,8 @@ router.post("/show-finder", publicApiLimiter, requireAuth, async (req, res) => {
       return;
     }
     await refund(req.userId!, SHOW_FINDER_CREDIT_COST, "Show Finder");
-    logger.error({ err }, "[show-finder] generation failed, credits refunded");
-    res.status(502).json({ error: "The scout hiccupped — credits refunded, try again." });
+    logger.error({ err }, "[show-finder] generation failed, Visual Bucs refunded");
+    res.status(502).json({ error: "The scout hiccupped — Visual Bucs refunded, try again." });
   }
 });
 
@@ -311,7 +311,7 @@ router.post("/show-finder/pitch", publicApiLimiter, requireAuth, async (req, res
       await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch");
       res.status(502).json({
         error: "generation_failed",
-        message: "The pitch came back unusable — your credit was refunded. Try again.",
+        message: "The pitch came back unusable — your Visual Buc was refunded. Try again.",
       });
       return;
     }
@@ -325,8 +325,8 @@ router.post("/show-finder/pitch", publicApiLimiter, requireAuth, async (req, res
       return;
     }
     await refund(req.userId!, SHOW_FINDER_PITCH_CREDIT_COST, "Show Finder Pitch");
-    logger.error({ err }, "[show-finder/pitch] generation failed, credits refunded");
-    res.status(502).json({ error: "The writer hiccupped — credit refunded, try again." });
+    logger.error({ err }, "[show-finder/pitch] generation failed, Visual Bucs refunded");
+    res.status(502).json({ error: "The writer hiccupped — Visual Buc refunded, try again." });
   }
 });
 

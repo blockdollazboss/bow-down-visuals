@@ -195,7 +195,7 @@ export default function MakeSong() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Music className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">1 credit</MarketingBadge>
+            <MarketingBadge variant="muted">1 Visual Buc</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make a Song
@@ -239,7 +239,7 @@ export default function MakeSong() {
                 <p className="text-sm font-bold text-white">Already have a song?</p>
               </div>
               <p className="text-xs text-white/35 mb-3 leading-relaxed">
-                Upload your track to transcribe lyrics and jump to Step 2 — no generation credit needed.
+                Upload your track to transcribe lyrics and jump to Step 2 — no generation Visual Buc needed.
               </p>
               <AudioTranscribe
                 onTranscript={(text) => setUploadedLyrics(text)}
@@ -390,7 +390,7 @@ export default function MakeSong() {
                   </>
                 )}
               </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 1 credit per generation</p>
+              <p className="text-white/25 text-xs mt-3">Uses 1 Visual Buc per generation</p>
             </div>
           </form>
         </div>

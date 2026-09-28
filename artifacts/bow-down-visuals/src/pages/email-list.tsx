@@ -265,7 +265,7 @@ export default function EmailListBuilder() {
             <Users className="h-4 w-4" /> My Lists
           </button>
           <button className={tabBtn(tab === "newsletter")} onClick={() => setTab("newsletter")}>
-            <PenLine className="h-4 w-4" /> AI Newsletter · 1 credit
+            <PenLine className="h-4 w-4" /> AI Newsletter · 1 Visual Buc
           </button>
           <button className={tabBtn(tab === "forms")} onClick={() => setTab("forms")}>
             <Code2 className="h-4 w-4" /> Signup Forms
@@ -432,7 +432,7 @@ export default function EmailListBuilder() {
           <div className="mt-8 mx-auto max-w-3xl">
             <div className={cardClass}>
               <h3 className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-primary" /> AI newsletter writer</h3>
-              <p className="mt-1 text-sm text-white/50">Topic in, full newsletter draft out — subject line, body, and call to action. <span className="text-primary font-semibold">1 credit</span> per draft.</p>
+              <p className="mt-1 text-sm text-white/50">Topic in, full newsletter draft out — subject line, body, and call to action. <span className="text-primary font-semibold">1 Visual Buc</span> per draft.</p>
 
               <textarea className={inputClass + " mt-4"} rows={3} placeholder="What's the newsletter about? (e.g. my new single drops Friday + the story behind it)" value={nlTopic} onChange={(e) => setNlTopic(e.target.value)} />
 
@@ -453,7 +453,7 @@ export default function EmailListBuilder() {
 
               <button className={tabBtn(true) + " mt-4"} onClick={generateNewsletter} disabled={nlLoading}>
                 {nlLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PenLine className="h-4 w-4" />}
-                Write my newsletter · 1 credit
+                Write my newsletter · 1 Visual Buc
               </button>
             </div>
 

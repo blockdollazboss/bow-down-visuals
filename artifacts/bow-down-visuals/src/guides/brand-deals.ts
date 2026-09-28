@@ -28,7 +28,7 @@ export const brandDealFinderGuide: PageGuide = {
     {
       targetText: "Draft my outreach",
       title: "Step 3 — Pitch the brand",
-      body: "One credit drafts an outreach message tuned to that brand — subject, message, and personalization tips. Personalize the opener, keep it short, and end with one clear ask.",
+      body: "One Visual Buc drafts an outreach message tuned to that brand — subject, message, and personalization tips. Personalize the opener, keep it short, and end with one clear ask.",
       tip: "Lead with what the brand gets, never fake numbers, and follow up once. Then move on to the next brand.",
     },
   ],

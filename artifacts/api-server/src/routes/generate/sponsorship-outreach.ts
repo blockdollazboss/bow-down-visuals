@@ -124,7 +124,7 @@ router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
   if (balance < OUTREACH_CREDIT_COST) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to generate your outreach kit.",
+      message: "You're out of Visual Bucs — top up to generate your outreach kit.",
     });
     return;
   }
@@ -137,7 +137,7 @@ router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to generate your outreach kit.",
+        message: "You're out of Visual Bucs — top up to generate your outreach kit.",
       });
       return;
     }
@@ -196,7 +196,7 @@ router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
       await refund();
       res.status(502).json({
         error: "generation_failed",
-        message: "The outreach kit came back unusable — your credits were refunded. Try again.",
+        message: "The outreach kit came back unusable — your Visual Bucs were refunded. Try again.",
       });
       return;
     }
@@ -205,10 +205,10 @@ router.post("/outreach", publicApiLimiter, requireAuth, async (req, res) => {
     res.json({ kit, creditsUsed: OUTREACH_CREDIT_COST, creditsRemaining });
   } catch (err) {
     await refund();
-    logger.error({ err }, "sponsorship-outreach: generation failed, credits refunded");
+    logger.error({ err }, "sponsorship-outreach: generation failed, Visual Bucs refunded");
     res.status(502).json({
       error: "generation_failed",
-      message: "Something went wrong generating your outreach kit — your credits were refunded.",
+      message: "Something went wrong generating your outreach kit — your Visual Bucs were refunded.",
     });
   }
 });

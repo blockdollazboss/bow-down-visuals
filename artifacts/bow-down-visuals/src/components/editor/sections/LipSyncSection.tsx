@@ -2544,7 +2544,7 @@ export function LipSyncSection({
                           <p className="text-[12px] font-bold text-amber-300">Paid job confirmation</p>
                         </div>
                         <p className="text-[11px] text-amber-400/80 leading-snug">
-                          This will submit a new paid Sync.so lip sync job and may use credits.
+                          This will submit a new paid Sync.so lip sync job and may use Visual Bucs.
                         </p>
                       </div>
                     ) : (
@@ -2590,7 +2590,7 @@ export function LipSyncSection({
                     {demoMode ? (
                       <div className="flex items-center gap-1.5 text-[10px] text-blue-400/80">
                         <FlaskConical className="h-3 w-3 shrink-0" />
-                        Demo mode — no real API call. No credits charged.
+                        Demo mode — no real API call. No Visual Bucs charged.
                       </div>
                     ) : !providerConnected ? (
                       <p className="text-[10px] text-red-400/80 font-semibold">
@@ -2909,7 +2909,7 @@ export function LipSyncSection({
                     <StatusRow label="selected scene"          value={`Scene ${selectedScene.sceneNumber} — ${selectedSceneTitle}`}                                               ok={null} />
                     <StatusRow label="clip duration"           value={selectedTiming ? `${selectedTiming.durationSec.toFixed(1)}s` : "—"}                                         ok={null} />
                     <StatusRow label="existing job id"         value={selectedClipEdit?.lipSyncJobId ? `yes — ${selectedClipEdit.lipSyncJobId.slice(0, 12)}…` : "none"}           ok={selectedClipEdit?.lipSyncJobId ? false : true} />
-                    <StatusRow label="will submit new paid job" value={selectedClipEdit?.lipSyncStatus === "processing" ? "no — job already running" : "yes — uses credits"}      ok={selectedClipEdit?.lipSyncStatus === "processing" ? true : null} />
+                    <StatusRow label="will submit new paid job" value={selectedClipEdit?.lipSyncStatus === "processing" ? "no — job already running" : "yes — uses Visual Bucs"}      ok={selectedClipEdit?.lipSyncStatus === "processing" ? true : null} />
                     <StatusRow label="job id saved after submit" value="yes — always saved immediately"                                                                            ok={true} />
                     <StatusRow label="timeout will not resubmit" value="yes — stays processing, not failed"                                                                       ok={true} />
                   </div>
@@ -3182,7 +3182,7 @@ export function LipSyncSection({
 
                       {/* ── Safety note ── */}
                       <p className="text-[9px] text-violet-300/60 leading-relaxed rounded-lg bg-violet-500/[0.06] px-2.5 py-1.5">
-                        Fixes playback timing only · No new Sync.so credits will be used
+                        Fixes playback timing only · No new Sync.so Visual Bucs will be used
                       </p>
 
                       {/* ── Click feedback message ── */}

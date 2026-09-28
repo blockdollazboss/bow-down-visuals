@@ -21,7 +21,7 @@ const router = Router();
    Pricing: reading stats through the creator's own connected accounts is a
    plain integration (no AI compute), so the overview is FREE per the
    standing pricing rule. The AI insights/suggestions layer burns GPT-6
-   tokens, so each costs 1 credit — same impulse price as Hook Studio and
+   tokens, so each costs 1 Visual Buc — same impulse price as Hook Studio and
    the Monetization Coach.
 
    Honesty rules: every stat is labeled with its source and recency; fields
@@ -496,7 +496,7 @@ async function chargeOr402(
   if (balance < credits) {
     res.status(402).json({
       error: "out_of_credits",
-      message: "You're out of credits — top up to unlock AI insights.",
+      message: "You're out of Visual Bucs — top up to unlock AI insights.",
     });
     return null;
   }
@@ -506,7 +506,7 @@ async function chargeOr402(
     if (err instanceof OutOfCreditsError) {
       res.status(402).json({
         error: "out_of_credits",
-        message: "You're out of credits — top up to unlock AI insights.",
+        message: "You're out of Visual Bucs — top up to unlock AI insights.",
       });
       return null;
     }
@@ -600,7 +600,7 @@ router.post(
       }
       res.status(500).json({
         error: "insights_failed",
-        message: "The AI couldn't analyze your stats right now. Your credit was refunded — try again in a bit.",
+        message: "The AI couldn't analyze your stats right now. Your Visual Buc was refunded — try again in a bit.",
       });
     }
   },
@@ -681,7 +681,7 @@ router.post(
       }
       res.status(500).json({
         error: "suggestions_failed",
-        message: "The AI couldn't cook up ideas right now. Your credit was refunded — try again in a bit.",
+        message: "The AI couldn't cook up ideas right now. Your Visual Buc was refunded — try again in a bit.",
       });
     }
   },

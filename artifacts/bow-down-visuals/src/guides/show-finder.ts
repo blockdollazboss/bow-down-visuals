@@ -28,7 +28,7 @@ export const showFinderGuide: PageGuide = {
     {
       targetText: "Draft my pitch",
       title: "Step 3 — Pitch every stage",
-      body: "One credit drafts a booking pitch tuned to that specific opportunity — subject line, body, and what to attach. Copy it, personalize the opener, and send it the same day.",
+      body: "One Visual Buc drafts a booking pitch tuned to that specific opportunity — subject line, body, and what to attach. Copy it, personalize the opener, and send it the same day.",
       tip: "Always attach a live video. Bookers book what they can see.",
     },
   ],

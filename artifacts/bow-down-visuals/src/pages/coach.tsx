@@ -326,7 +326,7 @@ export default function MonetizationCoach() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credit per plan · powered by Thy Cheat Code
+              {CREDIT_COST} Visual Buc per plan · powered by Thy Cheat Code
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -450,7 +450,7 @@ export default function MonetizationCoach() {
                   ) : (
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
                   )}
-                  Rebuild plan ({CREDIT_COST} credit)
+                  Rebuild plan ({CREDIT_COST} Visual Buc)
                 </button>
               </div>
             )}

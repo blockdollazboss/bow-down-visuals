@@ -417,12 +417,12 @@ export default function LlcGuide() {
 
             {!user && (
               <p className="mt-3 text-center text-sm text-white/40">
-                <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link> to ask the AI — {CREDIT_COST} credit per answer.
+                <Link href="/login" className="font-semibold text-primary hover:underline">Sign in</Link> to ask the AI — {CREDIT_COST} Visual Buc per answer.
               </p>
             )}
             {user && (
               <p className="mt-2.5 text-center text-xs text-white/35">
-                {CREDIT_COST} credit per answer · powered by Thy Cheat Code · credit refunded if the AI fails
+                {CREDIT_COST} Visual Buc per answer · powered by Thy Cheat Code · Visual Buc refunded if the AI fails
               </p>
             )}
             {chatOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
@@ -510,7 +510,7 @@ export default function LlcGuide() {
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} credit per plan · powered by Thy Cheat Code · credit refunded if the AI fails
+              {CREDIT_COST} Visual Buc per plan · powered by Thy Cheat Code · Visual Buc refunded if the AI fails
             </p>
             {planOutOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {planError && !planOutOfCredits && (
@@ -573,7 +573,7 @@ export default function LlcGuide() {
                     className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
                   >
                     {planLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}
-                    Regenerate plan ({CREDIT_COST} credit)
+                    Regenerate plan ({CREDIT_COST} Visual Buc)
                   </button>
                 </div>
               )}
