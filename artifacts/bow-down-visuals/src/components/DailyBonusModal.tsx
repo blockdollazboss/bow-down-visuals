@@ -101,7 +101,7 @@ export function DailyBonusModal() {
               {claiming ? "Claiming…" : "Claim Bonus"}
             </Button>
             <p className="text-xs text-muted-foreground mt-3">
-              + <a href="/wheel" className="text-[#c9a84c] underline">spin the hourly jackpot wheel</a>
+              + tap the gold trophy button (bottom-left) to spin the hourly jackpot wheel
             </p>
           </>
         )}
