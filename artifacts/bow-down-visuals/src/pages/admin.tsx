@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
 import { NfcOrdersAdmin } from "@/components/NfcOrdersAdmin";
+import { JewelryOrdersAdmin } from "@/components/JewelryOrdersAdmin";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -835,6 +836,7 @@ export default function AdminPage() {
           </div>
           <JackpotAdmin authHeaders={authHeaders} />
           <NfcOrdersAdmin authHeaders={authHeaders} />
+          <JewelryOrdersAdmin authHeaders={authHeaders} />
         </>
       )}
     </div>
