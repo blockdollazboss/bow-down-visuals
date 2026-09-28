@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { stripeWebhookHandler } from "./lib/stripe-webhook";
+import { stagingGate } from "./lib/staging-gate";
 
 const app: Express = express();
 
@@ -40,6 +41,10 @@ app.post(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Staging password wall. Active only when STAGING_PASSWORD is set
+// (staging service); production never sets it, so this is a no-op there.
+app.use(stagingGate);
 
 app.use("/api", router);
 
