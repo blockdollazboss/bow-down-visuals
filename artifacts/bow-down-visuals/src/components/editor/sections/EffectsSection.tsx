@@ -22,6 +22,9 @@ interface EffectsSectionProps {
   activeTransitionType?: string | null;
   /** Jump the master player to ~1s before a scene's transition and play through it. */
   onPreviewTransition?: (sceneIndex: number) => void;
+  /** Template-curated galleries (empty/undefined = show all) */
+  visibleEffects?: string[];
+  visibleColorGrades?: string[];
 }
 
 function toggleListItem(list: string[], item: string): string[] {
@@ -64,7 +67,14 @@ function IntensityRow({
   );
 }
 
-export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades }: EffectsSectionProps) {
+  /* Template-curated galleries (empty/undefined = show all) */
+  const shownEffects = visibleEffects && visibleEffects.length > 0
+    ? (EFFECTS as readonly string[]).filter((fx) => visibleEffects.includes(fx))
+    : [...EFFECTS];
+  const shownGrades = visibleColorGrades && visibleColorGrades.length > 0
+    ? (COLOR_GRADES as readonly string[]).filter((g) => visibleColorGrades.includes(g))
+    : [...COLOR_GRADES];
   function patchClip(sceneId: string, patch: Partial<ClipEdit>) {
     const current = getClipEdit(settings, sceneId);
     setSettings({ ...settings, clips: { ...settings.clips, [sceneId]: { ...current, ...patch } } });
@@ -102,11 +112,16 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
       {/* ── Global Effects ── */}
       <EditorCard title="Global Effects" subtitle="Applied across the whole video" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
-          {EFFECTS.map((fx) => (
+          {shownEffects.map((fx) => (
             <Chip
               key={fx}
               active={settings.effects.includes(fx)}
               onClick={() => setSettings({ ...settings, effects: toggleListItem(settings.effects, fx) })}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/x-bdv-effect", fx);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
             >
               {fx}
             </Chip>
@@ -117,7 +132,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
       {/* ── Color Grade ── */}
       <EditorCard title="Color Grade" subtitle="Pick a cinematic look — one at a time" icon={<Wand2 className="h-4 w-4" />}>
         <div className="flex flex-wrap gap-2">
-          {COLOR_GRADES.map((grade) => {
+          {shownGrades.map((grade) => {
             const active = settings.effects.includes(grade);
             return (
               <Chip

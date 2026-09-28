@@ -45,6 +45,8 @@ interface Props {
   audioUrl?: string | null;
   /** Auth token getter — required for the transcribe-url API call */
   getAccessToken?: () => Promise<string | null>;
+  /** Template-curated caption preset ids to show (empty/undefined = show all) */
+  visiblePresetIds?: string[];
 }
 
 type StatusType = "success" | "error" | "info";
@@ -619,12 +621,18 @@ const SPLIT_STYLE_DEFS = [
   { id: "long",   label: "Long",   hint: "8–12 words" },
 ] as const;
 
-export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption, audioUrl, getAccessToken }: Props) {
+export function CaptionsSection({ settings, setSettings, lyrics, songDuration, audioSourceLoading, selectedCaptionId, onSelectCaption, audioUrl, getAccessToken, visiblePresetIds }: Props) {
   const { confirmedFetch } = useConfirmedApi();
   /* Vocal offset — seconds before the first word is sung */
   const [vocalOffsetInput, setVocalOffsetInput] = useState("0");
   const c = settings.captions;
   const splitStyle = c.captionSplitStyle ?? "short";
+  /* Template-curated preset filtering (empty/undefined visiblePresetIds = all) */
+  const [showAllCaptionPresets, setShowAllCaptionPresets] = useState(false);
+  const filteredCaptionPresets =
+    visiblePresetIds && visiblePresetIds.length > 0
+      ? CAPTION_STYLE_PRESET_DEFS.filter((p) => visiblePresetIds.includes(p.id))
+      : CAPTION_STYLE_PRESET_DEFS;
 
   const [linesVisible, setLinesVisible] = useState(true);
   const [generateStatus, setGenerateStatus] = useState<Status | null>(null);
@@ -1724,16 +1732,27 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
 
       {/* ── Style Presets ── */}
       {hasCaptions && (
-        <EditorCard title="Caption Style" subtitle="Visual look burned into the video">
+        <EditorCard
+          title="Caption Style"
+          subtitle={filteredCaptionPresets.length < CAPTION_STYLE_PRESET_DEFS.length && !showAllCaptionPresets
+            ? `Curated for your template · ${filteredCaptionPresets.length} of ${CAPTION_STYLE_PRESET_DEFS.length}`
+            : "Visual look burned into the video"}
+        >
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            {CAPTION_STYLE_PRESET_DEFS.map((p) => {
+            {(showAllCaptionPresets ? CAPTION_STYLE_PRESET_DEFS : filteredCaptionPresets).map((p) => {
               const active = c.stylePreset === p.id;
               return (
                 <button
                   key={p.id}
                   type="button"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/x-bdv-caption-preset", p.id);
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
                   onClick={() => setStylePreset(p.id)}
                   data-testid={`caption-style-${p.id}`}
+                  title="Click to apply · drag onto the preview to apply"
                   className={`text-left rounded-xl border bg-gradient-to-br p-3 transition-all ${
                     active
                       ? `${p.accent} opacity-100`
@@ -1746,6 +1765,16 @@ export function CaptionsSection({ settings, setSettings, lyrics, songDuration, a
               );
             })}
           </div>
+          {filteredCaptionPresets.length < CAPTION_STYLE_PRESET_DEFS.length && (
+            <button
+              type="button"
+              onClick={() => setShowAllCaptionPresets((v) => !v)}
+              className="mt-2.5 text-[11px] font-bold text-[#C9A84C]/80 hover:text-[#C9A84C]"
+              data-testid="caption-presets-show-all"
+            >
+              {showAllCaptionPresets ? "← Back to template picks" : `Show all ${CAPTION_STYLE_PRESET_DEFS.length} styles`}
+            </button>
+          )}
         </EditorCard>
       )}
 
