@@ -22,7 +22,7 @@ type ReleaseType = (typeof RELEASE_TYPES)[number];
    so 2 credits holds a deep margin while staying an impulse buy — and
    honors the standing rule that every AI feature costs a fee.
    Task check-off on the frontend is pure UI (localStorage) — free. */
-const RELEASE_PLAN_CREDITS = Number(process.env["RELEASE_PLAN_CREDIT_COST"]) || 2;
+const RELEASE_PLAN_CREDITS = Number(process.env["RELEASE_PLAN_CREDIT_COST"]) || 200;
 
 const releaseChecklistSchema = z.object({
   releaseType: z.enum(RELEASE_TYPES),

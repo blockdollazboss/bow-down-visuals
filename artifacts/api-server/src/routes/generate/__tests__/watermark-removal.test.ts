@@ -63,7 +63,7 @@ function makeJob(overrides: Partial<WatermarkJob> = {}): WatermarkJob {
 
 describe("WATERMARK_REMOVAL_CREDIT_COST", () => {
   it("charges 2 credits per removal", () => {
-    expect(WATERMARK_REMOVAL_CREDIT_COST).toBe(2);
+    expect(WATERMARK_REMOVAL_CREDIT_COST).toBe(200);
   });
 });
 

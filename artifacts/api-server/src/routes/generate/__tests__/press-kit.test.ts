@@ -48,11 +48,11 @@ beforeEach(() => {
 
 describe("press-kit pricing", () => {
   it("charges 3 credits for full kit generation", () => {
-    expect(PRESS_KIT_GENERATE_CREDITS).toBe(3);
+    expect(PRESS_KIT_GENERATE_CREDITS).toBe(300);
   });
 
   it("charges 1 credit for a bio refresh", () => {
-    expect(PRESS_KIT_BIO_REFRESH_CREDITS).toBe(1);
+    expect(PRESS_KIT_BIO_REFRESH_CREDITS).toBe(100);
   });
 
   it("both prices are env-overridable numbers", () => {

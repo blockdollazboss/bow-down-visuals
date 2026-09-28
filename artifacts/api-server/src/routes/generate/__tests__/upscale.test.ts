@@ -70,7 +70,7 @@ function makeJob(overrides: Partial<UpscaleJob> = {}): UpscaleJob {
 
 describe("UPSCALE_CREDIT_COST", () => {
   it("charges 3 credits per upscale", () => {
-    expect(UPSCALE_CREDIT_COST).toBe(3);
+    expect(UPSCALE_CREDIT_COST).toBe(300);
   });
 });
 
@@ -130,7 +130,7 @@ describe("runUpscaleJob — refund on failure", () => {
 
     expect(job.status).toBe("failed");
     expect(mockRefund).toHaveBeenCalledTimes(1);
-    expect(mockRefund).toHaveBeenCalledWith("user-456", 3, {
+    expect(mockRefund).toHaveBeenCalledWith("user-456", 300, {
       action: "Video Upscale — Refund (job failed)",
     });
     // Note: runUpscaleJob mutates the job object directly; the route handler

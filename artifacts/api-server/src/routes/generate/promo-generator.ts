@@ -61,7 +61,7 @@ const TONE_DIRECTION: Record<Tone, string> = {
    a short GPT-6 Sol completion (a fraction of a cent in provider fees), so
    1 credit holds a deep margin while staying an impulse buy — and honors the
    standing rule that every AI feature costs a fee. */
-const PROMO_GENERATOR_CREDITS = Number(process.env["PROMO_GENERATOR_CREDIT_COST"]) || 1;
+const PROMO_GENERATOR_CREDITS = Number(process.env["PROMO_GENERATOR_CREDIT_COST"]) || 100;
 
 const promoSchema = z.object({
   featureName: z.string().min(1, "Pick a feature to promote.").max(120),

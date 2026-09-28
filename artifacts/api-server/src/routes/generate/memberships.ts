@@ -22,7 +22,7 @@ const router = Router();
    provider failure). */
 
 /* 1 credit per AI perk suggestion — env-overridable without a deploy. */
-export const MEMBERSHIPS_AI_CREDITS = Number(process.env["MEMBERSHIPS_AI_CREDIT_COST"]) || 1;
+export const MEMBERSHIPS_AI_CREDITS = Number(process.env["MEMBERSHIPS_AI_CREDIT_COST"]) || 100;
 
 /* Platform fee intent for v1 — recorded on tiers for transparency; no money
    moves until payment processing ships. */

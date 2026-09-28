@@ -33,7 +33,7 @@ router.post("/dev/add-credits", devOnly, requireAuth, async (req, res) => {
     return;
   }
 
-  const newCredits = profile.credits + 10;
+  const newCredits = profile.credits + 1000;
 
   /* profiles UPDATE via user-scoped client silently no-ops under broken RLS UPDATE policy — use service role. */
   const { error: updateError } = await getSupabaseAdmin()

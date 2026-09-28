@@ -18,7 +18,7 @@ const FUTURE_DATE = "2099-06-01";
 
 const testState = vi.hoisted(() => ({
   userId: "user-1",
-  userCredits: 10,
+  userCredits: 1000,
   chargeCalls: [] as Array<{ userId: string; amount: number }>,
   refundCalls: [] as Array<{ userId: string; amount: number }>,
   modelPayload: {
@@ -113,7 +113,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   testState.userId = "user-1";
-  testState.userCredits = 10;
+  testState.userCredits = 1000;
   testState.chargeCalls = [];
   testState.refundCalls = [];
   testState.modelThrows = false;
@@ -175,13 +175,13 @@ describe("POST /api/release-checklist", () => {
   it("happy path: charges 2 credits and returns a week-by-week plan", async () => {
     const { status, json } = await post(validBody);
     expect(status).toBe(200);
-    expect(json.creditsUsed).toBe(2);
-    expect(json.creditsRemaining).toBe(8);
+    expect(json.creditsUsed).toBe(200);
+    expect(json.creditsRemaining).toBe(800);
     expect(json.plan.weeks).toHaveLength(1);
     expect(json.plan.weeks[0].tasks).toHaveLength(2);
     expect(json.plan.weeks[0].tasks[0].title).toBe("Upload to distributor");
     expect(json.plan.summary).toContain("release day");
-    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 2 }]);
+    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 200 }]);
     expect(testState.refundCalls).toHaveLength(0);
   });
 
@@ -207,8 +207,8 @@ describe("POST /api/release-checklist", () => {
     expect(status).toBe(502);
     expect(json.error).toBeTruthy();
     expect(testState.chargeCalls).toHaveLength(1);
-    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 2 }]);
-    expect(testState.userCredits).toBe(10); // charged then refunded
+    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 200 }]);
+    expect(testState.userCredits).toBe(1000); // charged then refunded
   });
 
   it("refunds the credits when the model returns unusable output", async () => {
@@ -216,6 +216,6 @@ describe("POST /api/release-checklist", () => {
     const { status } = await post(validBody);
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.userCredits).toBe(1000);
   });
 });

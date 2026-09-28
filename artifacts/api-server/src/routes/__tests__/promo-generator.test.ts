@@ -16,7 +16,7 @@ import type { AddressInfo } from "node:net";
 
 const testState = vi.hoisted(() => ({
   userId: "user-1",
-  userCredits: 10,
+  userCredits: 1000,
   chargeCalls: [] as Array<{ userId: string; amount: number }>,
   refundCalls: [] as Array<{ userId: string; amount: number }>,
   modelPayload: {
@@ -95,7 +95,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   testState.userId = "user-1";
-  testState.userCredits = 10;
+  testState.userCredits = 1000;
   testState.chargeCalls = [];
   testState.refundCalls = [];
   testState.modelPayload = {
@@ -157,18 +157,18 @@ describe("POST /api/promo-generator", () => {
     expect(testState.chargeCalls).toHaveLength(0);
   });
 
-  it("happy path: charges 1 credit and returns promo copy", async () => {
+  it("happy path: charges 100 Visual Bucs and returns promo copy", async () => {
     const { status, json } = await post(validBody);
     expect(status).toBe(200);
     expect(testState.chargeCalls).toHaveLength(1);
-    expect(testState.chargeCalls[0]).toEqual({ userId: "user-1", amount: 1 });
+    expect(testState.chargeCalls[0]).toEqual({ userId: "user-1", amount: 100 });
     expect(json.title).toBe("Your hooks are about to hit different.");
     expect(json.body).toContain("Hook Studio");
     expect(json.extras).toHaveLength(1);
     expect(json.hashtags).toContain("contentcreator");
     expect(json.cta).toBe("Try Hook Studio now");
-    expect(json.creditsUsed).toBe(1);
-    expect(json.creditsRemaining).toBe(9);
+    expect(json.creditsUsed).toBe(100);
+    expect(json.creditsRemaining).toBe(900);
     expect(testState.refundCalls).toHaveLength(0);
   });
 
@@ -185,8 +185,8 @@ describe("POST /api/promo-generator", () => {
     expect(status).toBe(502);
     expect(testState.chargeCalls).toHaveLength(1);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.refundCalls[0]).toEqual({ userId: "user-1", amount: 1 });
-    expect(testState.userCredits).toBe(10);
+    expect(testState.refundCalls[0]).toEqual({ userId: "user-1", amount: 100 });
+    expect(testState.userCredits).toBe(1000);
   });
 
   it("refunds the credit and returns 502 when the model returns unusable output", async () => {
@@ -194,6 +194,6 @@ describe("POST /api/promo-generator", () => {
     const { status } = await post(validBody);
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.userCredits).toBe(1000);
   });
 });

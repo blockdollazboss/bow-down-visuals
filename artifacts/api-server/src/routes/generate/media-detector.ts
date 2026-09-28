@@ -24,7 +24,7 @@ import { chargeCredits, refundCredits, OutOfCreditsError } from "../../lib/credi
 const router = Router();
 
 /* 2 credits per detection — env-overridable. One structured GPT-6 completion. */
-const DETECTION_CREDITS = Number(process.env["MEDIA_DETECTION_CREDIT_COST"]) || 2;
+const DETECTION_CREDITS = Number(process.env["MEDIA_DETECTION_CREDIT_COST"]) || 200;
 export { DETECTION_CREDITS };
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB

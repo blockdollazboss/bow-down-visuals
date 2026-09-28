@@ -255,32 +255,32 @@ const STUDIO = [
 
 const CREDIT_PACKS = [
   {
-    credits: "10 Visual Bucs",
+    credits: "1,000 Visual Bucs",
     price: "$9",
     packKey: "10",
     featured: false,
-    perks: ["10 generation Visual Bucs", "Never expires", "Instant top-up"],
+    perks: ["1,000 generation Visual Bucs", "Never expires", "Instant top-up"],
   },
   {
-    credits: "50 Visual Bucs",
+    credits: "5,000 Visual Bucs",
     price: "$39",
     packKey: "50",
     featured: false,
-    perks: ["50 generation Visual Bucs", "Never expires", "Instant top-up"],
+    perks: ["5,000 generation Visual Bucs", "Never expires", "Instant top-up"],
   },
   {
-    credits: "150 Visual Bucs",
+    credits: "15,000 Visual Bucs",
     price: "$99",
     packKey: "150",
     featured: true,
-    perks: ["150 generation Visual Bucs", "Never expires", "Best value"],
+    perks: ["15,000 generation Visual Bucs", "Never expires", "Best value"],
   },
   {
-    credits: "500 Visual Bucs",
+    credits: "50,000 Visual Bucs",
     price: "$249",
     packKey: "500",
     featured: false,
-    perks: ["500 generation Visual Bucs", "Never expires", "Pro volume"],
+    perks: ["50,000 generation Visual Bucs", "Never expires", "Pro volume"],
   },
 ];
 
@@ -291,11 +291,11 @@ const FAQS = [
   },
   {
     q: "How do Visual Bucs work?",
-    a: "Visual Bucs are the fuel. You buy them in packs starting at $9, and every AI generation spends a few — a full song is 4 Visual Bucs, a music video is 4, a hook idea is 1. Browsing, editing, and viewing are always free. Payments are in test mode right now, so nothing real is charged.",
+    a: "Visual Bucs are the fuel. You buy them in packs starting at $9, and every AI generation spends a few — a full song is 400 Visual Bucs, a music video is 400, a hook idea is 100. Browsing, editing, and viewing are always free. Payments are in test mode right now, so nothing real is charged.",
   },
   {
     q: "What does a full release cost?",
-    a: "A song (4 VB) + a music video (4 VB) + promo clips (4 VB) + a hook pack (1 VB) = 13 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack.",
+    a: "A song (400 VB) + a music video (400 VB) + promo clips (400 VB) + a hook pack (100 VB) = 1,300 Visual Bucs. The entire release pipeline — song to promo — for less than the cost of one pack.",
   },
   {
     q: "Do I need experience to use it?",

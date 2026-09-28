@@ -361,20 +361,20 @@ export function CheatCodeJackpot() {
     switch (phase) {
       case "live":
         return {
-          title: `CHEAT CODE JACKPOT — ${status?.prizeCredits ?? 100} Visual Bucs unclaimed`,
+          title: `CHEAT CODE JACKPOT — ${(status?.prizeCredits ?? 10000).toLocaleString("en-US")} Visual Bucs unclaimed`,
           sub: `One code for the whole site · ends ${formatJackpotDate(status?.endsAt)}`,
           accent: true,
         };
       case "claimed":
         return {
           title: `🏆 ${status?.winnerDisplayName ?? "a sharp player"} won the jackpot`,
-          sub: `+${status?.prizeCredits ?? 100} Visual Bucs claimed — think you can beat them? A new code is coming`,
+          sub: `+${(status?.prizeCredits ?? 10000).toLocaleString("en-US")} Visual Bucs claimed — think you can beat them? A new code is coming`,
           accent: true,
         };
       case "upcoming":
         return {
           title: "The next jackpot month is loading…",
-          sub: `A new secret code goes live — one winner takes ${status?.prizeCredits ?? 100} credits`,
+          sub: `A new secret code goes live — one winner takes ${(status?.prizeCredits ?? 10000).toLocaleString("en-US")} Visual Bucs`,
           accent: false,
         };
       case "ended":
@@ -661,7 +661,7 @@ export function CheatCodeJackpot() {
               Jackpot!
             </p>
             <p className="pixel-display mt-4 text-sm sm:text-base tracking-[0.2em] text-[#F5DE8E] uppercase">
-              +{celebration.prize} Visual Bucs
+              +{celebration.prize.toLocaleString("en-US")} Visual Bucs
             </p>
             <div
               className="pixel-divider my-6 justify-center"

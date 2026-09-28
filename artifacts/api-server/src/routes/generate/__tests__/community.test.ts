@@ -26,22 +26,22 @@ import {
 
 describe("pricing constants", () => {
   it("charges 1 credit per 50 comments moderated", () => {
-    expect(COMMUNITY_MODERATE_CREDITS).toBe(1);
+    expect(COMMUNITY_MODERATE_CREDITS).toBe(100);
     expect(COMMUNITY_MODERATE_BATCH).toBe(50);
   });
 
   it("scales moderation cost by batch", () => {
-    expect(moderateCreditCost(1)).toBe(1);
-    expect(moderateCreditCost(50)).toBe(1);
-    expect(moderateCreditCost(51)).toBe(2);
-    expect(moderateCreditCost(100)).toBe(2);
+    expect(moderateCreditCost(1)).toBe(100);
+    expect(moderateCreditCost(50)).toBe(100);
+    expect(moderateCreditCost(51)).toBe(200);
+    expect(moderateCreditCost(100)).toBe(200);
     expect(moderateCreditCost(0)).toBe(0);
   });
 
   it("charges 1 credit per sentiment report / superfan scan / reply batch", () => {
-    expect(COMMUNITY_SENTIMENT_CREDITS).toBe(1);
-    expect(COMMUNITY_SUPERFAN_CREDITS).toBe(1);
-    expect(COMMUNITY_REPLY_CREDITS).toBe(1);
+    expect(COMMUNITY_SENTIMENT_CREDITS).toBe(100);
+    expect(COMMUNITY_SUPERFAN_CREDITS).toBe(100);
+    expect(COMMUNITY_REPLY_CREDITS).toBe(100);
   });
 });
 

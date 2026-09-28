@@ -317,7 +317,7 @@ describe("scheduledPostSchema", () => {
 });
 
 describe("scheduler pricing constants", () => {
-  it("scheduling costs 1 credit per post, regardless of platform count", () => {
-    expect(SCHEDULER_POST_CREDITS).toBe(1);
+  it("scheduling costs 100 Visual Bucs per post, regardless of platform count", () => {
+    expect(SCHEDULER_POST_CREDITS).toBe(100);
   });
 });

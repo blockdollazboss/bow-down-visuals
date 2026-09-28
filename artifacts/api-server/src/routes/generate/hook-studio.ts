@@ -30,7 +30,7 @@ const VIDEO_TYPE_DIRECTION: Record<VideoType, string> = {
    pre-flight call is a short GPT-6 Sol completion (a fraction of a cent in
    provider fees), so 1 credit holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
-const HOOK_STUDIO_CREDITS = Number(process.env["HOOK_STUDIO_CREDIT_COST"]) || 1;
+const HOOK_STUDIO_CREDITS = Number(process.env["HOOK_STUDIO_CREDIT_COST"]) || 100;
 
 const hooksSchema = z.object({
   mode: z.literal("hooks"),

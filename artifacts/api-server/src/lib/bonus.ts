@@ -17,8 +17,8 @@ import { logger } from "./logger";
    All bonus credits expire 48h after grant — retention tool, not free tier.
 */
 
-export const DAILY_BONUS_BASE = 2;
-export const DAILY_BONUS_STREAK_7 = 10;
+export const DAILY_BONUS_BASE = 200;
+export const DAILY_BONUS_STREAK_7 = 1000;
 export const BONUS_EXPIRY_HOURS = 48;
 export const WHEEL_COOLDOWN_MINUTES = 60;
 
@@ -30,13 +30,13 @@ export interface WheelSegment {
 }
 
 export const WHEEL_SEGMENTS: WheelSegment[] = [
-  { credits: 1, weight: 50, label: "1" },
-  { credits: 2, weight: 25, label: "2" },
-  { credits: 3, weight: 12, label: "3" },
-  { credits: 5, weight: 8, label: "5" },
-  { credits: 10, weight: 3.9, label: "10" },
-  { credits: 50, weight: 1, label: "50" },
-  { credits: 200, weight: 0.1, label: "JACKPOT", isJackpot: true },
+  { credits: 100, weight: 50, label: "100" },
+  { credits: 200, weight: 25, label: "200" },
+  { credits: 300, weight: 12, label: "300" },
+  { credits: 500, weight: 8, label: "500" },
+  { credits: 1000, weight: 3.9, label: "1,000" },
+  { credits: 5000, weight: 1, label: "5,000" },
+  { credits: 20000, weight: 0.1, label: "JACKPOT", isJackpot: true },
 ];
 
 let bonusColumnsEnsured = false;

@@ -29,9 +29,9 @@ const PLATFORMS = ["youtube", "tiktok", "instagram"] as const;
    long structured GPT-6 Sol completion; 2 credits holds a deep margin while
    staying an impulse buy — and honors the standing rule that every AI
    feature costs a fee. */
-const FORECAST_CREDITS = Number(process.env["TREND_PREDICTOR_FORECAST_CREDITS"]) || 2;
+const FORECAST_CREDITS = Number(process.env["TREND_PREDICTOR_FORECAST_CREDITS"]) || 200;
 /* 1 credit per 10-idea pack — short completion, same margin logic. */
-const IDEAS_CREDITS = Number(process.env["TREND_PREDICTOR_IDEAS_CREDITS"]) || 1;
+const IDEAS_CREDITS = Number(process.env["TREND_PREDICTOR_IDEAS_CREDITS"]) || 100;
 
 const forecastSchema = z.object({
   niche: z.string().min(1, "Niche is required.").max(120),

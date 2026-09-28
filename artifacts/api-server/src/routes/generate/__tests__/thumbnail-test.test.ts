@@ -15,11 +15,11 @@ import {
 
 describe("thumbnail-test pricing", () => {
   it("charges 2 credits per test", () => {
-    expect(THUMBNAIL_TEST_CREDIT_COST).toBe(2);
+    expect(THUMBNAIL_TEST_CREDIT_COST).toBe(200);
   });
 
   it("charges 2 credits to apply suggestions", () => {
-    expect(THUMBNAIL_IMPROVE_CREDIT_COST).toBe(2);
+    expect(THUMBNAIL_IMPROVE_CREDIT_COST).toBe(200);
   });
 });
 

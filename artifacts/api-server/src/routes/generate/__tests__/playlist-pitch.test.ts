@@ -23,7 +23,7 @@ import {
 
 describe("PLAYLIST_PITCH_CREDIT_COST", () => {
   it("charges 2 credits per pitch kit", () => {
-    expect(PLAYLIST_PITCH_CREDIT_COST).toBe(2);
+    expect(PLAYLIST_PITCH_CREDIT_COST).toBe(200);
   });
 });
 

@@ -331,7 +331,7 @@ router.delete("/artist-vaults/:id/links/:linkId", requireAuth, async (req, res) 
 
 const REF_VIDEO_DURATION_SEC = 5;
 const REF_VIDEO_CREDITS =
-  REF_VIDEO_DURATION_SEC * SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT; // 15
+  REF_VIDEO_DURATION_SEC * SEEDANCE_720P_CREDITS_PER_SEC_DEFAULT; // 1500
 
 const refVideoTasks = new Map<
   string,
@@ -367,7 +367,7 @@ router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) 
   if (credits < REF_VIDEO_CREDITS) {
     res.status(402).json({
       error: "out_of_credits",
-      message: `Not enough Visual Bucs. A character video costs ${REF_VIDEO_CREDITS} credits.`,
+      message: `Not enough Visual Bucs. A character video costs ${REF_VIDEO_CREDITS.toLocaleString("en-US")} Visual Bucs.`,
       required: REF_VIDEO_CREDITS,
       balance: credits,
     });
@@ -545,7 +545,7 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
 
 /* ── Seamless loop: make the current reference video loop without a jump ── */
 
-const LOOP_VIDEO_CREDITS = 2;
+const LOOP_VIDEO_CREDITS = 200;
 
 interface RefVideoLoopTask {
   userId: string;
@@ -643,7 +643,7 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
       .single();
     const balance: number = (profile as { credits?: number } | null)?.credits ?? 0;
     if (balance < LOOP_VIDEO_CREDITS) {
-      res.status(402).json({ error: `Not enough credits. This costs ${LOOP_VIDEO_CREDITS} credits.`, required: LOOP_VIDEO_CREDITS, balance });
+      res.status(402).json({ error: `Not enough Visual Bucs. This costs ${LOOP_VIDEO_CREDITS.toLocaleString("en-US")} Visual Bucs.`, required: LOOP_VIDEO_CREDITS, balance });
       return;
     }
     const taskId = randomUUID();

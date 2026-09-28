@@ -138,7 +138,7 @@ function AdminTools({
         amount: n,
         email: friendEmail.trim(),
       });
-      setFriendMsg(`✓ ${String(data.granted)} Visual Bucs → ${friendEmail.trim()}.`);
+      setFriendMsg(`✓ ${Number(data.granted).toLocaleString("en-US")} Visual Bucs → ${friendEmail.trim()}.`);
       setFriendEmail("");
     } catch (e) {
       setFriendMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);

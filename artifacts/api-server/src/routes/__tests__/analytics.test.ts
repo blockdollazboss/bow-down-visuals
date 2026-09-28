@@ -23,7 +23,7 @@ vi.mock("../../lib/credits", () => ({
 const aiState = vi.hoisted(() => ({
   createCompletion: vi.fn(),
   authedUserId: "user-1",
-  userCredits: 10,
+  userCredits: 1000,
 }));
 
 vi.mock("../../lib/ai-clients", () => ({
@@ -96,10 +96,10 @@ function mockFetch(handler: (url: string) => { ok: boolean; status: number; body
 
 describe("AI pricing constants", () => {
   it("charges 1 credit for AI insights", () => {
-    expect(ANALYTICS_INSIGHTS_CREDITS).toBe(1);
+    expect(ANALYTICS_INSIGHTS_CREDITS).toBe(100);
   });
   it("charges 1 credit for AI suggestions", () => {
-    expect(ANALYTICS_SUGGESTIONS_CREDITS).toBe(1);
+    expect(ANALYTICS_SUGGESTIONS_CREDITS).toBe(100);
   });
 });
 
@@ -311,7 +311,7 @@ describe("AI endpoints — refund on provider failure", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     aiState.authedUserId = "user-1";
-    aiState.userCredits = 10;
+    aiState.userCredits = 1000;
     /* The mock ledger: charge subtracts, refund restores. */
     mockCharge.mockImplementation(async (_userId: string, credits: number) => {
       aiState.userCredits -= credits;
@@ -336,7 +336,7 @@ describe("AI endpoints — refund on provider failure", () => {
       action: expect.stringContaining("Refund"),
     });
     /* Balance restored — user paid nothing for the failure. */
-    expect(aiState.userCredits).toBe(10);
+    expect(aiState.userCredits).toBe(1000);
   });
 
   it("refunds the insights credit when the model returns malformed JSON", async () => {
@@ -347,7 +347,7 @@ describe("AI endpoints — refund on provider failure", () => {
     expect(res.status).toBe(500);
     expect(mockRefund).toHaveBeenCalledTimes(1);
     expect(mockRefund).toHaveBeenCalledWith("user-1", ANALYTICS_INSIGHTS_CREDITS, expect.anything());
-    expect(aiState.userCredits).toBe(10);
+    expect(aiState.userCredits).toBe(1000);
   });
 
   it("refunds the suggestions credit when the provider call rejects", async () => {
@@ -361,7 +361,7 @@ describe("AI endpoints — refund on provider failure", () => {
     expect(mockRefund).toHaveBeenCalledWith("user-1", ANALYTICS_SUGGESTIONS_CREDITS, {
       action: expect.stringContaining("Refund"),
     });
-    expect(aiState.userCredits).toBe(10);
+    expect(aiState.userCredits).toBe(1000);
   });
 
   it("does NOT refund on a successful insights call (no double-credit)", async () => {
@@ -385,7 +385,7 @@ describe("AI endpoints — refund on provider failure", () => {
     expect(body.creditsUsed).toBe(ANALYTICS_INSIGHTS_CREDITS);
     expect(mockCharge).toHaveBeenCalledTimes(1);
     expect(mockRefund).not.toHaveBeenCalled();
-    expect(aiState.userCredits).toBe(9);
+    expect(aiState.userCredits).toBe(900);
   });
 
   it("does NOT refund on a successful suggestions call", async () => {
@@ -403,7 +403,7 @@ describe("AI endpoints — refund on provider failure", () => {
     const res = await postJson("/analytics/suggestions", validAiBody);
     expect(res.status).toBe(200);
     expect(mockRefund).not.toHaveBeenCalled();
-    expect(aiState.userCredits).toBe(9);
+    expect(aiState.userCredits).toBe(900);
   });
 
   it("returns 402 with no charge and no refund when the balance is insufficient", async () => {

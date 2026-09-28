@@ -34,9 +34,9 @@ const execFileAsync = promisify(execFile);
    3 vertical clips + 3 AI thumbnail images. 1 credit per individual
    re-roll (text block or thumbnail image). Both env-overridable. */
 export const REPURPOSE_PACK_CREDITS =
-  Number(process.env["REPURPOSE_PACK_CREDITS"]) || 5;
+  Number(process.env["REPURPOSE_PACK_CREDITS"]) || 500;
 export const REPURPOSE_REROLL_CREDITS =
-  Number(process.env["REPURPOSE_REROLL_CREDITS"]) || 1;
+  Number(process.env["REPURPOSE_REROLL_CREDITS"]) || 100;
 
 /** Cap uploads at 80 MB — same guard as the clip upload route. */
 const VIDEO_MAX_BYTES = 80 * 1024 * 1024;

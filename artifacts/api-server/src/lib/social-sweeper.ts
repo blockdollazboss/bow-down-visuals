@@ -42,12 +42,12 @@ import { logger } from "./logger";
    down the original deduction. That window is one Supabase call wide — the
    same shape as the publish route's own failAttempt→refund sequence.
 
-   The refund amount comes from INSTAGRAM_POST_CREDITS (default 2), the same
+   The refund amount comes from INSTAGRAM_POST_CREDITS (default 100), the same
    env var the publish route deducts. If that value changed between the
    deduction and the sweep, the refund would differ — in practice it's set
    once and left alone. */
 
-const SWEEP_CREDIT_COST = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 200;
+const SWEEP_CREDIT_COST = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 100;
 const SWEEP_INTERVAL_MS = Number(process.env["SOCIAL_SWEEP_INTERVAL_MS"]) || 10 * 60 * 1000;
 const SWEEP_STALE_MS = Number(process.env["SOCIAL_SWEEP_STALE_MS"]) || STALE_PROCESSING_MS;
 const SWEEP_STARTUP_DELAY_MS =

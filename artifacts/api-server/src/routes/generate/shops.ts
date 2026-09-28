@@ -39,11 +39,11 @@ import { sql } from "drizzle-orm";
 const router = Router();
 
 /* ── Pricing — env-overridable without a deploy ─────────────────────────── */
-export const SHOP_AI_CREDIT_COST = Number(process.env["SHOP_AI_CREDIT_COST"]) || 1;
+export const SHOP_AI_CREDIT_COST = Number(process.env["SHOP_AI_CREDIT_COST"]) || 100;
 export const SHOP_IMAGE_STANDARD_CREDITS =
-  Number(process.env["SHOP_IMAGE_STANDARD_CREDITS"]) || 1;
+  Number(process.env["SHOP_IMAGE_STANDARD_CREDITS"]) || 100;
 export const SHOP_IMAGE_PREMIUM_CREDITS =
-  Number(process.env["SHOP_IMAGE_PREMIUM_CREDITS"]) || 2;
+  Number(process.env["SHOP_IMAGE_PREMIUM_CREDITS"]) || 200;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const SHOP_IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";

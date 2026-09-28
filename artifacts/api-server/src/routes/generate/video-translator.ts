@@ -53,7 +53,7 @@ const execFileAsync = promisify(execFile);
 
 /** Credits charged per minute of source video, per target language. */
 export const VIDEO_TRANSLATOR_CREDITS_PER_MINUTE =
-  Number(process.env["VIDEO_TRANSLATOR_CREDITS_PER_MINUTE"]) || 5;
+  Number(process.env["VIDEO_TRANSLATOR_CREDITS_PER_MINUTE"]) || 500;
 
 export const VIDEO_TRANSLATOR_MAX_BYTES = 80 * 1024 * 1024; // 80 MB
 const WHISPER_MAX_BYTES = 24 * 1024 * 1024; // 24 MB — chunk past this

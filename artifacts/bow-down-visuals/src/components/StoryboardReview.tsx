@@ -59,7 +59,7 @@ export function StoryboardReview({ scenes, onApprove, creditsPerSecond = 2 }: St
             {scenes.length} scene{scenes.length === 1 ? "" : "s"}
           </span>
           <span className="rounded-full bg-white/[0.06] px-3 py-1.5 text-white/70">
-            ~{estimatedCredits} Visual Bucs estimated
+            ~{estimatedCredits.toLocaleString("en-US")} Visual Bucs estimated
           </span>
           <span className={`rounded-full px-3 py-1.5 font-semibold ${
             allApproved ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"

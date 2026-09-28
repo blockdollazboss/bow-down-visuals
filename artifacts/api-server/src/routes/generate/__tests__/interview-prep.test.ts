@@ -18,11 +18,11 @@ import {
 
 describe("credit costs", () => {
   it("charges 2 credits per prep session", () => {
-    expect(INTERVIEW_PREP_CREDIT_COST).toBe(2);
+    expect(INTERVIEW_PREP_CREDIT_COST).toBe(200);
   });
 
   it("charges 1 credit per answer feedback", () => {
-    expect(INTERVIEW_FEEDBACK_CREDIT_COST).toBe(1);
+    expect(INTERVIEW_FEEDBACK_CREDIT_COST).toBe(100);
   });
 
   it("never uses max_tokens — only max_completion_tokens (guarded by convention)", () => {

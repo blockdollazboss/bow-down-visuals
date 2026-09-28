@@ -310,7 +310,7 @@ const aiAnnouncementSchema = z.object({
 /* 1 credit per generation — env-overridable. A short GPT-6 Sol completion
    costs a fraction of a cent in provider fees, so 1 credit holds a deep
    margin and matches the other 1-credit AI micro-tools (chat, hook studio). */
-const AI_ANNOUNCEMENT_CREDITS = Number(process.env["DISCORD_AI_ANNOUNCEMENT_CREDIT_COST"]) || 1;
+const AI_ANNOUNCEMENT_CREDITS = Number(process.env["DISCORD_AI_ANNOUNCEMENT_CREDIT_COST"]) || 100;
 
 const AI_ANNOUNCEMENT_DIRECTION: Record<(typeof AI_ANNOUNCEMENT_TYPES)[number], string> = {
   live: "going LIVE on Discord right now — hype it like it's happening this second",

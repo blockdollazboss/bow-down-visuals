@@ -18,13 +18,13 @@ import {
 
 describe("logo pricing contract", () => {
   it("Premium costs 2 credits", () => {
-    expect(LOGO_PREMIUM_CREDIT_COST).toBe(2);
-    expect(resolveLogoPlan({ model: "premium" })).toEqual({ model: "premium", creditCost: 2 });
+    expect(LOGO_PREMIUM_CREDIT_COST).toBe(200);
+    expect(resolveLogoPlan({ model: "premium" })).toEqual({ model: "premium", creditCost: 200 });
   });
 
   it("Standard costs 1 credit", () => {
-    expect(LOGO_STANDARD_CREDIT_COST).toBe(1);
-    expect(resolveLogoPlan({ model: "standard" })).toEqual({ model: "standard", creditCost: 1 });
+    expect(LOGO_STANDARD_CREDIT_COST).toBe(100);
+    expect(resolveLogoPlan({ model: "standard" })).toEqual({ model: "standard", creditCost: 100 });
   });
 
   it("defaults to Premium when the model is missing or unknown", () => {
@@ -37,7 +37,7 @@ describe("logo pricing contract", () => {
     // before touching any provider. Pin both tiers here.
     expect(1 < LOGO_PREMIUM_CREDIT_COST).toBe(true); // 1 credit → 402 on Premium
     expect(0 < LOGO_STANDARD_CREDIT_COST).toBe(true); // 0 credits → 402 on Standard
-    expect(2 < LOGO_PREMIUM_CREDIT_COST).toBe(false); // exact balance → allowed
+    expect(200 < LOGO_PREMIUM_CREDIT_COST).toBe(false); // exact balance → allowed
   });
 });
 

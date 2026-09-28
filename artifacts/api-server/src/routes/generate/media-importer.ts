@@ -20,7 +20,7 @@ const execFileAsync = promisify(execFile);
 /* ─── Pricing ───────────────────────────────────────────────────────────
    2 credits per import — covers server bandwidth, yt-dlp/ffmpeg CPU time,
    and Supabase storage. Env-overridable without a deploy. */
-export const MEDIA_IMPORT_CREDIT_COST = Number(process.env["MEDIA_IMPORT_CREDIT_COST"]) || 2;
+export const MEDIA_IMPORT_CREDIT_COST = Number(process.env["MEDIA_IMPORT_CREDIT_COST"]) || 200;
 
 /** Hard cap on the downloaded file — protects disk and the Supabase upload. */
 export const MAX_IMPORT_BYTES = 500 * 1024 * 1024; // 500 MB

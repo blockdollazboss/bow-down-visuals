@@ -25,17 +25,17 @@ import {
 
 describe("cover art pricing", () => {
   it("charges 2 credits for standard", () => {
-    expect(COVER_ART_STANDARD_CREDITS).toBe(2);
+    expect(COVER_ART_STANDARD_CREDITS).toBe(200);
   });
 
   it("charges 3 credits for premium", () => {
-    expect(COVER_ART_PREMIUM_CREDITS).toBe(3);
+    expect(COVER_ART_PREMIUM_CREDITS).toBe(300);
   });
 
   it("resolves credits by tier", () => {
-    expect(resolveCoverArtCredits("standard")).toBe(2);
-    expect(resolveCoverArtCredits("premium")).toBe(3);
-    expect(resolveCoverArtCredits("bogus")).toBe(2); // safe default
+    expect(resolveCoverArtCredits("standard")).toBe(200);
+    expect(resolveCoverArtCredits("premium")).toBe(300);
+    expect(resolveCoverArtCredits("bogus")).toBe(200); // safe default
   });
 });
 

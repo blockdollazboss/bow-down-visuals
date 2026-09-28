@@ -19,7 +19,7 @@ import {
 
 describe("VOICEOVER_CREDITS_PER_MINUTE", () => {
   it("charges 2 credits per minute of audio", () => {
-    expect(VOICEOVER_CREDITS_PER_MINUTE).toBe(2);
+    expect(VOICEOVER_CREDITS_PER_MINUTE).toBe(200);
   });
 });
 
@@ -30,15 +30,15 @@ describe("estimateVoiceoverCost", () => {
     expect(est.wordCount).toBe(150);
     expect(est.estimatedSeconds).toBe(60);
     expect(est.billableMinutes).toBe(1);
-    expect(est.credits).toBe(2);
+    expect(est.credits).toBe(200);
   });
 
   it("rounds partial minutes up", () => {
-    // 151 words ≈ 60.4s → 2 billable minutes → 4 credits
+    // 151 words ≈ 60.4s → 2 billable minutes → 400 Visual Bucs
     const words = new Array(151).fill("word").join(" ");
     const est = estimateVoiceoverCost(words);
     expect(est.billableMinutes).toBe(2);
-    expect(est.credits).toBe(4);
+    expect(est.credits).toBe(400);
   });
 
   it("enforces a 1-minute minimum charge", () => {
@@ -53,11 +53,11 @@ describe("estimateVoiceoverCost", () => {
     expect(est.billableMinutes).toBe(1);
   });
 
-  it("scales for long scripts (1500 words = 10 min = 20 credits)", () => {
+  it("scales for long scripts (1500 words = 10 min = 2,000 Visual Bucs)", () => {
     const words = new Array(1500).fill("word").join(" ");
     const est = estimateVoiceoverCost(words);
     expect(est.billableMinutes).toBe(10);
-    expect(est.credits).toBe(20);
+    expect(est.credits).toBe(2000);
   });
 });
 

@@ -33,7 +33,7 @@ const TONE_DIRECTION: Record<Tone, string> = {
    provider fees), so 1 credit holds a deep margin while staying an impulse
    buy — and honors the standing rule that every AI feature costs a fee. */
 const COMMENT_REPLIES_CREDITS =
-  Number(process.env["COMMENT_REPLIES_CREDIT_COST"]) || 1;
+  Number(process.env["COMMENT_REPLIES_CREDIT_COST"]) || 100;
 
 const MAX_COMMENTS = 10;
 

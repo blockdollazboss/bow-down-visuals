@@ -39,7 +39,7 @@ const router = Router();
 /* 3 credits per demo kit — env-overridable without a deploy. One GPT-6 Sol
    JSON completion per kit; the margin holds comfortably at 3 credits. */
 export const LABEL_PITCH_CREDIT_COST =
-  Number(process.env["LABEL_PITCH_CREDIT_COST"]) || 3;
+  Number(process.env["LABEL_PITCH_CREDIT_COST"]) || 300;
 
 export const DEMO_KIT_DISCLAIMER =
   "Labels rarely sign from cold demos — this gives you the most professional " +

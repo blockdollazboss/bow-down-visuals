@@ -19,7 +19,7 @@ import { LLC_STATE_FEES, getLlcStateFee } from "../../../lib/llc-state-fees";
 
 describe("LLC_GUIDE_CREDIT_COST", () => {
   it("charges 1 credit per AI answer or plan", () => {
-    expect(LLC_GUIDE_CREDIT_COST).toBe(1);
+    expect(LLC_GUIDE_CREDIT_COST).toBe(100);
   });
 });
 

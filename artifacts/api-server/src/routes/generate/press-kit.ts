@@ -26,9 +26,9 @@ function param(v: string | string[] | undefined): string {
 }
 
 export const PRESS_KIT_GENERATE_CREDITS =
-  Number(process.env["PRESS_KIT_GENERATE_CREDITS"]) || 3;
+  Number(process.env["PRESS_KIT_GENERATE_CREDITS"]) || 300;
 export const PRESS_KIT_BIO_REFRESH_CREDITS =
-  Number(process.env["PRESS_KIT_BIO_REFRESH_CREDITS"]) || 1;
+  Number(process.env["PRESS_KIT_BIO_REFRESH_CREDITS"]) || 100;
 
 const trackSchema = z.object({
   title: z.string().min(1).max(120),

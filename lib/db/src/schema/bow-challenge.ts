@@ -25,7 +25,7 @@ export const bowChallengeConfigTable = pgTable("bow_challenge_config", {
   /* Retired by the global race (per-user targets no longer exist).
      Kept so old rows still read. */
   targetBows: integer("target_bows").notNull().default(100),
-  rewardCredits: integer("reward_credits").notNull().default(50),
+  rewardCredits: integer("reward_credits").notNull().default(5000),
   enabled: boolean("enabled").notNull().default(true),
   /* One-shot admin override for the next race month (1000-5000).
      NULL = random. Auto-cleared when the next month's row is created. */

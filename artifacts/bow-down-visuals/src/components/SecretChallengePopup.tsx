@@ -50,11 +50,11 @@ export function SecretChallengePopup({
               textShadow: "0 0 2cqw rgba(232,200,106,0.55)",
             }}
           >
-            {credits} Visual Bucs
+            {credits.toLocaleString("en-US")} Visual Bucs
           </span>
         </div>
         {/* Screen-reader announcement of the real amount */}
-        <span className="sr-only">You&rsquo;ve been awarded {credits} Visual Bucs.</span>
+        <span className="sr-only">You&rsquo;ve been awarded {credits.toLocaleString("en-US")} Visual Bucs.</span>
 
         {/* Working Claim button over the baked-in Claim art */}
         <button

@@ -18,7 +18,7 @@ import {
 
 describe("CHANNEL_AUDIT_CREDITS", () => {
   it("charges 3 credits per audit", () => {
-    expect(CHANNEL_AUDIT_CREDITS).toBe(3);
+    expect(CHANNEL_AUDIT_CREDITS).toBe(300);
   });
 });
 

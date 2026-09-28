@@ -20,7 +20,7 @@ import {
 
 describe("BRAND_CALC_CREDIT_COST", () => {
   it("charges 2 credits per calculation", () => {
-    expect(BRAND_CALC_CREDIT_COST).toBe(2);
+    expect(BRAND_CALC_CREDIT_COST).toBe(200);
   });
 });
 

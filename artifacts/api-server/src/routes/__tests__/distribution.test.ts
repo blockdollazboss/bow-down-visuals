@@ -168,7 +168,7 @@ beforeEach(async () => {
   mem.public.none(SONGS_DDL);
   testState.db = db;
   testState.userId = USER_A;
-  testState.userCredits = 100;
+  testState.userCredits = 10000;
   testState.chargeImpl = null;
   testState.refundCalls = [];
   testState.openAiImpl = null;
@@ -225,10 +225,10 @@ async function seedRelease(userId: string, overrides: Record<string, unknown> = 
 
 describe("pricing constants", () => {
   it("charges 1 credit per AI generation", () => {
-    expect(AI_CREDIT_COST).toBe(1);
+    expect(AI_CREDIT_COST).toBe(100);
   });
   it("charges 10 credits per release packaging", () => {
-    expect(DISTRIBUTION_RELEASE_CREDITS).toBe(10);
+    expect(DISTRIBUTION_RELEASE_CREDITS).toBe(1000);
   });
 });
 
@@ -407,7 +407,7 @@ describe("POST /api/distribution/releases/:id/submit", () => {
   });
 
   it("402s when the user can't afford the tier fee", async () => {
-    testState.userCredits = 5;
+    testState.userCredits = 500;
     const { id } = await seedRelease(USER_A, { complete: true });
     const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
     expect(status).toBe(402);
@@ -452,12 +452,12 @@ describe("POST /api/distribution/releases/:id/submit", () => {
     const { status, json } = await req("POST", `/distribution/releases/${id}/submit`);
     expect(status).toBe(200);
     expect(vi.mocked(chargeCredits).mock.calls[0]?.[1]).toBe(RELEASE_TIER_CREDITS.ep);
-    expect(json.creditsUsed).toBe(20);
+    expect(json.creditsUsed).toBe(2000);
   });
 
   it("refunds when the aggregator submission fails", async () => {
     const { id } = await seedRelease(USER_A, { complete: true });
-    testState.userCredits = 100;
+    testState.userCredits = 10000;
     const { getAggregator } = await import("../../lib/distribution-aggregator");
     const agg = getAggregator();
     const spy = vi.spyOn(agg, "submitRelease").mockRejectedValueOnce(new Error("boom"));
@@ -584,17 +584,17 @@ describe("POST /api/distribution/strategy", () => {
 /* ─── v2: tiered pricing ──────────────────────────────────────────────────── */
 
 describe("tiered release pricing", () => {
-  it("single 10 / EP 20 / album 30 credits", () => {
-    expect(RELEASE_TIER_CREDITS.single).toBe(10);
-    expect(RELEASE_TIER_CREDITS.ep).toBe(20);
-    expect(RELEASE_TIER_CREDITS.album).toBe(30);
+  it("single 1,000 / EP 2,000 / album 3,000 Visual Bucs", () => {
+    expect(RELEASE_TIER_CREDITS.single).toBe(1000);
+    expect(RELEASE_TIER_CREDITS.ep).toBe(2000);
+    expect(RELEASE_TIER_CREDITS.album).toBe(3000);
   });
 
   it("GET /api/distribution/pricing exposes live tiers", async () => {
     const { status, json } = await req("GET", "/distribution/pricing");
     expect(status).toBe(200);
     expect(json.tiers).toHaveLength(3);
-    expect(json.tiers.find((t: any) => t.type === "album").credits).toBe(30);
+    expect(json.tiers.find((t: any) => t.type === "album").credits).toBe(3000);
     expect(json.annualPlan.comingSoon).toBe(true);
     expect(json.aggregator).toBe("mock");
     expect(json.aggregatorLive).toBe(false);

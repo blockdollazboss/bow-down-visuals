@@ -21,7 +21,7 @@ const PLANS = [
     price: 19,
     period: "/month",
     bestFor: "New creators",
-    credits: "25 Visual Bucs monthly",
+    credits: "2,500 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Street Punk",
@@ -41,7 +41,7 @@ const PLANS = [
     price: 49,
     period: "/month",
     bestFor: "Active solo creators",
-    credits: "100 Visual Bucs monthly",
+    credits: "10,000 Visual Bucs monthly",
     featured: true,
     badge: "Most Popular",
     cta: "Rank Up to Hustler",
@@ -61,7 +61,7 @@ const PLANS = [
     price: 99,
     period: "/month",
     bestFor: "Serious full-time creators",
-    credits: "250 Visual Bucs monthly",
+    credits: "25,000 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Gangster",
@@ -81,7 +81,7 @@ const PLANS = [
     price: 199,
     period: "/month",
     bestFor: "Teams & creator brands",
-    credits: "600 Visual Bucs monthly",
+    credits: "60,000 Visual Bucs monthly",
     featured: false,
     badge: null,
     cta: "Become a Shot Caller",
@@ -101,7 +101,7 @@ const PLANS = [
     price: 399,
     period: "/month",
     bestFor: "High-volume creators",
-    credits: "1,500 Visual Bucs monthly",
+    credits: "150,000 Visual Bucs monthly",
     featured: false,
     badge: "Exclusive",
     cta: "Become a Crime Boss",
@@ -121,7 +121,7 @@ const PLANS = [
     price: 799,
     period: "/month",
     bestFor: "Labels, agencies & power users",
-    credits: "4,000 Visual Bucs monthly",
+    credits: "400,000 Visual Bucs monthly",
     featured: false,
     badge: "Top Tier",
     cta: "Claim the Kingpin Crown",
@@ -137,10 +137,10 @@ const PLANS = [
 ];
 
 const CREDIT_PACKS = [
-  { credits: "10 Visual Bucs",  price: "$9",   packKey: "10"  },
-  { credits: "50 Visual Bucs",  price: "$39",  packKey: "50"  },
-  { credits: "150 Visual Bucs", price: "$99",  packKey: "150" },
-  { credits: "500 Visual Bucs", price: "$249", packKey: "500" },
+  { credits: "1,000 Visual Bucs",  price: "$9",   packKey: "10"  },
+  { credits: "5,000 Visual Bucs",  price: "$39",  packKey: "50"  },
+  { credits: "15,000 Visual Bucs", price: "$99",  packKey: "150" },
+  { credits: "50,000 Visual Bucs", price: "$249", packKey: "500" },
 ];
 
 const FAQ = [

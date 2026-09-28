@@ -32,7 +32,7 @@ import {
 
 describe("CONTEST_ANNOUNCE_CREDIT_COST", () => {
   it("charges 1 credit per announcement graphic", () => {
-    expect(CONTEST_ANNOUNCE_CREDIT_COST).toBe(1);
+    expect(CONTEST_ANNOUNCE_CREDIT_COST).toBe(100);
   });
 });
 
@@ -238,7 +238,7 @@ describe("DRAW_ALGORITHM", () => {
 
 const routeState = vi.hoisted(() => ({
   authedUserId: "user-1" as string | null,
-  credits: 10,
+  credits: 1000,
   contest: null as null | {
     id: string;
     user_id: string;
@@ -269,11 +269,11 @@ vi.mock("../../../middlewares/require-auth", () => ({
 vi.mock("../../../lib/credits", () => ({
   chargeCredits: vi.fn(async () => {
     if (routeState.chargeImpl) return routeState.chargeImpl();
-    routeState.charged.push(1);
-    return routeState.credits - 1;
+    routeState.charged.push(100);
+    return routeState.credits - 100;
   }),
   refundCredits: vi.fn(async () => {
-    routeState.refunded.push(1);
+    routeState.refunded.push(100);
   }),
   OutOfCreditsError: class OutOfCreditsError extends Error {},
   LedgerWriteError: class LedgerWriteError extends Error {},
@@ -347,7 +347,7 @@ let baseUrl = "";
 beforeEach(() => {
   vi.clearAllMocks();
   routeState.authedUserId = "user-1";
-  routeState.credits = 10;
+  routeState.credits = 1000;
   routeState.contest = {
     id: "contest-1",
     user_id: "user-1",
@@ -418,15 +418,15 @@ describe("POST /api/contests/:id/announce (money flow)", () => {
     }
   });
 
-  it("charges 1 credit and returns the graphic URL on success", async () => {
+  it("charges 100 Visual Bucs and returns the graphic URL on success", async () => {
     await startServer();
     try {
       const res = await fetch(`${baseUrl}/api/contests/contest-1/announce`, { method: "POST" });
       expect(res.status).toBe(200);
       const body = (await res.json()) as { url: string; creditCost: number };
       expect(body.url).toBe("https://cdn.example/announce.png");
-      expect(body.creditCost).toBe(1);
-      expect(routeState.charged).toEqual([1]);
+      expect(body.creditCost).toBe(100);
+      expect(routeState.charged).toEqual([100]);
       expect(routeState.refunded).toEqual([]);
     } finally {
       await stopServer();
@@ -451,8 +451,8 @@ describe("POST /api/contests/:id/announce (money flow)", () => {
       routeState.failUpload = true;
       const res = await fetch(`${baseUrl}/api/contests/contest-1/announce`, { method: "POST" });
       expect(res.status).toBe(500);
-      expect(routeState.charged).toEqual([1]);
-      expect(routeState.refunded).toEqual([1]);
+      expect(routeState.charged).toEqual([100]);
+      expect(routeState.refunded).toEqual([100]);
       expect(vi.mocked(refundCredits)).toHaveBeenCalled();
     } finally {
       await stopServer();

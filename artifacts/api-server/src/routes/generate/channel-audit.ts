@@ -19,7 +19,7 @@ const router = Router();
 
 /* 3 credits per audit — env-overridable without a deploy. One longer GPT-6
    Sol structured completion; deep margin while staying an impulse buy. */
-const CHANNEL_AUDIT_CREDITS = Number(process.env["CHANNEL_AUDIT_CREDIT_COST"]) || 3;
+const CHANNEL_AUDIT_CREDITS = Number(process.env["CHANNEL_AUDIT_CREDIT_COST"]) || 300;
 /* Exported for tests. */
 export { CHANNEL_AUDIT_CREDITS };
 

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 /* ─── Promoter HQ — the referral program as a job ──────────────────────────
    Each user gets a personal referral link. New user signs up via link and
-   gets 10 welcome credits. Referrers climb 6 Kingpin-style stars: higher
+   gets 1,000 welcome Visual Bucs. Referrers climb 6 Kingpin-style stars: higher
    stars = higher revenue-share rate + one-time milestone bonuses. */
 
 interface ReferralEntry {
@@ -165,7 +165,7 @@ export default function Referrals() {
                         {info.nextTier.minReferrals - info.totalReferrals} more to{" "}
                         <span className="text-primary font-semibold">{info.nextTier.title}</span>
                       </span>
-                      <span>{info.nextTier.ratePct}% + {info.nextTier.milestoneBonus} VB bonus</span>
+                      <span>{info.nextTier.ratePct}% + {info.nextTier.milestoneBonus.toLocaleString("en-US")} VB bonus</span>
                     </div>
                     <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                       <div
@@ -199,7 +199,7 @@ export default function Referrals() {
               </div>
               <div className="lux-card p-5 text-center">
                 <Gift className="h-5 w-5 text-primary mx-auto mb-2" />
-                <p className="text-3xl font-black text-white">{info.creditsEarned}</p>
+                <p className="text-3xl font-black text-white">{info.creditsEarned.toLocaleString("en-US")}</p>
                 <p className="text-xs text-white/45 uppercase tracking-widest mt-1">Visual Bucs earned</p>
               </div>
             </div>
@@ -328,7 +328,7 @@ export default function Referrals() {
                             {t.minReferrals}+ creators · {t.ratePct}% cut
                             {t.milestoneBonus > 0 && (
                               <> · <span className={claimed ? "text-emerald-400" : "text-primary/80"}>
-                                {claimed ? "✓" : "+"}{t.milestoneBonus} VB bonus{claimed ? " claimed" : ""}
+                                {claimed ? "✓" : "+"}{t.milestoneBonus.toLocaleString("en-US")} VB bonus{claimed ? " claimed" : ""}
                               </span></>
                             )}
                           </p>

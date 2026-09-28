@@ -27,7 +27,7 @@ import {
    max_tokens. */
 
 export const TOUR_PLANNER_CREDIT_COST =
-  Number(process.env["TOUR_PLANNER_CREDIT_COST"]) || 3;
+  Number(process.env["TOUR_PLANNER_CREDIT_COST"]) || 300;
 
 export const MAX_TOUR_DATES = 30;
 

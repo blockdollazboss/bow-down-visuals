@@ -53,9 +53,9 @@ const execFileAsync = promisify(execFile);
 
 /* ── Pricing ───────────────────────────────────────────────────────────── */
 export const LYRIC_ALIGN_CREDIT_COST =
-  Number(process.env["LYRIC_VIDEO_ALIGN_CREDITS"]) || 2;
+  Number(process.env["LYRIC_VIDEO_ALIGN_CREDITS"]) || 200;
 export const LYRIC_RENDER_CREDIT_COST =
-  Number(process.env["LYRIC_VIDEO_RENDER_CREDITS"]) || 5;
+  Number(process.env["LYRIC_VIDEO_RENDER_CREDITS"]) || 500;
 
 /** Whisper's hard per-request file limit. */
 const WHISPER_MAX_BYTES = 24 * 1024 * 1024;

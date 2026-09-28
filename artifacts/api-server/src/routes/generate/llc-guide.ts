@@ -21,7 +21,7 @@ const router = Router();
    checklist, fee table, estimator, and FAQ on the page are pure UI and
    stay free. */
 export const LLC_GUIDE_CREDIT_COST =
-  Number(process.env["LLC_GUIDE_CREDIT_COST"]) || 1;
+  Number(process.env["LLC_GUIDE_CREDIT_COST"]) || 100;
 
 export const CREATOR_TYPES = [
   "musician",

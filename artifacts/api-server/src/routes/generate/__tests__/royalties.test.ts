@@ -29,7 +29,7 @@ import {
 
 describe("royalty pricing contract", () => {
   it("AI insights cost exactly 1 credit", () => {
-    expect(ROYALTY_INSIGHTS_CREDITS).toBe(1);
+    expect(ROYALTY_INSIGHTS_CREDITS).toBe(100);
   });
 
   it("a broke user (0 credits) is rejected before any model call", () => {
@@ -37,7 +37,7 @@ describe("royalty pricing contract", () => {
   });
 
   it("exact balance is allowed through the pre-check", () => {
-    expect(1 < ROYALTY_INSIGHTS_CREDITS).toBe(false);
+    expect(100 < ROYALTY_INSIGHTS_CREDITS).toBe(false);
   });
 
   it("uses max_completion_tokens, never max_tokens (GPT-6 requirement)", () => {

@@ -15,7 +15,7 @@ const router = Router();
 
 /** Credits per generation batch (4 variations). Env-overridable without a deploy. */
 const BATCH_CREDIT_COST =
-  Number(process.env["THUMBNAIL_GENERATOR_CREDITS"]) || 2;
+  Number(process.env["THUMBNAIL_GENERATOR_CREDITS"]) || 200;
 
 /** Newest OpenAI image model — env-overridable so upgrades are one-line changes. */
 const IMAGE_MODEL = process.env["OPENAI_IMAGE_MODEL_25"] || "gpt-image-2.5-sunburst";

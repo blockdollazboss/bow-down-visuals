@@ -81,8 +81,8 @@ function JackpotAdmin({ authHeaders }: { authHeaders: () => Promise<HeadersInit>
       return;
     }
     const prizeCredits = parseInt(prize, 10);
-    if (!Number.isFinite(prizeCredits) || prizeCredits < 1 || prizeCredits > 10000) {
-      setError("Prize must be between 1 and 10000 Visual Bucs.");
+    if (!Number.isFinite(prizeCredits) || prizeCredits < 100 || prizeCredits > 1000000) {
+      setError("Prize must be between 100 and 1,000,000 Visual Bucs.");
       return;
     }
     if (!name.trim()) {
@@ -600,7 +600,7 @@ export default function AdminPage() {
               </p>
             </div>
             <p className="text-sm text-white/60 mb-4">
-              Current balance: <span className="font-bold text-white">{profile?.credits ?? "—"}</span> Visual Bucs
+              Current balance: <span className="font-bold text-white">{profile?.credits?.toLocaleString("en-US") ?? "—"}</span> Visual Bucs
             </p>
             <div className="flex gap-2">
               <input

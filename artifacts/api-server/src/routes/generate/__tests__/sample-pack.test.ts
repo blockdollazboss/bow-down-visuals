@@ -26,15 +26,15 @@ import {
 
 describe("sample pack pricing contract", () => {
   it("10 samples cost 5 credits", () => {
-    expect(creditCostForPackSize(10)).toBe(5);
+    expect(creditCostForPackSize(10)).toBe(500);
   });
 
   it("25 samples cost 12 credits", () => {
-    expect(creditCostForPackSize(25)).toBe(12);
+    expect(creditCostForPackSize(25)).toBe(1200);
   });
 
   it("50 samples cost 20 credits", () => {
-    expect(creditCostForPackSize(50)).toBe(20);
+    expect(creditCostForPackSize(50)).toBe(2000);
   });
 
   it("rejects unsupported pack sizes", () => {
@@ -178,7 +178,7 @@ describe("request validation", () => {
   it("the route charges before generating (documents the 402 contract)", () => {
     // POST /api/sample-pack/generate checks req.userCredits < creditCost → 402
     // before any synthesis or provider call. Pin the thresholds.
-    expect(4 < creditCostForPackSize(10)).toBe(true); // 4cr → 402 on a 10-pack
-    expect(5 < creditCostForPackSize(10)).toBe(false); // exact balance → allowed
+    expect(400 < creditCostForPackSize(10)).toBe(true); // 400 → 402 on a 10-pack
+    expect(500 < creditCostForPackSize(10)).toBe(false); // exact balance → allowed
   });
 });

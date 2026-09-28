@@ -31,8 +31,8 @@ const execFileAsync = promisify(execFile);
    detection — real provider spend on every run), 2 credits per rendered
    vertical clip (server-side ffmpeg encode + storage). Both
    env-overridable without a deploy. */
-const ANALYZE_CREDIT_COST = Number(process.env["STREAMER_CLIPS_ANALYZE_CREDITS"]) || 3;
-const CUT_CREDIT_COST = Number(process.env["STREAMER_CLIPS_CUT_CREDITS"]) || 2;
+const ANALYZE_CREDIT_COST = Number(process.env["STREAMER_CLIPS_ANALYZE_CREDITS"]) || 300;
+const CUT_CREDIT_COST = Number(process.env["STREAMER_CLIPS_CUT_CREDITS"]) || 200;
 
 /** Cap VOD uploads at 80 MB — same guard as the clip upload route. */
 const VOD_MAX_BYTES = 80 * 1024 * 1024;

@@ -29,11 +29,11 @@ const baseDetails: DraftDetails = {
 
 describe("copyright pricing contract", () => {
   it("AI draft costs 1 credit", () => {
-    expect(COPYRIGHT_DRAFT_CREDITS).toBe(1);
+    expect(COPYRIGHT_DRAFT_CREDITS).toBe(100);
   });
 
   it("AI Q&A costs 1 credit per answer", () => {
-    expect(COPYRIGHT_ASK_CREDITS).toBe(1);
+    expect(COPYRIGHT_ASK_CREDITS).toBe(100);
   });
 
   it("a broke user (0 credits) is rejected before any model call", () => {
@@ -43,8 +43,8 @@ describe("copyright pricing contract", () => {
   });
 
   it("exact balance is allowed through the pre-check", () => {
-    expect(1 < COPYRIGHT_DRAFT_CREDITS).toBe(false);
-    expect(1 < COPYRIGHT_ASK_CREDITS).toBe(false);
+    expect(100 < COPYRIGHT_DRAFT_CREDITS).toBe(false);
+    expect(100 < COPYRIGHT_ASK_CREDITS).toBe(false);
   });
 });
 

@@ -27,7 +27,7 @@ function makeTrend(i: number) {
 
 const testState = vi.hoisted(() => ({
   userId: "user-1",
-  userCredits: 10,
+  userCredits: 1000,
   chargeCalls: [] as Array<{ userId: string; amount: number }>,
   refundCalls: [] as Array<{ userId: string; amount: number }>,
   modelPayload: {} as any,
@@ -100,7 +100,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   testState.userId = "user-1";
-  testState.userCredits = 10;
+  testState.userCredits = 1000;
   testState.chargeCalls = [];
   testState.refundCalls = [];
   testState.modelPayload = {
@@ -161,9 +161,9 @@ describe("POST /api/trend-predictor/forecast", () => {
       expect(Array.isArray(t.earlySignals)).toBe(true);
     }
     expect(json.disclaimer).toBeTruthy();
-    expect(json.creditsUsed).toBe(2);
-    expect(json.creditsRemaining).toBe(8);
-    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 2 }]);
+    expect(json.creditsUsed).toBe(200);
+    expect(json.creditsRemaining).toBe(800);
+    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 200 }]);
     expect(testState.refundCalls).toHaveLength(0);
   });
 
@@ -189,8 +189,8 @@ describe("POST /api/trend-predictor/forecast", () => {
     expect(status).toBe(502);
     expect(json.error).toBeTruthy();
     expect(testState.chargeCalls).toHaveLength(1);
-    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 2 }]);
-    expect(testState.userCredits).toBe(10); // charged then refunded
+    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 200 }]);
+    expect(testState.userCredits).toBe(1000); // charged then refunded
   });
 
   it("refunds the credit when the model returns no usable trends", async () => {
@@ -198,7 +198,7 @@ describe("POST /api/trend-predictor/forecast", () => {
     const { status } = await post("/trend-predictor/forecast", { niche: "Music" });
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.userCredits).toBe(1000);
   });
 });
 
@@ -236,9 +236,9 @@ describe("POST /api/trend-predictor/ideas", () => {
     });
     expect(status).toBe(200);
     expect(json.ideas).toHaveLength(10);
-    expect(json.creditsUsed).toBe(1);
-    expect(json.creditsRemaining).toBe(9);
-    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 1 }]);
+    expect(json.creditsUsed).toBe(100);
+    expect(json.creditsRemaining).toBe(900);
+    expect(testState.chargeCalls).toEqual([{ userId: "user-1", amount: 100 }]);
     expect(testState.refundCalls).toHaveLength(0);
   });
 
@@ -259,8 +259,8 @@ describe("POST /api/trend-predictor/ideas", () => {
     });
     expect(status).toBe(502);
     expect(testState.chargeCalls).toHaveLength(1);
-    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 1 }]);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.refundCalls).toEqual([{ userId: "user-1", amount: 100 }]);
+    expect(testState.userCredits).toBe(1000);
   });
 
   it("refunds the credit when the model returns no usable ideas", async () => {
@@ -271,6 +271,6 @@ describe("POST /api/trend-predictor/ideas", () => {
     });
     expect(status).toBe(502);
     expect(testState.refundCalls).toHaveLength(1);
-    expect(testState.userCredits).toBe(10);
+    expect(testState.userCredits).toBe(1000);
   });
 });

@@ -60,7 +60,7 @@ function makeJob(overrides: Partial<StemJob> = {}): StemJob {
 
 describe("STEM_SPLITTER_CREDIT_COST", () => {
   it("charges 4 credits per song", () => {
-    expect(STEM_SPLITTER_CREDIT_COST).toBe(4);
+    expect(STEM_SPLITTER_CREDIT_COST).toBe(400);
   });
 });
 
