@@ -3,6 +3,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation } from "wouter";
+import { attachThemeAnalyser } from "@/lib/theme-analyser";
 
 const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
 
@@ -89,7 +90,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     audio.muted  = false;
     audio.volume = volumeRef.current;
     audio.play()
-      .then(() => { setPlaying(true); setMuted(false); })
+      .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
       .catch(() => { /* blocked — the unlock listener below stays armed */ });
   }, []);
 
@@ -126,7 +127,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       a.muted  = false;
       a.volume = volumeRef.current;
       a.play()
-        .then(() => { setPlaying(true); setMuted(false); removeUnlock(); })
+        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(a); removeUnlock(); })
         .catch(() => {});
     };
     document.addEventListener("click",      unlock);
@@ -210,7 +211,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       audio.muted  = false;
       audio.volume = audioRef.current?.volume ?? 0.65;
       audio.play()
-        .then(() => { setPlaying(true); setMuted(false); })
+        .then(() => { setPlaying(true); setMuted(false); attachThemeAnalyser(audio); })
         .catch(() => {});
     }
 
@@ -271,7 +272,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       autoPausedByNav.current = false;
       audio.muted  = manuallyMuted.current;
       audio.volume = volume;
-      audio.play().catch(() => {});
+      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
       setPlaying(true);
     }
   }, [playing, volume]);
@@ -285,7 +286,7 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
     setMuted(next);
     /* Unmuting should also ensure playback starts if paused */
     if (!next && !playing && !manuallyPaused.current) {
-      audio.play().catch(() => {});
+      audio.play().then(() => attachThemeAnalyser(audio)).catch(() => {});
       setPlaying(true);
     }
   }, [muted, playing]);
