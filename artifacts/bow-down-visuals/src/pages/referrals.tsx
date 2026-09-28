@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
-import { Users, Copy, Check, Share2, Gift, Loader2 } from "lucide-react";
+import { Users, Copy, Check, Share2, Gift, Loader2, TrendingUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-/* ─── Referrals — invite creators, earn credits ────────────────────────────
-   Each user gets a personal referral link. New user signs up via link:
-   referrer gets 5 credits, new user gets 3 credits. */
+/* ─── Referrals — invite creators, earn a revenue share ────────────────────
+   Each user gets a personal referral link. New user signs up via link and
+   gets 10 welcome credits. Referrer earns 25% of the referee's credit
+   purchases (paid in site credits) for 90 days. No upfront referrer payout. */
 
 interface ReferralInfo {
   code: string;
   totalReferrals: number;
+  activeReferrals: number;
   creditsEarned: number;
-  referrerReward: number;
+  revenueSharePct: number;
+  shareWindowDays: number;
   refereeReward: number;
 }
 
@@ -52,7 +55,7 @@ export default function Referrals() {
     } catch { /* clipboard unavailable */ }
   };
 
-  const shareText = `Join me on Bow Down Visuals — the AI studio for music creators. Sign up with my link and we both get free credits!`;
+  const shareText = `Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get ${info?.refereeReward ?? 10} free credits to start!`;
   const shareLinks = [
     { label: "X", href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}` },
     { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}` },
@@ -67,14 +70,15 @@ export default function Referrals() {
             <Gift className="h-7 w-7 text-primary" />
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Invite creators, <span className="text-primary">earn credits</span>
+            Invite creators, <span className="text-primary">earn on every purchase</span>
           </h1>
           <p className="mt-3 text-white/55 max-w-md mx-auto">
-            Share your link. When a creator joins with it, you get{" "}
-            <span className="text-primary font-semibold">{info?.referrerReward ?? 5} credits</span>{" "}
-            and they get{" "}
-            <span className="text-primary font-semibold">{info?.refereeReward ?? 3} credits</span>{" "}
-            to start creating.
+            Share your link. New creators get{" "}
+            <span className="text-primary font-semibold">{info?.refereeReward ?? 10} free credits</span>,
+            and you earn{" "}
+            <span className="text-primary font-semibold">{info?.revenueSharePct ?? 25}% of everything
+            they buy</span>{" "}in credits for{" "}
+            <span className="text-primary font-semibold">{info?.shareWindowDays ?? 90} days</span>.
           </p>
         </div>
 
@@ -92,11 +96,16 @@ export default function Referrals() {
         ) : info && (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-3 gap-4 mb-8">
               <div className="lux-card p-5 text-center">
                 <Users className="h-5 w-5 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-black text-white">{info.totalReferrals}</p>
                 <p className="text-xs text-white/45 uppercase tracking-widest mt-1">Creators joined</p>
+              </div>
+              <div className="lux-card p-5 text-center">
+                <TrendingUp className="h-5 w-5 text-primary mx-auto mb-2" />
+                <p className="text-3xl font-black text-white">{info.activeReferrals}</p>
+                <p className="text-xs text-white/45 uppercase tracking-widest mt-1">Earning now</p>
               </div>
               <div className="lux-card p-5 text-center">
                 <Gift className="h-5 w-5 text-primary mx-auto mb-2" />
@@ -141,6 +150,12 @@ export default function Referrals() {
                 ))}
               </div>
             </div>
+
+            <p className="mt-6 text-center text-xs text-white/35 max-w-md mx-auto">
+              You earn {info.revenueSharePct}% of each referred creator's credit purchases,
+              paid in credits, for {info.shareWindowDays} days after they join.
+              Payouts land automatically when they buy.
+            </p>
           </>
         )}
       </div>
