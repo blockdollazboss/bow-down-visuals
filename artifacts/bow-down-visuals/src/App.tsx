@@ -110,6 +110,8 @@ const DiscordBot = lazyWithRetry(() => import("@/pages/discord-bot"));
 const Guides = lazyWithRetry(() => import("@/pages/guides"));
 const ClipMaker = lazyWithRetry(() => import("@/pages/clip-maker"));
 const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
+const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
+const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -416,6 +418,9 @@ function AppShell() {
           <Route path="/guides"><Guides /></Route>
           <Route path="/clip-maker"><ClipMaker /></Route>
           <Route path="/branding-shop"><BrandingShop /></Route>
+          <Route path="/nfc-cards"><NfcCards /></Route>
+          {/* Public NFC smart-card profile (tap/QR destination) */}
+          <Route path="/c/:slug"><NfcCardProfile /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
