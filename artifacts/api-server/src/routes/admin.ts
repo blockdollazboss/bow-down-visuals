@@ -180,10 +180,33 @@ router.post("/admin/plan/set", requireAuth, requireAdmin, async (req, res) => {
       { admin: req.userEmail, targetUserId: resolved.userId, tier: parsed.data.tier },
       "admin: plan tier set",
     );
+    // Entitlement lifecycle: dropping a team owner below Shot Caller (4)
+    // freezes their teams' pools for spending. Surface it so the admin
+    // knows the blast radius; the owner can recover via ownership transfer.
+    let ownedTeams: { id: string; name: string }[] = [];
+    if (parsed.data.tier < 4) {
+      try {
+        const { db, teamsTable } = await import("@workspace/db");
+        const { eq } = await import("drizzle-orm");
+        ownedTeams = await db
+          .select({ id: teamsTable.id, name: teamsTable.name })
+          .from(teamsTable)
+          .where(eq(teamsTable.ownerId, resolved.userId));
+        if (ownedTeams.length > 0) {
+          req.log.warn(
+            { admin: req.userEmail, targetUserId: resolved.userId, tier: parsed.data.tier, ownedTeams },
+            "admin: downgraded a team owner below Shot Caller — team pools now suspended for spending",
+          );
+        }
+      } catch (teamErr) {
+        req.log.error({ err: teamErr }, "admin: could not check owned teams after tier change");
+      }
+    }
     res.json({
       userId: resolved.userId,
       tier: parsed.data.tier,
       rank: PLAN_RANKS[parsed.data.tier - 1],
+      ...(ownedTeams.length > 0 ? { teamsSuspended: ownedTeams } : {}),
     });
   } catch (err) {
     req.log.error({ err }, "admin: set plan tier failed");

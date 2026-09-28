@@ -15,6 +15,7 @@ interface Team {
   allowPersonalFallback: boolean;
   myRole: string | null;
   myStatus: string | null;
+  poolSuspended?: boolean;
 }
 
 interface TeamMember {
@@ -374,6 +375,18 @@ export default function TeamPage() {
         </Card>
       ) : (
         <>
+          {/* Pool suspension banner — owner's Shot Caller lapsed */}
+          {activeTeam.poolSuspended && (
+            <Card className="p-4 border-[#C9A84C]/50 bg-[#C9A84C]/10">
+              <p className="text-sm text-[#C9A84C] font-semibold">
+                ⚠ Team pool paused — the owner's Shot Caller status lapsed.
+              </p>
+              <p className="text-xs text-white/60 mt-1">
+                Member spending now uses personal Visual Bucs. The owner can restore the pool by
+                re-upgrading to Shot Caller, or transfer ownership to a Shot Caller member.
+              </p>
+            </Card>
+          )}
           {/* Pool balance */}
           <Card className="p-6 bg-gradient-to-br from-[#C9A84C]/15 to-transparent border-[#C9A84C]/30">
             <div className="flex items-center justify-between flex-wrap gap-4">

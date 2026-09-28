@@ -166,7 +166,7 @@ router.post("/teams", requireAuth, async (req, res) => {
     }
     // ENTITLEMENT: Teams require Shot Caller tier (4) or higher.
     // Fail-closed: unknown tier = no access.
-    const { isShotCallerOrHigher } = await import("../lib/teams");
+    const { isShotCallerOrHigher, isTeamPoolActive } = await import("../lib/teams");
     if (!(await isShotCallerOrHigher(userId))) {
       res.status(403).json({ error: "Team Workspace requires Shot Caller tier or higher." });
       return;
@@ -202,7 +202,7 @@ router.get("/teams", requireAuth, async (req, res) => {
     // Entitlement gates team CREATION, not membership: anyone can be invited
     // onto a team, but only Shot Caller tier or higher can create one.
     // (Fail-closed: unknown tier = no creation rights.)
-    const { isShotCallerOrHigher } = await import("../lib/teams");
+    const { isShotCallerOrHigher, isTeamPoolActive } = await import("../lib/teams");
     const canCreate = await isShotCallerOrHigher(userId);
     const email = await getUserEmail(userId);
 
@@ -235,11 +235,14 @@ router.get("/teams", requireAuth, async (req, res) => {
 
     res.json({
       canCreate,
-      teams: teams.map((t) => ({
-        ...t,
-        myRole: memberships.find((m) => m.teamId === t.id)?.role ?? null,
-        myStatus: memberships.find((m) => m.teamId === t.id)?.status ?? null,
-      })),
+      teams: await Promise.all(
+        teams.map(async (t) => ({
+          ...t,
+          myRole: memberships.find((m) => m.teamId === t.id)?.role ?? null,
+          myStatus: memberships.find((m) => m.teamId === t.id)?.status ?? null,
+          poolSuspended: !(await isTeamPoolActive(t)),
+        })),
+      ),
       invites: invites.map((i) => ({ ...i, team: inviteTeamById.get(i.teamId) ?? null })),
     });
   } catch (err: unknown) {
@@ -264,7 +267,8 @@ router.get("/teams/:id", requireAuth, async (req, res) => {
       return;
     }
     const members = await db.select().from(teamMembersTable).where(eq(teamMembersTable.teamId, teamId));
-    res.json({ team, members, myRole: membership.role });
+    const { isTeamPoolActive } = await import("../lib/teams");
+    res.json({ team, members, myRole: membership.role, poolSuspended: !(await isTeamPoolActive(team)) });
   } catch (err: unknown) {
     req.log.error({ err }, "teams: detail failed");
     res.status(500).json({ error: "Failed to load team." });
@@ -777,13 +781,20 @@ async function getUserEmail(userId: string): Promise<string | null> {
 async function getUserIdByEmail(email: string): Promise<string | null> {
   try {
     const admin = getSupabaseAdmin();
-    // listUsers paginates (default 50/page): use a large page so existing
-    // users aren't missed on bigger sites. A miss is still harmless — the
-    // accept flow matches invites by email — but linking eagerly is better.
-    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (error) return null;
-    const found = data.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-    return found?.id ?? null;
+    // listUsers paginates (default 50/page). Walk pages until we find the
+    // email or run out — a miss is still harmless (the accept flow matches
+    // invites by email) but linking eagerly is better. Capped at 100 pages
+    // (100k accounts) as a sanity bound.
+    const wanted = email.toLowerCase();
+    const perPage = 1000;
+    for (let page = 1; page <= 100; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+      if (error) return null;
+      const found = data.users.find((u) => u.email?.toLowerCase() === wanted);
+      if (found) return found.id;
+      if (data.users.length < perPage) break; // last page
+    }
+    return null;
   } catch {
     return null;
   }

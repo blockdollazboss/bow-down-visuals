@@ -26,6 +26,7 @@ const testState = vi.hoisted(() => ({
   userId: "user-1",
   userEmail: "user-1@example.com",
   entitled: true,
+  ownerTier: 4,
   activeTeam: null as any,
   deductCalls: [] as { userId: string; amount: number }[],
   refundCalls: [] as { userId: string; amount: number }[],
@@ -250,6 +251,7 @@ vi.mock("../../lib/supabase-admin", () => ({
 vi.mock("../../lib/teams", () => ({
   isShotCallerOrHigher: vi.fn(async (_userId: string) => testState.entitled),
   getUserActiveTeam: vi.fn(async (_userId: string) => testState.activeTeam),
+  isTeamPoolActive: vi.fn(async (_team: any) => (testState.ownerTier ?? 4) >= 4),
 }));
 
 import router from "../teams";
@@ -277,6 +279,7 @@ beforeEach(() => {
   dbState.creditUsage = [];
   dbState.fundingOps = [];
   testState.entitled = true;
+  testState.ownerTier = 4;
   testState.activeTeam = null;
   testState.deductCalls = [];
   testState.refundCalls = [];
@@ -351,8 +354,7 @@ describe("POST /api/teams — Shot Caller entitlement (fail-closed)", () => {
 });
 
 describe("GET /api/teams — creation is the entitlement boundary", () => {
-  it("non-entitled users still see invites with canCreate=false", async () => {
-    testState.entitled = false;
+  it("non-entitled users still see invites with canCreate=false", async () => {    testState.entitled = false;
     dbState.teams.push({ id: "team-1", name: "Inviter Team", ownerId: "owner-9", credits: 0 });
     dbState.teamMembers.push({
       id: "m-inv",
@@ -373,6 +375,39 @@ describe("GET /api/teams — creation is the entitlement boundary", () => {
     const { status, body } = await get("/api/teams");
     expect(status).toBe(200);
     expect(body.canCreate).toBe(true);
+  });
+
+  it("marks poolSuspended=false when the owner is entitled", async () => {
+    seedTeam({ ownerId: "user-1" });
+    const { status, body } = await get("/api/teams");
+    expect(status).toBe(200);
+    expect(body.teams).toHaveLength(1);
+    expect(body.teams[0].poolSuspended).toBe(false);
+  });
+
+  it("marks poolSuspended=true when the owner was downgraded", async () => {
+    testState.ownerTier = 2;
+    seedTeam({ ownerId: "user-1" });
+    const { status, body } = await get("/api/teams");
+    expect(status).toBe(200);
+    expect(body.teams[0].poolSuspended).toBe(true);
+  });
+});
+
+describe("GET /api/teams/:id — pool suspension flag", () => {
+  it("returns poolSuspended=false for an entitled owner's team", async () => {
+    seedTeam({ ownerId: "user-1" });
+    const { status, body } = await get("/api/teams/team-1");
+    expect(status).toBe(200);
+    expect(body.poolSuspended).toBe(false);
+  });
+
+  it("returns poolSuspended=true after the owner is downgraded", async () => {
+    testState.ownerTier = 3;
+    seedTeam({ ownerId: "user-1" });
+    const { status, body } = await get("/api/teams/team-1");
+    expect(status).toBe(200);
+    expect(body.poolSuspended).toBe(true);
   });
 });
 

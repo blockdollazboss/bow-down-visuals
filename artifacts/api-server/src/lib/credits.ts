@@ -1,7 +1,7 @@
 import { logger } from "./logger";
 import { getSupabaseAdmin, addCreditsToProfile } from "./supabase-admin";
 import { recordCreditUsageStrict } from "./payment-record";
-import { getUserActiveTeam, deductTeamCredits } from "./teams";
+import { getUserActiveTeam, deductTeamCredits, isTeamPoolActive } from "./teams";
 import { db, teamsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 
@@ -130,7 +130,18 @@ export async function chargeCredits(
   let teamId: string | null = null;
   let creditsAfter: number;
   const activeTeam = await getUserActiveTeam(userId);
-  if (activeTeam) {
+  // Entitlement lifecycle: the pool is a Shot Caller feature. If the owner
+  // dropped below Shot Caller (or their tier can't be confirmed), the pool
+  // is frozen for spending — the member is charged personally instead, per
+  // the team's fallback policy. Fail-closed on the pool, graceful on the user.
+  const poolActive = activeTeam ? await isTeamPoolActive(activeTeam.team) : false;
+  if (activeTeam && !poolActive) {
+    logger.warn(
+      { userId, teamId: activeTeam.team.id, ownerId: activeTeam.team.ownerId },
+      "[credits] team pool suspended: owner no longer Shot Caller — charging personal balance",
+    );
+  }
+  if (activeTeam && poolActive) {
     const tid: string = activeTeam.team.id;
     const poolBalance: number = activeTeam.team.credits;
     const allowFallback: boolean = activeTeam.team.allowPersonalFallback ?? true;

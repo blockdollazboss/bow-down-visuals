@@ -79,6 +79,20 @@ export async function getAccessibleVault(userId: string, vaultId: string) {
 }
 
 /**
+ * Returns true if the team's pool may be spent from. The pool is a Shot
+ * Caller feature: it stays active only while the team's OWNER holds Shot
+ * Caller tier or higher. If the owner is downgraded (or their tier is
+ * unknown), the pool is frozen — members fall back to personal credits.
+ * Fail-closed: unknown tier = suspended.
+ *
+ * Recovery path: the (downgraded) owner can still transfer ownership to an
+ * entitled member via POST /api/teams/:id/transfer, which unsuspends the pool.
+ */
+export async function isTeamPoolActive(team: { ownerId: string }): Promise<boolean> {
+  return isShotCallerOrHigher(team.ownerId);
+}
+
+/**
  * Deducts `cost` from a team's shared pool. Returns the new pool balance.
  * Throws OutOfCreditsError-style { status: 402 } on insufficient pool.
  */
