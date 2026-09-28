@@ -141,7 +141,7 @@ export default function AudioCleanup() {
           setNoiseReductionDb(typeof data.noiseReductionDb === "number" ? data.noiseReductionDb : null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Cleanup failed — your 3 Visual Bucs were refunded.");
+          setError(data.error || "Cleanup failed — your 300 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }

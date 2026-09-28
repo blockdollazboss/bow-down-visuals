@@ -620,7 +620,7 @@ export default function PressKitBuilder() {
                 </div>
                 {!selectedKit && (
                   <p className="text-xs text-white/30">
-                    The 3 Visual Bucs cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.
+                    The 300 Visual Bucs cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.
                   </p>
                 )}
               </div>

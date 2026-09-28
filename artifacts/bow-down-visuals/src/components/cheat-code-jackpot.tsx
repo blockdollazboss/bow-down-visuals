@@ -604,7 +604,7 @@ export function CheatCodeJackpot() {
             </p>
             <p className="mt-3 text-sm text-white/60 leading-relaxed">
               You need an account to claim the jackpot — otherwise anyone could
-              snatch your 100 Visual Bucs.
+              snatch your 10,000 Visual Bucs.
             </p>
             <div className="mt-6 flex flex-col gap-3">
               <a

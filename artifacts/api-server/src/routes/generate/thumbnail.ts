@@ -12,9 +12,9 @@ import { isAllowedStemUrl } from "../../lib/audioExport";
 const router = Router();
 
 /** Text (concept + prompts) generation cost, charged whenever the AI text call succeeds. */
-const TEXT_CREDIT_COST = 1;
+const TEXT_CREDIT_COST = 100;
 /** Extra cost for actually rendering the AI thumbnail image, charged only if the image succeeds. */
-const IMAGE_CREDIT_COST = 2;
+const IMAGE_CREDIT_COST = 200;
 /** Total credits required up-front to attempt a full generation (text + image). */
 const CREDIT_COST = TEXT_CREDIT_COST + IMAGE_CREDIT_COST;
 

@@ -4,7 +4,7 @@
  */
 
 /** Site credits charged per AI design batch (2 mockups). Env-overridable at the route. */
-export const MERCH_DESIGN_CREDIT_COST = 3;
+export const MERCH_DESIGN_CREDIT_COST = 300;
 
 /** Future platform commission on merch sales (percent). Recorded as intent;
  *  checkout is honestly "coming soon" — no payments are processed yet. */

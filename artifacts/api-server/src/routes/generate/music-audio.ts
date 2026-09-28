@@ -15,14 +15,14 @@ const DEFAULT_LENGTH_MS = 60_000;
 /**
  * Tiered pricing by song length — provider cost scales with duration,
  * so the credit price does too. Keeps margins at ~4x+ across all tiers.
- * - Up to 1 min:  4 credits (~$2.00, ~$0.30 cost)
- * - Up to 3 min:  8 credits (~$4.00, ~$0.90 cost)
- * - Up to 5 min: 12 credits (~$6.00, ~$1.50 cost)
+ * - Up to 1 min:  400 Visual Bucs (~$2.00, ~$0.30 cost)
+ * - Up to 3 min:  800 Visual Bucs (~$4.00, ~$0.90 cost)
+ * - Up to 5 min: 1200 Visual Bucs (~$6.00, ~$1.50 cost)
  */
 function creditCostForLength(lengthMs: number): number {
-  if (lengthMs <= 60_000) return 4;
-  if (lengthMs <= 180_000) return 8;
-  return 12;
+  if (lengthMs <= 60_000) return 400;
+  if (lengthMs <= 180_000) return 800;
+  return 1200;
 }
 
 function clampLengthMs(raw: unknown): number {
@@ -106,7 +106,7 @@ router.post("/generate-music-audio", requireAuth, async (req, res) => {
     }
 
     // Artist voice lock: if the active vault has a locked voice, swap the
-    // song's vocals to it. Cost is baked into the song price (5 credits).
+    // song's vocals to it. Cost is baked into the song price.
     // On any failure, fall back to the original mix — never fail the song.
     let finalBuffer: Buffer = buffer;
     let voiceSwapped = false;

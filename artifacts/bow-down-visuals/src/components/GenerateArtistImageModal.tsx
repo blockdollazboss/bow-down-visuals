@@ -318,7 +318,7 @@ export function GenerateArtistImageModal({ open, onClose, onGenerated, initialPr
         {isShoot ? (
           <p className="mt-4 text-xs text-white/50 flex items-center gap-2 bg-white/[0.03] border border-white/10 rounded-xl px-3.5 py-2.5">
             <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-            Identity lock on — your Artist Photo is the face reference. Turbo · 2 Visual Bucs per shoot.
+            Identity lock on — your Artist Photo is the face reference. Turbo · 200 Visual Bucs per shoot.
           </p>
         ) : (
           <>

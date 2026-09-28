@@ -47,7 +47,7 @@ import { logger } from "./logger";
    deduction and the sweep, the refund would differ — in practice it's set
    once and left alone. */
 
-const SWEEP_CREDIT_COST = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 2;
+const SWEEP_CREDIT_COST = Number(process.env["INSTAGRAM_POST_CREDITS"]) || 200;
 const SWEEP_INTERVAL_MS = Number(process.env["SOCIAL_SWEEP_INTERVAL_MS"]) || 10 * 60 * 1000;
 const SWEEP_STALE_MS = Number(process.env["SOCIAL_SWEEP_STALE_MS"]) || STALE_PROCESSING_MS;
 const SWEEP_STARTUP_DELAY_MS =

@@ -72,7 +72,7 @@ function sequencesEqual(a: string, b: string): boolean {
 /* ------------------------------------------------------------------ */
 
 /** Prize credits for each monthly jackpot. */
-const MONTHLY_PRIZE_CREDITS = 100;
+const MONTHLY_PRIZE_CREDITS = 10000;
 
 /** Calendar-month window in UTC: [1st 00:00, 1st of next month 00:00). */
 function monthWindow(d: Date): [Date, Date] {
@@ -555,7 +555,7 @@ const CreateEventSchema = z.object({
   codeSequence: SequenceSchema,
   startsAt: z.string().datetime().optional(),
   endsAt: z.string().datetime(),
-  prizeCredits: z.number().int().min(1).max(10000).default(100),
+  prizeCredits: z.number().int().min(1).max(1000000).default(10000),
 });
 
 /** Admin shape — code_hash is never serialized, but the plaintext

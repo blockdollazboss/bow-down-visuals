@@ -16,7 +16,7 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const WATERMARK_REMOVAL_CREDIT_COST = 2;
+export const WATERMARK_REMOVAL_CREDIT_COST = 200;
 const MAX_BYTES = 80 * 1024 * 1024; // 80 MB, same guard as clip uploads
 
 /**

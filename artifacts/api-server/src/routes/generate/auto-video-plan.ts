@@ -8,7 +8,7 @@ import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib
 
 const router = Router();
 
-const CREDIT_COST = 2;
+const CREDIT_COST = 200;
 
 /**
  * POST /api/auto-video-plan

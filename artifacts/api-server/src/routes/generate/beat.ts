@@ -5,7 +5,7 @@ import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/cr
 
 const router = Router();
 const BUCKET = "audio-stems";
-const CREDIT_COST = 3;
+const CREDIT_COST = 300;
 const MIN_LENGTH_MS = 10_000;
 const MAX_LENGTH_MS = 180_000;
 const DEFAULT_LENGTH_MS = 60_000;

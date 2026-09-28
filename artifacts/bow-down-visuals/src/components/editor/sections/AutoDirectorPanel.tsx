@@ -275,7 +275,7 @@ export function AutoDirectorPanel({
               className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-black disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
             >
               {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              {generating ? "Directing…" : "Generate plan from song · 2 Visual Bucs"}
+              {generating ? "Directing…" : "Generate plan from song · 200 Visual Bucs"}
             </button>
             <button
               type="button"

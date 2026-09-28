@@ -834,7 +834,7 @@ export default function SongAndVideo() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Mic2 className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">2 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">200 Visual Bucs</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
             Make Song + Video
@@ -1100,7 +1100,7 @@ export default function SongAndVideo() {
 
               <div className="flex items-center justify-between pt-2">
                 <p className="text-xs text-white/25 flex items-center gap-1.5">
-                  <Zap className="h-3 w-3 text-primary" /> Uses 2 Visual Bucs
+                  <Zap className="h-3 w-3 text-primary" /> Uses 200 Visual Bucs
                 </p>
               </div>
 

@@ -37,8 +37,8 @@ import { requestPollerTick } from "../lib/job-poller";
    NOTE: uses max_completion_tokens (NOT max_tokens) — GPT-6 rejects
    max_tokens. */
 
-export const SCHEDULER_POST_CREDITS = Number(process.env["SCHEDULER_POST_CREDITS"]) || 1;
-export const SCHEDULER_BEST_TIME_CREDITS = Number(process.env["SCHEDULER_BEST_TIME_CREDITS"]) || 1;
+export const SCHEDULER_POST_CREDITS = Number(process.env["SCHEDULER_POST_CREDITS"]) || 100;
+export const SCHEDULER_BEST_TIME_CREDITS = Number(process.env["SCHEDULER_BEST_TIME_CREDITS"]) || 100;
 
 const PLATFORMS = ["instagram", "tiktok", "facebook"] as const;
 export type SchedulerPlatformKey = (typeof PLATFORMS)[number];

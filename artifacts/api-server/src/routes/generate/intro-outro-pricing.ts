@@ -14,7 +14,7 @@ export const INTRO_OUTRO_RATIO = "1280:720" as const;
  * Site credits charged per second of Seedance video for intros/outros.
  * Mirrors the Seedance site rate (env-overridable in the route).
  */
-export const INTRO_OUTRO_CREDITS_PER_SEC_FALLBACK = 1.5;
+export const INTRO_OUTRO_CREDITS_PER_SEC_FALLBACK = 150;
 
 export function resolveIntroOutroCost(creditsPerSec?: number): number {
   const rate = Number(creditsPerSec) || INTRO_OUTRO_CREDITS_PER_SEC_FALLBACK;

@@ -33,8 +33,8 @@ import {
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const MIX_MASTER_CREDIT_COST = 8;
-export const MIX_STEMS_CREDIT_COST = 15;
+export const MIX_MASTER_CREDIT_COST = 800;
+export const MIX_STEMS_CREDIT_COST = 1500;
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB per file
 const MAX_STEMS = 12;
 const FFMPEG_TIMEOUT_MS = 900_000; // 15 min cap per pass (stem mixes are heavy)

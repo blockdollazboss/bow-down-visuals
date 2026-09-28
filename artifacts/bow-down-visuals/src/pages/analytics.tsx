@@ -477,7 +477,7 @@ export default function Analytics() {
                   AI Insights <span className="text-primary">Engine</span>
                 </h2>
                 <p className="text-sm text-white/50">
-                  Stats are free. The brain costs <span className="font-semibold text-primary">1 Visual Buc</span> per run.
+                  Stats are free. The brain costs <span className="font-semibold text-primary">100 Visual Bucs</span> per run.
                 </p>
               </div>
             </div>
@@ -497,7 +497,7 @@ export default function Analytics() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-50"
               >
                 {insightsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                Analyze my stats · 1 Visual Buc
+                Analyze my stats · 100 Visual Bucs
               </button>
               <button
                 onClick={runSuggestions}
@@ -505,7 +505,7 @@ export default function Analytics() {
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-5 py-3 text-sm font-bold text-primary transition hover:bg-primary/20 disabled:opacity-50"
               >
                 {suggestionsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-                What should I make next? · 1 Visual Buc
+                What should I make next? · 100 Visual Bucs
               </button>
             </div>
 

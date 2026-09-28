@@ -301,7 +301,7 @@ export default function PodcastStudio() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
             Script, topic, or video in — finished episode out. AI hosts, intro/outro
-            music, chapters, and a publish-ready RSS feed. 3 Visual Bucs per 10 minutes.
+            music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.
           </p>
         </div>
 

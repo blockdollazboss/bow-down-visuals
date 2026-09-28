@@ -377,7 +377,7 @@ export default function Translate() {
                     <span className="font-semibold text-white">{estimate.billableMinutes} min</span>
                     {" × "}
                     <span className="font-semibold text-white">{selectedLangs.length} language{selectedLangs.length === 1 ? "" : "s"}</span>
-                    {" × 5 Visual Bucs"}
+                    {" × 500 Visual Bucs"}
                   </div>
                   <div className="mt-1 text-xs text-white/40">
                     Subtitle files (SRT) for every language are free.

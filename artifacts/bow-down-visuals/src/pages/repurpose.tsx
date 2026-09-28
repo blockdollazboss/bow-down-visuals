@@ -411,7 +411,7 @@ export default function Repurpose() {
               {analyzing ? "Building your pack…" : `Repurpose my video · ${PACK_CREDITS} credits`}
             </button>
             <p className="text-xs text-white/40">
-              5 Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
+              500 Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
               Re-rolls are {REROLL_CREDITS} Visual Buc each. Copying and downloading are free.
             </p>
           </div>

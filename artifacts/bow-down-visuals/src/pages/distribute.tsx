@@ -1330,7 +1330,7 @@ function ReleaseDetail(props: {
           <Section
             title="AI Release Metadata"
             icon={<Sparkles className="h-5 w-5 text-primary" />}
-            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 Visual Buc</span>}
+            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">100 Visual Bucs</span>}
           >
             <p className="mb-4 text-sm text-white/50">
               Describe the song — AI writes streaming-ready title options, a release description, and genre tags.
@@ -1389,7 +1389,7 @@ function ReleaseDetail(props: {
           <Section
             title="AI Pre-Release Strategy"
             icon={<Rocket className="h-5 w-5 text-primary" />}
-            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">1 Visual Buc</span>}
+            action={<span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-bold text-primary">100 Visual Bucs</span>}
           >
             <p className="mb-4 text-sm text-white/50">
               Release timing, a 2-week promo plan, and a must-do checklist — tailored to this release.

@@ -92,7 +92,7 @@ function VideoUpscaleTool() {
           setOutputUrl(data.outputUrl ?? null);
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Upscale failed — your 3 Visual Bucs were refunded.");
+          setError(data.error || "Upscale failed — your 300 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as VideoJobStatus);
         }

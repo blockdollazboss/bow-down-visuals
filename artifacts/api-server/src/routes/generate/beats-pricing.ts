@@ -15,7 +15,7 @@ export type BeatLicenseTier = (typeof BEAT_LICENSE_TIERS)[number];
 /** Site commission on beat sales (percent, integer). */
 export const BEAT_SALE_COMMISSION_PCT = 15;
 
-export const BEAT_AI_TAGS_CREDIT_COST = 1;
+export const BEAT_AI_TAGS_CREDIT_COST = 100;
 
 /** Env-overridable AI tag suggester cost. */
 export function getBeatAiTagsCost(): number {

@@ -200,7 +200,7 @@ function AiBeatTab({ onGenerated }: { onGenerated?: (beat: GeneratedBeat) => voi
           {generating ? (
             <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Cooking your beat…</>
           ) : (
-            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · 3 Visual Bucs</>
+            <><Sparkles className="w-5 h-5 mr-2" /> Generate Beat · 300 Visual Bucs</>
           )}
         </Button>
         <p className="text-xs text-white/40 text-center -mt-2">

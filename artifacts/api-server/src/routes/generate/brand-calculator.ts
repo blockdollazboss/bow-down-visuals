@@ -20,7 +20,7 @@ const router = Router();
    AI feature costs a fee. The generated rate card PDF itself is pure
    client-side rendering, so it ships free with the calculation. */
 export const BRAND_CALC_CREDIT_COST =
-  Number(process.env["BRAND_CALCULATOR_CREDIT_COST"]) || 2;
+  Number(process.env["BRAND_CALCULATOR_CREDIT_COST"]) || 200;
 
 /* Platforms supported by the calculator — keep in sync with the frontend
    /brand-calculator page. */

@@ -652,7 +652,7 @@ function LockedVoiceSection({ vault, onChanged }: {
       {songPickerOpen && !vault.voice_id && (
         <div className="mt-3 max-h-56 overflow-y-auto rounded-lg border border-white/10 divide-y divide-white/5">
           <p className="px-3 py-2 text-xs text-white/40">
-            Pick a song — its vocals get stripped and cloned into the locked voice (2 Visual Bucs).
+            Pick a song — its vocals get stripped and cloned into the locked voice (200 Visual Bucs).
             Best with clear lead vocals; heavy effects or buried vocals may fail.
           </p>
           {songs.map((s) => (

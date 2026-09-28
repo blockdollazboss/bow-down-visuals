@@ -712,7 +712,7 @@ function cleanup(...files: string[]) {
 
 /* ── POST /api/export-final-video ────────────────────── */
 /** Exported for the one-click lip-sync run-all flow (routes/lip-sync.ts). */
-export const EXPORT_CREDIT_COST = 4;
+export const EXPORT_CREDIT_COST = 400;
 
 export interface ExportRequestBody {
     projectId: string;

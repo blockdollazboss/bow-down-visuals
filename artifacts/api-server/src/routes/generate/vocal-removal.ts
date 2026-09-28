@@ -19,7 +19,7 @@ import { toFile } from "openai";
 const router = Router();
 const execFileAsync = promisify(execFile);
 
-export const VOCAL_REMOVAL_CREDIT_COST = 3;
+export const VOCAL_REMOVAL_CREDIT_COST = 300;
 /** 25 MB — matches Whisper's hard limit so karaoke transcription never 413s. */
 const MAX_BYTES = 25 * 1024 * 1024;
 

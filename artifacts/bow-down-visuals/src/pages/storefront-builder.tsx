@@ -297,14 +297,14 @@ export default function StorefrontBuilder() {
               <div>
                 <h2 className="text-lg font-bold">Tell your story</h2>
                 <p className="mt-1 text-sm text-white/50">
-                  Let AI write your shop's "about" blurb — <span className="font-bold text-amber-300">1 Visual Buc</span>. Or write your own for free.
+                  Let AI write your shop's "about" blurb — <span className="font-bold text-amber-300">100 Visual Bucs</span>. Or write your own for free.
                 </p>
                 <div className="mt-4">
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">What do you sell? (helps the AI)</label>
                   <input className={inputClass} value={niche} onChange={(e) => setNiche(e.target.value)} placeholder="Streetwear, vinyl pressings, sample packs…" maxLength={120} />
                 </div>
                 <button className={`${goldBtn} mt-3`} onClick={generateDescription} disabled={busy || !name.trim()}>
-                  <Sparkles className="h-4 w-4" /> Generate with AI <span className="text-[11px] font-semibold opacity-70">1 Visual Buc</span>
+                  <Sparkles className="h-4 w-4" /> Generate with AI <span className="text-[11px] font-semibold opacity-70">100 Visual Bucs</span>
                 </button>
                 <div className="mt-4">
                   <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-white/50">Shop description</label>

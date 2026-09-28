@@ -291,8 +291,8 @@ export function ProToolsSection({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <AiButton onClick={handleAutoGrade} loading={grading} testId="pro-ai-auto-grade"
-              title="1 Visual Buc — AI analyzes the frame and sets every slider">
-              AI Auto-Grade · 1 Visual Buc
+              title="100 Visual Bucs — AI analyzes the frame and sets every slider">
+              AI Auto-Grade · 100 Visual Bucs
             </AiButton>
             <button
               type="button" onClick={handleAutoLevels}

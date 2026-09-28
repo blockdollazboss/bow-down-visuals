@@ -94,7 +94,7 @@ export default function VocalRemover() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Vocal removal failed — your 3 Visual Bucs were refunded.");
+          setError(data.error || "Vocal removal failed — your 300 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }

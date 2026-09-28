@@ -23,7 +23,7 @@ const router = Router();
    a cent in provider fees), so 1 credit holds a deep margin while staying
    an impulse buy — and honors the standing rule that every AI feature
    costs a fee. Browsing the catalog and lesson metadata is free (pure UI). */
-const ACADEMY_CREDIT_COST = Number(process.env["ACADEMY_CREDIT_COST"]) || 1;
+const ACADEMY_CREDIT_COST = Number(process.env["ACADEMY_CREDIT_COST"]) || 100;
 export { ACADEMY_CREDIT_COST };
 
 const LEVELS = ["beginner", "intermediate", "advanced"] as const;

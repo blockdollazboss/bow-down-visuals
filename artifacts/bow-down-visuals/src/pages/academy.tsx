@@ -337,7 +337,7 @@ export default function CreatorAcademy() {
               <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
                 Courses on production, growth, monetization, and branding —
                 taught by AI, personalized to your goals. Browse free,
-                learn for 1 Visual Buc a lesson.
+                learn for 100 Visual Bucs a lesson.
               </p>
             </div>
 

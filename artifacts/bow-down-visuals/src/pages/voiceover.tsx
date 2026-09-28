@@ -211,7 +211,7 @@ export default function VoiceoverStudio() {
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
             Paste your script, pick a voice and a direction — get broadcast-quality
-            voiceover audio ready to layer under your video. 2 Visual Bucs per minute.
+            voiceover audio ready to layer under your video. 200 Visual Bucs per minute.
           </p>
         </div>
 

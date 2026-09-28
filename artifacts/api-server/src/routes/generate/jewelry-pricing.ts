@@ -10,11 +10,11 @@
  */
 
 /** Site credits charged per AI jewelry preview render. Env-overridable. */
-export const JEWELRY_PREVIEW_CREDIT_COST = 2;
+export const JEWELRY_PREVIEW_CREDIT_COST = 200;
 /** Site credits charged per STL manufacturing-file export. Env-overridable. */
-export const JEWELRY_STL_CREDIT_COST = 4;
+export const JEWELRY_STL_CREDIT_COST = 400;
 /** Site credits charged per AI consultant message. Env-overridable. */
-export const JEWELRY_CONSULT_CREDIT_COST = 1;
+export const JEWELRY_CONSULT_CREDIT_COST = 100;
 
 /* ─── Piece types ─────────────────────────────────────────────────────── */
 

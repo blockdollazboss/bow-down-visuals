@@ -106,7 +106,7 @@ export default function StemSplitter() {
           }
         } else if (data.status === "failed") {
           setStatus("failed");
-          setError(data.error || "Stem splitting failed — your 4 Visual Bucs were refunded.");
+          setError(data.error || "Stem splitting failed — your 400 Visual Bucs were refunded.");
         } else {
           setStatus(data.status as JobStatus);
         }
@@ -272,7 +272,7 @@ export default function StemSplitter() {
           <p className="text-xs text-white/55 leading-relaxed">
             Real Demucs 4-stem separation running on our servers — the same engine
             producers use to pull acapellas and instrumentals. Splits take a few
-            minutes depending on song length (capped at 10 minutes). Your 4 Visual Bucs
+            minutes depending on song length (capped at 10 minutes). Your 400 Visual Bucs
             are refunded automatically if the split fails.
           </p>
         </div>

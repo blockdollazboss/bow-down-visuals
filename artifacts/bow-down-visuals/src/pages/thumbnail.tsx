@@ -144,7 +144,7 @@ export default function Thumbnail() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <ImageIcon className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">up to 3 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">up to 300 Visual Bucs</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">Thumbnail Maker</h1>
           <p className="text-white/50 text-lg max-w-2xl">Generate a real, ready-to-use AI thumbnail image plus cover art concepts and prompts for your release.</p>
@@ -208,7 +208,7 @@ export default function Thumbnail() {
               <Button type="submit" size="lg" disabled={loading} className="w-full sm:w-auto gold-glow font-bold text-base px-12 rounded-xl gap-3" style={{ height: "52px" }}>
                 {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> Building your pack...</> : <><ImageIcon className="h-5 w-5" /> Generate Thumbnail Pack</>}
               </Button>
-              <p className="text-white/25 text-xs mt-3">Uses 1 Visual Buc for the concept pack, plus 2 more if the AI thumbnail image renders successfully (3 total)</p>
+              <p className="text-white/25 text-xs mt-3">Uses 100 Visual Bucs for the concept pack, plus 2 more if the AI thumbnail image renders successfully (3 total)</p>
             </div>
           </form>
         </div>
