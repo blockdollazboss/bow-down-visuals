@@ -1500,6 +1500,27 @@ WaitlistSection.displayName = "WaitlistSection";
 /* ───── Official music video teaser — cinematic full-bleed placeholder ───── */
 
 function MusicVideoTeaser() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  /* Play only while the teaser is actually on screen — pause the moment
+     the user scrolls away, resume when they scroll back. */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section
       aria-label="Official music video teaser"
@@ -1508,6 +1529,7 @@ function MusicVideoTeaser() {
       <LuxReveal>
         <div className="relative w-full overflow-hidden">
           <video
+            ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
             src="/official-teaser.mp4"
             autoPlay
