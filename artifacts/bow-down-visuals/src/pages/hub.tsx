@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import {
   Check, Plus, Trash2, Download, ArrowRight, FolderOpen, Sparkles, Music4,
-  Layers, type LucideIcon,
+  Layers, ChevronLeft, type LucideIcon,
 } from "lucide-react";
 import { useHubProject, type HubAsset, type HubAssetKind, type HubProjectType } from "@/lib/hub-project";
 import {
@@ -16,10 +16,18 @@ import { BeatMakerModule } from "./beat-maker";
 import { ThumbnailMakerModule } from "./thumbnail-maker";
 
 /* ─── Creation Hub ──────────────────────────────────────────────────────────
-   One place for everything. Pick what you're making — a song, a video, or a
-   visual/brand package — and the hub lays out that craft's chain: every step
-   feeds the next, every finished asset lands in the project tray with its
-   natural next move attached. Tools report in via useHubProject().addAsset. */
+   One place for everything. Pick what you're making and the hub walks you
+   through that craft's chain — every step feeds the next, every finished
+   asset lands in the project tray with its natural next move attached.
+
+   Two views, one brain:
+   - Guide me (default): ONE step on screen. Do it, it's done, next. This is
+     the cheat-code view — no walls of links, no decisions, just momentum.
+   - All steps (advanced): the full workflow rail for users who want the map.
+
+   Tools report in via useHubProject().addAsset. Steps with an assetKind
+   complete themselves when the asset lands; hands-on steps (idea, cast…)
+   get a "Done, next" button that stores progress per project type. */
 
 function AssetCard({ asset }: { asset: HubAsset }) {
   const { removeAsset } = useHubProject();
@@ -84,7 +92,7 @@ function TypePicker({ onPick }: { onPick: (t: HubProjectType) => void }) {
       <Layers className="w-10 h-10 text-primary mx-auto mb-4" />
       <h2 className="text-white font-black text-2xl mb-2">What are we working on?</h2>
       <p className="text-white/45 text-sm mb-8 max-w-md mx-auto">
-        The hub lays out the right chain for the job — every step flows into the next.
+        Pick one — the hub handles the rest, one easy step at a time.
       </p>
       <div className="space-y-8 text-left">
         {FAMILIES.map((f) => {
@@ -142,23 +150,335 @@ function EmbeddedModule({ step }: { step: WorkflowStep }) {
   return null;
 }
 
-export default function Hub() {
-  const { project, setProjectName, setProjectType, newProject, hasKind } = useHubProject();
+/* ─── Guided view: the cheat-code view ────────────────────────────────────── */
+
+function GuidedView({ onNewProject }: { onNewProject: () => void }) {
+  const { project, hasKind, stepDones, markStepDone } = useHubProject();
+  const workflow = getWorkflow(project.type);
+  const steps = workflow.steps;
+
+  const isDone = (s: WorkflowStep) =>
+    (s.assetKind ? hasKind(s.assetKind) : false) || stepDones.includes(s.key);
+  const doneCount = steps.filter(isDone).length;
+  const allDone = doneCount === steps.length;
+
+  const firstOpen = () => {
+    const i = steps.findIndex((s) => !isDone(s));
+    return i === -1 ? steps.length - 1 : i;
+  };
+  const [idx, setIdx] = useState<number>(firstOpen);
+  // Restart the guide when the project type changes.
+  useEffect(() => {
+    setIdx(firstOpen());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.type]);
+
+  const safeIdx = Math.min(idx, steps.length - 1);
+  const step = steps[safeIdx]!;
+  const done = isDone(step);
+  const next = steps[safeIdx + 1] ?? null;
+  const Icon = step.icon;
+  const assets = step.assetKind ? project.assets.filter((a) => a.kind === step.assetKind) : [];
+
+  const advance = () => {
+    if (next) setIdx(safeIdx + 1);
+  };
+  const finishStep = () => {
+    markStepDone(step.key);
+    advance();
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* Progress */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-white/50 text-xs font-bold uppercase tracking-widest">
+            {allDone ? "Complete" : `Step ${safeIdx + 1} of ${steps.length}`}
+          </p>
+          <p className="text-white/50 text-xs">{doneCount}/{steps.length} done</p>
+        </div>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-500"
+            style={{ width: `${(doneCount / steps.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {allDone ? (
+        <div className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-8 md:p-10 text-center">
+          <Sparkles className="w-10 h-10 text-primary mx-auto mb-4" />
+          <h2 className="text-white font-black text-2xl mb-2">That's the whole chain.</h2>
+          <p className="text-white/50 text-sm max-w-sm mx-auto mb-6">
+            {project.name} went from idea to finished — {project.assets.length} asset
+            {project.assets.length === 1 ? "" : "s"} in the tray, every step feeding the next.
+          </p>
+          <Button
+            onClick={onNewProject}
+            className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Start something new
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-white/35 mb-3">
+            Step {safeIdx + 1}
+            {done
+              ? <span className="text-emerald-400"> · done</span>
+              : <span> · {step.creditNote}</span>}
+          </p>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="w-11 h-11 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Icon className="w-6 h-6 text-primary" />
+            </span>
+            <h2 className="text-white font-black text-xl">{step.label}</h2>
+            {done && (
+              <span className="w-6 h-6 rounded-full bg-emerald-400 flex items-center justify-center shrink-0">
+                <Check className="w-4 h-4 text-black" strokeWidth={3} />
+              </span>
+            )}
+          </div>
+          <p className="text-white/50 text-sm leading-relaxed mb-6">{step.blurb}</p>
+
+          {done ? (
+            <div className="space-y-4">
+              {assets.length > 0 && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {assets.slice(0, 2).map((a) => <AssetCard key={a.id} asset={a} />)}
+                </div>
+              )}
+              <p className="text-emerald-300/90 text-sm font-semibold">
+                {step.label} locked in — nice.
+              </p>
+              {next ? (
+                <Button
+                  onClick={advance}
+                  className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90"
+                >
+                  Next up: {next.label} <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              ) : (
+                <p className="text-white/60 text-sm">That was the last step — chain complete.</p>
+              )}
+              {step.assetKind && !step.embed && (
+                <div className="text-center">
+                  <Link href={step.href} className="text-white/40 hover:text-white text-xs underline underline-offset-4">
+                    Make another {step.label.toLowerCase()}
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : step.embed ? (
+            <div className="space-y-4">
+              <EmbeddedModule step={step} />
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={finishStep}
+                  className="text-white/40 hover:text-white text-xs underline underline-offset-4"
+                >
+                  Skip for now
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Link href={step.href} className="block">
+                <Button className="w-full h-12 rounded-xl bg-primary text-black font-bold text-base hover:bg-primary/90">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  {step.assetKind ? `Make my ${step.label.toLowerCase()}` : `Open ${step.label}`}
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+              <p className="text-white/35 text-xs text-center">
+                Anything you make lands back here automatically.
+              </p>
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={finishStep}
+                  className="text-white/40 hover:text-white text-xs underline underline-offset-4"
+                >
+                  {step.assetKind ? "Skip for now" : "Done — next"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Slim tray strip: proof the cheat code is working */}
+      {project.assets.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <p className="text-white/40 text-xs font-bold uppercase tracking-widest mb-3">
+            Your stuff so far · {project.assets.length}
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {project.assets.slice(0, 12).map((a) => (
+              <div
+                key={a.id}
+                className="shrink-0 max-w-[180px] rounded-lg border border-white/10 bg-black/40 px-3 py-2"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  {KIND_LABEL[a.kind]}
+                </p>
+                <p className="text-white/70 text-xs truncate">{a.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── All-steps view: the advanced map ────────────────────────────────────── */
+
+function AllStepsView() {
+  const { project, setProjectType, hasKind } = useHubProject();
   const workflow = getWorkflow(project.type);
   const [activeStep, setActiveStep] = useState<string | null>(null);
+
+  const step = workflow.steps.find((s) => s.key === (activeStep ?? workflow.steps[0]!.key)) ?? workflow.steps[0]!;
+  const upNext = workflow.steps.find((s) => s.assetKind && !hasKind(s.assetKind))?.key;
+
+  return (
+    <>
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-white/30 text-sm">·</span>
+        <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.04] border border-white/10 max-w-full overflow-x-auto">
+          {PROJECT_WORKFLOWS.map((w) => (
+            <button
+              key={w.type}
+              type="button"
+              onClick={() => { setProjectType(w.type); setActiveStep(null); }}
+              className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                w.type === project.type ? "bg-primary text-black" : "text-white/50 hover:text-white"
+              }`}
+            >
+              {w.title}
+            </button>
+          ))}
+        </div>
+        <span className="text-white/30 text-sm">
+          · {project.assets.length} asset{project.assets.length === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Workflow rail */}
+      <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+        {workflow.steps.map((s, i) => {
+          const done = s.assetKind ? hasKind(s.assetKind) : false;
+          const active = s.key === step.key;
+          const isNext = s.key === upNext && !done;
+          const Icon = s.icon;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setActiveStep(s.key)}
+              className={`relative rounded-2xl border p-4 text-left transition-all shrink-0 w-[132px] sm:w-auto sm:shrink sm:flex-1 ${
+                active
+                  ? "border-primary bg-primary/[0.08] shadow-[0_0_24px_rgba(218,165,32,0.15)]"
+                  : "border-white/10 bg-white/[0.03] hover:border-white/25"
+              } ${isNext ? "ring-1 ring-primary/40" : ""}`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">
+                  {isNext ? <span className="text-primary">Up next</span> : `Step ${i + 1}`}
+                </span>
+                {done && (
+                  <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-black" strokeWidth={3} />
+                  </span>
+                )}
+              </div>
+              <Icon className={`w-6 h-6 mb-1.5 ${active ? "text-primary" : "text-white/50"}`} />
+              <p className="text-white font-semibold text-sm">{s.label}</p>
+              <p className="text-white/35 text-[11px] mt-0.5 hidden sm:block">{s.creditNote}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        {/* Stage */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 min-h-[420px]">
+          <div className="mb-5">
+            <h2 className="text-white font-bold text-lg flex items-center gap-2">
+              <step.icon className="w-5 h-5 text-primary" /> {step.label}
+            </h2>
+            <p className="text-white/45 text-sm mt-1">{step.blurb}</p>
+          </div>
+
+          {step.embed ? (
+            <EmbeddedModule step={step} />
+          ) : (
+            <div className="space-y-4">
+              {step.assetKind && project.assets.filter((a) => a.kind === step.assetKind).length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {project.assets
+                    .filter((a) => a.kind === step.assetKind)
+                    .map((a) => <AssetCard key={a.id} asset={a} />)}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
+                  <step.icon className="w-10 h-10 text-white/20 mx-auto mb-3" />
+                  <p className="text-white/50 text-sm max-w-sm mx-auto">
+                    Nothing here yet. Open the {step.label.toLowerCase()} studio — anything you
+                    make lands back in this project automatically.
+                  </p>
+                </div>
+              )}
+              <Link href={step.href}>
+                <Button className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90">
+                  <Sparkles className="w-4 h-4 mr-2" /> Open {step.label} Studio
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Project tray */}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-fit lg:sticky lg:top-6">
+          <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
+            <Music4 className="w-4 h-4 text-primary" /> Project assets
+          </h3>
+          <p className="text-white/35 text-xs mb-4">
+            Everything you make — here or in any studio — collects in this project.
+          </p>
+          {project.assets.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
+              <p className="text-white/40 text-sm">
+                Start step 1 and <span className="text-white/70 font-medium">{project.name}</span> comes alive.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              {project.assets.map((a) => <AssetCard key={a.id} asset={a} />)}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function Hub() {
+  const { project, setProjectName, setProjectType, newProject, clearStepDones } = useHubProject();
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(project.name);
   const [pickingType, setPickingType] = useState(project.assets.length === 0);
-
-  const step = workflow.steps.find((s) => s.key === (activeStep ?? workflow.steps[0]!.key)) ?? workflow.steps[0]!;
-  // First incomplete step = where the flow continues.
-  const upNext = workflow.steps.find((s) => s.assetKind && !hasKind(s.assetKind))?.key;
+  const [view, setView] = useState<"guided" | "all">("guided");
 
   const startType = (t: HubProjectType) => {
+    clearStepDones(t);
     newProject();
     setProjectType(t);
     setPickingType(false);
-    setActiveStep(null);
+    setView("guided");
   };
 
   return (
@@ -166,23 +486,57 @@ export default function Hub() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
+          {!pickingType && (
+            <button
+              type="button"
+              onClick={() => setPickingType(true)}
+              className="text-white/40 hover:text-white transition-colors"
+              aria-label="Back to project picker"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
           <h1 className="text-3xl font-black text-white">Hub</h1>
           <MarketingBadge variant="muted">Beta</MarketingBadge>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setPickingType(true)}
-          className="rounded-xl border-white/15 text-white/70 hover:text-white hover:border-white/30"
-        >
-          <Plus className="w-4 h-4 mr-2" /> New project
-        </Button>
+        <div className="flex items-center gap-2">
+          {!pickingType && (
+            <div className="flex p-0.5 rounded-xl bg-white/[0.04] border border-white/10">
+              <button
+                type="button"
+                onClick={() => setView("guided")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  view === "guided" ? "bg-primary text-black" : "text-white/50 hover:text-white"
+                }`}
+              >
+                Guide me
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  view === "all" ? "bg-primary text-black" : "text-white/50 hover:text-white"
+                }`}
+              >
+                All steps
+              </button>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setPickingType(true)}
+            className="rounded-xl border-white/15 text-white/70 hover:text-white hover:border-white/30"
+          >
+            <Plus className="w-4 h-4 mr-2" /> New project
+          </Button>
+        </div>
       </div>
 
       {pickingType ? (
         <TypePicker onPick={startType} />
       ) : (
         <>
-          {/* Project name + type */}
+          {/* Project name */}
           <div className="flex items-center gap-3 flex-wrap">
             <FolderOpen className="w-4 h-4 text-primary shrink-0" />
             {editingName ? (
@@ -208,120 +562,14 @@ export default function Hub() {
               </button>
             )}
             <span className="text-white/30 text-sm">·</span>
-            <div className="flex gap-1 p-0.5 rounded-lg bg-white/[0.04] border border-white/10 max-w-full overflow-x-auto">
-              {PROJECT_WORKFLOWS.map((w) => (
-                <button
-                  key={w.type}
-                  type="button"
-                  onClick={() => { setProjectType(w.type); setActiveStep(null); }}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    w.type === project.type ? "bg-primary text-black" : "text-white/50 hover:text-white"
-                  }`}
-                >
-                  {w.title}
-                </button>
-              ))}
-            </div>
-            <span className="text-white/30 text-sm">
-              · {project.assets.length} asset{project.assets.length === 1 ? "" : "s"}
-            </span>
+            <span className="text-white/30 text-sm">{getWorkflow(project.type).title}</span>
           </div>
 
-          {/* Workflow rail */}
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
-            {workflow.steps.map((s, i) => {
-              const done = s.assetKind ? hasKind(s.assetKind) : false;
-              const active = s.key === step.key;
-              const isNext = s.key === upNext && !done;
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.key}
-                  type="button"
-                  onClick={() => setActiveStep(s.key)}
-                  className={`relative rounded-2xl border p-4 text-left transition-all shrink-0 w-[132px] sm:w-auto sm:shrink sm:flex-1 ${
-                    active
-                      ? "border-primary bg-primary/[0.08] shadow-[0_0_24px_rgba(218,165,32,0.15)]"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/25"
-                  } ${isNext ? "ring-1 ring-primary/40" : ""}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-white/30 uppercase tracking-wider">
-                      {isNext ? <span className="text-primary">Up next</span> : `Step ${i + 1}`}
-                    </span>
-                    {done && (
-                      <span className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center">
-                        <Check className="w-3 h-3 text-black" strokeWidth={3} />
-                      </span>
-                    )}
-                  </div>
-                  <Icon className={`w-6 h-6 mb-1.5 ${active ? "text-primary" : "text-white/50"}`} />
-                  <p className="text-white font-semibold text-sm">{s.label}</p>
-                  <p className="text-white/35 text-[11px] mt-0.5 hidden sm:block">{s.creditNote}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-            {/* Stage */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 min-h-[420px]">
-              <div className="mb-5">
-                <h2 className="text-white font-bold text-lg flex items-center gap-2">
-                  <step.icon className="w-5 h-5 text-primary" /> {step.label}
-                </h2>
-                <p className="text-white/45 text-sm mt-1">{step.blurb}</p>
-              </div>
-
-              {step.embed ? (
-                <EmbeddedModule step={step} />
-              ) : (
-                <div className="space-y-4">
-                  {step.assetKind && project.assets.filter((a) => a.kind === step.assetKind).length > 0 ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {project.assets
-                        .filter((a) => a.kind === step.assetKind)
-                        .map((a) => <AssetCard key={a.id} asset={a} />)}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
-                      <step.icon className="w-10 h-10 text-white/20 mx-auto mb-3" />
-                      <p className="text-white/50 text-sm max-w-sm mx-auto">
-                        Nothing here yet. Open the {step.label.toLowerCase()} studio — anything you
-                        make lands back in this project automatically.
-                      </p>
-                    </div>
-                  )}
-                  <Link href={step.href}>
-                    <Button className="h-11 px-6 rounded-xl bg-primary text-black font-bold hover:bg-primary/90">
-                      <Sparkles className="w-4 h-4 mr-2" /> Open {step.label} Studio
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Project tray */}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 h-fit lg:sticky lg:top-6">
-              <h3 className="text-white font-semibold mb-1 flex items-center gap-2">
-                <Music4 className="w-4 h-4 text-primary" /> Project assets
-              </h3>
-              <p className="text-white/35 text-xs mb-4">
-                Everything you make — here or in any studio — collects in this project.
-              </p>
-              {project.assets.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/15 p-6 text-center">
-                  <p className="text-white/40 text-sm">
-                    Start step 1 and <span className="text-white/70 font-medium">{project.name}</span> comes alive.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-                  {project.assets.map((a) => <AssetCard key={a.id} asset={a} />)}
-                </div>
-              )}
-            </div>
-          </div>
+          {view === "guided" ? (
+            <GuidedView onNewProject={() => setPickingType(true)} />
+          ) : (
+            <AllStepsView />
+          )}
         </>
       )}
     </div>

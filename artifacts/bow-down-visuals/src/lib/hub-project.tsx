@@ -45,11 +45,16 @@ interface HubProjectContextValue {
   newProject: () => void;
   hasKind: (kind: HubAssetKind) => boolean;
   latestOfKind: (kind: HubAssetKind) => HubAsset | undefined;
+  /** Step keys the user manually marked done/skipped (no-asset steps). Per project type. */
+  stepDones: string[];
+  markStepDone: (key: string) => void;
+  clearStepDones: (type: HubProjectType) => void;
 }
 
 const HubProjectContext = createContext<HubProjectContextValue | null>(null);
 
 const STORAGE_KEY = "bdv-hub-project-v1";
+const DONES_KEY = "bdv-hub-step-dones-v1";
 
 function freshProject(): HubProject {
   return {
@@ -71,7 +76,7 @@ function loadProject(): HubProject {
     }
     // Blob URLs die with the page session — drop them on reload.
     parsed.assets = parsed.assets.filter((a) => !a.url.startsWith("blob:"));
-    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "release", "grow", "monetize", "learn", "business"];
+    const validTypes: HubProjectType[] = ["song", "video", "visual", "movie", "game", "series", "release", "grow", "monetize", "learn", "business"];
     return {
       ...parsed,
       id: parsed.id || freshProject().id,
@@ -82,8 +87,19 @@ function loadProject(): HubProject {
   }
 }
 
+function loadDones(): Record<string, string[]> {
+  try {
+    const raw = localStorage.getItem(DONES_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, string[]>) : {};
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export function HubProjectProvider({ children }: { children: React.ReactNode }) {
   const [project, setProject] = useState<HubProject>(loadProject);
+  const [dones, setDones] = useState<Record<string, string[]>>(loadDones);
   const [syncStatus, setSyncStatus] = useState<HubSyncStatus>("local");
   const { user, getAccessToken } = useAuth();
   const projectRef = useRef(project);
@@ -97,6 +113,14 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       /* storage full or unavailable — project still works in-memory */
     }
   }, [project]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DONES_KEY, JSON.stringify(dones));
+    } catch {
+      /* ignore */
+    }
+  }, [dones]);
 
   async function pushProject(snapshot: HubProject, token: string | null) {
     const res = await fetch("/api/hub/project", {
@@ -140,7 +164,7 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
           const adopted: HubProject = {
             id: local.id,
             name: server.name,
-            type: ["song", "video", "visual", "movie", "release", "grow", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
+            type: ["song", "video", "visual", "movie", "game", "series", "release", "grow", "monetize", "learn", "business"].includes(server.type) ? server.type : "song",
             assets: Array.isArray(server.assets) ? server.assets : [],
             updatedAt: server.updatedAt,
           };
@@ -214,6 +238,24 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
     setProject(freshProject());
   }, []);
 
+  const markStepDone = useCallback((key: string) => {
+    const t = projectRef.current.type;
+    setDones((d) => {
+      const cur = d[t] ?? [];
+      return cur.includes(key) ? d : { ...d, [t]: [...cur, key] };
+    });
+    setProject((p) => ({ ...p, updatedAt: Date.now() }));
+  }, []);
+
+  const clearStepDones = useCallback((type: HubProjectType) => {
+    setDones((d) => {
+      if (!d[type]) return d;
+      const next = { ...d };
+      delete next[type];
+      return next;
+    });
+  }, []);
+
   const value = useMemo<HubProjectContextValue>(() => {
     const kinds = new Set(project.assets.map((a) => a.kind));
     return {
@@ -226,8 +268,11 @@ export function HubProjectProvider({ children }: { children: React.ReactNode }) 
       newProject,
       hasKind: (kind) => kinds.has(kind),
       latestOfKind: (kind) => project.assets.find((a) => a.kind === kind),
+      stepDones: dones[project.type] ?? [],
+      markStepDone,
+      clearStepDones,
     };
-  }, [project, syncStatus, setProjectName, setProjectType, addAsset, removeAsset, newProject]);
+  }, [project, syncStatus, setProjectName, setProjectType, addAsset, removeAsset, newProject, dones, markStepDone, clearStepDones]);
 
   return <HubProjectContext.Provider value={value}>{children}</HubProjectContext.Provider>;
 }
@@ -249,6 +294,9 @@ export function useHubProject(): HubProjectContextValue {
       newProject: () => {},
       hasKind: () => false,
       latestOfKind: () => undefined,
+      stepDones: [],
+      markStepDone: () => {},
+      clearStepDones: () => {},
     };
   }
   return ctx;
