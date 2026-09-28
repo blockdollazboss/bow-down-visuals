@@ -133,7 +133,8 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
       .single();
 
     if (!codeRow) {
-      // Create a unique code (retry on collision)
+      // Create a unique code (retry on code collision)
+      let lastError: unknown = null;
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = generateCode();
         const { data, error } = await supabase
@@ -145,9 +146,24 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
           codeRow = data;
           break;
         }
-        // Collision — try again
+        lastError = error;
+        // Only a unique-violation is worth retrying (code collision or a
+        // parallel request creating the row). Anything else will fail the
+        // same way on retry — stop early.
+        if ((error as { code?: string } | null)?.code !== "23505") break;
       }
       if (!codeRow) {
+        // Race safety: a parallel request may have created the row between
+        // our read and our inserts — re-read before giving up.
+        const { data: raced } = await supabase
+          .from("referral_codes")
+          .select("code")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (raced) codeRow = raced;
+      }
+      if (!codeRow) {
+        req.log.error({ err: lastError, userId }, "referral code creation failed");
         res.status(500).json({ error: "Could not create referral code." });
         return;
       }
