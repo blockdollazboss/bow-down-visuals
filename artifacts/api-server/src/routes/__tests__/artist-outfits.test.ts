@@ -21,6 +21,11 @@ const dbState = vi.hoisted(() => ({
   outfitRows: [] as any[],
 }));
 
+// The team the mocked caller (user-1) is an active member of, if any.
+const teamState = vi.hoisted(() => ({
+  teamId: null as string | null,
+}));
+
 function matchRow(row: any, where: any): boolean {
   if (!where) return true;
   if (where.__eq) return row[where.col] === where.val;
@@ -104,6 +109,19 @@ vi.mock("@workspace/db", () => {
   };
 });
 
+// Faithful stand-in for the real getAccessibleVault: owner always has
+// access; an active member of the team the vault is shared with has USE
+// access; soft-deleted vaults are invisible to everyone.
+vi.mock("../../lib/teams", () => ({
+  getAccessibleVault: async (userId: string, vaultId: string) => {
+    const v = (dbState as any).vaultRows.find((r: any) => r.id === vaultId);
+    if (!v || v.deleted_at) return null;
+    if (v.user_id === userId) return v;
+    if (v.team_id && (teamState as any).teamId && v.team_id === (teamState as any).teamId) return v;
+    return null;
+  },
+}));
+
 import router from "../artist-outfits";
 
 let server: any;
@@ -125,6 +143,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  teamState.teamId = null;
   dbState.vaultRows = [
     { id: "vault-1", user_id: "user-1" },
     { id: "vault-2", user_id: "user-2" },
@@ -248,5 +267,57 @@ describe("wardrobe outfits API", () => {
     const res = await del("/artist-vaults/vault-1/outfits/outfit-9");
     expect(res.status).toBe(404);
     expect(dbState.outfitRows).toHaveLength(1);
+  });
+
+  it("404s for a soft-deleted vault even for its owner", async () => {
+    dbState.vaultRows = [{ id: "vault-1", user_id: "user-1", deleted_at: new Date().toISOString() }];
+    const res = await get("/artist-vaults/vault-1/outfits");
+    expect(res.status).toBe(404);
+  });
+
+  describe("team-shared vaults (USE vs MANAGE)", () => {
+    beforeEach(() => {
+      // vault-2 belongs to user-2 but is shared with user-1's team.
+      dbState.vaultRows = [
+        { id: "vault-1", user_id: "user-1" },
+        { id: "vault-2", user_id: "user-2", team_id: "team-1" },
+        { id: "vault-3", user_id: "user-2", team_id: "team-other" },
+      ];
+      dbState.outfitRows = [
+        { id: "outfit-s", vault_id: "vault-2", label: "Shared Look", image_url: "https://example.com/s.png", is_default: true },
+      ];
+      teamState.teamId = "team-1";
+    });
+
+    it("lets an active team member READ outfits of a shared vault", async () => {
+      const res = await get("/artist-vaults/vault-2/outfits");
+      expect(res.status).toBe(200);
+      const list = (await res.json()).outfits;
+      expect(list).toHaveLength(1);
+      expect(list[0].label).toBe("Shared Look");
+    });
+
+    it("404s for a vault shared with a different team", async () => {
+      const res = await get("/artist-vaults/vault-3/outfits");
+      expect(res.status).toBe(404);
+    });
+
+    it("still 404s for team members on outfit MANAGEMENT (POST)", async () => {
+      const res = await post("/artist-vaults/vault-2/outfits", { label: "Nope", image_url: "https://example.com/n.png" });
+      expect(res.status).toBe(404);
+      expect(dbState.outfitRows).toHaveLength(1);
+    });
+
+    it("still 404s for team members on outfit MANAGEMENT (PATCH)", async () => {
+      const res = await patch("/artist-vaults/vault-2/outfits/outfit-s", { label: "Nope" });
+      expect(res.status).toBe(404);
+      expect(dbState.outfitRows[0].label).toBe("Shared Look");
+    });
+
+    it("still 404s for team members on outfit MANAGEMENT (DELETE)", async () => {
+      const res = await del("/artist-vaults/vault-2/outfits/outfit-s");
+      expect(res.status).toBe(404);
+      expect(dbState.outfitRows).toHaveLength(1);
+    });
   });
 });

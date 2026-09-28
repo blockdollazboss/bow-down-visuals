@@ -3,6 +3,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { z } from "zod";
 import { db, artistVaultsTable, artistOutfitsTable } from "@workspace/db";
 import { eq, and, asc } from "drizzle-orm";
+import { getAccessibleVault } from "../lib/teams";
 
 const router = Router();
 
@@ -47,10 +48,13 @@ async function requireOwnedOutfit(vaultId: string, outfitId: string, userId: str
   return rows[0] ?? null;
 }
 
-/* ── GET /api/artist-vaults/:vaultId/outfits — list the vault's wardrobe ── */
+/* ── GET /api/artist-vaults/:vaultId/outfits — list the vault's wardrobe ──
+ * USE-level access: the vault owner or an active member of the team the
+ * vault is shared with (SceneStudio needs outfit images as generation
+ * references). Management (POST/PATCH/DELETE) stays strictly owner-only. */
 router.get("/artist-vaults/:vaultId/outfits", requireAuth, async (req, res) => {
   const vaultId = String(req.params["vaultId"]);
-  const vault = await requireOwnedVault(vaultId, req.userId!);
+  const vault = await getAccessibleVault(req.userId!, vaultId);
   if (!vault) {
     res.status(404).json({ error: "Artist vault not found" });
     return;
