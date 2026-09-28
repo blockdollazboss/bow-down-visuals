@@ -20,6 +20,38 @@ const REFEREE_WELCOME_CREDITS = 10;
 const REVENUE_SHARE_PCT = 25;
 const SHARE_WINDOW_DAYS = 90;
 
+/* ── Promoter Program — 6-star Kingpin ranks ───────────────────────────────
+   The referral program is a job: promoters climb stars, unlock higher
+   commission rates and one-time milestone bonuses. Rates apply at the
+   promoter's CURRENT tier (rank-ups boost every active referral).
+   House always stays on top: payouts are site credits (redeemed at
+   2.5–8x margins), windows are 90 days, and the top tiers demand dozens
+   of real referred creators. */
+interface PromoterTier {
+  stars: number;
+  title: string;
+  minReferrals: number;
+  ratePct: number;
+  milestoneBonus: number;
+}
+const PROMOTER_TIERS: PromoterTier[] = [
+  { stars: 1, title: "Street Soldier", minReferrals: 1,  ratePct: 25, milestoneBonus: 0 },
+  { stars: 2, title: "Hustler",        minReferrals: 3,  ratePct: 28, milestoneBonus: 15 },
+  { stars: 3, title: "Shot Caller",    minReferrals: 6,  ratePct: 30, milestoneBonus: 40 },
+  { stars: 4, title: "Big Boss",       minReferrals: 12, ratePct: 33, milestoneBonus: 100 },
+  { stars: 5, title: "Kingpin",        minReferrals: 25, ratePct: 35, milestoneBonus: 250 },
+  { stars: 6, title: "The Don",        minReferrals: 50, ratePct: 40, milestoneBonus: 600 },
+];
+function getPromoterTier(referralCount: number): { tier: PromoterTier | null; next: PromoterTier | null } {
+  let tier: PromoterTier | null = null;
+  let next: PromoterTier | null = null;
+  for (const t of PROMOTER_TIERS) {
+    if (referralCount >= t.minReferrals) tier = t;
+    else { next = t; break; }
+  }
+  return { tier, next };
+}
+
 /* Boot-time self-heal: create tables if they don't exist (idempotent). */
 let tablesEnsured = false;
 async function ensureReferralTables(): Promise<void> {
@@ -63,6 +95,15 @@ async function ensureReferralTables(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     CREATE INDEX IF NOT EXISTS referral_payouts_referral_idx ON referral_payouts (referral_id);
+    CREATE TABLE IF NOT EXISTS referral_milestones (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      referrer_user_id UUID NOT NULL,
+      stars INTEGER NOT NULL,
+      bonus_credits INTEGER NOT NULL,
+      awarded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      UNIQUE(referrer_user_id, stars)
+    );
+    CREATE INDEX IF NOT EXISTS referral_milestones_referrer_idx ON referral_milestones (referrer_user_id);
   `));
 }
 
@@ -127,20 +168,98 @@ router.get("/referrals/me", requireAuth, async (req, res) => {
       0
     );
 
+    /* Per-referral detail for the manage/track view. No referee PII —
+       only join date, earnings, and window status. */
+    const referralList = (referralRows ?? []).map((r) => {
+      const expires = r.share_expires_at ? new Date(r.share_expires_at) : null;
+      const active = !!expires && expires > now;
+      const daysLeft = active
+        ? Math.max(0, Math.ceil((expires.getTime() - now.getTime()) / 86400000))
+        : 0;
+      return {
+        joinedAt: r.created_at,
+        creditsEarned: r.total_referrer_earned ?? 0,
+        shareExpiresAt: r.share_expires_at,
+        daysLeft,
+        active,
+      };
+    }).sort((a, b) => new Date(b.joinedAt).getTime() - new Date(a.joinedAt).getTime());
+
+    const totalCount = (referralRows ?? []).length;
+    const { tier, next } = getPromoterTier(totalCount);
+    const { data: milestoneRows } = await supabase
+      .from("referral_milestones")
+      .select("stars")
+      .eq("referrer_user_id", userId);
+    const claimedStars = new Set((milestoneRows ?? []).map((m) => m.stars));
+
     res.json({
       code: codeRow.code,
-      totalReferrals: (referralRows ?? []).length,
+      totalReferrals: totalCount,
       activeReferrals: activeReferrals.length,
       creditsEarned: totalEarned,
-      revenueSharePct: REVENUE_SHARE_PCT,
+      revenueSharePct: tier?.ratePct ?? REVENUE_SHARE_PCT,
       shareWindowDays: SHARE_WINDOW_DAYS,
       refereeReward: REFEREE_WELCOME_CREDITS,
+      referrals: referralList,
+      tier: tier ? {
+        stars: tier.stars,
+        title: tier.title,
+        ratePct: tier.ratePct,
+      } : null,
+      nextTier: next ? {
+        stars: next.stars,
+        title: next.title,
+        minReferrals: next.minReferrals,
+        ratePct: next.ratePct,
+        milestoneBonus: next.milestoneBonus,
+      } : null,
+      claimedMilestones: Array.from(claimedStars),
+      tierLadder: PROMOTER_TIERS.map((t) => ({
+        stars: t.stars,
+        title: t.title,
+        minReferrals: t.minReferrals,
+        ratePct: t.ratePct,
+        milestoneBonus: t.milestoneBonus,
+      })),
     });
   } catch (err: unknown) {
     req.log.error({ err }, "referrals/me error");
     res.status(500).json({ error: "Failed to load referral info." });
   }
 });
+
+/* ── Milestone bonuses ─────────────────────────────────────────────────────
+   When a promoter's referral count crosses a tier threshold, award the
+   one-time milestone bonus. Idempotent: UNIQUE(referrer_user_id, stars)
+   means retries can never double-award. Returns newly awarded tiers. */
+async function awardMilestoneBonuses(referrerUserId: string): Promise<PromoterTier[]> {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { count } = await supabase
+      .from("referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("referrer_user_id", referrerUserId);
+    const total = count ?? 0;
+    const awarded: PromoterTier[] = [];
+    for (const t of PROMOTER_TIERS) {
+      if (total < t.minReferrals || t.milestoneBonus <= 0) continue;
+      const { error } = await supabase.from("referral_milestones").insert({
+        referrer_user_id: referrerUserId,
+        stars: t.stars,
+        bonus_credits: t.milestoneBonus,
+      });
+      if (!error) {
+        await addCreditsToProfile(referrerUserId, t.milestoneBonus);
+        awarded.push(t);
+      }
+      // Conflict = already awarded — skip silently
+    }
+    return awarded;
+  } catch {
+    return [];
+  }
+}
 
 /* POST /api/referrals/apply — apply a referral code for the caller (after signup).
    Body: { code: string } */
@@ -210,11 +329,19 @@ router.post("/referrals/apply", requireAuth, async (req, res) => {
 
     await addCreditsToProfile(userId, REFEREE_WELCOME_CREDITS);
 
+    // Promoter Program: check for newly unlocked star milestones (idempotent).
+    const newMilestones = await awardMilestoneBonuses(codeRow.user_id);
+
     res.json({
       ok: true,
       refereeReward: REFEREE_WELCOME_CREDITS,
       revenueSharePct: REVENUE_SHARE_PCT,
       shareWindowDays: SHARE_WINDOW_DAYS,
+      milestonesAwarded: newMilestones.map((t) => ({
+        stars: t.stars,
+        title: t.title,
+        bonus: t.milestoneBonus,
+      })),
     });
   } catch (err: unknown) {
     req.log.error({ err }, "referrals/apply error");
@@ -249,7 +376,15 @@ export async function awardReferralPayout(
       return 0; // window expired
     }
 
-    const pct = referral.revenue_share_pct ?? REVENUE_SHARE_PCT;
+    /* Promoter Program: the payout rate follows the referrer's CURRENT star
+       tier — ranking up boosts every active referral. Falls back to the
+       rate stored on the row, then the default. */
+    const { count: referrerCount } = await supabase
+      .from("referrals")
+      .select("id", { count: "exact", head: true })
+      .eq("referrer_user_id", referral.referrer_user_id);
+    const { tier: currentTier } = getPromoterTier(referrerCount ?? 0);
+    const pct = currentTier?.ratePct ?? referral.revenue_share_pct ?? REVENUE_SHARE_PCT;
     const awarded = Math.floor((creditsPurchased * pct) / 100);
     if (awarded <= 0) return 0;
 
