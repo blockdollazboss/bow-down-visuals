@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "wouter";
 import {
   Upload, Sparkles, Loader2, Download, CheckCircle2, ArrowRight, ArrowLeft,
   Gem, Shirt, MessageCircle, X, FileBox, Calculator, Factory, Nfc,
@@ -690,6 +691,18 @@ export default function JewelryStudio() {
               and what to watch out for.
             </p>
             <div className="mt-5 space-y-3">
+              <Link
+                href="/jewelry-shop"
+                className="flex items-center justify-between gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 transition hover:bg-yellow-500/20"
+              >
+                <div>
+                  <div className="text-sm font-bold text-yellow-200">Rather have us make it for you?</div>
+                  <p className="mt-0.5 text-xs text-zinc-400">
+                    Order a ready-made custom piece from our jewelry shop — pendant, chain, ring or bracelet, reserved free.
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-yellow-300" />
+              </Link>
               {guide
                 .filter((s) =>
                   category === "jewelry" ? !s.title.includes("Apparel") : s.title.includes("Apparel"),

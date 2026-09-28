@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import {
   Shirt, Loader2, Sparkles, ShoppingCart, Trash2, Plus, Minus,
   CheckCircle2, Package, Palette, Tag, Truck, X, ChevronRight,
   Smartphone, ShoppingBag, RefreshCw, CreditCard, ExternalLink, BadgeCheck,
+  Nfc, Gem,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -121,6 +123,7 @@ function productByKey(key: ProductKey): Product {
 export default function BrandingShop() {
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tab, setTab] = useState<TabKey>("shop");
+  const [shopCat, setShopCat] = useState<"merch" | "smart" | "jewelry">("merch");
 
   /* shop config state (per-product selections) */
   const [sel, setSel] = useState<Record<ProductKey, { color: ColorKey; size: string; qty: number }>>(() =>
@@ -469,7 +472,7 @@ export default function BrandingShop() {
         <div className="mb-8 flex gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
           {(
             [
-              { key: "shop", label: "Shop Merch" },
+              { key: "shop", label: "Shop" },
               { key: "studio", label: "AI Design Studio" },
               { key: "orders", label: "My Orders" },
             ] as Array<{ key: TabKey; label: string }>
@@ -501,6 +504,104 @@ export default function BrandingShop() {
 
         {/* ── SHOP TAB ─────────────────────────────────────────── */}
         {tab === "shop" && (
+          <>
+            {/* department pills: merch + smart cards + jewelry, one storefront */}
+            <div className="mb-6 flex flex-wrap gap-2">
+              {(
+                [
+                  { key: "merch", label: "Merch", icon: Shirt },
+                  { key: "smart", label: "Smart Cards", icon: Nfc },
+                  { key: "jewelry", label: "Jewelry", icon: Gem },
+                ] as Array<{ key: "merch" | "smart" | "jewelry"; label: string; icon: LucideIcon }>
+              ).map((c) => {
+                const Icon = c.icon;
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => setShopCat(c.key)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      shopCat === c.key
+                        ? "border-primary bg-primary/15 text-primary"
+                        : "border-white/10 text-white/50 hover:border-white/25 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" /> {c.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {shopCat === "smart" && (
+              <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+                <div className="grid gap-0 md:grid-cols-2">
+                  <div className="flex items-center justify-center p-10">
+                    <div className="flex h-44 w-72 items-center justify-center rounded-2xl border border-primary/40 bg-gradient-to-br from-zinc-900 to-black shadow-[0_0_40px_rgba(234,179,8,0.15)]">
+                      <Nfc className="h-16 w-16 text-primary" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center p-8">
+                    <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      <Sparkles className="h-3.5 w-3.5" /> Smart Cards
+                    </div>
+                    <h2 className="text-2xl font-black">NFC Smart Business Cards</h2>
+                    <p className="mt-2 text-sm text-white/50">
+                      Tap-to-share cards in PVC, bamboo and metal — each one links to
+                      your live digital card with vCard, links and a QR backup.
+                      Reserve yours free; payment is collected when production is confirmed.
+                    </p>
+                    <Link
+                      href="/nfc-cards"
+                      className="mt-5 inline-flex w-fit items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
+                    >
+                      Design my smart card <ChevronRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {shopCat === "jewelry" && (
+              <div className="overflow-hidden rounded-2xl border border-primary/25 bg-gradient-to-br from-neutral-900 via-black to-neutral-900">
+                <div className="grid gap-0 md:grid-cols-2">
+                  <div className="flex items-center justify-center p-10">
+                    <div
+                      className="flex h-44 w-72 items-center justify-center rounded-2xl border border-white/10"
+                      style={{ background: "linear-gradient(135deg,#8a6d1c,#d4af37 40%,#f5d76e 55%,#8a6d1c 100%)" }}
+                    >
+                      <Gem className="h-16 w-16 text-black/60" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-center p-8">
+                    <div className="mb-2 inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      <Gem className="h-3.5 w-3.5" /> Custom Jewelry
+                    </div>
+                    <h2 className="text-2xl font-black">Wear the brand. Literally.</h2>
+                    <p className="mt-2 text-sm text-white/50">
+                      Made-to-order pendants, Cuban chains, signet rings and ID
+                      bracelets with your logo or initials — cast in gold, silver
+                      or black. Reserve yours free; payment is collected when
+                      production is confirmed.
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <Link
+                        href="/jewelry-shop"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-6 py-3 text-sm font-bold text-black transition hover:brightness-110"
+                      >
+                        Shop jewelry <ChevronRight className="h-4 w-4" />
+                      </Link>
+                      <Link
+                        href="/jewelry"
+                        className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-6 py-3 text-sm font-semibold text-white/70 transition hover:border-primary/40 hover:text-white"
+                      >
+                        <Palette className="h-4 w-4" /> Custom design studio
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {shopCat === "merch" && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {PRODUCTS.map((p) => {
               const Icon = p.icon;
@@ -585,6 +686,8 @@ export default function BrandingShop() {
               );
             })}
           </div>
+            )}
+          </>
         )}
 
         {/* ── STUDIO TAB ───────────────────────────────────────── */}
