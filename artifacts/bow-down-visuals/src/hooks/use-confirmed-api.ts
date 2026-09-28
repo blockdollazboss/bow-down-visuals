@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useCreditConfirm } from "@/contexts/CreditConfirmContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { getCreditCost } from "@/lib/credit-costs";
 
 /**
@@ -26,6 +27,7 @@ export type FetchImpl = (
  */
 export function useConfirmedApi() {
   const { confirmSpend } = useCreditConfirm();
+  const { getAccessToken } = useAuth();
 
   const confirmedFetch = useCallback(
     async (
@@ -45,9 +47,18 @@ export function useConfirmedApi() {
         }
       }
 
-      return fetch(endpoint, fetchOptions);
+      /* Attach the Supabase access token automatically so every authed
+         endpoint gets its Bearer header without each page wiring it up.
+         Skipped when the caller already set Authorization explicitly. */
+      const headers = new Headers(fetchOptions.headers);
+      if (!headers.has("Authorization")) {
+        const token = await getAccessToken().catch(() => null);
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+      }
+
+      return fetch(endpoint, { ...fetchOptions, headers });
     },
-    [confirmSpend]
+    [confirmSpend, getAccessToken]
   );
 
   return { confirmedFetch };
