@@ -62,7 +62,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   // ── Images & design ────────────────────────────────────────────
   "/api/generate-artist-image": { cost: 2, feature: "Generate Artist Image (Pro)" },
   "/api/generate-thumbnail": { cost: 1, feature: "Generate Thumbnail" },
-  "/api/thumbnail-generator": { cost: 1, feature: "Generate Thumbnail" },
+  "/api/thumbnail-generator": { cost: 2, feature: "Generate Thumbnail" },
   "/api/thumbnail-test": { cost: 1, feature: "Thumbnail A/B Test" },
   "/api/generate-logo": { cost: 1, feature: "Logo Generator" },
   "/api/generate-intro-outro": { cost: 2, feature: "Intro/Outro Generator" },
