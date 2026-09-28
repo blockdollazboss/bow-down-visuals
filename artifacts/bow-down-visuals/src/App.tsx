@@ -153,6 +153,7 @@ const Storefronts = lazyWithRetry(() => import("@/pages/storefronts"));
 const StorefrontBuilder = lazyWithRetry(() => import("@/pages/storefront-builder"));
 const ShopStorefront = lazyWithRetry(() => import("@/pages/shop"));
 const Beats = lazyWithRetry(() => import("@/pages/beats"));
+const BeatMaker = lazyWithRetry(() => import("@/pages/beat-maker"));
 const LiveShopping = lazyWithRetry(() => import("@/pages/live-shopping"));
 const Memberships = lazyWithRetry(() => import("@/pages/memberships"));
 const Royalties = lazyWithRetry(() => import("@/pages/royalties"));
@@ -476,6 +477,7 @@ function AppShell() {
                 <Route path="/samples"><ProtectedRoute><Samples /></ProtectedRoute></Route>
                 <Route path="/podcast"><ProtectedRoute><Podcast /></ProtectedRoute></Route>
                 <Route path="/beats"><ProtectedRoute><Beats /></ProtectedRoute></Route>
+                <Route path="/beat-maker"><ProtectedRoute><BeatMaker /></ProtectedRoute></Route>
                 <Route path="/live-shopping"><ProtectedRoute><LiveShopping /></ProtectedRoute></Route>
                 <Route path="/memberships"><ProtectedRoute><Memberships /></ProtectedRoute></Route>
                 <Route path="/royalties"><ProtectedRoute><Royalties /></ProtectedRoute></Route>

@@ -15,6 +15,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/generate-song": { cost: 4, feature: "Generate Song" },
   "/api/generate-song-video": { cost: 4, feature: "Generate Song + Video" },
   "/api/generate-music-audio": { cost: 4, feature: "Generate Music Audio" },
+  "/api/beat/generate": { cost: 3, feature: "Generate Beat" },
   "/api/music/export": { cost: 4, feature: "Export Audio" },
   "/api/music/preview-render": { cost: 1, feature: "Preview Render" },
   "/api/voiceover/generate": { cost: 2, feature: "AI Voiceover" },
