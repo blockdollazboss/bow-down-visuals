@@ -41,6 +41,7 @@ export * from "./sponsor-deals";
 export * from "./distribution-releases";
 export * from "./distribution-v2";
 export * from "./branding-orders";
+export * from "./nfc-cards";
 export * from "./customer-shops";
 export * from "./beats";
 export * from "./fan-memberships";
