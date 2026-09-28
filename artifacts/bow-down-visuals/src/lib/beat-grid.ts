@@ -74,3 +74,20 @@ export function snapToBeat(timeSec: number, beats: number[] | null | undefined, 
   }
   return minDist <= toleranceSec ? closest : timeSec;
 }
+
+/**
+ * Snap a time value to the NEAREST beat unconditionally (no tolerance).
+ * Used for captions: every caption boundary should land exactly on a beat.
+ */
+export function snapToNearestBeat(timeSec: number, beats: number[] | null | undefined): number {
+  if (!beats || beats.length === 0) return timeSec;
+  let closest = beats[0]!;
+  let minDist = Math.abs(timeSec - closest);
+  for (let i = 1; i < beats.length; i++) {
+    const b = beats[i]!;
+    const d = Math.abs(timeSec - b);
+    if (d < minDist) { minDist = d; closest = b; }
+    else break; // beats sorted ascending — distances only grow from here
+  }
+  return closest;
+}
