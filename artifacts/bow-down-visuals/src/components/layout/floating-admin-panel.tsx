@@ -352,6 +352,35 @@ function BowRaceControls({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Live-poll the bow count every 5s so it updates without a page refresh.
+  useEffect(() => {
+    if (!loaded) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/admin/bow-challenge", {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as {
+          race?: { totalBows?: number; target?: number } | null;
+        };
+        if (cancelled) return;
+        setLiveCount(data.race?.totalBows ?? 0);
+        setLiveTarget(data.race?.target ?? null);
+      } catch {
+        /* keep last known count on poll failure */
+      }
+    }
+    const id = setInterval(() => void poll(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
+
   if (!loaded) {
     return (
       <div>
