@@ -15,6 +15,29 @@ import { loopVideoFromUrl, VideoLoopError } from "../lib/video-loop";
 
 const router = Router();
 
+/**
+ * Returns a vault if the user can USE it: they own it, or it's shared with
+ * their active team. Use for generation/read operations.
+ * For MANAGE operations (edit, delete, share), require strict ownership
+ * via eq(artistVaultsTable.user_id, userId) instead.
+ */
+async function getAccessibleVault(userId: string, vaultId: string) {
+  const [vault] = await db
+    .select()
+    .from(artistVaultsTable)
+    .where(and(eq(artistVaultsTable.id, vaultId), isNull(artistVaultsTable.deleted_at)))
+    .limit(1);
+  if (!vault) return null;
+  // Owner always has access.
+  if (vault.user_id === userId) return vault;
+  // Team members can use vaults shared with their active team.
+  if (vault.team_id) {
+    const activeTeam = await getUserActiveTeam(userId);
+    if (activeTeam && activeTeam.team.id === vault.team_id) return vault;
+  }
+  return null;
+}
+
 const ArtistVaultSchema = z.object({
   artistName: z.string().min(1),
   artistType: z.string().optional().nullable(),
@@ -320,19 +343,8 @@ const refVideoTasks = new Map<
 router.post("/artist-vaults/:id/reference-video", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
 
-  const [vault] = await db
-    .select({
-      id: artistVaultsTable.id,
-      artist_name: artistVaultsTable.artist_name,
-      reference_image_url: artistVaultsTable.reference_image_url,
-    })
-    .from(artistVaultsTable)
-    .where(
-      and(
-        eq(artistVaultsTable.id, id),
-        eq(artistVaultsTable.user_id, req.userId!),
-      ),
-    );
+  // Team members can generate from shared vaults (use-access).
+  const vault = await getAccessibleVault(req.userId!, id);
   if (!vault) {
     res.status(404).json({ error: "Character not found" });
     return;
@@ -498,18 +510,8 @@ router.post("/artist-vaults/:id/reference-video/attach", requireAuth, async (req
     return;
   }
   try {
-    /* Verify the vault belongs to the user. */
-    const [vault] = await db
-      .select({ id: artistVaultsTable.id })
-      .from(artistVaultsTable)
-      .where(
-        and(
-          eq(artistVaultsTable.id, vaultId),
-          eq(artistVaultsTable.user_id, userId!),
-          isNull(artistVaultsTable.deleted_at),
-        ),
-      )
-      .limit(1);
+    /* Verify the user can use the vault (owner or team member). */
+    const vault = await getAccessibleVault(userId, vaultId);
     if (!vault) {
       res.status(404).json({ error: "Vault not found." });
       return;
@@ -624,11 +626,8 @@ router.post("/artist-vaults/:id/reference-video/loop", requireAuth, async (req, 
   const rawId = req.params.id;
   const id = Array.isArray(rawId) ? rawId[0]! : rawId;
   try {
-    const [vault] = await db
-      .select()
-      .from(artistVaultsTable)
-      .where(and(eq(artistVaultsTable.id, id), eq(artistVaultsTable.user_id, req.userId!)))
-      .limit(1);
+    // Team members can loop shared vaults (use-access).
+    const vault = await getAccessibleVault(req.userId!, id);
     if (!vault) {
       res.status(404).json({ error: "Artist vault not found." });
       return;
