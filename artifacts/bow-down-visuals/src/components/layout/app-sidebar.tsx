@@ -293,6 +293,7 @@ const SECTIONS: NavSection[] = [
       { href: "/contests", label: "Contests", icon: Trophy },
       { href: "/referrals", label: "Referrals", icon: Gift },
       { href: "/team", label: "Team", icon: Users },
+      { href: "/wheel", label: "Jackpot Wheel", icon: Trophy },
     ],
   },
   {
