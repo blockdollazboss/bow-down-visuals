@@ -469,7 +469,7 @@ export function AppSidebar() {
           onPointerUp={onPointerUp}
           title="Drag to move sidebar to any edge"
         >
-          <div className="flex items-center justify-between gap-2 pointer-events-none">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 rounded-lg">
               <img
                 src={`${import.meta.env.BASE_URL}logo-static.png`}
@@ -477,9 +477,9 @@ export function AppSidebar() {
                 className="h-14 w-auto"
               />
             </div>
-            <div className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80">
+            <button type="button" onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} title="Hide sidebar" aria-label="Hide sidebar" data-testid="btn-collapse-sidebar" className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black">
               <ChevronsLeft className={`h-4 w-4 ${docked === "right" ? "rotate-180" : ""}`} />
-            </div>
+            </button>
           </div>
           {user && <div className="pointer-events-auto"><ModeToggle /></div>}
         </SidebarHeader>
