@@ -94,7 +94,7 @@ async function callGroq(messages: ChatMessage[]): Promise<string> {
     GROQ_URL,
     { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     {
-      model: "llama-3.1-8b-instant",
+      model: "openai/gpt-oss-120b",
       messages,
       max_tokens: 500,
       temperature: 0.7,
