@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
+import { DraggableWidget } from "@/components/draggable-widget";
 
 /* ─── Thy Cheat Code — on-site AI chat, right-side slide-over drawer ────────
    Gold/black 8-bit luxury theme, mobile-friendly. Mounted globally in
@@ -152,23 +153,25 @@ export function ThyCheatCodeChat() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Chat with Thy Cheat Code"
-        title="Chat with Thy Cheat Code"
-        className="fixed bottom-5 right-5 z-[9990] flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
-      >
-        <video
-          src="/thy-cheat-code-idle.mp4"
-          autoPlay
-          muted
-          loop
-          playsInline
-          aria-hidden="true"
-          className="h-full w-full object-cover"
-        />
-      </button>
+      <DraggableWidget id="chat-button" defaultAnchor={{ x: 0.94, y: 0.92 }}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Chat with Thy Cheat Code"
+          title="Chat with Thy Cheat Code"
+          className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
+        >
+          <video
+            src="/thy-cheat-code-idle.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-hidden="true"
+            className="h-full w-full object-cover"
+          />
+        </button>
+      </DraggableWidget>
     );
   }
 
