@@ -461,7 +461,7 @@ export function CheatCodeJackpot() {
           aria-label={padOpen ? "Close directional pad" : "Open directional pad"}
           aria-expanded={padOpen}
           className={cn(
-            "fixed bottom-5 left-5 z-[9990] flex h-14 w-14 items-center justify-center",
+            "fixed top-5 right-5 z-[9990] flex h-14 w-14 items-center justify-center",
             "rounded-full border-2 border-[#C9A84C] bg-black/90 text-2xl",
             "text-[#F5DE8E] shadow-[0_0_24px_rgba(201,168,76,0.35)]",
             "transition-colors hover:bg-[#C9A84C]/25 hover:text-[#FFE9A8]",
