@@ -167,7 +167,55 @@ async function callPollinationsGet(messages: ChatMessage[]): Promise<string> {
   }
 }
 
-/** Try Groq first (if key is set), then Pollinations POST, then Pollinations GET. */
+
+/** Local FAQ fallback — works with zero external APIs. Matches keywords to answers. */
+function getFaqReply(userMessage: string): string | null {
+  const msg = userMessage.toLowerCase();
+
+  // Greetings
+  if (/^(hi|hey|hello|yo|sup|howdy|good\s?(morning|afternoon|evening))\b/.test(msg) && msg.length < 30) {
+    return "Hey! Welcome to Bow Down Visuals. I can help with our AI tools, Visual Buc credit packs, booking, or how everything works — what do you want to know?";
+  }
+
+  // Pricing / Visual Buc packs
+  if (/pric|pack|buc|cost|much|pay|price|\$/.test(msg)) {
+    return "We offer Visual Buc credit packs: 10, 50, 150, and 500 Bucs, ranging from $39 to $249. Each AI tool costs a set number of Bucs per use. You can see the full breakdown and grab a pack on the Pricing page — want me to point you there?";
+  }
+
+  // Services / what they do
+  if (/service|offer|what.*do|tool|create|make|video|music|content/.test(msg)) {
+    return "Bow Down Visuals is an AI-powered creative studio. We offer 81 AI tools for creating music videos, content, graphics, and more. You use Visual Bucs to run the tools — pick a pack, choose your tool, and start creating. What kind of content are you looking to make?";
+  }
+
+  // Booking / get started / sign up
+  if (/book|start|sign\s?up|join|register|account|claim|access/.test(msg)) {
+    return "Getting started is easy: hit 'Claim your access' on the homepage to create your account, grab a Visual Buc pack that fits your needs, then dive into the Creator Vault and start making content. Anything specific you want help with?";
+  }
+
+  // Support / contact / help
+  if (/support|contact|help|email|human|person|issue|problem/.test(msg)) {
+    return "For support, email us at support@bowdownvisuals.com and we'll get back to you. If you're asking about the site or tools, I can probably help right here — what's going on?";
+  }
+
+  // How it works
+  if (/how.*work|how.*it/.test(msg)) {
+    return "It's 3 steps: 1) Claim your access and create an account. 2) Grab a Visual Buc pack. 3) Pick an AI tool from the Creator Vault and start creating. Each tool costs a few Bucs per use. Simple as that!";
+  }
+
+  // Thanks
+  if (/thank|thanks|thx|appreciated/.test(msg)) {
+    return "Anytime! Let me know if you need anything else.";
+  }
+
+  // Bye
+  if (/^(bye|goodbye|see\s?ya|later)\b/.test(msg)) {
+    return "See you soon! Come back anytime you need help.";
+  }
+
+  return null;
+}
+
+/** Try Groq → Pollinations POST → Pollinations GET → local FAQ. */
 async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; provider: string }> {
   const groqKey = process.env["GROQ_API_KEY"];
   if (groqKey) {
@@ -186,8 +234,24 @@ async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; p
     logger.warn({ err }, "[chat] Pollinations POST failed, falling back to Pollinations GET");
   }
 
-  const reply = await callPollinationsGet(messages);
-  return { reply, provider: "pollinations-get" };
+  try {
+    const reply = await callPollinationsGet(messages);
+    return { reply, provider: "pollinations-get" };
+  } catch (err) {
+    logger.warn({ err }, "[chat] Pollinations GET failed, falling back to local FAQ");
+  }
+
+  // Final fallback: local FAQ (no external API needed)
+  const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
+  const faqReply = getFaqReply(lastUserMsg);
+  if (faqReply) {
+    return { reply: faqReply, provider: "local-faq" };
+  }
+  // Generic fallback if no FAQ match
+  return {
+    reply: "I'm having trouble connecting right now, but I can still help! Ask me about our Visual Buc packs, AI tools, getting started, or support — or email support@bowdownvisuals.com.",
+    provider: "local-fallback"
+  };
 }
 
 router.post("/free-chat", publicApiLimiter, async (req, res) => {
