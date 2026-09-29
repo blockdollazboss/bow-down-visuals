@@ -10,7 +10,7 @@ import { ThemePlayerProvider } from "@/contexts/ThemePlayerContext";
 import { UserModeProvider } from "@/contexts/UserModeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { BowDownAIGuide } from "@/components/BowDownAIGuide";
-import { ChatWidget } from "@/components/ChatWidget";
+// import { ChatWidget } from "@/components/ChatWidget"; // temporarily disabled
 
 import { SiteFooter } from "@/components/layout/footer";
 
@@ -67,7 +67,7 @@ function AppShell() {
     <>
       <ScrollToTop />
       {typeof window !== "undefined" && <BowDownAIGuide />}
-      {typeof window !== "undefined" && <ChatWidget />}
+      {/* ChatWidget temporarily disabled to restore BowDownAIGuide */}
       <Suspense fallback={<RouteFallback />}>
         <Switch>
           {/* Auth routes */}
