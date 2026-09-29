@@ -12,7 +12,6 @@ import { db } from "@workspace/db";
 import { logger } from "./logger";
 
 const CHEAT_CODE_DDL = [
-  `ALTER TABLE cheat_code_events ADD COLUMN IF NOT EXISTS code_sequence TEXT`,
   `CREATE TABLE IF NOT EXISTS cheat_code_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -28,6 +27,7 @@ const CHEAT_CODE_DDL = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  `ALTER TABLE cheat_code_events ADD COLUMN IF NOT EXISTS code_sequence TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS cheat_code_events_name_ux
     ON cheat_code_events (name)`,
   `CREATE INDEX IF NOT EXISTS cheat_code_events_active_idx

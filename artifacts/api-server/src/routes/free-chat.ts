@@ -6,13 +6,12 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 /* Contract with the website chat widget:
-   POST /api/chat { message, history? } → 200 { reply }
+   POST /api/free-chat { message, history? } → 200 { reply }
    - message: string, 1–2000 chars
    - history: optional array of { role: "user" | "assistant", content: string }, max 6 turns
    Free tier providers (tried in order):
    1. Groq (https://api.groq.com) — if GROQ_API_KEY env var is set. Fast, reliable, generous free tier.
-   2. Pollinations AI (https://text.pollinations.ai/openai) — no API key required.
-   Set POLLINATIONS_API_KEY env var for higher Pollinations rate limits if available. */
+   2. Local FAQ — privacy-safe keyword-based fallback, no external calls. */
 
 const historyItemSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -35,7 +34,7 @@ Visual Buc packs (exact pricing from bowdownvisuals.com/pricing):
 Always use these exact prices. Never invent pack names or different prices.
 - Tagline: "Your competitors will think you hired a team." / "THIS FEELS LIKE CHEATING. THAT'S THE POINT."
 - Creator Vault: 81 AI tools for content creators.
-- Visual Buc packs (one-time credit packs): 10 credits $39, 50 credits $149, 150 credits $249, 500 credits $499. Credits are used to generate songs, videos, thumbnails, promo clips, etc.
+- Credits are used to generate songs, videos, thumbnails, promo clips, etc.
 - Refer & Earn: 25% commission for referrals.
 - Creator Academy: training for creators.
 - Support email: support@bowdownvisuals.com.
@@ -48,7 +47,6 @@ Rules:
 - Never ask for payment details, passwords, or personal information.
 - Keep replies under 150 words unless the question needs more detail.`;
 
-const POLLINATIONS_URL = "https://text.pollinations.ai/openai";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const REQUEST_TIMEOUT_MS = 45_000;
 
@@ -109,71 +107,6 @@ async function callGroq(messages: ChatMessage[]): Promise<string> {
   return extractReply(data);
 }
 
-async function callPollinations(messages: ChatMessage[]): Promise<string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const apiKey = process.env["POLLINATIONS_API_KEY"];
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-  const data = await postJson(
-    POLLINATIONS_URL,
-    headers,
-    {
-      model: "openai",
-      messages,
-      max_tokens: 500,
-      temperature: 0.7,
-    }
-  );
-  return extractReply(data);
-}
-
-/**
- * Last-resort Pollinations fallback using the plain GET endpoint.
- * The ?system= query param currently triggers a server-side disk error,
- * so the system prompt is baked directly into the prompt text instead.
- */
-async function callPollinationsGet(messages: ChatMessage[]): Promise<string> {
-  const systemPrompt = messages.find((m) => m.role === "system")?.content ?? "";
-  const conversation = messages
-    .filter((m) => m.role !== "system")
-    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
-    .join("\n");
-
-  const prompt = systemPrompt
-    ? `${systemPrompt}\n\n${conversation}\nAssistant:`
-    : `${conversation}\nAssistant:`;
-  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}?model=openai`;
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Pollinations GET error ${res.status}: ${text.slice(0, 200)}`);
-    }
-    const text = (await res.text()).trim();
-    // The GET endpoint may return a JSON error payload instead of text
-    if (text.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(text) as { error?: string };
-        if (parsed.error) throw new Error(`Pollinations GET error: ${parsed.error.slice(0, 200)}`);
-      } catch {
-        // Not JSON with an error field — treat as text below
-      }
-    }
-    if (!text) {
-      throw new Error("Empty reply from Pollinations GET endpoint");
-    }
-    return text;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-
 /** Local FAQ fallback — works with zero external APIs. Matches keywords to answers. */
 function getFaqReply(userMessage: string): string | null {
   const msg = userMessage.toLowerCase();
@@ -221,7 +154,7 @@ function getFaqReply(userMessage: string): string | null {
   return null;
 }
 
-/** Try Groq → Pollinations POST → Pollinations GET → local FAQ. */
+/** Try Groq first (if key is set), then fall back to the privacy-safe local FAQ. */
 async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; provider: string }> {
   const groqKey = process.env["GROQ_API_KEY"];
   if (groqKey) {
@@ -229,25 +162,11 @@ async function getChatReply(messages: ChatMessage[]): Promise<{ reply: string; p
       const reply = await callGroq(messages);
       return { reply, provider: "groq" };
     } catch (err) {
-      logger.warn({ err }, "[chat] Groq failed, falling back to Pollinations");
+      logger.warn({ err }, "[chat] Groq failed, falling back to local FAQ");
     }
   }
 
-  try {
-    const reply = await callPollinations(messages);
-    return { reply, provider: "pollinations-openai" };
-  } catch (err) {
-    logger.warn({ err }, "[chat] Pollinations POST failed, falling back to Pollinations GET");
-  }
-
-  try {
-    const reply = await callPollinationsGet(messages);
-    return { reply, provider: "pollinations-get" };
-  } catch (err) {
-    logger.warn({ err }, "[chat] Pollinations GET failed, falling back to local FAQ");
-  }
-
-  // Final fallback: local FAQ (no external API needed)
+  // Fallback: local FAQ (no external API needed)
   const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content ?? "";
   const faqReply = getFaqReply(lastUserMsg);
   if (faqReply) {
