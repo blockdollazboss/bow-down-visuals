@@ -35,12 +35,6 @@ function getSnapPoints(): SnapPosition[] {
         x: Math.round(((c + 0.5) / COLS) * w),
         y: Math.round(((r + 0.5) / ROWS) * h),
       });
-      /* Flag for click suppression — cleared on next pointerdown or
-         after the click event has had a chance to fire. */
-      justDragged.current = true;
-      window.setTimeout(() => {
-        justDragged.current = false;
-      }, 50);
     }
   }
   return points;
