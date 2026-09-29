@@ -108,6 +108,10 @@ export function ThyCheatCodeChat() {
       let reply: string;
       if (!res.ok) {
         reply =
+          data.error ||
+          "My fins slipped — could you ask that again? 🦈";
+      } else {
+        reply =
           data.reply ||
           data.error ||
           "My fins slipped — could you ask that again? 🦈";
