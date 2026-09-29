@@ -3,6 +3,7 @@ import { ShieldCheck, Loader2, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { STAR_RANKS } from "@/lib/creator-level";
 import { SecretChallengePopup } from "@/components/SecretChallengePopup";
+import { DraggableWidget } from "@/components/draggable-widget";
 
 /**
  * Floating admin quick-actions panel — completely separate from the star widget.
@@ -18,16 +19,18 @@ export function FloatingAdminPanel() {
 
   return (
     <>
-      {/* Toggle button — right side, above the chat widget */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="fixed z-[9998] right-4 bottom-24 h-11 w-11 rounded-full border border-primary/40 bg-black/90 text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors"
-        title="Admin quick actions"
-        data-testid="floating-admin-toggle"
-      >
-        <ShieldCheck className="h-5 w-5" />
-      </button>
+      {/* Toggle button — draggable, snaps to 40-position grid */}
+      <DraggableWidget id="admin-shield" defaultAnchor={{ x: 0.96, y: 0.78 }} zIndex={9998}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="h-11 w-11 rounded-full border border-primary/40 bg-black/90 text-primary shadow-[0_0_16px_rgba(218,165,32,0.35)] backdrop-blur flex items-center justify-center hover:bg-primary/10 transition-colors"
+          title="Admin quick actions"
+          data-testid="floating-admin-toggle"
+        >
+          <ShieldCheck className="h-5 w-5" />
+        </button>
+      </DraggableWidget>
 
       {open && (
         <div
