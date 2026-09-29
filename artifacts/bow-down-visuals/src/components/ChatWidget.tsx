@@ -71,7 +71,7 @@ export function ChatWidget() {
       .map((m) => ({ role: m.role, content: m.content }));
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("/api/free-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),
