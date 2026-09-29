@@ -185,7 +185,7 @@ function getFaqReply(userMessage: string): string | null {
 
   // Pricing / Visual Buc packs
   if (/pric|pack|buc|cost|much|pay|price|\$/.test(msg)) {
-    return "We offer Visual Buc credit packs: 10, 50, 150, and 500 Bucs, ranging from $39 to $249. Each AI tool costs a set number of Bucs per use. You can see the full breakdown and grab a pack on the Pricing page — want me to point you there?";
+    return "We offer Visual Buc credit packs: 10 Bucs for $9, 50 Bucs for $39, 150 Bucs for $99, and 500 Bucs for $249. Each AI tool costs a set number of Bucs per use. You can see the full breakdown and grab a pack on the Pricing page — want me to point you there?";
   }
 
   // Services / what they do
