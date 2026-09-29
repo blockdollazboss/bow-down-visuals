@@ -1,0 +1,188 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/**
+ * useDraggable — drag any floating widget and snap it to a grid position.
+ *
+ * The screen is divided into a COLS × ROWS grid (default 8×5 = 40 snap
+ * positions). On drop, the widget snaps to the nearest grid cell center.
+ * Position persists in localStorage per widget id.
+ *
+ * Usage:
+ *   const { position, dragHandlers, isDragging } = useDraggable("dpad-button");
+ *   <button
+ *     style={{ left: position.x, top: position.y }}
+ *     onPointerDown={dragHandlers.onPointerDown}
+ *     ...
+ */
+
+export interface SnapPosition {
+  x: number; // px from viewport left
+  y: number; // px from viewport top
+}
+
+const COLS = 8;
+const ROWS = 5;
+const STORAGE_PREFIX = "draggable-pos:";
+
+function getSnapPoints(): SnapPosition[] {
+  if (typeof window === "undefined") return [];
+  const points: SnapPosition[] = [];
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      points.push({
+        x: Math.round(((c + 0.5) / COLS) * w),
+        y: Math.round(((r + 0.5) / ROWS) * h),
+      });
+    }
+  }
+  return points;
+}
+
+function nearestSnap(x: number, y: number): SnapPosition {
+  const points = getSnapPoints();
+  let best = points[0] ?? { x, y };
+  let bestDist = Infinity;
+  for (const p of points) {
+    const d = (p.x - x) ** 2 + (p.y - y) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
+function loadPosition(id: string): SnapPosition | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_PREFIX + id);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as SnapPosition;
+    if (typeof p.x === "number" && typeof p.y === "number") return p;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function savePosition(id: string, pos: SnapPosition) {
+  try {
+    window.localStorage.setItem(STORAGE_PREFIX + id, JSON.stringify(pos));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function useDraggable(id: string, defaultPos?: SnapPosition) {
+  const [position, setPosition] = useState<SnapPosition>(() => ({
+    x: 0,
+    y: 0,
+  }));
+  const [isDragging, setIsDragging] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const moved = useRef(false);
+  const elRef = useRef<HTMLElement | null>(null);
+
+  /* Initialize position: saved → default → keep current CSS spot. */
+  useEffect(() => {
+    const saved = loadPosition(id);
+    if (saved) {
+      setPosition(saved);
+    } else if (defaultPos) {
+      setPosition(defaultPos);
+    }
+    setInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  /* Re-snap on viewport resize so widgets don't end up off-screen. */
+  useEffect(() => {
+    if (!initialized) return;
+    const onResize = () => {
+      setPosition((p) => nearestSnap(p.x, p.y));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [initialized]);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const el = elRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      dragOffset.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      };
+      moved.current = false;
+      setIsDragging(true);
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    },
+    []
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDragging) return;
+      const el = elRef.current;
+      if (!el) return;
+      moved.current = true;
+      const half_w = el.offsetWidth / 2;
+      const half_h = el.offsetHeight / 2;
+      /* Track center of widget under cursor for natural feel. */
+      const x = Math.max(
+        half_w,
+        Math.min(window.innerWidth - half_w, e.clientX - dragOffset.current.x + half_w)
+      );
+      const y = Math.max(
+        half_h,
+        Math.min(window.innerHeight - half_h, e.clientY - dragOffset.current.y + half_h)
+      );
+      setPosition({ x, y });
+    },
+    [isDragging]
+  );
+
+  const onPointerUp = useCallback(() => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (moved.current) {
+      setPosition((p) => {
+        const snapped = nearestSnap(p.x, p.y);
+        savePosition(id, snapped);
+        return snapped;
+      });
+    }
+    moved.current = false;
+  }, [isDragging, id]);
+
+  /**
+   * Call this from onClick handlers to suppress the click when the
+   * user was actually dragging (prevents accidental activation).
+   */
+  const wasDragged = useCallback(() => {
+    const m = moved.current;
+    return m;
+  }, []);
+
+  const dragHandlers = {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: onPointerUp,
+  };
+
+  return {
+    position,
+    isDragging,
+    initialized,
+    elRef,
+    dragHandlers,
+    wasDragged,
+  };
+}
+
+/** Number of snap positions (8 cols × 5 rows). */
+export const SNAP_POSITION_COUNT = COLS * ROWS;
