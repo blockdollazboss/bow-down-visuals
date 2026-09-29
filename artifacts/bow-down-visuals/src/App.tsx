@@ -19,7 +19,6 @@ import { GuideMe } from "@/components/GuideMe";
 import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
-import { ChatWidget } from "@/components/ChatWidget";
 import { DailyBonusModal } from "@/components/DailyBonusModal";
 import { WheelPopup } from "@/components/WheelPopup";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -359,7 +358,6 @@ function AppShell() {
       {typeof window !== "undefined" && <HelpPanel />}
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
-      {typeof window !== "undefined" && <ChatWidget />}
       {typeof window !== "undefined" && <DailyBonusModal />}
       {typeof window !== "undefined" && <WheelPopup />}
       {marketingCoachRoute && <ThyCheatCodeHost />}

@@ -11,7 +11,7 @@ import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 
    There is no floating launcher anymore — the in-page ThyCheatCodeHost, its
    collapsed chip, and per-step "Ask about this" buttons open the drawer.
-   Talks to POST /api/chat. 1 credit/message via the credit-confirm flow. */
+   Talks to POST /api/free-chat. Free via Groq (no credits). */
 
 type ChatRole = "user" | "assistant";
 interface ChatMessage { role: ChatRole; content: string }
@@ -64,25 +64,16 @@ export function openThyChat(prompt?: string) {
 }
 
 export function ThyCheatCodeChat() {
-  const { confirmedFetch } = useConfirmedApi();
+  // Free version: direct fetch to /api/free-chat (no credits)
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [creditCost, setCreditCost] = useState<number | null>(null);
+  // creditCost removed: chat is now free
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* Fetch the per-message price once so the header can show it upfront. */
-  useEffect(() => {
-    if (!open || creditCost !== null) return;
-    fetch("/api/chat/status")
-      .then((r) => r.json())
-      .then((d) => {
-        if (typeof d.creditCost === "number") setCreditCost(d.creditCost);
-      })
-      .catch(() => {});
-  }, [open, creditCost]);
+  /* Free version: no credit check needed */
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -103,7 +94,7 @@ export function ThyCheatCodeChat() {
     setInput("");
     setLoading(true);
     try {
-      const res = await confirmedFetch("/api/chat", {
+      const res = await fetch("/api/free-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -111,18 +102,11 @@ export function ThyCheatCodeChat() {
           history: history.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
-      if (!res) return; // user cancelled the credit confirmation (finally resets loading)
+      // Free version: no confirmation dialog
       const data = await res.json().catch(() => ({}));
-      if (typeof data.creditCost === "number") setCreditCost(data.creditCost);
+      // Free version: no credit tracking
       let reply: string;
-      if (res.status === 401) {
-        reply =
-          "Sign in to chat with me — it's 1 Visual Buc per message. 🦈";
-      } else if (res.status === 402) {
-        reply =
-          data.message ||
-          "You're out of Visual Bucs — top up to keep chatting with Thy Cheat Code.";
-      } else {
+      if (!res.ok) {
         reply =
           data.reply ||
           data.error ||
@@ -220,9 +204,7 @@ export function ThyCheatCodeChat() {
                 <div>
                   <p className="tcc-display text-sm tracking-wide"><CheatCodeName /></p>
                   <p className="tcc-accent mt-1.5 text-[10px] uppercase tracking-[0.2em] text-neutral-400">
-                    {creditCost
-                      ? `${creditCost} credit${creditCost === 1 ? "" : "s"}/msg`
-                      : "AI assistant"}
+                    Free AI assistant
                   </p>
                 </div>
               </div>
