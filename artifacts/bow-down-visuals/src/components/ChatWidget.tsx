@@ -104,7 +104,7 @@ export function ChatWidget() {
         <button
           onClick={() => setOpenPersist(true)}
           aria-label="Open chat"
-          className="fixed bottom-5 left-5 z-[9998] h-14 w-14 rounded-full bg-primary text-black shadow-2xl flex items-center justify-center hover:scale-105 transition-transform gold-glow"
+          className="fixed top-5 right-5 z-[9998] h-14 w-14 rounded-full bg-primary text-black shadow-2xl flex items-center justify-center hover:scale-105 transition-transform gold-glow"
         >
           <MessageCircle className="h-6 w-6" />
         </button>
@@ -112,7 +112,7 @@ export function ChatWidget() {
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-5 left-5 z-[9999] w-[calc(100vw-2.5rem)] max-w-[380px] h-[520px] max-h-[calc(100vh-2.5rem)] bg-[#0a0a0a] border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed top-5 right-5 z-[9999] w-[calc(100vw-2.5rem)] max-w-[380px] h-[520px] max-h-[calc(100vh-2.5rem)] bg-[#0a0a0a] border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-black/40 shrink-0">
             <div className="flex items-center gap-2.5">
