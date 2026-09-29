@@ -11,6 +11,7 @@ import {
   type JackpotPhase,
   type JackpotStatus,
 } from "@/components/cheat-code-jackpot-logic";
+import { DraggableWidget } from "@/components/draggable-widget";
 
 /**
  * Cheat Code Jackpot — the site-wide monthly prize event.
@@ -453,15 +454,16 @@ export function CheatCodeJackpot() {
         </div>
       )}
 
-      {/* ── D-pad FAB (mobile / touch entry) ──────────────────────── */}
+      {/* ── D-pad FAB (mobile / touch entry) — draggable, snaps to grid ── */}
       {phase === "live" && (
+        <DraggableWidget id="jackpot-dpad" defaultAnchor={{ x: 0.94, y: 0.08 }}>
         <button
           type="button"
           onClick={() => setPadOpen((v) => !v)}
           aria-label={padOpen ? "Close directional pad" : "Open directional pad"}
           aria-expanded={padOpen}
           className={cn(
-            "fixed top-5 right-5 z-[9990] flex h-14 w-14 items-center justify-center",
+            "flex h-14 w-14 items-center justify-center",
             "rounded-full border-2 border-[#C9A84C] bg-black/90 text-2xl",
             "text-[#F5DE8E] shadow-[0_0_24px_rgba(201,168,76,0.35)]",
             "transition-colors hover:bg-[#C9A84C]/25 hover:text-[#FFE9A8]",
@@ -472,6 +474,7 @@ export function CheatCodeJackpot() {
         >
           <span aria-hidden="true">✛</span>
         </button>
+        </DraggableWidget>
       )}
 
       {/* ── D-pad panel ───────────────────────────────────────────── */}
