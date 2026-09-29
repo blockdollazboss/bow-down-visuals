@@ -35,6 +35,12 @@ function getSnapPoints(): SnapPosition[] {
         x: Math.round(((c + 0.5) / COLS) * w),
         y: Math.round(((r + 0.5) / ROWS) * h),
       });
+      /* Flag for click suppression — cleared on next pointerdown or
+         after the click event has had a chance to fire. */
+      justDragged.current = true;
+      window.setTimeout(() => {
+        justDragged.current = false;
+      }, 50);
     }
   }
   return points;
@@ -83,6 +89,7 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   const [initialized, setInitialized] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
+  const justDragged = useRef(false);
   const elRef = useRef<HTMLElement | null>(null);
 
   /* Initialize position: saved → default → keep current CSS spot. */
@@ -117,8 +124,11 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
         y: e.clientY - rect.top,
       };
       moved.current = false;
+      justDragged.current = false;
       setIsDragging(true);
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      /* Capture on the wrapper (currentTarget), not the inner target,
+         so pointerup/move reliably fire on the wrapper. */
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     },
     []
   );
@@ -154,6 +164,12 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
         savePosition(id, snapped);
         return snapped;
       });
+      /* Flag for click suppression — cleared on next pointerdown or
+         after the click event has had a chance to fire. */
+      justDragged.current = true;
+      window.setTimeout(() => {
+        justDragged.current = false;
+      }, 50);
     }
     moved.current = false;
   }, [isDragging, id]);
@@ -163,8 +179,7 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
    * user was actually dragging (prevents accidental activation).
    */
   const wasDragged = useCallback(() => {
-    const m = moved.current;
-    return m;
+    return justDragged.current;
   }, []);
 
   const dragHandlers = {
