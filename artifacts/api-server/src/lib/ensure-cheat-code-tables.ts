@@ -12,6 +12,7 @@ import { db } from "@workspace/db";
 import { logger } from "./logger";
 
 const CHEAT_CODE_DDL = [
+  `ALTER TABLE cheat_code_events ADD COLUMN IF NOT EXISTS code_sequence TEXT`,
   `CREATE TABLE IF NOT EXISTS cheat_code_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
