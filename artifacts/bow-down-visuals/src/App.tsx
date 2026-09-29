@@ -29,7 +29,7 @@ import { FloatingStarLevel } from "@/components/layout/floating-star-level";
 import { FloatingAdminPanel } from "@/components/layout/floating-admin-panel";
 import { LiveBadge } from "@/components/LiveBadge";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { DockableSidebar } from "@/components/layout/dockable-sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
 import { ExpandSidebarButton } from "@/components/layout/expand-sidebar-button";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
@@ -298,7 +298,7 @@ function AuthedLayout({ children }: { children: ReactNode }) {
       onOpenChange={handleOpenChange}
     >
       <div className="flex min-h-svh w-full">
-        {!isHome && <DockableSidebar />}
+        {!isHome && <AppSidebar />}
         <div className="min-w-0 flex-1 flex flex-col">
           <div className="sticky top-0 z-40">
             <VideoBanner />
