@@ -1264,4 +1264,4 @@ html[data-star-level="5"] [data-min-stars="6"] {
   border: 1px solid rgba(201, 168, 76, 0.28);
   border-radius: 1.5rem;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
+} /* ─── Dockable sidebar: when docked right, the sidebar wrapper (which contains the layout gap) must come AFTER the main content in the flex row, otherwise the gap reserves a dead column on the left. The wrapper carries data-slot="sidebar" and data-side="right". ─── */ [data-slot="sidebar"][data-side="right"] { order: 999; }
