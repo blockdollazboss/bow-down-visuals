@@ -84,6 +84,7 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   const dragOffset = useRef({ x: 0, y: 0 });
   const moved = useRef(false);
   const justDragged = useRef(false);
+  const draggingRef = useRef(false);
   const elRef = useRef<HTMLElement | null>(null);
 
   /* Initialize position: saved → default → keep current CSS spot. */
@@ -119,6 +120,7 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
       };
       moved.current = false;
       justDragged.current = false;
+      draggingRef.current = true;
       setIsDragging(true);
       /* Capture on the wrapper (currentTarget), not the inner target,
          so pointerup/move reliably fire on the wrapper. */
@@ -127,30 +129,34 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
     []
   );
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isDragging) return;
-      const el = elRef.current;
-      if (!el) return;
-      moved.current = true;
-      const half_w = el.offsetWidth / 2;
-      const half_h = el.offsetHeight / 2;
-      /* Track center of widget under cursor for natural feel. */
-      const x = Math.max(
-        half_w,
-        Math.min(window.innerWidth - half_w, e.clientX - dragOffset.current.x + half_w)
-      );
-      const y = Math.max(
-        half_h,
-        Math.min(window.innerHeight - half_h, e.clientY - dragOffset.current.y + half_h)
-      );
-      setPosition({ x, y });
-    },
-    [isDragging]
-  );
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!draggingRef.current) return;
+    const el = elRef.current;
+    if (!el) return;
+    moved.current = true;
+    const half_w = el.offsetWidth / 2;
+    const half_h = el.offsetHeight / 2;
+    /* Track center of widget under cursor for natural feel. */
+    const x = Math.max(
+      half_w,
+      Math.min(
+        window.innerWidth - half_w,
+        e.clientX - dragOffset.current.x + half_w
+      )
+    );
+    const y = Math.max(
+      half_h,
+      Math.min(
+        window.innerHeight - half_h,
+        e.clientY - dragOffset.current.y + half_h
+      )
+    );
+    setPosition({ x, y });
+  }, []);
 
   const onPointerUp = useCallback(() => {
-    if (!isDragging) return;
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
     setIsDragging(false);
     if (moved.current) {
       setPosition((p) => {
@@ -166,7 +172,7 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
       }, 50);
     }
     moved.current = false;
-  }, [isDragging, id]);
+  }, [id]);
 
   /**
    * Call this from onClick handlers to suppress the click when the
