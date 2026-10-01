@@ -1,18 +1,16 @@
 import { useEffect, useRef } from "react";
 
 /* ─────────────────── Homepage hero ground fog ─────────────────── */
-/* Bright white ground fog pooling around the Shark King's feet at the
-   bottom of the hero — deliberately high-contrast against the golden
-   stage so it reads unmistakably as mist. Pure CSS, no assets, no cost.
+/* Bright white ground fog pooling around the Shark King's feet and rising
+   past his ankles — high-contrast against the golden stage so it reads
+   unmistakably as mist. Pure CSS, no assets, no cost.
 
-   Motion, two layers that stack:
-   1. Mouse glide (rAF) — the whole fog bank eases toward the cursor
-      horizontally, with per-blob parallax: nearer, denser banks travel
-      further than far ones. A continuous base bank drifts subtly underneath
-      so the fog reads as one unbroken mass. Tracks the spotlight rig's
-      glide so the fog and the beams move as one atmosphere.
-   2. Ambient drift (CSS) — a faint slow drift keeps the fog alive when
-      the pointer is still.
+   Motion:
+   1. Mouse glide (rAF) — the fog chases the cursor fast and travels far
+      (±160px peak), with per-blob parallax so nearer wisps visibly outrun
+      farther ones. The motion is meant to be SEEN.
+   2. Ambient drift (CSS) — a slow drift keeps the fog alive when the
+      pointer is still.
 
    Layering: above the spotlight rig (z-[2]) so the fog catches the beams,
    over the shark's feet (z-[4], placed after him in the DOM so it veils
@@ -27,24 +25,28 @@ interface FogBlob {
   duration: string;
   delay: string;
   opacity: number;
-  depth: number; // parallax factor — nearer banks glide further
+  depth: number; // parallax factor — nearer wisps glide further
   reverse?: boolean;
 }
 
 const BLOBS: FogBlob[] = [
-  { left: "-6%", width: "46%", duration: "26s", delay: "0s",   opacity: 0.85, depth: 1.0 },
-  { left: "18%", width: "40%", duration: "34s", delay: "-11s", opacity: 0.7,  depth: 0.55, reverse: true },
-  { left: "44%", width: "48%", duration: "29s", delay: "-7s",  opacity: 0.8,  depth: 0.8 },
-  { left: "68%", width: "42%", duration: "38s", delay: "-19s", opacity: 0.65, depth: 0.4,  reverse: true },
-  { left: "88%", width: "30%", duration: "24s", delay: "-4s",  opacity: 0.72, depth: 0.65 },
+  { left: "-10%", width: "52%", duration: "26s", delay: "0s",   opacity: 0.8,  depth: 1.0 },
+  { left: "16%",  width: "38%", duration: "34s", delay: "-11s", opacity: 0.65, depth: 0.55, reverse: true },
+  { left: "42%",  width: "50%", duration: "29s", delay: "-7s",  opacity: 0.75, depth: 0.8 },
+  { left: "66%",  width: "44%", duration: "38s", delay: "-19s", opacity: 0.6,  depth: 0.4,  reverse: true },
+  { left: "86%",  width: "34%", duration: "24s", delay: "-4s",  opacity: 0.68, depth: 0.65 },
 ];
 
-/* Peak glide travel, px each way (scaled per-blob by depth). */
-const GLIDE_RANGE = 90;
+/* Peak glide travel, px each way (scaled per-blob by depth). Big on
+   purpose — the user should SEE the smoke follow the cursor. */
+const GLIDE_RANGE = 160;
+/* Ease per frame — snappy enough to feel alive, smooth enough to feel
+   like drifting smoke rather than a rigid layer. */
+const GLIDE_EASE = 0.14;
 
-/* The base bank glides gently with the cursor so the whole mass moves
-   as one; the blobs parallax over it. */
-const BANK_DEPTH = 0.3;
+/* The base bank follows the cursor at half depth so the whole fog mass
+   visibly shifts while the wisps parallax over it. */
+const BANK_DEPTH = 0.5;
 
 export function HeroFog({ className = "" }: { className?: string }) {
   const blobsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -66,8 +68,8 @@ export function HeroFog({ className = "" }: { className?: string }) {
 
     const loop = () => {
       if (cancelled) return;
-      // Ease toward the cursor — mirrors the spotlight rig's glide.
-      cx += (targetX - cx) * (reduce ? 1 : 0.06);
+      // Chase the cursor — mirrors the spotlight rig's glide, faster.
+      cx += (targetX - cx) * (reduce ? 1 : GLIDE_EASE);
       if (Math.abs(targetX - cx) < 0.001) cx = targetX;
       // Per-blob parallax via the CSS `translate` property, which composes
       // with the ambient drift animation's `transform` instead of fighting it.
@@ -78,7 +80,7 @@ export function HeroFog({ className = "" }: { className?: string }) {
         const depth = BLOBS[i]?.depth ?? 0.5;
         el.style.translate = `${(cx * GLIDE_RANGE * depth).toFixed(1)}px 0px`;
       }
-      // The base bank follows the cursor gently so the fog mass moves as one.
+      // The base bank shifts with the cursor so the whole mass moves.
       if (bankRef.current) {
         bankRef.current.style.translate = `${(cx * GLIDE_RANGE * BANK_DEPTH).toFixed(1)}px 0px`;
       }
@@ -98,8 +100,10 @@ export function HeroFog({ className = "" }: { className?: string }) {
       aria-hidden
       className={`pointer-events-none absolute overflow-hidden ${className}`}
       style={{
-        maskImage: "linear-gradient(to bottom, transparent 0%, black 45%)",
-        WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 45%)",
+        // Tall, gentle fade — the fog rises past the ankles and dissolves
+        // softly into the stage light instead of ending in a hard band.
+        maskImage: "linear-gradient(to bottom, transparent 0%, black 62%)",
+        WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 62%)",
       }}
     >
       {/* Base bank — one continuous fog bed spanning the whole stage
@@ -107,18 +111,18 @@ export function HeroFog({ className = "" }: { className?: string }) {
           the feet, dissolving upward. */}
       <div
         ref={bankRef}
-        className="absolute inset-x-[-12%] bottom-[-6%] h-[88%]"
+        className="absolute inset-x-[-12%] bottom-[-4%] h-[92%]"
         style={{
           background:
-            "linear-gradient(to top, rgba(255,255,255,0.10) 0%, rgba(255,253,248,0.38) 38%, rgba(255,250,240,0.16) 62%, transparent 88%)",
-          filter: "blur(36px)",
+            "linear-gradient(to top, rgba(255,255,255,0.08) 0%, rgba(255,253,248,0.34) 38%, rgba(255,250,240,0.14) 62%, transparent 88%)",
+          filter: "blur(44px)",
         }}
       />
       {BLOBS.map((b, i) => (
         <div
           key={i}
           ref={(el) => { blobsRef.current[i] = el; }}
-          className="hero-fog-blob absolute bottom-[-30%] h-[130%] rounded-[50%]"
+          className="hero-fog-blob absolute bottom-[-28%] h-[128%] rounded-[50%]"
           style={{
             left: b.left,
             width: b.width,
@@ -127,8 +131,8 @@ export function HeroFog({ className = "" }: { className?: string }) {
             animationDelay: b.delay,
             animationDirection: b.reverse ? "reverse" : "normal",
             background:
-              "radial-gradient(ellipse at center, rgba(255,255,255,0.50) 0%, rgba(255,250,240,0.24) 45%, transparent 75%)",
-            filter: "blur(48px)",
+              "radial-gradient(ellipse at center, rgba(255,255,255,0.46) 0%, rgba(255,250,240,0.22) 45%, transparent 75%)",
+            filter: "blur(56px)",
           }}
         />
       ))}

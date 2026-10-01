@@ -710,8 +710,9 @@ function HeroSection() {
           z-[4], placed after the hero grid: same level as the shark but
           later in the DOM, so it veils his feet instead of hiding behind
           him. Still below the curtain overlay (z-[5]) and the copy (z-10),
-          and above the beam bases (z-[2]) so it catches the light. */}
-      <HeroFog className="inset-x-0 bottom-0 z-[4] h-[34%]" />
+          drifts with the cursor while staying under the curtain (z-[5])
+          and the copy (z-10). h-[44%]: tall enough to rise past his ankles. */}
+      <HeroFog className="inset-x-0 bottom-0 z-[4] h-[44%]" />
 
       {/* Scroll hint */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-40">
