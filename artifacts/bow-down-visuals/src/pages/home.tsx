@@ -716,17 +716,20 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Ground fog — thin settled smoke layer (fog-lab version C) rising to
-          the King's ankles so he reads as standing IN the fog.
-          z-[4], placed after the hero grid: same level as the shark but
-          later in the DOM, so it veils his feet instead of hiding behind
-          him. Still below the curtain overlay (z-[5]) and the copy (z-10).
-          Dimmed a touch (brightness 0.85); whip the mouse through it and the
-          layer tears, swirls and re-settles. */}
+      {/* Ground fog — one continuous procedural sheet hovering along the
+          stage floor at the King's feet so he reads as standing IN the fog.
+          No sprites: a living surface line + warm body + scrolling wisp
+          texture + lit crest + tendrils. Drag sideways and the whole bank
+          streams with the pointer, parts around a fast pass, then settles
+          flat. A hard ceiling (canvas clip + clamped surface) guarantees it
+          never climbs past 0.68 of this band — it can never reach his hips.
+          Dimmed a touch (brightness 0.85); the copy's scrim keeps the hero
+          text readable over it. */}
       <FogSettled
-        className="inset-x-0 bottom-0 z-[4] h-[58%]"
-        layerFrac={0.45}
+        className="inset-x-0 bottom-0 z-[4] h-[46%]"
+        layerFrac={0.42}
         brightness={0.85}
+        ceilingFrac={0.68}
       />
 
       {/* Scroll hint */}
@@ -1955,25 +1958,6 @@ export default function Home() {
           backgroundRepeat: "no-repeat",
         }}
       />
-      {/* Curtain overlay — the stage curtains cut out, draped OVER the hero
-          spotlights so the beams read as shining from behind the drapes,
-          OVER the Shark King so he scrolls behind the curtains like
-          going backstage (he sits at z-[4], just below this layer),
-          and OVER the footer so the drapes hang over the foot of the page.
-          Same geometry as the backdrop so the curtains align pixel-perfect.
-          z-[5]: above the beams and the King, BELOW the hero copy — text
-          and buttons always stay on top. Transparent center, so the footer
-          shows through between the drapes. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 z-[5]"
-        style={{
-          backgroundImage: "url(/images/home-curtains-overlay.png?v=2)",
-          backgroundSize: "cover",
-          backgroundPosition: "center top",
-          backgroundRepeat: "no-repeat",
-        }}
-      />
       <JsonLd data={SOFTWARE_APPLICATION_JSON_LD} />
       <JsonLd data={HOME_FAQ_JSON_LD} />
       <KonamiEgg />
@@ -2000,6 +1984,25 @@ export default function Home() {
       <FAQSection />
       <WaitlistSection ref={waitlistRef} />
     </div>
+    {/* Curtain overlay — the stage curtains cut out. Lives OUTSIDE the page
+          root's isolated z-[1] stacking context on purpose: the footer sits
+          at z-[2] (above the page, so the opaque stage backdrop can't swallow
+          it), and the drapes must hang OVER the foot of the page — so the
+          overlay sits at z-[3], above the footer. Same cover/center-top
+          geometry as the backdrop so the curtains align pixel-perfect.
+          Transparent center: the footer shows through between the drapes,
+          and the hero copy (centered) never sits under an opaque fold.
+          pointer-events-none: never blocks clicks. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-[3]"
+        style={{
+          backgroundImage: "url(/images/home-curtains-overlay.png?v=2)",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
     </>
   );
 }

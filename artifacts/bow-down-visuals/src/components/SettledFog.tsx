@@ -1,55 +1,39 @@
 import { useEffect, useRef } from "react";
 
-/* ─────────── Fog Lab C — settled sheet ─────────── */
-/* Ground fog as one continuous sheet hovering along the stage floor — not
-   a bunch of little clouds. Big, wide, flat, heavily overlapping fog
-   masses merge into an unbroken horizontal band. The mouse stirs it
-   sideways: move right and the sheet streams right, move left and it
-   flows left — like dragging your hand through real stage fog. Vertical
-   motion is deliberately starved: nothing billows or shoots upward, the
-   sheet just breathes where it lies and re-settles after every pass.
-   Textures carry true alpha (black baked out, edges feathered) and are
-   cache-busted (?v=2); screen blending keeps overlaps luminous with no
-   black boxes and no visible image borders. */
+/* ─────────── Fog — procedural settled sheet ─────────── */
+/* Ground fog as ONE continuous procedural sheet — no sprites, no blobs, no
+   texture borders (there are no textures to border). A living surface line
+   undulates in large, slow swells; beneath it a warm-white body melts into
+   the stage floor; a scrolling fbm noise strip carves wispy light and shadow
+   into the body; a lit crest along the surface and a few soft tendrils
+   finish the smoke read. The mouse drags the whole bank sideways — move
+   right and it streams right, move left and it flows left — parting around
+   a fast pointer, then springing flat again (re-settle). Vertical motion is
+   starved by design: near the pointer the surface only ever dips DOWN,
+   never rises. A hard ceiling (canvas clip + clamped surface + capped
+   tendrils) guarantees the fog can never climb past ceilingFrac — it stays
+   at his feet and can never reach his hips. Everything is painted
+   warm-white and screen-blended, so it glows over the dark stage instead of
+   graying out; true black can never appear. */
 
-const TEX_URLS = [
-  "/images/fog/smoke-1.png?v=2",
-  "/images/fog/smoke-2.png?v=2",
-  "/images/fog/smoke-3.png?v=2",
-];
-
-const COUNT = 90;         // few, huge masses — not many little puffs
-const LAYER_FRAC = 0.16;  // the settled sheet occupies the bottom 16%
-const WIND = 22;          // px/s ambient breeze (slowly shifts direction)
-const SPRING = 9.0;       // 1/s² — vertical pull back to resting height
-const DAMP_X = 0.94;      // horizontal velocity damping (per frame)
-const DAMP_Y = 0.84;      // vertical damping — much harsher, kills rise
-const FLOW_R = 0.4;       // cursor influence radius, × min(W,H)
-const PUSH_X = 6400;      // horizontal stream along the pointer's travel
-const PUSH_Y = 800;       // vertical stream — deliberately weak
-const PART_X = 900;       // gentle sideways parting around the pointer
-const SWIRL = 800;        // faint curl — flow, not vortex
-const VMAX = 2600;        // particle speed cap — strong but bounded
-
-interface P {
-  x: number; y: number; homeY: number;
-  vx: number; vy: number;
-  size: number; wide: number; flat: number;
-  angle: number; spin: number;
-  life: number; maxLife: number;
-  tex: number; peak: number; seed: number;
-}
+const LAYER_FRAC = 0.16; // resting sheet thickness, fraction of container height
+const COL_STEP = 4; // px between surface samples (CSS px)
+const WISPS = 8; // tendril count
 
 export function FogSettled({
   className = "",
   layerFrac = LAYER_FRAC,
   brightness = 1,
+  ceilingFrac = 0.7,
 }: {
   className?: string;
-  /** Fraction of the container the settled sheet occupies (resting heights). */
+  /** Fraction of the container height the resting sheet occupies. */
   layerFrac?: number;
-  /** Multiplier on puff opacity — <1 dims the bank a touch. */
+  /** Multiplier on fog alpha — <1 dims the bank a touch. */
   brightness?: number;
+  /** Hard ceiling: fraction of the container height (from the bottom) above
+      which NOTHING renders. The fog can never rise past it, ever. */
+  ceilingFrac?: number;
 }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -63,13 +47,96 @@ export function FogSettled({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const tex: HTMLImageElement[] = TEX_URLS.map((u) => {
-      const img = new Image();
-      img.src = u;
-      return img;
-    });
+    /* ---- tileable fbm noise strip: wispy light/shadow carved into the body.
+       Tileable in x so it scrolls seamlessly; stretched vertically so the
+       grain runs in horizontal strata, like real settled fog. ---- */
+    const strip = (() => {
+      const NW = 1024;
+      const NH = 160;
+      const cv = document.createElement("canvas");
+      cv.width = NW;
+      cv.height = NH;
+      const cx = cv.getContext("2d");
+      if (!cx) return cv;
+      const img = cx.createImageData(NW, NH);
+      const d = img.data;
+      const octaves = [
+        { ox: 5, oy: 3, amp: 0.45 },
+        { ox: 10, oy: 6, amp: 0.27 },
+        { ox: 21, oy: 12, amp: 0.17 },
+        { ox: 43, oy: 24, amp: 0.11 },
+      ];
+      const grids = octaves.map((o) => {
+        const w = o.ox + 1;
+        const h = o.oy + 1;
+        const g = new Float32Array(w * h);
+        for (let i = 0; i < g.length; i++) g[i] = Math.random();
+        // wrap column ox onto column 0 so the strip tiles seamlessly in x
+        for (let r = 0; r < h; r++) g[r * w + o.ox] = g[r * w];
+        return { ...o, w, g };
+      });
+      const sm = (t: number) => t * t * (3 - 2 * t);
+      for (let y = 0; y < NH; y++) {
+        const v = y / NH;
+        for (let x = 0; x < NW; x++) {
+          const u = x / NW;
+          let n = 0;
+          for (const o of grids) {
+            const gx = u * o.ox;
+            const gy = v * o.oy;
+            const x0 = Math.floor(gx) % o.ox;
+            const fx = gx - Math.floor(gx);
+            const y0 = Math.min(o.oy - 1, Math.floor(gy));
+            const fy = gy - Math.floor(gy);
+            const x1 = x0 + 1;
+            const y1 = y0 + 1;
+            const w = o.w;
+            const v00 = o.g[y0 * w + x0];
+            const v10 = o.g[y0 * w + x1];
+            const v01 = o.g[y1 * w + x0];
+            const v11 = o.g[y1 * w + x1];
+            const sx = sm(fx);
+            const sy = sm(fy);
+            n += o.amp * (v00 * (1 - sx) * (1 - sy) + v10 * sx * (1 - sy) + v01 * (1 - sx) * sy + v11 * sx * sy);
+          }
+          const vv = Math.max(0, Math.min(255, Math.round(n * 255)));
+          const idx = (y * NW + x) * 4;
+          d[idx] = vv;
+          d[idx + 1] = vv;
+          d[idx + 2] = vv;
+          d[idx + 3] = 255;
+        }
+      }
+      cx.putImageData(img, 0, 0);
+      return cv;
+    })();
 
-    let W = 0, H = 0, dpr = 1;
+    /* ---- soft tendril sprite (stretched vertically at draw time) ---- */
+    const wisp = (() => {
+      const s = 64;
+      const cv = document.createElement("canvas");
+      cv.width = s;
+      cv.height = s;
+      const cx = cv.getContext("2d");
+      if (!cx) return cv;
+      const g = cx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      g.addColorStop(0, "rgba(255,252,246,0.9)");
+      g.addColorStop(0.45, "rgba(255,252,246,0.35)");
+      g.addColorStop(1, "rgba(255,252,246,0)");
+      cx.fillStyle = g;
+      cx.fillRect(0, 0, s, s);
+      return cv;
+    })();
+
+    /* ---- offscreen layer: body + texture + crest + tendrils composite here
+       with normal blending, then screen-blitted onto the page in one go ---- */
+    const layer = document.createElement("canvas");
+    const lctx = layer.getContext("2d");
+    if (!lctx) return;
+
+    let W = 0;
+    let H = 0;
+    let dpr = 1;
     const resize = () => {
       const r = box.getBoundingClientRect();
       dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -77,51 +144,40 @@ export function FogSettled({
       H = Math.max(1, r.height);
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
+      layer.width = canvas.width;
+      layer.height = canvas.height;
     };
     resize();
     window.addEventListener("resize", resize);
 
-    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-    const spawn = (p: P, initial: boolean) => {
-      const layerH = H * layerFrac;
-      p.x = rnd(-60, W + 60);
-      // Resting heights live inside the band, biased toward the floor so the
-      // sheet reads densest at the bottom. Nothing parks above the sheet.
-      p.homeY = H - Math.pow(Math.random(), 1.25) * layerH;
-      p.y = initial ? rnd(H - layerH * 1.5, H + 24) : H + rnd(4, 30);
-      p.vx = rnd(-6, 6);
-      p.vy = 0;
-      // Big soft masses — each one spans a large fraction of the stage so
-      // they merge into a sheet instead of reading as discrete clouds.
-      p.size = rnd(W * 0.16, W * 0.3);
-      // Wide and flat: strata, not puffs.
-      p.wide = rnd(1.7, 2.3);
-      p.flat = rnd(0.45, 0.6);
-      p.angle = rnd(0, Math.PI * 2);
-      p.spin = rnd(-0.12, 0.12);
-      p.maxLife = rnd(7, 13);
-      p.life = initial ? rnd(0, p.maxLife) : 0;
-      p.tex = (Math.random() * tex.length) | 0;
-      // Low individual alpha — the sheet's body comes from heavy overlap.
-      p.peak = rnd(0.1, 0.22) * brightness;
-      p.seed = rnd(0, 1000);
-    };
-    const parts: P[] = Array.from({ length: COUNT }, () => {
-      const p = {} as P;
-      spawn(p, true);
-      return p;
-    });
-
-    let mx = -9999, my = -9999, pmx = -9999, pmy = -9999, mvx = 0, mvy = 0;
-    let hasPointer = false;
+    /* ---- pointer: position + smoothed velocity ---- */
+    let px = -9999;
+    let py = -9999;
+    let ppx = -9999;
+    let ppy = -9999;
+    let pvx = 0;
+    let pvy = 0;
+    let hasP = false;
     const onMove = (e: PointerEvent) => {
       const r = box.getBoundingClientRect();
-      pmx = mx; pmy = my;
-      mx = e.clientX - r.left;
-      my = e.clientY - r.top;
-      if (!hasPointer) { pmx = mx; pmy = my; hasPointer = true; }
+      px = e.clientX - r.left;
+      py = e.clientY - r.top;
+      if (!hasP) {
+        ppx = px;
+        ppy = py;
+        hasP = true;
+      }
     };
     window.addEventListener("pointermove", onMove, { passive: true });
+
+    /* ---- persistent state ---- */
+    let flowX = 0; // the bank's lateral drift (breeze + pointer) — never springs back
+    let dragX = 0; // transient yank from a fast pointer — springs back to 0 (re-settle)
+    const surf = new Float32Array(2048); // surface heights per column
+    const wake = new Float32Array(2048); // pointer parting displacement per column
+    const P1 = 1.3;
+    const P2 = 2.9;
+    const P3 = 4.7;
 
     let raf = 0;
     let cancelled = false;
@@ -134,130 +190,152 @@ export function FogSettled({
       last = now;
       if (!reduce) t += dt;
 
-      let segX = 0, segY = 0, segLen = 0, segAx = 0, segAy = 0;
-      if (hasPointer && !reduce) {
-        const ivx = (mx - pmx) / Math.max(dt, 1e-3);
-        const ivy = (my - pmy) / Math.max(dt, 1e-3);
-        // This frame's pointer travel segment — the wake keys off it so fast
-        // whips inject energy proportional to distance traveled.
-        segAx = pmx; segAy = pmy;
-        segX = mx - pmx; segY = my - pmy;
-        segLen = Math.hypot(segX, segY);
-        pmx = mx; pmy = my;
-        mvx += (ivx - mvx) * 0.2;
-        mvy += (ivy - mvy) * 0.2;
-        const sp = Math.hypot(mvx, mvy);
-        if (sp > 8000) { const k = 8000 / sp; mvx *= k; mvy *= k; }
-      } else { mvx = 0; mvy = 0; }
-      const mSpeed = Math.hypot(mvx, mvy);
-      const speedN = Math.min(1, mSpeed / 1500);
-
-      const R = Math.min(W, H) * FLOW_R;
       const layerH = H * layerFrac;
+      const ceilY = H * (1 - ceilingFrac); // hard ceiling, px from top
+      const baseY = H - layerH; // resting surface line
+      const lumpAmp = layerH * 0.35; // large-swell amplitude
+      const surfTop = baseY - lumpAmp; // highest the surface normally reaches
+
+      /* smoothed pointer velocity */
+      if (hasP && !reduce) {
+        const ivx = (px - ppx) / Math.max(dt, 1e-3);
+        const ivy = (py - ppy) / Math.max(dt, 1e-3);
+        ppx = px;
+        ppy = py;
+        pvx += (ivx - pvx) * 0.22;
+        pvy += (ivy - pvy) * 0.22;
+        const sp = Math.hypot(pvx, pvy);
+        if (sp > 6000) {
+          const k = 6000 / sp;
+          pvx *= k;
+          pvy *= k;
+        }
+      } else {
+        pvx = 0;
+        pvy = 0;
+      }
+
+      /* lateral flow: slow breeze + the pointer's direction. Move right and
+         the whole bank streams right; move left and it flows left. */
+      const breeze = reduce ? 0 : Math.sin(t * 0.07) * 14 + 8;
+      if (!reduce) flowX += (breeze + pvx * 0.3) * dt;
+
+      /* transient drag — a fast whip yanks the bank sideways, then it eases
+         back flat. This is the re-settle. */
+      const dragTarget = reduce ? 0 : Math.max(-140, Math.min(140, pvx * 0.1));
+      dragX += (dragTarget - dragX) * Math.min(1, 5 * dt);
+
+      const shift = flowX + dragX; // total lateral offset of the fog pattern
+      const n = Math.min(2047, Math.ceil(W / COL_STEP) + 1);
+      const R = Math.min(W, H) * 0.4; // pointer influence radius
+      const speedN = Math.min(1, Math.hypot(pvx, pvy) / 1000);
+      const partDepth = layerH * 0.55;
+
+      /* surface line: large slow swells + pointer parting (down only),
+         clamped so it can never cross the ceiling. */
+      for (let i = 0; i < n; i++) {
+        const x = i * COL_STEP;
+        const u = x - shift;
+        const lump =
+          Math.sin(u * 0.004 + t * 0.22 + P1) * 0.5 +
+          Math.sin(u * 0.0093 + t * 0.16 + P2) * 0.3 +
+          Math.sin(u * 0.021 + t * 0.31 + P3) * 0.2;
+        let wTarget = 0;
+        if (hasP && !reduce && speedN > 0.02) {
+          const dx = (x - px) / R;
+          wTarget = partDepth * speedN * Math.exp(-dx * dx);
+        }
+        wake[i] += (wTarget - wake[i]) * Math.min(1, 6 * dt);
+        let y = baseY - lump * lumpAmp - wake[i];
+        if (y < ceilY) y = ceilY;
+        else if (y > H + 40) y = H + 40;
+        surf[i] = y;
+      }
+      const surfAt = (x: number) => {
+        const f = Math.max(0, Math.min(n - 1.001, x / COL_STEP));
+        const i0 = Math.floor(f);
+        const fr = f - i0;
+        return surf[i0] * (1 - fr) + surf[i0 + 1] * fr;
+      };
+
+      /* ---- paint the fog layer offscreen ---- */
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lctx.clearRect(0, 0, W, H);
+      const b = brightness;
+
+      // body: one continuous fill from the living surface down to the floor
+      const body = new Path2D();
+      body.moveTo(0, surf[0]);
+      for (let i = 1; i < n; i++) body.lineTo(i * COL_STEP, surf[i]);
+      body.lineTo(W, H + 2);
+      body.lineTo(0, H + 2);
+      body.closePath();
+      const g = lctx.createLinearGradient(0, surfTop, 0, H);
+      g.addColorStop(0.0, "rgba(255,251,243,0)");
+      g.addColorStop(0.14, `rgba(255,251,243,${0.5 * b})`);
+      g.addColorStop(0.38, `rgba(255,250,240,${0.66 * b})`);
+      g.addColorStop(0.72, `rgba(255,249,238,${0.58 * b})`);
+      g.addColorStop(1.0, `rgba(250,243,230,${0.42 * b})`);
+      lctx.fillStyle = g;
+      lctx.fill(body);
+
+      // wispy texture carved into the body — scrolls with the flow
+      lctx.save();
+      lctx.clip(body);
+      lctx.globalCompositeOperation = "soft-light";
+      lctx.globalAlpha = 0.62;
+      const tileW = Math.max(720, W * 0.85);
+      const wrapped = ((shift % tileW) + tileW) % tileW;
+      for (let sx = wrapped - tileW; sx < W; sx += tileW) {
+        lctx.drawImage(strip, sx, surfTop, tileW, H - surfTop);
+      }
+      lctx.restore();
+
+      // lit crest hugging the surface — the top edge catches the stage light
+      const crestH = layerH * 0.3;
+      const crest = new Path2D();
+      crest.moveTo(0, surf[0]);
+      for (let i = 1; i < n; i++) crest.lineTo(i * COL_STEP, surf[i]);
+      for (let i = n - 1; i >= 0; i--) crest.lineTo(i * COL_STEP, surf[i] + crestH);
+      crest.closePath();
+      const cg = lctx.createLinearGradient(0, surfTop, 0, surfTop + crestH);
+      cg.addColorStop(0, `rgba(255,255,255,${0.32 * b})`);
+      cg.addColorStop(1, "rgba(255,255,255,0)");
+      lctx.fillStyle = cg;
+      lctx.fill(crest);
+
+      // tendrils breathing above the surface — capped at the ceiling
+      for (let i = 0; i < WISPS; i++) {
+        const fx = (i + 0.5) / WISPS;
+        const wx = fx * W + Math.sin(t * 0.45 + i * 2.4) * 22 + dragX * 0.4;
+        const syy = surfAt(Math.max(0, Math.min(W - 1, wx)));
+        const wh = layerH * (0.3 + 0.2 * Math.sin(i * 3.7 + 1)) * (0.85 + 0.3 * Math.sin(t * 0.6 + i * 1.9));
+        const top = Math.max(ceilY, syy - wh);
+        const ww = 30 + 14 * Math.sin(i * 7.1 + 2);
+        lctx.globalAlpha = Math.max(0.04, 0.11 + 0.05 * Math.sin(t * 0.8 + i * 2.2)) * b;
+        lctx.drawImage(wisp, wx - ww / 2, top, ww, syy - top);
+      }
+      lctx.globalAlpha = 1;
+
+      /* ---- blit to the page: hard ceiling clip + screen blend ---- */
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      // Screen blending re-brightens overlaps into a luminous sheet. Safe:
-      // the textures carry true alpha (black baked out, edges feathered) and
-      // the URLs are cache-busted, so no stale black-background bytes linger.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, ceilY, W, H - ceilY + 2);
+      ctx.clip();
       ctx.globalCompositeOperation = "screen";
+      ctx.drawImage(layer, 0, 0, W, H);
+      ctx.restore();
 
-      for (const p of parts) {
-        if (!reduce) {
-          // Ambient: a slow breeze that shifts direction over time, plus a
-          // faint breathing bob. The spring pins everything to the sheet.
-          const breeze = Math.sin(t * 0.12 + p.seed * 0.01) * WIND;
-          p.vx += (breeze + Math.sin(t * 0.4 + p.seed) * 5 - p.vx * 0.12) * dt;
-          p.vy += (p.homeY - p.y) * SPRING * dt;
-          p.vy += Math.sin(t * 0.6 + p.seed * 1.7) * 4 * dt;
-          // Cursor: stir the sheet sideways.
-          if (hasPointer && mSpeed > 1) {
-            const ox = p.x - mx;
-            const oy = p.y - my;
-            const dist = Math.hypot(ox, oy);
-            const q = dist / R;
-            if (q < 3) {
-              const infl = Math.exp(-q * q);
-              // 1. Stream with the pointer — overwhelmingly horizontal, so a
-              //    sideways whip drags the sheet sideways with it.
-              p.vx += mvx * PUSH_X * infl * dt / 1000;
-              p.vy += mvy * PUSH_Y * infl * dt / 1000;
-              const d = Math.max(1, dist);
-              // 2. Gentle sideways parting around the pointer.
-              p.vx += (ox / d) * PART_X * infl * speedN * dt;
-              p.vy += (oy / d) * PART_X * 0.25 * infl * speedN * dt;
-              // 3. Faint curl — a whisper of swirl, not a vortex.
-              const s = Math.sign(mvx * oy - mvy * ox) || 1;
-              p.vx += (-oy / d) * s * SWIRL * infl * speedN * dt;
-              p.vy += (ox / d) * s * SWIRL * 0.3 * infl * speedN * dt;
-              // 4. Wake — drag the sheet along the pointer's travel segment.
-              //    Weighted horizontal so whips read as lateral flow.
-              if (segLen > 4) {
-                const sdx = segX / segLen, sdy = segY / segLen;
-                const rx = p.x - segAx, ry = p.y - segAy;
-                let tt = (rx * segX + ry * segY) / (segLen * segLen);
-                tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
-                const cx = segAx + segX * tt, cy = segAy + segY * tt;
-                const wx = p.x - cx, wy = p.y - cy;
-                const wd = Math.hypot(wx, wy);
-                const wq = wd / R;
-                if (wq < 1.6) {
-                  const winfl = Math.exp(-wq * wq * 1.5);
-                  const grab = Math.min(1, segLen / 200) * winfl;
-                  const k2 = Math.min(1, grab * 0.6);
-                  // Yank toward the wake's travel — hard sideways, soft vertical.
-                  p.vx += (sdx * 2400 - p.vx) * k2;
-                  p.vy += (sdy * 2400 - p.vy) * k2 * 0.3;
-                  // …and ease it off the path sideways to open the flow line.
-                  const wdd = Math.max(1, wd);
-                  p.vx += (wx / wdd) * 1500 * grab * dt;
-                  p.vy += (wy / wdd) * 1500 * 0.25 * grab * dt;
-                }
-              }
-            }
-          }
-          p.vx *= DAMP_X;
-          p.vy *= DAMP_Y;
-          // Cap whip velocities — strong but bounded, no runaway.
-          const pv = Math.hypot(p.vx, p.vy);
-          if (pv > VMAX) { const k3 = VMAX / pv; p.vx *= k3; p.vy *= k3; }
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-          p.angle += p.spin * dt;
-          p.life += dt;
-          if (p.life >= p.maxLife) spawn(p, false);
-          // Horizontal wrap — the sheet stays unbroken no matter how hard
-          // the fog gets dragged sideways.
-          const m = p.size;
-          if (p.x < -m) p.x += W + m * 2;
-          else if (p.x > W + m) p.x -= W + m * 2;
-          // Vertical containment — nothing escapes above the sheet.
-          const topLim = H - layerH * 1.7;
-          if (p.y < topLim) { p.y = topLim; p.vy = Math.abs(p.vy) * 0.3; }
-          if (p.y > H + 60) spawn(p, false);
-        }
-        const img = tex[p.tex];
-        if (!img || !img.complete || img.naturalWidth === 0) continue;
-        const lt = Math.min(1, p.life / p.maxLife);
-        const env = Math.pow(Math.sin(Math.PI * lt), 1.4);
-        const alpha = env * p.peak;
-        if (alpha <= 0.004) continue;
-        const s = p.size * (0.7 + 0.8 * lt);
-        // Always wide and flat; fast sideways motion stretches it further.
-        const st = Math.min(0.6, Math.abs(p.vx) * 0.0008);
-        const sx = p.wide * (1 + st);
-        const sy = p.flat * (1 - st * 0.2);
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.angle);
-        ctx.scale(sx, sy);
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(img, -s / 2, -s / 2, s, s);
-        ctx.restore();
-      }
-      ctx.globalAlpha = 1;
-      raf = requestAnimationFrame(frame);
+      if (!reduce) raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+
+    if (reduce) {
+      frame(performance.now());
+    } else {
+      raf = requestAnimationFrame(frame);
+    }
 
     return () => {
       cancelled = true;
@@ -265,7 +343,7 @@ export function FogSettled({
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
     };
-  }, []);
+  }, [layerFrac, brightness, ceilingFrac]);
 
   return (
     <div ref={boxRef} aria-hidden className={`pointer-events-none absolute overflow-hidden ${className}`}>
