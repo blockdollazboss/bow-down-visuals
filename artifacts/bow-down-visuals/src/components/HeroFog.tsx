@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 
 /* ─────────────────── Homepage hero ground fog ─────────────────── */
-/* Soft gold-tinted fog banks pooling around the Shark King's feet at the
-   bottom of the hero. Pure CSS blobs, no assets, no cost.
+/* Bright white ground fog pooling around the Shark King's feet at the
+   bottom of the hero — deliberately high-contrast against the golden
+   stage so it reads unmistakably as mist. Pure CSS, no assets, no cost.
 
    Motion, two layers that stack:
    1. Mouse glide (rAF) — the whole fog bank eases toward the cursor
@@ -109,7 +110,7 @@ export function HeroFog({ className = "" }: { className?: string }) {
         className="absolute inset-x-[-12%] bottom-[-6%] h-[88%]"
         style={{
           background:
-            "linear-gradient(to top, rgba(255,226,145,0.08) 0%, rgba(255,228,150,0.30) 38%, rgba(255,220,130,0.13) 62%, transparent 88%)",
+            "linear-gradient(to top, rgba(255,255,255,0.10) 0%, rgba(255,253,248,0.38) 38%, rgba(255,250,240,0.16) 62%, transparent 88%)",
           filter: "blur(36px)",
         }}
       />
@@ -126,7 +127,7 @@ export function HeroFog({ className = "" }: { className?: string }) {
             animationDelay: b.delay,
             animationDirection: b.reverse ? "reverse" : "normal",
             background:
-              "radial-gradient(ellipse at center, rgba(255,232,160,0.42) 0%, rgba(255,216,125,0.20) 45%, transparent 75%)",
+              "radial-gradient(ellipse at center, rgba(255,255,255,0.50) 0%, rgba(255,250,240,0.24) 45%, transparent 75%)",
             filter: "blur(48px)",
           }}
         />
