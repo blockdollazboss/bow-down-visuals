@@ -31,9 +31,10 @@ export function DraggableWidget({
   defaultAnchor = { x: 0.94, y: 0.06 },
   zIndex = 9990,
 }: DraggableWidgetProps) {
-  const { position, isDragging, initialized, elRef, dragHandlers, wasDragged } =
-    useDraggable(id);
-
+  /* The anchor is the widget's home until the user drags it — it must be
+     passed to the hook as the default position. Without this, widgets with
+     no saved position initialized at (0,0) and piled up in the top-left
+     corner instead of their designed spot. */
   const anchorPos =
     typeof window !== "undefined"
       ? {
@@ -41,6 +42,9 @@ export function DraggableWidget({
           y: Math.round(defaultAnchor.y * window.innerHeight),
         }
       : { x: 0, y: 0 };
+
+  const { position, isDragging, initialized, elRef, dragHandlers, wasDragged } =
+    useDraggable(id, anchorPos);
 
   const pos = initialized ? position : anchorPos;
 

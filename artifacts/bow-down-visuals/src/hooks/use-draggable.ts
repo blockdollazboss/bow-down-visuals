@@ -88,13 +88,13 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   const downPos = useRef({ x: 0, y: 0 });
   const elRef = useRef<HTMLElement | null>(null);
 
-  /* Initialize position: saved → default → keep current CSS spot. */
+  /* Initialize position: saved → default (snapped to grid) → (0,0). */
   useEffect(() => {
     const saved = loadPosition(id);
     if (saved) {
       setPosition(saved);
     } else if (defaultPos) {
-      setPosition(defaultPos);
+      setPosition(nearestSnap(defaultPos.x, defaultPos.y));
     }
     setInitialized(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
