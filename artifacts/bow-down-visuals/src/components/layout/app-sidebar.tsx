@@ -422,19 +422,24 @@ export function AppSidebar() {
 
   const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
 
-  /* Sidebar docking — drag the header to dock to any of 4 edges */
+  /* Sidebar docking — drag the header to dock to any of 4 edges.
+     Docking only changes the DESKTOP layout. The mobile drawer (<Sidebar>
+     below) is always mounted — otherwise docking top/bottom unmounts the
+     Sheet and the mobile hamburger opens nothing. */
   const { docked, isDragging, dragPos, onPointerDown, onPointerMove, onPointerUp } = useSidebarDock();
   const isHorizontal = docked === "top" || docked === "bottom";
+  const sidebarSide: "left" | "right" = docked === "right" ? "right" : "left";
 
-  /* For top/bottom: render horizontal nav bar */
-  if (isHorizontal) {
-    return (
-      <>
+  return (
+    <>
+      {/* Top/bottom dock: horizontal nav bar — desktop only. On mobile the
+          drawer is the navigation; the bar would just eat screen space. */}
+      {isHorizontal && (
         <div
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          className={`fixed left-0 right-0 z-50 h-16 bg-sidebar border-sidebar-border cursor-grab active:cursor-grabbing select-none ${
+          className={`hidden md:block fixed left-0 right-0 z-50 h-16 bg-sidebar border-sidebar-border cursor-grab active:cursor-grabbing select-none ${
             docked === "top" ? "top-0 border-b" : "bottom-0 border-t"
           }`}
           title="Drag to move sidebar to any edge"
@@ -450,16 +455,15 @@ export function AppSidebar() {
             <HorizontalSidebarNav />
           </div>
         </div>
-        {isDragging && dragPos && <DockIndicator x={dragPos.x} y={dragPos.y} />}
-      </>
-    );
-  }
+      )}
 
-  /* For left/right: render vertical sidebar with draggable header */
-  return (
-    <>
-      <Sidebar 
-        side={docked}
+      {/* Vertical sidebar with draggable header. When docked top/bottom the
+          desktop rail is hidden via the wrapper, but the <Sidebar> stays
+          mounted so the mobile Sheet drawer always works (it portals, so
+          the wrapper never hides it). */}
+      <div className={isHorizontal ? "md:hidden" : "contents"}>
+      <Sidebar
+        side={sidebarSide}
         className="border-sidebar-border bg-sidebar text-sidebar-foreground"
       >
         <SidebarHeader 
@@ -601,7 +605,8 @@ export function AppSidebar() {
           </Link>
         )}
       </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
+      </div>
       {isDragging && dragPos && <DockIndicator x={dragPos.x} y={dragPos.y} />}
     </>
   );

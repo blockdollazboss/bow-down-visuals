@@ -12,7 +12,10 @@ import { useEffect, useRef } from "react";
    1. Mouse glide (rAF) — the whole smoke mass chases the cursor
       (±220px peak), with per-wisp parallax so nearer wisps visibly
       outrun farther ones.
-   2. Ambient flow (CSS) — drift, sway-with-curl, and rise-and-fade
+   2. Mouse stir (rAF) — cursor VELOCITY shoves the smoke: whip the mouse
+      and the wisps surge with it and billow upward, then settle back.
+      This is what makes the smoke feel alive under the cursor.
+   3. Ambient flow (CSS) — drift, sway-with-curl, and rise-and-fade
       keyframes keep every wisp alive when the pointer is still.
 
    Layering: above the spotlight rig (z-[2]) so the smoke catches the
@@ -58,6 +61,13 @@ const GLIDE_RANGE = 220;
 /* Ease per frame — snappy enough to feel alive, smooth enough to feel
    like drifting smoke rather than a rigid layer. */
 const GLIDE_EASE = 0.14;
+/* Stir: how the smoke reacts to cursor velocity. Each frame the cursor's
+   per-frame travel shoves the wisps (STIR_PUSH px per normalized unit)
+   and billows them upward (STIR_LIFT); the shove decays (STIR_DECAY) so
+   the smoke surges then settles — like stirring real smoke. */
+const STIR_DECAY = 0.9;
+const STIR_PUSH = 36;
+const STIR_LIFT = 16;
 
 export function HeroFog({ className = "" }: { className?: string }) {
   const wispsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -67,12 +77,18 @@ export function HeroFog({ className = "" }: { className?: string }) {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let targetX = 0; // -1 … 1 across the viewport
+    let targetY = 0; // -1 … 1 down the viewport
+    let prevTX = 0;
+    let prevTY = 0;
     let cx = 0;
+    let stirX = 0; // decaying velocity shove, px
+    let stirY = 0; // decaying upward billow, px
     let raf = 0;
     let cancelled = false;
 
     const onMove = (e: PointerEvent) => {
       targetX = (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1;
+      targetY = (e.clientY / Math.max(1, window.innerHeight)) * 2 - 1;
     };
     window.addEventListener("pointermove", onMove, { passive: true });
 
@@ -81,6 +97,18 @@ export function HeroFog({ className = "" }: { className?: string }) {
       // Chase the cursor — mirrors the spotlight rig's glide, faster.
       cx += (targetX - cx) * (reduce ? 1 : GLIDE_EASE);
       if (Math.abs(targetX - cx) < 0.001) cx = targetX;
+      // Stir: cursor velocity shoves the smoke, which then settles back.
+      const pvx = targetX - prevTX;
+      const pvy = targetY - prevTY;
+      prevTX = targetX;
+      prevTY = targetY;
+      if (!reduce) {
+        stirX = stirX * STIR_DECAY + pvx * STIR_PUSH;
+        stirY = stirY * STIR_DECAY + (pvy * STIR_PUSH * 0.6 - Math.hypot(pvx, pvy) * STIR_LIFT);
+      } else {
+        stirX = 0;
+        stirY = 0;
+      }
       // Per-wisp parallax via the CSS `translate` property, which composes
       // with the ambient flow animation's `transform` instead of fighting it.
       const wisps = wispsRef.current;
@@ -88,7 +116,9 @@ export function HeroFog({ className = "" }: { className?: string }) {
         const el = wisps[i];
         if (!el) continue;
         const depth = WISPS[i]?.depth ?? 0.5;
-        el.style.translate = `${(cx * GLIDE_RANGE * depth).toFixed(1)}px 0px`;
+        const x = cx * GLIDE_RANGE * depth + stirX * depth;
+        const y = stirY * depth;
+        el.style.translate = `${x.toFixed(1)}px ${y.toFixed(1)}px`;
       }
       raf = requestAnimationFrame(loop);
     };
