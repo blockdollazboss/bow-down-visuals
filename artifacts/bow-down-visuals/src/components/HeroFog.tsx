@@ -13,8 +13,9 @@ import { useEffect, useRef } from "react";
       the pointer is still.
 
    Layering: above the spotlight rig (z-[2]) so the fog catches the beams,
-   below the shark (z-[4]) so it wraps his feet instead of washing over
-   him, and below the curtain overlay (z-[5]).
+   over the shark's feet (z-[4], placed after him in the DOM so it veils
+   rather than hides behind him), and below the curtain overlay (z-[5])
+   and the hero copy (z-10).
 
    Reduced motion: the drift stops and the glide snaps 1:1 (no easing). */
 
