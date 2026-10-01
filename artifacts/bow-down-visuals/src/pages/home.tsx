@@ -1997,7 +1997,7 @@ export default function Home() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-[3]"
         style={{
-          backgroundImage: "url(/images/home-curtains-overlay.png?v=3)",
+          backgroundImage: "url(/images/home-curtains-overlay.png?v=4)",
           backgroundSize: "cover",
           backgroundPosition: "center top",
           backgroundRepeat: "no-repeat",
