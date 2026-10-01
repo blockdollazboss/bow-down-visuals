@@ -32,7 +32,10 @@ export function SiteFooter() {
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
   return (
-    <footer className="relative bg-black border-t border-transparent py-12 px-5">
+    <footer className="relative z-[2] bg-black border-t border-transparent py-12 px-5">
+      {/* z-[2]: the homepage lives in an isolated z-[1] stacking context whose
+          fixed full-viewport stage backdrop would otherwise paint over the
+          footer and swallow it. The footer must sit above the page root. */}
       {/* Hairline gold rule above the footer */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/35 to-transparent" aria-hidden="true" />
       <JsonLd data={ORGANIZATION_JSON_LD} />
