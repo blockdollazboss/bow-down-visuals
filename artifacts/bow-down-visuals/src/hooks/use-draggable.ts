@@ -163,25 +163,42 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
     setPosition({ x, y });
   }, []);
 
-  const onPointerUp = useCallback(() => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setIsDragging(false);
-    if (moved.current) {
-      setPosition((p) => {
-        const snapped = nearestSnap(p.x, p.y);
-        savePosition(id, snapped);
-        return snapped;
-      });
-      /* Flag for click suppression — cleared on next pointerdown or
-         after the click event has had a chance to fire. */
-      justDragged.current = true;
-      window.setTimeout(() => {
-        justDragged.current = false;
-      }, 50);
-    }
-    moved.current = false;
-  }, [id]);
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      /* Release pointer capture BEFORE the tap's click event is dispatched.
+         setPointerCapture retargets every later pointer event for that touch
+         to the wrapper — including the click — so inner onClick handlers
+         (star-level toggle, chat button, wheel, d-pad, admin shield) never
+         fired. Releasing here restores normal hit-testing for the click;
+         the drag itself is already over by this point. */
+      try {
+        const el = e.currentTarget as HTMLElement;
+        if (el.hasPointerCapture?.(e.pointerId)) {
+          el.releasePointerCapture(e.pointerId);
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      setIsDragging(false);
+      if (moved.current) {
+        setPosition((p) => {
+          const snapped = nearestSnap(p.x, p.y);
+          savePosition(id, snapped);
+          return snapped;
+        });
+        /* Flag for click suppression — cleared on next pointerdown or
+           after the click event has had a chance to fire. */
+        justDragged.current = true;
+        window.setTimeout(() => {
+          justDragged.current = false;
+        }, 50);
+      }
+      moved.current = false;
+    },
+    [id]
+  );
 
   /**
    * Call this from onClick handlers to suppress the click when the

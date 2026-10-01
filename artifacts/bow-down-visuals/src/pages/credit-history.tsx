@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { Zap, ShoppingCart, TrendingDown, ArrowLeft, Loader2 } from "lucide-react";
+import { VisualBucsIcon } from "@/components/VisualBucsIcon";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -116,9 +117,7 @@ export default function CreditHistory() {
         {/* Section 1: Current Balance */}
         <section className="rounded-2xl border border-primary/25 bg-primary/5 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center">
-              <Zap className="h-7 w-7 text-primary" />
-            </div>
+            <VisualBucsIcon className="h-14 w-14" />
             <div>
               <p className="text-sm text-white/50 font-medium uppercase tracking-widest">Current Balance</p>
               <p className="text-4xl font-extrabold text-primary leading-tight">
