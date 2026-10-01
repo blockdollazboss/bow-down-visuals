@@ -10,7 +10,7 @@ import {
   Archive, ArrowLeft, Save, ChevronRight, CheckCircle2,
   Loader2, Trash2, Pencil, Eye, X, Plus, Upload, ImageIcon,
   Lock, Copy, Sparkles, User, Video, Zap, Film, Camera,
-  AlertTriangle, Download, Repeat, Users,
+  AlertTriangle, Download, Repeat, Users, Palette,
 } from "lucide-react";
 import { PhotoLightbox } from "@/components/PhotoLightbox";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +50,8 @@ interface ArtistVaultRecord {
   theme_id: string | null;
   personality: string | null;
   do_not_change_rules: string | null;
+  description: string | null;
+  special_style_rules: string | null;
   reference_image_url: string | null;
   reference_image_path: string | null;
   reference_video_url: string | null;
@@ -76,6 +78,8 @@ interface FormValues {
   themeId: string;
   personality: string;
   doNotChangeRules: string;
+  artistDescription: string;
+  specialStyleRules: string;
 }
 
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
@@ -126,8 +130,10 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord, mode: DetailLevel =
     if (vault.clothing_style)  lines.push(`Clothing Style: ${vault.clothing_style}`);
     if (vault.brand_colors)    lines.push(`Brand Colors: ${vault.brand_colors}`);
     if (vault.personality)     lines.push(`Personality: ${vault.personality}`);
+    if (vault.description)     lines.push(`Artist Description: ${vault.description}`);
     if (vault.reference_image_url) lines.push(`Artist Reference Image URL: ${vault.reference_image_url}`);
     if (vault.do_not_change_rules) lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
+    if (vault.special_style_rules) lines.push("", `🎨 SPECIAL STYLE RULES: ${vault.special_style_rules}`);
     lines.push(
       "",
       "⚠️ Tiny jewelry, tattoos, and text may vary in AI video. Video Safe mode gives the most realistic motion.",
@@ -157,8 +163,10 @@ function generateConsistencyPrompt(vault: ArtistVaultRecord, mode: DetailLevel =
   if (vault.clothing_style)     lines.push(`Clothing Style: ${vault.clothing_style}`);
   if (vault.brand_colors)       lines.push(`Brand Colors: ${vault.brand_colors}`);
   if (vault.personality)        lines.push(`Personality: ${vault.personality}`);
+  if (vault.description)        lines.push(`Artist Description: ${vault.description}`);
   if (vault.reference_image_url) lines.push(`Artist Reference Image URL: ${vault.reference_image_url}`);
   if (vault.do_not_change_rules) lines.push("", `⛔ DO NOT CHANGE: ${vault.do_not_change_rules}`);
+  if (vault.special_style_rules) lines.push("", `🎨 SPECIAL STYLE RULES: ${vault.special_style_rules}`);
   lines.push(
     "",
     "⚠️ AI tools may still vary results, but this consistency lock gives the best chance of keeping the same character.",
@@ -210,7 +218,7 @@ function ConsistencyModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label="Close dialog" tabIndex={-1} />
       <div className="relative w-full max-w-xl rounded-2xl border border-primary/30 bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
         {/* Header */}
         <div className="flex items-start justify-between mb-5">
@@ -1190,6 +1198,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                       onClick={() => { setEditingId(o.id); setEditLabel(o.label); }}
                       className="text-white/30 hover:text-white shrink-0 transition-colors"
                       title="Rename outfit"
+                      aria-label="Rename outfit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -1209,6 +1218,7 @@ function WardrobeSection({ vaultId, hasReferencePhoto, refreshKey, onGenerateOut
                     type="button"
                     onClick={() => removeOutfit(o.id)}
                     title="Removes from wardrobe only — the image file is kept"
+                    aria-label="Remove outfit from wardrobe"
                     className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -1235,7 +1245,7 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} role="button" aria-label="Close dialog" tabIndex={-1} />
       <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.08] bg-[#0a0a0a] p-6 md:p-8 shadow-2xl my-auto">
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3 min-w-0">
@@ -1258,15 +1268,24 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
                   <Badge className="bg-white/5 text-white/50 border-white/10 text-xs">{vault.genre}</Badge>
                 )}
                 {vault.visual_style && (
-                  <Badge className="bg-white/5 text-white/50 border-white/10 text-xs">{vault.visual_style}</Badge>
+                  <Badge className="bg-white/5 text-white/50 border-white/10 text-xs flex items-center gap-1">
+                    <Palette className="h-3 w-3" aria-hidden="true" />
+                    {vault.visual_style}
+                  </Badge>
                 )}
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
+          <button onClick={onClose} aria-label="Close" className="text-white/40 hover:text-white transition-colors shrink-0 ml-3">
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {vault.description && (
+          <div className="rounded-xl bg-white/[0.03] border border-white/10 p-4 mb-3">
+            <p className="text-sm text-white/75 whitespace-pre-wrap">{vault.description}</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <DetailRow label="Voice Style" value={vault.voice_style} />
@@ -1277,12 +1296,20 @@ function VaultModal({ vault, allVaults, onClose, onEdit, onLock, onSetActive, is
           <DetailRow label="Clothing Style" value={vault.clothing_style} />
           <DetailRow label="Brand Colors" value={vault.brand_colors} />
           <DetailRow label="Visual Style" value={vault.visual_style} />
+          <DetailRow label="Theme" value={getCharacterTheme(vault.theme_id).name} />
         </div>
 
         {vault.do_not_change_rules && (
           <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 mb-3">
             <p className="text-xs text-red-400/80 uppercase tracking-wider font-semibold mb-1">⛔ Do Not Change Rules</p>
             <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.do_not_change_rules}</p>
+          </div>
+        )}
+
+        {vault.special_style_rules && (
+          <div className="rounded-xl bg-primary/[0.05] border border-primary/20 p-4 mb-3">
+            <p className="text-xs text-primary/80 uppercase tracking-wider font-semibold mb-1">🎨 Special Style Rules</p>
+            <p className="text-sm text-white/70 whitespace-pre-wrap">{vault.special_style_rules}</p>
           </div>
         )}
 
@@ -1539,6 +1566,7 @@ export default function ArtistVault() {
       artistName: "", artistType: "singer",
       genre: "", voiceStyle: "", visualStyle: "", hair: "", tattoos: "", jewelry: "",
       clothingStyle: "", brandColors: "", themeId: "gold-royalty", personality: "", doNotChangeRules: "",
+      artistDescription: "", specialStyleRules: "",
     },
   });
 
@@ -1644,6 +1672,8 @@ export default function ArtistVault() {
     setValue("themeId", vault.theme_id ?? "gold-royalty");
     setValue("personality", vault.personality ?? "");
     setValue("doNotChangeRules", vault.do_not_change_rules ?? "");
+    setValue("artistDescription", vault.description ?? "");
+    setValue("specialStyleRules", vault.special_style_rules ?? "");
     setPhotoUrl(vault.reference_image_url ?? null);
     setPhotoPath(vault.reference_image_path ?? null);
     setPhotoError(null);
@@ -1673,6 +1703,8 @@ export default function ArtistVault() {
         theme_id: values.themeId || "gold-royalty",
         personality: values.personality || null,
         do_not_change_rules: values.doNotChangeRules || null,
+        description: values.artistDescription || null,
+        special_style_rules: values.specialStyleRules || null,
         reference_image_url: photoUrl || null,
         reference_image_path: photoPath || null,
         reference_video_url: null,
@@ -1699,6 +1731,8 @@ export default function ArtistVault() {
         themeId: partialVault.theme_id,
         personality: partialVault.personality,
         doNotChangeRules: partialVault.do_not_change_rules,
+        artistDescription: partialVault.description,
+        specialStyleRules: partialVault.special_style_rules,
         referenceImageUrl: partialVault.reference_image_url,
         referenceImagePath: partialVault.reference_image_path,
         consistencyPrompt: consistency,
@@ -1947,6 +1981,7 @@ export default function ArtistVault() {
               <div data-min-stars="2" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {(Object.keys(SUBJECT_TYPE_META) as SubjectType[]).map((t) => {
                   const meta = SUBJECT_TYPE_META[t];
+                  const TypeIcon = meta.icon;
                   const active = watched.artistType === t;
                   return (
                     <button
@@ -1960,7 +1995,7 @@ export default function ArtistVault() {
                       }`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                        <TypeIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                         <span className={`text-sm font-bold tracking-wide ${active ? "" : "text-white"}`}>{meta.label}</span>
                       </span>
                       <span className="block mt-2 text-xs text-white/45 leading-relaxed font-medium">{meta.description}</span>
@@ -1977,6 +2012,16 @@ export default function ArtistVault() {
                 placeholder="e.g. Young Black artist from Atlanta, street-meets-luxury sound, raw emotion with commercial appeal. Known for cinematic visuals and hard-hitting bars. Started with nothing, now building a legacy..."
                 className={textareaClass}
                 style={{ minHeight: "120px" }}
+              />
+            </FieldWrapper>
+
+            {/* Artist Description */}
+            <FieldWrapper label="Artist Description" hint="A short public-facing bio for this artist">
+              <Textarea
+                {...register("artistDescription")}
+                placeholder="e.g. TRGDY TRBLZ is a genre-bending hip-hop artist known for cinematic visuals, luxury streetwear aesthetics, and a signature gold chain. Every video feels like a short film."
+                className={textareaClass}
+                style={{ minHeight: "90px" }}
               />
             </FieldWrapper>
 
@@ -2136,6 +2181,18 @@ export default function ArtistVault() {
                   placeholder="e.g. Never show the artist without jewelry. Never use cartoon or anime visual style. Do not use pastel or pink colors. Never generate the artist without their signature chain. Never make lyrics sound too soft or pop..."
                   className={textareaClass}
                   style={{ minHeight: "110px" }}
+                />
+              </FieldWrapper>
+            </div>
+
+            {/* Special Style Rules */}
+            <div data-min-stars="4" className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
+              <FieldWrapper label="🎨 Special Style Rules" hint="Extra style directives applied on top of everything else when generating for this artist">
+                <Textarea
+                  {...register("specialStyleRules")}
+                  placeholder="e.g. Always add subtle film grain. Keep lighting warm and golden. Favor slow push-in camera moves. Grade everything teal-and-orange."
+                  className={textareaClass}
+                  style={{ minHeight: "90px" }}
                 />
               </FieldWrapper>
             </div>

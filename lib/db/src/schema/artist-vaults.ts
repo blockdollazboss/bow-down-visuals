@@ -20,6 +20,11 @@ export const artistVaultsTable = pgTable("artist_vaults", {
   theme_id: text("theme_id").notNull().default("gold-royalty"),
   personality: text("personality"),
   do_not_change_rules: text("do_not_change_rules"),
+  /* Short public-facing bio shown in the vault detail modal. */
+  description: text("description"),
+  /* Extra style directives applied on top of do_not_change_rules when
+     generating for this character (e.g. "always add film grain"). */
+  special_style_rules: text("special_style_rules"),
   reference_image_url: text("reference_image_url"),
   reference_image_path: text("reference_image_path"),
   reference_video_url: text("reference_video_url"),

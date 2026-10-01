@@ -362,7 +362,7 @@ export default function MakeVideo() {
               visualStyle:         values.videoStyle             || loadedVault.visual_style,
               brandColors:         values.brandColors            || loadedVault.brand_colors,
               doNotChangeRules:    values.doNotChangeRules       || loadedVault.do_not_change_rules,
-              specialStyleRules:   loadedVault.do_not_change_rules ?? null,
+              specialStyleRules:   loadedVault.special_style_rules ?? null,
               hair:                loadedVault.hair              ?? null,
               tattoos:             loadedVault.tattoos           ?? null,
               jewelry:             loadedVault.jewelry           ?? null,

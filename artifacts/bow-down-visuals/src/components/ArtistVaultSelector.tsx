@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { ChevronDown, Archive, CheckCircle2 } from "lucide-react";
+import { ChevronDown, Archive, CheckCircle2, Mic, Flame, Users, Clapperboard, Drama, Ghost, Gamepad2, Radio, Podcast } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export interface ArtistVault {
@@ -20,6 +21,8 @@ export interface ArtistVault {
   theme_id: string | null;
   personality: string | null;
   do_not_change_rules: string | null;
+  description: string | null;
+  special_style_rules: string | null;
   reference_image_url: string | null;
   reference_image_path: string | null;
   reference_video_url?: string | null;
@@ -53,12 +56,14 @@ export function normalizeSubjectType(value: string | null | undefined): SubjectT
   if (v === "podcaster") return "podcaster";
   /* Legacy: the old generic "artist" type is now "singer". */
   if (v === "artist") return "singer";
+  /* Character-like values must never collapse into a music type. */
+  if (v === "mascot" || v === "avatar" || v === "brand character") return "character";
   return "singer";
 }
 
 export const SUBJECT_TYPE_META: Record<
   SubjectType,
-  { label: string; badge: string; dot: string; glow: string; description: string }
+  { label: string; badge: string; dot: string; glow: string; description: string; icon: LucideIcon }
 > = {
   singer: {
     label: "Singer",
@@ -66,6 +71,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-cyan-300 shadow-[0_0_6px_rgba(103,232,249,0.8)]",
     glow: "shadow-[0_0_12px_rgba(34,211,238,0.25)]",
     description: "Singers and vocalists - for music videos and songs",
+    icon: Mic,
   },
   rapper: {
     label: "Rapper",
@@ -73,6 +79,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-amber-300 shadow-[0_0_6px_rgba(252,211,77,0.8)]",
     glow: "shadow-[0_0_12px_rgba(251,191,36,0.25)]",
     description: "Rappers and hip-hop artists - for music videos and songs",
+    icon: Flame,
   },
   influencer: {
     label: "Influencer",
@@ -80,6 +87,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-fuchsia-300 shadow-[0_0_6px_rgba(240,171,252,0.8)]",
     glow: "shadow-[0_0_12px_rgba(232,121,249,0.25)]",
     description: "Influencers and content creators - for promos, socials, and brand content",
+    icon: Users,
   },
   actor: {
     label: "Actor",
@@ -87,6 +95,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-blue-300 shadow-[0_0_6px_rgba(147,197,253,0.8)]",
     glow: "shadow-[0_0_12px_rgba(96,165,250,0.25)]",
     description: "Actors, male presenters, hosts - for movies, series, and skits",
+    icon: Clapperboard,
   },
   actress: {
     label: "Actress",
@@ -94,6 +103,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-rose-300 shadow-[0_0_6px_rgba(253,164,175,0.8)]",
     glow: "shadow-[0_0_12px_rgba(251,113,133,0.25)]",
     description: "Actresses, female presenters, hosts - for movies, series, and skits",
+    icon: Drama,
   },
   character: {
     label: "Character",
@@ -101,6 +111,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-purple-300 shadow-[0_0_6px_rgba(216,180,254,0.8)]",
     glow: "shadow-[0_0_12px_rgba(192,132,252,0.25)]",
     description: "Fictional characters, mascots, avatars - for stories and branding",
+    icon: Ghost,
   },
   gamer: {
     label: "Gamer",
@@ -108,6 +119,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-emerald-300 shadow-[0_0_6px_rgba(110,231,183,0.8)]",
     glow: "shadow-[0_0_12px_rgba(52,211,153,0.25)]",
     description: "Gamers, streamers, esports players - for gaming content and streams",
+    icon: Gamepad2,
   },
   streamer: {
     label: "Streamer",
@@ -115,6 +127,7 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-lime-300 shadow-[0_0_6px_rgba(190,242,100,0.8)]",
     glow: "shadow-[0_0_12px_rgba(163,230,53,0.35)]",
     description: "Streamers, live creators, broadcasters - for live content and community streams",
+    icon: Radio,
   },
   podcaster: {
     label: "Podcaster",
@@ -122,16 +135,18 @@ export const SUBJECT_TYPE_META: Record<
     dot: "bg-orange-300 shadow-[0_0_6px_rgba(253,186,116,0.8)]",
     glow: "shadow-[0_0_12px_rgba(251,146,60,0.25)]",
     description: "Podcasters, hosts, interviewers - for podcasts and talk content",
+    icon: Podcast,
   },
 };
 
 export function SubjectBadge({ type, className = "" }: { type: SubjectType; className?: string }) {
   const meta = SUBJECT_TYPE_META[type];
+  const Icon = meta.icon;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] shrink-0 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${meta.badge} ${meta.glow} ${className}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+      <Icon className="h-3 w-3" aria-hidden="true" />
       {meta.label}
     </span>
   );

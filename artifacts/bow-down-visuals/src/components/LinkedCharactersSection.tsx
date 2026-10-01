@@ -112,7 +112,7 @@ export function LinkedCharactersSection({
         <p className="text-sm font-bold text-white">Linked Characters</p>
       </div>
       <p className="text-xs text-white/35 mb-3">
-        Co-stars for {vault.artist_name} — they're automatically pulled into scenes
+        Co-stars for {vault.artist_name}. Linked characters are automatically pulled into scenes
         whenever a generation needs another character.
       </p>
 
@@ -122,7 +122,7 @@ export function LinkedCharactersSection({
         </div>
       ) : links.length === 0 ? (
         <p className="text-xs text-white/30 py-2">
-          No linked characters yet — link one below to build {vault.artist_name}'s cast.
+          No linked characters yet. Link one below to build {vault.artist_name}'s cast.
         </p>
       ) : (
         <div className="space-y-2 mb-3">
