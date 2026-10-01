@@ -7,8 +7,9 @@ import { useEffect, useRef } from "react";
    Motion, two layers that stack:
    1. Mouse glide (rAF) — the whole fog bank eases toward the cursor
       horizontally, with per-blob parallax: nearer, denser banks travel
-      further than far ones. Tracks the spotlight rig's glide so the fog
-      and the beams move as one atmosphere.
+      further than far ones. A continuous base bank drifts subtly underneath
+      so the fog reads as one unbroken mass. Tracks the spotlight rig's
+      glide so the fog and the beams move as one atmosphere.
    2. Ambient drift (CSS) — a faint slow drift keeps the fog alive when
       the pointer is still.
 
@@ -40,8 +41,13 @@ const BLOBS: FogBlob[] = [
 /* Peak glide travel, px each way (scaled per-blob by depth). */
 const GLIDE_RANGE = 90;
 
+/* The base bank glides gently with the cursor so the whole mass moves
+   as one; the blobs parallax over it. */
+const BANK_DEPTH = 0.3;
+
 export function HeroFog({ className = "" }: { className?: string }) {
   const blobsRef = useRef<(HTMLDivElement | null)[]>([]);
+  const bankRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -71,6 +77,10 @@ export function HeroFog({ className = "" }: { className?: string }) {
         const depth = BLOBS[i]?.depth ?? 0.5;
         el.style.translate = `${(cx * GLIDE_RANGE * depth).toFixed(1)}px 0px`;
       }
+      // The base bank follows the cursor gently so the fog mass moves as one.
+      if (bankRef.current) {
+        bankRef.current.style.translate = `${(cx * GLIDE_RANGE * BANK_DEPTH).toFixed(1)}px 0px`;
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -91,6 +101,18 @@ export function HeroFog({ className = "" }: { className?: string }) {
         WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 45%)",
       }}
     >
+      {/* Base bank — one continuous fog bed spanning the whole stage
+          bottom so there are no gaps between the wisps. Brightest near
+          the feet, dissolving upward. */}
+      <div
+        ref={bankRef}
+        className="absolute inset-x-[-12%] bottom-[-6%] h-[88%]"
+        style={{
+          background:
+            "linear-gradient(to top, rgba(255,226,145,0.08) 0%, rgba(255,228,150,0.30) 38%, rgba(255,220,130,0.13) 62%, transparent 88%)",
+          filter: "blur(36px)",
+        }}
+      />
       {BLOBS.map((b, i) => (
         <div
           key={i}
