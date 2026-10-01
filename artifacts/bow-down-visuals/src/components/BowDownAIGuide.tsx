@@ -661,7 +661,16 @@ export function BowDownAIGuide() {
     });
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    /* Release pointer capture before the tap's click dispatches —
+       otherwise the click retargets to this panel and taps on its
+       buttons get swallowed. Same tap fix as use-draggable. */
+    try {
+      const el = e.currentTarget as HTMLElement;
+      if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
     if (!dragging.current) return;
     dragging.current = false;
     setIsDragging(false);

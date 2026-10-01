@@ -41,7 +41,10 @@ export function useSidebarDock() {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    /* Capture on the wrapper (currentTarget), not the inner target —
+       capturing a child (e.g. the logo img) would retarget the move/up
+       events away from this handler and break the drag. */
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   }, []);
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -57,6 +60,18 @@ export function useSidebarDock() {
   }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    /* Release pointer capture BEFORE the tap's click event is dispatched.
+       An unreleased capture retargets the click to the capture element,
+       so taps on header controls (mode toggle, collapse) would be
+       swallowed. Same tap fix as use-draggable. */
+    try {
+      const el = e.currentTarget as HTMLElement;
+      if (el.hasPointerCapture?.(e.pointerId)) {
+        el.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      /* ignore */
+    }
     const d = dragRef.current;
     dragRef.current = null;
     if (d?.moved && dragPos) {
