@@ -14,7 +14,7 @@ import { promises as fs } from "node:fs";
 import { join } from "node:path";
 import { separateVocalStems, cleanupWorkdir } from "./stem-separation.js";
 
-const STS_MODEL = process.env["ELEVENLABS_STS_MODEL"] ?? "eleven_english_sts_v2";
+const STS_MODEL = process.env["ELEVENLABS_STS_MODEL"] ?? "eleven_multilingual_sts_v2";
 const STS_TIMEOUT_MS = Number(process.env["ELEVENLABS_STS_TIMEOUT_MS"] ?? 300_000);
 const MIX_TIMEOUT_MS = 120_000;
 

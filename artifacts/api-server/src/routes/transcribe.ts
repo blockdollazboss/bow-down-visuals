@@ -59,7 +59,7 @@ router.post("/transcribe", requireAuth, upload.single("audio"), async (req, res)
     const transcription = await getOpenAI().audio.transcriptions.create(
       {
         file: audioFile,
-        model: "whisper-1",
+        model: "gpt-transcribe",
       },
       { signal: AbortSignal.timeout(WHISPER_TIMEOUT_MS) },
     );
@@ -161,7 +161,7 @@ router.post("/transcribe-url", requireAuth, async (req, res) => {
     const transcription = (await getOpenAI().audio.transcriptions.create(
       {
         file: audioFile,
-        model: "whisper-1",
+        model: "gpt-transcribe",
         response_format: "verbose_json",
         timestamp_granularities: ["word", "segment"],
       },

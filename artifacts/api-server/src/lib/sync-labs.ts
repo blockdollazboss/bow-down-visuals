@@ -70,9 +70,9 @@ const SYNC_LABS_BASE = process.env["SYNC_LABS_BASE_URL"] ?? "https://api.sync.so
 export function getSyncLabsBase(): string {
   return SYNC_LABS_BASE;
 }
-// Upgraded 2026-09-24: sync-1.9.0-beta produced poor lip-sync on song audio.
-// lipsync-2 is the current-gen model (same input shape); override via env if needed.
-export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "lipsync-2";
+// sync-3 is Sync.so's current flagship lip-sync model (superset of lipsync-2's
+// input shape; verified better on the 2026-09-25 A/B verdict). Override via env if needed.
+export const SYNC_LABS_MODEL = process.env.LIP_SYNC_MODEL || "sync-3";
 const SYNC_POLL_INTERVAL_MS = 5_000;
 const SYNC_MAX_POLLS = 144; // 144 × 5s = 12 minutes max — provider queues can be slow; the client recovers directly past this
 
