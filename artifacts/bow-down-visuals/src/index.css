@@ -314,18 +314,32 @@ body::before {
 }
 
 /* ─── Hero ground fog — slow drifting banks around the King's feet ─── */
-.hero-fog-blob {
-  animation-name: fog-drift;
+.hero-fog-wisp {
   animation-timing-function: ease-in-out;
   animation-iteration-count: infinite;
   will-change: transform;
 }
-@keyframes fog-drift {
-  0%, 100% { transform: translateX(-7%); }
-  50%      { transform: translateX(7%); }
+/* Ground smoke sliding sideways. */
+@keyframes smoke-drift {
+  0%, 100% { transform: translateX(-9%); }
+  50%      { transform: translateX(9%); }
+}
+/* Slow curl — sideways sway with a slight rotation, like a wisp
+   catching a breeze. */
+@keyframes smoke-sway {
+  0%, 100% { transform: translateX(-6%) rotate(-2.5deg); }
+  50%      { transform: translateX(6%) rotate(2.5deg); }
+}
+/* A tendril rising off the stage: fades in at the base, curls upward,
+   dissipates at the top. Peak opacity comes from --wisp-peak. */
+@keyframes smoke-rise {
+  0%   { transform: translateY(26px) scale(0.94); opacity: 0; }
+  22%  { opacity: var(--wisp-peak, 0.5); }
+  68%  { opacity: var(--wisp-peak, 0.5); }
+  100% { transform: translateY(-64px) scale(1.1); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-fog-blob {
+  .hero-fog-wisp {
     animation: none;
   }
 }
