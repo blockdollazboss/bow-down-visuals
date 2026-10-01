@@ -30,15 +30,15 @@ interface FogBlob {
 }
 
 const BLOBS: FogBlob[] = [
-  { left: "-6%", width: "46%", duration: "26s", delay: "0s",   opacity: 0.5,  depth: 1.0 },
-  { left: "18%", width: "40%", duration: "34s", delay: "-11s", opacity: 0.42, depth: 0.55, reverse: true },
-  { left: "44%", width: "48%", duration: "29s", delay: "-7s",  opacity: 0.46, depth: 0.8 },
-  { left: "68%", width: "42%", duration: "38s", delay: "-19s", opacity: 0.38, depth: 0.4,  reverse: true },
-  { left: "88%", width: "30%", duration: "24s", delay: "-4s",  opacity: 0.34, depth: 0.65 },
+  { left: "-6%", width: "46%", duration: "26s", delay: "0s",   opacity: 0.85, depth: 1.0 },
+  { left: "18%", width: "40%", duration: "34s", delay: "-11s", opacity: 0.7,  depth: 0.55, reverse: true },
+  { left: "44%", width: "48%", duration: "29s", delay: "-7s",  opacity: 0.8,  depth: 0.8 },
+  { left: "68%", width: "42%", duration: "38s", delay: "-19s", opacity: 0.65, depth: 0.4,  reverse: true },
+  { left: "88%", width: "30%", duration: "24s", delay: "-4s",  opacity: 0.72, depth: 0.65 },
 ];
 
 /* Peak glide travel, px each way (scaled per-blob by depth). */
-const GLIDE_RANGE = 70;
+const GLIDE_RANGE = 90;
 
 export function HeroFog({ className = "" }: { className?: string }) {
   const blobsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -104,8 +104,8 @@ export function HeroFog({ className = "" }: { className?: string }) {
             animationDelay: b.delay,
             animationDirection: b.reverse ? "reverse" : "normal",
             background:
-              "radial-gradient(ellipse at center, rgba(255,228,150,0.20) 0%, rgba(255,214,120,0.10) 45%, transparent 72%)",
-            filter: "blur(56px)",
+              "radial-gradient(ellipse at center, rgba(255,232,160,0.42) 0%, rgba(255,216,125,0.20) 45%, transparent 75%)",
+            filter: "blur(48px)",
           }}
         />
       ))}
