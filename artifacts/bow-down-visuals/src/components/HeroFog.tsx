@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 
    Motion:
    1. Mouse glide (rAF) — the fog chases the cursor fast and travels far
-      (±160px peak), with per-blob parallax so nearer wisps visibly outrun
+      (±220px peak), with per-blob parallax so nearer wisps visibly outrun
       farther ones. The motion is meant to be SEEN.
    2. Ambient drift (CSS) — a slow drift keeps the fog alive when the
       pointer is still.
@@ -39,7 +39,7 @@ const BLOBS: FogBlob[] = [
 
 /* Peak glide travel, px each way (scaled per-blob by depth). Big on
    purpose — the user should SEE the smoke follow the cursor. */
-const GLIDE_RANGE = 160;
+const GLIDE_RANGE = 220;
 /* Ease per frame — snappy enough to feel alive, smooth enough to feel
    like drifting smoke rather than a rigid layer. */
 const GLIDE_EASE = 0.14;
@@ -111,7 +111,7 @@ export function HeroFog({ className = "" }: { className?: string }) {
           the feet, dissolving upward. */}
       <div
         ref={bankRef}
-        className="absolute inset-x-[-12%] bottom-[-4%] h-[92%]"
+        className="absolute inset-x-[2%] bottom-[-4%] h-[92%]"
         style={{
           background:
             "linear-gradient(to top, rgba(255,255,255,0.08) 0%, rgba(255,253,248,0.34) 38%, rgba(255,250,240,0.14) 62%, transparent 88%)",
@@ -131,8 +131,8 @@ export function HeroFog({ className = "" }: { className?: string }) {
             animationDelay: b.delay,
             animationDirection: b.reverse ? "reverse" : "normal",
             background:
-              "radial-gradient(ellipse at center, rgba(255,255,255,0.46) 0%, rgba(255,250,240,0.22) 45%, transparent 75%)",
-            filter: "blur(56px)",
+              "radial-gradient(ellipse at center, rgba(255,255,255,0.58) 0%, rgba(255,250,240,0.28) 45%, transparent 75%)",
+            filter: "blur(52px)",
           }}
         />
       ))}
