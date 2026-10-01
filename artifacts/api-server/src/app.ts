@@ -59,7 +59,21 @@ const frontendDist =
   path.resolve(serverDir, "../../bow-down-visuals/dist/public");
 
 if (fs.existsSync(path.join(frontendDist, "index.html"))) {
-  app.use(express.static(frontendDist));
+  /* Cache policy: index.html must always revalidate (it references the
+     hashed asset filenames), while Vite's hashed JS/CSS/assets are
+     immutable and cacheable for a year. Without this, a browser can sit
+     on a stale index.html and never pick up a new deploy. */
+  app.use(
+    express.static(frontendDist, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("index.html")) {
+          res.setHeader("Cache-Control", "no-cache");
+        } else if (/[.-][0-9a-f]{8,}\.[^.]+$/.test(filePath)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    })
+  );
   /* Known client-side routes (mirrors the route map in
      artifacts/bow-down-visuals/src — the SPA's router). These serve
      index.html with 200 so crawlers, link unfurlers, and uptime monitors
@@ -105,7 +119,9 @@ if (fs.existsSync(path.join(frontendDist, "index.html"))) {
       : req.path;
     const status = CLIENT_ROUTES.has(normalized) ? 200 : 404;
     /* Serve index.html with 200 for known pages, 404 for unknown routes —
-       the client router renders the app (or its 404 page) in both cases. */
+       the client router renders the app (or its 404 page) in both cases.
+       Never cache it: it points at the hashed asset filenames. */
+    res.set("Cache-Control", "no-cache");
     res.status(status).sendFile(path.join(frontendDist, "index.html"), (err) => {
       if (err) {
         next(err);
