@@ -10,9 +10,9 @@ import { useEffect, useRef } from "react";
    through fade-in / grow / fade-out life cycles. */
 
 const TEX_URLS = [
-  "/images/fog/smoke-1.png",
-  "/images/fog/smoke-2.png",
-  "/images/fog/smoke-3.png",
+  "/images/fog/smoke-1.png?v=2",
+  "/images/fog/smoke-2.png?v=2",
+  "/images/fog/smoke-3.png?v=2",
 ];
 
 const COUNT = 220;
@@ -122,8 +122,10 @@ export function FogCanvas({ className = "" }: { className?: string }) {
       const R = Math.min(W, H) * FLOW_RADIUS;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      // Textures carry true alpha (black baked out, edges feathered), so
-      // normal compositing — no blend hacks, no visible image borders.
+      // Textures carry true alpha (black baked out, edges feathered) and are
+      // cache-busted (?v=2), so screen blending is safe: transparent areas
+      // add nothing, overlaps re-brighten into a luminous bank.
+      ctx.globalCompositeOperation = "screen";
 
       for (const p of parts) {
         if (!reduce) {

@@ -6,9 +6,9 @@ import { useEffect, useRef } from "react";
    image borders or black boxes are ever visible. */
 
 const TEX = [
-  "/images/fog/smoke-1.png",
-  "/images/fog/smoke-2.png",
-  "/images/fog/smoke-3.png",
+  "/images/fog/smoke-1.png?v=2",
+  "/images/fog/smoke-2.png?v=2",
+  "/images/fog/smoke-3.png?v=2",
 ];
 
 interface Sprite {

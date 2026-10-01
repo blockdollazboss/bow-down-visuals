@@ -5,14 +5,16 @@ import { useEffect, useRef } from "react";
    layer settled along the very bottom edge — not a tall bank. Particles
    are softly sprung to their resting height so the layer always
    re-settles, while the cursor tears through it: a strong push along the
-   pointer's path, radial parting, and a curling swirl around the pointer.
-   Whip through it and the layer visibly rips open and swirls, then
-   settles back down. */
+   pointer's path, radial parting, a curling swirl, and a wake dragged
+   along the pointer's travel segment so fast whips stay dramatic.
+   Textures carry true alpha (black baked out, edges feathered) and are
+   cache-busted (?v=2); screen blending re-brightens overlaps into a
+   luminous bank with no black boxes and no visible image borders. */
 
 const TEX_URLS = [
-  "/images/fog/smoke-1.png",
-  "/images/fog/smoke-2.png",
-  "/images/fog/smoke-3.png",
+  "/images/fog/smoke-1.png?v=2",
+  "/images/fog/smoke-2.png?v=2",
+  "/images/fog/smoke-3.png?v=2",
 ];
 
 const COUNT = 280;
@@ -21,9 +23,10 @@ const WIND = 16;          // px/s ambient sideways drift
 const SPRING = 5.0;       // 1/s² — pull back to resting height (re-settle)
 const DAMP = 0.92;        // per-frame velocity damping
 const FLOW_R = 0.35;      // cursor influence radius, × min(W,H)
-const PUSH = 2600;        // stream along the cursor path (strong)
-const PART = 750;         // radial shove — tears the layer open
-const SWIRL = 1500;       // tangential curl around the pointer
+const PUSH = 5200;        // stream along the cursor path (strong)
+const PART = 1600;        // radial shove — tears the layer open
+const SWIRL = 3200;       // tangential curl around the pointer
+const VMAX = 2800;        // particle speed cap — whips stay violent but bounded
 
 interface P {
   x: number; y: number; homeY: number;
@@ -74,13 +77,15 @@ export function FogSettled({ className = "" }: { className?: string }) {
       p.y = initial ? rnd(H - layerH * 1.4, H + 20) : H + rnd(4, 30);
       p.vx = rnd(-6, 6);
       p.vy = 0;
-      p.size = rnd(W * 0.08, W * 0.2);
+      // Puffs sized to the band so their bright cores concentrate in the
+      // layer instead of diluting across a huge area (reads as a solid bank).
+      p.size = rnd(W * 0.035, W * 0.075);
       p.angle = rnd(0, Math.PI * 2);
       p.spin = rnd(-0.3, 0.3);
       p.maxLife = rnd(6, 12);
       p.life = initial ? rnd(0, p.maxLife) : 0;
       p.tex = (Math.random() * tex.length) | 0;
-      p.peak = tendril ? rnd(0.12, 0.22) : rnd(0.26, 0.48);
+      p.peak = tendril ? rnd(0.16, 0.3) : rnd(0.34, 0.58);
       p.seed = rnd(0, 1000);
     };
     const parts: P[] = Array.from({ length: COUNT }, () => {
@@ -111,14 +116,20 @@ export function FogSettled({ className = "" }: { className?: string }) {
       last = now;
       if (!reduce) t += dt;
 
+      let segX = 0, segY = 0, segLen = 0, segAx = 0, segAy = 0;
       if (hasPointer && !reduce) {
         const ivx = (mx - pmx) / Math.max(dt, 1e-3);
         const ivy = (my - pmy) / Math.max(dt, 1e-3);
+        // This frame's pointer travel segment — the wake keys off it so fast
+        // whips inject energy proportional to distance traveled.
+        segAx = pmx; segAy = pmy;
+        segX = mx - pmx; segY = my - pmy;
+        segLen = Math.hypot(segX, segY);
         pmx = mx; pmy = my;
         mvx += (ivx - mvx) * 0.2;
         mvy += (ivy - mvy) * 0.2;
         const sp = Math.hypot(mvx, mvy);
-        if (sp > 5000) { const k = 5000 / sp; mvx *= k; mvy *= k; }
+        if (sp > 8000) { const k = 8000 / sp; mvx *= k; mvy *= k; }
       } else { mvx = 0; mvy = 0; }
       const mSpeed = Math.hypot(mvx, mvy);
       const speedN = Math.min(1, mSpeed / 1500);
@@ -126,8 +137,10 @@ export function FogSettled({ className = "" }: { className?: string }) {
       const R = Math.min(W, H) * FLOW_R;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      // Textures carry true alpha (black baked out, edges feathered), so
-      // normal compositing — no blend hacks, no visible image borders.
+      // Screen blending re-brightens overlaps into a luminous bank. Safe now:
+      // the textures carry true alpha (black baked out, edges feathered) and
+      // the URLs are cache-busted, so no stale black-background bytes linger.
+      ctx.globalCompositeOperation = "screen";
 
       for (const p of parts) {
         if (!reduce) {
@@ -154,17 +167,46 @@ export function FogSettled({ className = "" }: { className?: string }) {
               const s = Math.sign(mvx * oy - mvy * ox) || 1;
               p.vx += (-oy / d) * s * SWIRL * infl * speedN * dt;
               p.vy += (ox / d) * s * SWIRL * infl * speedN * dt;
+              // 4. Wake — drag smoke along the pointer's travel segment.
+              //    A fast whip covers a long segment per frame, so this is
+              //    what makes whips dramatic where velocity alone saturates.
+              if (segLen > 4) {
+                const sdx = segX / segLen, sdy = segY / segLen;
+                const rx = p.x - segAx, ry = p.y - segAy;
+                let tt = (rx * segX + ry * segY) / (segLen * segLen);
+                tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+                const cx = segAx + segX * tt, cy = segAy + segY * tt;
+                const wx = p.x - cx, wy = p.y - cy;
+                const wd = Math.hypot(wx, wy);
+                const wq = wd / R;
+                if (wq < 1.6) {
+                  const winfl = Math.exp(-wq * wq * 1.5);
+                  const grab = Math.min(1, segLen / 200) * winfl;
+                  const k2 = Math.min(1, grab * 0.6);
+                  // Yank toward the wake's travel velocity…
+                  p.vx += (sdx * 2200 - p.vx) * k2;
+                  p.vy += (sdy * 2200 - p.vy) * k2;
+                  // …and shove outward off the path to rip the tear open.
+                  const wdd = Math.max(1, wd);
+                  p.vx += (wx / wdd) * 1500 * grab * dt;
+                  p.vy += (wy / wdd) * 1500 * grab * dt;
+                }
+              }
             }
           }
           p.vx *= DAMP;
           p.vy *= DAMP;
+          // Cap whip velocities — violent but bounded, no runaway.
+          const pv = Math.hypot(p.vx, p.vy);
+          if (pv > VMAX) { const k3 = VMAX / pv; p.vx *= k3; p.vy *= k3; }
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           p.angle += p.spin * dt;
           p.life += dt;
           if (p.life >= p.maxLife) spawn(p, false);
-          if (p.x < -80) p.x = W + 70;
-          if (p.x > W + 80) p.x = -70;
+          // Recycle anything flung far off-canvas — it fades back in through
+          // the life cycle instead of popping to the far edge.
+          if (p.x < -220 || p.x > W + 220 || p.y < -320 || p.y > H + 220) spawn(p, false);
         }
         const img = tex[p.tex];
         if (!img || !img.complete || img.naturalWidth === 0) continue;
