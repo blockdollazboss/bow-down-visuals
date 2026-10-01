@@ -15,7 +15,7 @@ const TEX_URLS = [
   "/images/fog/smoke-3.png",
 ];
 
-const COUNT = 200;
+const COUNT = 280;
 const LAYER_FRAC = 0.16;  // the settled layer occupies the bottom 16%
 const WIND = 16;          // px/s ambient sideways drift
 const SPRING = 5.0;       // 1/s² — pull back to resting height (re-settle)
@@ -69,17 +69,18 @@ export function FogSettled({ className = "" }: { className?: string }) {
       const layerH = H * LAYER_FRAC;
       const tendril = Math.random() < 0.16; // a few wisps rise a little higher
       p.x = rnd(-30, W + 30);
-      p.homeY = tendril ? H - layerH - rnd(0, H * 0.1) : H - rnd(0, layerH);
+      // Bias resting heights toward the very bottom so the layer reads solid.
+      p.homeY = tendril ? H - layerH - rnd(0, H * 0.1) : H - Math.pow(Math.random(), 1.4) * layerH;
       p.y = initial ? rnd(H - layerH * 1.4, H + 20) : H + rnd(4, 30);
       p.vx = rnd(-6, 6);
       p.vy = 0;
-      p.size = rnd(W * 0.06, W * 0.16);
+      p.size = rnd(W * 0.08, W * 0.2);
       p.angle = rnd(0, Math.PI * 2);
       p.spin = rnd(-0.3, 0.3);
       p.maxLife = rnd(6, 12);
       p.life = initial ? rnd(0, p.maxLife) : 0;
       p.tex = (Math.random() * tex.length) | 0;
-      p.peak = tendril ? rnd(0.08, 0.16) : rnd(0.14, 0.3);
+      p.peak = tendril ? rnd(0.12, 0.22) : rnd(0.26, 0.48);
       p.seed = rnd(0, 1000);
     };
     const parts: P[] = Array.from({ length: COUNT }, () => {
