@@ -184,6 +184,11 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       const audio = audioRef.current;
       if (!audio || e.target === audio) return;
       if (!playing) return; // theme already stopped — nothing to do
+      /* Muted videos (banner loops, ambient hero clips) make no sound —
+         ducking the theme for them just causes skipping. Only duck for
+         media the user can actually hear. */
+      const other = e.target as HTMLMediaElement | null;
+      if (other && other.muted) return;
       pausedByMedia.current = true;
       audio.pause();
       setPlaying(false);
@@ -199,6 +204,9 @@ export function ThemePlayerProvider({ children }: { children: ReactNode }) {
       if (!audio || e.target === audio) return;
       if (!pausedByMedia.current) return;
       if (manuallyPaused.current || manuallyMuted.current) return;
+      /* Don't resume the theme inside the logged-in app — it's a
+         public-area feature. */
+      if (!isPublicAreaRef.current) { pausedByMedia.current = false; return; }
 
       /* Check no other media element is still playing */
       const stillPlaying = Array.from(

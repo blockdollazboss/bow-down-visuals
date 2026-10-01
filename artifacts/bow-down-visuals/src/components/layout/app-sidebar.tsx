@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { useSidebarDock } from "@/hooks/use-sidebar-dock";
 import {
   Sidebar,
   SidebarContent,
@@ -421,33 +422,67 @@ export function AppSidebar() {
 
   const footerLinks = FOOTER_LINKS.filter((l) => !l.adminOnly || isAdmin);
 
-  return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <Link href="/" ref={logoTilt} className="flex items-center gap-2 cursor-pointer rounded-lg">
-            <img
-              src={`${import.meta.env.BASE_URL}logo-static.png`}
-              alt="Bow Down Visuals"
-              className="h-14 w-auto"
-            />
-          </Link>
-          {/* Desktop-only: hide the sidebar for full-width content. The
-              floating expand button (or Cmd/Ctrl+B) brings it back. */}
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            title="Hide sidebar"
-            aria-label="Hide sidebar"
-            data-testid="btn-collapse-sidebar"
-            className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </button>
+  /* Sidebar docking — drag the header to dock to any of 4 edges */
+  const { docked, isDragging, dragPos, onPointerDown, onPointerMove, onPointerUp } = useSidebarDock();
+  const isHorizontal = docked === "top" || docked === "bottom";
+
+  /* For top/bottom: render horizontal nav bar */
+  if (isHorizontal) {
+    return (
+      <>
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          className={`fixed left-0 right-0 z-50 h-16 bg-sidebar border-sidebar-border cursor-grab active:cursor-grabbing select-none ${
+            docked === "top" ? "top-0 border-b" : "bottom-0 border-t"
+          }`}
+          title="Drag to move sidebar to any edge"
+        >
+          <div className="h-full w-full flex items-center px-4 gap-2 overflow-x-auto">
+            <Link href="/" className="flex items-center gap-2 mr-4 shrink-0 pointer-events-none">
+              <img
+                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                alt="Bow Down Visuals"
+                className="h-8 w-auto"
+              />
+            </Link>
+            <HorizontalSidebarNav />
+          </div>
         </div>
-        {/* Simple / Advanced mode — lived in the old toolbar. */}
-        {user && <ModeToggle />}
-      </SidebarHeader>
+        {isDragging && dragPos && <DockIndicator x={dragPos.x} y={dragPos.y} />}
+      </>
+    );
+  }
+
+  /* For left/right: render vertical sidebar with draggable header */
+  return (
+    <>
+      <Sidebar 
+        side={docked}
+        className="border-sidebar-border bg-sidebar text-sidebar-foreground"
+      >
+        <SidebarHeader 
+          className="p-4 space-y-3 cursor-grab active:cursor-grabbing select-none"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          title="Drag to move sidebar to any edge"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 rounded-lg">
+              <img
+                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                alt="Bow Down Visuals"
+                className="h-14 w-auto"
+              />
+            </div>
+            <button type="button" onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} title="Hide sidebar" aria-label="Hide sidebar" data-testid="btn-collapse-sidebar" className="hidden md:flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary/80 transition hover:bg-primary hover:text-black">
+              <ChevronsLeft className={`h-4 w-4 ${docked === "right" ? "rotate-180" : ""}`} />
+            </button>
+          </div>
+          {user && <div className="pointer-events-auto"><ModeToggle /></div>}
+        </SidebarHeader>
 
       <SidebarContent className="gap-1 px-2">
         {SECTIONS.map((section) => (
@@ -567,5 +602,50 @@ export function AppSidebar() {
         )}
       </SidebarFooter>
     </Sidebar>
+      {isDragging && dragPos && <DockIndicator x={dragPos.x} y={dragPos.y} />}
+    </>
+  );
+}
+
+/** Visual indicator showing which edge the sidebar will dock to */
+function DockIndicator({ x, y }: { x: number; y: number }) {
+  const w = typeof window !== "undefined" ? window.innerWidth : 1000;
+  const h = typeof window !== "undefined" ? window.innerHeight : 800;
+  const min = Math.min(x, w - x, y, h - y);
+  const label = min === x ? "Left" : min === w - x ? "Right" : min === y ? "Top" : "Bottom";
+  return (
+    <div className="fixed z-[70] pointer-events-none" style={{ left: x - 100, top: y - 20, width: 200, height: 40 }}>
+      <div className="w-full h-full rounded-lg border-2 border-dashed border-primary bg-primary/10 flex items-center justify-center">
+        <span className="text-xs font-bold text-primary">Dock to: {label}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Horizontal navigation for top/bottom docked sidebar */
+function HorizontalSidebarNav() {
+  const [location] = useLocation();
+  const mainSections = [
+    { title: "Home", href: "/", icon: Home },
+    { title: "Create", href: "/hub", icon: Layers },
+    { title: "AI Studio", href: "/hooks", icon: Sparkles },
+    { title: "Grow", href: "/content-calendar", icon: TrendingUp },
+    { title: "Monetize", href: "/pricing", icon: DollarSign },
+    { title: "Learn", href: "/academy", icon: GraduationCap },
+    { title: "Tools", href: "/settings", icon: Settings },
+  ];
+  return (
+    <>
+      {mainSections.map((section) => {
+        const Icon = section.icon;
+        const isActive = location === section.href;
+        return (
+          <Link key={section.title} href={section.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${isActive ? "bg-sidebar-accent text-primary" : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"}`}>
+            <Icon className="h-4 w-4" />
+            <span className="hidden md:inline">{section.title}</span>
+          </Link>
+        );
+      })}
+    </>
   );
 }

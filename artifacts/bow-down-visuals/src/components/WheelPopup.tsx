@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Timer, Sparkles, Trophy, X, Gift, Loader2 } from "lucide-react";
+import { DraggableWidget } from "@/components/draggable-widget";
 
 interface WheelSegment {
   credits: number;
@@ -191,11 +192,12 @@ export function WheelPopup() {
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen(true)}
-        aria-label="Open jackpot wheel"
-        className={`fixed bottom-5 left-5 z-40 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 ${
+      {/* Floating button — draggable, snaps to 40-position grid */}
+      <DraggableWidget id="wheel-button" defaultAnchor={{ x: 0.06, y: 0.92 }} zIndex={40}>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open jackpot wheel"
+          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 ${
           ready
             ? "bg-gradient-to-br from-[#ffd700] to-[#c9a84c] animate-[pulse_1.6s_ease-in-out_infinite] shadow-[0_0_24px_rgba(255,215,0,0.55)]"
             : "bg-gradient-to-br from-[#3a3a3a] to-[#1a1a1a] border border-[#c9a84c]/50"
@@ -215,7 +217,8 @@ export function WheelPopup() {
             SPIN
           </span>
         )}
-      </button>
+        </button>
+      </DraggableWidget>
 
       {/* Popup modal */}
       {open && (
