@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FogSprites } from "@/components/fog-lab/FogSprites";
 import { FogCanvas } from "@/components/fog-lab/FogCanvas";
+import { FogSettled } from "@/components/fog-lab/FogSettled";
 
 /* ─────────── /fog-lab — hero fog comparison lab ─────────── */
 /* Hidden staging-only preview: the same stage backdrop under both fog
@@ -8,7 +9,7 @@ import { FogCanvas } from "@/components/fog-lab/FogCanvas";
    sprites (DOM), B = canvas particle simulation. Move the mouse through
    the fog to compare the streaming. */
 
-type Mode = "sprites" | "canvas";
+type Mode = "sprites" | "canvas" | "settled";
 
 function StageBackdrop() {
   return (
@@ -56,7 +57,13 @@ function StageBackdrop() {
 }
 
 export default function FogLab() {
-  const [mode, setMode] = useState<Mode>("sprites");
+  const [mode, setMode] = useState<Mode>("settled");
+
+  const hint: Record<Mode, string> = {
+    sprites: "A: photographic smoke puffs, DOM-animated.",
+    canvas: "B: live particle simulation on canvas.",
+    settled: "C: thin layer settled at the bottom — whip through it hard.",
+  };
 
   const btn = (active: boolean) =>
     `rounded-full px-5 py-2 text-sm font-semibold tracking-wide transition ${
@@ -73,8 +80,10 @@ export default function FogLab() {
       <div className="absolute inset-x-0 bottom-0 h-[46%]">
         {mode === "sprites" ? (
           <FogSprites className="inset-0 h-full w-full" />
-        ) : (
+        ) : mode === "canvas" ? (
           <FogCanvas className="inset-0 h-full w-full" />
+        ) : (
+          <FogSettled className="inset-0 h-full w-full" />
         )}
       </div>
 
@@ -87,12 +96,12 @@ export default function FogLab() {
           <button className={btn(mode === "canvas")} onClick={() => setMode("canvas")}>
             B · Particle canvas
           </button>
+          <button className={btn(mode === "settled")} onClick={() => setMode("settled")}>
+            C · Settled layer
+          </button>
         </div>
         <p className="text-center text-sm text-white/60">
-          Sweep your mouse through the fog — whip it to stir.
-          {mode === "sprites"
-            ? " A: photographic smoke puffs, DOM-animated."
-            : " B: live particle simulation on canvas."}
+          Sweep your mouse through the fog — whip it to stir. {hint[mode]}
         </p>
       </div>
 
