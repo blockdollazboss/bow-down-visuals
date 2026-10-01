@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { SpotlightRig } from "@/components/SpotlightRig";
-import { HeroFog } from "@/components/HeroFog";
+import { FogSettled } from "@/components/SettledFog";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -705,14 +705,13 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Ground fog — gold-tinted banks pooling around the King's feet,
-          lapping OVER them.
+      {/* Ground fog — thin settled smoke layer (fog-lab version C) pooling
+          around the King's feet, lapping OVER them.
           z-[4], placed after the hero grid: same level as the shark but
           later in the DOM, so it veils his feet instead of hiding behind
-          him. Still below the curtain overlay (z-[5]) and the copy (z-10),
-          drifts with the cursor while staying under the curtain (z-[5])
-          and the copy (z-10). h-[44%]: tall enough to rise past his ankles. */}
-      <HeroFog className="inset-x-0 bottom-0 z-[4] h-[44%]" />
+          him. Still below the curtain overlay (z-[5]) and the copy (z-10).
+          Whip the mouse through it: the layer tears, swirls and re-settles. */}
+      <FogSettled className="inset-x-0 bottom-0 z-[4] h-[44%]" />
 
       {/* Scroll hint */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-40">

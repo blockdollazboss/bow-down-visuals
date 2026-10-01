@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FogSprites } from "@/components/fog-lab/FogSprites";
 import { FogCanvas } from "@/components/fog-lab/FogCanvas";
-import { FogSettled } from "@/components/fog-lab/FogSettled";
+import { FogSettled } from "@/components/SettledFog";
 
 /* ─────────── /fog-lab — hero fog comparison lab ─────────── */
 /* Hidden staging-only preview: the same stage backdrop under both fog
