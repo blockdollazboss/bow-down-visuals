@@ -578,6 +578,8 @@ export function BowDownAIGuide() {
   const startPtr   = useRef({ px: 0, py: 0, ex: 0, ey: 0 });
   const posRef     = useRef({ x: 0, y: 0 });
   const hideTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* Cleanup for the window-level drag listeners (see onPointerDown). */
+  const dragCleanup = useRef<(() => void) | null>(null);
 
   const initSnap   = savedSnap();
   const [pos,          rawSetPos]      = useState(() => snapPos(initSnap, 220, 44));
@@ -621,7 +623,12 @@ export function BowDownAIGuide() {
     if (!el) return;
     updatePos(snapPos(initSnap, el.offsetWidth, el.offsetHeight));
     startHideTimer();
-    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      /* Drop any in-flight drag listeners. */
+      dragCleanup.current?.();
+      dragCleanup.current = null;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── resize: re-snap ── */
@@ -635,7 +642,13 @@ export function BowDownAIGuide() {
     return () => window.removeEventListener("resize", onResize);
   }, [currentSnap]);
 
-  /* ── drag handlers ── */
+  /* ── drag handlers ──
+     NOTE: deliberately NO setPointerCapture here. Pointer capture retargets
+     the pointerup — and, for mouse input, the subsequent click — to the
+     capture element, so taps on this panel's buttons were swallowed.
+     Releasing capture inside pointerup is NOT enough: the mouse click's
+     target is already fixed to the capture element by then. Window-level
+     listeners leave hit-testing untouched. */
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("button,input")) return;
     dragging.current = true;
@@ -645,39 +658,46 @@ export function BowDownAIGuide() {
     const el = elRef.current!;
     const rect = el.getBoundingClientRect();
     startPtr.current = { px: e.clientX, py: e.clientY, ex: rect.left, ey: rect.top };
-    el.setPointerCapture(e.pointerId);
     e.preventDefault();
-  }
 
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging.current) return;
-    const el = elRef.current!;
-    const w = el.offsetWidth, h = el.offsetHeight;
-    const { px, py, ex, ey } = startPtr.current;
-    const half = SNAP_M / 2;
-    updatePos({
-      x: Math.max(half, Math.min(window.innerWidth  - w - half, ex + e.clientX - px)),
-      y: Math.max(half, Math.min(window.innerHeight - h - half, ey + e.clientY - py)),
-    });
-  }
+    const pointerId = e.pointerId;
+    dragCleanup.current?.();
 
-  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    /* Release pointer capture before the tap's click dispatches —
-       otherwise the click retargets to this panel and taps on its
-       buttons get swallowed. Same tap fix as use-draggable. */
-    try {
-      const el = e.currentTarget as HTMLElement;
-      if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    if (!dragging.current) return;
-    dragging.current = false;
-    setIsDragging(false);
-    const el = elRef.current!;
-    const pt = nearestSnap(posRef.current.x, posRef.current.y, el.offsetWidth, el.offsetHeight);
-    snapTo(pt, el.offsetWidth, el.offsetHeight);
-    startHideTimer();
+    const handleMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId || !dragging.current) return;
+      const target = elRef.current!;
+      const w = target.offsetWidth, h = target.offsetHeight;
+      const { px, py, ex, ey } = startPtr.current;
+      const half = SNAP_M / 2;
+      updatePos({
+        x: Math.max(half, Math.min(window.innerWidth  - w - half, ex + ev.clientX - px)),
+        y: Math.max(half, Math.min(window.innerHeight - h - half, ey + ev.clientY - py)),
+      });
+    };
+
+    const removeListeners = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+      if (dragCleanup.current === removeListeners) dragCleanup.current = null;
+    };
+
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      removeListeners();
+      if (!dragging.current) return;
+      dragging.current = false;
+      setIsDragging(false);
+      const target = elRef.current!;
+      const pt = nearestSnap(posRef.current.x, posRef.current.y, target.offsetWidth, target.offsetHeight);
+      snapTo(pt, target.offsetWidth, target.offsetHeight);
+      startHideTimer();
+    };
+
+    dragCleanup.current = removeListeners;
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
   }
 
   function onMouseEnter() {
@@ -740,8 +760,6 @@ export function BowDownAIGuide() {
           WebkitUserSelect: "none",
         }}
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >

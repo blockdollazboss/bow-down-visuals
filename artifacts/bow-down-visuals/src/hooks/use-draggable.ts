@@ -87,6 +87,8 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
   const draggingRef = useRef(false);
   const downPos = useRef({ x: 0, y: 0 });
   const elRef = useRef<HTMLElement | null>(null);
+  /* Cleanup for the window-level drag listeners (see onPointerDown). */
+  const dragCleanupRef = useRef<(() => void) | null>(null);
 
   /* Initialize position: saved → default (snapped to grid) → (0,0). */
   useEffect(() => {
@@ -110,6 +112,14 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
     return () => window.removeEventListener("resize", onResize);
   }, [initialized]);
 
+  /* Drop any in-flight drag listeners on unmount (or a stale drag). */
+  useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+      dragCleanupRef.current = null;
+    };
+  }, []);
+
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       const el = elRef.current;
@@ -124,78 +134,88 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
       draggingRef.current = true;
       downPos.current = { x: e.clientX, y: e.clientY };
       setIsDragging(true);
-      /* Capture on the wrapper (currentTarget), not the inner target,
-         so pointerup/move reliably fire on the wrapper. */
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    },
-    []
-  );
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    const el = elRef.current;
-    if (!el) return;
-    /* Only count as a drag if moved more than 6px from press point —
-       filters out the tiny jitter of a normal click. */
-    const dist = Math.hypot(
-      e.clientX - downPos.current.x,
-      e.clientY - downPos.current.y
-    );
-    if (dist < 6 && !moved.current) return;
-    moved.current = true;
-    const half_w = el.offsetWidth / 2;
-    const half_h = el.offsetHeight / 2;
-    /* Track center of widget under cursor for natural feel. */
-    const x = Math.max(
-      half_w,
-      Math.min(
-        window.innerWidth - half_w,
-        e.clientX - dragOffset.current.x + half_w
-      )
-    );
-    const y = Math.max(
-      half_h,
-      Math.min(
-        window.innerHeight - half_h,
-        e.clientY - dragOffset.current.y + half_h
-      )
-    );
-    setPosition({ x, y });
-  }, []);
+      /* NOTE: deliberately NO setPointerCapture here.
+         Pointer capture retargets the pointerup — and, for mouse input, the
+         subsequent click — to the capture element, which silently killed
+         every inner onClick handler (chat button, star widget, admin shield,
+         wheel, d-pad). Releasing capture inside pointerup is NOT enough:
+         the mouse click's target is already fixed to the capture element by
+         then (only touch re-hit-tests after release). Instead the active
+         pointer is tracked with window-level listeners, which leaves
+         hit-testing untouched so a tap clicks the real element under the
+         pointer on mouse, touch, and pen alike. */
+      const pointerId = e.pointerId;
+      /* Clear listeners from an interrupted earlier drag, if any. */
+      dragCleanupRef.current?.();
 
-  const onPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      /* Release pointer capture BEFORE the tap's click event is dispatched.
-         setPointerCapture retargets every later pointer event for that touch
-         to the wrapper — including the click — so inner onClick handlers
-         (star-level toggle, chat button, wheel, d-pad, admin shield) never
-         fired. Releasing here restores normal hit-testing for the click;
-         the drag itself is already over by this point. */
-      try {
-        const el = e.currentTarget as HTMLElement;
-        if (el.hasPointerCapture?.(e.pointerId)) {
-          el.releasePointerCapture(e.pointerId);
+      const handleMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId || !draggingRef.current) return;
+        const target = elRef.current;
+        if (!target) return;
+        /* Only count as a drag if moved more than 6px from press point —
+           filters out the tiny jitter of a normal click. */
+        const dist = Math.hypot(
+          ev.clientX - downPos.current.x,
+          ev.clientY - downPos.current.y
+        );
+        if (dist < 6 && !moved.current) return;
+        moved.current = true;
+        const half_w = target.offsetWidth / 2;
+        const half_h = target.offsetHeight / 2;
+        /* Track center of widget under cursor for natural feel. */
+        const x = Math.max(
+          half_w,
+          Math.min(
+            window.innerWidth - half_w,
+            ev.clientX - dragOffset.current.x + half_w
+          )
+        );
+        const y = Math.max(
+          half_h,
+          Math.min(
+            window.innerHeight - half_h,
+            ev.clientY - dragOffset.current.y + half_h
+          )
+        );
+        setPosition({ x, y });
+      };
+
+      const removeListeners = () => {
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        window.removeEventListener("pointercancel", handleUp);
+        if (dragCleanupRef.current === removeListeners) {
+          dragCleanupRef.current = null;
         }
-      } catch {
-        /* ignore */
-      }
-      if (!draggingRef.current) return;
-      draggingRef.current = false;
-      setIsDragging(false);
-      if (moved.current) {
-        setPosition((p) => {
-          const snapped = nearestSnap(p.x, p.y);
-          savePosition(id, snapped);
-          return snapped;
-        });
-        /* Flag for click suppression — cleared on next pointerdown or
-           after the click event has had a chance to fire. */
-        justDragged.current = true;
-        window.setTimeout(() => {
-          justDragged.current = false;
-        }, 50);
-      }
-      moved.current = false;
+      };
+
+      const handleUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        removeListeners();
+        if (!draggingRef.current) return;
+        draggingRef.current = false;
+        setIsDragging(false);
+        if (moved.current) {
+          setPosition((p) => {
+            const snapped = nearestSnap(p.x, p.y);
+            savePosition(id, snapped);
+            return snapped;
+          });
+          /* Flag for click suppression — cleared on next pointerdown or
+             after the click event has had a chance to fire. */
+          justDragged.current = true;
+          window.setTimeout(() => {
+            justDragged.current = false;
+          }, 50);
+        }
+        moved.current = false;
+      };
+
+      dragCleanupRef.current = removeListeners;
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+      window.addEventListener("pointercancel", handleUp);
     },
     [id]
   );
@@ -208,11 +228,10 @@ export function useDraggable(id: string, defaultPos?: SnapPosition) {
     return justDragged.current;
   }, []);
 
+  /* Only pointerdown is needed on the element itself — move/up are
+     tracked on window so taps keep their natural click target. */
   const dragHandlers = {
     onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel: onPointerUp,
   };
 
   return {

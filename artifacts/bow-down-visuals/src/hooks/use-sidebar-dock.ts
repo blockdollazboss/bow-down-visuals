@@ -20,6 +20,10 @@ export function useSidebarDock() {
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const justDockedRef = useRef(false);
+  /* Cleanup for the window-level drag listeners (see onPointerDown). */
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  /* Latest pointer position during a drag (mirrors dragPos state). */
+  const dragPosRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, docked); } catch { }
@@ -39,52 +43,76 @@ export function useSidebarDock() {
     return "bottom";
   }, []);
 
+  /* Drop any in-flight drag listeners on unmount (or a stale drag). */
+  useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+      dragCleanupRef.current = null;
+    };
+  }, []);
+
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
-    /* Capture on the wrapper (currentTarget), not the inner target —
-       capturing a child (e.g. the logo img) would retarget the move/up
-       events away from this handler and break the drag. */
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-  }, []);
+    /* NOTE: deliberately NO setPointerCapture here.
+       Pointer capture retargets the pointerup — and, for mouse input, the
+       subsequent click — to the capture element, so taps on header controls
+       (mode toggle, collapse) were swallowed. Releasing capture inside
+       pointerup is NOT enough: the mouse click's target is already fixed to
+       the capture element by then. Window-level listeners leave hit-testing
+       untouched so taps keep their natural click target. */
+    const pointerId = e.pointerId;
+    dragCleanupRef.current?.();
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-    if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
-      d.moved = true;
-      setIsDragging(true);
-      setDragPos({ x: e.clientX, y: e.clientY });
-    }
-  }, []);
-
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    /* Release pointer capture BEFORE the tap's click event is dispatched.
-       An unreleased capture retargets the click to the capture element,
-       so taps on header controls (mode toggle, collapse) would be
-       swallowed. Same tap fix as use-draggable. */
-    try {
-      const el = e.currentTarget as HTMLElement;
-      if (el.hasPointerCapture?.(e.pointerId)) {
-        el.releasePointerCapture(e.pointerId);
+    const handleMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = ev.clientX - d.startX;
+      const dy = ev.clientY - d.startY;
+      if (Math.abs(dx) + Math.abs(dy) > DRAG_THRESHOLD) {
+        d.moved = true;
+        setIsDragging(true);
+        const pos = { x: ev.clientX, y: ev.clientY };
+        dragPosRef.current = pos;
+        setDragPos(pos);
       }
-    } catch {
-      /* ignore */
-    }
-    const d = dragRef.current;
-    dragRef.current = null;
-    if (d?.moved && dragPos) {
-      const edge = getNearestEdge(e.clientX, e.clientY);
-      setDocked(edge);
-      justDockedRef.current = true;
-      setTimeout(() => { justDockedRef.current = false; }, 100);
-    }
-    setIsDragging(false);
-    setDragPos(null);
-  }, [dragPos, getNearestEdge]);
+    };
+
+    const removeListeners = () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleUp);
+      if (dragCleanupRef.current === removeListeners) {
+        dragCleanupRef.current = null;
+      }
+    };
+
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      removeListeners();
+      const d = dragRef.current;
+      dragRef.current = null;
+      const endPos = dragPosRef.current;
+      dragPosRef.current = null;
+      if (d?.moved && endPos) {
+        const edge = getNearestEdge(endPos.x, endPos.y);
+        setDocked(edge);
+        justDockedRef.current = true;
+        setTimeout(() => { justDockedRef.current = false; }, 100);
+      }
+      setIsDragging(false);
+      setDragPos(null);
+    };
+
+    dragCleanupRef.current = removeListeners;
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleUp);
+  }, [getNearestEdge]);
 
   const wasDragged = useCallback(() => justDockedRef.current, []);
 
-  return { docked, setDocked, isDragging, dragPos, onPointerDown, onPointerMove, onPointerUp, wasDragged };
+  /* Only pointerdown is attached to the element — move/up are tracked on
+     window so taps keep their natural click target. */
+  return { docked, setDocked, isDragging, dragPos, onPointerDown, wasDragged };
 }

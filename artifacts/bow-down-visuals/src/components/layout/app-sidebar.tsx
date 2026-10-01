@@ -426,7 +426,7 @@ export function AppSidebar() {
      Docking only changes the DESKTOP layout. The mobile drawer (<Sidebar>
      below) is always mounted — otherwise docking top/bottom unmounts the
      Sheet and the mobile hamburger opens nothing. */
-  const { docked, isDragging, dragPos, onPointerDown, onPointerMove, onPointerUp } = useSidebarDock();
+  const { docked, isDragging, dragPos, onPointerDown } = useSidebarDock();
   const isHorizontal = docked === "top" || docked === "bottom";
   const sidebarSide: "left" | "right" = docked === "right" ? "right" : "left";
 
@@ -437,8 +437,6 @@ export function AppSidebar() {
       {isHorizontal && (
         <div
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
           className={`hidden md:block fixed left-0 right-0 z-50 h-16 bg-sidebar border-sidebar-border cursor-grab active:cursor-grabbing select-none ${
             docked === "top" ? "top-0 border-b" : "bottom-0 border-t"
           }`}
@@ -469,8 +467,6 @@ export function AppSidebar() {
         <SidebarHeader 
           className="p-4 space-y-3 cursor-grab active:cursor-grabbing select-none"
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
           title="Drag to move sidebar to any edge"
         >
           <div className="flex items-center justify-between gap-2">
