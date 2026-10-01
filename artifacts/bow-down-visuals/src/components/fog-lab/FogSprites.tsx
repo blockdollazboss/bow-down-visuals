@@ -2,12 +2,8 @@ import { useEffect, useRef } from "react";
 
 /* ─────────── Fog Lab A — real smoke sprites (DOM) ─────────── */
 /* The same smoke, but rendered from photographic smoke-puff textures
-   instead of CSS radial gradients, so it actually reads as smoke.
-   ~14 sprite instances drift, rise, slowly rotate and breathe through
-   life cycles; the cursor drives the same flow field as the hero fog:
-   stream along the travel path, part around the cursor, stretch along
-   the direction of fast movement. Black in the textures drops out via
-   mix-blend-mode: screen. */
+   with true transparency (black baked to alpha, edges feathered), so no
+   image borders or black boxes are ever visible. */
 
 const TEX = [
   "/images/fog/smoke-1.png",
@@ -192,7 +188,6 @@ export function FogSprites({ className = "" }: { className?: string }) {
             bottom: 0,
             width: `${s.size}%`,
             height: "auto",
-            mixBlendMode: "screen",
             opacity: 0,
             transform: s.flip ? "scaleX(-1)" : undefined,
             willChange: "transform, opacity",

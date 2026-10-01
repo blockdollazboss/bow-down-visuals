@@ -122,7 +122,8 @@ export function FogCanvas({ className = "" }: { className?: string }) {
       const R = Math.min(W, H) * FLOW_RADIUS;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, W, H);
-      ctx.globalCompositeOperation = "screen";
+      // Textures carry true alpha (black baked out, edges feathered), so
+      // normal compositing — no blend hacks, no visible image borders.
 
       for (const p of parts) {
         if (!reduce) {
