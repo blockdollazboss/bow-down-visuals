@@ -608,6 +608,17 @@ function HeroSection() {
         {/* Copy — right side. z-10: headline, subtext and buttons stay
             above the fixed curtain overlay (z-[5]). */}
         <div className="relative z-10 text-center lg:text-left space-y-5 lg:pt-[10%]">
+        {/* Readability scrim — soft dark halo behind the copy so the raised
+            fog never washes out the text. Lives inside the copy's z-10
+            stacking context at z-[-1]: behind the words, above the fog. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -inset-x-10 -inset-y-8 z-[-1] rounded-[3rem]"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 62%, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.24) 52%, transparent 76%)",
+          }}
+        />
 
         {/* Positioning — the quiet luxury whisper */}
         <p className="font-display italic text-xl sm:text-2xl text-primary/90 leading-snug">
@@ -705,13 +716,18 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Ground fog — thin settled smoke layer (fog-lab version C) pooling
-          around the King's feet, lapping OVER them.
+      {/* Ground fog — thin settled smoke layer (fog-lab version C) rising to
+          the King's ankles so he reads as standing IN the fog.
           z-[4], placed after the hero grid: same level as the shark but
           later in the DOM, so it veils his feet instead of hiding behind
           him. Still below the curtain overlay (z-[5]) and the copy (z-10).
-          Whip the mouse through it: the layer tears, swirls and re-settles. */}
-      <FogSettled className="inset-x-0 bottom-0 z-[4] h-[44%]" />
+          Dimmed a touch (brightness 0.85); whip the mouse through it and the
+          layer tears, swirls and re-settles. */}
+      <FogSettled
+        className="inset-x-0 bottom-0 z-[4] h-[58%]"
+        layerFrac={0.45}
+        brightness={0.85}
+      />
 
       {/* Scroll hint */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce opacity-40">

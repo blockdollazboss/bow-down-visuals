@@ -36,7 +36,17 @@ interface P {
   tex: number; peak: number; seed: number;
 }
 
-export function FogSettled({ className = "" }: { className?: string }) {
+export function FogSettled({
+  className = "",
+  layerFrac = LAYER_FRAC,
+  brightness = 1,
+}: {
+  className?: string;
+  /** Fraction of the container the settled layer occupies (resting heights). */
+  layerFrac?: number;
+  /** Multiplier on puff opacity — <1 dims the bank a touch. */
+  brightness?: number;
+}) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -69,7 +79,7 @@ export function FogSettled({ className = "" }: { className?: string }) {
 
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const spawn = (p: P, initial: boolean) => {
-      const layerH = H * LAYER_FRAC;
+      const layerH = H * layerFrac;
       const tendril = Math.random() < 0.16; // a few wisps rise a little higher
       p.x = rnd(-30, W + 30);
       // Bias resting heights toward the very bottom so the layer reads solid.
@@ -85,7 +95,7 @@ export function FogSettled({ className = "" }: { className?: string }) {
       p.maxLife = rnd(6, 12);
       p.life = initial ? rnd(0, p.maxLife) : 0;
       p.tex = (Math.random() * tex.length) | 0;
-      p.peak = tendril ? rnd(0.16, 0.3) : rnd(0.34, 0.58);
+      p.peak = (tendril ? rnd(0.16, 0.3) : rnd(0.34, 0.58)) * brightness;
       p.seed = rnd(0, 1000);
     };
     const parts: P[] = Array.from({ length: COUNT }, () => {
