@@ -15,15 +15,16 @@ import { getThemeBeat } from "@/lib/theme-analyser";
    Each beam: lamp glow → smooth cone → light pool where it lands.
 
    Motion, three layers that stack:
-   1. CSS staggered flash (idle) — the shimmer while no music plays.
+   1. CSS staggered shimmer (idle) — a gentle glow while no music plays.
    2. Mouse glide (rAF) — the whole row eases toward the cursor
-      horizontally. Still works while the beat drives the flash.
+      horizontally. Still works while the beat drives the swell.
    3. BEAT SYNC (rAF) — when the theme song is playing, every detected
-      kick drum hit slams all six beams to full brightness together,
-      then they decay back. The idle shimmer is switched off while the
-      beat drives (CSS animations would otherwise override it), and
-      returns when the song stops. Real light-rig feel, locked to
-      the tempo.
+      kick drum hit swells all six beams together, then they ease back.
+      Subtle and calm: peaks are capped low (opacity 0.66, brightness
+      1.15×) so kicks read as a soft light dance, never a strobe. The
+      idle shimmer is switched off while the beat drives (CSS animations
+      would otherwise override it), and returns when the song stops.
+      Real light-rig feel, locked to the tempo.
 
    Pure decoration: pointer-events-none, translucent, reduced-motion safe
    (beat flash is disabled when the user prefers reduced motion). */
@@ -87,7 +88,9 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
       if (beat && beat.pulse > 0.02) lastPulseAt = nowMs;
       const driving = !!beat && nowMs - lastPulseAt < 1500;
       if (driving && beat) {
-        // pulse 1 → full blast, decaying back toward the idle level.
+        // pulse 1 → gentle swell, decaying back toward the idle level.
+        // Subtle and calm: peaks are capped low (opacity 0.66, brightness
+        // 1.15×) so kick hits read as a soft light dance, never a strobe.
         // Slight per-beam stagger (12ms apart) reads as a wave rolling
         // across the rig while still landing on the beat.
         for (let i = 0; i < beams.length; i++) {
@@ -96,8 +99,8 @@ export function SpotlightRig({ className = "" }: { className?: string }) {
           if (el.style.animation !== "none") el.style.animation = "none";
           const stagger = Math.max(0, beat.pulse - i * 0.06);
           const boost = Math.min(1, stagger * 1.15);
-          el.style.opacity = (0.55 + boost * 0.45).toFixed(3);
-          el.style.filter = boost > 0.03 ? `brightness(${(1 + boost * 0.55).toFixed(3)})` : "";
+          el.style.opacity = (0.42 + boost * 0.24).toFixed(3);
+          el.style.filter = boost > 0.03 ? `brightness(${(1 + boost * 0.15).toFixed(3)})` : "";
         }
       } else if (beams.length) {
         // No beat (song paused/stopped) — hand brightness back to CSS.
