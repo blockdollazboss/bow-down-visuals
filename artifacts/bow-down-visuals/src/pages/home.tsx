@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroLogo3D } from "@/components/CinematicHero";
 import { SpotlightRig } from "@/components/SpotlightRig";
-import { FogSettled } from "@/components/SettledFog";
+import { FogCanvas } from "@/components/fog-lab/FogCanvas";
 import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
@@ -716,20 +716,16 @@ function HeroSection() {
         </div>
       </div>
 
-      {/* Ground fog — one continuous procedural sheet hovering along the
-          stage floor at the King's feet so he reads as standing IN the fog.
-          No sprites: a living surface line + warm body + scrolling wisp
-          texture + lit crest + tendrils. Drag sideways and the whole bank
-          streams with the pointer, parts around a fast pass, then settles
-          flat. A hard ceiling (canvas clip + clamped surface) guarantees it
-          never climbs past 0.68 of this band — it can never reach his hips.
-          Dimmed a touch (brightness 0.85); the copy's scrim keeps the hero
-          text readable over it. */}
-      <FogSettled
+      {/* Ground fog — the fog-lab particle canvas: ~220 smoke-textured
+          particles the cursor genuinely stirs like a fluid, so whipping
+          the mouse tears the layer open and it re-settles after. Tuned to
+          stay low: gentle buoyancy plus a hard ceiling at 55% of this band,
+          so it pools at the King's feet/ankles and can never reach his
+          hips. The copy's scrim keeps the hero text readable over it. */}
+      <FogCanvas
         className="inset-x-0 bottom-0 z-[4] h-[46%]"
-        layerFrac={0.42}
-        brightness={0.85}
-        ceilingFrac={0.68}
+        ceilingFrac={0.55}
+        buoyancy={-5}
       />
 
       {/* Scroll hint */}
