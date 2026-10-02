@@ -6,6 +6,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { markExtensionDownloaded } from "@/lib/extension-promo";
 import {
   MessageCircle, Wrench, Search, Wallet, Download,
   Bell, Check, Puzzle, Zap, MousePointerClick, BellRing,
@@ -46,10 +47,26 @@ const PERKS = [
 ];
 
 const FAQS = [
-  { q: "When does it launch?", a: "The extension is in final testing now. Join the notify list and you'll get the install link the day it hits the Chrome Web Store." },
+  { q: "When does it launch?", a: "You can download it right now from this page and load it unpacked in Chrome in 30 seconds. The one-click Chrome Web Store install is coming — join the notify list and we'll email you the day it drops." },
   { q: "How much does it cost?", a: "The extension itself is free. AI features inside it use your site's Visual Bucs at the same rates as the website — pure browsing and saving costs nothing." },
   { q: "Do I need a Bow Down Visuals account?", a: "Yes — the extension signs in with your site session, so your credits, bonuses and referrals all carry over." },
   { q: "Which browsers are supported?", a: "Google Chrome at launch. Chromium-based browsers (Edge, Brave, Arc) can load it unpacked on day one." },
+];
+
+const GUIDE_STEPS = [
+  { title: "Download the zip", body: "Hit the gold Download button above. It's a tiny file (under 100KB)." },
+  { title: "Unzip it", body: "Double-click the zip (Mac) or right-click → Extract all (Windows). You'll get a folder called bow-down-visuals-extension-v2." },
+  { title: "Open chrome://extensions", body: "Type chrome://extensions in your address bar and hit Enter." },
+  { title: "Turn on Developer mode", body: "Top-right corner toggle. This lets Chrome load extensions from a folder." },
+  { title: "Click “Load unpacked”", body: "Select the unzipped bow-down-visuals-extension-v2 folder. The 🦈 icon appears in your toolbar." },
+  { title: "Pin it", body: "Click the puzzle-piece icon in Chrome's toolbar and pin Thy Cheat Code so it's always one click away." },
+  { title: "Sign in on the site", body: "Open bowdownvisuals.com and sign in first — the extension reuses your site session for credits, bonuses and referrals." },
+];
+
+const GUIDE_FIXES = [
+  { q: "The 🦈 icon isn't in my toolbar", a: "Click the puzzle-piece icon (Extensions menu) in Chrome's toolbar and pin “Bow Down Visuals — Content Creator Cheat Code”." },
+  { q: "“You're not signed in”", a: "Open bowdownvisuals.com in a Chrome tab and sign in, then click the extension icon again. The extension borrows your site session." },
+  { q: "Chrome blocked the install", a: "You must use “Load unpacked” with Developer mode on — don't drag the zip into Chrome. Unzip first, then select the folder." },
 ];
 
 const inputClass = "h-12 bg-white/[0.05] border-white/[0.10] text-white placeholder:text-white/30 focus:border-primary/50 rounded-xl text-sm";
@@ -101,7 +118,7 @@ export default function Extension() {
         "@type": "WebPage",
         name: "Thy Cheat Code Browser Extension",
         url: "https://bowdownvisuals.com/extension",
-        description: "The Bow Down Visuals creator command center, in your browser. Coming soon to the Chrome Web Store.",
+        description: "The Bow Down Visuals creator command center, in your browser. Download now for Chrome.",
       }} />
 
       {/* Hero */}
@@ -109,7 +126,7 @@ export default function Extension() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[120px] pointer-events-none" />
         <LuxReveal className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
           <MarketingBadge variant="kicker">
-            <Puzzle className="h-3.5 w-3.5 mr-1.5" /> Coming soon to the Chrome Web Store
+            <Puzzle className="h-3.5 w-3.5 mr-1.5" /> Download now · Chrome Web Store soon
           </MarketingBadge>
           <h1 className="text-4xl md:text-6xl font-semibold tracking-tight">
             Thy Cheat Code, <span className="text-[#e8c86a]">in your browser.</span>
@@ -119,7 +136,29 @@ export default function Extension() {
             money hub and one-click saving — living in your Chrome toolbar.
           </p>
 
-          <div className="max-w-md mx-auto pt-4">
+          <div className="max-w-md mx-auto pt-4 space-y-4">
+            <a
+              href="/bow-down-visuals-extension-v2.zip"
+              download
+              onClick={markExtensionDownloaded}
+              className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+            >
+              <Download className="h-5 w-5" />
+              Download for Chrome — v2.0
+            </a>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
+              <p className="font-semibold text-sm mb-2">Load it in 30 seconds:</p>
+              <ol className="text-white/55 text-sm space-y-1.5 list-decimal list-inside">
+                <li>Unzip the downloaded file</li>
+                <li>Open <span className="text-white font-mono text-xs">chrome://extensions</span> in Chrome</li>
+                <li>Turn on <span className="text-white">Developer mode</span> (top right)</li>
+                <li>Click <span className="text-white">Load unpacked</span> → select the unzipped folder</li>
+              </ol>
+              <p className="text-white/30 text-xs mt-3">Sign in on bowdownvisuals.com first — the extension uses your site session.</p>
+            </div>
+
+            <div className="pt-2">
+              <p className="text-white/40 text-sm mb-3">Rather wait for the one-click install?</p>
             {state === "done" ? (
               <div className="rounded-2xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-6 text-center">
                 <Check className="h-8 w-8 text-[#e8c86a] mx-auto mb-2" />
@@ -138,8 +177,47 @@ export default function Extension() {
                 <p className="text-white/30 text-xs">One email when it launches. No spam, ever.</p>
               </form>
             )}
+            </div>
           </div>
         </LuxReveal>
+      </section>
+
+      {/* Install guide */}
+      <section className="px-5 py-16 md:py-20 border-t border-white/5">
+        <div className="max-w-4xl mx-auto">
+          <LuxReveal className="text-center mb-10">
+            <MarketingBadge variant="kicker">Install guide</MarketingBadge>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight mt-4">
+              Up and running <span className="text-[#e8c86a]">in 30 seconds.</span>
+            </h2>
+          </LuxReveal>
+          <div className="space-y-3">
+            {GUIDE_STEPS.map((s, i) => (
+              <LuxReveal key={s.title} delay={i * 0.04}>
+                <div className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A84C] to-[#e8c86a] text-black font-bold text-sm">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold">{s.title}</p>
+                    <p className="text-white/55 text-sm mt-1 leading-relaxed">{s.body}</p>
+                  </div>
+                </div>
+              </LuxReveal>
+            ))}
+          </div>
+          <LuxReveal className="mt-8">
+            <h3 className="font-semibold text-lg mb-3 text-center">Something off? Quick fixes</h3>
+            <div className="space-y-3">
+              {GUIDE_FIXES.map((f) => (
+                <div key={f.q} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+                  <p className="font-semibold mb-1.5 text-sm">{f.q}</p>
+                  <p className="text-white/55 text-sm leading-relaxed">{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </LuxReveal>
+        </div>
       </section>
 
       {/* Tabs */}

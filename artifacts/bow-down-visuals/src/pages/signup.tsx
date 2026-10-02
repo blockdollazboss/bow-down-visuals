@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
+import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 const schema = z.object({
   displayName: z.string().min(2, "Enter your artist or display name"),
@@ -172,6 +173,7 @@ export default function Signup() {
       />
       {/* Spotlight Takeover promo — "this spot is for sale" over the video */}
       <SpotlightPromo />
+      <ExtensionPromoBadge />
       {/* Stage: video breathing room */}
       <main className="flex-1 relative z-10" aria-hidden />
 

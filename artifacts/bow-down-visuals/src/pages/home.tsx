@@ -40,6 +40,7 @@ import {
   DollarSign,
   Gift,
   Bell,
+  Download,
   Scissors,
   BadgeDollarSign,
   Rocket,
@@ -53,6 +54,7 @@ import {
   Store,
 } from "lucide-react";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useExtensionPromoVisible, markExtensionDownloaded } from "@/lib/extension-promo";
 
 /* ─────────────────────────── DATA ─────────────────────────── */
 
@@ -1366,6 +1368,8 @@ function PricingSection() {
 
 
 function ExtensionPromo() {
+  const showExtensionPromo = useExtensionPromoVisible();
+  if (!showExtensionPromo) return null;
   return (
     <section className="py-20 md:py-28 px-5">
       <LuxReveal className="max-w-5xl mx-auto">
@@ -1373,7 +1377,7 @@ function ExtensionPromo() {
           <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-[#C9A84C]/10 rounded-full blur-[100px] pointer-events-none" />
           <div className="relative z-10 text-center space-y-6">
             <MarketingBadge variant="kicker">
-              Coming soon — Chrome extension
+              Chrome extension — download now
             </MarketingBadge>
             <h2 className="text-3xl md:text-4xl font-semibold text-white tracking-tight">
               Thy Cheat Code, <span className="text-[#e8c86a]">in your browser.</span>
@@ -1384,15 +1388,17 @@ function ExtensionPromo() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
               <a
-                href="/extension"
+                href="/bow-down-visuals-extension-v2.zip"
+                download
+                onClick={markExtensionDownloaded}
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
               >
-                <Bell className="h-5 w-5" />
-                Get notified at launch
+                <Download className="h-5 w-5" />
+                Download the extension
               </a>
             </div>
             <p className="text-white/30 text-sm">
-              Free extension. Join the list — one email when it drops.
+              Free extension. Download it now, or join the list for the one-click store launch.
             </p>
           </div>
         </div>

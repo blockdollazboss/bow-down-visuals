@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { useSidebarDock } from "@/hooks/use-sidebar-dock";
+import { useExtensionPromoVisible } from "@/lib/extension-promo";
 import {
   Sidebar,
   SidebarContent,
@@ -103,6 +104,7 @@ import {
   Gamepad2,
   Gem,
   Gift,
+  Puzzle,
   Star,
   Gauge,
   BarChart3,
@@ -197,11 +199,23 @@ interface NavLink {
   icon: LucideIcon;
   adminOnly?: boolean;
   tour?: string;
+  badge?: string;
 }
 
 interface NavSection {
   title: string;
   links: NavLink[];
+}
+
+/* NEW badge for nav items — hidden once the visitor downloads the extension. */
+function NavItemBadge({ text }: { text: string }) {
+  const show = useExtensionPromoVisible();
+  if (!show) return null;
+  return (
+    <span className="ml-auto rounded-full bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-2 py-0.5 text-[10px] font-bold text-black">
+      {text}
+    </span>
+  );
 }
 
 /* ── Grouped navigation: every routed page reachable, no dead links ── */
@@ -309,6 +323,7 @@ const SECTIONS: NavSection[] = [
   {
     title: "Tools",
     links: [
+      { href: "/extension", label: "Chrome Extension", icon: Puzzle, badge: "NEW" },
       { href: "/upscale", label: "Upscale & Clean", icon: Maximize },
       { href: "/watermark-removal", label: "Watermark Removal", icon: Eraser },
       { href: "/audio-cleanup", label: "Audio Cleanup", icon: Waves },
@@ -367,6 +382,7 @@ function SidebarSection({ section, location, isAdmin }: { section: NavSection; l
                     <Link href={link.href} className="flex items-center gap-3 w-full cursor-pointer py-2">
                       <link.icon className="h-5 w-5" />
                       <span className="font-medium">{link.label}</span>
+                      {link.badge && <NavItemBadge text={link.badge} />}
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
