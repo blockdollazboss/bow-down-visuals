@@ -20,6 +20,7 @@ import { HelpPanel } from "@/components/HelpPanel";
 import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
 import { DailyBonusModal } from "@/components/DailyBonusModal";
+import ExtensionPromoModal from "@/components/ExtensionPromoModal";
 import { WheelPopup } from "@/components/WheelPopup";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
@@ -361,6 +362,7 @@ function AppShell() {
       {typeof window !== "undefined" && <CheatCodeEasterEgg />}
       {typeof window !== "undefined" && <CheatCodeJackpot />}
       {typeof window !== "undefined" && <DailyBonusModal />}
+      {typeof window !== "undefined" && <ExtensionPromoModal />}
       {typeof window !== "undefined" && <WheelPopup />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>

@@ -3,6 +3,11 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 import { DraggableWidget } from "@/components/draggable-widget";
+import {
+  hasDownloadedExtension,
+  hasOptedOutExtensionPromo,
+  optOutExtensionPromo,
+} from "@/lib/extension-promo";
 
 /* ─── Thy Cheat Code — on-site AI chat, right-side slide-over drawer ────────
    Gold/black 8-bit luxury theme, mobile-friendly. Mounted globally in
@@ -57,6 +62,29 @@ const GREETING: ChatMessage = {
 
 const MAX_HISTORY = 6;
 
+/* ─── Extension promo inside the chat ───
+   Thy Cheat Code mentions the Chrome extension himself until the visitor
+   downloads it or tells him to stop. Phrases like "stop promoting it" /
+   "don't remind me" opt out permanently; install questions get a direct
+   answer without burning API credits. */
+const STOP_PROMO_RE =
+  /(stop (promoting|telling|mentioning)|don't remind|do not remind|no more (promo|remind)|stop.*(extension|promo).*remind|enough.*extension)/i;
+const EXT_INSTALL_RE =
+  /(chrome extension|browser extension)/i;
+const EXT_NUDGE_SESSION_KEY = "bdv-extension-chat-nudge";
+
+const EXT_NUDGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "🦈 Quick one — I also live in your Chrome toolbar as an extension: AI chat, every site tool, daily bonuses, one-click saving. Grab it on the /extension page whenever you want. (Say “stop promoting it” anytime and I'll never mention it again.)",
+};
+
+const EXT_INSTALL_ANSWER: ChatMessage = {
+  role: "assistant",
+  content:
+    "Easy — hit the gold Download button on the /extension page, unzip the file, then in Chrome go to chrome://extensions → turn on Developer mode → “Load unpacked” → pick the unzipped folder. Pin the 🦈 icon and you're set. Full step-by-step is on the /extension page too.",
+};
+
 /** Open the Thy Cheat Code chat drawer, optionally with a prefilled prompt. */
 export function openThyChat(prompt?: string) {
   window.dispatchEvent(
@@ -84,6 +112,27 @@ export function ThyCheatCodeChat() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  /* Proactive extension nudge: once per session, shortly after the drawer
+     opens, Thy Cheat Code mentions the extension himself — unless the
+     visitor already downloaded it or told him to stop. */
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    try {
+      if (sessionStorage.getItem(EXT_NUDGE_SESSION_KEY) === "1") return;
+    } catch { /* private mode */ }
+    if (hasDownloadedExtension() || hasOptedOutExtensionPromo()) return;
+    const t = window.setTimeout(() => {
+      if (cancelled) return;
+      setMessages((prev) => [...prev, EXT_NUDGE]);
+      try { sessionStorage.setItem(EXT_NUDGE_SESSION_KEY, "1"); } catch { /* ignore */ }
+    }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [open ]);
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
@@ -93,6 +142,22 @@ export function ThyCheatCodeChat() {
       .slice(-MAX_HISTORY);
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+
+    // "Stop promoting it" → permanent opt-out, no API call.
+    if (STOP_PROMO_RE.test(trimmed) && !hasDownloadedExtension()) {
+      optOutExtensionPromo();
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Got it — I'll stop mentioning the extension. 🦈 It's on the /extension page if you ever want it." },
+      ]);
+      return;
+    }
+    // Extension install questions → direct answer, no API call.
+    if (EXT_INSTALL_RE.test(trimmed) && /(install|download|get|how|where)/i.test(trimmed)) {
+      setMessages((prev) => [...prev, EXT_INSTALL_ANSWER]);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/free-chat", {
