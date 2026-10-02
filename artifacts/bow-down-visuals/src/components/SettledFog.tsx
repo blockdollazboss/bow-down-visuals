@@ -213,20 +213,33 @@ export function FogSettled({
       };
 
       const feather = layerH * 1.1; // how far the dissolve reaches above the surface
+      const sstep = (e0: number, e1: number, x: number) => {
+        const tt = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+        return tt * tt * (3 - 2 * tt);
+      };
       for (let i = 0; i < n; i++) {
         const x0 = i * COL_STEP;
         const s = surf[i];
         const w = wispAt(x0);
-        const peak = (0.18 + 0.34 * w) * b;
+        // carve real gaps: below the threshold the column goes fully clear,
+        // so the band breaks into sparse bright wisps instead of one wave
+        const gate = sstep(0.30, 0.70, w);
+        const peak = (0.06 + 0.30 * w) * gate * b;
         if (peak <= 0.004) continue;
         const top = Math.max(ceilY, s - feather * (0.75 + 0.5 * wispAt(x0 + 311)));
         const hh = H - top;
         if (hh <= 0) continue;
+        // staggered vertical profile: each column gets its own phase, so the
+        // columns can't line up into one smooth crest curve
+        const ph = w * 12.0 + t * 0.35;
+        const va = (f: number, base: number) =>
+          Math.max(0, base * (0.62 + 0.38 * Math.sin(f * 9 + ph))).toFixed(3);
         const g = lctx.createLinearGradient(0, top, 0, H);
         g.addColorStop(0.0, "rgba(255,251,243,0)");
-        g.addColorStop(0.45, `rgba(255,250,240,${(peak * 0.8).toFixed(3)})`);
-        g.addColorStop(0.75, `rgba(255,249,238,${peak.toFixed(3)})`);
-        g.addColorStop(1.0, `rgba(250,243,230,${(peak * 0.75).toFixed(3)})`);
+        g.addColorStop(0.35, `rgba(255,250,240,${va(0.35, peak * 0.55)})`);
+        g.addColorStop(0.55, `rgba(255,250,240,${va(0.55, peak * 0.9)})`);
+        g.addColorStop(0.75, `rgba(255,249,238,${va(0.75, peak)})`);
+        g.addColorStop(1.0, `rgba(250,243,230,${va(1.0, peak * 0.7)})`);
         lctx.fillStyle = g;
         lctx.fillRect(x0, top, COL_STEP + 1, hh);
       }
