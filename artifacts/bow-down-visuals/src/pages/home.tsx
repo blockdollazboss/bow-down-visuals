@@ -725,7 +725,7 @@ function HeroSection() {
       <FogCanvas
         className="inset-x-0 bottom-0 z-[4] h-[46%]"
         ceilingFrac={0.55}
-        buoyancy={-5}
+        buoyancy={-10}
       />
 
       {/* Scroll hint */}
