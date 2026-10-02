@@ -42,6 +42,7 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import Home    from "@/pages/home";
 import Pricing from "@/pages/pricing";
 import Waitlist from "@/pages/waitlist";
+import Extension from "@/pages/extension";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -372,6 +373,7 @@ function AppShell() {
           {/* Marketing (home lives inside the sidebar layout below) */}
           <Route path="/pricing"><Pricing /></Route>
           <Route path="/waitlist"><Waitlist /></Route>
+          <Route path="/extension"><Extension /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>
