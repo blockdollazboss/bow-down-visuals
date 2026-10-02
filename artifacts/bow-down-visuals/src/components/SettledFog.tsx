@@ -1,20 +1,20 @@
 import { useEffect, useRef } from "react";
 
 /* ─────────── Fog — procedural settled sheet ─────────── */
-/* Ground fog as ONE continuous procedural sheet — no sprites, no blobs, no
-   texture borders (there are no textures to border). A living surface line
-   undulates in large, slow swells; beneath it a warm-white body melts into
-   the stage floor; a scrolling fbm noise strip carves wispy light and shadow
-   into the body; a lit crest along the surface and a few soft tendrils
-   finish the smoke read. The mouse drags the whole bank sideways — move
-   right and it streams right, move left and it flows left — parting around
-   a fast pointer, then springing flat again (re-settle). Vertical motion is
-   starved by design: near the pointer the surface only ever dips DOWN,
-   never rises. A hard ceiling (canvas clip + clamped surface + capped
-   tendrils) guarantees the fog can never climb past ceilingFrac — it stays
-   at his feet and can never reach his hips. Everything is painted
-   warm-white and screen-blended, so it glows over the dark stage instead of
-   graying out; true black can never appear. */
+/* Ground fog as ONE continuous diffuse sheet — no sprites, no blobs, no
+   hard edges, no surface line. Every column is its own feathered vertical
+   strip: alpha is exactly zero at the strip's top and swells to a soft peak
+   lower down, so no silhouette can ever form (the old "cartoon wave" came
+   from a crisp surface line plus a bright crest highlight tracing it — both
+   are gone). A slow wisp field breaks the band into drifting wisps and gaps;
+   whisper-faint breaths soften the dissolve above. The mouse drags the whole
+   bank sideways — move right and it streams right, move left and it flows
+   left — parting around a fast pointer, then springing flat again
+   (re-settle). A hard ceiling (canvas clip + clamped surface) guarantees
+   the fog can never climb past ceilingFrac — it stays at his feet and can
+   never reach his hips. Everything is painted warm-white and
+   screen-blended, so it glows over the dark stage instead of graying out;
+   true black can never appear. */
 
 const LAYER_FRAC = 0.16; // resting sheet thickness, fraction of container height
 const COL_STEP = 4; // px between surface samples (CSS px)
@@ -47,70 +47,7 @@ export function FogSettled({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    /* ---- tileable fbm noise strip: wispy light/shadow carved into the body.
-       Tileable in x so it scrolls seamlessly; stretched vertically so the
-       grain runs in horizontal strata, like real settled fog. ---- */
-    const strip = (() => {
-      const NW = 1024;
-      const NH = 160;
-      const cv = document.createElement("canvas");
-      cv.width = NW;
-      cv.height = NH;
-      const cx = cv.getContext("2d");
-      if (!cx) return cv;
-      const img = cx.createImageData(NW, NH);
-      const d = img.data;
-      const octaves = [
-        { ox: 5, oy: 3, amp: 0.45 },
-        { ox: 10, oy: 6, amp: 0.27 },
-        { ox: 21, oy: 12, amp: 0.17 },
-        { ox: 43, oy: 24, amp: 0.11 },
-      ];
-      const grids = octaves.map((o) => {
-        const w = o.ox + 1;
-        const h = o.oy + 1;
-        const g = new Float32Array(w * h);
-        for (let i = 0; i < g.length; i++) g[i] = Math.random();
-        // wrap column ox onto column 0 so the strip tiles seamlessly in x
-        for (let r = 0; r < h; r++) g[r * w + o.ox] = g[r * w];
-        return { ...o, w, g };
-      });
-      const sm = (t: number) => t * t * (3 - 2 * t);
-      for (let y = 0; y < NH; y++) {
-        const v = y / NH;
-        for (let x = 0; x < NW; x++) {
-          const u = x / NW;
-          let n = 0;
-          for (const o of grids) {
-            const gx = u * o.ox;
-            const gy = v * o.oy;
-            const x0 = Math.floor(gx) % o.ox;
-            const fx = gx - Math.floor(gx);
-            const y0 = Math.min(o.oy - 1, Math.floor(gy));
-            const fy = gy - Math.floor(gy);
-            const x1 = x0 + 1;
-            const y1 = y0 + 1;
-            const w = o.w;
-            const v00 = o.g[y0 * w + x0];
-            const v10 = o.g[y0 * w + x1];
-            const v01 = o.g[y1 * w + x0];
-            const v11 = o.g[y1 * w + x1];
-            const sx = sm(fx);
-            const sy = sm(fy);
-            n += o.amp * (v00 * (1 - sx) * (1 - sy) + v10 * sx * (1 - sy) + v01 * (1 - sx) * sy + v11 * sx * sy);
-          }
-          const vv = Math.max(0, Math.min(255, Math.round(n * 255)));
-          const idx = (y * NW + x) * 4;
-          d[idx] = vv;
-          d[idx + 1] = vv;
-          d[idx + 2] = vv;
-          d[idx + 3] = 255;
-        }
-      }
-      cx.putImageData(img, 0, 0);
-      return cv;
-    })();
-
+    
     /* ---- soft tendril sprite (stretched vertically at draw time) ---- */
     const wisp = (() => {
       const s = 64;
@@ -128,7 +65,7 @@ export function FogSettled({
       return cv;
     })();
 
-    /* ---- offscreen layer: body + texture + crest + tendrils composite here
+    /* ---- offscreen layer: diffuse strips + faint breath composite here
        with normal blending, then screen-blitted onto the page in one go ---- */
     const layer = document.createElement("canvas");
     const lctx = layer.getContext("2d");
@@ -194,7 +131,6 @@ export function FogSettled({
       const ceilY = H * (1 - ceilingFrac); // hard ceiling, px from top
       const baseY = H - layerH; // resting surface line
       const lumpAmp = layerH * 0.35; // large-swell amplitude
-      const surfTop = baseY - lumpAmp; // highest the surface normally reaches
 
       /* smoothed pointer velocity */
       if (hasP && !reduce) {
@@ -263,57 +199,49 @@ export function FogSettled({
       lctx.clearRect(0, 0, W, H);
       const b = brightness;
 
-      // body: one continuous fill from the living surface down to the floor
-      const body = new Path2D();
-      body.moveTo(0, surf[0]);
-      for (let i = 1; i < n; i++) body.lineTo(i * COL_STEP, surf[i]);
-      body.lineTo(W, H + 2);
-      body.lineTo(0, H + 2);
-      body.closePath();
-      const g = lctx.createLinearGradient(0, surfTop, 0, H);
-      g.addColorStop(0.0, "rgba(255,251,243,0)");
-      g.addColorStop(0.14, `rgba(255,251,243,${0.5 * b})`);
-      g.addColorStop(0.38, `rgba(255,250,240,${0.66 * b})`);
-      g.addColorStop(0.72, `rgba(255,249,238,${0.58 * b})`);
-      g.addColorStop(1.0, `rgba(250,243,230,${0.42 * b})`);
-      lctx.fillStyle = g;
-      lctx.fill(body);
+      // DIFFUSE body: every column is its own feathered strip — alpha is
+      // exactly 0 at the strip's top, swelling to a soft peak lower down —
+      // so no silhouette can ever form. A slow wisp field breaks the band
+      // into drifting wisps and gaps instead of one solid stripe.
+      const wispAt = (x: number) => {
+        const u = (x - shift) * 0.006;
+        const nn =
+          Math.sin(u * 1.0 + t * 0.13) * 0.42 +
+          Math.sin(u * 2.17 + 1.7 + t * 0.09) * 0.33 +
+          Math.sin(u * 4.31 + 4.2 + t * 0.05) * 0.25;
+        return Math.max(0, Math.min(1, 0.5 + nn * 0.5));
+      };
 
-      // wispy texture carved into the body — scrolls with the flow
-      lctx.save();
-      lctx.clip(body);
-      lctx.globalCompositeOperation = "soft-light";
-      lctx.globalAlpha = 0.62;
-      const tileW = Math.max(720, W * 0.85);
-      const wrapped = ((shift % tileW) + tileW) % tileW;
-      for (let sx = wrapped - tileW; sx < W; sx += tileW) {
-        lctx.drawImage(strip, sx, surfTop, tileW, H - surfTop);
+      const feather = layerH * 1.1; // how far the dissolve reaches above the surface
+      for (let i = 0; i < n; i++) {
+        const x0 = i * COL_STEP;
+        const s = surf[i];
+        const w = wispAt(x0);
+        const peak = (0.18 + 0.34 * w) * b;
+        if (peak <= 0.004) continue;
+        const top = Math.max(ceilY, s - feather * (0.75 + 0.5 * wispAt(x0 + 311)));
+        const hh = H - top;
+        if (hh <= 0) continue;
+        const g = lctx.createLinearGradient(0, top, 0, H);
+        g.addColorStop(0.0, "rgba(255,251,243,0)");
+        g.addColorStop(0.45, `rgba(255,250,240,${(peak * 0.8).toFixed(3)})`);
+        g.addColorStop(0.75, `rgba(255,249,238,${peak.toFixed(3)})`);
+        g.addColorStop(1.0, `rgba(250,243,230,${(peak * 0.75).toFixed(3)})`);
+        lctx.fillStyle = g;
+        lctx.fillRect(x0, top, COL_STEP + 1, hh);
       }
-      lctx.restore();
 
-      // lit crest hugging the surface — the top edge catches the stage light
-      const crestH = layerH * 0.3;
-      const crest = new Path2D();
-      crest.moveTo(0, surf[0]);
-      for (let i = 1; i < n; i++) crest.lineTo(i * COL_STEP, surf[i]);
-      for (let i = n - 1; i >= 0; i--) crest.lineTo(i * COL_STEP, surf[i] + crestH);
-      crest.closePath();
-      const cg = lctx.createLinearGradient(0, surfTop, 0, surfTop + crestH);
-      cg.addColorStop(0, `rgba(255,255,255,${0.32 * b})`);
-      cg.addColorStop(1, "rgba(255,255,255,0)");
-      lctx.fillStyle = cg;
-      lctx.fill(crest);
-
-      // tendrils breathing above the surface — capped at the ceiling
+      // whisper-faint breath above the dissolve — softens the top without
+      // ever reading as shapes; capped far below the ceiling
       for (let i = 0; i < WISPS; i++) {
         const fx = (i + 0.5) / WISPS;
-        const wx = fx * W + Math.sin(t * 0.45 + i * 2.4) * 22 + dragX * 0.4;
+        const wx = fx * W + Math.sin(t * 0.4 + i * 2.4) * 26 + dragX * 0.4;
         const syy = surfAt(Math.max(0, Math.min(W - 1, wx)));
-        const wh = layerH * (0.3 + 0.2 * Math.sin(i * 3.7 + 1)) * (0.85 + 0.3 * Math.sin(t * 0.6 + i * 1.9));
-        const top = Math.max(ceilY, syy - wh);
-        const ww = 30 + 14 * Math.sin(i * 7.1 + 2);
-        lctx.globalAlpha = Math.max(0.04, 0.11 + 0.05 * Math.sin(t * 0.8 + i * 2.2)) * b;
-        lctx.drawImage(wisp, wx - ww / 2, top, ww, syy - top);
+        const wh = layerH * 0.32 * (0.8 + 0.4 * Math.sin(t * 0.5 + i * 1.9));
+        const wtop = Math.max(ceilY, syy - wh);
+        const ww = 60 + 20 * Math.sin(i * 7.1 + 2);
+        lctx.globalAlpha = Math.max(0.02, 0.05 + 0.025 * Math.sin(t * 0.7 + i * 2.2)) * b;
+        lctx.drawImage(wisp, wx - ww / 2, wtop, ww, syy - wtop);
       }
       lctx.globalAlpha = 1;
 
