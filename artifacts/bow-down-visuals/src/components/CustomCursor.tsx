@@ -434,25 +434,6 @@ function Gamepad() {
   );
 }
 
-function Wand() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [sparkle, setSparkle] = useState(0);
-  useMousePosition(ref);
-  useEffect(() => {
-    const down = () => setSparkle(s => s + 1);
-    window.addEventListener("mousedown", down);
-    return () => window.removeEventListener("mousedown", down);
-  }, []);
-  return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -6, marginTop: -6 }}>
-      <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: "rotate(-30deg)", filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <path d="M6 26 L 22 10" stroke="#8a6d2b" strokeWidth="3" strokeLinecap="round" />
-        <path d="M22 10 L 24 4 L 26 10 L 30 12 L 26 14 L 24 20 L 22 14 L 18 12 Z" fill="#e8c86a" />
-      </svg>
-      {sparkle > 0 && <span key={sparkle} className="absolute top-0 right-0 text-[#e8c86a] animate-ping">✦</span>}
-    </div>
-  );
-}
 
 function Camera() {
   const ref = useRef<HTMLDivElement>(null);
@@ -475,34 +456,7 @@ function Camera() {
   );
 }
 
-function Anchor() {
-  const ref = useRef<HTMLDivElement>(null);
-  useMousePosition(ref);
-  return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
-      <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <circle cx="16" cy="6" r="4" fill="none" stroke="#C9A84C" strokeWidth="2.5" />
-        <path d="M16 10 L 16 30 M8 22 C 8 28, 12 32, 16 32 C 20 32, 24 28, 24 22" fill="none" stroke="#C9A84C" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M8 22 L 5 20 M8 22 L 5 24 M24 22 L 27 20 M24 22 L 27 24" stroke="#e8c86a" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    </div>
-  );
-}
 
-function Compass() {
-  const ref = useRef<HTMLDivElement>(null);
-  const hovering = useHoverState();
-  useMousePosition(ref);
-  return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -18 }}>
-      <svg width="36" height="36" viewBox="0 0 36 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
-        <circle cx="18" cy="18" r="15" fill="#0a0a0a" stroke="#C9A84C" strokeWidth="2" />
-        <path d="M18 8 L 21 18 L 18 28 L 15 18 Z" fill="#e8c86a" className={hovering ? "" : "animate-spin"} style={{ animationDuration: "3s", transformOrigin: "18px 18px" }} />
-        <circle cx="18" cy="18" r="2" fill="#C9A84C" />
-      </svg>
-    </div>
-  );
-}
 
 export function CustomCursor() {
   const { cursor, isTouch } = useCursorState();
@@ -543,10 +497,7 @@ export function CustomCursor() {
       {cursor === "crosshair" && <Crosshair />}
       {cursor === "music-note" && <MusicNote />}
       {cursor === "gamepad" && <Gamepad />}
-      {cursor === "wand" && <Wand />}
       {cursor === "camera" && <Camera />}
-      {cursor === "anchor" && <Anchor />}
-      {cursor === "compass" && <Compass />}
     </>
   );
 }

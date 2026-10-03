@@ -146,39 +146,12 @@ function CursorPreview({ id }: { id: CursorId }) {
           </svg>
         </div>
       );
-    case "wand":
-      return (
-        <div className={base}>
-          <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: "rotate(-30deg)" }} className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <path d="M6 26 L 22 10" stroke="#8a6d2b" strokeWidth="3" strokeLinecap="round" />
-            <path d="M22 10 L 24 4 L 26 10 L 30 12 L 26 14 L 24 20 L 22 14 L 18 12 Z" fill="#e8c86a" />
-          </svg>
-        </div>
-      );
     case "camera":
       return (
         <div className={base}>
           <svg width="36" height="28" viewBox="0 0 36 28" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
             <rect x="2" y="8" width="32" height="18" rx="4" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
             <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1.5" />
-          </svg>
-        </div>
-      );
-    case "anchor":
-      return (
-        <div className={base}>
-          <svg width="32" height="36" viewBox="0 0 32 36" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <circle cx="16" cy="6" r="4" fill="none" stroke="#C9A84C" strokeWidth="2.5" />
-            <path d="M16 10 L 16 30 M8 22 C 8 28, 12 32, 16 32 C 20 32, 24 28, 24 22" fill="none" stroke="#C9A84C" strokeWidth="2.5" strokeLinecap="round" />
-          </svg>
-        </div>
-      );
-    case "compass":
-      return (
-        <div className={base}>
-          <svg width="36" height="36" viewBox="0 0 36 36" className="drop-shadow-[0_0_8px_rgba(201,168,76,0.8)]">
-            <circle cx="18" cy="18" r="15" fill="#0a0a0a" stroke="#C9A84C" strokeWidth="2" />
-            <path d="M18 8 L 21 18 L 18 28 L 15 18 Z" fill="#e8c86a" />
           </svg>
         </div>
       );
