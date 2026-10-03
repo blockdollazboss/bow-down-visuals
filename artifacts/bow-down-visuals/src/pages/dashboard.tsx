@@ -14,6 +14,7 @@ import { StudioPipeline } from "@/components/StudioPipeline";
 import { usePageTitle } from "@/hooks/use-page-title";
 import SpotlightBanner from "@/components/SpotlightBanner";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
+import StreakWidget from "@/components/StreakWidget";
 
 
 /* ─────────────────────── TYPES ─────────────────────── */
@@ -323,6 +324,7 @@ export default function Dashboard() {
         {/* ── SPOTLIGHT TAKEOVER PROMO (ad slot for sale) ── */}
         <SpotlightBanner />
         <ExtensionPromoBanner />
+        <StreakWidget />
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}
         {activeArtist ? (() => {
