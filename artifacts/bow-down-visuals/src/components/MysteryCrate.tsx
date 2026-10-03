@@ -257,14 +257,14 @@ export function MysteryCrate() {
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-          onClick={() => phase === "closed" && setOpen(false)}
+          onClick={() => setOpen(false)}
         >
           <div
             className="relative w-full max-w-md rounded-2xl border border-[#c9a84c]/40 bg-[#0d0d0d] p-6 text-center shadow-[0_0_60px_rgba(201,168,76,0.25)]"
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              onClick={() => phase === "closed" && setOpen(false)}
+              onClick={() => setOpen(false)}
               aria-label="Close"
               className="absolute top-3 right-3 text-muted-foreground hover:text-white"
             >
