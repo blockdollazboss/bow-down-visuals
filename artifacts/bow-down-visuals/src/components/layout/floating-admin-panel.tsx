@@ -267,8 +267,8 @@ function CopyArtists({
     setMsg(null);
     try {
       const token = await getAccessToken();
-      // 1. Fetch vaults from staging (browser has staging auth)
-      const stagingRes = await fetch("https://bow-down-visuals-staging.onrender.com/api/artist-vaults", {
+      // 1. Fetch vaults from staging via the gate-bypassed admin export endpoint
+      const stagingRes = await fetch("https://bow-down-visuals-staging.onrender.com/api/admin/export-my-artists", {
         headers: { Authorization: `Bearer ${token ?? ""}` },
         credentials: "include",
       });
