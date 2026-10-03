@@ -125,9 +125,21 @@ export default function ExtensionPromoModal() {
             <p className="text-sm text-[#e8c86a]">✓ App installed — nice.</p>
           )}
 
+          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-left">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#e8c86a]">
+              Install in 30 seconds:
+            </p>
+            <ol className="mt-1.5 space-y-1 text-xs text-white/60">
+              <li>1. Download the .zip above</li>
+              <li>2. Unzip it anywhere</li>
+              <li>3. Chrome → chrome://extensions → Developer mode ON</li>
+              <li>4. "Load unpacked" → pick the unzipped folder</li>
+            </ol>
+          </div>
+
           <Link href="/extension" onClick={close} className="block text-sm text-[#e8c86a] hover:underline">
             <Download className="mr-1 inline h-3.5 w-3.5" />
-            Install guide &amp; details
+            Full guide &amp; details
           </Link>
         </div>
 
