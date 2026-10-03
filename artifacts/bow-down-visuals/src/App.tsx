@@ -21,7 +21,7 @@ import { CheatCodeEasterEgg } from "@/components/cheat-code-easter-egg";
 import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
 import { DailyBonusModal } from "@/components/DailyBonusModal";
 import ExtensionPromoModal from "@/components/ExtensionPromoModal";
-import { MysteryBox } from "@/components/MysteryBox";
+import { MysteryCrate } from "@/components/MysteryCrate";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
@@ -363,7 +363,7 @@ function AppShell() {
       {typeof window !== "undefined" && <CheatCodeJackpot />}
       {typeof window !== "undefined" && <DailyBonusModal />}
       {typeof window !== "undefined" && <ExtensionPromoModal />}
-      {typeof window !== "undefined" && <MysteryBox />}
+      {typeof window !== "undefined" && <MysteryCrate />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>

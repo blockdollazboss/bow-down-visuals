@@ -23,12 +23,12 @@ interface BonusStatus {
 type BoxPhase = "closed" | "shaking" | "opening" | "revealed";
 
 /**
- * Thy Cheat Code's Mystery Box. A golden crate floats bottom-left on every
- * page (when signed in); tapping it pops up the hourly mystery box modal.
+ * Thy Cheat Code's Mystery Crate. A golden crate floats bottom-left on every
+ * page (when signed in); tapping it pops up the hourly mystery crate modal.
  * Tap the crate → it shakes → bursts open with golden light → prize revealed.
  * Uses the same /api/bonus/spin-wheel backend (weighted random prize).
  */
-export function MysteryBox() {
+export function MysteryCrate() {
   const { user, getAccessToken } = useAuth();
   const [location] = useLocation();
 
@@ -129,6 +129,14 @@ export function MysteryBox() {
     
     return (
       <div className="relative w-56 h-56 mx-auto">
+        {/* Floating question marks — the mystery feel */}
+        {!isOpening && (
+          <>
+            <span className="absolute top-2 left-8 text-2xl text-[#c9a84c]/60 animate-[float_2.5s_ease-in-out_infinite]">?</span>
+            <span className="absolute top-6 right-6 text-xl text-[#c9a84c]/40 animate-[float_3s_ease-in-out_infinite] [animation-delay:0.5s]">?</span>
+            <span className="absolute top-12 left-4 text-lg text-[#c9a84c]/30 animate-[float_2s_ease-in-out_infinite] [animation-delay:1s]">?</span>
+          </>
+        )}
         {/* Golden light burst when opening */}
         {isOpening && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -218,10 +226,10 @@ export function MysteryBox() {
   return (
     <>
       {/* Floating button — draggable */}
-      <DraggableWidget id="mystery-box-button" defaultAnchor={{ x: 0.06, y: 0.92 }} zIndex={40}>
+      <DraggableWidget id="mystery-crate-button" defaultAnchor={{ x: 0.06, y: 0.92 }} zIndex={40}>
         <button
           onClick={() => setOpen(true)}
-          aria-label="Open mystery box"
+          aria-label="Open mystery crate"
           className={`w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 ${
             ready
               ? "bg-gradient-to-br from-[#ffd700] to-[#8a6d2f] animate-[pulse_1.6s_ease-in-out_infinite] shadow-[0_0_24px_rgba(255,215,0,0.55)] border-2 border-[#fff]/30"
@@ -263,9 +271,9 @@ export function MysteryBox() {
               <X className="h-5 w-5" />
             </button>
 
-            <h2 className="text-2xl font-bold text-[#c9a84c] mb-1">📦 Mystery Box</h2>
+            <h2 className="text-2xl font-bold text-[#c9a84c] mb-1">📦 Mystery Crate</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Free box every hour. Every box holds Visual Bucs.
+              Free crate every hour. Every crate holds Visual Bucs.
             </p>
 
             {status?.canClaimDaily && (
@@ -280,7 +288,7 @@ export function MysteryBox() {
               ) : loadError ? (
                 <div className="w-56 h-56 mx-auto rounded-2xl border-4 border-[#c9a84c]/30 flex flex-col items-center justify-center gap-3 p-8">
                   <p className="text-sm text-muted-foreground">
-                    Couldn't load the Mystery Box. Check your connection and try again.
+                    Couldn't load the Mystery Crate. Check your connection and try again.
                   </p>
                   <Button
                     onClick={() => loadStatus()}
@@ -317,11 +325,11 @@ export function MysteryBox() {
               ) : !prizesLoaded ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Loading…</>
               ) : cooldown > 0 ? (
-                <><Timer className="h-5 w-5 mr-2" /> Next box in {formatCooldown(cooldown)}</>
+                <><Timer className="h-5 w-5 mr-2" /> Next crate in {formatCooldown(cooldown)}</>
               ) : phase === "revealed" ? (
-                <><Package className="h-5 w-5 mr-2" /> Open Another</>
+                <><Package className="h-5 w-5 mr-2" /> Open Another Crate</>
               ) : (
-                <><Package className="h-5 w-5 mr-2" /> OPEN THE BOX</>
+                <><Package className="h-5 w-5 mr-2" /> OPEN THE CRATE</>
               )}
             </Button>
 
