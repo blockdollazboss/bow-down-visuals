@@ -317,6 +317,193 @@ function MoneyBag() {
   );
 }
 
+
+function GoldKey() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [turn, setTurn] = useState(false);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setTurn(true);
+    const up = () => setTurn(false);
+    window.addEventListener("mousedown", down);
+    window.addEventListener("mouseup", up);
+    return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -8, marginTop: -8 }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: turn ? "rotate(45deg)" : "rotate(0deg)", transition: "transform 0.2s", filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <circle cx="10" cy="10" r="6" fill="none" stroke="#C9A84C" strokeWidth="3" />
+        <path d="M14 14 L 26 26 M22 22 L 26 18 M24 24 L 28 20" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function Trophy() {
+  const ref = useRef<HTMLDivElement>(null);
+  const hovering = useHoverState();
+  useMousePosition(ref);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
+      <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: hovering ? "drop-shadow(0 0 14px rgba(232,200,106,1))" : "drop-shadow(0 0 8px rgba(201,168,76,0.7))", transform: hovering ? "scale(1.15)" : "scale(1)", transition: "all 0.15s" }}>
+        <path d="M10 4 L 22 4 L 20 18 L 12 18 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+        <path d="M10 6 C 4 6, 4 14, 10 14 M22 6 C 28 6, 28 14, 22 14" fill="none" stroke="#C9A84C" strokeWidth="2" />
+        <rect x="14" y="18" width="4" height="8" fill="#C9A84C" />
+        <rect x="10" y="26" width="12" height="4" rx="2" fill="#e8c86a" />
+      </svg>
+    </div>
+  );
+}
+
+function Rocket() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [launch, setLaunch] = useState(0);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setLaunch(l => l + 1);
+    window.addEventListener("mousedown", down);
+    return () => window.removeEventListener("mousedown", down);
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -14, marginTop: -18 }}>
+      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <path d="M14 2 C 20 8, 22 16, 20 24 L 14 22 L 8 24 C 6 16, 8 8, 14 2 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+        <circle cx="14" cy="12" r="3" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1" />
+        <path d="M8 24 L 4 30 L 10 28 M20 24 L 24 30 L 18 28" fill="#e8c86a" opacity="0.8" />
+      </svg>
+      {launch > 0 && <span key={launch} className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-orange-400 animate-ping">🔥</span>}
+    </div>
+  );
+}
+
+function Crosshair() {
+  const ref = useRef<HTMLDivElement>(null);
+  const hovering = useHoverState();
+  useMousePosition(ref);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+      <svg width="40" height="40" viewBox="0 0 40 40" style={{ transform: hovering ? "scale(0.85)" : "scale(1)", transition: "transform 0.15s", filter: "drop-shadow(0 0 6px rgba(201,168,76,0.8))" }}>
+        <circle cx="20" cy="20" r="14" fill="none" stroke="#C9A84C" strokeWidth="2" />
+        <circle cx="20" cy="20" r="3" fill="#e8c86a" />
+        <path d="M20 2 L 20 10 M20 30 L 20 38 M2 20 L 10 20 M30 20 L 38 20" stroke="#C9A84C" strokeWidth="2" />
+      </svg>
+    </div>
+  );
+}
+
+function MusicNote() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [play, setPlay] = useState(0);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setPlay(p => p + 1);
+    window.addEventListener("mousedown", down);
+    return () => window.removeEventListener("mousedown", down);
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -12, marginTop: -16 }}>
+      <svg width="28" height="36" viewBox="0 0 28 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <path d="M10 28 C 10 32, 4 32, 4 28 C 4 24, 10 24, 10 28 M10 28 L 10 6 L 24 2 L 24 24" fill="none" stroke="#C9A84C" strokeWidth="3" strokeLinecap="round" />
+        <ellipse cx="7" cy="28" rx="5" ry="4" fill="#C9A84C" />
+        <ellipse cx="21" cy="24" rx="5" ry="4" fill="#e8c86a" />
+      </svg>
+      {play > 0 && <span key={play} className="absolute -top-2 -right-2 text-[#e8c86a] animate-ping">♪</span>}
+    </div>
+  );
+}
+
+function Gamepad() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [rumble, setRumble] = useState(false);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setRumble(true);
+    const up = () => setRumble(false);
+    window.addEventListener("mousedown", down);
+    window.addEventListener("mouseup", up);
+    return () => { window.removeEventListener("mousedown", down); window.removeEventListener("mouseup", up); };
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -14 }}>
+      <svg width="40" height="28" viewBox="0 0 40 28" className={rumble ? "animate-bounce" : ""} style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <path d="M8 4 L 32 4 C 36 4, 38 10, 36 16 L 34 24 C 33 27, 28 27, 27 24 L 26 20 L 14 20 L 13 24 C 12 27, 7 27, 6 24 L 4 16 C 2 10, 4 4, 8 4 Z" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+        <circle cx="12" cy="12" r="2" fill="#0a0a0a" /><circle cx="28" cy="12" r="2" fill="#0a0a0a" />
+        <path d="M18 10 L 22 10 M20 8 L 20 12" stroke="#0a0a0a" strokeWidth="1.5" />
+      </svg>
+    </div>
+  );
+}
+
+function Wand() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [sparkle, setSparkle] = useState(0);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setSparkle(s => s + 1);
+    window.addEventListener("mousedown", down);
+    return () => window.removeEventListener("mousedown", down);
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -6, marginTop: -6 }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" style={{ transform: "rotate(-30deg)", filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <path d="M6 26 L 22 10" stroke="#8a6d2b" strokeWidth="3" strokeLinecap="round" />
+        <path d="M22 10 L 24 4 L 26 10 L 30 12 L 26 14 L 24 20 L 22 14 L 18 12 Z" fill="#e8c86a" />
+      </svg>
+      {sparkle > 0 && <span key={sparkle} className="absolute top-0 right-0 text-[#e8c86a] animate-ping">✦</span>}
+    </div>
+  );
+}
+
+function Camera() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [flash, setFlash] = useState(0);
+  useMousePosition(ref);
+  useEffect(() => {
+    const down = () => setFlash(f => f + 1);
+    window.addEventListener("mousedown", down);
+    return () => window.removeEventListener("mousedown", down);
+  }, []);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -14 }}>
+      <svg width="36" height="28" viewBox="0 0 36 28" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <rect x="2" y="8" width="32" height="18" rx="4" fill="#C9A84C" stroke="#e8c86a" strokeWidth="1" />
+        <circle cx="18" cy="17" r="6" fill="#0a0a0a" stroke="#e8c86a" strokeWidth="1.5" />
+        <rect x="12" y="4" width="8" height="4" rx="1" fill="#8a6d2b" />
+      </svg>
+      {flash > 0 && <div key={flash} className="absolute inset-0 bg-white/80 rounded animate-ping" />}
+    </div>
+  );
+}
+
+function Anchor() {
+  const ref = useRef<HTMLDivElement>(null);
+  useMousePosition(ref);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -18 }}>
+      <svg width="32" height="36" viewBox="0 0 32 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <circle cx="16" cy="6" r="4" fill="none" stroke="#C9A84C" strokeWidth="2.5" />
+        <path d="M16 10 L 16 30 M8 22 C 8 28, 12 32, 16 32 C 20 32, 24 28, 24 22" fill="none" stroke="#C9A84C" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M8 22 L 5 20 M8 22 L 5 24 M24 22 L 27 20 M24 22 L 27 24" stroke="#e8c86a" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function Compass() {
+  const ref = useRef<HTMLDivElement>(null);
+  const hovering = useHoverState();
+  useMousePosition(ref);
+  return (
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -18, marginTop: -18 }}>
+      <svg width="36" height="36" viewBox="0 0 36 36" style={{ filter: "drop-shadow(0 0 8px rgba(201,168,76,0.8))" }}>
+        <circle cx="18" cy="18" r="15" fill="#0a0a0a" stroke="#C9A84C" strokeWidth="2" />
+        <path d="M18 8 L 21 18 L 18 28 L 15 18 Z" fill="#e8c86a" className={hovering ? "" : "animate-spin"} style={{ animationDuration: "3s", transformOrigin: "18px 18px" }} />
+        <circle cx="18" cy="18" r="2" fill="#C9A84C" />
+      </svg>
+    </div>
+  );
+}
+
 export function CustomCursor() {
   const { cursor, isTouch } = useCursorState();
   const [hideNative, setHideNative] = useState(false);
@@ -350,6 +537,16 @@ export function CustomCursor() {
       {cursor === "diamond" && <Diamond />}
       {cursor === "star" && <Star />}
       {cursor === "money-bag" && <MoneyBag />}
+      {cursor === "gold-key" && <GoldKey />}
+      {cursor === "trophy" && <Trophy />}
+      {cursor === "rocket" && <Rocket />}
+      {cursor === "crosshair" && <Crosshair />}
+      {cursor === "music-note" && <MusicNote />}
+      {cursor === "gamepad" && <Gamepad />}
+      {cursor === "wand" && <Wand />}
+      {cursor === "camera" && <Camera />}
+      {cursor === "anchor" && <Anchor />}
+      {cursor === "compass" && <Compass />}
     </>
   );
 }

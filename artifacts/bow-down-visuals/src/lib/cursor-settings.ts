@@ -12,7 +12,17 @@ export type CursorId =
   | "flame"
   | "diamond"
   | "star"
-  | "money-bag";
+  | "money-bag"
+  | "gold-key"
+  | "trophy"
+  | "rocket"
+  | "crosshair"
+  | "music-note"
+  | "gamepad"
+  | "wand"
+  | "camera"
+  | "anchor"
+  | "compass";
 
 const KEY = "bdv-cursor-choice";
 
@@ -67,6 +77,16 @@ export const CURSOR_OPTIONS: { id: CursorId; name: string; description: string }
     name: "Money Bag",
     description: "Get to the bag. A gold money bag that rains coins on click.",
   },
+  { id: "gold-key", name: "Gold Key", description: "Unlock the cheat code. A golden key that turns on click." },
+  { id: "trophy", name: "Trophy", description: "Winner's cursor. A gold trophy that shines on hover." },
+  { id: "rocket", name: "Rocket", description: "Take off. A gold rocket that launches on click." },
+  { id: "crosshair", name: "Crosshair", description: "Target your goals. Precision crosshair, locks on hover." },
+  { id: "music-note", name: "Music Note", description: "For the hitmakers. A gold note that plays on click." },
+  { id: "gamepad", name: "Game Controller", description: "Cheat code gaming. A retro controller that rumbles on click." },
+  { id: "wand", name: "Magic Wand", description: "Cheat code magic. A wand that sparkles on click." },
+  { id: "camera", name: "Camera", description: "Content creator. A gold camera that flashes on click." },
+  { id: "anchor", name: "Anchor", description: "Stay grounded. A heavy gold anchor from the shark's depths." },
+  { id: "compass", name: "Compass", description: "Find your way to the money. Needle spins, points north on hover." },
 ];
 
 export function getCursorChoice(): CursorId {
