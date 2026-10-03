@@ -8,7 +8,7 @@ import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from 
 /* Visual preview of each cursor — rendered statically in the selection card
    so visitors can see what they're picking without clicking first. */
 function CursorPreview({ id }: { id: CursorId }) {
-  const base = "flex items-center justify-center h-20 rounded-xl bg-black/40 border border-white/5 mb-4";
+  const base = "flex items-center justify-center h-14 rounded-lg bg-black/40 border border-white/5 mb-2";
   switch (id) {
     case "shark-fin":
       return (
@@ -190,22 +190,22 @@ export default function CursorLab() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-8">
         {CURSOR_OPTIONS.map((c) => (
           <button
             key={c.id}
             onClick={() => choose(c.id)}
-            className={`text-left rounded-2xl border p-6 transition-all ${
+            className={`text-left rounded-xl border p-3 transition-all ${
               active === c.id
-                ? "border-[#C9A84C] bg-[#C9A84C]/10 shadow-[0_0_30px_rgba(201,168,76,0.3)]"
+                ? "border-[#C9A84C] bg-[#C9A84C]/10 shadow-[0_0_20px_rgba(201,168,76,0.25)]"
                 : "border-white/10 bg-white/[0.03] hover:border-white/25"
             }`}
           >
             <CursorPreview id={c.id} />
-            <h3 className="text-xl font-bold text-[#e8c86a] mb-2">{c.name}</h3>
-            <p className="text-sm text-white/60">{c.description}</p>
-            <p className="text-xs mt-3 font-bold ${active === c.id ? 'text-[#e8c86a]' : 'text-white/40'}">
-              {active === c.id ? "✓ Active" : "Click to select"}
+            <h3 className="text-sm font-bold text-[#e8c86a] mb-1 truncate">{c.name}</h3>
+            <p className="text-[11px] text-white/50 line-clamp-2 leading-tight">{c.description}</p>
+            <p className={`text-[10px] mt-2 font-bold ${active === c.id ? 'text-[#e8c86a]' : 'text-white/30'}`}>
+              {active === c.id ? "✓ Active" : "Select"}
             </p>
           </button>
         ))}
