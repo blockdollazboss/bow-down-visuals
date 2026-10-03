@@ -144,7 +144,7 @@ export default function Extension() {
               className="flex items-center justify-center gap-2 w-full h-13 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#e8c86a] px-8 py-4 text-black font-bold text-lg hover:brightness-110 transition shadow-[0_0_30px_rgba(201,168,76,0.3)]"
             >
               <Download className="h-5 w-5" />
-              Download for Chrome — v2.0
+              Download for Chrome — v2.0.1
             </a>
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-left">
               <p className="font-semibold text-sm mb-2">Load it in 30 seconds:</p>
