@@ -58,13 +58,13 @@ const GUIDE_STEPS = [
   { title: "Unzip it", body: "Double-click the zip (Mac) or right-click → Extract all (Windows). You'll get a folder called bow-down-visuals-extension-v2." },
   { title: "Open chrome://extensions", body: "Type chrome://extensions in your address bar and hit Enter." },
   { title: "Turn on Developer mode", body: "Top-right corner toggle. This lets Chrome load extensions from a folder." },
-  { title: "Click “Load unpacked”", body: "Select the unzipped bow-down-visuals-extension-v2 folder. The 🦈 icon appears in your toolbar." },
+  { title: "Click “Load unpacked”", body: "Select the unzipped bow-down-visuals-extension-v2 folder. The extension icon appears in your toolbar." },
   { title: "Pin it", body: "Click the puzzle-piece icon in Chrome's toolbar and pin Thy Cheat Code so it's always one click away." },
   { title: "Sign in on the site", body: "Open bowdownvisuals.com and sign in first — the extension reuses your site session for credits, bonuses and referrals." },
 ];
 
 const GUIDE_FIXES = [
-  { q: "The 🦈 icon isn't in my toolbar", a: "Click the puzzle-piece icon (Extensions menu) in Chrome's toolbar and pin “Bow Down Visuals — Content Creator Cheat Code”." },
+  { q: "The  icon isn't in my toolbar", a: "Click the puzzle-piece icon (Extensions menu) in Chrome's toolbar and pin “Bow Down Visuals — Content Creator Cheat Code”." },
   { q: "“You're not signed in”", a: "Open bowdownvisuals.com in a Chrome tab and sign in, then click the extension icon again. The extension borrows your site session." },
   { q: "Chrome blocked the install", a: "You must use “Load unpacked” with Developer mode on — don't drag the zip into Chrome. Unzip first, then select the folder." },
 ];
@@ -100,7 +100,7 @@ export default function Extension() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error === "duplicate_email" ? "You're already on the list. 🦈" : (data.message || data.error || "Something went wrong."));
+        setError(data.error === "duplicate_email" ? "You're already on the list. " : (data.message || data.error || "Something went wrong."));
         setState("error");
         return;
       }
@@ -162,7 +162,7 @@ export default function Extension() {
             {state === "done" ? (
               <div className="rounded-2xl border border-[#C9A84C]/40 bg-[#C9A84C]/10 p-6 text-center">
                 <Check className="h-8 w-8 text-[#e8c86a] mx-auto mb-2" />
-                <p className="font-semibold text-lg">You're on the list. 🦈</p>
+                <p className="font-semibold text-lg">You're on the list. </p>
                 <p className="text-white/60 text-sm mt-1">We'll email you the install link the day it launches.</p>
               </div>
             ) : (

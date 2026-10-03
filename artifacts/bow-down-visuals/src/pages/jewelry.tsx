@@ -241,7 +241,7 @@ export default function JewelryStudio() {
       setConsultMsgs((m) => [...m, { role: "assistant", content: data.reply }]);
       void refreshProfile();
     } catch {
-      setConsultMsgs((m) => [...m, { role: "assistant", content: "My fins slipped — try that again? 🦈" }]);
+      setConsultMsgs((m) => [...m, { role: "assistant", content: "My fins slipped — try that again?" }]);
     } finally {
       setConsultBusy(false);
     }
@@ -792,7 +792,7 @@ export default function JewelryStudio() {
                 : <>Continue <ArrowRight className="h-4 w-4" /></>}
             </button>
           ) : (
-            <div className="text-sm text-zinc-500">🦈 The King Shark approves.</div>
+            <div className="text-sm text-zinc-500"> The King Shark approves.</div>
           )}
         </div>
       </div>
@@ -809,7 +809,7 @@ export default function JewelryStudio() {
         <div className="fixed bottom-24 right-6 z-30 flex h-[480px] w-[calc(100vw-3rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-yellow-500/30 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-yellow-500/20 bg-yellow-500/10 px-4 py-3">
             <div>
-              <div className="text-sm font-bold text-yellow-200">🦈 Jewelry Consultant</div>
+              <div className="text-sm font-bold text-yellow-200"> Jewelry Consultant</div>
               <div className="text-xs text-zinc-500">{catalog?.consultCreditCost ?? 1} Visual Buc per message · knows your design</div>
             </div>
             <button onClick={() => setConsultOpen(false)} className="text-zinc-400 hover:text-white">

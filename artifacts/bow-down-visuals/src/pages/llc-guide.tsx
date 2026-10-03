@@ -352,7 +352,7 @@ export default function LlcGuide() {
             <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
               {messages.length === 0 && (
                 <p className="py-6 text-center text-sm text-white/30">
-                  🦈 No questions yet — ask your first one below. Try “Do I need an LLC as a streamer?”
+                 No questions yet — ask your first one below. Try “Do I need an LLC as a streamer?”
                 </p>
               )}
               {messages.map((m, i) => (
@@ -365,7 +365,7 @@ export default function LlcGuide() {
                     }`}
                   >
                     {m.role === "assistant" && (
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-primary/70">🦈 Cheat Code</p>
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-primary/70"> Cheat Code</p>
                     )}
                     <p className="whitespace-pre-wrap">{m.content}</p>
                   </div>
@@ -636,7 +636,7 @@ export default function LlcGuide() {
           </div>
           {progress === 100 && (
             <p className="mt-5 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-center text-sm font-bold text-primary">
-              🎉 Checklist complete — you're running a real business. Bow down. 🦈
+              🎉 Checklist complete — you're running a real business. Bow down. 
             </p>
           )}
         </section>
@@ -796,7 +796,7 @@ export default function LlcGuide() {
         <p className="relative mt-8 text-center text-sm text-white/40">
           Business formed? Ask{" "}
           <Link href="/coach" className="font-semibold text-primary hover:underline">Thy Cheat Code's Money Coach</Link>{" "}
-          how to make it pay. 🦈
+          how to make it pay. 
         </p>
       </main>
 

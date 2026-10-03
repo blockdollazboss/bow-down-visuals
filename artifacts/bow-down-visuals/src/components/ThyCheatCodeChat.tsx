@@ -76,13 +76,13 @@ const EXT_NUDGE_SESSION_KEY = "bdv-extension-chat-nudge";
 const EXT_NUDGE: ChatMessage = {
   role: "assistant",
   content:
-    "🦈 Quick one — I also live in your Chrome toolbar as an extension: AI chat, every site tool, daily bonuses, one-click saving. Download: bowdownvisuals.com/bow-down-visuals-extension-v2.zip — then unzip, go to chrome://extensions, turn on Developer mode, hit Load unpacked, pick the folder. Done in 30 seconds. (You can also install this site as a Chrome app from your browser menu. Say “stop promoting it” anytime and I'll never mention it again.)",
+    "Quick one — I also live in your Chrome toolbar as an extension: AI chat, every site tool, daily bonuses, one-click saving. Download: bowdownvisuals.com/bow-down-visuals-extension-v2.zip — then unzip, go to chrome://extensions, turn on Developer mode, hit Load unpacked, pick the folder. Done in 30 seconds. (You can also install this site as a Chrome app from your browser menu. Say “stop promoting it” anytime and I'll never mention it again.)",
 };
 
 const EXT_INSTALL_ANSWER: ChatMessage = {
   role: "assistant",
   content:
-    "Easy — hit the gold Download button on the /extension page, unzip the file, then in Chrome go to chrome://extensions → turn on Developer mode → “Load unpacked” → pick the unzipped folder. Pin the 🦈 icon and you're set. Full step-by-step is on the /extension page too.",
+    "Easy — hit the gold Download button on the /extension page, unzip the file, then in Chrome go to chrome://extensions → turn on Developer mode → “Load unpacked” → pick the unzipped folder. Pin the extension icon and you're set. Full step-by-step is on the /extension page too.",
 };
 
 /** Open the Thy Cheat Code chat drawer, optionally with a prefilled prompt. */
@@ -148,7 +148,7 @@ export function ThyCheatCodeChat() {
       optOutExtensionPromo();
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Got it — I'll stop mentioning the extension. 🦈 It's on the /extension page if you ever want it." },
+        { role: "assistant", content: "Got it — I'll stop mentioning the extension. It's on the /extension page if you ever want it." },
       ]);
       return;
     }
@@ -175,18 +175,18 @@ export function ThyCheatCodeChat() {
       if (!res.ok) {
         reply =
           data.error ||
-          "My fins slipped — could you ask that again? 🦈";
+          "My fins slipped — could you ask that again?";
       } else {
         reply =
           data.reply ||
           data.error ||
-          "My fins slipped — could you ask that again? 🦈";
+          "My fins slipped — could you ask that again?";
       }
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Couldn't reach the surface — check your connection and try again. 🦈" },
+        { role: "assistant", content: "Couldn't reach the surface — check your connection and try again." },
       ]);
     } finally {
       setLoading(false);
