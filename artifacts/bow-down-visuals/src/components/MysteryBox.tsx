@@ -157,9 +157,14 @@ export function MysteryBox() {
             {/* Gold bands */}
             <div className="absolute left-2 top-0 bottom-0 w-3 bg-gradient-to-b from-[#ffd700] to-[#8a6d2f] border-x border-[#3a2f0f]" />
             <div className="absolute right-2 top-0 bottom-0 w-3 bg-gradient-to-b from-[#ffd700] to-[#8a6d2f] border-x border-[#3a2f0f]" />
-            {/* Shark emblem */}
+            {/* Visual Bucs emblem */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-5xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">🦈</span>
+              <img
+                src="/images/visual-bucs-icon.webp"
+                alt="Visual Bucs"
+                className="h-16 w-16 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
+                draggable={false}
+              />
             </div>
             {/* Lock */}
             {!isOpening && (
