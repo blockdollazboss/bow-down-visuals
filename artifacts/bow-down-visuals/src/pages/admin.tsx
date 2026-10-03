@@ -372,6 +372,19 @@ export default function AdminPage() {
     }
   };
 
+  const [promoResetMsg, setPromoResetMsg] = useState<string | null>(null);
+  const handleResetPromo = () => {
+    try {
+      localStorage.removeItem("bdv-extension-downloaded");
+      localStorage.removeItem("bdv-extension-promo-optout");
+      localStorage.removeItem("bdv-extension-modal-last-shown");
+      sessionStorage.removeItem("bdv-extension-chat-nudge");
+      setPromoResetMsg("Promo flags cleared — reload the site to see the extension promos as a new visitor would.");
+    } catch {
+      setPromoResetMsg("Could not clear flags (private mode?).");
+    }
+  };
+
   const handleRepair0054 = async () => {
     setRepairing0054(true);
     setRepair0054Message(null);
@@ -626,6 +639,17 @@ export default function AdminPage() {
         </Button>
         {repair0054Message && <p className="mt-3 text-sm text-green-400">{repair0054Message}</p>}
         {repair0054Error && <p className="mt-3 text-sm text-red-400">{repair0054Error}</p>}
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 mt-4">
+        <h3 className="text-lg font-bold text-white mb-2">Extension Promo Preview</h3>
+        <p className="text-sm text-white/60 mb-4">
+          Clears your browser's extension promo flags so you can see the popup and chat nudge as a new visitor would.
+        </p>
+        <Button onClick={handleResetPromo} className="rounded-xl">
+          Reset promo flags
+        </Button>
+        {promoResetMsg && <p className="mt-3 text-sm text-green-400">{promoResetMsg}</p>}
       </div>
 
       {checking ? (
