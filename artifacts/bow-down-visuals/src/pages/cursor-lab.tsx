@@ -173,6 +173,7 @@ function CursorPreview({ id }: { id: CursorId }) {
 }
 
 export default function CursorLab() {
+  const [clicks, setClicks] = useState({ gold: 0, ghost: 0, link: 0 });
   const [active, setActive] = useState<CursorId>("shark-fin");
   const [isTouch, setIsTouch] = useState(false);
 
@@ -227,10 +228,24 @@ export default function CursorLab() {
       <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8">
         <h2 className="text-lg font-bold mb-4 text-white/80">Test area — hover and click these</h2>
         <div className="flex flex-wrap gap-3">
-          <button className="rounded-xl bg-[#C9A84C] px-6 py-3 font-bold text-black">Gold Button</button>
-          <button className="rounded-xl border border-white/20 px-6 py-3 font-bold">Ghost Button</button>
-          <a href="#" onClick={(e) => e.preventDefault()} className="rounded-xl border border-[#C9A84C]/40 px-6 py-3 text-[#e8c86a]">
-            Link
+          <button
+            onClick={() => setClicks((c) => ({ ...c, gold: c.gold + 1 }))}
+            className="rounded-xl bg-[#C9A84C] px-6 py-3 font-bold text-black active:scale-95 transition-transform"
+          >
+            Gold Button{clicks.gold > 0 ? ` (${clicks.gold})` : ""}
+          </button>
+          <button
+            onClick={() => setClicks((c) => ({ ...c, ghost: c.ghost + 1 }))}
+            className="rounded-xl border border-white/20 px-6 py-3 font-bold active:scale-95 transition-transform"
+          >
+            Ghost Button{clicks.ghost > 0 ? ` (${clicks.ghost})` : ""}
+          </button>
+          <a
+            href="#"
+            onClick={(e) => { e.preventDefault(); setClicks((c) => ({ ...c, link: c.link + 1 })); }}
+            className="rounded-xl border border-[#C9A84C]/40 px-6 py-3 text-[#e8c86a] active:scale-95 transition-transform"
+          >
+            Link{clicks.link > 0 ? ` (${clicks.link})` : ""}
           </a>
         </div>
         <p className="text-xs text-white/40 mt-4">
