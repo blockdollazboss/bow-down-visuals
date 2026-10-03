@@ -191,9 +191,10 @@ export default function CursorLab() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
-      <h1 className="text-3xl font-bold text-[#e8c86a] mb-2">Cursor Style</h1>
-      <p className="text-white/60 mb-8">
+    <div className="min-h-screen text-white p-4 md:p-8" style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}>
+      <div className="max-w-6xl mx-auto rounded-2xl border border-white/10 bg-black/70 p-6 md:p-8 shadow-2xl">
+      <h1 className="text-3xl md:text-4xl font-black text-[#e8c86a] mb-2" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.9)" }}>Cursor Style</h1>
+      <p className="text-white/85 mb-8 text-base">
         Pick your cursor. It's saved and follows you across the whole site.
       </p>
 
@@ -210,13 +211,13 @@ export default function CursorLab() {
             onClick={() => choose(c.id)}
             className={`text-left rounded-xl border p-3 transition-all ${
               active === c.id
-                ? "border-[#C9A84C] bg-[#C9A84C]/10 shadow-[0_0_20px_rgba(201,168,76,0.25)]"
-                : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                ? "border-[#C9A84C] bg-[#1a1405] shadow-[0_0_20px_rgba(201,168,76,0.35)]"
+                : "border-white/15 bg-[#0d0d0d] hover:border-[#C9A84C]/50"
             }`}
           >
             <CursorPreview id={c.id} />
-            <h3 className="text-sm font-bold text-[#e8c86a] mb-1 truncate">{c.name}</h3>
-            <p className="text-[11px] text-white/50 line-clamp-2 leading-tight">{c.description}</p>
+            <h3 className="text-sm font-bold text-[#e8c86a] mb-1 truncate" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{c.name}</h3>
+            <p className="text-[11px] text-white/75 line-clamp-2 leading-tight">{c.description}</p>
             <p className={`text-[10px] mt-2 font-bold ${active === c.id ? 'text-[#e8c86a]' : 'text-white/30'}`}>
               {active === c.id ? "✓ Active" : "Select"}
             </p>
@@ -248,9 +249,10 @@ export default function CursorLab() {
             Link{clicks.link > 0 ? ` (${clicks.link})` : ""}
           </a>
         </div>
-        <p className="text-xs text-white/40 mt-4">
+        <p className="text-xs text-white/60 mt-4">
           Your choice is live across the entire site right now. Change it anytime.
         </p>
+      </div>
       </div>
     </div>
   );
