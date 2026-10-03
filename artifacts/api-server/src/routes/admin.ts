@@ -246,6 +246,20 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     await pool.query(readFileSync(sqlPath, "utf8"));
     results.migration_0040 = "applied";
 
+    // 2b. Apply 0037 (artist reference video columns) — idempotent.
+    //     Production was missing reference_video_path, breaking step 3 below.
+    const candidates0037 = [
+      path.join(process.cwd(), "lib/db/migrations/0037_artist_reference_video.sql"),
+      path.join(process.cwd(), "../lib/db/migrations/0037_artist_reference_video.sql"),
+    ];
+    const sqlPath0037 = candidates0037.find((p) => existsSync(p));
+    if (sqlPath0037) {
+      await pool.query(readFileSync(sqlPath0037, "utf8"));
+      results.migration_0037 = "applied";
+    } else {
+      results.migration_0037 = "skipped: file not found";
+    }
+
     // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
     //    point the Shark King vault's reference video at the new seamless
     //    loop file shipped in public/videos/. Updates only when exactly one
