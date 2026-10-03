@@ -8,7 +8,11 @@ export type CursorId =
   | "crown"
   | "gold-trail"
   | "lightning"
-  | "pixel-shark";
+  | "pixel-shark"
+  | "flame"
+  | "diamond"
+  | "star"
+  | "money-bag";
 
 const KEY = "bdv-cursor-choice";
 
@@ -42,6 +46,26 @@ export const CURSOR_OPTIONS: { id: CursorId; name: string; description: string }
     id: "pixel-shark",
     name: "8-Bit Shark",
     description: "Retro pixel-art shark. Nostalgic cheat-code vibes. Chomps on click.",
+  },
+  {
+    id: "flame",
+    name: "Fire Flame",
+    description: "Your content is fire. A flickering gold flame that flares on click.",
+  },
+  {
+    id: "diamond",
+    name: "Diamond",
+    description: "Premium luxury. A sparkling diamond that glints on hover.",
+  },
+  {
+    id: "star",
+    name: "Gold Star",
+    description: "Creator star power. A slowly spinning gold star. Bursts on click.",
+  },
+  {
+    id: "money-bag",
+    name: "Money Bag",
+    description: "Get to the bag. A gold money bag that rains coins on click.",
   },
 ];
 
