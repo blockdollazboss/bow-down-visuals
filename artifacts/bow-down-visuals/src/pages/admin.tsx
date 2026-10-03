@@ -341,6 +341,9 @@ export default function AdminPage() {
   const [repairing, setRepairing] = useState(false);
   const [repairMessage, setRepairMessage] = useState<string | null>(null);
   const [repairError, setRepairError] = useState<string | null>(null);
+  const [repairing0054, setRepairing0054] = useState(false);
+  const [repair0054Message, setRepair0054Message] = useState<string | null>(null);
+  const [repair0054Error, setRepair0054Error] = useState<string | null>(null);
 
   const handleSchemaRepair = async () => {
     setRepairing(true);
@@ -366,6 +369,33 @@ export default function AdminPage() {
       setRepairError(e instanceof Error ? e.message : "Repair failed");
     } finally {
       setRepairing(false);
+    }
+  };
+
+  const handleRepair0054 = async () => {
+    setRepairing0054(true);
+    setRepair0054Message(null);
+    setRepair0054Error(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/schema-repair-0054", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setRepair0054Message(`Repair completed: ${JSON.stringify(data.results)}`);
+      } else {
+        setRepair0054Error(data.error || "Repair failed");
+      }
+    } catch (e) {
+      setRepair0054Error(e instanceof Error ? e.message : "Repair failed");
+    } finally {
+      setRepairing0054(false);
     }
   };
   interface BowRaceStatus {
@@ -583,6 +613,19 @@ export default function AdminPage() {
         </Button>
         {repairMessage && <p className="mt-3 text-sm text-green-400">{repairMessage}</p>}
         {repairError && <p className="mt-3 text-sm text-red-400">{repairError}</p>}
+      </div>
+
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 mt-4">
+        <h3 className="text-lg font-bold text-amber-300 mb-2">Production DB Repair (0054)</h3>
+        <p className="text-sm text-white/60 mb-4">
+          Creates missing tables (distribution_releases, NFC, jewelry, spotlight) and applies the ×100 Visual Bucs migration on Render Postgres. One-time fix.
+        </p>
+        <Button onClick={() => { void handleRepair0054(); }} disabled={repairing0054} className="rounded-xl bg-amber-500 text-black hover:bg-amber-400">
+          {repairing0054 ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Run 0054 DB repair
+        </Button>
+        {repair0054Message && <p className="mt-3 text-sm text-green-400">{repair0054Message}</p>}
+        {repair0054Error && <p className="mt-3 text-sm text-red-400">{repair0054Error}</p>}
       </div>
 
       {checking ? (
