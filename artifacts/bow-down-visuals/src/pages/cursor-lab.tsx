@@ -6,7 +6,7 @@ import { CURSOR_OPTIONS, getCursorChoice, setCursorChoice, type CursorId } from 
    Choice is saved to localStorage and applied site-wide. */
 
 export default function CursorLab() {
-  const [active, setActive] = useState<CursorId>("none");
+  const [active, setActive] = useState<CursorId>("shark-fin");
   const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {

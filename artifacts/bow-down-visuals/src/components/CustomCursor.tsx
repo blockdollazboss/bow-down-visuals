@@ -6,7 +6,7 @@ import { getCursorChoice, type CursorId } from "@/lib/cursor-settings";
    Disabled on touch devices. Listens for changes. */
 
 function useCursorState() {
-  const [cursor, setCursor] = useState<CursorId>("none");
+  const [cursor, setCursor] = useState<CursorId>("shark-fin");
   const [isTouch, setIsTouch] = useState(false);
 
   useEffect(() => {
@@ -219,7 +219,7 @@ export function CustomCursor() {
   const [hideNative, setHideNative] = useState(false);
 
   useEffect(() => {
-    const shouldHide = cursor !== "none" && !isTouch;
+    const shouldHide = !isTouch;
     setHideNative(shouldHide);
     if (shouldHide) {
       const style = document.createElement("style");
@@ -233,7 +233,7 @@ export function CustomCursor() {
     return undefined;
   }, [cursor, isTouch]);
 
-  if (isTouch || cursor === "none" || !hideNative) return null;
+  if (isTouch || !hideNative) return null;
 
   return (
     <>

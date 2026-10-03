@@ -3,7 +3,6 @@
    The site-wide CustomCursor component reads this. */
 
 export type CursorId =
-  | "none"
   | "shark-fin"
   | "bucs-coin"
   | "crown"
@@ -14,7 +13,6 @@ export type CursorId =
 const KEY = "bdv-cursor-choice";
 
 export const CURSOR_OPTIONS: { id: CursorId; name: string; description: string }[] = [
-  { id: "none", name: "Default", description: "Your system's normal cursor." },
   {
     id: "shark-fin",
     name: "Shark Fin",
@@ -54,7 +52,7 @@ export function getCursorChoice(): CursorId {
   } catch {
     /* private mode */
   }
-  return "none";
+  return "shark-fin";
 }
 
 export function setCursorChoice(id: CursorId): void {
