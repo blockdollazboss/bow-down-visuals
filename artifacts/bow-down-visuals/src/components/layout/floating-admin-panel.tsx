@@ -238,11 +238,70 @@ function AdminTools({
       {/* Database repairs */}
       <DbRepairs getAccessToken={getAccessToken} labelCls={labelCls} btnCls={btnCls} />
 
+      {/* Copy artists from staging */}
+      <CopyArtists getAccessToken={getAccessToken} labelCls={labelCls} btnCls={btnCls} />
+
       {/* Bow Race settings */}
       <BowRaceControls getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
 
       {/* Jackpot event creator */}
       <JackpotCreator getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
+    </div>
+  );
+}
+
+function CopyArtists({
+  getAccessToken,
+  labelCls,
+  btnCls,
+}: {
+  getAccessToken: () => Promise<string | null>;
+  labelCls: string;
+  btnCls: string;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function copy() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      // 1. Fetch vaults from staging (browser has staging auth)
+      const stagingRes = await fetch("https://bow-down-visuals-staging.onrender.com/api/artist-vaults", {
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        credentials: "include",
+      });
+      if (!stagingRes.ok) throw new Error(`Staging fetch failed (${stagingRes.status})`);
+      const { vaults } = (await stagingRes.json()) as { vaults?: unknown[] };
+      if (!vaults || vaults.length === 0) throw new Error("No artists found on staging");
+      // 2. Import to production
+      const importRes = await fetch("/api/admin/import-artists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        credentials: "include",
+        body: JSON.stringify({ vaults }),
+      });
+      const data = (await importRes.json()) as { ok?: boolean; imported?: number; skipped?: number; error?: string };
+      if (!data.ok) throw new Error(data.error || "Import failed");
+      setMsg(`✓ Copied ${data.imported} artist(s)${data.skipped ? `, skipped ${data.skipped} (already exist)` : ""}.`);
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <p className={labelCls}>Copy artists from staging</p>
+      <button type="button" onClick={() => void copy()} disabled={busy} className={btnCls}>
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Copy my artists → production"}
+      </button>
+      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
     </div>
   );
 }

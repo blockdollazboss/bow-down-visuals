@@ -16,6 +16,8 @@ import { z } from "zod";
 import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
+import { db, artistVaultsTable } from "@workspace/db";
+import { eq, isNull, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -331,6 +333,52 @@ router.post("/admin/schema-repair-0054", requireAuth, requireAdmin, async (req, 
     res.status(500).json({ ok: false, results, error: err instanceof Error ? err.message : "Unknown" });
   } finally {
     await pool.end();
+  }
+});
+
+/**
+ * POST /api/admin/import-artists
+ * One-time: import artist vaults from staging to production.
+ * Body: { vaults: [...] } — vault objects from staging's GET /api/artist-vaults.
+ * Skips vaults that already exist (by id) to avoid duplicates.
+ * Temporary — remove after use.
+ */
+router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { vaults } = req.body as { vaults?: Record<string, unknown>[] };
+    if (!Array.isArray(vaults) || vaults.length === 0) {
+      res.status(400).json({ ok: false, error: "No vaults provided" });
+      return;
+    }
+    const userId = req.userId!;
+    let imported = 0;
+    let skipped = 0;
+    for (const v of vaults) {
+      const vid = String(v["id"] ?? "");
+      if (!vid) continue;
+      // Skip if already exists
+      const [existing] = await db
+        .select({ id: artistVaultsTable.id })
+        .from(artistVaultsTable)
+        .where(eq(artistVaultsTable.id, vid))
+        .limit(1);
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      // Insert with new timestamps, owned by the requesting admin
+      const { id: _id, created_at: _ca, updated_at: _ua, deleted_at: _da, ...rest } = v;
+      await db.insert(artistVaultsTable).values({
+        ...rest,
+        id: vid,
+        user_id: userId,
+      } as typeof artistVaultsTable.$inferInsert);
+      imported++;
+    }
+    res.json({ ok: true, imported, skipped });
+  } catch (err) {
+    req.log.error({ err }, "admin: import artists failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : "Unknown" });
   }
 });
 
