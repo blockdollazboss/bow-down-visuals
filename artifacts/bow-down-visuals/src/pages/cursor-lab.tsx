@@ -54,8 +54,20 @@ function CursorPreview({ id }: { id: CursorId }) {
       );
     case "pixel-shark":
       return (
-        <div className={base}>
-          <img src="/images/thy-cheat-code-8bit-transparent.png" alt="" className="w-14 h-14 object-contain" style={{ imageRendering: "pixelated" }} draggable={false} />
+        <div className={base} style={{ overflow: "visible" }}>
+          <img
+            src="/images/thy-cheat-code-8bit-transparent.png"
+            alt=""
+            className="w-12 h-12 object-contain"
+            style={{ imageRendering: "pixelated", animation: "shark-swim 2s ease-in-out infinite" }}
+            draggable={false}
+          />
+          <style>{`
+            @keyframes shark-swim {
+              0%, 100% { transform: translateY(0) rotate(-3deg); }
+              50% { transform: translateY(-3px) rotate(3deg); }
+            }
+          `}</style>
         </div>
       );
     case "flame":

@@ -182,34 +182,92 @@ function Lightning() {
 
 function PixelShark() {
   const ref = useRef<HTMLDivElement>(null);
-  const [chomp, setChomp] = useState(false);
+  const [chomp, setChomp] = useState(0);
+  const [bubbles, setBubbles] = useState<number[]>([]);
   const hovering = useHoverState();
   useMousePosition(ref);
+
+  // Bubble trail — spawn a bubble every 400ms while moving
   useEffect(() => {
-    const down = () => setChomp(true);
-    const up = () => setChomp(false);
-    window.addEventListener("mousedown", down);
-    window.addEventListener("mouseup", up);
-    return () => {
-      window.removeEventListener("mousedown", down);
-      window.removeEventListener("mouseup", up);
+    let last = 0;
+    const onMove = (e: MouseEvent) => {
+      const now = Date.now();
+      if (now - last > 400) {
+        last = now;
+        const id = now + Math.random();
+        setBubbles((b) => [...b.slice(-5), id]);
+        setTimeout(() => setBubbles((b) => b.filter((x) => x !== id)), 1200);
+      }
     };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
   }, []);
+
+  useEffect(() => {
+    const down = () => setChomp((c) => c + 1);
+    window.addEventListener("mousedown", down);
+    return () => window.removeEventListener("mousedown", down);
+  }, []);
+
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -24, marginTop: -24 }}>
+      {/* Bubble trail */}
+      {bubbles.map((id) => (
+        <span
+          key={id}
+          className="absolute left-1/2 top-1/2 w-2 h-2 rounded-sm bg-[#e8c86a]/60"
+          style={{
+            animation: "bubble-float 1.2s ease-out forwards",
+            imageRendering: "pixelated",
+          }}
+        />
+      ))}
+      {/* Shark with swim animation */}
       <img
         src="/images/thy-cheat-code-8bit-transparent.png"
         alt=""
-        className="object-contain transition-transform duration-100"
+        className="object-contain"
         style={{
-          width: hovering ? 48 : 40,
-          height: hovering ? 48 : 40,
-          transform: chomp ? "scale(0.88)" : "scale(1)",
+          width: hovering ? 56 : 48,
+          height: hovering ? 56 : 48,
           imageRendering: "pixelated",
-          filter: "drop-shadow(0 0 8px rgba(201,168,76,0.6))",
+          filter: "drop-shadow(0 0 10px rgba(201,168,76,0.7))",
+          animation: "shark-swim 2s ease-in-out infinite",
+          transition: "width 0.15s, height 0.15s",
         }}
         draggable={false}
       />
+      {/* CHOMP! effect on click */}
+      {chomp > 0 && (
+        <span
+          key={chomp}
+          className="absolute -top-6 left-1/2 -translate-x-1/2 text-[#e8c86a] font-black text-sm whitespace-nowrap"
+          style={{
+            fontFamily: "monospace",
+            textShadow: "2px 2px 0 #000",
+            animation: "chomp-pop 0.5s ease-out forwards",
+          }}
+        >
+          CHOMP!
+        </span>
+      )}
+      <style>{`
+        @keyframes shark-swim {
+          0%, 100% { transform: translateY(0) rotate(-3deg) scaleX(1); }
+          25% { transform: translateY(-3px) rotate(2deg) scaleX(1); }
+          50% { transform: translateY(0) rotate(-2deg) scaleX(1); }
+          75% { transform: translateY(3px) rotate(3deg) scaleX(1); }
+        }
+        @keyframes bubble-float {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+          100% { transform: translate(-50%, -80px) scale(0.3); opacity: 0; }
+        }
+        @keyframes chomp-pop {
+          0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+          30% { transform: translateX(-50%) scale(1.3); opacity: 1; }
+          100% { transform: translateX(-50%) scale(1) translateY(-10px); opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
