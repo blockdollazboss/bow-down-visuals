@@ -22,6 +22,7 @@ import { CheatCodeJackpot } from "@/components/cheat-code-jackpot";
 import { DailyBonusModal } from "@/components/DailyBonusModal";
 import ExtensionPromoModal from "@/components/ExtensionPromoModal";
 import { MysteryCrate } from "@/components/MysteryCrate";
+import { CustomCursor } from "@/components/CustomCursor";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { SiteFooter } from "@/components/layout/footer";
 import { VideoBanner } from "@/components/layout/video-banner";
@@ -365,6 +366,7 @@ function AppShell() {
       {typeof window !== "undefined" && <DailyBonusModal />}
       {typeof window !== "undefined" && <ExtensionPromoModal />}
       {typeof window !== "undefined" && <MysteryCrate />}
+      {typeof window !== "undefined" && <CustomCursor />}
       {marketingCoachRoute && <ThyCheatCodeHost />}
       <Suspense fallback={<RouteFallback />}>
         <RouteErrorBoundary key={location}>

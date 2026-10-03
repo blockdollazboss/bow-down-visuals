@@ -59,6 +59,7 @@ import {
   HelpCircle,
   Wand2,
   Search,
+  MousePointer2,
   SlidersHorizontal,
   Plus,
   Loader2,
@@ -347,6 +348,7 @@ const SECTIONS: NavSection[] = [
 const FOOTER_LINKS: NavLink[] = [
   { href: "/pricing", label: "Pricing", icon: CreditCard },
   { href: "/credit-history", label: "Visual Buc History", icon: Zap },
+  { href: "/cursor-lab", label: "Cursor Style", icon: MousePointer2 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 

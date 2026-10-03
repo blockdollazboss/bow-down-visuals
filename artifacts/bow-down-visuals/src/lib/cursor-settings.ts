@@ -1,0 +1,67 @@
+/* ─── Cursor settings ───
+   Permanent per-visitor cursor choice, stored in localStorage.
+   The site-wide CustomCursor component reads this. */
+
+export type CursorId =
+  | "none"
+  | "shark-fin"
+  | "bucs-coin"
+  | "crown"
+  | "gold-trail"
+  | "lightning"
+  | "pixel-shark";
+
+const KEY = "bdv-cursor-choice";
+
+export const CURSOR_OPTIONS: { id: CursorId; name: string; description: string }[] = [
+  { id: "none", name: "Default", description: "Your system's normal cursor." },
+  {
+    id: "shark-fin",
+    name: "Shark Fin",
+    description: "A sleek gold shark fin that cuts through the page. Bites on click.",
+  },
+  {
+    id: "crown",
+    name: "King's Crown",
+    description: "A tiny gold crown — you're the Kingpin. Royal glow on hover.",
+  },
+  {
+    id: "bucs-coin",
+    name: "Visual Bucs Coin",
+    description: "A spinning Visual Bucs coin follows your cursor. Bursts on click.",
+  },
+  {
+    id: "gold-trail",
+    name: "Gold Trail",
+    description: "Minimal dot with a luxurious gold particle trail. Subtle, premium.",
+  },
+  {
+    id: "lightning",
+    name: "Lightning Bolt",
+    description: "A crackling gold bolt — fast, electric, viral energy. Strikes on click.",
+  },
+  {
+    id: "pixel-shark",
+    name: "8-Bit Shark",
+    description: "Retro pixel-art shark. Nostalgic cheat-code vibes. Chomps on click.",
+  },
+];
+
+export function getCursorChoice(): CursorId {
+  try {
+    const v = localStorage.getItem(KEY);
+    if (v && CURSOR_OPTIONS.some((o) => o.id === v)) return v as CursorId;
+  } catch {
+    /* private mode */
+  }
+  return "none";
+}
+
+export function setCursorChoice(id: CursorId): void {
+  try {
+    localStorage.setItem(KEY, id);
+    window.dispatchEvent(new Event("bdv-cursor-changed"));
+  } catch {
+    /* private mode */
+  }
+}
