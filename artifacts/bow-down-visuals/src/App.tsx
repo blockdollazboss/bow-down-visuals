@@ -76,6 +76,7 @@ const HookStudio    = lazyWithRetry(() => import("@/pages/hooks"));
 const SoundFinder     = lazyWithRetry(() => import("@/pages/sounds"));
 const CommentReplies = lazyWithRetry(() => import("@/pages/comment-replies"));
 const FogLab        = lazyWithRetry(() => import("@/pages/fog-lab"));
+const CursorLab     = lazyWithRetry(() => import("@/pages/cursor-lab"));
 const TourPlanner = lazyWithRetry(() => import("@/pages/tour"));
 const MonetizationCoach = lazyWithRetry(() => import("@/pages/coach"));
 const BrandDealCalculator = lazyWithRetry(() => import("@/pages/brand-calculator"));
@@ -387,6 +388,7 @@ function AppShell() {
           <Route path="/comment-replies"><CommentReplies /></Route>
           {/* Staging-only fog comparison lab (hidden route, no nav link) */}
           <Route path="/fog-lab"><FogLab /></Route>
+          <Route path="/cursor-lab"><CursorLab /></Route>
           <Route path="/tour"><TourPlanner /></Route>
           <Route path="/coach"><MonetizationCoach /></Route>
           <Route path="/brand-calculator"><BrandDealCalculator /></Route>
