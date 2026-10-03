@@ -76,6 +76,13 @@ export function stagingGate(req: Request, res: Response, next: NextFunction): vo
     return;
   }
 
+  // Admin export endpoint bypasses the gate (has its own requireAuth + requireAdmin).
+  // This allows production to pull the owner's data for syncing.
+  if (req.path === "/api/admin/export-my-artists") {
+    next();
+    return;
+  }
+
   // Login / logout endpoints are always reachable.
   if (req.path === LOGIN_PATH) {
     if (req.method === "POST") {
