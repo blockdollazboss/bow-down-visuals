@@ -232,11 +232,110 @@ function AdminTools({
         {friendMsg && <p className="text-[10px] mt-1 text-white/60 break-words">{friendMsg}</p>}
       </div>
 
+      {/* Extension promo preview reset */}
+      <PromoReset labelCls={labelCls} btnCls={btnCls} />
+
+      {/* Database repairs */}
+      <DbRepairs getAccessToken={getAccessToken} labelCls={labelCls} btnCls={btnCls} />
+
       {/* Bow Race settings */}
       <BowRaceControls getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
 
       {/* Jackpot event creator */}
       <JackpotCreator getAccessToken={getAccessToken} inputCls={inputCls} btnCls={btnCls} labelCls={labelCls} />
+    </div>
+  );
+}
+
+function DbRepairs({
+  getAccessToken,
+  labelCls,
+  btnCls,
+}: {
+  getAccessToken: () => Promise<string | null>;
+  labelCls: string;
+  btnCls: string;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function run(path: string, label: string) {
+    setBusy(label);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token ?? ""}`,
+        },
+        credentials: "include",
+      });
+      const data = (await res.json()) as { ok?: boolean; results?: unknown; error?: string };
+      if (!data.ok) throw new Error(data.error || "Repair failed");
+      setMsg(`✓ ${label} done.`);
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div>
+      <p className={labelCls}>Database repairs</p>
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => void run("/api/admin/schema-repair", "Schema repair")}
+          disabled={busy !== null}
+          className={btnCls}
+        >
+          {busy === "Schema repair" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run schema repair"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void run("/api/admin/schema-repair-0054", "0054 repair")}
+          disabled={busy !== null}
+          className={btnCls}
+        >
+          {busy === "0054 repair" ? <Loader2 className="h-3 w-3 animate-spin" /> : "Run 0054 DB repair"}
+        </button>
+      </div>
+      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
+    </div>
+  );
+}
+
+function PromoReset({
+  labelCls,
+  btnCls,
+}: {
+  labelCls: string;
+  btnCls: string;
+}) {
+  const [msg, setMsg] = useState<string | null>(null);
+
+  function reset() {
+    try {
+      localStorage.removeItem("bdv-extension-downloaded");
+      localStorage.removeItem("bdv-extension-promo-optout");
+      localStorage.removeItem("bdv-extension-modal-last-shown");
+      sessionStorage.removeItem("bdv-extension-chat-nudge");
+      setMsg("✓ Cleared — reload to see promos as a new visitor.");
+    } catch {
+      setMsg("✗ Could not clear (private mode?).");
+    }
+  }
+
+  return (
+    <div>
+      <p className={labelCls}>Extension promo preview</p>
+      <button type="button" onClick={reset} className={btnCls}>
+        Reset promo flags
+      </button>
+      {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
     </div>
   );
 }

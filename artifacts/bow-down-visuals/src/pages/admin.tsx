@@ -338,79 +338,8 @@ export default function AdminPage() {
   const [planSaving, setPlanSaving] = useState(false);
   const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
-  const [repairing, setRepairing] = useState(false);
-  const [repairMessage, setRepairMessage] = useState<string | null>(null);
-  const [repairError, setRepairError] = useState<string | null>(null);
-  const [repairing0054, setRepairing0054] = useState(false);
-  const [repair0054Message, setRepair0054Message] = useState<string | null>(null);
-  const [repair0054Error, setRepair0054Error] = useState<string | null>(null);
 
-  const handleSchemaRepair = async () => {
-    setRepairing(true);
-    setRepairMessage(null);
-    setRepairError(null);
-    try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/admin/schema-repair", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setRepairMessage(`Schema repair completed: ${JSON.stringify(data.results)}`);
-      } else {
-        setRepairError(data.error || "Repair failed");
-      }
-    } catch (e) {
-      setRepairError(e instanceof Error ? e.message : "Repair failed");
-    } finally {
-      setRepairing(false);
-    }
-  };
 
-  const [promoResetMsg, setPromoResetMsg] = useState<string | null>(null);
-  const handleResetPromo = () => {
-    try {
-      localStorage.removeItem("bdv-extension-downloaded");
-      localStorage.removeItem("bdv-extension-promo-optout");
-      localStorage.removeItem("bdv-extension-modal-last-shown");
-      sessionStorage.removeItem("bdv-extension-chat-nudge");
-      setPromoResetMsg("Promo flags cleared — reload the site to see the extension promos as a new visitor would.");
-    } catch {
-      setPromoResetMsg("Could not clear flags (private mode?).");
-    }
-  };
-
-  const handleRepair0054 = async () => {
-    setRepairing0054(true);
-    setRepair0054Message(null);
-    setRepair0054Error(null);
-    try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/admin/schema-repair-0054", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setRepair0054Message(`Repair completed: ${JSON.stringify(data.results)}`);
-      } else {
-        setRepair0054Error(data.error || "Repair failed");
-      }
-    } catch (e) {
-      setRepair0054Error(e instanceof Error ? e.message : "Repair failed");
-    } finally {
-      setRepairing0054(false);
-    }
-  };
   interface BowRaceStatus {
     period: string;
     target: number;
@@ -610,47 +539,9 @@ export default function AdminPage() {
       </div>
       <p className="text-sm text-white/50 mb-6">Owner-only controls.</p>
 
-      <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 mb-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Wrench className="h-4 w-4 text-primary" />
-          <p className="text-xs text-white/40 uppercase tracking-wider font-semibold">
-            Database schema repair
-          </p>
-        </div>
-        <p className="text-sm text-white/60 mb-4">
-          Applies missing database columns and tables (one-time fix).
-        </p>
-        <Button onClick={() => { void handleSchemaRepair(); }} disabled={repairing} className="rounded-xl">
-          {repairing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Run schema repair
-        </Button>
-        {repairMessage && <p className="mt-3 text-sm text-green-400">{repairMessage}</p>}
-        {repairError && <p className="mt-3 text-sm text-red-400">{repairError}</p>}
-      </div>
 
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 mt-4">
-        <h3 className="text-lg font-bold text-amber-300 mb-2">Production DB Repair (0054)</h3>
-        <p className="text-sm text-white/60 mb-4">
-          Creates missing tables (distribution_releases, NFC, jewelry, spotlight) and applies the ×100 Visual Bucs migration on Render Postgres. One-time fix.
-        </p>
-        <Button onClick={() => { void handleRepair0054(); }} disabled={repairing0054} className="rounded-xl bg-amber-500 text-black hover:bg-amber-400">
-          {repairing0054 ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Run 0054 DB repair
-        </Button>
-        {repair0054Message && <p className="mt-3 text-sm text-green-400">{repair0054Message}</p>}
-        {repair0054Error && <p className="mt-3 text-sm text-red-400">{repair0054Error}</p>}
-      </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-5 mt-4">
-        <h3 className="text-lg font-bold text-white mb-2">Extension Promo Preview</h3>
-        <p className="text-sm text-white/60 mb-4">
-          Clears your browser's extension promo flags so you can see the popup and chat nudge as a new visitor would.
-        </p>
-        <Button onClick={handleResetPromo} className="rounded-xl">
-          Reset promo flags
-        </Button>
-        {promoResetMsg && <p className="mt-3 text-sm text-green-400">{promoResetMsg}</p>}
-      </div>
+
 
       {checking ? (
         <div className="flex justify-center py-12">
