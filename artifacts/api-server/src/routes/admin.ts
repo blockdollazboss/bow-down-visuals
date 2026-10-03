@@ -289,4 +289,49 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
   }
 });
 
+/* ── TEMPORARY one-shot production repair (REMOVE AFTER USE) ──
+   Fixes the 2026-10-02 deploy where drizzle-kit push failed (TTY prompt),
+   leaving tables missing and the 0054 data migration unapplied on Render
+   Postgres. Applies: 0011 distribution_releases, 0051 NFC tables, 0052
+   jewelry, 0053 spotlight, and the 0054 ×100 data migration. All idempotent.
+   Admin-only. Delete this route once verified. */
+router.post("/admin/schema-repair-0054", requireAuth, requireAdmin, async (req, res) => {
+  const { Pool } = await import("pg");
+  const { readFileSync, existsSync } = await import("fs");
+  const path = await import("path");
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) {
+    res.status(500).json({ ok: false, error: "DATABASE_URL not configured" });
+    return;
+  }
+  const results: Record<string, string> = {};
+  const pool = new Pool({ connectionString, max: 2, ssl: { rejectUnauthorized: false } });
+  try {
+    const candidates = (f: string) => [
+      path.join(process.cwd(), `lib/db/migrations/${f}`),
+      path.join(process.cwd(), `../lib/db/migrations/${f}`),
+    ];
+    const runFile = async (file: string, label: string) => {
+      const sqlPath = candidates(file).find((p) => existsSync(p));
+      if (!sqlPath) {
+        results[label] = "skipped: file not found";
+        return;
+      }
+      await pool.query(readFileSync(sqlPath, "utf8"));
+      results[label] = "applied";
+    };
+    await runFile("0011_distribution_releases.sql", "0011_distribution_releases");
+    await runFile("0051_nfc_cards.sql", "0051_nfc_cards");
+    await runFile("0052_jewelry_orders.sql", "0052_jewelry_orders");
+    await runFile("0053_spotlight_inquiries.sql", "0053_spotlight_inquiries");
+    await runFile("0054_visual_bucs_hundreds.sql", "0054_visual_bucs_hundreds");
+    res.json({ ok: true, results });
+  } catch (err) {
+    req.log.error({ err }, "admin: schema repair 0054 failed");
+    res.status(500).json({ ok: false, results, error: err instanceof Error ? err.message : "Unknown" });
+  } finally {
+    await pool.end();
+  }
+});
+
 export default router;
