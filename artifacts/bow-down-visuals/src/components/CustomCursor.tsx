@@ -95,6 +95,7 @@ function Crown() {
 function BucsCoin() {
   const ref = useRef<HTMLDivElement>(null);
   const [burst, setBurst] = useState(0);
+  const hovering = useHoverState();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setBurst((b) => b + 1);
@@ -102,12 +103,25 @@ function BucsCoin() {
     return () => window.removeEventListener("mousedown", down);
   }, []);
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -16 }}>
-      <div className="animate-spin" style={{ animationDuration: "2s" }}>
-        <img src="/images/visual-bucs-icon.webp" alt="" className="w-8 h-8 object-contain drop-shadow-[0_0_10px_rgba(201,168,76,0.9)]" draggable={false} />
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+      {/* Gentle float + slow shine, no frantic spin */}
+      <div className="animate-[float_3s_ease-in-out_infinite]">
+        <img
+          src="/images/visual-bucs-coin-transparent.png"
+          alt=""
+          className="object-contain transition-all duration-200"
+          style={{
+            width: hovering ? 48 : 40,
+            height: hovering ? 48 : 40,
+            filter: hovering
+              ? "drop-shadow(0 0 16px rgba(232,200,106,1))"
+              : "drop-shadow(0 0 8px rgba(201,168,76,0.7))",
+          }}
+          draggable={false}
+        />
       </div>
       {burst > 0 && (
-        <span key={burst} className="absolute -top-2 left-1/2 -translate-x-1/2 text-[#e8c86a] text-sm font-bold animate-ping">+$</span>
+        <span key={burst} className="absolute -top-3 left-1/2 -translate-x-1/2 text-[#e8c86a] text-base font-black animate-ping">+$</span>
       )}
     </div>
   );
@@ -169,6 +183,7 @@ function Lightning() {
 function PixelShark() {
   const ref = useRef<HTMLDivElement>(null);
   const [chomp, setChomp] = useState(false);
+  const hovering = useHoverState();
   useMousePosition(ref);
   useEffect(() => {
     const down = () => setChomp(true);
@@ -180,24 +195,20 @@ function PixelShark() {
       window.removeEventListener("mouseup", up);
     };
   }, []);
-  // 8-bit pixel shark using box-shadow pixel art
   return (
-    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -16, marginTop: -12 }}>
-      <div
-        className="transition-transform duration-100"
+    <div ref={ref} className="fixed top-0 left-0 z-[9999] pointer-events-none" style={{ marginLeft: -20, marginTop: -20 }}>
+      <img
+        src="/images/thy-cheat-code-8bit-transparent.png"
+        alt=""
+        className="object-contain transition-transform duration-100"
         style={{
-          width: 32, height: 24,
-          transform: chomp ? "scale(0.9)" : "scale(1)",
+          width: hovering ? 48 : 40,
+          height: hovering ? 48 : 40,
+          transform: chomp ? "scale(0.88)" : "scale(1)",
           imageRendering: "pixelated",
-          background: `
-            linear-gradient(#C9A84C,#C9A84C) 8px 4px/16px 4px no-repeat,
-            linear-gradient(#C9A84C,#C9A84C) 4px 8px/24px 8px no-repeat,
-            linear-gradient(#e8c86a,#e8c86a) 4px 16px/24px 4px no-repeat,
-            linear-gradient(#fff,#fff) 20px 10px/4px 4px no-repeat
-          `,
-          clipPath: "polygon(25% 15%, 75% 15%, 100% 35%, 100% 65%, 75% 85%, 25% 85%, 0% 65%, 0% 35%)",
-          filter: "drop-shadow(0 0 6px rgba(201,168,76,0.7))",
+          filter: "drop-shadow(0 0 8px rgba(201,168,76,0.6))",
         }}
+        draggable={false}
       />
     </div>
   );
