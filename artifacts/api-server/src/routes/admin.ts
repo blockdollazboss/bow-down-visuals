@@ -337,6 +337,26 @@ router.post("/admin/schema-repair-0054", requireAuth, requireAdmin, async (req, 
 });
 
 /**
+ * GET /api/admin/export-my-artists
+ * Returns the requesting admin's artist vaults as JSON.
+ * Used by staging to pull the owner's data from production (auto-sync).
+ * Temporary — remove after use.
+ */
+router.get("/admin/export-my-artists", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const vaults = await db
+      .select()
+      .from(artistVaultsTable)
+      .where(and(eq(artistVaultsTable.user_id, req.userId!), isNull(artistVaultsTable.deleted_at)))
+      .orderBy(artistVaultsTable.created_at);
+    res.json({ ok: true, vaults });
+  } catch (err) {
+    req.log.error({ err }, "admin: export artists failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : "Unknown" });
+  }
+});
+
+/**
  * POST /api/admin/import-artists
  * One-time: import artist vaults from staging to production.
  * Body: { vaults: [...] } — vault objects from staging's GET /api/artist-vaults.

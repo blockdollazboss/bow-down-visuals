@@ -103,7 +103,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           if (res.ok) {
             const { isAdmin } = await res.json();
-            if (isAdmin) data.plan = "studio";
+            if (isAdmin) {
+              data.plan = "studio";
+              // Auto-sync owner's personal data from production to staging
+              // (staging only — production is the source of truth)
+              if (typeof window !== "undefined" && window.location.hostname.includes("staging")) {
+                try {
+                  const prodRes = await fetch("https://bowdownvisuals.com/api/admin/export-my-artists", {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                  });
+                  if (prodRes.ok) {
+                    const { vaults } = await prodRes.json();
+                    if (vaults && vaults.length > 0) {
+                      await fetch("/api/admin/import-artists", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          Authorization: `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({ vaults }),
+                      });
+                    }
+                  }
+                } catch {
+                  /* Non-fatal: sync failure shouldn't block login */
+                }
+              }
+            }
           }
         }
       } catch {
