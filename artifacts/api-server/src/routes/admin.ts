@@ -260,6 +260,19 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
       results.migration_0037 = "skipped: file not found";
     }
 
+    // 2c. Apply 0047 (team_id on artist_vaults etc.) — idempotent.
+    const candidates0047 = [
+      path.join(process.cwd(), "lib/db/migrations/0047_teams.sql"),
+      path.join(process.cwd(), "../lib/db/migrations/0047_teams.sql"),
+    ];
+    const sqlPath0047 = candidates0047.find((p) => existsSync(p));
+    if (sqlPath0047) {
+      await pool.query(readFileSync(sqlPath0047, "utf8"));
+      results.migration_0047 = "applied";
+    } else {
+      results.migration_0047 = "skipped: file not found";
+    }
+
     // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
     //    point the Shark King vault's reference video at the new seamless
     //    loop file shipped in public/videos/. Updates only when exactly one
