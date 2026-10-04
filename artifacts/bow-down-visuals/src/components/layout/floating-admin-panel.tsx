@@ -268,9 +268,10 @@ function CopyArtists({
     try {
       const token = await getAccessToken();
       // 1. Fetch vaults from staging via the gate-bypassed admin export endpoint
+      // Note: no credentials:include — we use Bearer token, and staging CORS
+      // does not allow credentials with wildcard origin.
       const stagingRes = await fetch("https://bow-down-visuals-staging.onrender.com/api/admin/export-my-artists", {
         headers: { Authorization: `Bearer ${token ?? ""}` },
-        credentials: "include",
       });
       if (!stagingRes.ok) throw new Error(`Staging fetch failed (${stagingRes.status})`);
       const { vaults } = (await stagingRes.json()) as { vaults?: unknown[] };
