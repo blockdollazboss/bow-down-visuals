@@ -135,11 +135,11 @@ export function activeBonusBalance(bonusCredits: number, expiresAt: string | nul
   return bonusCredits;
 }
 
-function utcToday(): string {
+export function utcToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function utcYesterday(): string {
+export function utcYesterday(): string {
   return new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 }
 

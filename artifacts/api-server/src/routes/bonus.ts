@@ -11,6 +11,8 @@ import {
   DAILY_BONUS_BASE,
   DAILY_BONUS_STREAK_7,
   WHEEL_COOLDOWN_MINUTES,
+  utcToday,
+  utcYesterday,
 } from "../lib/bonus";
 import { logger } from "../lib/logger";
 
@@ -23,8 +25,16 @@ router.get("/bonus/status", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
     const p = await getBonusProfile(userId);
+    // Effective streak: 0 if the last claim is older than yesterday (missed a day).
+    // The stored value only updates on claim, so it can be stale.
+    // Manual claim only — no auto-claim. Miss a day, lose the streak.
+    let effectiveStreak = p.dailyStreak;
+    const last = p.lastDailyClaim;
+    if (last && last !== utcToday() && last !== utcYesterday()) {
+      effectiveStreak = 0;
+    }
     res.json({
-      streak: p.dailyStreak,
+      streak: effectiveStreak,
       canClaimDaily: canClaimDaily(p.lastDailyClaim),
       dailyBonusBase: DAILY_BONUS_BASE,
       dailyBonusMilestone: DAILY_BONUS_STREAK_7,
