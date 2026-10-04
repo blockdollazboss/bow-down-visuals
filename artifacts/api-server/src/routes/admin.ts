@@ -271,7 +271,38 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
     `);
     results.hourly_crate_claims = "applied";
 
-    // 2c. Apply ALL artist_vaults migrations — idempotent.
+    // 2c. Ensure ALL artist_vaults columns exist (explicit, not relying on
+    // migration files). Production was missing description, etc.
+    await pool.query(`
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS artist_type TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS genre TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS voice_style TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS visual_style TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS hair TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS tattoos TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS jewelry TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS clothing_style TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS brand_colors TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS theme_id TEXT NOT NULL DEFAULT 'gold-royalty';
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS personality TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS do_not_change_rules TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS description TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS special_style_rules TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_image_url TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_image_path TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_video_url TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS reference_video_path TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS consistency_prompt TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS voice_id TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS voice_name TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS voice_preview_url TEXT;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+      ALTER TABLE artist_vaults ADD COLUMN IF NOT EXISTS team_id UUID;
+    `);
+    results.artist_vaults_columns = "ensured";
+
+    // 2d. Apply ALL artist_vaults migrations — idempotent.
     // Production was missing multiple columns (team_id, reference_video, etc.).
     const vaultMigrations = [
       "0001_artist_voice_and_songs.sql",
