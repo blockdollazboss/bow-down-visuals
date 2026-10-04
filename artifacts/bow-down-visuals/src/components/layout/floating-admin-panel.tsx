@@ -286,8 +286,8 @@ function CopyArtists({
         credentials: "include",
         body: JSON.stringify({ vaults }),
       });
-      const data = (await importRes.json()) as { ok?: boolean; imported?: number; skipped?: number; error?: string };
-      if (!data.ok) throw new Error(data.error || "Import failed");
+      const data = (await importRes.json()) as { ok?: boolean; imported?: number; skipped?: number; error?: string; rootError?: string };
+      if (!data.ok) throw new Error(data.rootError ? `${data.rootError} | ${data.error}` : data.error || "Import failed");
       setMsg(`✓ Copied ${data.imported} artist(s)${data.skipped ? `, skipped ${data.skipped} (already exist)` : ""}.`);
     } catch (e) {
       setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);

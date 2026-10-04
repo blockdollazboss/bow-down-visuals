@@ -478,7 +478,16 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
     res.json({ ok: true, imported, skipped });
   } catch (err) {
     req.log.error({ err }, "admin: import artists failed");
-    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : "Unknown" });
+    // Include the root Postgres error (code/detail) not just Drizzle's wrapper
+    const cause = (err as any)?.cause;
+    const rootMsg = cause?.message || cause?.detail || "";
+    const rootCode = cause?.code ? ` [${cause.code}]` : "";
+    const fullError = err instanceof Error ? err.message : "Unknown";
+    res.status(500).json({
+      ok: false,
+      error: fullError,
+      rootError: rootMsg ? `${rootMsg}${rootCode}` : undefined,
+    });
   }
 });
 
