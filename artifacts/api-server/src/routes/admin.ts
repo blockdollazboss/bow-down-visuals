@@ -472,7 +472,24 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
         if (val === "") continue;
         filtered[k] = val;
       }
-      await db.insert(artistVaultsTable).values(filtered as typeof artistVaultsTable.$inferInsert);
+      // Retry loop: if Postgres reports a missing column (42703), drop it
+      // and retry. Handles any schema drift the information_schema check missed.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          await db.insert(artistVaultsTable).values(filtered as typeof artistVaultsTable.$inferInsert);
+          break;
+        } catch (insertErr) {
+          const code = (insertErr as any)?.cause?.code;
+          const msg = (insertErr as any)?.cause?.message || "";
+          const m = msg.match(/column "([^"]+)" of relation/);
+          if (code === "42703" && m && m[1] && m[1] in filtered) {
+            delete filtered[m[1]];
+            existingCols.delete(m[1]);
+            continue;
+          }
+          throw insertErr;
+        }
+      }
       imported++;
     }
     res.json({ ok: true, imported, skipped });
