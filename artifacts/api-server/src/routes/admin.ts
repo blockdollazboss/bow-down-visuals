@@ -427,6 +427,26 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
     const userId = req.userId!;
     let imported = 0;
     let skipped = 0;
+
+    // Bulletproof: discover which columns actually exist on production's
+    // artist_vaults table, and only insert those. Handles schema drift
+    // between staging and production without guessing at migrations.
+    const { Pool } = await import("pg");
+    const pool = new Pool({
+      connectionString: process.env["DATABASE_URL"],
+      max: 2,
+      ssl: { rejectUnauthorized: false },
+    });
+    let existingCols: Set<string>;
+    try {
+      const colRes = await pool.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = 'artist_vaults'`
+      );
+      existingCols = new Set(colRes.rows.map((r: any) => r.column_name));
+    } finally {
+      await pool.end();
+    }
+
     for (const v of vaults) {
       const vid = String(v["id"] ?? "");
       if (!vid) continue;
@@ -440,13 +460,17 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
         skipped++;
         continue;
       }
-      // Insert with new timestamps, owned by the requesting admin
-      const { id: _id, created_at: _ca, updated_at: _ua, deleted_at: _da, ...rest } = v;
-      await db.insert(artistVaultsTable).values({
-        ...rest,
-        id: vid,
-        user_id: userId,
-      } as typeof artistVaultsTable.$inferInsert);
+      // Only keep columns that exist on production. Always set id/user_id.
+      // Drop timestamps so DB defaults apply.
+      const filtered: Record<string, unknown> = { id: vid, user_id: userId };
+      for (const [k, val] of Object.entries(v)) {
+        if (k === "id" || k === "user_id") continue;
+        if (k === "created_at" || k === "updated_at" || k === "deleted_at") continue;
+        if (existingCols.has(k)) {
+          filtered[k] = val;
+        }
+      }
+      await db.insert(artistVaultsTable).values(filtered as typeof artistVaultsTable.$inferInsert);
       imported++;
     }
     res.json({ ok: true, imported, skipped });
