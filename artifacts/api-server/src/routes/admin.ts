@@ -431,20 +431,16 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
     // Bulletproof: discover which columns actually exist on production's
     // artist_vaults table, and only insert those. Handles schema drift
     // between staging and production without guessing at migrations.
-    const { Pool } = await import("pg");
-    const pool = new Pool({
-      connectionString: process.env["DATABASE_URL"],
-      max: 2,
-      ssl: { rejectUnauthorized: false },
-    });
+    // Uses Drizzle's own connection (not a separate Pool) to guarantee
+    // we're inspecting the same database we're inserting into.
+    const { sql } = await import("drizzle-orm");
     let existingCols: Set<string>;
-    try {
-      const colRes = await pool.query(
-        `SELECT column_name FROM information_schema.columns WHERE table_name = 'artist_vaults'`
+    {
+      const colRes = await db.execute(
+        sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'artist_vaults' AND table_schema = 'public'`
       );
-      existingCols = new Set(colRes.rows.map((r: any) => r.column_name));
-    } finally {
-      await pool.end();
+      const rows = (colRes as any).rows ?? colRes;
+      existingCols = new Set((rows as any[]).map((r: any) => r.column_name));
     }
 
     for (const v of vaults) {
