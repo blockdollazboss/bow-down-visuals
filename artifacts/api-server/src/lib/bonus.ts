@@ -187,9 +187,81 @@ export async function claimDailyBonus(userId: string): Promise<DailyClaimResult>
 
 export interface WheelSpinResult {
   spun: boolean;
-  reason?: "cooldown";
+  reason?: "cooldown" | "already_claimed_global";
   cooldownSeconds?: number;
   segment?: WheelSegment;
+  claimedBy?: string;
+  nextHourIn?: number; // seconds until next hour's crate
+}
+
+/** Current UTC hour slot, e.g. "2026-10-04T00" */
+export function currentHourSlot(d = new Date()): string {
+  return d.toISOString().slice(0, 13);
+}
+
+/** Seconds until the next UTC hour */
+export function secondsUntilNextHour(d = new Date()): number {
+  const next = new Date(d);
+  next.setUTCMinutes(0, 0, 0);
+  next.setUTCHours(next.getUTCHours() + 1);
+  return Math.ceil((next.getTime() - d.getTime()) / 1000);
+}
+
+/**
+ * Global hourly crate: one claim per hour across the entire site.
+ * First come, first served. Atomic — race-safe via primary key.
+ */
+export async function claimHourlyCrate(userId: string): Promise<WheelSpinResult> {
+  const admin = getSupabaseAdmin();
+  const slot = currentHourSlot();
+  const segment = pickWheelSegment();
+
+  // Try to claim this hour's slot atomically
+  const { error } = await admin
+    .from("hourly_crate_claims")
+    .insert({
+      hour_slot: slot,
+      claimed_by: userId,
+      prize_credits: segment.credits,
+    });
+
+  if (error) {
+    // Primary key conflict = someone already claimed this hour
+    if (error.code === "23505") {
+      const { data } = await admin
+        .from("hourly_crate_claims")
+        .select("claimed_by")
+        .eq("hour_slot", slot)
+        .maybeSingle();
+      return {
+        spun: false,
+        reason: "already_claimed_global",
+        claimedBy: (data as any)?.claimed_by ?? "someone",
+        nextHourIn: secondsUntilNextHour(),
+      };
+    }
+    throw new Error(`Failed to claim hourly crate: ${error.message}`);
+  }
+
+  // We got it — grant the prize
+  await addBonusCredits(userId, segment.credits);
+  logger.info({ userId, slot, prize: segment.credits }, "[bonus] hourly crate claimed");
+  return { spun: true, segment };
+}
+
+/** Check if the current hour's crate is still available */
+export async function hourlyCrateStatus(): Promise<{ available: boolean; nextHourIn: number; lastClaimedBy?: string }> {
+  const admin = getSupabaseAdmin();
+  const slot = currentHourSlot();
+  const { data } = await admin
+    .from("hourly_crate_claims")
+    .select("claimed_by")
+    .eq("hour_slot", slot)
+    .maybeSingle();
+  if (data) {
+    return { available: false, nextHourIn: secondsUntilNextHour(), lastClaimedBy: (data as any).claimed_by };
+  }
+  return { available: true, nextHourIn: secondsUntilNextHour() };
 }
 
 /** Weighted random segment selection. */

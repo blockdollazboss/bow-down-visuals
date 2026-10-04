@@ -13,6 +13,8 @@ import {
   WHEEL_COOLDOWN_MINUTES,
   utcToday,
   utcYesterday,
+  claimHourlyCrate,
+  hourlyCrateStatus,
 } from "../lib/bonus";
 import { logger } from "../lib/logger";
 
@@ -73,19 +75,23 @@ router.post("/bonus/claim-daily", requireAuth, async (req, res) => {
   }
 });
 
-/* ── Spin the hourly jackpot wheel ──────────────────────────────────────
-   One spin per hour (server-side cooldown). Weighted random segment;
-   prize lands in the expiring bonus pool. */
+/* ── Claim the global hourly crate ──────────────────────────────────────
+   ONE claim per hour across the entire site — first come, first served.
+   Once claimed, it's gone until the next hour. */
 router.post("/bonus/spin-wheel", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
-    const result = await spinWheel(userId);
+    const result = await claimHourlyCrate(userId);
     if (!result.spun) {
-      res.status(429).json({ spun: false, reason: result.reason, cooldownSeconds: result.cooldownSeconds });
+      res.status(429).json({
+        spun: false,
+        reason: result.reason,
+        nextHourIn: result.nextHourIn,
+      });
       return;
     }
     const seg = result.segment!;
-    logger.info({ userId, prize: seg.credits, jackpot: !!seg.isJackpot }, "[bonus] wheel spin");
+    logger.info({ userId, prize: seg.credits, jackpot: !!seg.isJackpot }, "[bonus] hourly crate claimed");
     res.json({
       spun: true,
       prize: seg.credits,
@@ -94,7 +100,18 @@ router.post("/bonus/spin-wheel", requireAuth, async (req, res) => {
     });
   } catch (err: unknown) {
     req.log.error({ err }, "bonus/spin-wheel error");
-    res.status(500).json({ error: "Failed to spin the wheel." });
+    res.status(500).json({ error: "Failed to claim the hourly crate." });
+  }
+});
+
+/* ── Global hourly crate status ─────────────────────────────────────────
+   Is this hour's crate still available? */
+router.get("/bonus/hourly-crate-status", async (_req, res) => {
+  try {
+    const status = await hourlyCrateStatus();
+    res.json(status);
+  } catch (err: unknown) {
+    res.status(500).json({ error: "Failed to check crate status." });
   }
 });
 

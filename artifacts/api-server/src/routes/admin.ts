@@ -260,6 +260,17 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
       results.migration_0037 = "skipped: file not found";
     }
 
+    // 2b. Create hourly_crate_claims (global one-per-hour crate) — idempotent.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS hourly_crate_claims (
+        hour_slot TEXT PRIMARY KEY,
+        claimed_by UUID NOT NULL,
+        claimed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        prize_credits INTEGER NOT NULL
+      );
+    `);
+    results.hourly_crate_claims = "applied";
+
     // 2c. Apply ALL artist_vaults migrations — idempotent.
     // Production was missing multiple columns (team_id, reference_video, etc.).
     const vaultMigrations = [
