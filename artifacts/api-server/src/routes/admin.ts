@@ -260,17 +260,33 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
       results.migration_0037 = "skipped: file not found";
     }
 
-    // 2c. Apply 0047 (team_id on artist_vaults etc.) — idempotent.
-    const candidates0047 = [
-      path.join(process.cwd(), "lib/db/migrations/0047_teams.sql"),
-      path.join(process.cwd(), "../lib/db/migrations/0047_teams.sql"),
+    // 2c. Apply ALL artist_vaults migrations — idempotent.
+    // Production was missing multiple columns (team_id, reference_video, etc.).
+    const vaultMigrations = [
+      "0001_artist_voice_and_songs.sql",
+      "0006_artist_outfits.sql",
+      "0035_artist_theme.sql",
+      "0036_character_links.sql",
+      "0037_artist_reference_video.sql",
+      "0043_vault_soft_delete.sql",
+      "0047_teams.sql",
     ];
-    const sqlPath0047 = candidates0047.find((p) => existsSync(p));
-    if (sqlPath0047) {
-      await pool.query(readFileSync(sqlPath0047, "utf8"));
-      results.migration_0047 = "applied";
-    } else {
-      results.migration_0047 = "skipped: file not found";
+    for (const mig of vaultMigrations) {
+      const candidates = [
+        path.join(process.cwd(), `lib/db/migrations/${mig}`),
+        path.join(process.cwd(), `../lib/db/migrations/${mig}`),
+      ];
+      const sqlPath = candidates.find((p) => existsSync(p));
+      if (sqlPath) {
+        try {
+          await pool.query(readFileSync(sqlPath, "utf8"));
+          results[mig] = "applied";
+        } catch (e) {
+          results[mig] = `error: ${e instanceof Error ? e.message : "unknown"}`;
+        }
+      } else {
+        results[mig] = "skipped: file not found";
+      }
     }
 
     // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
