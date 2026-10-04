@@ -466,9 +466,11 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
       for (const [k, val] of Object.entries(v)) {
         if (k === "id" || k === "user_id") continue;
         if (k === "created_at" || k === "updated_at" || k === "deleted_at") continue;
-        if (existingCols.has(k)) {
-          filtered[k] = val;
-        }
+        if (!existingCols.has(k)) continue;
+        // Drop empty strings — Postgres can't cast "" to UUID/timestamp/etc.
+        // Let the column default (usually NULL) apply instead.
+        if (val === "") continue;
+        filtered[k] = val;
       }
       await db.insert(artistVaultsTable).values(filtered as typeof artistVaultsTable.$inferInsert);
       imported++;
