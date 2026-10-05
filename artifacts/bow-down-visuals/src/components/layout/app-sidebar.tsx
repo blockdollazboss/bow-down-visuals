@@ -465,7 +465,7 @@ export function AppSidebar() {
           <div className="h-full w-full flex items-center px-4 gap-2 overflow-x-auto">
             <Link href="/" className="flex items-center gap-2 mr-4 shrink-0 pointer-events-none">
               <img
-                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                src={`${import.meta.env.BASE_URL}logo-static.webp`}
                 alt="Bow Down Visuals"
                 className="h-8 w-auto"
               />
@@ -492,7 +492,7 @@ export function AppSidebar() {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 rounded-lg">
               <img
-                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                src={`${import.meta.env.BASE_URL}logo-static.webp`}
                 alt="Bow Down Visuals"
                 className="h-14 w-auto"
               />

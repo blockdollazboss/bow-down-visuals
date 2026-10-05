@@ -661,7 +661,7 @@ export function ExportSection({
               ) : (
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-white/10 bg-white/[0.03]">
                   <img
-                    src={`${import.meta.env.BASE_URL}bdv-watermark.png`}
+                    src={`${import.meta.env.BASE_URL}bdv-watermark.webp`}
                     alt="Bow Down Visuals watermark"
                     className="h-10 w-auto max-w-[120px] object-contain"
                   />

@@ -535,7 +535,7 @@ function BowRaceControls({
         /* keep last known count on poll failure */
       }
     }
-    const id = setInterval(() => void poll(), 1000);
+    const id = setInterval(() => void poll(), 30000);
     return () => {
       cancelled = true;
       clearInterval(id);
