@@ -105,6 +105,14 @@ export function __resetTipJarStores() {
   tipIntents.clear();
 }
 
+// Evict tip intents older than 24h — prevents unbounded memory growth
+setInterval(() => {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  for (const [id, intent] of tipIntents.entries()) {
+    if (intent.createdAt < cutoff) tipIntents.delete(id);
+  }
+}, 60 * 60 * 1000).unref?.();
+
 const router = Router();
 
 /* GET /api/tips/settings → my tip page settings (or 404 if not set up). Auth. */

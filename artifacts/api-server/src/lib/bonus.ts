@@ -242,8 +242,22 @@ export async function claimHourlyCrate(userId: string): Promise<WheelSpinResult>
     throw new Error(`Failed to claim hourly crate: ${err instanceof Error ? err.message : "unknown"}`);
   }
 
-  // We got it — grant the prize
-  await addBonusCredits(userId, segment.credits);
+  // We got it — grant the prize. If credit granting fails, roll back the
+  // claim so the hour isn't burned without a winner being paid.
+  try {
+    await addBonusCredits(userId, segment.credits);
+  } catch (creditErr) {
+    await db
+      .delete(hourlyCrateClaimsTable)
+      .where(eq(hourlyCrateClaimsTable.hour_slot, slot));
+    logger.error(
+      { userId, slot, err: creditErr instanceof Error ? creditErr.message : creditErr },
+      "[bonus] hourly crate credit grant failed — claim rolled back",
+    );
+    throw new Error(
+      `Crate claimed but prize could not be granted: ${creditErr instanceof Error ? creditErr.message : "unknown"}`,
+    );
+  }
   logger.info({ userId, slot, prize: segment.credits }, "[bonus] hourly crate claimed");
   return { spun: true, segment };
 }
