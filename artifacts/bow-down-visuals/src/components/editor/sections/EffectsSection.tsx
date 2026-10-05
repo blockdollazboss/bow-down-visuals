@@ -302,7 +302,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 {/* Visual preview on a mid-grey swatch so transparency is obvious */}
                 <div className="flex items-center gap-3 rounded-lg px-3 py-2.5 border border-white/[0.08]"
                   style={{ background: "linear-gradient(135deg,#2a2a2a 50%,#1a1a1a 50%)" }}>
-                  <img src={`${import.meta.env.BASE_URL}bdv-watermark.png`} alt="Bow Down Visuals watermark"
+                  <img src={`${import.meta.env.BASE_URL}bdv-watermark.webp`} alt="Bow Down Visuals watermark"
                     className="h-8 w-auto"
                     style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }} />
                   <span className="text-[10px] text-white/40 leading-tight">Transparent PNG — no background</span>
@@ -311,7 +311,7 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
                 <div className="bg-white/[0.02] rounded px-2.5 py-2 border border-white/[0.06] space-y-1">
                   <p className="text-[9px] font-black text-white/25 uppercase tracking-widest mb-1.5">Watermark Logo Status</p>
                   {([
-                    ["source file", "bdv-watermark.png"],
+                    ["source file", "bdv-watermark.webp"],
                     ["file type", "PNG"],
                     ["transparent alpha", "yes"],
                     ["background removed", "yes"],

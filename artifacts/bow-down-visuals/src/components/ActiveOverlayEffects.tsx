@@ -14,7 +14,7 @@
 import type React from "react";
 
 /* ─── Watermark asset (transparent PNG) ─────────────────────────────────── */
-const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.png`;
+const WATERMARK_URL = `${import.meta.env.BASE_URL}bdv-watermark.webp`;
 
 /* ─── Music Video defaults — clearly visible, never 100% ────────────────── */
 export const OVERLAY_DEFAULT_INTENSITY: Record<string, number> = {

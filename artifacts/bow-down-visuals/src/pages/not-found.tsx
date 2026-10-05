@@ -18,7 +18,7 @@ export default function NotFound() {
       <div className="relative z-10 text-center max-w-md mx-auto">
         <img
           ref={logoTilt}
-          src={`${import.meta.env.BASE_URL}logo-static.png`}
+          src={`${import.meta.env.BASE_URL}logo-static.webp`}
           alt="Bow Down Visuals"
           className="h-24 w-auto mx-auto mb-8"
         />

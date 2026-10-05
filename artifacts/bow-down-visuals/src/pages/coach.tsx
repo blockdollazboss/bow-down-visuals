@@ -337,6 +337,31 @@ export default function MonetizationCoach() {
  </div>
  </div>
 
+ {/* ── FRESH MONEY OPPORTUNITIES ──────────────────────────────── */}
+ <div className="relative mt-8">
+ <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Fresh money opportunities
+ </p>
+ <div className="rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
+ <p className="mb-2 inline-flex items-center rounded-full border border-primary/40 bg-primary/15 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-primary">
+ New · Oct 20
+ </p>
+ <p className="text-base font-black text-white">
+ Spotify starts paying video podcasters in 37 more countries
+ </p>
+ <p className="mt-2 text-[15px] leading-relaxed text-white/70">
+ Share of Premium video revenue + half the ad money Spotify sells
+ into your episodes. The bar: 3 episodes ever, 2,000 watch hours and
+ 1,000 engaged listeners in the last 30 days — way easier than
+ YouTube's Partner Program. Already making long-form video? Repost
+ it as a video podcast and get paid twice for the same content.
+ </p>
+ <p className="mt-3 text-xs text-white/40">
+ Eligibility check lives in Spotify for Creators → Monetize.
+ </p>
+ </div>
+ </div>
+
  {/* ── RESULTS ────────────────────────────────────────────────── */}
  {plan && plan.eligibility && plan.eligibility.length > 0 && (
  <div id="coach-results" className="relative mt-8">

@@ -77,7 +77,7 @@ export function SiteFooter() {
           <div className="md:col-start-4">
             <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg" aria-label="Bow Down Visuals — home">
               <img
-                src={`${import.meta.env.BASE_URL}logo-static.png`}
+                src={`${import.meta.env.BASE_URL}logo-static.webp`}
                 alt="Bow Down Visuals"
                 className="h-40 w-auto"
               />
