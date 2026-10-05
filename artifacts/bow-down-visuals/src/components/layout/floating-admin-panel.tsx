@@ -296,11 +296,34 @@ function CopyArtists({
     }
   }
 
+  async function removeDuplicate() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/remove-duplicate-shark", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}` },
+        credentials: "include",
+      });
+      const data = (await res.json()) as { ok?: boolean; deleted?: number; error?: string };
+      if (!data.ok) throw new Error(data.error || "Failed");
+      setMsg(`✓ Removed ${data.deleted} duplicate(s).`);
+    } catch (e) {
+      setMsg(`✗ ${e instanceof Error ? e.message : "Failed."}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
       <p className={labelCls}>Copy artists from staging</p>
       <button type="button" onClick={() => void copy()} disabled={busy} className={btnCls}>
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Copy my artists → production"}
+      </button>
+      <button type="button" onClick={() => void removeDuplicate()} disabled={busy} className={btnCls} style={{ marginTop: 6 }}>
+        {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : "Remove duplicate Shark King"}
       </button>
       {msg && <p className="text-[10px] mt-1 text-white/60 break-words">{msg}</p>}
     </div>

@@ -17,7 +17,7 @@ import { requireAuth } from "../middlewares/require-auth";
 import { getSupabaseAdmin } from "../lib/supabase-admin";
 import { recordCreditUsageStrict } from "../lib/payment-record";
 import { db, artistVaultsTable } from "@workspace/db";
-import { eq, isNull, and } from "drizzle-orm";
+import { eq, isNull, and, sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -532,6 +532,56 @@ router.post("/admin/import-artists", requireAuth, requireAdmin, async (req, res)
       error: fullError,
       rootError: rootMsg ? `${rootMsg}${rootCode}` : undefined,
     });
+  }
+});
+
+/**
+ * POST /api/admin/remove-duplicate-shark
+ * Removes the old SINGER-type Shark King duplicate, keeping the CHARACTER
+ * type (staging copy). Soft delete only.
+ */
+router.post("/admin/remove-duplicate-shark", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    // Find all live Shark King vaults for this user
+    const vaults = await db
+      .select({ id: artistVaultsTable.id, artist_type: artistVaultsTable.artist_type })
+      .from(artistVaultsTable)
+      .where(
+        and(
+          eq(artistVaultsTable.user_id, userId),
+          isNull(artistVaultsTable.deleted_at),
+          sql`artist_name ILIKE 'shark king'`
+        )
+      );
+    // Keep CHARACTER (staging copy), delete SINGER (old production)
+    const toDelete = vaults.filter((v) => v.artist_type === "singer" || v.artist_type === "SINGER");
+    // If no SINGER found but multiple exist, delete all but the CHARACTER one
+    let deleted = 0;
+    if (toDelete.length > 0) {
+      for (const v of toDelete) {
+        await db
+          .update(artistVaultsTable)
+          .set({ deleted_at: new Date(), updated_at: new Date() })
+          .where(eq(artistVaultsTable.id, v.id));
+        deleted++;
+      }
+    } else if (vaults.length > 1) {
+      // Fallback: keep the CHARACTER type, delete others
+      const keep = vaults.find((v) => (v.artist_type || "").toLowerCase() === "character");
+      for (const v of vaults) {
+        if (keep && v.id === keep.id) continue;
+        await db
+          .update(artistVaultsTable)
+          .set({ deleted_at: new Date(), updated_at: new Date() })
+          .where(eq(artistVaultsTable.id, v.id));
+        deleted++;
+      }
+    }
+    res.json({ ok: true, deleted, total: vaults.length });
+  } catch (err) {
+    req.log.error({ err }, "admin: remove duplicate shark failed");
+    res.status(500).json({ ok: false, error: err instanceof Error ? err.message : "Unknown" });
   }
 });
 
