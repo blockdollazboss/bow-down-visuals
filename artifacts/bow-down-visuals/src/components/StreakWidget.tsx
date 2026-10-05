@@ -47,7 +47,7 @@ export default function StreakWidget() {
     }
   }
 
-  if (streak === null || streak === 0) return null;
+  if (streak === null) return null;
 
   function openBonusModal() {
     window.dispatchEvent(new CustomEvent("bdv:open-bonus-modal"));
@@ -62,12 +62,14 @@ export default function StreakWidget() {
       <Flame className="h-5 w-5 text-[#e8c86a]" />
       <div>
         <p className="text-sm font-bold text-white">
-          {streak}-day streak 🔥
+          {streak === 0 ? "Start your streak 🔥" : `${streak}-day streak 🔥`}
         </p>
         <p className="text-xs text-white/50">
           {canClaim
             ? "Tap to claim your daily bonus!"
-            : "Claimed today — see you tomorrow!"}
+            : streak === 0
+              ? "Tap to claim your first daily bonus!"
+              : "Claimed today — see you tomorrow!"}
         </p>
       </div>
     </button>

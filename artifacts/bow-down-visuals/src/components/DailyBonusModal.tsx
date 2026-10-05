@@ -85,9 +85,34 @@ export function DailyBonusModal() {
  setClaiming(false);
  }
 
+ // Refresh bonus + crate status from the API
+ async function refreshStatus() {
+ try {
+ const token = await getAccessToken();
+ const res = await fetch("/api/bonus/status", {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const s = await res.json();
+ setStreak(s.streak || 0);
+ try {
+ const cs = await fetch("/api/bonus/hourly-crate-status", {
+ headers: { Authorization: `Bearer ${token}` },
+ });
+ const c = await cs.json();
+ setCrateAvailable(!!c.available);
+ } catch { /* silent */ }
+ } catch { /* silent */ }
+ }
+
  // Listen for manual open requests (from StreakWidget click)
+ // Always refresh status on open so the modal never shows stale data.
  useEffect(() => {
- const open = () => setVisible(true);
+ const open = () => {
+ setClaimed(null);
+ setCrateResult(null);
+ setVisible(true);
+ void refreshStatus();
+ };
  window.addEventListener("bdv:open-bonus-modal", open);
  return () => window.removeEventListener("bdv:open-bonus-modal", open);
  }, []);
