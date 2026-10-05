@@ -1,5 +1,5 @@
-import { sql } from "drizzle-orm";
-import { db } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { db, hourlyCrateClaimsTable } from "@workspace/db";
 import { getSupabaseAdmin } from "./supabase-admin";
 import { logger } from "./logger";
 
@@ -212,35 +212,34 @@ export function secondsUntilNextHour(d = new Date()): number {
  * First come, first served. Atomic — race-safe via primary key.
  */
 export async function claimHourlyCrate(userId: string): Promise<WheelSpinResult> {
-  const admin = getSupabaseAdmin();
   const slot = currentHourSlot();
   const segment = pickWheelSegment();
 
-  // Try to claim this hour's slot atomically
-  const { error } = await admin
-    .from("hourly_crate_claims")
-    .insert({
+  // Try to claim this hour's slot atomically via primary key.
+  // Uses Render Postgres (Drizzle) — the table lives there, not Supabase.
+  try {
+    await db.insert(hourlyCrateClaimsTable).values({
       hour_slot: slot,
       claimed_by: userId,
       prize_credits: segment.credits,
     });
-
-  if (error) {
+  } catch (err: any) {
     // Primary key conflict = someone already claimed this hour
-    if (error.code === "23505") {
-      const { data } = await admin
-        .from("hourly_crate_claims")
-        .select("claimed_by")
-        .eq("hour_slot", slot)
-        .maybeSingle();
+    const code = err?.cause?.code || err?.code;
+    if (code === "23505") {
+      const [existing] = await db
+        .select({ claimed_by: hourlyCrateClaimsTable.claimed_by })
+        .from(hourlyCrateClaimsTable)
+        .where(eq(hourlyCrateClaimsTable.hour_slot, slot))
+        .limit(1);
       return {
         spun: false,
         reason: "already_claimed_global",
-        claimedBy: (data as any)?.claimed_by ?? "someone",
+        claimedBy: existing?.claimed_by ?? "someone",
         nextHourIn: secondsUntilNextHour(),
       };
     }
-    throw new Error(`Failed to claim hourly crate: ${error.message}`);
+    throw new Error(`Failed to claim hourly crate: ${err instanceof Error ? err.message : "unknown"}`);
   }
 
   // We got it — grant the prize
@@ -251,15 +250,14 @@ export async function claimHourlyCrate(userId: string): Promise<WheelSpinResult>
 
 /** Check if the current hour's crate is still available */
 export async function hourlyCrateStatus(): Promise<{ available: boolean; nextHourIn: number; lastClaimedBy?: string }> {
-  const admin = getSupabaseAdmin();
   const slot = currentHourSlot();
-  const { data } = await admin
-    .from("hourly_crate_claims")
-    .select("claimed_by")
-    .eq("hour_slot", slot)
-    .maybeSingle();
-  if (data) {
-    return { available: false, nextHourIn: secondsUntilNextHour(), lastClaimedBy: (data as any).claimed_by };
+  const [row] = await db
+    .select({ claimed_by: hourlyCrateClaimsTable.claimed_by })
+    .from(hourlyCrateClaimsTable)
+    .where(eq(hourlyCrateClaimsTable.hour_slot, slot))
+    .limit(1);
+  if (row) {
+    return { available: false, nextHourIn: secondsUntilNextHour(), lastClaimedBy: row.claimed_by };
   }
   return { available: true, nextHourIn: secondsUntilNextHour() };
 }
