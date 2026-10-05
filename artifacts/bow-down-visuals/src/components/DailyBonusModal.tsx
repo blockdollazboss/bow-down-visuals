@@ -31,10 +31,9 @@ export function DailyBonusModal() {
  headers: { Authorization: `Bearer ${token}` },
  });
  const s = await res.json();
+ // No auto-popup: user claims manually via the StreakWidget. We don't push free credits.
  if (s.canClaimDaily) {
  setStreak(s.streak || 0);
- // Small delay so it doesn't flash on top of page load.
- setTimeout(() => setVisible(true), 1500);
  }
  // Check hourly crate status too
  try {
@@ -85,6 +84,13 @@ export function DailyBonusModal() {
  } catch { /* silent */ }
  setClaiming(false);
  }
+
+ // Listen for manual open requests (from StreakWidget click)
+ useEffect(() => {
+ const open = () => setVisible(true);
+ window.addEventListener("bdv:open-bonus-modal", open);
+ return () => window.removeEventListener("bdv:open-bonus-modal", open);
+ }, []);
 
  if (!visible) return null;
 

@@ -49,8 +49,16 @@ export default function StreakWidget() {
 
   if (streak === null || streak === 0) return null;
 
+  function openBonusModal() {
+    window.dispatchEvent(new CustomEvent("bdv:open-bonus-modal"));
+  }
+
   return (
-    <div className="flex items-center gap-2 rounded-[18px] border border-[#C9A84C]/30 bg-gradient-to-r from-[#C9A84C]/10 to-transparent px-4 py-3">
+    <button
+      type="button"
+      onClick={openBonusModal}
+      className="flex items-center gap-2 rounded-[18px] border border-[#C9A84C]/30 bg-gradient-to-r from-[#C9A84C]/10 to-transparent px-4 py-3 text-left w-full hover:border-[#C9A84C]/60 transition-colors cursor-pointer"
+    >
       <Flame className="h-5 w-5 text-[#e8c86a]" />
       <div>
         <p className="text-sm font-bold text-white">
@@ -58,10 +66,10 @@ export default function StreakWidget() {
         </p>
         <p className="text-xs text-white/50">
           {canClaim
-            ? "Your daily bonus is ready to claim!"
+            ? "Tap to claim your daily bonus!"
             : "Claimed today — see you tomorrow!"}
         </p>
       </div>
-    </div>
+    </button>
   );
 }
