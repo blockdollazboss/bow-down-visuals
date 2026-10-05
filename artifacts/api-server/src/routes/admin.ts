@@ -367,6 +367,39 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
       }
     }
 
+    // 2. Discord bot tables (0032) — missing, causes log spam every 10s
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS discord_bot_config (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL UNIQUE,
+        guild_id TEXT,
+        announce_channel_id TEXT,
+        announce_role_id TEXT,
+        mention_everyone BOOLEAN NOT NULL DEFAULT FALSE,
+        streamer_discord_user_id TEXT,
+        streamer_discord_username TEXT,
+        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS discord_bot_config_user_id_idx ON discord_bot_config (user_id);
+      CREATE TABLE IF NOT EXISTS discord_live_state (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL UNIQUE,
+        is_live BOOLEAN NOT NULL DEFAULT FALSE,
+        started_at TIMESTAMPTZ,
+        ended_at TIMESTAMPTZ,
+        channel_id TEXT,
+        channel_name TEXT,
+        stream_title TEXT,
+        announcement_message_id TEXT,
+        thread_id TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS discord_live_state_user_id_idx ON discord_live_state (user_id);
+    `);
+    results.discord_bot_tables = "applied";
+
     res.json({ ok: true, results });
   } catch (err) {
     req.log.error({ err }, "admin: schema repair failed");
