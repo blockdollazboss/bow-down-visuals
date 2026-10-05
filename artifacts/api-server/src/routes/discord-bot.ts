@@ -44,8 +44,13 @@ function requireBotSecret(req: Request, res: Response): boolean {
    the bot config row (created when the owner wires up the bot); GET is
    public so logged-out visitors see the badge. */
 async function getStreamerUserId(): Promise<string | null> {
-  const cfg = await db.select({ user_id: discordBotConfigTable.user_id }).from(discordBotConfigTable).limit(1);
-  return cfg[0]?.user_id ?? null;
+  try {
+    const cfg = await db.select({ user_id: discordBotConfigTable.user_id }).from(discordBotConfigTable).limit(1);
+    return cfg[0]?.user_id ?? null;
+  } catch {
+    // Table may not exist yet (pre-migration) — treat as unconfigured, not fatal.
+    return null;
+  }
 }
 
 /* GET /discord-bot/live — public. The frontend polls this for the LIVE badge. */
