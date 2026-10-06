@@ -25,7 +25,7 @@ import {
 } from "../../lib/credits";
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
-import { uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
+import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
 
 const router = Router();
 
@@ -272,9 +272,14 @@ router.post(
       return;
     }
 
+    /* Playable URL for immediate playback/download. The stable storage ref
+       in audioUrl can't be played directly by browsers. */
+    const audioPlayUrl = await refreshSupabaseStorageUrl(upload.url);
+
     res.json({
       audioUrl: upload.url,
       audioRef: upload.ref,
+      audioPlayUrl,
       format,
       emotion,
       voiceId,

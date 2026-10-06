@@ -49,7 +49,7 @@ import {
 import { publicApiLimiter } from "../../lib/rate-limit";
 import { logger } from "../../lib/logger";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
-import { uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
+import { refreshSupabaseStorageUrl, uploadMediaToSupabaseStorage } from "../../lib/objectStorage";
 
 const router = Router();
 const execFileAsync = promisify(execFile);
@@ -697,10 +697,14 @@ router.post(
         return;
       }
 
+      /* Playable URL — the stable storage ref can't be played by browsers
+         or used as an RSS enclosure URL. */
+      const audioPlayUrl = await refreshSupabaseStorageUrl(upload.url);
+
       const rss = buildPodcastRss({
         title,
         description,
-        audioUrl: upload.url,
+        audioUrl: audioPlayUrl,
         durationSeconds: Math.round(durationSeconds),
         pubDate: new Date(),
         chapters,
@@ -710,6 +714,7 @@ router.post(
       res.json({
         audioUrl: upload.url,
         audioRef: upload.ref,
+        audioPlayUrl,
         title,
         mode,
         format,

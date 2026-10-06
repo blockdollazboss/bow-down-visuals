@@ -3,7 +3,7 @@
    and VOICEOVER_CREDITS_PER_MINUTE in sync with the server. */
 
 export const WORDS_PER_MINUTE = 150;
-export const VOICEOVER_CREDITS_PER_MINUTE = 2;
+export const VOICEOVER_CREDITS_PER_MINUTE = 200;
 
 export type VoiceoverEmotion =
   | "energetic"
