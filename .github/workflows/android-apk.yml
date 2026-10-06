@@ -45,6 +45,11 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
+      - name: Check Supabase secrets present
+        run: |
+          if [ -z "${{ secrets.VITE_SUPABASE_URL }}" ]; then echo "SECRET_CHECK: VITE_SUPABASE_URL is MISSING"; else echo "SECRET_CHECK: VITE_SUPABASE_URL is SET"; fi
+          if [ -z "${{ secrets.VITE_SUPABASE_ANON_KEY }}" ]; then echo "SECRET_CHECK: VITE_SUPABASE_ANON_KEY is MISSING"; else echo "SECRET_CHECK: VITE_SUPABASE_ANON_KEY is SET"; fi
+
       - name: Add Android platform
         run: |
           set -o pipefail
