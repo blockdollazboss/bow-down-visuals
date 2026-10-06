@@ -47,9 +47,6 @@ jobs:
           ls -la dist/public/index.html || echo "NO INDEX.HTML"
           ./node_modules/.bin/cap add android --verbose 2>&1 | head -50
 
-      - name: Sync Capacitor
-        run: ./node_modules/.bin/cap sync android
-
       - name: Build debug APK
         working-directory: artifacts/bow-down-visuals/android
         run: ./gradlew assembleDebug --no-daemon
