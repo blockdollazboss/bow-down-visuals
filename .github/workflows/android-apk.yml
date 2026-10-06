@@ -47,8 +47,10 @@ jobs:
 
       - name: Add Android platform
         run: |
+          set -o pipefail
           ls -la dist/public/index.html || echo "NO INDEX.HTML"
-          ./node_modules/.bin/cap add android --verbose 2>&1 | head -50
+          ./node_modules/.bin/cap add android --verbose
+          test -f android/app/build.gradle || { echo "CAP ADD FAILED - android dir not created"; exit 1; }
 
       - name: Build debug APK
         working-directory: artifacts/bow-down-visuals/android
