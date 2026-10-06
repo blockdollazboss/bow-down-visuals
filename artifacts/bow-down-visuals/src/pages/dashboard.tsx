@@ -14,6 +14,7 @@ import { StudioPipeline } from "@/components/StudioPipeline";
 import { usePageTitle } from "@/hooks/use-page-title";
 import SpotlightBanner from "@/components/SpotlightBanner";
 import ExtensionPromoBanner from "@/components/ExtensionPromoBanner";
+import AndroidPromoBanner from "@/components/AndroidPromoBanner";
 import StreakWidget from "@/components/StreakWidget";
 
 
@@ -324,6 +325,7 @@ export default function Dashboard() {
         {/* ── SPOTLIGHT TAKEOVER PROMO (ad slot for sale) ── */}
         <SpotlightBanner />
         <ExtensionPromoBanner />
+        <AndroidPromoBanner />
         <StreakWidget />
 
         {/* ── 2. ACTIVE ARTIST STRIP ── */}

@@ -43,10 +43,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Add Android platform
-        run: npx cap add android
+        run: pnpm exec cap add android
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        run: pnpm exec cap sync android
 
       - name: Build debug APK
         working-directory: artifacts/bow-down-visuals/android
