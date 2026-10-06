@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Bow Down Visuals</string>
-    <string name="title_activity_main">Bow Down Visuals</string>
-    <string name="package_name">com.bowdownvisuals.app</string>
-    <string name="custom_url_scheme">com.bowdownvisuals.app</string>
-</resources>
