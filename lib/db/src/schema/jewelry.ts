@@ -11,7 +11,7 @@ export const jewelryOrdersTable = pgTable("jewelry_orders", {
   id:              uuid("id").primaryKey().defaultRandom(),
   userId:          text("user_id").notNull(),
   productKey:      text("product_key").notNull(),
-  finish:          text("finish").notNull(), // 'gold-14k' | 'gold-18k'
+  finish:          text("finish").notNull(), // 'gold-10k' | 'gold-14k' | 'gold-18k'
   sizeOption:      text("size_option").notNull(),
   engraving:       text("engraving"),
   designNotes:     text("design_notes"),
@@ -75,6 +75,7 @@ export function jewelryProductByKey(key: string) {
 }
 
 export const JEWELRY_FINISHES = [
+  { key: "gold-10k", label: "10K Solid Gold" },
   { key: "gold-14k", label: "14K Solid Gold" },
   { key: "gold-18k", label: "18K Solid Gold" },
 ] as const;

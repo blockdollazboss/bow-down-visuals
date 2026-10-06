@@ -11,7 +11,7 @@ import {
 } from "@/lib/jewelry";
 
 /* ─── Custom Jewelry Shop ───────────────────────────────────────────────
-   Made-to-order branded jewelry (dropship). PREMIUM LINE: solid 14K/18K
+   Made-to-order branded jewelry (dropship). PREMIUM LINE: solid 10K/14K/18K
    gold with real diamonds — never plated. Prices are TBD from supplier
    quotes, so the catalog carries priceCents 0 ("Pricing soon").
    v1 HONESTY CONTRACT: reservations only — no charge today. Payment is
@@ -21,7 +21,7 @@ import {
 const FAQS = [
   {
     q: "What are the pieces made of?",
-    a: "Solid 14K or 18K gold with real, natural diamonds — never plated, never simulated. Every gold piece is hallmarked for its karat.",
+    a: "Solid 10K, 14K or 18K gold with real, natural diamonds — never plated, never simulated. Every gold piece is hallmarked for its karat.",
   },
   {
     q: "When do I pay?",
@@ -171,7 +171,7 @@ export default function JewelryShop() {
           </h1>
           <p className="mt-5 text-zinc-400 text-lg max-w-2xl mx-auto">
             Made-to-order pendants, chains, rings and bracelets with your logo,
-            initials or emblem — crafted in solid 14K/18K gold with real
+            initials or emblem — crafted in solid 10K/14K/18K gold with real
             diamonds. Made by our manufacturing partner, shipped to your door.
           </p>
           <Link

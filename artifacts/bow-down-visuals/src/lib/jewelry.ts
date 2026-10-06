@@ -56,6 +56,7 @@ export interface JewelryFinish {
 }
 
 export const JEWELRY_FINISHES: JewelryFinish[] = [
+  { key: "gold-10k", label: "10K Solid Gold", swatch: "linear-gradient(135deg,#c9a227,#e8c96a)" },
   { key: "gold-14k", label: "14K Solid Gold", swatch: "linear-gradient(135deg,#d4af37,#f5d76e)" },
   { key: "gold-18k", label: "18K Solid Gold", swatch: "linear-gradient(135deg,#e8c34a,#f7e08b)" },
 ];
