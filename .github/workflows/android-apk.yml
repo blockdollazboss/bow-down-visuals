@@ -49,7 +49,7 @@ jobs:
         run: |
           set -o pipefail
           ls -la dist/public/index.html || echo "NO INDEX.HTML"
-          ./node_modules/.bin/cap add android --verbose
+          ./node_modules/.bin/cap add android
           test -f android/app/build.gradle || { echo "CAP ADD FAILED - android dir not created"; exit 1; }
 
       - name: Build debug APK
