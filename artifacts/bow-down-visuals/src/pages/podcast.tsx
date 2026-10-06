@@ -35,6 +35,7 @@ interface Voice {
 
 interface GenerateResponse {
   audioUrl?: string;
+  audioPlayUrl?: string;
   audioRef?: string;
   title?: string;
   mode?: string;
@@ -554,10 +555,10 @@ Tips:
                     <div className="mt-1">~{formatDuration(result.durationSeconds ?? 0)}</div>
                   </div>
 
-                  <audio key={result.audioUrl} controls src={result.audioUrl} className="w-full" />
+                  <audio key={result.audioUrl} controls src={result.audioPlayUrl ?? result.audioUrl} className="w-full" />
 
                   <a
-                    href={result.audioUrl}
+                    href={result.audioPlayUrl ?? result.audioUrl}
                     download={`${(result.title ?? "episode").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.mp3`}
                     className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium transition hover:border-primary/50 hover:text-primary"
                   >

@@ -32,6 +32,7 @@ interface Voice {
 
 interface GenerateResponse {
   audioUrl?: string;
+  audioPlayUrl?: string;
   audioRef?: string;
   format?: "mp3" | "wav";
   emotion?: string;
@@ -438,14 +439,14 @@ Tip: write it the way you'd say it. Short sentences land better than long ones."
                   <audio
                     key={result.audioUrl}
                     controls
-                    src={result.audioUrl}
+                    src={result.audioPlayUrl ?? result.audioUrl}
                     className="w-full"
                     onPlay={() => setPlaying(true)}
                     onPause={() => setPlaying(false)}
                   />
                   <div className="flex flex-col gap-2">
                     <a
-                      href={result.audioUrl}
+                      href={result.audioPlayUrl ?? result.audioUrl}
                       download={`voiceover.${result.format ?? "mp3"}`}
                       className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium transition hover:border-primary/50 hover:text-primary"
                     >
