@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Crown } from "lucide-react";
+import { mediaUrl } from "@/lib/media-cdn";
 
 /* ─────────────────── Shark King banner ─────────────────── */
 /* Slim full-width strip (toolbar-sized) starring the Shark King — the
@@ -102,8 +103,6 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
     return () => ro.disconnect();
   }, [onHeightChange]);
 
-  const base = import.meta.env.BASE_URL;
-
   return (
     <div className={`relative w-full ${className ?? ""}`}>
     <div
@@ -117,7 +116,7 @@ export function VideoBanner({ onHeightChange, className }: VideoBannerProps) {
         {/* Prowl-pan artwork layer — edge-faded so it melts into the base */}
         <div ref={mediaRef} className="absolute inset-0 will-change-transform">
           <video
-            src={`${base}top-banner-drone.mp4`}
+            src={mediaUrl("top-banner-drone.mp4")}
             autoPlay
             muted
             loop

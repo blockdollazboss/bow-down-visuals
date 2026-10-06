@@ -333,9 +333,10 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
 
     // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
     //    point the Shark King vault's reference video at the new seamless
-    //    loop file shipped in public/videos/. Updates only when exactly one
-    //    live "shark king" vault is found (preferring the requesting admin's).
-    const LOOP_URL = "/videos/shark-king-360-loop.mp4";
+    //    loop file. MEDIA_CDN_URL (e.g. R2 public bucket) keeps heavy media
+    //    off Render's metered bandwidth; empty = serve from app origin.
+    const _cdn = (process.env.MEDIA_CDN_URL || "").replace(/\/+$/, "");
+    const LOOP_URL = _cdn ? `${_cdn}/videos/shark-king-360-loop.mp4` : "/videos/shark-king-360-loop.mp4";
     const matches = await pool.query(
       `SELECT id, user_id, artist_name, reference_video_url
        FROM artist_vaults

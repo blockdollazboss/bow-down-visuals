@@ -13,6 +13,7 @@ import { Link } from "wouter";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { BowTestLogo } from "@/components/BowTestLogo";
 import SpotlightPromo from "@/components/SpotlightPromo";
+import { mediaUrl } from "@/lib/media-cdn";
 import ExtensionPromoBadge from "@/components/ExtensionPromoBadge";
 
 const schema = z.object({
@@ -127,7 +128,7 @@ export default function Signup() {
         {/* Drone video background — scrub through with your mouse, full brightness */}
         <video
           ref={bgVideoRef}
-          src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+          src={mediaUrl("videos/signin-drone-bg.mp4")}
           muted
           playsInline
           preload="auto"
@@ -164,7 +165,7 @@ export default function Signup() {
       {/* Drone video background — scrub through with your mouse, full brightness */}
       <video
         ref={bgVideoRef}
-        src={`${import.meta.env.BASE_URL}videos/signin-drone-bg.mp4`}
+        src={mediaUrl("videos/signin-drone-bg.mp4")}
         muted
         playsInline
         preload="auto"

@@ -10,6 +10,7 @@ import { MarketingBadge } from "@/components/MarketingBadge";
 import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { ThreadsIcon } from "@/components/social-icons";
+import { mediaUrl } from "@/lib/media-cdn";
 import {
   Music,
   Video,
@@ -1660,7 +1661,7 @@ function MusicVideoTeaser() {
           <video
             ref={videoRef}
             className="h-[72svh] min-h-[420px] w-full object-cover"
-            src="/official-teaser.mp4"
+            src={mediaUrl("official-teaser.mp4")}
             muted
             loop
             playsInline

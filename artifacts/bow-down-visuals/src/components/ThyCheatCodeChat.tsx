@@ -3,6 +3,7 @@ import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { X, Send, Loader2, Dices } from "lucide-react";
 import { CheatCodeName, PixelDivider } from "@/components/pixel-headline";
 import { DraggableWidget } from "@/components/draggable-widget";
+import { mediaUrl } from "@/lib/media-cdn";
 import {
   hasDownloadedExtension,
   hasOptedOutExtensionPromo,
@@ -227,7 +228,7 @@ export function ThyCheatCodeChat() {
           className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
         >
           <video
-            src="/thy-cheat-code-idle.mp4"
+            src={mediaUrl("thy-cheat-code-idle.mp4")}
             autoPlay
             muted
             loop
@@ -264,7 +265,7 @@ export function ThyCheatCodeChat() {
                   style={{ boxShadow: "3px 3px 0 rgba(0,0,0,0.9)" }}
                 >
                   <video
-                    src="/thy-cheat-code-working.mp4"
+                    src={mediaUrl("thy-cheat-code-working.mp4")}
                     autoPlay
                     muted
                     loop
@@ -328,7 +329,7 @@ export function ThyCheatCodeChat() {
                     style={{ boxShadow: "2px 2px 0 rgba(0,0,0,0.9)" }}
                   >
                     <video
-                      src="/thy-cheat-code-working.mp4"
+                      src={mediaUrl("thy-cheat-code-working.mp4")}
                       autoPlay
                       muted
                       loop

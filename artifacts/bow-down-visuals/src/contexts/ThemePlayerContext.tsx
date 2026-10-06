@@ -4,8 +4,9 @@ import {
 } from "react";
 import { useLocation } from "wouter";
 import { attachThemeAnalyser } from "@/lib/theme-analyser";
+import { mediaUrl } from "@/lib/media-cdn";
 
-const AUDIO_SRC = `${import.meta.env.BASE_URL}audio/bow-down-visuals-theme.mp3`;
+const AUDIO_SRC = mediaUrl("audio/bow-down-visuals-theme.mp3");
 
 type Status = "probing" | "ready" | "missing" | "playing" | "error";
 

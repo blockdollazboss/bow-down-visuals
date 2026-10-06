@@ -10,6 +10,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { mediaUrl } from "@/lib/media-cdn";
 
 /* ─── data ─── */
 
@@ -404,7 +405,7 @@ export default function Pricing() {
           </MarketingBadge>
           <div className="mx-auto mb-6 h-28 w-28 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_32px_rgba(201,168,76,0.3)]">
             <video
-              src="/thy-cheat-code-levelup.mp4"
+              src={mediaUrl("thy-cheat-code-levelup.mp4")}
               autoPlay
               muted
               loop
