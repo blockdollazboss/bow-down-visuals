@@ -33,6 +33,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile=false
 
