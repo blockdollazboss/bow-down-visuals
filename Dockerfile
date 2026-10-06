@@ -59,12 +59,17 @@ ENV NODE_ENV=production
 
 EXPOSE 8080
 
-# Sync the Postgres schema on every boot before starting the server.
-# drizzle-kit push is idempotent (only applies diffs); --force skips the
-# interactive confirmation so the container never hangs waiting for input.
-# The `;` (not `&&`) guarantees the server still starts if the push hits a
-# transient DB hiccup — the failure will be visible in the logs.
+# Run pending SQL migrations on every boot before starting the server.
+# migrate-boot.mjs applies lib/db/migrations/*.sql in order, exactly once
+# (tracked in data_migrations), non-interactively, under an advisory lock.
+# drizzle-kit push is RETIRED here: it needs a TTY for its conflict prompt
+# (died on every deploy, silently skipping schema changes — the 2026-10-06
+# credit-ledger outage) and can never reconcile a DB whose tables are a
+# superset of the TS schema.
+# A failed migration exits non-zero so the deploy stalls LOUDLY instead of
+# drifting silently — Render keeps the previous healthy deploy serving.
+# Transient DB connection hiccups are retried inside the runner.
 # Cap the V8 heap: on a 512MB instance an uncapped Node heap grows until it
 # starves the FFmpeg child (1080x1920 x264) and Render OOM-kills the service.
 # 160MB heap keeps Node's RSS ~220MB, leaving ~280MB for FFmpeg.
-CMD ["sh", "-c", "pnpm --filter @workspace/db push-force; exec node --enable-source-maps --max-old-space-size=160 artifacts/api-server/dist/index.mjs"]
+CMD ["sh", "-c", "pnpm --filter @workspace/db migrate-boot && exec node --enable-source-maps --max-old-space-size=160 artifacts/api-server/dist/index.mjs"]
