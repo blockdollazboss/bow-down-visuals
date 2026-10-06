@@ -134,7 +134,7 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("jewelry_orders")
-    .select("id, product_key, finish, size_option, engraving, design_notes, quantity, full_name, email, shipping_address, status, created_at")
+    .select("id, product_key, finish, size_option, engraving, design_notes, quantity, full_name, email, phone, shipping_address, status, created_at")
     .eq("status", "received")
     .order("created_at", { ascending: true })
     .limit(1000);
@@ -147,12 +147,12 @@ router.get("/jewelry/admin/orders.csv", requireAuth, requireAdmin, async (_req: 
     const addr = (o.shipping_address ?? {}) as Record<string, string>;
     return [
       o.id, o.product_key, o.finish, o.size_option, o.engraving, o.design_notes,
-      o.quantity, o.full_name, o.email,
+      o.quantity, o.full_name, o.email, o.phone,
       addr.street, addr.city, addr.state, addr.zip, addr.country,
       o.status, o.created_at,
     ].map(esc).join(",");
   });
-  const header = "order_id,product,finish,size,engraving,design_notes,quantity,full_name,email,street,city,state,zip,country,status,created_at";
+  const header = "order_id,product,finish,size,engraving,design_notes,quantity,full_name,email,phone,street,city,state,zip,country,status,created_at";
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=jewelry-orders.csv");
   res.send([header, ...rows].join("\n"));

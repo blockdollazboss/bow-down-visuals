@@ -306,7 +306,7 @@ router.get("/nfc-cards/admin/orders.csv", requireAuth, requireAdmin, async (_req
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("nfc_order_cards")
-    .select("card_index, nfc_card_orders!inner(id, card_style, full_name, email, shipping_address, status, created_at), nfc_profiles!inner(slug)")
+    .select("card_index, nfc_card_orders!inner(id, card_style, full_name, email, phone, shipping_address, status, created_at), nfc_profiles!inner(slug)")
     .eq("nfc_card_orders.status", "received")
     .order("created_at", { ascending: true, referencedTable: "nfc_card_orders" })
     .limit(5000);
@@ -321,14 +321,14 @@ router.get("/nfc-cards/admin/orders.csv", requireAuth, requireAdmin, async (_req
     const slug = ((c.nfc_profiles ?? {}) as { slug?: string }).slug ?? "";
     return [
       o.id, `${o.id}-card-${(c.card_index as number) + 1}`,
-      o.card_style, o.full_name, o.email,
+      o.card_style, o.full_name, o.email, o.phone,
       addr.street, addr.city, addr.state, addr.zip, addr.country,
       slug ? nfcProfileUrl(slug) : "",
       slug ? `${nfcProfileUrl(slug).replace(/\/c\//, "/api/nfc-cards/qr/")}.svg` : "",
       o.status, o.created_at,
     ].map(esc).join(",");
   });
-  const header = "order_id,card_id,card_style,full_name,email,street,city,state,zip,country,nfc_url,qr_svg_url,status,created_at";
+  const header = "order_id,card_id,card_style,full_name,email,phone,street,city,state,zip,country,nfc_url,qr_svg_url,status,created_at";
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", "attachment; filename=nfc-card-orders.csv");
   res.send([header, ...rows].join("\n"));

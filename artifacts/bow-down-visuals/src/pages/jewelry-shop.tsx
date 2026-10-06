@@ -7,14 +7,35 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import {
-  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatMoney,
+  JEWELRY_PRODUCTS, JEWELRY_FINISHES, jewelryProductByKey, formatJewelryPrice,
 } from "@/lib/jewelry";
 
 /* ─── Custom Jewelry Shop ───────────────────────────────────────────────
-   Made-to-order branded jewelry (dropship).
+   Made-to-order branded jewelry (dropship). PREMIUM LINE: solid 14K/18K
+   gold with real diamonds — never plated. Prices are TBD from supplier
+   quotes, so the catalog carries priceCents 0 ("Pricing soon").
    v1 HONESTY CONTRACT: reservations only — no charge today. Payment is
    collected when production is confirmed with the manufacturer.
    Pairs with the Logo-to-Luxury studio at /jewelry for custom designs. */
+
+const FAQS = [
+  {
+    q: "What are the pieces made of?",
+    a: "Solid 14K or 18K gold with real, natural diamonds — never plated, never simulated. Every gold piece is hallmarked for its karat.",
+  },
+  {
+    q: "When do I pay?",
+    a: "Reserving is free — nothing is charged today. We confirm your design and final price with our manufacturing partner first, then collect payment before your piece is crafted.",
+  },
+  {
+    q: "How long does it take?",
+    a: "Every piece is made to order. We'll confirm your production timeline with our manufacturing partner when we confirm your design — before any payment is collected.",
+  },
+  {
+    q: "Can I cancel or return my piece?",
+    a: "Because each piece is custom-made to your design, all sales are final once production begins. You can cancel free of charge any time before we confirm production with you.",
+  },
+];
 
 type Step = "piece" | "customize" | "shipping" | "review";
 
@@ -51,6 +72,14 @@ export default function JewelryShop() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [formError, setFormError] = useState("");
+  /* One idempotency key per wizard session — a failed-then-retried submit
+     must reuse the same key so the server dedupes instead of double-booking.
+     Regenerated after each successful reservation for the next one. */
+  const genReservationKey = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const [reservationKey, setReservationKey] = useState<string>(genReservationKey);
 
   const [orders, setOrders] = useState<JewelryOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -94,10 +123,6 @@ export default function JewelryShop() {
     setSubmitting(true);
     setFormError("");
     try {
-      const idempotencyKey =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const res = await confirmedFetch("/api/jewelry/order", {
         method: "POST",
         skipConfirm: true,
@@ -108,11 +133,12 @@ export default function JewelryShop() {
           quantity,
           fullName: fullName.trim(), email: email.trim(), phone: phone.trim(),
           shippingAddress: { street, city, state: state_, zip, country: "USA" },
-          idempotencyKey,
+          idempotencyKey: reservationKey,
         }),
       });
       const json = await res!.json();
       if (!json.ok) throw new Error(json.error || "Reservation failed");
+      setReservationKey(genReservationKey());
       setDone(true);
       void loadOrders();
     } catch (e) {
@@ -145,8 +171,8 @@ export default function JewelryShop() {
           </h1>
           <p className="mt-5 text-zinc-400 text-lg max-w-2xl mx-auto">
             Made-to-order pendants, chains, rings and bracelets with your logo,
-            initials or emblem — cast in gold, silver or black. Crafted by our
-            manufacturing partner, shipped to your door.
+            initials or emblem — crafted in solid 14K/18K gold with real
+            diamonds. Made by our manufacturing partner, shipped to your door.
           </p>
           <Link
             href="/jewelry"
@@ -207,7 +233,7 @@ export default function JewelryShop() {
                         </div>
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold">{p.label}</h3>
-                          <span className="text-amber-300 font-bold">{formatMoney(p.priceCents)}</span>
+                          <span className="text-amber-300 font-bold">{formatJewelryPrice(p.priceCents)}</span>
                         </div>
                         <p className="text-sm text-zinc-400 mt-1">{p.blurb}</p>
                       </button>
@@ -220,7 +246,7 @@ export default function JewelryShop() {
                 <div className="space-y-6 max-w-xl">
                   <div>
                     <label className="text-sm text-zinc-400 mb-2 block">Finish</label>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       {JEWELRY_FINISHES.map((f) => (
                         <button
                           key={f.key}
@@ -269,7 +295,7 @@ export default function JewelryShop() {
                       <span className="w-8 text-center font-bold">{quantity}</span>
                       <button onClick={() => setQuantity(Math.min(20, quantity + 1))} className="w-9 h-9 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xl">+</button>
                     </div>
-                    <span className="ml-auto text-lg">Total: <span className="text-amber-300 font-bold">{formatMoney(total)}</span></span>
+                    <span className="ml-auto text-lg">Total: <span className="text-amber-300 font-bold">{formatJewelryPrice(total)}</span></span>
                   </div>
                 </div>
               )}
@@ -304,8 +330,8 @@ export default function JewelryShop() {
                     <div className="flex justify-between"><span className="text-zinc-400">Quantity</span><span className="font-medium">{quantity}</span></div>
                     <div className="flex justify-between"><span className="text-zinc-400">Ship to</span><span className="font-medium text-right">{fullName}<br />{street}, {city}, {state_} {zip}</span></div>
                     <div className="flex justify-between pt-2 border-t border-zinc-800">
-                      <span className="text-zinc-400">Total due at confirmation</span>
-                      <span className="text-amber-300 font-bold text-lg">{formatMoney(total)}</span>
+                      <span className="text-zinc-400">Final price</span>
+                      <span className="text-amber-300 font-bold text-lg">Confirmed with you before production</span>
                     </div>
                   </div>
                   <p className="text-sm text-zinc-400 flex items-start gap-2">
@@ -367,7 +393,7 @@ export default function JewelryShop() {
                 {orders.map((o) => (
                   <div key={o.id} className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm">
                     <span>{jewelryProductByKey(o.product_key)?.label ?? o.product_key} · {o.size_option} × {o.quantity}</span>
-                    <span className="text-zinc-400">{formatMoney(o.total_cents)}</span>
+                    <span className="text-zinc-400">{formatJewelryPrice(o.total_cents)}</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-amber-400/10 text-amber-300">
                       {o.status.replace("_", " ")}
                     </span>
@@ -377,6 +403,22 @@ export default function JewelryShop() {
             )}
           </div>
         )}
+
+        {/* ── FAQ ── */}
+        <div className="mt-14">
+          <h2 className="text-2xl font-bold mb-5">Questions</h2>
+          <div className="space-y-3">
+            {FAQS.map((f, i) => (
+              <details key={i} className="rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-4 group">
+                <summary className="font-medium cursor-pointer list-none flex justify-between items-center">
+                  {f.q}
+                  <ChevronRight className="w-4 h-4 text-zinc-500 group-open:rotate-90 transition" />
+                </summary>
+                <p className="text-sm text-zinc-400 mt-2 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

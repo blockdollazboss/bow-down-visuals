@@ -11,7 +11,7 @@ export const jewelryOrdersTable = pgTable("jewelry_orders", {
   id:              uuid("id").primaryKey().defaultRandom(),
   userId:          text("user_id").notNull(),
   productKey:      text("product_key").notNull(),
-  finish:          text("finish").notNull(), // 'gold' | 'silver' | 'black'
+  finish:          text("finish").notNull(), // 'gold-14k' | 'gold-18k'
   sizeOption:      text("size_option").notNull(),
   engraving:       text("engraving"),
   designNotes:     text("design_notes"),
@@ -41,29 +41,29 @@ export const JEWELRY_PRODUCTS = [
   {
     key: "logo-pendant",
     label: "Custom Logo Pendant",
-    priceCents: 8900,
-    blurb: "Your logo or mark, cast in gold — the signature piece",
+    priceCents: 0, // premium line: final price confirmed with buyer before production
+    blurb: "Your logo or mark, cast in solid gold with real diamond accents — the signature piece",
     sizes: ['18" chain', '20" chain', '22" chain', '24" chain'],
   },
   {
     key: "cuban-chain",
     label: "Cuban Link Chain",
-    priceCents: 12900,
-    blurb: "Heavy Cuban link with engraved clasp — pure weight",
+    priceCents: 0, // premium line: final price confirmed with buyer before production
+    blurb: "Heavy solid-gold Cuban link with engraved clasp and diamond accents — pure weight",
     sizes: ['18"', '20"', '22"', '24"', '26"'],
   },
   {
     key: "signet-ring",
     label: "Engraved Signet Ring",
-    priceCents: 7900,
-    blurb: "Your initials or emblem, deep-engraved",
+    priceCents: 0, // premium line: final price confirmed with buyer before production
+    blurb: "Your initials or emblem, deep-engraved in solid gold",
     sizes: ["6", "7", "8", "9", "10", "11", "12", "13"],
   },
   {
     key: "id-bracelet",
     label: "Engraved ID Bracelet",
-    priceCents: 6900,
-    blurb: "Classic ID plate, engraved with your name or brand",
+    priceCents: 0, // premium line: final price confirmed with buyer before production
+    blurb: "Classic ID plate in solid gold, engraved with your name or brand",
     sizes: ['S (7")', 'M (8")', 'L (9")'],
   },
 ] as const;
@@ -75,9 +75,8 @@ export function jewelryProductByKey(key: string) {
 }
 
 export const JEWELRY_FINISHES = [
-  { key: "gold", label: "18K Gold Plated" },
-  { key: "silver", label: "Sterling Silver" },
-  { key: "black", label: "Black Rhodium" },
+  { key: "gold-14k", label: "14K Solid Gold" },
+  { key: "gold-18k", label: "18K Solid Gold" },
 ] as const;
 
 export type JewelryFinishKey = (typeof JEWELRY_FINISHES)[number]["key"];

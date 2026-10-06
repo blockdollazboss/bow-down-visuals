@@ -74,8 +74,16 @@ export default function NfcCards() {
   const [state_, setState_] = useState("");
   const [zip, setZip] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [orderResult, setOrderResult] = useState<{ slug: string; url: string } | null>(null);
+  const [orderResult, setOrderResult] = useState<{ slug: string; url: string; deduped?: boolean } | null>(null);
   const [formError, setFormError] = useState("");
+  /* One idempotency key per wizard session — a failed-then-retried submit
+     must reuse the same key so the server dedupes instead of double-booking.
+     Regenerated after each successful order for the next one. */
+  const genOrderKey = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const [orderKey, setOrderKey] = useState<string>(genOrderKey);
 
   /* my cards */
   const [profiles, setProfiles] = useState<NfcProfile[]>([]);
@@ -126,10 +134,6 @@ export default function NfcCards() {
     setSubmitting(true);
     setFormError("");
     try {
-      const idempotencyKey =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const res = await confirmedFetch("/api/nfc-cards/order", {
         method: "POST",
         skipConfirm: true,
@@ -145,12 +149,19 @@ export default function NfcCards() {
           email: email.trim(),
           phone: phone.trim(),
           shippingAddress: { street, city, state: state_, zip, country: "USA" },
-          idempotencyKey,
+          idempotencyKey: orderKey,
         }),
       });
       const json = await res!.json();
       if (!json.ok) throw new Error(json.error || "Order failed");
-      setOrderResult({ slug: json.profile.slug, url: json.profile.url });
+      if (json.profile) {
+        setOrderResult({ slug: json.profile.slug, url: json.profile.url });
+      } else {
+        // Deduplicated retry: the order already exists, so no duplicate was
+        // created — confirm without a card link (server omits profile here).
+        setOrderResult({ slug: "", url: "", deduped: true });
+      }
+      setOrderKey(genOrderKey());
       loadMine();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Order failed — try again.");
@@ -238,14 +249,20 @@ export default function NfcCards() {
                 Your digital card is already live. We'll reach out to confirm
                 production and collect payment — nothing charged today.
               </p>
-              <a
-                href={orderResult.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-6 rounded-xl bg-amber-400 text-black font-semibold px-6 py-3 hover:bg-amber-300"
-              >
-                View your digital card <ChevronRight className="w-4 h-4" />
-              </a>
+              {orderResult.url ? (
+                <a
+                  href={orderResult.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 mt-6 rounded-xl bg-amber-400 text-black font-semibold px-6 py-3 hover:bg-amber-300"
+                >
+                  View your digital card <ChevronRight className="w-4 h-4" />
+                </a>
+              ) : (
+                <p className="text-sm text-zinc-500 mt-6 max-w-md mx-auto">
+                  This reservation was already placed — no duplicate was created.
+                </p>
+              )}
               <div className="mt-4">
                 <button
                   onClick={() => { setOrderResult(null); setStep("style"); }}
