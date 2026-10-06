@@ -56,6 +56,16 @@ jobs:
         working-directory: artifacts/bow-down-visuals/android
         run: ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tail -80
 
+      - name: Verify APK exists
+        working-directory: artifacts/bow-down-visuals/android
+        run: |
+          echo "=== Searching for APKs ==="
+          find . -name "*.apk" 2>/dev/null || echo "FIND FOUND NOTHING"
+          echo "=== app/build tree ==="
+          ls -la app/build/outputs/ 2>/dev/null || echo "NO OUTPUTS DIR"
+          echo "=== android dir contents ==="
+          ls -la
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
