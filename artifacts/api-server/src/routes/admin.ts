@@ -331,6 +331,16 @@ router.post("/admin/schema-repair", requireAuth, requireAdmin, async (req, res) 
       }
     }
 
+    // 2e. credit_usage.idempotency_key (idempotent team funding, 2026-09-28):
+    //     production's credit_usage table is missing this column because
+    //     drizzle-kit push aborts on Render (no TTY for its conflict prompt),
+    //     which breaks EVERY credit charge with ledger_write_failed.
+    //     Idempotent: safe to re-run.
+    await pool.query(`
+      ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+    `);
+    results.credit_usage_idempotency_key = "applied";
+
     // 3. TEMPORARY (user approved "ship 360 loop to staging" 2026-09-27):
     //    point the Shark King vault's reference video at the new seamless
     //    loop file shipped in public/videos/. Updates only when exactly one
