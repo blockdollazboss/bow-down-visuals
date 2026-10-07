@@ -82,6 +82,31 @@ export default function VoiceoverStudio() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  /* Sponsor read handoff — the Sponsorship Outreach page's "Send to Voiceover
+     Pro" stores the read script here; prefill the script box on arrival. */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("bdv_sponsor_read_handoff");
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { script?: string; brandName?: string };
+      if (handoff && typeof handoff.script === "string" && handoff.script.trim()) {
+        setScript(handoff.script.trim());
+        setTimeout(() => {
+          document.getElementById("voiceover-script")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+      }
+      localStorage.removeItem("bdv_sponsor_read_handoff");
+    } catch {
+      /* bad payload — drop it and carry on */
+      try {
+        localStorage.removeItem("bdv_sponsor_read_handoff");
+      } catch {
+        /* ignore */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const estimate = estimateVoiceoverCost(script);
 
   useEffect(() => {
@@ -266,6 +291,7 @@ export default function VoiceoverStudio() {
                 </div>
               </div>
               <textarea
+                id="voiceover-script"
                 value={script}
                 onChange={(e) => setScript(e.target.value)}
                 rows={10}

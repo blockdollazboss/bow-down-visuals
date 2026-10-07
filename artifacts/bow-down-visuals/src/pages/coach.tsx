@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import NicheAnalyzerPanel from "@/components/coach/NicheAnalyzerPanel";
 
 /* ─── Thy Cheat Code's Monetization Coach ─────────────────────────────────
  The money end of the creator loop: eligibility tracking for each
@@ -117,6 +118,7 @@ export default function MonetizationCoach() {
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
+ const [activeTab, setActiveTab] = useState<"plan" | "niche">("plan");
 
  function togglePlatform(key: PlatformKey) {
  setPlatforms((prev) =>
@@ -208,6 +210,29 @@ export default function MonetizationCoach() {
  </p>
  </div>
 
+ {/* ── TABS: money plan vs niche analyzer ─────────────────────────── */}
+ <div className="relative mt-8 flex justify-center">
+ <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+ {(["plan", "niche"] as const).map((tab) => (
+ <button
+ key={tab}
+ onClick={() => setActiveTab(tab)}
+ className={`rounded-xl px-6 py-2.5 text-sm font-bold transition ${
+ activeTab === tab
+ ? "bg-primary text-black shadow-[0_0_16px_rgba(212,175,55,0.3)]"
+ : "text-white/55 hover:text-white"
+ }`}
+ >
+ {tab === "plan" ? "Money Plan" : "Niche Analyzer"}
+ </button>
+ ))}
+ </div>
+ </div>
+
+ {activeTab === "niche" ? (
+ <NicheAnalyzerPanel />
+ ) : (
+ <>
  {/* ── INPUTS ─────────────────────────────────────────────────── */}
  <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
  {/* niche */}
@@ -482,6 +507,8 @@ export default function MonetizationCoach() {
  </div>
  )}
  </div>
+ )}
+ </>
  )}
 
  {/* cross-link */}

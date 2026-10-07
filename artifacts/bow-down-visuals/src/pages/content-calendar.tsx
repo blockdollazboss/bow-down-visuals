@@ -104,6 +104,17 @@ export default function ContentCalendar() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
 
+  /* Deep-link handoff: ?niche= pre-fills the niche (used by the
+     /coach Niche Analyzer "Build a content calendar" handoff). */
+  useEffect(() => {
+    try {
+      const linked = new URLSearchParams(window.location.search).get("niche")?.trim().slice(0, 120);
+      if (linked) setCustomNiche(linked);
+    } catch {
+      /* ignore malformed query strings */
+    }
+  }, []);
+
   const sig = useMemo(
     () => calendarSig(customNiche.trim() || niche, platforms, parseInt(postsPerWeek, 10) || 3, startDate),
     [niche, customNiche, platforms, postsPerWeek, startDate],

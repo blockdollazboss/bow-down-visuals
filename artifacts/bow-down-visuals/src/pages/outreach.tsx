@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import SponsorReadPanel from "@/components/outreach/SponsorReadPanel";
 
 /* ─── Sponsorship Outreach ────────────────────────────────────────────────
    AI-crafted outreach to brands for sponsorships. Pairs with the Sponsor
@@ -393,6 +394,11 @@ export default function SponsorshipOutreach() {
             </p>
           </div>
         )}
+
+        {/* sponsor read generator — deal landed? write the actual spoken read */}
+        <div className="relative mt-4">
+          <SponsorReadPanel />
+        </div>
 
         {/* tracker */}
         <div className="relative mt-12">
