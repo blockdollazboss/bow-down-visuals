@@ -23,6 +23,7 @@ import { useHubProject } from "@/lib/hub-project";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useTranslation } from "react-i18next";
 import { getThumbnailTemplate } from "@/data/thumbnail-templates";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 
 interface GeneratedImage {
   url: string;
@@ -419,7 +420,7 @@ export function ThumbnailMakerModule() {
                 <p className="text-sm text-white/60">
                   <span className="text-primary font-bold">{t("thumbnailMaker.variationBadge", { n: selectedImage.variation })}</span> {t("thumbnailMaker.selectedSummary")}
                 </p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <Button
                     variant="outline"
                     size="sm"
@@ -430,6 +431,11 @@ export function ThumbnailMakerModule() {
                     <Button size="sm" className="gold-glow font-bold gap-2">
                       <Download className="h-4 w-4" />{t("thumbnailMaker.downloadButton")}</Button>
                   </a>
+                  <PublishToShowcase
+                    mediaType="image"
+                    mediaUrl={selectedImage.url}
+                    defaultTitle={`Thumbnail v${selectedImage.variation}`}
+                  />
                 </div>
               </div>
             )}

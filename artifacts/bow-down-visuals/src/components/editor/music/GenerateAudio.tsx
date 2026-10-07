@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EditorCard, Field, Segmented, TextInput } from "@/components/editor/controls";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { generateMusicAudio } from "@/lib/generate-music-audio";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { defaultStemEffects, type EditorSettings, type AudioStem } from "@/lib/editor-settings";
 
@@ -250,6 +251,11 @@ export function GenerateAudio({ settings, onChange, artistName, songTitle, artis
             ) : (
               <audio controls src={lastGenerated.url} className="w-full" data-testid="audio-generate-real-preview" />
             )}
+            <PublishToShowcase
+              mediaType="song"
+              mediaUrl={lastGenerated.url}
+              defaultTitle={lastGenerated.name}
+            />
           </div>
         )}
       </div>

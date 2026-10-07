@@ -51,6 +51,8 @@ import TemplatesHub from "@/pages/templates/index";
 import ThumbnailTemplates from "@/pages/templates/thumbnails";
 import HookTemplates from "@/pages/templates/hooks";
 import CaptionPacks from "@/pages/templates/captions";
+import Showcase from "@/pages/showcase/index";
+import ShowcaseItemPage from "@/pages/showcase/item";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -391,6 +393,8 @@ function AppShell() {
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
           <Route path="/templates/hooks"><HookTemplates /></Route>
           <Route path="/templates/captions"><CaptionPacks /></Route>
+          <Route path="/showcase"><Showcase /></Route>
+          <Route path="/showcase/:slug"><ShowcaseItemPage /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>

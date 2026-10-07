@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { PublishToShowcase } from "@/components/PublishToShowcase";
 
 interface GeneratedClip {
   id: string;
@@ -447,6 +448,14 @@ function ClipCard({
           <Link2 className="h-3.5 w-3.5" />
           Attach to Project Scene
         </button>
+
+        {/* Publish to showcase (opt-in) */}
+        <PublishToShowcase
+          mediaType="video"
+          mediaUrl={clip.video_url}
+          thumbnailUrl={clip.thumbnail_url}
+          defaultTitle={clip.title || "My Runway Clip"}
+        />
 
         {/* Actions */}
         <div className="flex items-center justify-between pt-1 border-t border-white/[0.05]">

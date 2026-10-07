@@ -5,7 +5,7 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Image as ImageIcon, Zap, MessageSquare } from "lucide-react";
+import { ArrowRight, Image as ImageIcon, Zap, MessageSquare, Trophy } from "lucide-react";
 
 /* ─── Public template library hub ───
    No login required. Galleries deep-link into tools with templates preloaded. */
@@ -103,6 +103,23 @@ export default function TemplatesHub() {
             </LuxReveal>
           ))}
         </div>
+
+        {/* Community showcase promo */}
+        <LuxReveal delay={0.1}>
+          <div className="mt-12 text-center rounded-2xl border border-[#c9a84c]/25 bg-gradient-to-b from-[#c9a84c]/[0.07] to-transparent p-10">
+            <Trophy className="h-8 w-8 mx-auto mb-4 text-[#e8c86a]" />
+            <h2 className="text-2xl font-bold mb-3">Community Showcase</h2>
+            <p className="text-white/50 mb-6 max-w-xl mx-auto text-sm">
+              See what creators are making with Bow Down Visuals — thumbnails,
+              videos, and songs from the community.
+            </p>
+            <Link href="/showcase">
+              <Button className="bg-gradient-to-b from-[#e8c86a] to-[#b08d3e] text-black hover:brightness-110">
+                Browse the showcase <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </LuxReveal>
       </div>
     </div>
   );
