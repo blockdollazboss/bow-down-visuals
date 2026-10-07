@@ -15,6 +15,7 @@ import {
   PLATFORM_LABELS,
   type PlatformKey,
 } from "@/lib/repurpose";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Content Repurposer ─────────────────────────────────
    One video in, content calendar out: upload a video → AI transcribes it
@@ -114,6 +115,7 @@ function SectionHeader(props: { icon: typeof Film; step?: number; title: string;
 }
 
 export default function Repurpose() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   /* source */
@@ -169,14 +171,14 @@ export default function Repurpose() {
         setCopiedKey(key);
         setTimeout(() => setCopiedKey(null), 2000);
       },
-      () => setError("Couldn't copy to clipboard."),
+      () => setError(t("repurpose.error.copyFailed")),
     );
   }
 
   async function repurpose() {
     if (analyzing || !user) return;
     if (!file && !videoUrl.trim()) {
-      setError("Upload a video file or paste a video URL first.");
+      setError(t("repurpose.error.noSource"));
       return;
     }
     setAnalyzing(true);
@@ -201,7 +203,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as AnalyzeResponse;
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.analysis) {
-        throw new Error(data.message || data.error || "Repurposing failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.repurposeFailed"));
       }
       setAnalysis(data);
       refreshProfile();
@@ -210,7 +212,7 @@ export default function Repurpose() {
         document.getElementById("repurpose-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Repurposing failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.repurposeFailed"));
     } finally {
       setAnalyzing(false);
     }
@@ -225,12 +227,12 @@ export default function Repurpose() {
           thumbId ? authedFetch(`/api/repurpose/jobs/${thumbId}`, { method: "GET" }) : Promise.resolve(null),
         ]);
         const clipData = (await clipRes.json().catch(() => ({}))) as JobResponse;
-        if (!clipRes.ok) throw new Error(clipData.error || "Clip job lookup failed.");
+        if (!clipRes.ok) throw new Error(clipData.error || t("repurpose.error.clipJobFailed"));
         setClipJob(clipData);
         let thumbData: JobResponse | null = null;
         if (thumbRes) {
           thumbData = (await thumbRes.json().catch(() => ({}))) as JobResponse;
-          if (!thumbRes.ok) throw new Error(thumbData.error || "Thumbnail job lookup failed.");
+          if (!thumbRes.ok) throw new Error(thumbData.error || t("repurpose.error.thumbJobFailed"));
           setThumbJob(thumbData);
         }
         const clipDone = clipData.status === "done" || clipData.status === "failed";
@@ -239,14 +241,14 @@ export default function Repurpose() {
           if (pollRef.current) window.clearInterval(pollRef.current);
           refreshProfile();
           if (clipData.status === "failed") {
-            setError(clipData.error || "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.");
+            setError(clipData.error || t("repurpose.error.clipCuttingFailed"));
           } else if (thumbData && thumbData.status === "failed") {
-            setError("Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.");
+            setError(t("repurpose.error.thumbFailed"));
           }
         }
       } catch (err) {
         if (pollRef.current) window.clearInterval(pollRef.current);
-        setError(err instanceof Error ? err.message : "Lost track of the background jobs — refresh to check.");
+        setError(err instanceof Error ? err.message : t("repurpose.error.lostJobs"));
       }
     };
     await tick();
@@ -271,7 +273,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as { kind?: string; result?: unknown; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || data.result == null) {
-        throw new Error(data.message || data.error || "Re-roll failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.rerollFailed"));
       }
       setAnalysis((prev) => {
         if (!prev?.analysis) return prev;
@@ -282,7 +284,7 @@ export default function Repurpose() {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Re-roll failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.rerollFailed"));
     } finally {
       setRerolling(null);
     }
@@ -302,7 +304,7 @@ export default function Repurpose() {
       const data = (await res.json().catch(() => ({}))) as { imageUrl?: string; error?: string; message?: string };
       if (handlePaidFailure(res, data)) return;
       if (!res.ok || !data.imageUrl) {
-        throw new Error(data.message || data.error || "Thumbnail re-roll failed — try again.");
+        throw new Error(data.message || data.error || t("repurpose.error.thumbRerollFailed"));
       }
       setThumbJob((prev) => {
         if (!prev?.thumbnails) return prev;
@@ -313,7 +315,7 @@ export default function Repurpose() {
       });
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Thumbnail re-roll failed — try again.");
+      setError(err instanceof Error ? err.message : t("repurpose.error.thumbRerollFailed"));
     } finally {
       setRerollThumbIdx(null);
     }
@@ -336,21 +338,19 @@ export default function Repurpose() {
         <div className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Recycle className="h-3.5 w-3.5" />
-            Content Repurposer
+            {t("repurpose.badge")}
           </div>
           <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
-            One video in, <span className="text-primary">content calendar out</span>
+            {t("repurpose.titlePrefix")} <span className="text-primary">{t("repurpose.titleSuffix")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-white/55">
-            Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical
-            clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized
-            descriptions for TikTok, Reels, Shorts, and X.
+            {t("repurpose.hero")}
           </p>
         </div>
 
         {!user && (
           <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-center text-sm text-amber-200">
-            Sign in to repurpose videos.
+            {t("repurpose.signInRequired")}
           </div>
         )}
 
@@ -369,12 +369,12 @@ export default function Repurpose() {
 
         {/* Step 1 — source */}
         <section className={`${cardClass} mt-10`}>
-          <SectionHeader icon={Upload} step={1} title="Drop your video" blurb="MP4, MOV, WebM · up to 80 MB" />
+          <SectionHeader icon={Upload} step={1} title={t("repurpose.step1.title")} blurb={t("repurpose.step1.blurb")} />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-black/40 px-4 py-8 text-center transition hover:border-primary/50">
               <Upload className="h-6 w-6 text-primary" />
-              <span className="text-sm font-semibold">{file ? file.name : "Choose video file"}</span>
-              <span className="text-xs text-white/40">From your camera roll or exports</span>
+              <span className="text-sm font-semibold">{file ? file.name : t("repurpose.step1.chooseFile")}</span>
+              <span className="text-xs text-white/40">{t("repurpose.step1.fromCameraRoll")}</span>
               <input
                 type="file"
                 accept="video/*"
@@ -387,18 +387,18 @@ export default function Repurpose() {
             </label>
             <div className="flex flex-col justify-center gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-6">
               <span className="flex items-center gap-2 text-sm font-semibold text-white/70">
-                <Link2 className="h-4 w-4 text-primary" /> Or paste a video URL
+                <Link2 className="h-4 w-4 text-primary" /> {t("repurpose.step1.orPasteUrl")}
               </span>
               <input
                 className={inputClass}
-                placeholder="https://… (from your project storage)"
+                placeholder={t("repurpose.step1.urlPlaceholder")}
                 value={videoUrl}
                 onChange={(e) => {
                   setVideoUrl(e.target.value);
                   setFile(null);
                 }}
               />
-              <span className="text-xs text-white/40">URLs must come from your project storage.</span>
+              <span className="text-xs text-white/40">{t("repurpose.step1.urlNote")}</span>
             </div>
           </div>
           <div className="mt-6 flex flex-col items-center gap-3">
@@ -408,11 +408,10 @@ export default function Repurpose() {
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {analyzing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-              {analyzing ? "Building your pack…" : `Repurpose my video · ${PACK_CREDITS} credits`}
+              {analyzing ? t("repurpose.building") : t("repurpose.repurposeButton", { credits: PACK_CREDITS })}
             </button>
             <p className="text-xs text-white/40">
-              500 Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails.
-              Re-rolls are {REROLL_CREDITS} Visual Buc each. Copying and downloading are free.
+              {t("repurpose.costNote", { pack: PACK_CREDITS * 100, reroll: REROLL_CREDITS })}
             </p>
           </div>
         </section>
@@ -429,7 +428,7 @@ export default function Repurpose() {
                 </div>
                 <div className="rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-center">
                   <div className="text-2xl font-black text-primary">{progress.done}<span className="text-white/40">/{progress.total}</span></div>
-                  <div className="text-[11px] uppercase tracking-wider text-white/50">pack pieces ready</div>
+                  <div className="text-[11px] uppercase tracking-wider text-white/50">{t("repurpose.packReady")}</div>
                 </div>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
@@ -442,7 +441,7 @@ export default function Repurpose() {
                 thumbJob?.status === "processing" || thumbJob?.status === "queued") && (
                 <p className="mt-3 flex items-center gap-2 text-sm text-white/50">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.
+                  {t("repurpose.renderingNote")}
                 </p>
               )}
             </section>
@@ -451,8 +450,8 @@ export default function Repurpose() {
             <section className={cardClass}>
               <SectionHeader
                 icon={Clapperboard}
-                title="3 vertical clips"
-                blurb="Auto-cut 9:16 · ready for TikTok, Reels, Shorts"
+                title={t("repurpose.clips.title")}
+                blurb={t("repurpose.clips.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("moments")}
@@ -460,7 +459,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "moments" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New moments · {REROLL_CREDITS}VB
+                    {t("repurpose.clips.newMoments", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -475,12 +474,12 @@ export default function Repurpose() {
                           {clipJob?.status === "failed" ? (
                             <>
                               <AlertTriangle className="h-6 w-6 text-red-400" />
-                              <span className="text-xs text-red-200">Cut failed</span>
+                              <span className="text-xs text-red-200">{t("repurpose.clips.cutFailed")}</span>
                             </>
                           ) : (
                             <>
                               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <span className="text-xs text-white/50">Cutting…</span>
+                              <span className="text-xs text-white/50">{t("repurpose.clips.cutting")}</span>
                             </>
                           )}
                         </div>
@@ -497,7 +496,7 @@ export default function Repurpose() {
                           download
                           className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
                         >
-                          <Download className="h-3.5 w-3.5" /> Download
+                          <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
                         </a>
                       )}
                     </div>
@@ -520,8 +519,8 @@ export default function Repurpose() {
             <section className={cardClass}>
               <SectionHeader
                 icon={ImageIcon}
-                title="3 AI thumbnails"
-                blurb="9:16 covers for your clips"
+                title={t("repurpose.thumbs.title")}
+                blurb={t("repurpose.thumbs.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("thumbnailPrompts")}
@@ -529,7 +528,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "thumbnailPrompts" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    New concepts · {REROLL_CREDITS}VB
+                    {t("repurpose.thumbs.newConcepts", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -538,18 +537,18 @@ export default function Repurpose() {
                   <div key={i} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
                     <div className="aspect-[9/16] bg-black/60">
                       {thumb.imageUrl ? (
-                        <img src={thumb.imageUrl} alt={`Thumbnail concept ${i + 1}`} className="h-full w-full object-cover" />
+                        <img src={thumb.imageUrl} alt={t("repurpose.thumbs.alt", { n: i + 1 })} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center">
                           {thumbJob?.status === "failed" ? (
                             <>
                               <AlertTriangle className="h-6 w-6 text-red-400" />
-                              <span className="text-xs text-red-200">Generation failed</span>
+                              <span className="text-xs text-red-200">{t("repurpose.thumbs.genFailed")}</span>
                             </>
                           ) : (
                             <>
                               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <span className="text-xs text-white/50">Painting…</span>
+                              <span className="text-xs text-white/50">{t("repurpose.thumbs.painting")}</span>
                             </>
                           )}
                         </div>
@@ -564,7 +563,7 @@ export default function Repurpose() {
                             download
                             className="inline-flex items-center gap-1.5 rounded-lg bg-primary/15 px-3 py-1.5 text-xs font-bold text-primary transition hover:bg-primary/25"
                           >
-                            <Download className="h-3.5 w-3.5" /> Download
+                            <Download className="h-3.5 w-3.5" /> {t("repurpose.download")}
                           </a>
                         )}
                         <button
@@ -573,7 +572,7 @@ export default function Repurpose() {
                           className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                         >
                           {rerollThumbIdx === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                          Re-roll · {REROLL_CREDITS}VB
+                          {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                         </button>
                       </div>
                     </div>
@@ -586,8 +585,8 @@ export default function Repurpose() {
             <section className={cardClass}>
               <SectionHeader
                 icon={MessageSquareText}
-                title="5 caption + hashtag sets"
-                blurb="Ready to post — copy any set free"
+                title={t("repurpose.captions.title")}
+                blurb={t("repurpose.captions.blurb")}
                 right={
                   <div className="flex gap-2">
                     <button
@@ -595,7 +594,7 @@ export default function Repurpose() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
                     >
                       {copiedKey === "all-captions" ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      Copy all
+                      {t("repurpose.copyAll")}
                     </button>
                     <button
                       onClick={() => rerollText("captions")}
@@ -603,7 +602,7 @@ export default function Repurpose() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                     >
                       {rerolling === "captions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                      Re-roll · {REROLL_CREDITS}VB
+                      {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                     </button>
                   </div>
                 }
@@ -613,14 +612,14 @@ export default function Repurpose() {
                   <div key={i} className="rounded-xl border border-white/10 bg-black/40 p-4">
                     <p className="whitespace-pre-line text-sm text-white/85">{c.caption}</p>
                     {c.hashtags.length > 0 && (
-                      <p className="mt-2 text-xs text-primary">{c.hashtags.map((t) => `#${t}`).join(" ")}</p>
+                      <p className="mt-2 text-xs text-primary">{c.hashtags.map((tag) => `#${tag}`).join(" ")}</p>
                     )}
                     <button
-                      onClick={() => copyText(`caption-${i}`, `${c.caption}\n${c.hashtags.map((t) => `#${t}`).join(" ")}`)}
+                      onClick={() => copyText(`caption-${i}`, `${c.caption}\n${c.hashtags.map((tag) => `#${tag}`).join(" ")}`)}
                       className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 transition hover:text-white"
                     >
                       {copiedKey === `caption-${i}` ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                      {copiedKey === `caption-${i}` ? "Copied" : "Copy"}
+                      {copiedKey === `caption-${i}` ? t("repurpose.copied") : t("repurpose.copy")}
                     </button>
                   </div>
                 ))}
@@ -631,8 +630,8 @@ export default function Repurpose() {
             <section className={cardClass}>
               <SectionHeader
                 icon={Share2}
-                title="Platform descriptions"
-                blurb="Tuned for each algorithm"
+                title={t("repurpose.platforms.title")}
+                blurb={t("repurpose.platforms.blurb")}
                 right={
                   <button
                     onClick={() => rerollText("descriptions")}
@@ -640,7 +639,7 @@ export default function Repurpose() {
                     className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white disabled:opacity-40"
                   >
                     {rerolling === "descriptions" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    Re-roll · {REROLL_CREDITS}VB
+                    {t("repurpose.reroll", { cost: REROLL_CREDITS })}
                   </button>
                 }
               />
@@ -661,14 +660,14 @@ export default function Repurpose() {
               </div>
               <div className="mt-3 rounded-xl border border-white/10 bg-black/40 p-4">
                 <p className="whitespace-pre-line text-sm text-white/85">
-                  {a.descriptions[platformTab] || "No description generated for this platform."}
+                  {a.descriptions[platformTab] || t("repurpose.platforms.noDesc")}
                 </p>
                 <button
                   onClick={() => copyText(`platform-${platformTab}`, a.descriptions[platformTab] ?? "")}
                   className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-white/50 transition hover:text-white"
                 >
                   {copiedKey === `platform-${platformTab}` ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedKey === `platform-${platformTab}` ? "Copied" : "Copy"}
+                  {copiedKey === `platform-${platformTab}` ? t("repurpose.copied") : t("repurpose.copy")}
                 </button>
               </div>
             </section>

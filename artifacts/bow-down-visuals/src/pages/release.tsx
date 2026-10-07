@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useHubProject } from "@/lib/hub-project";
+import { useTranslation } from "react-i18next";
 
 /* ─── Release Checklist ─────────────────────────────────────────────────
    AI-powered song/album release planner. POSTs to /api/release-checklist
@@ -21,15 +22,13 @@ type ReleaseType = "single" | "ep" | "album";
 
 interface ReleaseTypeOpt {
   key: ReleaseType;
-  label: string;
   icon: LucideIcon;
-  blurb: string;
 }
 
 const RELEASE_TYPE_OPTS: ReleaseTypeOpt[] = [
-  { key: "single", label: "Single", icon: Disc3, blurb: "One track, one moment" },
-  { key: "ep", label: "EP", icon: Layers, blurb: "3–6 tracks" },
-  { key: "album", label: "Album", icon: Album, blurb: "7+ tracks, a era" },
+  { key: "single", icon: Disc3 },
+  { key: "ep", icon: Layers },
+  { key: "album", icon: Album },
 ];
 
 const CREDIT_COST = 2;
@@ -62,12 +61,12 @@ interface ReleaseResponse {
 
 /* Tool hint → on-site destination. Only known tools get links; anything
    else renders as plain text so a model hallucination never 404s. */
-const TOOL_LINKS: Record<string, { path: string; label: string }> = {
-  "playlist-pitcher": { path: "/playlist-pitch", label: "Open Playlist Pitcher" },
-  "content-scheduler": { path: "/scheduler", label: "Open Content Scheduler" },
-  "press-kit": { path: "/press-kit", label: "Open Press Kit Builder" },
-  "cover-art": { path: "/cover-art", label: "Open Cover Art Generator" },
-  "email-list": { path: "/email-list", label: "Open Email List Builder" },
+const TOOL_LINKS: Record<string, string> = {
+  "playlist-pitcher": "/playlist-pitch",
+  "content-scheduler": "/scheduler",
+  "press-kit": "/press-kit",
+  "cover-art": "/cover-art",
+  "email-list": "/email-list",
 };
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -102,6 +101,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 export default function ReleaseChecklist() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -174,16 +174,16 @@ export default function ReleaseChecklist() {
     if (loading || !user) return;
     const finalTitle = title.trim().slice(0, 200);
     if (!finalTitle) {
-      setError("Give your release a title first — the plan is built around it.");
+      setError(t("release.error.noTitle"));
       return;
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(releaseDate)) {
-      setError("Pick a release date so the checklist can count backwards from it.");
+      setError(t("release.error.noDate"));
       return;
     }
     const ts = new Date(`${releaseDate}T00:00:00Z`).getTime();
     if (!Number.isFinite(ts) || ts <= Date.now()) {
-      setError("Release date must be in the future — a checklist for the past helps nobody.");
+      setError(t("release.error.pastDate"));
       return;
     }
 
@@ -215,7 +215,7 @@ export default function ReleaseChecklist() {
         return;
       }
       if (!res.ok || !data.plan || !Array.isArray(data.plan.weeks) || data.plan.weeks.length === 0) {
-        throw new Error(data.message || data.error || "Release plan failed — try again.");
+        throw new Error(data.message || data.error || t("release.error.planFailed"));
       }
       setPlan(data.plan);
       setChecked({});
@@ -225,7 +225,7 @@ export default function ReleaseChecklist() {
         document.getElementById("release-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Release plan failed — try again.");
+      setError(err instanceof Error ? err.message : t("release.error.planFailed"));
     } finally {
       setLoading(false);
     }
@@ -234,7 +234,9 @@ export default function ReleaseChecklist() {
   function toolLink(tool: string | null): { path: string; label: string } | null {
     if (!tool) return null;
     const key = tool.trim().toLowerCase().replace(/^\/+/, "");
-    return TOOL_LINKS[key] ?? null;
+    const path = TOOL_LINKS[key];
+    if (!path) return null;
+    return { path, label: t(`release.tools.${key}`) };
   }
 
   return (
@@ -249,15 +251,13 @@ export default function ReleaseChecklist() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <Rocket className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's release tools
+            <Rocket className="h-3 w-3" aria-hidden="true" /> {t("release.badge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Release <span className="text-primary">Checklist</span>
+            {t("release.titlePrefix")} <span className="text-primary">{t("release.titleSuffix")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Drop day is won in the weeks before it. AI builds your
-            week-by-week battle plan — distribution, playlists, teasers,
-            press, pre-saves — then you check it off as you execute.
+            {t("release.hero")}
           </p>
         </div>
 
@@ -265,7 +265,7 @@ export default function ReleaseChecklist() {
         <div className="relative mt-10 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           {/* release type */}
           <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
-            What are you dropping?
+            {t("release.whatDropping")}
           </p>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             {RELEASE_TYPE_OPTS.map((opt) => {
@@ -283,9 +283,9 @@ export default function ReleaseChecklist() {
                 >
                   <Icon className={`h-6 w-6 ${selected ? "text-primary" : "text-white/50"}`} aria-hidden="true" />
                   <span className={`mt-2 block text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>
-                    {opt.label}
+                    {t(`release.types.${opt.key}.label`)}
                   </span>
-                  <span className="block text-[11px] text-white/35">{opt.blurb}</span>
+                  <span className="block text-[11px] text-white/35">{t(`release.types.${opt.key}.blurb`)}</span>
                 </button>
               );
             })}
@@ -295,32 +295,32 @@ export default function ReleaseChecklist() {
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Release title
+                {t("release.releaseTitle")}
               </p>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
-                placeholder="e.g. Bow Down Anthem"
+                placeholder={t("release.titlePlaceholder")}
                 className={inputClass}
               />
             </div>
             <div>
               <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                Genre / vibe <span className="font-normal normal-case text-white/30">(optional)</span>
+                {t("release.genreVibe")} <span className="font-normal normal-case text-white/30">{t("release.optional")}</span>
               </p>
               <input
                 value={genre}
                 onChange={(e) => setGenre(e.target.value)}
                 maxLength={120}
-                placeholder="e.g. hip-hop, R&B…"
+                placeholder={t("release.genrePlaceholder")}
                 className={inputClass}
               />
             </div>
           </div>
           <div className="mt-4">
             <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
-              Release date
+              {t("release.releaseDate")}
             </p>
             <input
               type="date"
@@ -344,7 +344,7 @@ export default function ReleaseChecklist() {
                 ) : (
                   <ListChecks className="h-6 w-6" aria-hidden="true" />
                 )}
-                {loading ? "Building your battle plan…" : "Build my release plan"}
+                {loading ? t("release.building") : t("release.buildPlan")}
               </button>
             ) : (
               <Link
@@ -352,12 +352,12 @@ export default function ReleaseChecklist() {
                 className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
               >
                 <ListChecks className="h-6 w-6" aria-hidden="true" />
-                Sign in to build your release plan
+                {t("release.signInToBuild")}
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
             )}
             <p className="mt-2.5 text-xs text-white/35">
-              {CREDIT_COST} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code
+              {t("release.costNote", { cost: CREDIT_COST })}
             </p>
             {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
             {error && !outOfCredits && (
@@ -381,7 +381,7 @@ export default function ReleaseChecklist() {
             <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/[0.06] p-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-bold text-white">
-                  {doneCount} of {totalTasks} tasks done
+                  {t("release.tasksDone", { done: doneCount, total: totalTasks })}
                 </p>
                 <p className="font-display text-2xl font-black text-primary">{progress}%</p>
               </div>
@@ -465,7 +465,7 @@ export default function ReleaseChecklist() {
             {plan.preSaveTip && (
               <div className="mt-8 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] p-5">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-300">
-                  Pre-save power move
+                  {t("release.preSaveTitle")}
                 </p>
                 <p className="mt-1.5 text-[15px] leading-relaxed text-white/85">{plan.preSaveTip}</p>
               </div>
@@ -483,7 +483,7 @@ export default function ReleaseChecklist() {
                   ) : (
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
                   )}
-                  Rebuild plan ({CREDIT_COST} Visual Bucs)
+                  {t("release.rebuild", { cost: CREDIT_COST })}
                 </button>
               </div>
             )}
@@ -492,15 +492,15 @@ export default function ReleaseChecklist() {
 
         {/* cross-links */}
         <p className="relative mt-8 text-center text-sm text-white/40">
-          Executing your plan? Pitch playlists with the{" "}
+          {t("release.crossLinks.p1")}{" "}
           <Link href="/playlist-pitch" className="font-semibold text-primary hover:underline">
-            Playlist Pitcher
+            {t("release.crossLinks.playlistPitcher")}
           </Link>
-          {" "}and schedule your teasers with the{" "}
+          {" "}{t("release.crossLinks.p2")}{" "}
           <Link href="/scheduler" className="font-semibold text-primary hover:underline">
-            Content Scheduler
+            {t("release.crossLinks.scheduler")}
           </Link>
-          .
+          {t("release.crossLinks.p3")}
         </p>
       </main>
 

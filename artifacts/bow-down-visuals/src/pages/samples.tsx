@@ -11,6 +11,7 @@ import {
   PACK_SIZE_OPTIONS, creditsForSize, originBadge, formatDuration,
   type SampleOrigin,
 } from "@/lib/sample-pack";
+import { useTranslation } from "react-i18next";
 
 /* ─── Sample Pack Generator ────────────────────────────────────────────────
    Producers build custom packs: pick genre, BPM, key, size — get drum
@@ -47,17 +48,8 @@ interface Sample {
   genre: string;
 }
 
-const GENRE_LABELS: Record<string, string> = {
-  trap: "Trap", "hip-hop": "Hip-Hop", drill: "Drill", rnb: "R&B",
-  afrobeats: "Afrobeats", house: "House", techno: "Techno",
-  "drum-and-bass": "Drum & Bass", lofi: "Lo-Fi", pop: "Pop",
-};
-
-function genreLabel(g: string): string {
-  return GENRE_LABELS[g] ?? g;
-}
-
 export default function SamplePack() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -128,7 +120,7 @@ export default function SamplePack() {
     setError(null);
     setOutOfCredits(false);
     setSamples([]);
-    setProgress("Charging Visual Bucs and warming up the studio…");
+    setProgress(t("samples.progress.charging"));
     try {
       const res = await confirmedFetch("/api/sample-pack/generate", {
         method: "POST",
@@ -148,14 +140,14 @@ export default function SamplePack() {
       }
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Generation failed");
+        throw new Error(data.error || t("samples.error.generationFailed"));
       }
       setSamples(data.samples ?? []);
       setCreditsRemaining(data.creditsRemaining ?? null);
       setPackName(`${genre}-${bpm}bpm-${musicalKey}`.toLowerCase().replace(/[^a-z0-9-]/g, ""));
       setProgress("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Generation failed");
+      setError(e instanceof Error ? e.message : t("samples.error.generationFailed"));
       setProgress("");
     } finally {
       setGenerating(false);
@@ -177,7 +169,7 @@ export default function SamplePack() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "ZIP failed");
+        throw new Error(data.error || t("samples.error.zipFailed"));
       }
       const blob = await res.blob();
       const a = document.createElement("a");
@@ -188,7 +180,7 @@ export default function SamplePack() {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "ZIP download failed");
+      setError(e instanceof Error ? e.message : t("samples.error.zipDownloadFailed"));
     } finally {
       setZipping(false);
     }
@@ -204,7 +196,7 @@ export default function SamplePack() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("samples.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -212,9 +204,9 @@ export default function SamplePack() {
             <Disc3 className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Sample Pack Generator</h1>
+            <h1 className="text-2xl font-black">{t("samples.title")}</h1>
             <p className="text-sm text-white/45">
-              Custom drum kits, loops &amp; FX in your genre, BPM, and key — {cost} Visual Bucs for {packSize} samples
+              {t("samples.subtitle", { cost, size: packSize })}
             </p>
           </div>
         </div>
@@ -222,10 +214,7 @@ export default function SamplePack() {
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <Sparkles className="h-4 w-4 text-primary/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
-            Drums and FX are <span className="text-white/80 font-semibold">synthesized with DSP</span> (labeled
-            Synth); melodies and basslines are <span className="text-white/80 font-semibold">AI-composed</span> (labeled
-            AI). Every file is really rendered as a 44.1kHz WAV — nothing faked.
-            Royalty-free: use them in your own productions.
+            {t("samples.honesty.p1")} <span className="text-white/80 font-semibold">{t("samples.honesty.synth")}</span>{t("samples.honesty.p2")} <span className="text-white/80 font-semibold">{t("samples.honesty.ai")}</span>{t("samples.honesty.p3")}
           </p>
         </div>
 
@@ -244,11 +233,11 @@ export default function SamplePack() {
 
         {/* ── Builder ── */}
         <section className="mt-8 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-6">
-          <h2 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-5">Build your pack</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-white/40 mb-5">{t("samples.buildTitle")}</h2>
 
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">Genre</label>
+              <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">{t("samples.genre")}</label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(catalog?.genres ?? ["trap"]).map((g) => (
                   <button
@@ -260,7 +249,7 @@ export default function SamplePack() {
                         : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25"
                     }`}
                   >
-                    {genreLabel(g)}
+                    {t(`samples.genres.${g}`, { defaultValue: g })}
                   </button>
                 ))}
               </div>
@@ -268,7 +257,7 @@ export default function SamplePack() {
 
             <div>
               <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
-                Key <span className="text-white/30 normal-case">(melodies &amp; bass follow this)</span>
+                {t("samples.key")} <span className="text-white/30 normal-case">{t("samples.keyNote")}</span>
               </label>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {(catalog?.keys ?? ["A"]).map((k) => (
@@ -289,7 +278,7 @@ export default function SamplePack() {
 
             <div>
               <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
-                Tempo — <span className="text-primary font-bold">{bpm} BPM</span>
+                {t("samples.tempo")} — <span className="text-primary font-bold">{t("samples.bpm", { bpm })}</span>
               </label>
               <input
                 type="range" min={60} max={180} value={bpm}
@@ -302,7 +291,7 @@ export default function SamplePack() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">Pack size</label>
+              <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">{t("samples.packSize")}</label>
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {PACK_SIZE_OPTIONS.map((o) => (
                   <button
@@ -315,7 +304,7 @@ export default function SamplePack() {
                     }`}
                   >
                     <div className={`text-lg font-black ${packSize === o.size ? "text-primary" : "text-white/80"}`}>{o.size}</div>
-                    <div className="text-[10px] text-white/40">{o.credits} Visual Bucs</div>
+                    <div className="text-[10px] text-white/40">{t("samples.credits", { num: o.credits })}</div>
                   </button>
                 ))}
               </div>
@@ -325,24 +314,24 @@ export default function SamplePack() {
           {catalog && (
             <div className="mt-6">
               <label className="text-xs font-semibold text-white/60 uppercase tracking-wider">
-                Sample types <span className="text-white/30 normal-case">(leave empty for a balanced mix)</span>
+                {t("samples.sampleTypes")} <span className="text-white/30 normal-case">{t("samples.sampleTypesNote")}</span>
               </label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {catalog.types.map((t) => {
-                  const active = selectedTypes.has(t.key);
-                  const badge = originBadge(t.origin);
+                {catalog.types.map((type) => {
+                  const active = selectedTypes.has(type.key);
+                  const badge = originBadge(type.origin);
                   return (
                     <button
-                      key={t.key}
-                      onClick={() => toggleType(t.key)}
-                      title={t.blurb}
+                      key={type.key}
+                      onClick={() => toggleType(type.key)}
+                      title={type.blurb}
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
                         active
                           ? "border-primary bg-primary/20 text-primary"
                           : "border-white/10 bg-white/[0.03] text-white/55 hover:border-white/25"
                       }`}
                     >
-                      {t.label}
+                      {type.label}
                       <span className={`rounded border px-1 text-[9px] font-bold ${badge.className}`}>{badge.label}</span>
                     </button>
                   );
@@ -357,14 +346,14 @@ export default function SamplePack() {
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-black hover:brightness-110 disabled:opacity-50"
           >
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <AudioWaveform className="h-4 w-4" />}
-            {generating ? "Cooking your pack…" : `Generate pack · ${cost} credits`}
+            {generating ? t("samples.cooking") : t("samples.generate", { cost })}
           </button>
           {generating && progress && (
             <p className="mt-3 text-xs text-white/45">{progress}</p>
           )}
           {!user && (
             <p className="mt-3 text-xs text-white/45">
-              <Link href="/login" className="text-primary underline">Sign in</Link> to generate packs.
+              <Link href="/login" className="text-primary underline">{t("samples.signIn")}</Link>{t("samples.signInSuffix")}
             </p>
           )}
         </section>
@@ -376,9 +365,9 @@ export default function SamplePack() {
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                 <h2 className="text-lg font-black">
-                  Your pack — {samples.length} samples
+                  {t("samples.yourPack", { num: samples.length })}
                   {creditsRemaining !== null && (
-                    <span className="ml-2 text-xs font-normal text-white/40">{creditsRemaining} Visual Bucs left</span>
+                    <span className="ml-2 text-xs font-normal text-white/40">{t("samples.creditsLeft", { num: creditsRemaining })}</span>
                   )}
                 </h2>
               </div>
@@ -388,7 +377,7 @@ export default function SamplePack() {
                 className="inline-flex items-center gap-2 rounded-xl border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/20 disabled:opacity-50"
               >
                 {zipping ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileArchive className="h-4 w-4" />}
-                {zipping ? "Zipping…" : "Download pack ZIP"}
+                {zipping ? t("samples.zipping") : t("samples.downloadZip")}
               </button>
             </div>
 
@@ -397,7 +386,7 @@ export default function SamplePack() {
                 <h3 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2">
                   <Music4 className="h-3.5 w-3.5" /> {label}
                   <span className={`rounded border px-1.5 text-[9px] font-bold ${originBadge(list[0].origin).className}`}>
-                    {originBadge(list[0].origin).label === "AI" ? "AI-generated" : "Synthesized"}
+                    {originBadge(list[0].origin).label === "AI" ? t("samples.aiGenerated") : t("samples.synthesized")}
                   </span>
                 </h3>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -422,7 +411,7 @@ export default function SamplePack() {
                         href={s.url}
                         download={`${s.name}.wav`}
                         className="shrink-0 rounded-lg border border-white/10 p-2 text-white/50 hover:border-white/30 hover:text-white"
-                        title="Download WAV"
+                        title={t("samples.downloadWav")}
                       >
                         <Download className="h-4 w-4" />
                       </a>
@@ -433,7 +422,7 @@ export default function SamplePack() {
             ))}
 
             <p className="mt-4 text-[11px] text-white/30">
-              {catalog?.license ?? "Royalty-free — use in your own productions, no attribution required."}
+              {catalog?.license ?? t("samples.licenseFallback")}
             </p>
           </section>
         )}

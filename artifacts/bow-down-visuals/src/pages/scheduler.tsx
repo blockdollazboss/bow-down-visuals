@@ -6,6 +6,7 @@ import {
   History, GripVertical, RefreshCw, ExternalLink,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { OutOfCredits } from "@/components/OutOfCredits";
@@ -45,18 +46,16 @@ type Tab = "calendar" | "queue" | "drafts" | "posted";
 
 interface PlatformOpt {
   key: SchedulerPlatformKey;
-  label: string;
-  sub: string;
   icon: LucideIcon;
 }
 
 const PLATFORM_OPTS: PlatformOpt[] = [
-  { key: "instagram", label: "Instagram", sub: "Reels", icon: Camera },
-  { key: "tiktok", label: "TikTok", sub: "Video → your drafts", icon: Music2 },
-  { key: "facebook", label: "Facebook", sub: "Page video", icon: ThumbsUp },
+  { key: "instagram", icon: Camera },
+  { key: "tiktok", icon: Music2 },
+  { key: "facebook", icon: ThumbsUp },
 ];
 
-const NICHE_PRESETS = ["Music", "Gaming", "Comedy", "Fitness", "Beauty", "Tech", "Education", "Lifestyle"];
+const NICHE_PRESETS = ["music", "gaming", "comedy", "fitness", "beauty", "tech", "education", "lifestyle"];
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20";
@@ -92,6 +91,7 @@ interface BestTimeSlot {
 }
 
 export default function Scheduler() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("calendar");
@@ -112,7 +112,7 @@ export default function Scheduler() {
   const [prefill, setPrefill] = useState<{ date: string; time: string } | null>(null);
 
   /* best-time */
-  const [niche, setNiche] = useState("Music");
+  const [niche, setNiche] = useState("music");
   const [btPlatforms, setBtPlatforms] = useState<SchedulerPlatformKey[]>(["instagram", "tiktok"]);
   const [postsPerWeek, setPostsPerWeek] = useState(3);
   const [btLoading, setBtLoading] = useState(false);
@@ -168,7 +168,7 @@ export default function Scheduler() {
   }
 
   async function handleCancel(post: ScheduledPostShape) {
-    if (!window.confirm("Cancel this scheduled post? Your reserved Visual Bucs will be refunded.")) return;
+    if (!window.confirm(t("scheduler.confirm.cancel"))) return;
     try {
       const token = await getAccessToken();
       const data = await api<{ canceled?: boolean; refunded?: number; deleted?: boolean }>(
@@ -178,11 +178,11 @@ export default function Scheduler() {
       );
       await refresh();
       toast({
-        title: data.canceled ? "Post canceled" : "Post deleted",
-        description: data.refunded ? `${data.refunded} credit${data.refunded === 1 ? "" : "s"} refunded.` : undefined,
+        title: data.canceled ? t("scheduler.toast.canceled") : t("scheduler.toast.deleted"),
+        description: data.refunded ? t("scheduler.toast.refunded", { num: data.refunded, s: data.refunded === 1 ? "" : "s" }) : undefined,
       });
     } catch (err) {
-      toast({ title: "Couldn't cancel", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("scheduler.toast.couldntCancel"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     }
   }
 
@@ -192,7 +192,7 @@ export default function Scheduler() {
     const moved = movePostToDate(post.scheduledAt, targetDate);
     if (!moved) return;
     if (new Date(moved).getTime() < Date.now() + 60_000) {
-      toast({ title: "Can't move it there", description: "Pick a date in the future.", variant: "destructive" });
+      toast({ title: t("scheduler.toast.cantMove"), description: t("scheduler.toast.futureDate"), variant: "destructive" });
       return;
     }
     try {
@@ -202,9 +202,9 @@ export default function Scheduler() {
         body: JSON.stringify({ scheduledAt: moved }),
       });
       await loadPosts();
-      toast({ title: "Rescheduled", description: prettyDateTime(moved) });
+      toast({ title: t("scheduler.toast.rescheduled"), description: prettyDateTime(moved) });
     } catch (err) {
-      toast({ title: "Couldn't reschedule", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      toast({ title: t("scheduler.toast.couldntReschedule"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     }
   }
 
@@ -229,7 +229,7 @@ export default function Scheduler() {
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits") setOutOfCredits(true);
-      else toast({ title: "Best-time failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+      else toast({ title: t("scheduler.toast.bestTimeFailed"), description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
       setBtLoading(false);
     }
@@ -239,10 +239,10 @@ export default function Scheduler() {
     return (
       <div className="min-h-screen bg-black text-white">
         <main className="mx-auto max-w-3xl px-5 pb-24 pt-24 text-center">
-          <h1 className="font-display text-4xl font-black">Content <span className="text-primary">Scheduler</span></h1>
-          <p className="mt-4 text-white/55">Sign in to schedule posts across Instagram, TikTok, and Facebook.</p>
+          <h1 className="font-display text-4xl font-black">{t("scheduler.titlePrefix")} <span className="text-primary">{t("scheduler.titleSuffix")}</span></h1>
+          <p className="mt-4 text-white/55">{t("scheduler.signInPrompt")}</p>
           <Button asChild className="mt-8 bg-primary text-black hover:bg-primary/90">
-            <a href="/login">Sign in</a>
+            <a href="/login">{t("scheduler.signIn")}</a>
           </Button>
         </main>
 
@@ -261,23 +261,22 @@ export default function Scheduler() {
         {/* hero */}
         <div className="relative text-center">
           <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-            <CalendarDays className="h-3 w-3" aria-hidden="true" /> Post everywhere from one calendar
+            <CalendarDays className="h-3 w-3" aria-hidden="true" /> {t("scheduler.badge")}
           </p>
           <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
-            Content <span className="text-primary">Scheduler</span>
+            {t("scheduler.titlePrefix")} <span className="text-primary">{t("scheduler.titleSuffix")}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
-            Schedule video posts across Instagram Reels, TikTok, and Facebook.
-            Server-side and restart-safe — your queue fires even with the tab closed.
+            {t("scheduler.hero")}
           </p>
           <div className="mx-auto mt-5 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[13px] text-white/45">
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Drafts &amp; browsing free</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> 100 Visual Bucs per post to schedule</span>
-            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> Cancel anytime = auto-refund</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> {t("scheduler.perks.free")}</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> {t("scheduler.perks.cost")}</span>
+            <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-primary" /> {t("scheduler.perks.refund")}</span>
           </div>
           <div className="mt-6">
             <Button onClick={() => openComposer()} className="bg-primary font-bold text-black hover:bg-primary/90">
-              <Plus className="mr-2 h-4 w-4" /> New scheduled post
+              <Plus className="mr-2 h-4 w-4" /> {t("scheduler.newPost")}
             </Button>
           </div>
         </div>
@@ -290,10 +289,10 @@ export default function Scheduler() {
         <div className="relative mt-10 flex flex-wrap gap-2 border-b border-white/10 pb-3">
           {(
             [
-              { key: "calendar", label: "Calendar", icon: CalendarDays },
-              { key: "queue", label: `Queue (${scheduled.length})`, icon: ListVideo },
-              { key: "drafts", label: `Drafts (${drafts.length})`, icon: Inbox },
-              { key: "posted", label: "Posted", icon: History },
+              { key: "calendar", label: t("scheduler.tabs.calendar"), icon: CalendarDays },
+              { key: "queue", label: t("scheduler.tabs.queue", { num: scheduled.length }), icon: ListVideo },
+              { key: "drafts", label: t("scheduler.tabs.drafts", { num: drafts.length }), icon: Inbox },
+              { key: "posted", label: t("scheduler.tabs.posted"), icon: History },
             ] as { key: Tab; label: string; icon: LucideIcon }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -312,7 +311,7 @@ export default function Scheduler() {
 
         {loading ? (
           <div className="flex items-center justify-center py-24 text-white/40">
-            <Loader2 className="mr-3 h-6 w-6 animate-spin" /> Loading your schedule…
+            <Loader2 className="mr-3 h-6 w-6 animate-spin" /> {t("scheduler.loading")}
           </div>
         ) : (
           <div className="relative mt-8">
@@ -351,16 +350,14 @@ export default function Scheduler() {
         <section data-min-stars="3" className="relative mt-14 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-2xl font-black">AI best-time suggestions</h2>
+            <h2 className="font-display text-2xl font-black">{t("scheduler.bestTime.title")}</h2>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
-            Tell the AI your niche and rhythm — it suggests the smartest upcoming slots
-            across your platforms. <span className="text-white/70 font-semibold">100 Visual Bucs</span>,
-            refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.
+            {t("scheduler.bestTime.desc1")} <span className="text-white/70 font-semibold">{t("scheduler.bestTime.cost")}</span>{t("scheduler.bestTime.desc2")}
           </p>
           <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto]">
             <div>
-              <label className={labelClass}>Niche</label>
+              <label className={labelClass}>{t("scheduler.bestTime.niche")}</label>
               <div className="flex flex-wrap gap-2">
                 {NICHE_PRESETS.map((n) => (
                   <button
@@ -372,14 +369,14 @@ export default function Scheduler() {
                         : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                     }`}
                   >
-                    {n}
+                    {t(`scheduler.niches.${n}`)}
                   </button>
                 ))}
               </div>
             </div>
             <div className="flex items-end gap-4">
               <div>
-                <label className={labelClass}>Posts / week</label>
+                <label className={labelClass}>{t("scheduler.bestTime.postsPerWeek")}</label>
                 <input
                   type="number"
                   min={1}
@@ -395,14 +392,14 @@ export default function Scheduler() {
                 className="bg-primary font-bold text-black hover:bg-primary/90"
               >
                 {btLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                Suggest times · 100 Visual Bucs
+                {t("scheduler.bestTime.suggest")}
               </Button>
             </div>
           </div>
           <div className="mt-4">
-            <label className={labelClass}>Platforms</label>
+            <label className={labelClass}>{t("scheduler.bestTime.platforms")}</label>
             <div className="flex flex-wrap gap-2">
-              {PLATFORM_OPTS.map(({ key, label, icon: Icon }) => {
+              {PLATFORM_OPTS.map(({ key, icon: Icon }) => {
                 const on = btPlatforms.includes(key);
                 return (
                   <button
@@ -412,7 +409,7 @@ export default function Scheduler() {
                       on ? "bg-primary text-black" : "border border-white/10 bg-white/[0.03] text-white/60 hover:border-primary/40 hover:text-white"
                     }`}
                   >
-                    <Icon className="h-3.5 w-3.5" /> {label}
+                    <Icon className="h-3.5 w-3.5" /> {t(`scheduler.platforms.${key}.label`)}
                   </button>
                 );
               })}
@@ -443,7 +440,7 @@ export default function Scheduler() {
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
                     >
-                      Use this slot
+                      {t("scheduler.bestTime.useSlot")}
                     </Button>
                   </div>
                 ))}
@@ -487,6 +484,7 @@ function CalendarTab(props: {
   onEdit: (p: ScheduledPostShape) => void;
   onCancel: (p: ScheduledPostShape) => void;
 }) {
+  const { t } = useTranslation();
   const { gridCells, monthLabel, monthCursor, setMonthCursor, byDay } = props;
   const today = todayLocal();
 
@@ -500,24 +498,24 @@ function CalendarTab(props: {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-display text-xl font-black">{monthLabel}</h2>
         <div className="flex gap-2">
-          <button onClick={() => shiftMonth(-1)} className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white" aria-label="Previous month">
+          <button onClick={() => shiftMonth(-1)} className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white" aria-label={t("scheduler.calendar.prevMonth")}>
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => { const n = new Date(); setMonthCursor({ y: n.getFullYear(), m: n.getMonth() }); }}
             className="rounded-lg border border-white/10 px-3 text-[13px] font-semibold text-white/60 hover:border-primary/40 hover:text-white"
           >
-            Today
+            {t("scheduler.calendar.today")}
           </button>
-          <button onClick={() => shiftMonth(1)} className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white" aria-label="Next month">
+          <button onClick={() => shiftMonth(1)} className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white" aria-label={t("scheduler.calendar.nextMonth")}>
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
 
       <div className="grid grid-cols-7 gap-1.5">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="pb-1 text-center text-[11px] font-bold uppercase tracking-widest text-white/30">{d}</div>
+        {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((d) => (
+          <div key={d} className="pb-1 text-center text-[11px] font-bold uppercase tracking-widest text-white/30">{t(`scheduler.days.${d}`)}</div>
         ))}
         {gridCells.map((cell, i) => {
           if (!cell.date) return <div key={i} className="min-h-[88px] rounded-xl" />;
@@ -544,7 +542,7 @@ function CalendarTab(props: {
                     ? "border-primary/50 bg-primary/[0.06]"
                     : "border-white/10 bg-white/[0.02] hover:border-primary/30"
               } ${isPast ? "cursor-default opacity-50" : ""}`}
-              title={isPast ? undefined : "Click to schedule · drop a post here to move it"}
+              title={isPast ? undefined : t("scheduler.calendar.dayTitle")}
             >
               <div className={`text-[11px] font-bold ${isToday ? "text-primary" : "text-white/50"}`}>
                 {Number(cell.date.slice(8))}
@@ -560,17 +558,17 @@ function CalendarTab(props: {
                     className={`flex w-full cursor-grab items-center gap-1 rounded-md px-1.5 py-1 text-left text-[10px] font-semibold active:cursor-grabbing ${
                       p.status === "publishing" ? "bg-blue-500/20 text-blue-200" : "bg-primary/15 text-primary"
                     } ${props.dragPostId === p.id ? "opacity-40" : ""}`}
-                    title={`${prettyDateTime(p.scheduledAt!)} — drag to move, click to edit`}
+                    title={t("scheduler.calendar.postTitle", { datetime: prettyDateTime(p.scheduledAt!) })}
                   >
                     <GripVertical className="h-3 w-3 shrink-0 opacity-60" />
                     <span className="truncate">
-                      {p.platforms.map((pl) => PLATFORM_OPTS.find((o) => o.key === pl)?.label.slice(0, 2)).join("·")}
+                      {p.platforms.map((pl) => t(`scheduler.platforms.${pl}.label`).slice(0, 2)).join("·")}
                       {" "}{new Date(p.scheduledAt!).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                     </span>
                   </button>
                 ))}
                 {dayPosts.length > 3 && (
-                  <div className="px-1 text-[10px] text-white/40">+{dayPosts.length - 3} more</div>
+                  <div className="px-1 text-[10px] text-white/40">{t("scheduler.calendar.more", { num: dayPosts.length - 3 })}</div>
                 )}
               </div>
             </div>
@@ -578,7 +576,7 @@ function CalendarTab(props: {
         })}
       </div>
       <p className="mt-3 text-[13px] text-white/35">
-        Click a future day to schedule · drag a post to another day to move it · click a post to edit or cancel.
+        {t("scheduler.calendar.hint")}
       </p>
     </div>
   );
@@ -591,12 +589,13 @@ function QueueTab(props: {
   onEdit: (p: ScheduledPostShape) => void;
   onCancel: (p: ScheduledPostShape) => void;
 }) {
+  const { t } = useTranslation();
   const sorted = useMemo(
     () => [...props.posts].sort((a, b) => (a.scheduledAt ?? "").localeCompare(b.scheduledAt ?? "")),
     [props.posts],
   );
   if (sorted.length === 0) {
-    return <EmptyState icon={ListVideo} title="Queue is empty" hint="Schedule a post and it will wait here until it fires — no tab required." />;
+    return <EmptyState icon={ListVideo} title={t("scheduler.queue.emptyTitle")} hint={t("scheduler.queue.emptyHint")} />;
   }
   return (
     <div className="space-y-3">
@@ -610,17 +609,17 @@ function QueueTab(props: {
                 const Icon = opt.icon;
                 return (
                   <span key={pl} className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-bold text-primary">
-                    <Icon className="h-3 w-3" /> {opt.label}
+                    <Icon className="h-3 w-3" /> {t(`scheduler.platforms.${pl}.label`)}
                   </span>
                 );
               })}
               {p.status === "publishing" && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[11px] font-bold text-blue-300">
-                  <Loader2 className="h-3 w-3 animate-spin" /> posting now
+                  <Loader2 className="h-3 w-3 animate-spin" /> {t("scheduler.queue.postingNow")}
                 </span>
               )}
             </div>
-            <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">No caption</span>}</p>
+            <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
             <p className="mt-1 flex items-center gap-1.5 text-[13px] text-white/45">
               <Clock3 className="h-3.5 w-3.5" />
               {p.scheduledAt ? prettyDateTime(p.scheduledAt) : "—"}
@@ -631,16 +630,16 @@ function QueueTab(props: {
             <button
               onClick={() => props.onEdit(p)}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-primary/40 hover:text-white"
-              aria-label="Edit or reschedule"
-              title="Edit / reschedule"
+              aria-label={t("scheduler.queue.editLabel")}
+              title={t("scheduler.queue.editTitle")}
             >
               <Pencil className="h-4 w-4" />
             </button>
             <button
               onClick={() => props.onCancel(p)}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-red-500/50 hover:text-red-400"
-              aria-label="Cancel (refunds Visual Bucs)"
-              title="Cancel — Visual Bucs refunded"
+              aria-label={t("scheduler.queue.cancelLabel")}
+              title={t("scheduler.queue.cancelTitle")}
             >
               <XCircle className="h-4 w-4" />
             </button>
@@ -658,30 +657,31 @@ function DraftsTab(props: {
   onSchedule: (p: ScheduledPostShape) => void;
   onDelete: (p: ScheduledPostShape) => void;
 }) {
+  const { t } = useTranslation();
   if (props.posts.length === 0) {
-    return <EmptyState icon={Inbox} title="No drafts" hint="Save a post as a draft while you perfect the caption — drafts are free." />;
+    return <EmptyState icon={Inbox} title={t("scheduler.drafts.emptyTitle")} hint={t("scheduler.drafts.emptyHint")} />;
   }
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {props.posts.map((p) => (
         <div key={p.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
           <MediaThumb post={p} large />
-          <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm text-white/70">{p.caption || <span className="italic text-white/30">No caption</span>}</p>
+          <p className="mt-3 line-clamp-2 min-h-[2.5rem] text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {p.platforms.map((pl) => (
               <span key={pl} className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-bold text-white/60">
-                {PLATFORM_OPTS.find((o) => o.key === pl)?.label}
+                {t(`scheduler.platforms.${pl}.label`)}
               </span>
             ))}
           </div>
           <div className="mt-4 flex gap-2">
             <Button size="sm" className="flex-1 bg-primary font-bold text-black hover:bg-primary/90" onClick={() => props.onSchedule(p)}>
-              <Clock3 className="mr-1.5 h-3.5 w-3.5" /> Schedule
+              <Clock3 className="mr-1.5 h-3.5 w-3.5" /> {t("scheduler.drafts.schedule")}
             </Button>
             <button
               onClick={() => props.onDelete(p)}
               className="rounded-lg border border-white/10 p-2 text-white/60 hover:border-red-500/50 hover:text-red-400"
-              aria-label="Delete draft"
+              aria-label={t("scheduler.drafts.deleteLabel")}
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -695,12 +695,13 @@ function DraftsTab(props: {
 /* ─── Posted tab ───────────────────────────────────────────────────────── */
 
 function PostedTab(props: { posts: ScheduledPostShape[] }) {
+  const { t } = useTranslation();
   const sorted = useMemo(
     () => [...props.posts].sort((a, b) => (b.postedAt ?? b.updatedAt).localeCompare(a.postedAt ?? a.updatedAt)),
     [props.posts],
   );
   if (sorted.length === 0) {
-    return <EmptyState icon={History} title="Nothing posted yet" hint="Fired posts land here with per-platform results." />;
+    return <EmptyState icon={History} title={t("scheduler.posted.emptyTitle")} hint={t("scheduler.posted.emptyHint")} />;
   }
   return (
     <div className="space-y-3">
@@ -723,11 +724,11 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
                   {r.status === "posted" ? <CheckCircle2 className="h-3 w-3" />
                     : r.status === "failed" ? <XCircle className="h-3 w-3" />
                     : <AlertTriangle className="h-3 w-3" />}
-                  {PLATFORM_OPTS.find((o) => o.key === r.platform)?.label}
+                  {t(`scheduler.platforms.${r.platform}.label`)}
                 </span>
               ))}
             </div>
-            <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">No caption</span>}</p>
+            <p className="mt-1.5 truncate text-sm text-white/70">{p.caption || <span className="italic text-white/30">{t("scheduler.noCaption")}</span>}</p>
             <p className="mt-1 text-[13px] text-white/45">
               {p.postedAt ? `Posted ${prettyDateTime(p.postedAt)}` : `Updated ${prettyDateTime(p.updatedAt)}`}
               {p.lastError && p.status === "failed" && <span className="text-red-300/80"> · {p.lastError.slice(0, 120)}</span>}
@@ -742,13 +743,14 @@ function PostedTab(props: { posts: ScheduledPostShape[] }) {
 /* ─── Shared bits ──────────────────────────────────────────────────────── */
 
 function StatusBadge({ status }: { status: ScheduledPostShape["status"] }) {
+  const { t } = useTranslation();
   const map: Record<string, { label: string; cls: string }> = {
-    posted: { label: "Posted", cls: "bg-emerald-500/15 text-emerald-300" },
-    failed: { label: "Failed", cls: "bg-red-500/15 text-red-300" },
-    canceled: { label: "Canceled", cls: "bg-white/10 text-white/50" },
-    publishing: { label: "Posting", cls: "bg-blue-500/15 text-blue-300" },
-    scheduled: { label: "Scheduled", cls: "bg-primary/15 text-primary" },
-    draft: { label: "Draft", cls: "bg-white/10 text-white/50" },
+    posted: { label: t("scheduler.status.posted"), cls: "bg-emerald-500/15 text-emerald-300" },
+    failed: { label: t("scheduler.status.failed"), cls: "bg-red-500/15 text-red-300" },
+    canceled: { label: t("scheduler.status.canceled"), cls: "bg-white/10 text-white/50" },
+    publishing: { label: t("scheduler.status.posting"), cls: "bg-blue-500/15 text-blue-300" },
+    scheduled: { label: t("scheduler.status.scheduled"), cls: "bg-primary/15 text-primary" },
+    draft: { label: t("scheduler.status.draft"), cls: "bg-white/10 text-white/50" },
   };
   const s = map[status] ?? map.draft!;
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${s.cls}`}>{s.label}</span>;
@@ -790,6 +792,7 @@ function ComposerModal(props: {
   onSaved: () => void;
   onOutOfCredits: () => void;
 }) {
+  const { t } = useTranslation();
   const { getAccessToken, refreshProfile } = useAuth();
   const { toast } = useToast();
   const { post, prefill } = props;
@@ -825,7 +828,7 @@ function ComposerModal(props: {
 
   async function handleFile(file: File) {
     if (!file.type.startsWith("video/")) {
-      setError("Please choose a video file — the auto-post pipelines publish video.");
+      setError(t("scheduler.error.videoOnly"));
       return;
     }
     setError(null);
@@ -840,13 +843,13 @@ function ComposerModal(props: {
         body: form,
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; ref?: string; error?: string; message?: string };
-      if (!res.ok || !data.ref) throw new Error(data.message || data.error || "Upload failed.");
+      if (!res.ok || !data.ref) throw new Error(data.message || data.error || t("scheduler.error.uploadFailed"));
       /* Persist the stable storage ref (never expires); preview with the signed URL. */
       setMediaRef(data.ref);
       setPreviewUrl(data.url ?? "");
-      toast({ title: "Video uploaded", description: "Ready to schedule." });
+      toast({ title: t("scheduler.toast.videoUploaded"), description: t("scheduler.toast.readyToSchedule") });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      setError(err instanceof Error ? err.message : t("scheduler.error.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -871,26 +874,26 @@ function ComposerModal(props: {
         setCaption((c) => (c ? `${c}\n\n${hook}` : hook));
         refreshProfile();
       } else {
-        throw new Error("The AI didn't return a caption.");
+        throw new Error(t("scheduler.toast.noCaption"));
       }
     } catch (err) {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits") props.onOutOfCredits();
-      else setError(err instanceof Error ? err.message : "AI caption failed.");
+      else setError(err instanceof Error ? err.message : t("scheduler.toast.aiCaptionFailed"));
     } finally {
       setAiCaptionLoading(false);
     }
   }
 
   function validate(forSchedule: boolean): string | null {
-    if (!mediaRef) return "Upload a video first.";
-    if (platforms.length === 0) return "Pick at least one platform.";
+    if (!mediaRef) return t("scheduler.error.noVideo");
+    if (platforms.length === 0) return t("scheduler.error.noPlatform");
     const missing = platforms.filter((p) => !accountIds[p]);
     if (missing.length > 0) {
-      const labels = missing.map((p) => PLATFORM_OPTS.find((o) => o.key === p)?.label).join(", ");
-      return `Pick a connected account for: ${labels}.`;
+      const labels = missing.map((p) => t(`scheduler.platforms.${p}.label`)).join(", ");
+      return t("scheduler.error.noAccount", { platforms: labels });
     }
-    if (forSchedule && !isFutureLocal(date, time)) return "Pick a date and time at least a minute in the future.";
+    if (forSchedule && !isFutureLocal(date, time)) return t("scheduler.error.futureTime");
     return null;
   }
 
@@ -914,14 +917,14 @@ function ComposerModal(props: {
       if (isEdit) {
         await api(`/api/scheduler/posts/${post!.id}`, token, { method: "PATCH", body: JSON.stringify(payload) });
         toast({
-          title: forSchedule ? "Scheduled" : "Draft saved",
+          title: forSchedule ? t("scheduler.toast.scheduled") : t("scheduler.toast.draftSaved"),
           description: forSchedule && scheduledAt ? prettyDateTime(scheduledAt) : undefined,
         });
       } else {
         await api("/api/scheduler/posts", token, { method: "POST", body: JSON.stringify(payload) });
         toast({
-          title: forSchedule ? "Scheduled · 100 Visual Bucs" : "Draft saved",
-          description: forSchedule && scheduledAt ? `${prettyDateTime(scheduledAt)} — cancel anytime for a refund.` : "Drafts are free.",
+          title: forSchedule ? t("scheduler.toast.scheduledCost") : t("scheduler.toast.draftSaved"),
+          description: forSchedule && scheduledAt ? t("scheduler.toast.scheduledDesc", { datetime: prettyDateTime(scheduledAt) }) : t("scheduler.toast.draftsFree"),
         });
       }
       props.onSaved();
@@ -929,9 +932,9 @@ function ComposerModal(props: {
       const code = (err as { code?: string }).code;
       if (code === "out_of_credits" || (err as { status?: number }).status === 402) {
         props.onOutOfCredits();
-        setError("Not enough Visual Bucs — top up to schedule.");
+        setError(t("scheduler.toast.notEnoughCredits"));
       } else {
-        setError(err instanceof Error ? err.message : "Couldn't save the post.");
+        setError(err instanceof Error ? err.message : t("scheduler.toast.couldntSave"));
       }
     } finally {
       setSaving(false);
@@ -946,17 +949,17 @@ function ComposerModal(props: {
         className="relative my-8 w-full max-w-2xl overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <button onClick={props.onClose} className="absolute right-4 top-4 rounded-lg p-2 text-white/50 hover:text-white" aria-label="Close">
+        <button onClick={props.onClose} className="absolute right-4 top-4 rounded-lg p-2 text-white/50 hover:text-white" aria-label={t("scheduler.composer.close")}>
           <X className="h-5 w-5" />
         </button>
 
         <h2 className="font-display text-2xl font-black">
-          {isEdit ? (post!.status === "draft" ? "Schedule draft" : "Edit scheduled post") : "New scheduled post"}
+          {isEdit ? (post!.status === "draft" ? t("scheduler.composer.scheduleDraft") : t("scheduler.composer.editPost")) : t("scheduler.composer.newPost")}
         </h2>
         <p className="mt-1 text-[13px] text-white/45">
           {isEdit && post!.status === "scheduled"
-            ? "Changes save instantly."
-            : "Scheduling costs 100 Visual Bucs per post — charged now, refunded automatically if you cancel."}
+            ? t("scheduler.composer.changesInstant")
+            : t("scheduler.composer.costNote")}
         </p>
 
         {!isEdit && (
@@ -965,7 +968,7 @@ function ComposerModal(props: {
             actionLabel="Schedule it"
             onPick={(asset) => {
               if (!/^https:\/\//.test(asset.url)) {
-                toast({ title: "Needs a hosted file", description: "That asset lives only in this browser session — generate or upload a hosted video first." });
+                toast({ title: t("scheduler.toast.needsHosted"), description: t("scheduler.toast.hostedDesc") });
                 return;
               }
               setMediaRef(asset.url);
@@ -976,20 +979,20 @@ function ComposerModal(props: {
 
         {/* media */}
         <div className="mt-6">
-          <label className={labelClass}>Video</label>
+          <label className={labelClass}>{t("scheduler.composer.video")}</label>
           {previewUrl || mediaRef ? (
             <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black">
               {previewUrl ? (
                 <video src={previewUrl} controls playsInline className="max-h-64 w-full object-contain" />
               ) : (
                 <div className="flex h-32 items-center justify-center gap-2 text-sm text-white/50">
-                  <Video className="h-5 w-5 text-primary/60" /> Video attached — preview unavailable for stored media.
+                  <Video className="h-5 w-5 text-primary/60" /> {t("scheduler.composer.noPreview")}
                 </div>
               )}
               <button
                 onClick={() => { setMediaRef(""); setPreviewUrl(""); }}
                 className="absolute right-3 top-3 rounded-lg bg-black/70 p-2 text-white/70 hover:text-white"
-                aria-label="Remove video"
+                aria-label={t("scheduler.composer.removeVideo")}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -1001,8 +1004,8 @@ function ComposerModal(props: {
               className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-white/20 bg-white/[0.02] px-6 py-10 text-white/50 transition hover:border-primary/50 hover:text-white"
             >
               {uploading ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <Upload className="h-8 w-8 text-primary/70" />}
-              <span className="text-sm font-semibold">{uploading ? "Uploading…" : "Click to upload your video"}</span>
-              <span className="text-[12px] text-white/35">MP4 / MOV · up to 80 MB · free to upload</span>
+              <span className="text-sm font-semibold">{uploading ? t("scheduler.composer.uploading") : t("scheduler.composer.uploadCta")}</span>
+              <span className="text-[12px] text-white/35">{t("scheduler.composer.uploadNote")}</span>
             </button>
           )}
           <input
@@ -1017,29 +1020,29 @@ function ComposerModal(props: {
         {/* caption */}
         <div className="mt-5">
           <div className="mb-1.5 flex items-center justify-between">
-            <label className={`${labelClass} mb-0`}>Caption</label>
+            <label className={`${labelClass} mb-0`}>{t("scheduler.composer.caption")}</label>
             <button
               onClick={handleAiCaption}
               disabled={aiCaptionLoading}
               data-min-stars="2"
               className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1 text-[12px] font-bold text-primary transition hover:bg-primary/10"
-              title="AI writes a hook for your caption · 100 Visual Bucs"
+              title={t("scheduler.composer.aiCaptionTitle")}
             >
               {aiCaptionLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              AI caption · 100 Visual Bucs
+              {t("scheduler.composer.aiCaption")}
             </button>
           </div>
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value.slice(0, 5000))}
             rows={4}
-            placeholder="Write your caption…"
+            placeholder={t("scheduler.composer.captionPlaceholder")}
             className={`${inputClass} resize-y`}
           />
         </div>
 
         <div className="mt-4">
-          <label className={labelClass}>Hashtags</label>
+          <label className={labelClass}>{t("scheduler.composer.hashtags")}</label>
           <input
             value={hashtags}
             onChange={(e) => setHashtags(e.target.value)}
@@ -1050,9 +1053,9 @@ function ComposerModal(props: {
 
         {/* platforms */}
         <div className="mt-5">
-          <label className={labelClass}>Platforms</label>
+          <label className={labelClass}>{t("scheduler.composer.platforms")}</label>
           <div className="grid gap-2 sm:grid-cols-3">
-            {PLATFORM_OPTS.map(({ key, label, sub, icon: Icon }) => {
+            {PLATFORM_OPTS.map(({ key, icon: Icon }) => {
               const on = platforms.includes(key);
               return (
                 <button
@@ -1064,10 +1067,10 @@ function ComposerModal(props: {
                 >
                   <div className="flex items-center gap-2">
                     <Icon className={`h-4 w-4 ${on ? "text-primary" : "text-white/50"}`} />
-                    <span className={`text-sm font-bold ${on ? "text-white" : "text-white/60"}`}>{label}</span>
+                    <span className={`text-sm font-bold ${on ? "text-white" : "text-white/60"}`}>{t(`scheduler.platforms.${key}.label`)}</span>
                     {on && <CheckCircle2 className="ml-auto h-4 w-4 text-primary" />}
                   </div>
-                  <p className="mt-1 text-[11px] text-white/40">{sub}</p>
+                  <p className="mt-1 text-[11px] text-white/40">{t(`scheduler.platforms.${key}.sub`)}</p>
                 </button>
               );
             })}
@@ -1075,7 +1078,7 @@ function ComposerModal(props: {
           {showTikTokNote && (
             <p className="mt-2 flex items-start gap-1.5 text-[12px] text-white/45">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/70" />
-              TikTok's API delivers to your drafts inbox — you'll finish the post in TikTok. Instagram and Facebook publish directly.
+              {t("scheduler.composer.tiktokNote")}
             </p>
           )}
         </div>
@@ -1085,14 +1088,14 @@ function ComposerModal(props: {
           <div className="mt-4 space-y-3">
             {platforms.map((p) => {
               const opts = usableAccounts.filter((a) => a.platform === p);
-              const label = PLATFORM_OPTS.find((o) => o.key === p)?.label;
+              const label = t(`scheduler.platforms.${p}.label`);
               return (
                 <div key={p}>
-                  <label className={labelClass}>{label} account</label>
+                  <label className={labelClass}>{t("scheduler.composer.accountLabel", { platform: label })}</label>
                   {opts.length === 0 ? (
                     <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-[13px] text-amber-200/90">
-                      No {label} account connected.{" "}
-                      <a href="/dashboard" className="font-bold underline">Connect one in Tools → Social</a> to schedule here.
+                      {t("scheduler.composer.noAccount1", { platform: label })}{" "}
+                      <a href="/dashboard" className="font-bold underline">{t("scheduler.composer.noAccountLink")}</a>{t("scheduler.composer.noAccount2")}
                     </p>
                   ) : (
                     <select
@@ -1100,7 +1103,7 @@ function ComposerModal(props: {
                       onChange={(e) => setAccountIds((cur) => ({ ...cur, [p]: e.target.value }))}
                       className={`${inputClass} appearance-none`}
                     >
-                      <option value="" disabled>Choose account…</option>
+                      <option value="" disabled>{t("scheduler.composer.chooseAccount")}</option>
                       {opts.map((a) => (
                         <option key={a.id} value={a.id} className="bg-black">
                           {a.usernameMasked || a.pageName || a.platform}
@@ -1117,16 +1120,16 @@ function ComposerModal(props: {
         {/* schedule time */}
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Date</label>
+            <label className={labelClass}>{t("scheduler.composer.date")}</label>
             <input type="date" value={date} min={todayLocal()} onChange={(e) => setDate(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
           </div>
           <div>
-            <label className={labelClass}>Time</label>
+            <label className={labelClass}>{t("scheduler.composer.time")}</label>
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={`${inputClass} [color-scheme:dark]`} />
           </div>
         </div>
         <p className="mt-2 text-[12px] text-white/35">
-          Times are in your timezone ({props.timezone}). The server fires the post even with this tab closed.
+          {t("scheduler.composer.timezoneNote", { tz: props.timezone })}
         </p>
 
         {error && (
@@ -1141,7 +1144,7 @@ function ComposerModal(props: {
             className="flex-1 bg-primary py-6 font-black text-black hover:bg-primary/90"
           >
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Clock3 className="mr-2 h-4 w-4" />}
-            {isEdit && post!.status === "scheduled" ? "Save changes" : "Schedule · 100 Visual Bucs"}
+            {isEdit && post!.status === "scheduled" ? t("scheduler.composer.saveChanges") : t("scheduler.composer.scheduleButton")}
           </Button>
           {(!isEdit || post!.status === "draft") && (
             <Button
@@ -1150,7 +1153,7 @@ function ComposerModal(props: {
               variant="outline"
               className="border-white/20 py-6 text-white hover:bg-white/5"
             >
-              Save as free draft
+              {t("scheduler.composer.saveDraft")}
             </Button>
           )}
         </div>
@@ -1163,11 +1166,11 @@ function ComposerModal(props: {
               getAccessToken()
                 .then((token) => api(`/api/scheduler/posts/${post!.id}`, token, { method: "PATCH", body: JSON.stringify({ scheduledAt: null }) }))
                 .then(() => props.onSaved())
-                .catch((err: unknown) => { setError(err instanceof Error ? err.message : "Couldn't unschedule."); setSaving(false); });
+                .catch((err: unknown) => { setError(err instanceof Error ? err.message : t("scheduler.toast.couldntUnschedule")); setSaving(false); });
             }}
             className="mt-3 text-[13px] font-semibold text-white/45 underline-offset-2 hover:text-white hover:underline"
           >
-            Unschedule → move back to drafts (refunds 100 Visual Bucs)
+            {t("scheduler.composer.unschedule")}
           </button>
         )}
       </div>

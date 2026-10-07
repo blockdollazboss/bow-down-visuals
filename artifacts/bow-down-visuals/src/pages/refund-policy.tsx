@@ -1,10 +1,12 @@
 import { Link } from "wouter";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { usePageTitle } from "@/hooks/use-page-title";
+import { useTranslation } from "react-i18next";
 
 function PolicyNav() {
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
+  const { t } = useTranslation();
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-black/90 backdrop-blur-xl">
@@ -12,103 +14,101 @@ function PolicyNav() {
         <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg">
           <img src={`${import.meta.env.BASE_URL}logo-static.webp`} alt="Bow Down Visuals" className="h-10 w-auto" />
         </Link>
-        <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">Contact / Support</Link>
+        <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">{t("refundPolicy.nav.contactSupport")}</Link>
       </div>
     </header>
   );
 }
 
 export default function RefundPolicy() {
-  usePageTitle("Refund Policy", "Our refund policy for Visual Bucs and purchases.");
+  const { t } = useTranslation();
+  usePageTitle(t("refundPolicy.pageTitle"), t("refundPolicy.pageDescription"));
   return (
     <div className="min-h-screen bg-background">
       <PolicyNav />
       <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
-        <h1 className="text-3xl font-black text-white mb-2">Refund Policy</h1>
-        <p className="text-white/30 text-sm mb-10">Last updated: September 2026</p>
+        <h1 className="text-3xl font-black text-white mb-2">{t("refundPolicy.title")}</h1>
+        <p className="text-white/30 text-sm mb-10">{t("refundPolicy.lastUpdated")}</p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">What We Sell</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.whatWeSell.title")}</h2>
             <p>
-              Bow Down Visuals sells <strong className="text-white/90">digital AI creator Visual Bucs</strong> — 
-              pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos,
-              lyrics, thumbnails, caption sets, promo clips, and other digital creator content. 
-              All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped.
+              {t("refundPolicy.whatWeSell.p1")}
+              <strong className="text-white/90">{t("refundPolicy.whatWeSell.strong")}</strong>
+              {t("refundPolicy.whatWeSell.p2")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">Digital Products — General Policy</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.generalPolicy.title")}</h2>
             <p>
-              Because our products are digital and consumed immediately upon generation, 
-              <strong className="text-white/90"> all sales are generally final</strong>. 
-              Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded.
-              Bonus Visual Bucs earned through referrals or promotions have no cash value and are
-              non-refundable.
+              {t("refundPolicy.generalPolicy.p1")}
+              <strong className="text-white/90">{t("refundPolicy.generalPolicy.strong")}</strong>
+              {t("refundPolicy.generalPolicy.p2")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">When We Do Issue Refunds</h2>
-            <p>We will issue a full or partial refund in the following situations:</p>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.whenWeRefund.title")}</h2>
+            <p>{t("refundPolicy.whenWeRefund.intro")}</p>
             <ul className="list-disc pl-5 space-y-2 mt-3">
               <li>
-                <strong className="text-white/90">Technical failure:</strong> Visual Bucs were deducted
-                but no content was generated due to a platform error on our end.
+                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.technical.title")}</strong>
+                {t("refundPolicy.whenWeRefund.technical.desc")}
               </li>
               <li>
-                <strong className="text-white/90">Duplicate charge:</strong> You were charged more
-                than once for the same subscription period or purchase.
+                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.duplicate.title")}</strong>
+                {t("refundPolicy.whenWeRefund.duplicate.desc")}
               </li>
               <li>
-                <strong className="text-white/90">Unauthorized charge:</strong> You believe your
-                account was accessed without your authorization.
+                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.unauthorized.title")}</strong>
+                {t("refundPolicy.whenWeRefund.unauthorized.desc")}
               </li>
               <li>
-                <strong className="text-white/90">Within 48 hours of first subscription:</strong> If
-                you subscribed and have not yet used any Visual Bucs, you may request a full refund
-                within 48 hours of your first payment.
+                <strong className="text-white/90">{t("refundPolicy.whenWeRefund.firstSub.title")}</strong>
+                {t("refundPolicy.whenWeRefund.firstSub.desc")}
               </li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">Subscription Cancellations</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.cancellations.title")}</h2>
             <p>
-              You may cancel your subscription at any time. Cancellation stops future billing;
-              you retain access to your remaining Visual Bucs and subscription benefits through the
-              end of the current billing period. <strong className="text-white/90">Partial-month
-              refunds are not issued for cancellations mid-cycle.</strong>
+              {t("refundPolicy.cancellations.p1")}
+              <strong className="text-white/90">{t("refundPolicy.cancellations.strong")}</strong>
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">How to Request a Refund</h2>
-            <p>To request a refund, contact us within <strong className="text-white/90">7 days</strong> of the charge:</p>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.howTo.title")}</h2>
+            <p>
+              {t("refundPolicy.howTo.intro1")}
+              <strong className="text-white/90">{t("refundPolicy.howTo.strong")}</strong>
+              {t("refundPolicy.howTo.intro2")}
+            </p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>
-                Email:{" "}
+                {t("refundPolicy.howTo.email")}{" "}
                 <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
                   support@bowdownvisuals.com
                 </a>
               </li>
-              <li>Subject: <em>Refund Request — [your email]</em></li>
-              <li>Include: date of charge, amount, and a brief description of the issue</li>
+              <li>{t("refundPolicy.howTo.subject1")}<em>{t("refundPolicy.howTo.subject2")}</em></li>
+              <li>{t("refundPolicy.howTo.include")}</li>
             </ul>
             <p className="mt-3">
-              We aim to respond within 2 business days. Approved refunds are returned to your
-              original payment method within 5–10 business days depending on your bank.
+              {t("refundPolicy.howTo.response")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">Questions?</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("refundPolicy.questions.title")}</h2>
             <p>
-              Visit our{" "}
-              <Link href="/contact" className="text-primary hover:underline">Contact / Support page</Link>{" "}
-              or email{" "}
+              {t("refundPolicy.questions.p1")}{" "}
+              <Link href="/contact" className="text-primary hover:underline">{t("refundPolicy.questions.contactLink")}</Link>{" "}
+              {t("refundPolicy.questions.p2")}{" "}
               <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
                 support@bowdownvisuals.com
               </a>.

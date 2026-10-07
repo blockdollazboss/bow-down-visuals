@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
+import { useTranslation } from "react-i18next";
 
 /* ─── Royalty Tracker ────────────────────────────────────────────────────────
    /royalties — one dashboard for streaming earnings across platforms.
@@ -74,6 +75,7 @@ function Bar({ pct, gold }: { pct: number; gold?: boolean }) {
 }
 
 export default function RoyaltyTracker() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
 
   const [summary, setSummary] = useState<SummaryData | null>(null);
@@ -148,17 +150,18 @@ export default function RoyaltyTracker() {
       const { res, data } = await authed("/api/royalties/import", "POST", { csv });
       if (!res.ok) {
         const details = (data.details as string[] | undefined)?.join(" ") ?? "";
-        throw new Error(`${(data.error as string) || "Import failed."} ${details}`.trim());
+        throw new Error(`${(data.error as string) || t("royalties.error.importFailed")} ${details}`.trim());
       }
       const warnings = (data.warnings as string[] | undefined) ?? [];
       setImportMsg({
         ok: true,
-        text: `Imported ${data.imported as number} entries.${warnings.length ? ` ${warnings.length} row(s) skipped.` : ""}`,
+        text: t("royalties.import.success", { num: data.imported as number }) +
+          (warnings.length ? ` ${t("royalties.import.warnings", { num: warnings.length })}` : ""),
       });
       setCsv("");
       loadAll();
     } catch (err) {
-      setImportMsg({ ok: false, text: err instanceof Error ? err.message : "Import failed." });
+      setImportMsg({ ok: false, text: err instanceof Error ? err.message : t("royalties.error.importFailed") });
     } finally {
       setImporting(false);
     }
@@ -184,11 +187,11 @@ export default function RoyaltyTracker() {
         setInsightsOutOfCredits(true);
         return;
       }
-      if (!res.ok) throw new Error((data.error as string) || "Insights failed — try again.");
+      if (!res.ok) throw new Error((data.error as string) || t("royalties.error.insightsFailed"));
       setInsights((data.insights as Insight[]) ?? []);
       refreshProfile().catch(() => {});
     } catch (err) {
-      setInsightsError(err instanceof Error ? err.message : "Insights failed — try again.");
+      setInsightsError(err instanceof Error ? err.message : t("royalties.error.insightsFailed"));
     } finally {
       setInsightsLoading(false);
     }
@@ -197,7 +200,7 @@ export default function RoyaltyTracker() {
   async function savePayout() {
     if (payoutSaving) return;
     if (!pDistributor.trim() || !pStart || !pEnd || !pExpected.trim()) {
-      setPayoutMsg("Distributor, period dates, and expected amount are required.");
+      setPayoutMsg(t("royalties.error.payoutRequired"));
       return;
     }
     setPayoutSaving(true);
@@ -211,12 +214,12 @@ export default function RoyaltyTracker() {
         received_amount: pReceived.trim() || undefined,
         status: pStatus,
       });
-      if (!res.ok) throw new Error((data.error as string) || "Couldn't save that payout.");
+      if (!res.ok) throw new Error((data.error as string) || t("royalties.error.payoutSaveFailed"));
       setShowPayoutForm(false);
       setPDistributor(""); setPStart(""); setPEnd(""); setPExpected(""); setPReceived(""); setPStatus("expected");
       loadAll();
     } catch (err) {
-      setPayoutMsg(err instanceof Error ? err.message : "Couldn't save that payout.");
+      setPayoutMsg(err instanceof Error ? err.message : t("royalties.error.payoutSaveFailed"));
     } finally {
       setPayoutSaving(false);
     }
@@ -231,23 +234,22 @@ export default function RoyaltyTracker() {
       <main className="mx-auto max-w-6xl px-5 pb-24 pt-10 md:px-8">
         {/* Header */}
         <div className="mb-8">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-400/80">Royalty Tracker</p>
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-amber-400/80">{t("royalties.eyebrow")}</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
-            Every stream. Every platform. <span className="bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">One dashboard.</span>
+            {t("royalties.titlePrefix")} <span className="bg-gradient-to-r from-amber-400 to-yellow-200 bg-clip-text text-transparent">{t("royalties.titleSuffix")}</span>
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-white/55">
-            Import your distributor CSVs and watch your catalog earn. The dashboard is free —
-            only the AI earnings insights cost Visual Bucs.
+            {t("royalties.subtitle")}
           </p>
         </div>
 
         {!user ? (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
-            <p className="text-white/70">Sign in to track your royalties.</p>
+            <p className="text-white/70">{t("royalties.signIn")}</p>
           </div>
         ) : summaryLoading ? (
           <div className="flex items-center gap-3 text-white/50">
-            <Loader2 className="h-5 w-5 animate-spin" /> Loading your royalty dashboard…
+            <Loader2 className="h-5 w-5 animate-spin" /> {t("royalties.loading")}
           </div>
         ) : (
           <>
@@ -255,24 +257,24 @@ export default function RoyaltyTracker() {
             <div className="mb-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-2xl border border-amber-400/25 bg-gradient-to-br from-amber-500/15 to-transparent p-5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-300/80">
-                  <DollarSign className="h-4 w-4" /> Total earnings
+                  <DollarSign className="h-4 w-4" /> {t("royalties.totals.earnings")}
                 </div>
                 <div className="mt-2 text-3xl font-black text-amber-300">{fmtMoney(summary?.total ?? "0.00")}</div>
-                <div className="mt-1 text-xs text-white/45">{summary?.entryCount ?? 0} entries tracked</div>
+                <div className="mt-1 text-xs text-white/45">{t("royalties.totals.entries", { num: summary?.entryCount ?? 0 })}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
-                  <TrendingUp className="h-4 w-4" /> Total streams
+                  <TrendingUp className="h-4 w-4" /> {t("royalties.totals.streams")}
                 </div>
                 <div className="mt-2 text-3xl font-black">{(summary?.totalStreams ?? 0).toLocaleString()}</div>
-                <div className="mt-1 text-xs text-white/45">across all platforms</div>
+                <div className="mt-1 text-xs text-white/45">{t("royalties.totals.acrossPlatforms")}</div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
-                  <Music2 className="h-4 w-4" /> Songs earning
+                  <Music2 className="h-4 w-4" /> {t("royalties.totals.songs")}
                 </div>
                 <div className="mt-2 text-3xl font-black">{summary?.perSong.length ?? 0}</div>
-                <div className="mt-1 text-xs text-white/45">{summary?.perPlatform.length ?? 0} platforms reporting</div>
+                <div className="mt-1 text-xs text-white/45">{t("royalties.totals.platforms", { num: summary?.perPlatform.length ?? 0 })}</div>
               </div>
             </div>
 
@@ -281,18 +283,18 @@ export default function RoyaltyTracker() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-5 w-5 text-amber-300" />
-                  <h2 className="text-lg font-bold">AI earnings insights</h2>
-                  <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">{INSIGHTS_CREDIT_COST} Visual Buc</span>
+                  <h2 className="text-lg font-bold">{t("royalties.insights.title")}</h2>
+                  <span className="rounded-full bg-amber-400/15 px-2.5 py-0.5 text-xs font-bold text-amber-300">{t("royalties.insights.cost", { cost: INSIGHTS_CREDIT_COST })}</span>
                 </div>
                 <button
                   onClick={getInsights}
                   disabled={insightsLoading || !hasData}
                   className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40"
                 >
-                  {insightsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analyze my earnings"}
+                  {insightsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("royalties.insights.analyze")}
                 </button>
               </div>
-              {!hasData && <p className="mt-2 text-sm text-white/50">Import some royalty data below first — I need numbers to analyze.</p>}
+              {!hasData && <p className="mt-2 text-sm text-white/50">{t("royalties.insights.needData")}</p>}
               {insightsOutOfCredits && <div className="mt-3"><OutOfCredits /></div>}
               {insightsError && <p className="mt-3 text-sm text-red-400">{insightsError}</p>}
               {insights && (
@@ -311,7 +313,7 @@ export default function RoyaltyTracker() {
               <>
                 {/* Monthly trend */}
                 <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                  <h2 className="mb-4 text-lg font-bold">Monthly trend</h2>
+                  <h2 className="mb-4 text-lg font-bold">{t("royalties.monthlyTrend")}</h2>
                   <div className="flex items-end gap-2 overflow-x-auto pb-2">
                     {summary!.monthly.map((m) => (
                       <div key={m.month} className="flex min-w-[52px] flex-1 flex-col items-center gap-1.5">
@@ -330,7 +332,7 @@ export default function RoyaltyTracker() {
                 <div className="mb-8 grid gap-6 md:grid-cols-2">
                   {/* Per song */}
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                    <h2 className="mb-4 text-lg font-bold">Per song</h2>
+                    <h2 className="mb-4 text-lg font-bold">{t("royalties.perSong")}</h2>
                     <div className="space-y-3">
                       {summary!.perSong.slice(0, 8).map((s) => (
                         <div key={s.song}>
@@ -339,14 +341,14 @@ export default function RoyaltyTracker() {
                             <span className="ml-2 shrink-0 font-bold text-amber-200">{fmtMoney(s.amount)}</span>
                           </div>
                           <Bar pct={(s.cents / maxSong) * 100} gold />
-                          <div className="mt-0.5 text-[11px] text-white/40">{s.streams.toLocaleString()} streams</div>
+                          <div className="mt-0.5 text-[11px] text-white/40">{t("royalties.streams", { num: s.streams.toLocaleString() })}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                   {/* Per platform */}
                   <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                    <h2 className="mb-4 text-lg font-bold">Per platform</h2>
+                    <h2 className="mb-4 text-lg font-bold">{t("royalties.perPlatform")}</h2>
                     <div className="space-y-3">
                       {summary!.perPlatform.map((p) => (
                         <div key={p.platform}>
@@ -355,7 +357,7 @@ export default function RoyaltyTracker() {
                             <span className="ml-2 shrink-0 font-bold text-amber-200">{fmtMoney(p.amount)}</span>
                           </div>
                           <Bar pct={(p.cents / (summary!.perPlatform[0]?.cents ?? 1)) * 100} />
-                          <div className="mt-0.5 text-[11px] text-white/40">{p.streams.toLocaleString()} streams</div>
+                          <div className="mt-0.5 text-[11px] text-white/40">{t("royalties.streams", { num: p.streams.toLocaleString() })}</div>
                         </div>
                       ))}
                     </div>
@@ -365,20 +367,18 @@ export default function RoyaltyTracker() {
             ) : (
               <div className="mb-8 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-8 text-center">
                 <Upload className="mx-auto mb-3 h-8 w-8 text-white/30" />
-                <p className="font-bold">No royalty data yet</p>
+                <p className="font-bold">{t("royalties.empty.title")}</p>
                 <p className="mx-auto mt-1 max-w-md text-sm text-white/50">
-                  Export a CSV from your distributor (DistroKid, TuneCore, CD Baby — they all export them)
-                  and paste it below. We'll do the rest.
+                  {t("royalties.empty.desc")}
                 </p>
               </div>
             )}
 
             {/* CSV import */}
             <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h2 className="flex items-center gap-2 text-lg font-bold"><Upload className="h-5 w-5 text-amber-300" /> Import distributor CSV <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">Free</span></h2>
+              <h2 className="flex items-center gap-2 text-lg font-bold"><Upload className="h-5 w-5 text-amber-300" /> {t("royalties.import.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
               <p className="mt-1 text-sm text-white/50">
-                We auto-detect common distributor columns (song, platform, period, streams, amount).
-                Accepts <code className="text-white/70">MM/DD/YYYY</code> or <code className="text-white/70">YYYY-MM-DD</code> dates.
+                {t("royalties.import.desc")}
               </p>
               <textarea
                 value={csv}
@@ -393,7 +393,7 @@ export default function RoyaltyTracker() {
                   disabled={importing || !csv.trim()}
                   className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40"
                 >
-                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Import entries"}
+                  {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("royalties.import.button")}
                 </button>
                 {importMsg && (
                   <p className={`text-sm ${importMsg.ok ? "text-emerald-300" : "text-red-400"}`}>{importMsg.text}</p>
@@ -403,10 +403,9 @@ export default function RoyaltyTracker() {
 
             {/* Platforms */}
             <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <h2 className="flex items-center gap-2 text-lg font-bold"><Link2 className="h-5 w-5 text-amber-300" /> Platform connections</h2>
+              <h2 className="flex items-center gap-2 text-lg font-bold"><Link2 className="h-5 w-5 text-amber-300" /> {t("royalties.platforms.title")}</h2>
               <p className="mt-1 text-sm text-white/50">
-                Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists —
-                their auto-sync is honestly <span className="font-bold text-white/70">coming soon</span>. CSV import works for everything today.
+                {t("royalties.platforms.desc1")} <span className="font-bold text-white/70">{t("royalties.platforms.comingSoon")}</span>{t("royalties.platforms.desc2")}
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {platforms.map((p) => (
@@ -414,14 +413,14 @@ export default function RoyaltyTracker() {
                     <div>
                       <div className="text-sm font-bold">{p.label}</div>
                       <div className="text-[11px] text-white/40">
-                        {p.connected ? `Connected${p.accountLabel ? ` · ${p.accountLabel}` : ""}` : p.connectable ? "Not connected" : "Auto-sync coming soon"}
+                        {p.connected ? t("royalties.platforms.connected", { account: p.accountLabel ? ` · ${p.accountLabel}` : "" }) : p.connectable ? t("royalties.platforms.notConnected") : t("royalties.platforms.autoSyncSoon")}
                       </div>
                     </div>
                     {p.connected ? (
                       <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                     ) : p.connectable ? (
                       <button onClick={() => connectManual(p.key)} className="rounded-lg border border-amber-400/40 px-3 py-1.5 text-xs font-bold text-amber-300 transition hover:bg-amber-400/10">
-                        Connect
+                        {t("royalties.platforms.connect")}
                       </button>
                     ) : (
                       <Clock3 className="h-5 w-5 text-white/25" />
@@ -434,39 +433,39 @@ export default function RoyaltyTracker() {
             {/* Payouts */}
             <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
               <div className="flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-lg font-bold"><Wallet className="h-5 w-5 text-amber-300" /> Payout tracking <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">Free</span></h2>
+                <h2 className="flex items-center gap-2 text-lg font-bold"><Wallet className="h-5 w-5 text-amber-300" /> {t("royalties.payouts.title")} <span className="rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs font-bold text-emerald-300">{t("royalties.free")}</span></h2>
                 <button
                   onClick={() => setShowPayoutForm((v) => !v)}
                   className="rounded-xl border border-amber-400/40 px-4 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-400/10"
                 >
-                  {showPayoutForm ? "Cancel" : "Record payout"}
+                  {showPayoutForm ? t("royalties.payouts.cancel") : t("royalties.payouts.record")}
                 </button>
               </div>
               {showPayoutForm && (
                 <div className="mt-4 grid gap-3 rounded-xl border border-white/10 bg-black/40 p-4 sm:grid-cols-2">
-                  <div><label className={labelClass}>Distributor</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
-                  <div><label className={labelClass}>Status</label>
+                  <div><label className={labelClass}>{t("royalties.payouts.distributor")}</label><input value={pDistributor} onChange={(e) => setPDistributor(e.target.value)} placeholder="DistroKid" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.status")}</label>
                     <select value={pStatus} onChange={(e) => setPStatus(e.target.value)} className={inputClass}>
-                      <option value="expected">Expected</option>
-                      <option value="received">Received</option>
-                      <option value="partial">Partial</option>
-                      <option value="overdue">Overdue</option>
+                      <option value="expected">{t("royalties.payouts.statusExpected")}</option>
+                      <option value="received">{t("royalties.payouts.statusReceived")}</option>
+                      <option value="partial">{t("royalties.payouts.statusPartial")}</option>
+                      <option value="overdue">{t("royalties.payouts.statusOverdue")}</option>
                     </select>
                   </div>
-                  <div><label className={labelClass}>Period start</label><input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Period end</label><input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
-                  <div><label className={labelClass}>Expected amount</label><input value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
-                  <div><label className={labelClass}>Received amount (optional)</label><input value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodStart")}</label><input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.periodEnd")}</label><input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.expectedAmount")}</label><input value={pExpected} onChange={(e) => setPExpected(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
+                  <div><label className={labelClass}>{t("royalties.payouts.receivedAmount")}</label><input value={pReceived} onChange={(e) => setPReceived(e.target.value)} placeholder="125.50" inputMode="decimal" className={inputClass} /></div>
                   <div className="sm:col-span-2 flex items-center gap-3">
                     <button onClick={savePayout} disabled={payoutSaving} className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 px-5 py-2.5 text-sm font-bold text-black transition hover:brightness-110 disabled:opacity-40">
-                      {payoutSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save payout"}
+                      {payoutSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t("royalties.payouts.save")}
                     </button>
                     {payoutMsg && <p className="text-sm text-red-400">{payoutMsg}</p>}
                   </div>
                 </div>
               )}
               <div className="mt-4 space-y-2">
-                {payouts.length === 0 && <p className="text-sm text-white/45">No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.</p>}
+                {payouts.length === 0 && <p className="text-sm text-white/45">{t("royalties.payouts.empty")}</p>}
                 {payouts.map((p) => (
                   <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/40 px-4 py-3">
                     <div>
@@ -475,8 +474,8 @@ export default function RoyaltyTracker() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right text-sm">
-                        <div>Expected <span className="font-bold">{fmtMoney(p.expected_amount, p.currency)}</span></div>
-                        {p.received_amount && <div className="text-white/55">Received <span className="font-bold text-emerald-300">{fmtMoney(p.received_amount, p.currency)}</span></div>}
+                        <div>{t("royalties.payouts.expected")} <span className="font-bold">{fmtMoney(p.expected_amount, p.currency)}</span></div>
+                        {p.received_amount && <div className="text-white/55">{t("royalties.payouts.received")} <span className="font-bold text-emerald-300">{fmtMoney(p.received_amount, p.currency)}</span></div>}
                       </div>
                       <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                         p.status === "received" ? "bg-emerald-400/15 text-emerald-300"
@@ -485,7 +484,7 @@ export default function RoyaltyTracker() {
                         : "bg-white/10 text-white/60"
                       }`}>
                         {p.status === "overdue" && <AlertTriangle className="h-3 w-3" />}
-                        {p.status}
+                        {t(`royalties.payouts.status.${p.status}`, { defaultValue: p.status })}
                       </span>
                     </div>
                   </div>
@@ -495,8 +494,7 @@ export default function RoyaltyTracker() {
 
             <p className="flex items-start gap-2 text-xs text-white/40">
               <Copy className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Royalty figures come from your own imports — always reconcile against your distributor's
-              official statements before making financial decisions. AI insights are analytical guidance, not financial advice.
+              {t("royalties.disclaimer")}
             </p>
           </>
         )}

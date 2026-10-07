@@ -8,6 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { OutOfCredits } from "@/components/OutOfCredits";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Thy Cheat Code's Content Randomizer ─────────────────────────────────
  Public teaser page: the free dice roll is 100% client-side (zero server
@@ -25,18 +26,14 @@ type CategoryKey =
 
 interface Category {
  key: CategoryKey;
- label: string;
  icon: LucideIcon;
- blurb: string;
  freeIdeas: string[];
 }
 
 const CATEGORIES: Category[] = [
  {
  key: "video-ideas",
- label: "Video Ideas",
  icon: Clapperboard,
- blurb: "Fresh concepts for your next music video or content drop.",
  freeIdeas: [
  "Day in the life of your artist persona — but every scene is a different music video set",
  "React to your own old songs and roast your past self",
@@ -54,9 +51,7 @@ const CATEGORIES: Category[] = [
  },
  {
  key: "hooks",
- label: "Hooks",
  icon: Zap,
- blurb: "First-3-second openers that stop the scroll.",
  freeIdeas: [
  "Stop scrolling — this took 47 tries to get right",
  "POV: you just found your new favorite artist",
@@ -74,9 +69,7 @@ const CATEGORIES: Category[] = [
  },
  {
  key: "thumbnails",
- label: "Thumbnails",
  icon: ImageIcon,
- blurb: "High-click-through concepts for YouTube and beyond.",
  freeIdeas: [
  "Split face: calm on the left, full performance energy on the right",
  "Giant gold text over a dark stage — 3 words max",
@@ -94,9 +87,7 @@ const CATEGORIES: Category[] = [
  },
  {
  key: "song-concepts",
- label: "Song Concepts",
  icon: Music,
- blurb: "Themes and angles worth writing your next track about.",
  freeIdeas: [
  "An anthem about quitting your 9-to-5 to chase the dream",
  "A late-night R&B confession recorded like a voicemail",
@@ -114,9 +105,7 @@ const CATEGORIES: Category[] = [
  },
  {
  key: "niche-picker",
- label: "Niche Picker",
  icon: Compass,
- blurb: "Positioning angles you could own as a creator.",
  freeIdeas: [
  "AI music video director — you make other artists' visuals",
  "The sample detective — you find and flip obscure samples on camera",
@@ -134,9 +123,7 @@ const CATEGORIES: Category[] = [
  },
  {
  key: "challenges",
- label: "Challenges",
  icon: Flame,
- blurb: "Forcing functions for output and growth.",
  freeIdeas: [
  "Post one clip every day for 30 days — no excuses",
  "Make a song using only sounds from your kitchen",
@@ -175,6 +162,7 @@ function pickRandom<T>(items: T[], except?: T): T {
 }
 
 export default function Randomizer() {
+ const { t } = useTranslation();
  const { user, getAccessToken, refreshProfile } = useAuth();
  const { confirmedFetch } = useConfirmedApi();
  const [activeKey, setActiveKey] = useState<CategoryKey>("video-ideas");
@@ -223,7 +211,7 @@ export default function Randomizer() {
  return;
  }
  if (!res.ok || !Array.isArray(data.ideas) || data.ideas.length === 0) {
- throw new Error(data.message || data.error || "AI roll failed — try again.");
+ throw new Error(data.message || data.error || t("randomizer.error.aiRollFailed"));
  }
  setAiIdeas(data.ideas);
  refreshProfile();
@@ -231,7 +219,7 @@ export default function Randomizer() {
  document.getElementById("ai-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
  }, 100);
  } catch (err) {
- setError(err instanceof Error ? err.message : "AI roll failed — try again.");
+ setError(err instanceof Error ? err.message : t("randomizer.error.aiRollFailed"));
  } finally {
  setAiLoading(false);
  }
@@ -249,19 +237,18 @@ export default function Randomizer() {
  {/* hero */}
  <div className="relative text-center">
  <p className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
- <Dices className="h-3 w-3" aria-hidden="true" /> Thy Cheat Code's dice
+ <Dices className="h-3 w-3" aria-hidden="true" /> {t("randomizer.badge")}
  </p>
  <h1 className="font-display text-4xl font-black tracking-tight md:text-5xl">
- Content <span className="text-primary">Randomizer</span>
+ {t("randomizer.titlePrefix")} <span className="text-primary">{t("randomizer.titleSuffix")}</span>
  </h1>
  <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-white/55">
- Stuck staring at a blank page? Roll the dice for a free spark — or let
- GPT-6 cook up five fresh, made-for-you ideas for a single Visual Buc.
+ {t("randomizer.hero")}
  </p>
  </div>
 
  {/* category tabs */}
- <div className="relative mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Randomizer categories">
+ <div className="relative mt-10 flex flex-wrap justify-center gap-2" role="tablist" aria-label={t("randomizer.categoriesLabel")}>
  {CATEGORIES.map((c) => {
  const Icon = c.icon;
  const selected = c.key === activeKey;
@@ -278,7 +265,7 @@ export default function Randomizer() {
  }`}
  >
  <Icon className="h-4 w-4" aria-hidden="true" />
- {c.label}
+ {t(`randomizer.categories.${c.key}.label`)}
  </button>
  );
  })}
@@ -291,8 +278,8 @@ export default function Randomizer() {
  <ActiveIcon className="h-5 w-5" aria-hidden="true" />
  </span>
  <div>
- <h2 className="text-xl font-bold">{active.label}</h2>
- <p className="text-sm text-white/45">{active.blurb}</p>
+ <h2 className="text-xl font-bold">{t(`randomizer.categories.${active.key}.label`)}</h2>
+ <p className="text-sm text-white/45">{t(`randomizer.categories.${active.key}.blurb`)}</p>
  </div>
  </div>
 
@@ -303,14 +290,14 @@ export default function Randomizer() {
  className="group inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95"
  >
  <Dices className="h-6 w-6 transition group-hover:rotate-12" aria-hidden="true" />
- Roll the dice
+ {t("randomizer.rollDice")}
  </button>
- <p className="mt-2.5 text-xs text-white/35">Free forever — roll as much as you want</p>
+ <p className="mt-2.5 text-xs text-white/35">{t("randomizer.freeForever")}</p>
 
  {freeIdea && (
  <div className="mx-auto mt-6 max-w-xl rounded-2xl border border-primary/30 bg-black/60 p-5 text-left">
  <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> Your roll
+ <Lightbulb className="h-3.5 w-3.5" aria-hidden="true" /> {t("randomizer.yourRoll")}
  </p>
  <p className="text-[15px] leading-relaxed text-white/90">{freeIdea}</p>
  </div>
@@ -320,7 +307,7 @@ export default function Randomizer() {
  {/* divider */}
  <div className="my-8 flex items-center gap-4" aria-hidden="true">
  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
- <span className="text-[11px] font-bold uppercase tracking-widest text-white/30">or go deeper</span>
+ <span className="text-[11px] font-bold uppercase tracking-widest text-white/30">{t("randomizer.orDeeper")}</span>
  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
  </div>
 
@@ -337,7 +324,7 @@ export default function Randomizer() {
  ) : (
  <Sparkles className="h-5 w-5" aria-hidden="true" />
  )}
- {aiLoading ? "Cooking up ideas…" : `Generate 5 fresh with AI`}
+ {aiLoading ? t("randomizer.cooking") : t("randomizer.generateAi")}
  </button>
  ) : (
  <Link
@@ -345,12 +332,12 @@ export default function Randomizer() {
  className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-6 py-3.5 text-base font-bold text-primary transition hover:bg-primary hover:text-black"
  >
  <Sparkles className="h-5 w-5" aria-hidden="true" />
- Sign in to generate with AI
+ {t("randomizer.signInToGenerate")}
  <ArrowRight className="h-4 w-4" aria-hidden="true" />
  </Link>
  )}
  <p className="mt-2.5 text-xs text-white/35">
- {AI_CREDIT_COST} Visual Buc per AI roll · powered by Thy Cheat Code
+ {t("randomizer.costPerRoll", { cost: AI_CREDIT_COST })}
  </p>
  {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
  {error && !outOfCredits && (
@@ -365,7 +352,7 @@ export default function Randomizer() {
  <div id="ai-results" className="mt-8">
  <div className="mb-4 flex items-center justify-between">
  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
- <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Fresh from the AI
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("randomizer.freshFromAi")}
  </p>
  {user && (
  <button
@@ -374,7 +361,7 @@ export default function Randomizer() {
  className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3.5 py-1.5 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
  >
  <Dices className="h-3.5 w-3.5" aria-hidden="true" />
- Re-roll ({AI_CREDIT_COST} Visual Buc)
+ {t("randomizer.reroll", { cost: AI_CREDIT_COST })}
  </button>
  )}
  </div>
@@ -395,9 +382,9 @@ export default function Randomizer() {
 
  {/* cross-link */}
  <p className="relative mt-8 text-center text-sm text-white/40">
- Like an idea? Ask{" "}
- <span className="font-semibold text-primary">Thy Cheat Code</span>{" "}
- in the chat bubble to turn it into a full plan.
+ {t("randomizer.crossLink.p1")}{" "}
+ <span className="font-semibold text-primary">{t("randomizer.crossLink.name")}</span>{" "}
+ {t("randomizer.crossLink.p2")}
  </p>
  </main>
 
