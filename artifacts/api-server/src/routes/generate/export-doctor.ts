@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import {
@@ -1214,10 +1215,177 @@ async function probeMedia(filePath: string): Promise<{
   }
 }
 
+/* ── Zod request schemas (diagnostic routes stay lenient — schemas validate
+   types, the handlers keep their specific semantic checks + messages) ── */
+
+const testUrlSchema = z.object({
+  url: z.string().optional(),
+});
+
+const downloadSchema = z.object({
+  projectId: z.string().optional(),
+  url: z.string().optional(),
+});
+
+const doctorIdSchema = z.object({
+  doctorId: z.string().optional(),
+});
+
+const exportAudioSchema = z.object({
+  doctorId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  audioStartSec: z.number().optional(),
+  clipVideoOffsetSec: z.number().optional(),
+  fullDuration: z.boolean().optional(),
+});
+
+const clipRefSchema = z.object({
+  sceneNumber: z.number().optional(),
+  title: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
+  sourceType: z.string().optional(),
+  trimStart: z.number().optional(),
+  trimEnd: z.number().optional(),
+  masterDuration: z.number().optional(),
+  clipVideoOffsetSec: z.number().optional(),
+});
+
+const checkClipUrlsSchema = z.object({
+  clips: z.array(clipRefSchema).optional(),
+});
+
+const downloadAllSchema = z.object({
+  projectId: z.string().optional(),
+  clips: z.array(clipRefSchema).optional(),
+});
+
+const multiIdSchema = z.object({
+  multiId: z.string().optional(),
+});
+
+const sceneRefSchema = z.object({
+  multiId: z.string().optional(),
+  sceneNumber: z.number().optional(),
+});
+
+const exportAllAudioSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  audioStartSec: z.number().optional(),
+  syncMode: z.string().optional(),
+});
+
+const clipEditsSchema = z.record(
+  z.string(),
+  z.object({
+    lipSyncOffsetSeconds: z.number().optional(),
+    useLipSync: z.boolean().optional(),
+  }),
+);
+
+const exportAudioSyncDiagnosticSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  audioStartSec: z.number().optional(),
+  syncMode: z.string().optional(),
+  clipEdits: clipEditsSchema.optional(),
+});
+
+const exportAudioSyncShortSchema = exportAudioSyncDiagnosticSchema.extend({
+  durationSec: z.number().optional(),
+  lipSyncFineTuneSec: z.number().optional(),
+});
+
+/* Captions carry detailed manual validation in the handlers; the schema
+   only guards the top-level shape (lines are validated item-by-item below). */
+const captionsSchema = z.object({
+  mode: z.string().optional(),
+  stylePreset: z.string().optional(),
+  showArtistName: z.boolean().optional(),
+  showSongTitle: z.boolean().optional(),
+  lines: z.array(z.any()).optional(),
+}).passthrough().nullable().optional();
+
+const conflictModeSchema = z.enum(["bw-only", "gold-only", "blend"]).optional();
+
+const exportAllCaptionsSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  captions: captionsSchema,
+});
+
+const exportAllEffectsSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  captions: captionsSchema,
+  effects: z.array(z.string()).nullable().optional(),
+  conflictMode: conflictModeSchema,
+});
+
+const exportAllOverlaysSchema = z.object({
+  multiId: z.string().optional(),
+  watermarkType: z.string().optional(),
+  watermarkPosition: z.string().optional(),
+  watermarkSize: z.string().optional(),
+  watermarkIncludeInExport: z.boolean().optional(),
+  audioUrl: z.string().optional(),
+  captions: captionsSchema,
+  effects: z.array(z.string()).nullable().optional(),
+  overlays: z.array(z.string()).nullable().optional(),
+  overlayIntensity: z.record(z.string(), z.number()).nullable().optional(),
+  watermarkText: z.string().optional(),
+  conflictMode: conflictModeSchema,
+});
+
+const exportEffectsRangeSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  captions: captionsSchema,
+  effects: z.array(z.string()).nullable().optional(),
+  conflictMode: conflictModeSchema,
+  startSec: z.number().optional(),
+  durationSec: z.number().optional(),
+});
+
+const exportOverlaysRangeSchema = exportAllOverlaysSchema.extend({
+  startSec: z.number().optional(),
+  durationSec: z.number().optional(),
+});
+
+const exportEffectsTransitionsSchema = z.object({
+  multiId: z.string().optional(),
+  audioUrl: z.string().optional(),
+  effects: z.array(z.string()).nullable().optional(),
+  conflictMode: conflictModeSchema,
+  transitions: z.array(z.object({
+    sceneIndex: z.number(),
+    type: z.string(),
+  })).nullable().optional(),
+});
+
+/** Shared safeParse helper — 400 with the standard shape on type errors. */
+function parseBody<T extends z.ZodTypeAny>(
+  schema: T,
+  body: unknown,
+  res: { status: (code: number) => { json: (o: unknown) => void } },
+): z.infer<T> | null {
+  const parsed = schema.safeParse(body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return null;
+  }
+  return parsed.data;
+}
+
 /* ── TEST 1: probe the Scene 1 source URL ─────────────── */
 router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
   try {
-    const { url } = req.body as { url?: string };
+    const body = parseBody(testUrlSchema, req.body, res);
+    if (!body) return;
+    const { url } = body;
     const startsWithHttp = !!url && url.startsWith("http");
 
     if (!url || !startsWithHttp) {
@@ -1308,7 +1476,9 @@ router.post("/export-doctor/test-url", requireAuth, async (req, res) => {
 /* ── TEST 2: download Scene 1 only ────────────────────── */
 router.post("/export-doctor/download", requireAuth, async (req, res) => {
   try {
-    const { projectId, url } = req.body as { projectId?: string; url?: string };
+    const body = parseBody(downloadSchema, req.body, res);
+    if (!body) return;
+    const { projectId, url } = body;
     if (!url || !url.startsWith("http")) {
       res.status(400).json({ error: "A valid Scene 1 http URL is required." });
       return;
@@ -1439,7 +1609,9 @@ router.post("/export-doctor/download", requireAuth, async (req, res) => {
 /* ── TEST 3: export Scene 1 only (3s, no audio, 1080x1920) ── */
 router.post("/export-doctor/export", requireAuth, async (req, res) => {
   try {
-    const { doctorId } = req.body as { doctorId?: string };
+    const body = parseBody(doctorIdSchema, req.body, res);
+    if (!body) return;
+    const { doctorId } = body;
     const session = doctorId ? sessions.get(doctorId) : null;
     if (!session) {
       res.status(400).json({
@@ -1534,24 +1706,15 @@ router.post("/export-doctor/export", requireAuth, async (req, res) => {
 /* ── TEST 4: export Scene 1 + audio (3s) ──────────────── */
 router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
   try {
+    const body = parseBody(exportAudioSchema, req.body, res);
+    if (!body) return;
     const {
       doctorId,
       audioUrl,
       audioStartSec,
       clipVideoOffsetSec,
       fullDuration,
-    } = req.body as {
-      doctorId?: string;
-      audioUrl?: string;
-      /** Seek into the project audio before mixing (seconds). Default 0. */
-      audioStartSec?: number;
-      /** Matches the master player's clipVideoOffsetSec / lipSyncOffsetSeconds.
-       *  Positive → delay video start (video plays N seconds after audio begins).
-       *  Negative → skip ahead N seconds into the video (advance video). */
-      clipVideoOffsetSec?: number;
-      /** When true, skip the default -t 3 limit and export the full clip. */
-      fullDuration?: boolean;
-    };
+    } = body;
     const session = doctorId ? sessions.get(doctorId) : null;
     if (!session) {
       res.status(400).json({
@@ -1798,14 +1961,9 @@ router.post("/export-doctor/export-audio", requireAuth, async (req, res) => {
 ══════════════════════════════════════════════════════════════════════════ */
 router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
   try {
-    const { clips } = req.body as {
-      clips?: Array<{
-        sceneNumber?: number;
-        title?: string;
-        url?: string | null;
-        sourceType?: string;
-      }>;
-    };
+    const body = parseBody(checkClipUrlsSchema, req.body, res);
+    if (!body) return;
+    const { clips } = body;
     if (!Array.isArray(clips) || clips.length === 0) {
       res.status(400).json({ error: "No clips provided." });
       return;
@@ -1894,24 +2052,9 @@ router.post("/export-doctor/check-clip-urls", requireAuth, async (req, res) => {
 
 router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
   try {
-    const { projectId, clips } = req.body as {
-      projectId?: string;
-      clips?: Array<{
-        sceneNumber?: number;
-        title?: string;
-        url?: string | null;
-        /** Seconds to trim from the start (from master player ClipEdit.trimStart). */
-        trimStart?: number;
-        /** Seconds to trim from the end (from master player ClipEdit.trimEnd). */
-        trimEnd?: number;
-        /** Explicit master player clip duration from scene timestamps.
-         *  When > 0, overrides the computed raw - trimStart - trimEnd. */
-        masterDuration?: number;
-        /** Lip sync video offset (master player lipSyncOffsetSeconds).
-         *  Stored in the session clip so normalization can apply it as additional seek. */
-        clipVideoOffsetSec?: number;
-      }>;
-    };
+    const body = parseBody(downloadAllSchema, req.body, res);
+    if (!body) return;
+    const { projectId, clips } = body;
     if (!Array.isArray(clips) || clips.length === 0) {
       res.status(400).json({
         error:
@@ -2128,10 +2271,9 @@ router.post("/export-doctor/download-all", requireAuth, async (req, res) => {
 /* ── Repair Clip: clear stale norm file, force timelineDuration = masterDuration, re-normalize with pad ── */
 router.post("/export-doctor/repair-clip", requireAuth, async (req, res) => {
   try {
-    const { multiId, sceneNumber } = req.body as {
-      multiId?: string;
-      sceneNumber?: number;
-    };
+    const body = parseBody(sceneRefSchema, req.body, res);
+    if (!body) return;
+    const { multiId, sceneNumber } = body;
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
       res
@@ -2245,10 +2387,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, sceneNumber } = req.body as {
-        multiId?: string;
-        sceneNumber?: number;
-      };
+      const body = parseBody(sceneRefSchema, req.body, res);
+      if (!body) return;
+      const { multiId, sceneNumber } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res
@@ -2498,7 +2639,9 @@ router.post(
 /* ── TEST 6: export ALL clips only (no audio, 1080x1920, concat) ── */
 router.post("/export-doctor/export-all", requireAuth, async (req, res) => {
   try {
-    const { multiId } = req.body as { multiId?: string };
+    const body = parseBody(multiIdSchema, req.body, res);
+    if (!body) return;
+    const { multiId } = body;
     const session = multiId ? multiSessions.get(multiId) : null;
     if (!session) {
       res.status(400).json({
@@ -2584,13 +2727,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, audioUrl, audioStartSec, syncMode } = req.body as {
-        multiId?: string;
-        audioUrl?: string;
-        /** Seconds into the audio track to start — matches master player's videoAudio.startSec. */
-        audioStartSec?: number;
-        syncMode?: string;
-      };
+      const body = parseBody(exportAllAudioSchema, req.body, res);
+      if (!body) return;
+      const { multiId, audioUrl, audioStartSec, syncMode } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -2812,17 +2951,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, audioUrl, audioStartSec, syncMode, clipEdits } =
-        req.body as {
-          multiId?: string;
-          audioUrl?: string;
-          audioStartSec?: number;
-          syncMode?: string;
-          clipEdits?: Record<
-            string,
-            { lipSyncOffsetSeconds?: number; useLipSync?: boolean }
-          >;
-        };
+      const body = parseBody(exportAudioSyncDiagnosticSchema, req.body, res);
+      if (!body) return;
+      const { multiId, audioUrl, audioStartSec, syncMode, clipEdits } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -3019,6 +3150,8 @@ router.post(
     const routeStart = Date.now();
     let lastStep = "received request";
     try {
+      const body = parseBody(exportAudioSyncShortSchema, req.body, res);
+      if (!body) return;
       const {
         multiId,
         audioUrl,
@@ -3026,17 +3159,7 @@ router.post(
         syncMode,
         durationSec,
         lipSyncFineTuneSec,
-      } = req.body as {
-        multiId?: string;
-        audioUrl?: string;
-        audioStartSec?: number;
-        syncMode?: string;
-        durationSec?: number;
-        /** Extra fine-tune offset applied on top of each clip's saved clipVideoOffsetSec.
-         *  Positive = delay mouth further; negative = advance mouth.
-         *  When non-zero, uses normalizeClipsForDurationLipSyncTest (separate file paths). */
-        lipSyncFineTuneSec?: number;
-      };
+      } = body;
 
       req.log.info(
         { multiId, clipCount: undefined, audioUrl: audioUrl?.slice(0, 80) },
@@ -3414,11 +3537,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, audioUrl, captions } = req.body as {
-        multiId?: string;
-        audioUrl?: string;
-        captions?: CaptionBurnConfig | null;
-      };
+      const body = parseBody(exportAllCaptionsSchema, req.body, res);
+      if (!body) return;
+      const { multiId, audioUrl, captions } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -3465,7 +3586,7 @@ router.post(
         "kids",
       ];
       const captionStyleFound =
-        !!captions && KNOWN_PRESETS.includes(captions.stylePreset);
+        !!captions && KNOWN_PRESETS.includes(captions.stylePreset ?? "");
 
       if (!captionsFound) {
         res.status(400).json({
@@ -3592,7 +3713,7 @@ router.post(
         0,
       );
       const assContent = buildAssContent(
-        captions!,
+        captions as unknown as CaptionBurnConfig,
         MULTI_TARGET_W,
         MULTI_TARGET_H,
         totalDuration,
@@ -3729,14 +3850,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, audioUrl, captions, effects, conflictMode } =
-        req.body as {
-          multiId?: string;
-          audioUrl?: string;
-          captions?: CaptionBurnConfig | null;
-          effects?: string[] | null;
-          conflictMode?: EffectConflictMode;
-        };
+      const body = parseBody(exportAllEffectsSchema, req.body, res);
+      if (!body) return;
+      const { multiId, audioUrl, captions, effects, conflictMode } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -3829,7 +3945,7 @@ router.post(
         "kids",
       ];
       const captionStyleFound =
-        !!captions && KNOWN_PRESETS.includes(captions.stylePreset);
+        !!captions && KNOWN_PRESETS.includes(captions.stylePreset ?? "");
 
       const baseStatus = {
         effectsFound,
@@ -3947,7 +4063,7 @@ router.post(
       let captionsBurned = false;
       if (captionsFound) {
         const assContent = buildAssContent(
-          captions!,
+          captions as unknown as CaptionBurnConfig,
           MULTI_TARGET_W,
           MULTI_TARGET_H,
           totalDuration,
@@ -4088,20 +4204,8 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      type OvrBody = {
-        multiId?: string;
-        watermarkType?: string;
-        watermarkPosition?: string;
-        watermarkSize?: string;
-        watermarkIncludeInExport?: boolean;
-        audioUrl?: string;
-        captions?: CaptionBurnConfig | null;
-        effects?: string[] | null;
-        overlays?: string[] | null;
-        overlayIntensity?: Record<string, number> | null;
-        watermarkText?: string;
-        conflictMode?: EffectConflictMode;
-      };
+      const body = parseBody(exportAllOverlaysSchema, req.body, res);
+      if (!body) return;
       const {
         multiId,
         audioUrl,
@@ -4115,7 +4219,7 @@ router.post(
         watermarkSize,
         watermarkIncludeInExport,
         conflictMode,
-      } = req.body as OvrBody;
+      } = body;
 
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
@@ -4296,7 +4400,7 @@ router.post(
       let captionsBurned = false;
       if (captionsFound) {
         const assContent = buildAssContent(
-          captions!,
+          captions as unknown as CaptionBurnConfig,
           MULTI_TARGET_W,
           MULTI_TARGET_H,
           totalDurationSec,
@@ -4421,6 +4525,8 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
+      const body = parseBody(exportEffectsRangeSchema, req.body, res);
+      if (!body) return;
       const {
         multiId,
         audioUrl,
@@ -4429,15 +4535,7 @@ router.post(
         conflictMode,
         startSec,
         durationSec,
-      } = req.body as {
-        multiId?: string;
-        audioUrl?: string;
-        captions?: CaptionBurnConfig | null;
-        effects?: string[] | null;
-        conflictMode?: EffectConflictMode;
-        startSec?: number;
-        durationSec?: number;
-      };
+      } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -4548,7 +4646,7 @@ router.post(
       const captionsActive = !!captions && captions.mode !== "none";
       if (captionsActive) {
         const assContent = buildAssContent(
-          captions!,
+          captions as unknown as CaptionBurnConfig,
           MULTI_TARGET_W,
           MULTI_TARGET_H,
           totalDurationSec,
@@ -4671,6 +4769,8 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
+      const body = parseBody(exportOverlaysRangeSchema, req.body, res);
+      if (!body) return;
       const {
         multiId,
         audioUrl,
@@ -4686,22 +4786,7 @@ router.post(
         conflictMode,
         startSec,
         durationSec,
-      } = req.body as {
-        multiId?: string;
-        audioUrl?: string;
-        captions?: CaptionBurnConfig | null;
-        effects?: string[] | null;
-        overlays?: string[] | null;
-        overlayIntensity?: Record<string, number> | null;
-        watermarkText?: string;
-        watermarkType?: string;
-        watermarkPosition?: string;
-        watermarkSize?: string;
-        watermarkIncludeInExport?: boolean;
-        conflictMode?: EffectConflictMode;
-        startSec?: number;
-        durationSec?: number;
-      };
+      } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
@@ -4884,7 +4969,7 @@ router.post(
       const captionsActive = !!captions && captions.mode !== "none";
       if (captionsActive) {
         const assContent = buildAssContent(
-          captions!,
+          captions as unknown as CaptionBurnConfig,
           MULTI_TARGET_W,
           MULTI_TARGET_H,
           totalDurationSec,
@@ -5020,14 +5105,9 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { multiId, audioUrl, effects, conflictMode, transitions } =
-        req.body as {
-          multiId?: string;
-          audioUrl?: string;
-          effects?: string[] | null;
-          conflictMode?: EffectConflictMode;
-          transitions?: { sceneIndex: number; type: string }[] | null;
-        };
+      const body = parseBody(exportEffectsTransitionsSchema, req.body, res);
+      if (!body) return;
+      const { multiId, audioUrl, effects, conflictMode, transitions } = body;
       const session = multiId ? multiSessions.get(multiId) : null;
       if (!session) {
         res.status(400).json({
