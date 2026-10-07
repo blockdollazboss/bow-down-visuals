@@ -253,6 +253,7 @@ router.use(voicePersonasRouter);
 router.use(scriptToVideoRouter);
 router.use(bgMusicRouter);
 router.use(translateCaptionsRouter);
+router.use(brandKitRouter);
 router.use(thumbnailAbRouter);
 router.use(videoTitlesRouter);
 router.use(audiogramRouter);
