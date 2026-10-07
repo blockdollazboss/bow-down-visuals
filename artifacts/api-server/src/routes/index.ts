@@ -188,6 +188,7 @@ import gifConverterRouter from "./generate/gif-converter";
 import thumbExtractRouter from "./generate/thumb-extract";
 import ctrPredictorRouter from "./generate/ctr-predictor";
 import quoteFinderRouter from "./generate/quote-finder";
+import podcastIntroRouter from "./generate/podcast-intro";
 
 const router: IRouter = Router();
 
