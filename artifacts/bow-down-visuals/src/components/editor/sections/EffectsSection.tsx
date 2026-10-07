@@ -9,6 +9,7 @@ import { STRENGTH_PRESETS } from "@/components/ActiveOverlayEffects";
 import { EditorCard, Chip, Dropdown, Collapsible } from "@/components/editor/controls";
 import { PlanNote, EmptyScenes } from "@/components/editor/sections/shared";
 import { AutoAiEditSection } from "@/components/editor/sections/AutoAiEditSection";
+import { CinematicFxCard } from "@/components/editor/sections/CinematicFxCard";
 
 interface EffectsSectionProps {
   scenes: SceneData[];
@@ -25,6 +26,12 @@ interface EffectsSectionProps {
   /** Template-curated galleries (empty/undefined = show all) */
   visibleEffects?: string[];
   visibleColorGrades?: string[];
+  /** Handoff: replace a scene's clip URL with a burned render. */
+  onReplaceClipVideo?: (sceneId: string, url: string) => void;
+  /** Handoff: jump to the Captions tab. */
+  onGoToCaptions?: () => void;
+  /** Handoff: jump to the Export tab (multi-ratio). */
+  onGoToExport?: () => void;
 }
 
 function toggleListItem(list: string[], item: string): string[] {
@@ -67,7 +74,7 @@ function IntensityRow({
   );
 }
 
-export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades }: EffectsSectionProps) {
+export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTestEffect, onTestTransition, onTestOverlay, activeTransitionType, onPreviewTransition, visibleEffects, visibleColorGrades, onReplaceClipVideo, onGoToCaptions, onGoToExport }: EffectsSectionProps) {
   /* Template-curated galleries (empty/undefined = show all) */
   const shownEffects = visibleEffects && visibleEffects.length > 0
     ? (EFFECTS as readonly string[]).filter((fx) => visibleEffects.includes(fx))
@@ -150,6 +157,14 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
           ))}
         </div>
       </EditorCard>
+
+      {/* ── True Cinematic FX — real burned renders (CapCut parity) ── */}
+      <CinematicFxCard
+        scenes={scenes}
+        onReplaceClipVideo={onReplaceClipVideo}
+        onGoToCaptions={onGoToCaptions}
+        onGoToExport={onGoToExport}
+      />
 
       {/* ── Color Grade ── */}
       <EditorCard title="Color Grade" subtitle="Pick a cinematic look — one at a time" icon={<Wand2 className="h-4 w-4" />}>

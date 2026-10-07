@@ -5,9 +5,15 @@
  * player's EFFECT_CSS_FILTERS table (video-editor.tsx) so the burned export
  * matches the live CSS preview.
  *
- * Only color effects (eq / hue / colorchannelmixer / gblur) are export-safe
- * here; animated overlays (Smoke / Rain / Sparks / etc.) are intentionally
- * NOT in this map and remain preview-only. */
+ * Color effects (eq / hue / colorchannelmixer / gblur) are export-safe via
+ * the generic CSS path below. VHS / Cinematic Bars / Camera Shake / Film Grain
+ * get DEDICATED true-burn chains (CapCut parity — the old CSS approximations
+ * were a dim, a brightness tweak, and a contrast nudge, not the real effect).
+ * Note: the global-pipeline VHS chain is the color + chromatic-aberration +
+ * tape-noise core; the full VHS (scanlines + tracking-line wobble) needs
+ * extra overlay inputs and renders through POST /api/cinematic-fx instead.
+ * The master player labels that honestly ("preview approximates — export is
+ * the real thing"). */
 
 export const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Film Grain": "contrast(108%) brightness(97%)",
@@ -17,9 +23,16 @@ export const EFFECT_CSS_FILTERS: Record<string, string> = {
   Vignette: "brightness(82%)",
   "Black & White": "grayscale(100%)",
   "Neon Glow": "hue-rotate(270deg) saturate(180%) brightness(115%)",
+  /* VHS preview: color approximation only — the burned export adds real
+   * noise, chromatic aberration, scanlines and tracking wobble. */
   VHS: "saturate(75%) contrast(112%) hue-rotate(8deg) brightness(92%)",
-  "Cinematic Bars": "brightness(83%) contrast(112%)",
-  "Camera Shake": "contrast(108%) saturate(105%)",
+  /* Cinematic Bars preview is true DOM black bars in the master player
+   * (12.5% top/bottom, matching TRUE_LETTERBOX_FFMPEG exactly), so no CSS
+   * filter is needed here. */
+  "Cinematic Bars": "",
+  /* Camera Shake preview is a CSS keyframe wobble in the master player
+   * (bdv-cam-shake); the old contrast/saturate tweak was fake. */
+  "Camera Shake": "",
   "Slow Zoom": "saturate(115%) brightness(103%)",
   "Speed Ramp": "contrast(120%) brightness(98%)",
   "Warm Grade": "sepia(40%) saturate(135%) brightness(108%)",
@@ -148,6 +161,37 @@ export const BW_GOLD_BLEND_FFMPEG =
 export const FILM_GRAIN_FFMPEG =
   "noise=alls=7:allf=t,eq=contrast=1.08:brightness=-0.015";
 
+/* ── True Cinematic FX (CapCut parity) ───────────────────────────────────────
+ * Real burned versions of the effects that were previously CSS-preview
+ * approximations. These chains are what POST /api/cinematic-fx burns AND
+ * what the global export pipeline (buildEffectStack below) applies, so the
+ * Effects-tab chips finally export what they promise. */
+
+/** True Letterbox Cinematic Bars: real black bars (drawbox), not dimming.
+ *  12.5% top + 12.5% bottom — the master player renders identical DOM bars. */
+export const TRUE_LETTERBOX_FFMPEG =
+  "drawbox=x=0:y=0:w=iw:h=ih*0.125:c=black:t=fill,drawbox=x=0:y=ih-ih*0.125:w=iw:h=ih*0.125:c=black:t=fill";
+
+/** True Camera Shake: upscale-then-crop wobble with layered sine jitter
+ *  (handheld feel). The crop window is exactly 1/U of the upscaled frame so
+ *  the output size is preserved without knowing the input dimensions
+ *  (self-normalizing to ±2px on odd sizes). Intensity baked at 60/100 —
+ *  adjustable per-render via POST /api/cinematic-fx. */
+export const TRUE_CAMERA_SHAKE_FFMPEG =
+  "scale=iw*1.0373:ih*1.0373,crop=w=iw/1.0373:h=ih/1.0373:x=(iw-iw/1.0373)/2+sin(n*0.9)*iw*0.0120+sin(n*2.7)*iw*0.0036:y=(ih-ih/1.0373)/2+cos(n*0.7)*ih*0.0120+cos(n*2.1)*ih*0.0036";
+
+/** True VHS core (global-pipeline safe, single -vf): crushed chroma, lifted
+ *  contrast, hue drift, chromatic aberration, tape noise. Scanlines +
+ *  tracking-line wobble need extra overlay inputs and render through
+ *  POST /api/cinematic-fx (see cinematic-fx.ts) — the player labels the
+ *  preview honestly. */
+export const TRUE_VHS_FFMPEG =
+  "eq=saturation=0.8:contrast=1.12:brightness=-0.04,hue=h=8,rgbashift=rh=3:gh=0:bh=-3,noise=alls=9:allf=t";
+
+export const VHS_NAME = "VHS";
+export const CINEMATIC_BARS_NAME = "Cinematic Bars";
+export const CAMERA_SHAKE_NAME = "Camera Shake";
+
 /** Effects treated as color grades (vs. plain filters) for the comparison panel. */
 export const COLOR_GRADE_NAMES = new Set<string>([
   "Warm Grade",
@@ -206,6 +250,12 @@ export function ffmpegForEffect(name: string): {
     return { ffmpeg: LUXURY_GOLD_FFMPEG, supported: true, type: "color-grade" };
   if (name === FILM_GRAIN_NAME)
     return { ffmpeg: FILM_GRAIN_FFMPEG, supported: true, type: "filter" };
+  if (name === VHS_NAME)
+    return { ffmpeg: TRUE_VHS_FFMPEG, supported: true, type: "filter" };
+  if (name === CINEMATIC_BARS_NAME)
+    return { ffmpeg: TRUE_LETTERBOX_FFMPEG, supported: true, type: "filter" };
+  if (name === CAMERA_SHAKE_NAME)
+    return { ffmpeg: TRUE_CAMERA_SHAKE_FFMPEG, supported: true, type: "filter" };
   const css = EFFECT_CSS_FILTERS[name];
   if (!css) return { ffmpeg: "", supported: false, type: "filter" };
   const ffmpeg = cssToFfmpegChain(css);

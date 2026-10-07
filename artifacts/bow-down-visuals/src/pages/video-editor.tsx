@@ -101,7 +101,13 @@ import {
 
 type EditorTab = "clips" | "templates" | "timeline" | "music" | "captions" | "effects" | "branding" | "export" | "lip-sync" | "studio" | "pre-production" | "pro-tools";
 
-/* ── CSS filter maps for effects live preview ── */
+/* ── CSS filter maps for effects live preview ──
+ * Kept in lockstep with effects-ffmpeg.ts (api-server). VHS / Cinematic Bars /
+ * Camera Shake / Film Grain now burn TRUE ffmpeg chains on export — the
+ * preview below mirrors them with DOM overlays (true bars, scanlines,
+ * tracking line, shake keyframes) instead of the old fake CSS tweaks.
+ * Where a true CSS preview is impossible, the Effects tab labels it honestly:
+ * "preview approximates — export is the real thing". */
 const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Film Grain":        "contrast(108%) brightness(97%)",
   "Glow":              "brightness(118%) saturate(140%)",
@@ -110,9 +116,15 @@ const EFFECT_CSS_FILTERS: Record<string, string> = {
   "Vignette":          "brightness(82%)",
   "Black & White":     "grayscale(100%)",
   "Neon Glow":         "hue-rotate(270deg) saturate(180%) brightness(115%)",
+  /* VHS preview: color approximation only — the burn adds real noise,
+   * chromatic aberration, scanlines and tracking wobble (see below). */
   "VHS":               "saturate(75%) contrast(112%) hue-rotate(8deg) brightness(92%)",
-  "Cinematic Bars":    "brightness(83%) contrast(112%)",
-  "Camera Shake":      "contrast(108%) saturate(105%)",
+  /* Cinematic Bars preview = true DOM black bars below (12.5% top/bottom,
+   * exactly matching the burned drawbox chain) — no CSS filter needed. */
+  "Cinematic Bars":    "",
+  /* Camera Shake preview = bdv-cam-shake keyframes below — the old
+   * contrast/saturate tweak was fake. */
+  "Camera Shake":      "",
   "Slow Zoom":         "saturate(115%) brightness(103%)",
   "Speed Ramp":        "contrast(120%) brightness(98%)",
   "Warm Grade":          "sepia(40%) saturate(135%) brightness(108%)",
@@ -1510,6 +1522,13 @@ export default function VideoEditor() {
                       onPreviewTransition={handlePreviewTransition}
                       visibleEffects={template.effects}
                       visibleColorGrades={template.colorGrades}
+                      onReplaceClipVideo={(sceneId, url) =>
+                        setScenes((prev) =>
+                          prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+                        )
+                      }
+                      onGoToCaptions={() => setTab("captions")}
+                      onGoToExport={() => setTab("export")}
                     />
                   )}
 
@@ -2807,6 +2826,12 @@ function MasterPreviewPlayer({
 
   const effectsTransform = testEffectActive ? "scale(1.25)" : undefined;
 
+  /* True Camera Shake preview: CSS keyframe wobble on the effects wrapper.
+   * The burned export is a real crop-wobble (TRUE_CAMERA_SHAKE_FFMPEG) —
+   * this approximates its ±1.2% amplitude so WYSIWYG roughly holds. */
+  const shakePreviewActive =
+    !testEffectActive && activeEffects.includes("Camera Shake");
+
   /* ── Pro Tools live preview (per-clip) ──
    * Mirrors the server-side buildProToolsFilterChain() so the preview matches
    * the burned export. Chroma key uses a canvas (CSS can't key a color). */
@@ -3146,6 +3171,7 @@ function MasterPreviewPlayer({
             clipPath: proToolsClipPath,
             transformOrigin: "center center",
             transition: "filter 0.3s ease, transform 0.4s ease",
+            animation: shakePreviewActive ? "bdv-cam-shake 0.55s linear infinite" : undefined,
             zIndex: 1,
           }}
         >
@@ -3157,6 +3183,39 @@ function MasterPreviewPlayer({
               style={{ zIndex: 2 }}
               aria-hidden
             />
+          )}
+          {/* True Cinematic Bars — real DOM black bars, exactly matching the
+              burned drawbox chain (12.5% top + 12.5% bottom). */}
+          {activeEffects.includes("Cinematic Bars") && (
+            <>
+              <div
+                className="absolute top-0 left-0 right-0 bg-black pointer-events-none"
+                style={{ height: "12.5%", zIndex: 2 }}
+                aria-hidden
+              />
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-black pointer-events-none"
+                style={{ height: "12.5%", zIndex: 2 }}
+                aria-hidden
+              />
+            </>
+          )}
+          {/* True VHS preview — scanlines + tracking-line sweep. The burned
+              export adds real tape noise + chromatic aberration on top
+              ("preview approximates — export is the real thing"). */}
+          {activeEffects.includes("VHS") && (
+            <>
+              <div
+                className="absolute inset-0 pointer-events-none bdv-vhs-scanlines"
+                style={{ zIndex: 2 }}
+                aria-hidden
+              />
+              <div
+                className="absolute left-0 right-0 pointer-events-none bdv-vhs-trackline"
+                style={{ zIndex: 2 }}
+                aria-hidden
+              />
+            </>
           )}
           {/* Chroma key preview draws FROM the video element via canvas — the
               video stays mounted (hidden) as the frame source. */}

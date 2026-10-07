@@ -58,6 +58,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/repair-clip": { cost: 100, feature: "Repair Clip" },
   "/api/pro-tools/auto-grade": { cost: 200, feature: "AI Auto Grade" },
   "/api/slow-motion": { cost: 300, feature: "AI Slow Motion" },
+  "/api/cinematic-fx": { cost: 150, feature: "Cinematic FX Render" },
   "/api/freeze-frame": { cost: 150, feature: "Freeze Frame" },
   "/api/apply-mask": { cost: 200, feature: "Mask Effect" },
   "/api/motion-track/track": { cost: 350, feature: "Motion Tracking" },
