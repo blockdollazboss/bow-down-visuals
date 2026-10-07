@@ -123,7 +123,21 @@ export function MultiRatioExportCard({
   const [selected, setSelected] = useState<string[]>(["16:9", "9:16", "1:1", "4:5"]);
   const [mode, setMode] = useState<"pad" | "crop">("pad");
   const [attribution, setAttribution] = useState(false);
-  const [manualUrl, setManualUrl] = useState("");
+  /* One-shot prefill from handoffs (e.g. split-screen grid): the handoff
+     stores the URL in sessionStorage under "bdv:multiratio-prefill" and the
+     editor navigates to the export tab — we consume it here once. */
+  const [manualUrl, setManualUrl] = useState(() => {
+    try {
+      const prefill = sessionStorage.getItem("bdv:multiratio-prefill");
+      if (prefill) {
+        sessionStorage.removeItem("bdv:multiratio-prefill");
+        return prefill;
+      }
+    } catch {
+      /* sessionStorage unavailable */
+    }
+    return "";
+  });
   const [job, setJob] = useState<MultiRatioJobStatus | null>(null);
   const [rendering, setRendering] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);

@@ -50,6 +50,7 @@ export const CREDIT_COSTS: Record<string, { cost: number; feature: string }> = {
   "/api/export-doctor/export-effects-range": { cost: 200, feature: "Export Effects Range" },
   "/api/export-doctor/export-effects-transitions": { cost: 200, feature: "Export Transitions" },
   "/api/video-template/apply": { cost: 250, feature: "Apply Video Template" },
+  "/api/split-screen/apply": { cost: 200, feature: "Split-Screen Grid" },
   "/api/export-doctor/export-audio-sync-short": { cost: 200, feature: "Export Audio Sync" },
   "/api/export-multi-ratio": { cost: 100, feature: "Multi-Ratio Export (per ratio)" },
   "/api/extract-audio": { cost: 50, feature: "Extract Audio" },

@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SplitScreenPanel from "./SplitScreenPanel";
 
 /* ─── Video edit templates tab ───
    CapCut-style templates: pick a template, map clips/photos into its slots,
@@ -66,9 +67,11 @@ interface TemplatesTabPanelProps {
   deepLinkedKey: string | null;
   onDeepLinkConsumed: () => void;
   onAddCaptions: (videoUrl: string, title: string) => void;
+  onUseInEditor: (videoUrl: string, title: string) => void;
+  onMultiRatio: (videoUrl: string) => void;
 }
 
-type Phase = "browse" | "configure" | "working" | "done";
+type Phase = "browse" | "configure" | "working" | "done" | "splitscreen";
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|bmp|avif)(\?|#|$)/i;
 const VIDEO_EXT = /\.(mp4|mov|m4v|webm|avi|mkv)(\?|#|$)/i;
@@ -91,6 +94,8 @@ export default function TemplatesTabPanel({
   deepLinkedKey,
   onDeepLinkConsumed,
   onAddCaptions,
+  onUseInEditor,
+  onMultiRatio,
 }: TemplatesTabPanelProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -429,6 +434,29 @@ export default function TemplatesTabPanel({
             </div>
           </div>
 
+          {/* Split-screen grids — docked inside the Templates tab (no new sidebar item) */}
+          <button
+            onClick={() => setPhase("splitscreen")}
+            data-testid="card-splitscreen"
+            className="w-full text-left rounded-xl border border-[#e8c86a]/40 bg-gradient-to-r from-[#e8c86a]/[0.08] via-[#e8c86a]/[0.03] to-transparent p-4 hover:border-[#e8c86a]/70 transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="grid grid-cols-2 grid-rows-2 gap-1 w-11 h-11 shrink-0 rounded-lg overflow-hidden border border-[#e8c86a]/40 p-1 bg-black/50">
+                <div className="rounded-[3px] bg-[#e8c86a]/80" />
+                <div className="rounded-[3px] bg-[#e8c86a]/50" />
+                <div className="rounded-[3px] bg-[#e8c86a]/50" />
+                <div className="rounded-[3px] bg-[#e8c86a]/80" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-[#e8c86a]">{t("videoTemplates.splitScreenTitle")}</p>
+                <p className="text-xs text-white/45 mt-0.5 line-clamp-2">{t("videoTemplates.splitScreenDesc")}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-[#e8c86a] text-black text-[10px] font-black uppercase tracking-wider px-2.5 py-1">
+                {t("videoTemplates.new")}
+              </span>
+            </div>
+          </button>
+
           {!catalog ? (
             <div className="grid grid-cols-2 gap-3">
               {[0, 1, 2, 3].map((i) => (
@@ -480,6 +508,17 @@ export default function TemplatesTabPanel({
             </div>
           )}
         </>
+      )}
+
+      {/* ── SPLIT-SCREEN ── */}
+      {phase === "splitscreen" && (
+        <SplitScreenPanel
+          scenes={scenes}
+          onUseInEditor={onUseInEditor}
+          onAddCaptions={onAddCaptions}
+          onMultiRatio={onMultiRatio}
+          onBack={() => setPhase("browse")}
+        />
       )}
 
       {/* ── CONFIGURE ── */}

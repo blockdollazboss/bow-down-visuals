@@ -548,6 +548,56 @@ export default function VideoEditor() {
     });
   }, [setScenes, setTab, toast, t]);
 
+  /* ── Split-screen handoffs (docked in the Templates tab) ──
+     "Use in editor": appends the finished grid as a new scene clip so it can
+     be dropped on the timeline (clips tab). "Multi-ratio": prefills the
+     export tab's multi-ratio card with the grid URL so it's one click away. */
+  const handleSplitScreenUseInEditor = useCallback((videoUrl: string, title: string) => {
+    const scene: SceneData = {
+      id: `splitscreen-${Date.now().toString(36)}`,
+      sceneNumber: scenesRef.current.length + 1,
+      timestamp: "",
+      section: title,
+      lyricLine: "",
+      location: "",
+      action: title,
+      cameraMovement: "",
+      lighting: "",
+      mood: "",
+      aiVideoPrompt: title,
+      negativePrompt: "",
+      approved: true,
+      demoClipUrl: videoUrl,
+      thumbnailUrl: null,
+      clipId: null,
+      runwayJobId: null,
+      provider: "split-screen",
+      generationStatus: "completed",
+      promptUsed: null,
+      generatedAt: new Date().toISOString(),
+      clipReusedIntentionally: true,
+    };
+    setScenes((prev) => [...prev, scene]);
+    setTab("clips");
+    toast({
+      title: t("videoEditor.splitScreenAddedTitle"),
+      description: t("videoEditor.splitScreenAddedDesc"),
+    });
+  }, [setScenes, setTab, toast, t]);
+
+  const handleSplitScreenMultiRatio = useCallback((videoUrl: string) => {
+    try {
+      sessionStorage.setItem("bdv:multiratio-prefill", videoUrl);
+    } catch {
+      /* prefill skipped — the manual URL field still works */
+    }
+    setTab("export");
+    toast({
+      title: t("videoEditor.splitScreenMultiRatioTitle"),
+      description: t("videoEditor.splitScreenMultiRatioDesc"),
+    });
+  }, [setTab, toast, t]);
+
   const setSettings = useCallback((update: SetStateAction<EditorSettings>) => {
     const prev = settingsRef.current;
     const next = typeof update === "function" ? (update as (p: EditorSettings) => EditorSettings)(prev) : update;
@@ -1374,6 +1424,8 @@ export default function VideoEditor() {
                       deepLinkedKey={deepLinkedTemplateKey}
                       onDeepLinkConsumed={() => setDeepLinkedTemplateKey(null)}
                       onAddCaptions={handleTemplateVideoForCaptions}
+                      onUseInEditor={handleSplitScreenUseInEditor}
+                      onMultiRatio={handleSplitScreenMultiRatio}
                     />
                   )}
 
