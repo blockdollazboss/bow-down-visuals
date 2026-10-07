@@ -98,6 +98,28 @@ export function EffectsSection({ scenes, settings, setSettings, audioUrl, onTest
 
   return (
     <div className="space-y-5">
+      {/* ── One-click effect chains ── */}
+      <EditorCard title="One-Click Looks" subtitle="Tap for a complete cinematic look" icon={<Wand2 className="h-4 w-4" />}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {[
+            { label: "🎬 Cinematic", effects: ["Cinematic Bars", "Teal & Orange", "Film Grain"] },
+            { label: "🎵 Music Video", effects: ["Vibrant Pop", "Glow", "Slow Zoom"] },
+            { label: "📼 Vintage", effects: ["VHS", "Warm Grade", "Film Grain"] },
+            { label: "🌙 Dark Moody", effects: ["Moody Desaturated", "Vignette", "Dark Drill"] },
+            { label: "💎 Luxury", effects: ["Luxury Gold", "Glow", "Cinematic Bars"] },
+            { label: "⚡ Neon Nights", effects: ["Neon Glow", "Street Night", "Vignette"] },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => setSettings({ ...settings, effects: preset.effects })}
+              className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-center"
+            >
+              <span className="text-sm font-semibold">{preset.label}</span>
+            </button>
+          ))}
+        </div>
+      </EditorCard>
+
       {/* ── Auto AI Edit ── */}
       <AutoAiEditSection
         scenes={scenes}
