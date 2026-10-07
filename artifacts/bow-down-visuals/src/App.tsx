@@ -48,6 +48,7 @@ import Waitlist from "@/pages/waitlist";
 import Extension from "@/pages/extension";
 import Download from "@/pages/download";
 import TemplatesHub from "@/pages/templates/index";
+import VideoTemplates from "@/pages/templates/videos";
 import ThumbnailTemplates from "@/pages/templates/thumbnails";
 import HookTemplates from "@/pages/templates/hooks";
 import CaptionPacks from "@/pages/templates/captions";
@@ -392,6 +393,7 @@ function AppShell() {
           <Route path="/extension"><Extension /></Route>
           <Route path="/download"><Download /></Route>
           <Route path="/templates"><TemplatesHub /></Route>
+          <Route path="/templates/videos"><VideoTemplates /></Route>
           <Route path="/templates/thumbnails"><ThumbnailTemplates /></Route>
           <Route path="/templates/hooks"><HookTemplates /></Route>
           <Route path="/templates/captions"><CaptionPacks /></Route>

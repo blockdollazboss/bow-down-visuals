@@ -5,12 +5,22 @@ import { LuxReveal } from "@/components/LuxReveal";
 import { JsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, Image as ImageIcon, Zap, MessageSquare, Trophy } from "lucide-react";
+import { ArrowRight, Clapperboard, Image as ImageIcon, Zap, MessageSquare, Trophy } from "lucide-react";
 
 /* ─── Public template library hub ───
    No login required. Galleries deep-link into tools with templates preloaded. */
 
 const GALLERIES = [
+  {
+    slug: "videos",
+    icon: Clapperboard,
+    emoji: "🎬",
+    title: "Video Edit Templates",
+    blurb:
+      "CapCut-style auto edits: photo dump montages, lyric sync cuts, product promos, before/after reveals and more. Drop in clips, get a finished video.",
+    count: "8 templates",
+    live: true,
+  },
   {
     slug: "thumbnails",
     icon: ImageIcon,
@@ -58,7 +68,7 @@ export default function TemplatesHub() {
           "@type": "CollectionPage",
           name: "Creator Template Library",
           description:
-            "Free templates for creators: thumbnails, hooks, and captions.",
+            "Free templates for creators: video edit templates, thumbnails, hooks, and captions.",
           url: "https://bowdownvisuals.com/templates",
         }}
       />
@@ -76,7 +86,7 @@ export default function TemplatesHub() {
           </div>
         </LuxReveal>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {GALLERIES.map((g, i) => (
             <LuxReveal key={g.slug} delay={Math.min(i * 0.08, 0.24)}>
               <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 h-full flex flex-col hover:border-[#e8c86a]/40 transition-colors">
