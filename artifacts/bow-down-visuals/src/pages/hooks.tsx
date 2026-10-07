@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import {
  Zap, Gauge, Loader2, Sparkles, ArrowRight, Megaphone,
  Clapperboard, Film, GraduationCap, Wrench, CheckCircle2, AlertTriangle,
+ MousePointerClick, Copy, Check,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,7 +21,23 @@ import { getCaptionPack } from "@/data/caption-templates";
  generation on GPT-6 Sol. Video-type keys must stay in sync with the
  backend route's VIDEO_TYPES enum. */
 
-type TabKey = "hooks" | "preflight" | "captions";
+type TabKey = "hooks" | "preflight" | "captions" | "cta";
+
+type CtaGoalKey = "subscribe" | "comment" | "share" | "follow" | "buy" | "stream";
+
+const CTA_GOALS: CtaGoalKey[] = ["subscribe", "comment", "share", "follow", "buy", "stream"];
+
+const CTA_PLATFORMS = ["tiktok", "instagram", "youtube", "twitter", "facebook"] as const;
+
+type PlacementKey = "opener" | "mid-roll" | "closer" | "pinned-comment";
+
+interface CtaVariant {
+ text: string;
+ placement: PlacementKey;
+ strength: number;
+}
+
+const CTA_CREDIT_COST = 50;
 
 type VideoTypeKey = "music-promo" | "behind-the-scenes" | "tutorial" | "announcement";
 
@@ -73,6 +90,14 @@ interface CaptionsResponse {
  message?: string;
 }
 
+interface CtaResponse {
+ ctas?: CtaVariant[];
+ creditsUsed?: number;
+ creditsRemaining?: number;
+ error?: string;
+ message?: string;
+}
+
 function scoreColor(score: number): string {
  if (score >= 75) return "text-emerald-400";
  if (score >= 50) return "text-amber-400";
@@ -106,7 +131,7 @@ export default function HookStudio() {
    { label: "📚 Tutorial", topic: "how to", type: "tutorial" as VideoTypeKey },
    { label: "📢 Announcement", topic: "big news", type: "announcement" as VideoTypeKey },
  ];
- const { project } = useHubProject();
+ const { project, addAsset } = useHubProject();
  useEffect(() => {
  if (!topic && project.name) setTopic(project.name);
  // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,7 +144,7 @@ export default function HookStudio() {
  try {
  const params = new URLSearchParams(window.location.search);
  const tabParam = params.get("tab");
- if (tabParam === "captions") setTab("captions");
+ if (tabParam === "captions" || tabParam === "cta") setTab(tabParam);
  const slug = params.get("template");
  if (!slug) return;
  if (tabParam === "captions") {
@@ -157,6 +182,15 @@ export default function HookStudio() {
  const [capResult, setCapResult] = useState<CaptionsResponse | null>(null);
  const [capLoading, setCapLoading] = useState(false);
 
+ /* cta generator state */
+ const [ctaTopic, setCtaTopic] = useState("");
+ const [ctaGoal, setCtaGoal] = useState<CtaGoalKey>("subscribe");
+ const [ctaPlatform, setCtaPlatform] = useState<(typeof CTA_PLATFORMS)[number]>("tiktok");
+ const [ctaTone, setCtaTone] = useState("");
+ const [ctas, setCtas] = useState<CtaVariant[]>([]);
+ const [ctaLoading, setCtaLoading] = useState(false);
+ const [scriptAdded, setScriptAdded] = useState<Record<number, boolean>>({});
+
  /* shared */
  const [error, setError] = useState<string | null>(null);
  const [outOfCredits, setOutOfCredits] = useState(false);
@@ -167,9 +201,9 @@ export default function HookStudio() {
  setOutOfCredits(false);
  }
 
- async function authedPost(body: Record<string, unknown>) {
+ async function authedPost(endpoint: string, body: Record<string, unknown>) {
  const token = await getAccessToken();
- return confirmedFetch("/api/hook-studio", {
+ return confirmedFetch(endpoint, {
  method: "POST",
  headers: {
  "Content-Type": "application/json",
@@ -194,7 +228,7 @@ export default function HookStudio() {
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({ mode: "hooks", videoType, topic: topic.trim() });
+ const res = await authedPost("/api/hook-studio", { mode: "hooks", videoType, topic: topic.trim() });
  if (!res) return; // user cancelled the credit confirmation (finally resets state)
  const data = (await res.json().catch(() => ({}))) as HooksResponse;
  if (handlePaidFailure(res, data)) return;
@@ -223,7 +257,7 @@ export default function HookStudio() {
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({
+ const res = await authedPost("/api/hook-studio", {
  mode: "captions",
  topic: capTopic.trim(),
  platform: capPlatform,
@@ -257,7 +291,7 @@ export default function HookStudio() {
  setError(null);
  setOutOfCredits(false);
  try {
- const res = await authedPost({
+ const res = await authedPost("/api/hook-studio", {
  mode: "preflight",
  title: title.trim(),
  caption: caption.trim(),
@@ -280,6 +314,63 @@ export default function HookStudio() {
  } finally {
  setPreflightLoading(false);
  }
+ }
+
+ async function generateCtas() {
+ if (ctaLoading || !user) return;
+ if (!ctaTopic.trim()) {
+ setError(t("hooks.errNeedVideoTopic"));
+ return;
+ }
+ setCtaLoading(true);
+ setError(null);
+ setOutOfCredits(false);
+ setScriptAdded({});
+ try {
+ const res = await authedPost("/api/generate-cta", {
+ videoTopic: ctaTopic.trim(),
+ ctaGoal,
+ platform: ctaPlatform,
+ tone: ctaTone.trim(),
+ });
+ if (!res) return; // user cancelled the credit confirmation (finally resets state)
+ const data = (await res.json().catch(() => ({}))) as CtaResponse;
+ if (handlePaidFailure(res, data)) return;
+ if (!res.ok || !Array.isArray(data.ctas) || data.ctas.length === 0) {
+ throw new Error(data.message || data.error || t("hooks.errCtasFailed"));
+ }
+ setCtas(data.ctas);
+ refreshProfile();
+ setTimeout(() => {
+ document.getElementById("cta-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+ }, 100);
+ } catch (err) {
+ setError(err instanceof Error ? err.message : t("hooks.errCtasFailed"));
+ } finally {
+ setCtaLoading(false);
+ }
+ }
+
+ /* ── "add to script" handoff ─────────────────────────────────────────────
+    Drops the CTA into the Hub project as a script-kind asset. The Hub's
+    tray + workflow rail pick it up automatically, and tools that consume
+    script assets (Script Writer, Voiceover's script picker) can use it —
+    the CTA travels with the project without leaving the /hooks page. */
+ function addCtaToScript(cta: CtaVariant, index: number) {
+ addAsset({
+ kind: "script",
+ url: `data:text/plain;charset=utf-8,${encodeURIComponent(cta.text)}`,
+ label: `CTA · ${t(`hooks.ctaGoal.${ctaGoal}.label`)} · ${cta.text.slice(0, 40)}`,
+ detail: cta.text,
+ meta: {
+ text: cta.text,
+ goal: ctaGoal,
+ platform: ctaPlatform,
+ placement: cta.placement,
+ topic: ctaTopic.trim().slice(0, 80),
+ },
+ });
+ setScriptAdded((prev) => ({ ...prev, [index]: true }));
  }
 
  const activeVideoType = VIDEO_TYPES.find((v) => v.key === videoType)!;
@@ -312,6 +403,7 @@ export default function HookStudio() {
  [
  { key: "hooks", icon: Zap },
  { key: "captions", icon: Megaphone },
+ { key: "cta", icon: MousePointerClick },
  { key: "preflight", icon: Gauge },
  ] as { key: TabKey; icon: LucideIcon }[]
  ).map(({ key, icon: Icon }) => {
@@ -643,6 +735,178 @@ export default function HookStudio() {
  <p className="text-white/90">{capResult.cta}</p>
  </div>
  )}
+ </div>
+ )}
+ </div>
+ )}
+
+ {/* ── CTA GENERATOR ──────────────────────────────────────────── */}
+ {tab === "cta" && (
+ <div className="relative mt-8 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+ <div className="flex items-center gap-3">
+ <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+ <MousePointerClick className="h-5 w-5" aria-hidden="true" />
+ </span>
+ <div>
+ <h2 className="text-xl font-bold">{t("hooks.tab.cta.label")}</h2>
+ <p className="text-sm text-white/45">{t("hooks.ctaSub")}</p>
+ </div>
+ </div>
+
+ <p className="mt-8 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.ctaTopicLabel")}
+ </p>
+ <input
+ value={ctaTopic}
+ onChange={(e) => setCtaTopic(e.target.value)}
+ maxLength={300}
+ placeholder={t("hooks.ctaTopicPlaceholder")}
+ className={inputClass}
+ />
+
+ <p data-min-stars="2" className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.ctaGoalLabel")}
+ </p>
+ <div data-min-stars="2" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+ {CTA_GOALS.map((g) => {
+ const selected = g === ctaGoal;
+ return (
+ <button
+ key={g}
+ onClick={() => setCtaGoal(g)}
+ className={`rounded-2xl border px-3.5 py-3 text-left transition ${
+ selected
+ ? "border-primary bg-primary/10 shadow-[0_0_16px_rgba(212,175,55,0.2)]"
+ : "border-white/10 bg-white/[0.03] hover:border-primary/40"
+ }`}
+ >
+ <p className={`text-sm font-bold ${selected ? "text-white" : "text-white/70"}`}>
+ {t(`hooks.ctaGoal.${g}.label`)}
+ </p>
+ </button>
+ );
+ })}
+ </div>
+
+ <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+ <div>
+ <p data-min-stars="2" className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">{t("hooks.platformLabel")}</p>
+ <div data-min-stars="2" className="grid grid-cols-2 gap-2">
+ {CTA_PLATFORMS.map((p) => (
+ <button
+ key={p}
+ onClick={() => setCtaPlatform(p)}
+ className={`rounded-lg px-3 py-2.5 text-sm font-semibold capitalize transition ${
+ ctaPlatform === p
+ ? "bg-primary text-black"
+ : "border border-white/10 bg-white/[0.04] text-white/60 hover:border-primary/40 hover:text-white"
+ }`}
+ >
+ {p === "twitter" ? "X / Twitter" : p}
+ </button>
+ ))}
+ </div>
+ </div>
+ <div data-min-stars="3">
+ <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-white/40">
+ {t("hooks.toneLabel")} <span className="normal-case font-normal text-white/30">{t("hooks.optionalTag")}</span>
+ </p>
+ <input
+ value={ctaTone}
+ onChange={(e) => setCtaTone(e.target.value)}
+ placeholder={t("hooks.tonePlaceholder")}
+ className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-white placeholder:text-white/30 focus:border-primary/50 focus:outline-none"
+ />
+ </div>
+ </div>
+
+ <div className="mt-8 text-center">
+ {user ? (
+ <button
+ onClick={generateCtas}
+ disabled={ctaLoading || !ctaTopic.trim()}
+ className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:opacity-50"
+ >
+ {ctaLoading ? (
+ <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+ ) : (
+ <MousePointerClick className="h-6 w-6" aria-hidden="true" />
+ )}
+ {ctaLoading ? t("hooks.cookingCtas") : t("hooks.generateCtas")}
+ </button>
+ ) : (
+ <Link
+ href="/login"
+ className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
+ >
+ <MousePointerClick className="h-6 w-6" aria-hidden="true" />
+ {t("hooks.signInToGenerate")}
+ <ArrowRight className="h-5 w-5" aria-hidden="true" />
+ </Link>
+ )}
+ <p className="mt-2.5 text-xs text-white/35">
+ {t("hooks.creditNoteCta", { cost: CTA_CREDIT_COST })}
+ </p>
+ {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
+ {error && !outOfCredits && (
+ <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+ {error}
+ </p>
+ )}
+ </div>
+
+ {/* results — ranked by strength */}
+ {ctas.length > 0 && (
+ <div id="cta-results" className="mt-8">
+ <p className="mb-4 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+ <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> {t("hooks.yourCtas")}
+ </p>
+ <div className="grid gap-3">
+ {ctas.map((cta, i) => (
+ <div
+ key={`cta-${i}`}
+ className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/40"
+ >
+ <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+ {i + 1}
+ </span>
+ <div className="min-w-0 flex-1">
+ <p className="text-[15px] leading-relaxed text-white/90">“{cta.text}”</p>
+ <div className="mt-2 flex flex-wrap items-center gap-2">
+ <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+ {t(`hooks.ctaPlacement.${cta.placement}.label`)}
+ </span>
+ <span className={`text-xs font-bold ${scoreColor(cta.strength)}`}>
+ {t("hooks.ctaStrengthLabel")} {cta.strength}
+ </span>
+ </div>
+ <div className="mt-2.5 flex flex-wrap gap-2">
+ <button
+ onClick={() => navigator.clipboard.writeText(cta.text)}
+ className="flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-white/60 transition hover:border-primary/40 hover:text-white"
+ >
+ <Copy className="h-3 w-3" aria-hidden="true" /> {t("hooks.copy")}
+ </button>
+ <button
+ onClick={() => addCtaToScript(cta, i)}
+ disabled={scriptAdded[i]}
+ className="flex items-center gap-1 rounded-full border border-primary/40 px-3 py-1 text-xs font-bold text-primary transition hover:bg-primary hover:text-black disabled:cursor-default disabled:bg-primary/10 disabled:text-primary/60"
+ >
+ {scriptAdded[i] ? (
+ <><Check className="h-3 w-3" aria-hidden="true" /> {t("hooks.addedToScript")}</>
+ ) : (
+ <>{t("hooks.addToScript")}</>
+ )}
+ </button>
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ <p className="mt-4 text-center text-xs text-white/30">
+ <Wrench className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+ {t("hooks.ctaHandoffTip")}
+ </p>
  </div>
  )}
  </div>

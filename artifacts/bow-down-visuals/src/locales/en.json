@@ -2964,6 +2964,9 @@
       },
       "preflight": {
         "label": "Virality Pre-flight"
+      },
+      "cta": {
+        "label": "CTA Generator"
       }
     },
     "videoType": {
@@ -3038,7 +3041,55 @@
     "errNeedTitle": "Give your video a title first — that's the first thing the pre-flight checks.",
     "errHooksFailed": "Hook generation failed — try again.",
     "errCaptionsFailed": "Caption generation failed — try again.",
-    "errScoringFailed": "Scoring failed — try again."
+    "errScoringFailed": "Scoring failed — try again.",
+    "ctaSub": "Every video needs a strong call-to-action. Pick your goal and we'll write 10 conversion-tuned CTAs, ranked strongest first.",
+    "ctaTopicLabel": "What is the video about?",
+    "ctaTopicPlaceholder": "e.g. My new single \"Golden Tide\" drops Friday",
+    "ctaGoalLabel": "What should viewers do?",
+    "ctaGoal": {
+      "subscribe": {
+        "label": "Subscribe"
+      },
+      "comment": {
+        "label": "Comment"
+      },
+      "share": {
+        "label": "Share"
+      },
+      "follow": {
+        "label": "Follow"
+      },
+      "buy": {
+        "label": "Buy"
+      },
+      "stream": {
+        "label": "Stream"
+      }
+    },
+    "creditNoteCta": "50 Visual Bucs per generation · powered by Thy Cheat Code",
+    "generateCtas": "Generate CTAs",
+    "cookingCtas": "Writing your CTAs…",
+    "yourCtas": "Your CTAs — ranked by strength",
+    "ctaPlacement": {
+      "opener": {
+        "label": "Opener"
+      },
+      "mid-roll": {
+        "label": "Mid-roll"
+      },
+      "closer": {
+        "label": "Closer"
+      },
+      "pinned-comment": {
+        "label": "Pinned comment"
+      }
+    },
+    "ctaStrengthLabel": "Strength",
+    "addToScript": "Add to script",
+    "addedToScript": "In your script",
+    "ctaHandoffTip": "Hit “Add to script” to drop a CTA into your Hub project — Script Writer and Voiceover pick it up from there.",
+    "errNeedVideoTopic": "Tell us what the video is about first.",
+    "errCtasFailed": "Couldn't generate CTAs — try again."
   },
   "hub": {
     "removeAssetAria": "Remove {{label}}",
