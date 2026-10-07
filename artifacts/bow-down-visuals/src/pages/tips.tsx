@@ -227,8 +227,8 @@ export default function Tips() {
                       <button
                         onClick={async () => {
                           const shareData = {
-                            title: `Tip ${dashboard.displayName || dashboard.handle} — Bow Down Visuals`,
-                            text: `Support ${dashboard.displayName || dashboard.handle}! 💰 Tip jar powered by Bow Down Visuals`,
+                            title: `Tip ${displayName || dashboard.handle} — Bow Down Visuals`,
+                            text: `Support ${displayName || dashboard.handle}! 💰 Tip jar powered by Bow Down Visuals`,
                             url: tipUrl(),
                           };
                           try {
