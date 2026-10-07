@@ -33,17 +33,105 @@ const WAVE_COLORS = {
 
 type WaveColorKey = keyof typeof WAVE_COLORS;
 
+/* ─── Visualizer styles ───
+   Eight ffmpeg audio-visualization filters rendered as the lower overlay.
+   `build` returns the filter string producing a [vis] segment; x/y are the
+   overlay positions on the 1080x1080 canvas. */
+const VISUALIZER_STYLES = {
+  waveform: {
+    label: "Waveform",
+    blurb: "Classic scrolling audio waveform line",
+    build: (color: string) =>
+      `showwaves=s=900x220:mode=line:rate=30:colors=${color}:draw=full,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  bars: {
+    label: "Bars",
+    blurb: "Centered bounce bars that dance with the beat",
+    build: (color: string) =>
+      `showwaves=s=900x220:mode=cline:rate=30:colors=${color}:draw=full,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  wave: {
+    label: "Wave Fill",
+    blurb: "Filled rolling wave silhouette",
+    build: (color: string) =>
+      `showwaves=s=900x220:mode=p2p:rate=30:colors=${color}:draw=full,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  particles: {
+    label: "Particles",
+    blurb: "Bouncing dot particles synced to the audio",
+    build: (color: string) =>
+      `showwaves=s=900x220:mode=point:rate=30:colors=${color}:draw=full,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  spectrum: {
+    label: "Spectrum",
+    blurb: "Rainbow frequency analyzer on a log scale",
+    build: (_color: string) =>
+      `showspectrum=s=900x220:mode=separate:color=rainbow:scale=log:overlap=1,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  digital: {
+    label: "Digital Bars",
+    blurb: "Log-scale digital frequency bars",
+    build: (_color: string) =>
+      `showfreqs=s=900x220:mode=bar:cmode=separate:fscale=log,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  pulse: {
+    label: "Pulse Meter",
+    blurb: "Loudness bar that pulses with the volume",
+    build: (_color: string) =>
+      `showvolume=w=900:h=220:r=30,format=rgba`,
+    x: "(W-w)/2",
+    y: "800",
+  },
+  circle: {
+    label: "Circle Scope",
+    blurb: "Circular stereo vector scope (Lissajous)",
+    build: (_color: string) =>
+      `aformat=channel_layouts=stereo,avectorscope=s=280x280:mode=lissajous:zoom=1.2,format=rgba`,
+    x: "(W-w)/2",
+    y: "700",
+  },
+} as const;
+
+type VisualizerStyleKey = keyof typeof VISUALIZER_STYLES;
+
+const visualizerStyleSchema = z.string().refine((v): v is VisualizerStyleKey => v in VISUALIZER_STYLES, {
+  message: `style must be one of: ${Object.keys(VISUALIZER_STYLES).join(", ")}`,
+});
+
 const audiogramSchema = z.object({
   audioUrl: z.string().trim().min(1).max(2048),
   coverUrl: z.string().trim().min(1).max(2048),
   waveColor: z.string().refine((v): v is WaveColorKey => v in WAVE_COLORS, {
     message: `waveColor must be one of: ${Object.keys(WAVE_COLORS).join(", ")}`,
   }).optional().default("gold"),
+  style: visualizerStyleSchema.optional().default("waveform"),
 });
 
 router.get("/audiogram-colors", requireAuth, (_req, res) => {
   res.json({
     colors: Object.entries(WAVE_COLORS).map(([key]) => ({ key, label: key })),
+  });
+});
+
+router.get("/visualizer-styles", requireAuth, (_req, res) => {
+  res.json({
+    styles: Object.entries(VISUALIZER_STYLES).map(([key, v]) => ({
+      key,
+      label: v.label,
+      blurb: v.blurb,
+    })),
   });
 });
 
@@ -97,15 +185,16 @@ router.post("/audiogram", requireAuth, async (req, res) => {
     ]);
 
     const waveColor = WAVE_COLORS[parsed.data.waveColor];
+    const style = VISUALIZER_STYLES[parsed.data.style];
 
     // Blurred full-bleed background from the cover + centered cover art
-    // + animated waveform bars at the bottom.
+    // + the selected animated visualizer style at the bottom.
     const filterComplex =
       "[0:v]scale=1080:1080:force_original_aspect_ratio=increase,crop=1080:1080,boxblur=24:1[bg];" +
       "[0:v]scale=560:560:force_original_aspect_ratio=increase,crop=560:560[art];" +
-      `[1:a]showwaves=s=900x220:mode=line:rate=30:colors=${waveColor}:draw=full,format=rgba[waves];` +
+      `[1:a]${style.build(waveColor)}[vis];` +
       "[bg][art]overlay=(W-w)/2:170[base];" +
-      "[base][waves]overlay=(W-w)/2:800";
+      `[base][vis]overlay=${style.x}:${style.y}`;
 
     await execFileAsync("ffmpeg", [
       "-y", "-loop", "1", "-framerate", "30", "-i", coverPath,
@@ -128,6 +217,7 @@ router.post("/audiogram", requireAuth, async (req, res) => {
       url,
       storageRef,
       waveColor: parsed.data.waveColor,
+      style: parsed.data.style,
       creditsRemaining: creditsAfter,
     });
   } catch (err) {
