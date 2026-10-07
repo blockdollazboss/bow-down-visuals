@@ -381,5 +381,6 @@ router.use(gifConverterRouter);
 router.use(thumbExtractRouter);
 router.use(ctrPredictorRouter);
 router.use(quoteFinderRouter);
+router.use(podcastIntroRouter);
 
 export default router;
