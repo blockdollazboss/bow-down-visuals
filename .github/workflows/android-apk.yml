@@ -52,9 +52,46 @@ jobs:
           ./node_modules/.bin/cap add android
           test -f android/app/build.gradle || { echo "CAP ADD FAILED - android dir not created"; exit 1; }
 
-      - name: Build debug APK
+      - name: Set up release signing
         working-directory: artifacts/bow-down-visuals/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE }}" | base64 -d > app/release.p12
+          test -f app/release.p12 || { echo "KEYSTORE DECODE FAILED"; exit 1; }
+          python3 - <<'PYEOF'
+          import re
+          p = 'app/build.gradle'
+          s = open(p).read()
+          signing = '''
+          signingConfigs {
+              release {
+                  storeFile file('release.p12')
+                  storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                  keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                  keyPassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+              }
+          }
+          '''
+          assert 'buildTypes {' in s, "buildTypes block not found"
+          s = s.replace('buildTypes {', signing + '\n    buildTypes {', 1)
+          s2, n = re.subn(
+              r'(buildTypes\s*\{\s*release\s*\{)',
+              r'\1\n            signingConfig signingConfigs.release',
+              s, count=1
+          )
+          assert n == 1, "release buildType not found"
+          open(p, 'w').write(s2)
+          print("build.gradle patched for release signing")
+          PYEOF
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Build release APK
+        working-directory: artifacts/bow-down-visuals/android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
 
       - name: Verify APK exists
         working-directory: artifacts/bow-down-visuals/android
@@ -70,5 +107,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bow-down-visuals-apk
-          path: artifacts/bow-down-visuals/android/app/build/outputs/apk/debug/app-debug.apk
+          path: artifacts/bow-down-visuals/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 90
