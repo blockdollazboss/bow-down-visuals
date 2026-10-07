@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { pgSslConfig } from "@workspace/db";
 import { logger } from "./logger";
-import { OutOfCreditsError } from "./credits";
+import { OutOfCreditsError, canUseCredits, CreditsDisabledError } from "./credits";
 import { getSupabaseAdmin } from "./supabase-admin";
 
 /**
@@ -190,6 +190,11 @@ export async function chargeCreditsForJob(
 ): Promise<{ charged: boolean; creditsAfter: number }> {
   if (!Number.isFinite(cost) || cost <= 0) {
     throw new Error(`chargeCreditsForJob: invalid cost ${cost}`);
+  }
+  // Admin-only mode: block users who haven't been explicitly approved.
+  if (!(await canUseCredits(userId))) {
+    logger.warn({ jobId, userId, cost }, "[export] blocked non-whitelisted spend (admin-only mode)");
+    throw new CreditsDisabledError();
   }
   const flag = await db().execute(sql`
     UPDATE export_jobs SET credits_charged = true, updated_at = now()
