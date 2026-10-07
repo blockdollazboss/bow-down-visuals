@@ -137,6 +137,8 @@ export default function MakeSong() {
   usePageTitle(t("makeSong.pageTitle"), t("makeSong.pageDescription"));
   const { getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const [mode, setMode] = useState<"simple" | "custom">("simple");
+  const [simplePrompt, setSimplePrompt] = useState("");
   const [rawResult, setRawResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +166,41 @@ export default function MakeSong() {
   }
 
   async function onSubmit(values: SongFormValues) {
+    await generateSong({
+      artistName: values.artistName,
+      songTitle: values.songTitle,
+      genre: values.genre,
+      mood: values.mood,
+      songTopic: values.songTopic,
+      explicit: values.cleanOrExplicit,
+      voiceStyle: values.voiceStyle,
+      beatStyle: values.beatStyle,
+      songLength: values.songLength,
+      instructions: values.specialInstructions,
+    });
+  }
+
+  async function onSimpleSubmit() {
+    if (!simplePrompt.trim()) return;
+    await generateSong({
+      artistName: "",
+      songTitle: "",
+      genre: "",
+      mood: "",
+      songTopic: simplePrompt.trim(),
+      explicit: "",
+      voiceStyle: "",
+      beatStyle: "",
+      songLength: "",
+      instructions: "Create a complete song from this description. Write the lyrics and choose the style automatically.",
+    });
+  }
+
+  async function generateSong(params: {
+    artistName: string; songTitle: string; genre: string; mood: string;
+    songTopic: string; explicit: string; voiceStyle: string;
+    beatStyle: string; songLength: string; instructions: string;
+  }) {
     setLoading(true);
     setRawResult(null);
     setError(null);
@@ -171,19 +208,10 @@ export default function MakeSong() {
     try {
       const token = await getAccessToken();
       const result = await callGenerateApi("/api/generate-song", {
-        artistName: values.artistName,
-        songTitle: values.songTitle,
-        genre: values.genre,
-        mood: values.mood,
-        songTopic: values.songTopic,
-        explicit: values.cleanOrExplicit,
-        voiceStyle: values.voiceStyle,
-        beatStyle: values.beatStyle,
-        songLength: values.songLength,
-        instructions: values.specialInstructions,
+        ...params,
         artistVault: loadedVault,
       }, token, confirmedFetch);
-      if (!result) return; // user cancelled the credit confirmation
+      if (!result) return;
       const { rawResult, creditsRemaining } = result;
       setRawResult(rawResult);
       if (creditsRemaining !== undefined) refreshProfile();
@@ -256,6 +284,87 @@ export default function MakeSong() {
 
         {/* Form card */}
         <div className="lux-card-static p-6 md:p-8">
+          {/* Simple / Custom mode toggle - Suno pattern */}
+          <div className="flex gap-2 mb-6">
+            <button
+              type="button"
+              onClick={() => setMode("simple")}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                mode === "simple"
+                  ? "bg-primary text-black"
+                  : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("custom")}
+              className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                mode === "custom"
+                  ? "bg-primary text-black"
+                  : "bg-white/5 text-white/60 hover:bg-white/10"
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+
+          {mode === "simple" ? (
+            /* Simple mode - one text box, AI does everything */
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">
+                  Describe your song
+                </label>
+                <textarea
+                  value={simplePrompt}
+                  onChange={(e) => setSimplePrompt(e.target.value)}
+                  placeholder="A upbeat pop song about summer love, catchy chorus..."
+                  rows={4}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/30 focus:outline-none focus:border-primary/50 resize-none"
+                />
+                <p className="text-xs text-white/40 mt-2">
+                  Just describe it — AI writes the lyrics, picks the style, and generates the song.
+                </p>
+              </div>
+
+              {/* One-click genre presets */}
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">
+                  Quick styles
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "🎵 Pop Hit", prompt: "catchy pop song with memorable chorus" },
+                    { label: "🎤 Hip Hop", prompt: "hard-hitting hip hop track with confident flow" },
+                    { label: "🎸 Rock Anthem", prompt: "powerful rock anthem with epic guitars" },
+                    { label: "💃 Dance", prompt: "high-energy dance track with infectious beat" },
+                    { label: "😢 Ballad", prompt: "emotional ballad with heartfelt lyrics" },
+                    { label: "🌙 Lo-Fi", prompt: "chill lo-fi track with mellow vibes" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => setSimplePrompt(preset.prompt)}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm hover:border-primary/50 hover:bg-primary/5 transition-all"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onSimpleSubmit}
+                disabled={!simplePrompt.trim() || loading}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-black font-bold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-all"
+              >
+                {loading ? "Generating..." : "Generate Song"}
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
 
             {/* Upload your own song — skip generation, go straight to video */}
@@ -418,6 +527,7 @@ export default function MakeSong() {
               <p className="text-white/25 text-xs mt-3">{t("makeSong.usesCredits")}</p>
             </div>
           </form>
+          )}
         </div>
 
         {outOfCredits && <OutOfCredits />}
