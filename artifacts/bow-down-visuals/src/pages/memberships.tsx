@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Crown, Plus, Trash2, Pencil, Users, DollarSign, TrendingDown,
@@ -80,6 +81,7 @@ async function api(path: string, token: string | null, init?: RequestInit) {
 }
 
 export default function Memberships() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -122,7 +124,7 @@ export default function Memberships() {
       if (d.activeMembers !== undefined) setDashboard(d as unknown as Dashboard);
       if (Array.isArray(m.members)) setMembers(m.members as Member[]);
     } catch {
-      setError("Couldn't load your fan club — try again.");
+      setError(t("memberships.errorLoad"));
     } finally {
       setLoading(false);
     }
@@ -170,20 +172,20 @@ export default function Memberships() {
       resetForm();
       await load();
     } catch {
-      setError("Couldn't save the tier — try again.");
+      setError(t("memberships.errorSaveTier"));
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteTier(id: string) {
-    if (!confirm("Delete this tier and its tracked members? This can't be undone.")) return;
+    if (!confirm(t("memberships.confirmDeleteTier"))) return;
     try {
       const token = await getAccessToken();
       await api(`/memberships/tiers/${id}`, token, { method: "DELETE" });
       await load();
     } catch {
-      setError("Couldn't delete the tier — try again.");
+      setError(t("memberships.errorDeleteTier"));
     }
   }
 
@@ -197,14 +199,14 @@ export default function Memberships() {
         body: JSON.stringify({ tierId: memberTier, fanLabel: fanLabel.trim() }),
       });
       if (res.status === 409) {
-        setError(String(data.error ?? "That fan is already on this tier."));
+        setError(String(data.error ?? t("memberships.errorDuplicateMember")));
         return;
       }
       if (!res.ok) throw new Error();
       setFanLabel("");
       await load();
     } catch {
-      setError("Couldn't add the member — try again.");
+      setError(t("memberships.errorAddMember"));
     } finally {
       setAddingMember(false);
     }
@@ -219,18 +221,18 @@ export default function Memberships() {
       });
       await load();
     } catch {
-      setError("Couldn't update the member — try again.");
+      setError(t("memberships.errorUpdateMember"));
     }
   }
 
   async function removeMember(id: string) {
-    if (!confirm("Remove this member from tracking?")) return;
+    if (!confirm(t("memberships.confirmRemoveMember"))) return;
     try {
       const token = await getAccessToken();
       await api(`/memberships/members/${id}`, token, { method: "DELETE" });
       await load();
     } catch {
-      setError("Couldn't remove the member — try again.");
+      setError(t("memberships.errorRemoveMember"));
     }
   }
 
@@ -253,7 +255,7 @@ export default function Memberships() {
       setSuggestions(data.tiers as SuggestedTier[]);
       refreshProfile();
     } catch {
-      setError("The AI suggester hiccuped — Visual Bucs were refunded, try again.");
+      setError(t("memberships.errorSuggester"));
     } finally {
       setSuggesting(false);
     }
@@ -277,25 +279,24 @@ export default function Memberships() {
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-primary mb-4">
-            <Crown className="h-3.5 w-3.5" /> Fan Clubs
+            <Crown className="h-3.5 w-3.5" /> {t("memberships.badge")}
           </div>
           <h1 className="text-4xl md:text-5xl font-black">
-            Fan <span className="text-primary">Memberships</span>
+            {t("memberships.titleStart")} <span className="text-primary">{t("memberships.titleAccent")}</span>
           </h1>
           <p className="mt-3 text-white/60 max-w-2xl mx-auto">
-            Launch paid tiers for your biggest fans — exclusive content, early access,
-            behind-the-scenes. Free to set up.
+            {t("memberships.subtitle")}
           </p>
           <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            Payments are coming soon — track members manually for now. No fake transactions, ever.
+            {t("memberships.paymentsNotice")}
           </div>
         </div>
 
         {!user ? (
           <div className={CARD + " text-center"}>
-            <p className="text-white/70 mb-4">Sign in to build your fan club.</p>
-            <Link href="/login" className={GOLD_BTN}>Sign In</Link>
+            <p className="text-white/70 mb-4">{t("memberships.signInPrompt")}</p>
+            <Link href="/login" className={GOLD_BTN}>{t("memberships.signIn")}</Link>
           </div>
         ) : loading ? (
           <div className="flex justify-center py-20">
@@ -306,7 +307,7 @@ export default function Memberships() {
             {error && (
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center justify-between">
                 {error}
-                <button onClick={() => setError(null)} aria-label="Dismiss"><X className="h-4 w-4" /></button>
+                <button onClick={() => setError(null)} aria-label={t("memberships.dismiss")}><X className="h-4 w-4" /></button>
               </div>
             )}
 
@@ -314,29 +315,29 @@ export default function Memberships() {
             {dashboard && (
               <section>
                 <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
-                  <Users className="h-6 w-6 text-primary" /> Member Dashboard
+                  <Users className="h-6 w-6 text-primary" /> {t("memberships.dashboardTitle")}
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className={CARD}>
-                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Active members</div>
+                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">{t("memberships.activeMembers")}</div>
                     <div className="text-3xl font-black text-primary">{dashboard.activeMembers}</div>
                   </div>
                   <div className={CARD}>
-                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Monthly revenue</div>
+                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">{t("memberships.monthlyRevenue")}</div>
                     <div className="text-3xl font-black">{fmt$(dashboard.mrrDollars)}</div>
                     <div className="text-xs text-white/40 mt-1 flex items-center gap-1">
                       <BadgePercent className="h-3 w-3" />
-                      {fmt$(dashboard.netMrrCents / 100)} after 10% platform fee
+                      {t("memberships.afterFee", { amount: fmt$(dashboard.netMrrCents / 100) })}
                     </div>
                   </div>
                   <div className={CARD}>
-                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Churn</div>
+                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">{t("memberships.churn")}</div>
                     <div className="text-3xl font-black flex items-center gap-2">
                       <TrendingDown className="h-6 w-6 text-amber-400" />{dashboard.churnPct}%
                     </div>
                   </div>
                   <div className={CARD}>
-                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">Past due</div>
+                    <div className="text-xs uppercase tracking-widest text-white/40 mb-1">{t("memberships.pastDue")}</div>
                     <div className="text-3xl font-black text-amber-400">{dashboard.pastDueMembers}</div>
                   </div>
                 </div>
@@ -346,7 +347,7 @@ export default function Memberships() {
                       <div key={b.tierId} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
                         <div className="font-bold">{b.name}</div>
                         <div className="text-sm text-white/50 mt-1">
-                          {b.activeMembers} members · {fmt$(b.mrrCents / 100)}/mo
+                          {t("memberships.tierStats", { count: b.activeMembers, amount: fmt$(b.mrrCents / 100) })}
                         </div>
                       </div>
                     ))}
@@ -358,22 +359,22 @@ export default function Memberships() {
             {/* ── Tier builder ── */}
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
-                <Crown className="h-6 w-6 text-primary" /> {editingId ? "Edit Tier" : "Build a Tier"}
+                <Crown className="h-6 w-6 text-primary" /> {editingId ? t("memberships.editTier") : t("memberships.buildTier")}
               </h2>
               <div className={CARD + " space-y-4"}>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <input className={INPUT} placeholder="Tier name (e.g. Gold Circle)" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+                  <input className={INPUT} placeholder={t("memberships.tierNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
-                    <input className={INPUT + " pl-9"} placeholder="Price / month" value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
+                    <input className={INPUT + " pl-9"} placeholder={t("memberships.pricePlaceholder")} value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" />
                   </div>
                 </div>
-                <textarea className={INPUT} placeholder="What is this tier about? (optional)" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
+                <textarea className={INPUT} placeholder={t("memberships.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} maxLength={500} />
                 <div>
                   <div className="flex gap-2">
                     <input
                       className={INPUT}
-                      placeholder="Add a perk, then press Enter (e.g. Early access to every video)"
+                      placeholder={t("memberships.perkPlaceholder")}
                       value={perkInput}
                       onChange={(e) => setPerkInput(e.target.value)}
                       maxLength={140}
@@ -401,7 +402,7 @@ export default function Memberships() {
                     {perks.map((p, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs">
                         <Check className="h-3 w-3 text-primary" />{p}
-                        <button onClick={() => setPerks(perks.filter((_, j) => j !== i))} aria-label="Remove perk">
+                        <button onClick={() => setPerks(perks.filter((_, j) => j !== i))} aria-label={t("memberships.removePerk")}>
                           <X className="h-3 w-3 text-white/40 hover:text-white" />
                         </button>
                       </span>
@@ -411,11 +412,11 @@ export default function Memberships() {
                 <div className="flex gap-3">
                   <button className={GOLD_BTN} disabled={saving || !name.trim()} onClick={saveTier}>
                     {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-                    {editingId ? "Save Tier" : "Create Tier"}
+                    {editingId ? t("memberships.saveTier") : t("memberships.createTier")}
                   </button>
                   {editingId && (
                     <button className="rounded-2xl border border-white/15 px-6 py-3 text-sm font-bold text-white/70 hover:bg-white/5" onClick={resetForm}>
-                      Cancel
+                      {t("memberships.cancel")}
                     </button>
                   )}
                 </div>
@@ -423,25 +424,25 @@ export default function Memberships() {
 
               {tiers.length > 0 && (
                 <div className="mt-4 grid md:grid-cols-3 gap-4">
-                  {tiers.map((t) => (
-                    <div key={t.id} className="rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-black p-5">
+                  {tiers.map((tier) => (
+                    <div key={tier.id} className="rounded-2xl border border-primary/20 bg-gradient-to-b from-[#171208] to-black p-5">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="font-black text-lg">{t.name}</div>
-                          <div className="text-primary font-bold">{fmt$(t.priceDollars)}<span className="text-white/40 text-sm font-normal">/mo</span></div>
+                          <div className="font-black text-lg">{tier.name}</div>
+                          <div className="text-primary font-bold">{fmt$(tier.priceDollars)}<span className="text-white/40 text-sm font-normal">{t("memberships.perMonth")}</span></div>
                         </div>
                         <div className="flex gap-1">
-                          <button onClick={() => startEdit(t)} aria-label="Edit tier" className="p-1.5 rounded-lg hover:bg-white/10">
+                          <button onClick={() => startEdit(tier)} aria-label={t("memberships.editTierAria")} className="p-1.5 rounded-lg hover:bg-white/10">
                             <Pencil className="h-4 w-4 text-white/50" />
                           </button>
-                          <button onClick={() => deleteTier(t.id)} aria-label="Delete tier" className="p-1.5 rounded-lg hover:bg-white/10">
+                          <button onClick={() => deleteTier(tier.id)} aria-label={t("memberships.deleteTierAria")} className="p-1.5 rounded-lg hover:bg-white/10">
                             <Trash2 className="h-4 w-4 text-red-400/70" />
                           </button>
                         </div>
                       </div>
-                      {t.description && <p className="text-sm text-white/50 mt-2">{t.description}</p>}
+                      {tier.description && <p className="text-sm text-white/50 mt-2">{tier.description}</p>}
                       <ul className="mt-3 space-y-1.5">
-                        {t.perks.map((p, i) => (
+                        {tier.perks.map((p, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-white/70">
                             <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />{p}
                           </li>
@@ -456,16 +457,15 @@ export default function Memberships() {
             {/* ── AI perk suggester ── */}
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" /> AI Tier Suggester
-                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">100 Visual Bucs</span>
+                <Sparkles className="h-6 w-6 text-primary" /> {t("memberships.aiSuggesterTitle")}
+                <span className="text-xs font-bold rounded-full bg-primary/15 border border-primary/30 text-primary px-2.5 py-1">{t("memberships.aiCost")}</span>
               </h2>
               <div className={CARD + " space-y-4"}>
                 <p className="text-sm text-white/60">
-                  Tell the AI your niche and it designs 3 tiers — names, prices, and concrete perks.
-                  Apply any suggestion straight into the tier builder.
+                  {t("memberships.aiDescription")}
                 </p>
                 <div className="grid md:grid-cols-2 gap-4">
-                  <input className={INPUT} placeholder="Your niche (e.g. Music production)" value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={80} />
+                  <input className={INPUT} placeholder={t("memberships.nichePlaceholder")} value={niche} onChange={(e) => setNiche(e.target.value)} maxLength={80} />
                   <div className="flex gap-2">
                     {(["starting", "growing", "established"] as const).map((s) => (
                       <button
@@ -477,14 +477,14 @@ export default function Memberships() {
                             : "border-white/10 text-white/50 hover:border-white/25"
                         }`}
                       >
-                        {s}
+                        {t("memberships.audience" + s.charAt(0).toUpperCase() + s.slice(1))}
                       </button>
                     ))}
                   </div>
                 </div>
                 <button className={GOLD_BTN} disabled={suggesting || !niche.trim()} onClick={suggestTiers}>
                   {suggesting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-                  Suggest My Tiers
+                  {t("memberships.suggestButton")}
                 </button>
                 {outOfCredits && <OutOfCredits />}
                 {suggestions.length > 0 && (
@@ -504,7 +504,7 @@ export default function Memberships() {
                           onClick={() => applySuggestion(s)}
                           className="mt-3 w-full rounded-xl border border-primary/40 py-2 text-sm font-bold text-primary hover:bg-primary/10"
                         >
-                          Use This Tier
+                          {t("memberships.useTier")}
                         </button>
                       </div>
                     ))}
@@ -516,11 +516,11 @@ export default function Memberships() {
             {/* ── Members ── */}
             <section>
               <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
-                <Users className="h-6 w-6 text-primary" /> Members
+                <Users className="h-6 w-6 text-primary" /> {t("memberships.membersTitle")}
               </h2>
               <div className={CARD + " space-y-4"}>
                 <p className="text-xs text-white/40">
-                  Add members manually while payment processing is coming soon.
+                  {t("memberships.membersNote")}
                 </p>
                 <div className="flex flex-col md:flex-row gap-3">
                   <select
@@ -528,14 +528,14 @@ export default function Memberships() {
                     value={memberTier}
                     onChange={(e) => setMemberTier(e.target.value)}
                   >
-                    <option value="">Pick a tier…</option>
-                    {tiers.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name} — {fmt$(t.priceDollars)}/mo</option>
+                    <option value="">{t("memberships.pickTier")}</option>
+                    {tiers.map((tier) => (
+                      <option key={tier.id} value={tier.id}>{t("memberships.tierOption", { name: tier.name, price: fmt$(tier.priceDollars) })}</option>
                     ))}
                   </select>
                   <input
                     className={INPUT}
-                    placeholder="Fan email or handle"
+                    placeholder={t("memberships.fanPlaceholder")}
                     value={fanLabel}
                     onChange={(e) => setFanLabel(e.target.value)}
                     maxLength={120}
@@ -545,7 +545,7 @@ export default function Memberships() {
                     disabled={addingMember || !memberTier || !fanLabel.trim()}
                     onClick={addMember}
                   >
-                    {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Member"}
+                    {addingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : t("memberships.addMember")}
                   </button>
                 </div>
                 {members.length > 0 ? (
@@ -555,7 +555,7 @@ export default function Memberships() {
                         <div>
                           <div className="font-bold text-sm">{m.fanLabel}</div>
                           <div className="text-xs text-white/40">
-                            {m.tierName} · {fmt$(m.priceDollars)}/mo · joined {new Date(m.joinedAt).toLocaleDateString()}
+                            {t("memberships.memberMeta", { tier: m.tierName, price: fmt$(m.priceDollars), date: new Date(m.joinedAt).toLocaleDateString() })}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -564,11 +564,11 @@ export default function Memberships() {
                             value={m.status}
                             onChange={(e) => setMemberStatus(m.id, e.target.value as Member["status"])}
                           >
-                            <option value="active">Active</option>
-                            <option value="past_due">Past due</option>
-                            <option value="canceled">Canceled</option>
+                            <option value="active">{t("memberships.statusActive")}</option>
+                            <option value="past_due">{t("memberships.statusPastDue")}</option>
+                            <option value="canceled">{t("memberships.statusCanceled")}</option>
                           </select>
-                          <button onClick={() => removeMember(m.id)} aria-label="Remove member" className="p-1.5 rounded-lg hover:bg-white/10">
+                          <button onClick={() => removeMember(m.id)} aria-label={t("memberships.removeMemberAria")} className="p-1.5 rounded-lg hover:bg-white/10">
                             <Trash2 className="h-4 w-4 text-red-400/70" />
                           </button>
                         </div>
@@ -576,7 +576,7 @@ export default function Memberships() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-white/40">No members tracked yet.</p>
+                  <p className="text-sm text-white/40">{t("memberships.noMembers")}</p>
                 )}
               </div>
             </section>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Upload, Loader2, Download, AlertTriangle, CheckCircle2,
@@ -35,27 +36,19 @@ type LoudnessKey = "streaming" | "club" | "radio";
 type StemType = "vocals" | "drums" | "bass" | "keys" | "guitar" | "strings" | "fx" | "beat" | "other";
 type JobStatus = "idle" | "uploading" | "queued" | "processing" | "done" | "failed";
 
-const GENRES: Array<{ key: GenreKey; label: string; blurb: string }> = [
-  { key: "hip-hop", label: "Hip-Hop", blurb: "Heavy low end, forward vocals." },
-  { key: "pop", label: "Pop", blurb: "Polished, bright, radio sheen." },
-  { key: "rnb", label: "R&B", blurb: "Smooth, warm, silky vocals." },
-  { key: "edm", label: "EDM", blurb: "Maximum energy, huge and wide." },
-  { key: "rock", label: "Rock", blurb: "Gritty guitars, drums up front." },
-  { key: "lofi", label: "Lo-Fi", blurb: "Dusty, warm, mellow." },
-  { key: "afrobeat", label: "Afrobeat", blurb: "Bouncy percussion, log drums." },
-  { key: "gospel", label: "Gospel", blurb: "Big, uplifting choir clarity." },
+const GENRES: Array<{ key: GenreKey }> = [
+  { key: "hip-hop" }, { key: "pop" }, { key: "rnb" }, { key: "edm" },
+  { key: "rock" }, { key: "lofi" }, { key: "afrobeat" }, { key: "gospel" },
 ];
 
-const INTENSITIES: Array<{ key: IntensityKey; label: string; blurb: string }> = [
-  { key: "subtle", label: "Subtle", blurb: "Gentle polish, dynamics intact." },
-  { key: "balanced", label: "Balanced", blurb: "The sweet spot for most tracks." },
-  { key: "aggressive", label: "Aggressive", blurb: "Loud, punchy, in-your-face." },
+const INTENSITIES: Array<{ key: IntensityKey }> = [
+  { key: "subtle" }, { key: "balanced" }, { key: "aggressive" },
 ];
 
-const LOUDNESS: Array<{ key: LoudnessKey; label: string; blurb: string; spec: string }> = [
-  { key: "streaming", label: "Streaming", blurb: "Spotify / Apple Music ready.", spec: "-14 LUFS · -1.0 dBTP" },
-  { key: "club", label: "Club", blurb: "Loud and punchy for big systems.", spec: "-9 LUFS · -1.0 dBTP" },
-  { key: "radio", label: "Radio", blurb: "Broadcast-friendly consistency.", spec: "-11 LUFS · -1.0 dBTP" },
+const LOUDNESS: Array<{ key: LoudnessKey; spec: string }> = [
+  { key: "streaming", spec: "-14 LUFS · -1.0 dBTP" },
+  { key: "club", spec: "-9 LUFS · -1.0 dBTP" },
+  { key: "radio", spec: "-11 LUFS · -1.0 dBTP" },
 ];
 
 const STEM_TYPE_META: Record<StemType, { label: string; chip: string }> = {
@@ -126,9 +119,10 @@ function isAudioFile(f: File): boolean {
 /* ── Shared pickers ─────────────────────────────────────────────────── */
 
 function GenreGrid({ value, onChange }: { value: GenreKey; onChange: (g: GenreKey) => void }) {
+  const { t } = useTranslation();
   return (
     <div data-min-stars="2">
-      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Genre sound</p>
+      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("mixMaster.genreLabel")}</p>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
         {GENRES.map((g) => (
           <button
@@ -141,8 +135,8 @@ function GenreGrid({ value, onChange }: { value: GenreKey; onChange: (g: GenreKe
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === g.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{g.label}</p>
-            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{g.blurb}</p>
+            <p className={`font-bold text-sm ${value === g.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.genres.${g.key}.label`)}</p>
+            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.genres.${g.key}.blurb`)}</p>
           </button>
         ))}
       </div>
@@ -151,9 +145,10 @@ function GenreGrid({ value, onChange }: { value: GenreKey; onChange: (g: GenreKe
 }
 
 function IntensityPicker({ value, onChange }: { value: IntensityKey; onChange: (v: IntensityKey) => void }) {
+  const { t } = useTranslation();
   return (
     <div data-min-stars="3">
-      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Processing intensity</p>
+      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("mixMaster.intensityLabel")}</p>
       <div className="grid grid-cols-3 gap-2.5">
         {INTENSITIES.map((opt) => (
           <button
@@ -166,8 +161,8 @@ function IntensityPicker({ value, onChange }: { value: IntensityKey; onChange: (
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === opt.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{opt.label}</p>
-            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{opt.blurb}</p>
+            <p className={`font-bold text-sm ${value === opt.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.intensities.${opt.key}.label`)}</p>
+            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.intensities.${opt.key}.blurb`)}</p>
           </button>
         ))}
       </div>
@@ -176,24 +171,25 @@ function IntensityPicker({ value, onChange }: { value: IntensityKey; onChange: (
 }
 
 function LoudnessPicker({ value, onChange }: { value: LoudnessKey; onChange: (v: LoudnessKey) => void }) {
+  const { t } = useTranslation();
   return (
     <div data-min-stars="5">
-      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Target loudness</p>
+      <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("mixMaster.loudnessLabel")}</p>
       <div className="grid grid-cols-3 gap-2.5">
-        {LOUDNESS.map((t) => (
+        {LOUDNESS.map((loud) => (
           <button
-            key={t.key}
+            key={loud.key}
             type="button"
-            onClick={() => onChange(t.key)}
+            onClick={() => onChange(loud.key)}
             className={`rounded-xl border px-3 py-2.5 text-left transition ${
-              value === t.key
+              value === loud.key
                 ? "border-[#C9A84C]/60 bg-[#C9A84C]/10"
                 : "border-white/[0.08] bg-white/[0.02] hover:border-white/20"
             }`}
           >
-            <p className={`font-bold text-sm ${value === t.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t.label}</p>
-            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t.blurb}</p>
-            <p className="text-[10px] text-white/30 mt-1 font-mono">{t.spec}</p>
+            <p className={`font-bold text-sm ${value === loud.key ? "text-[#f7dd7f]" : "text-white/80"}`}>{t(`mixMaster.loudness.${loud.key}.label`)}</p>
+            <p className="text-[11px] text-white/40 mt-0.5 leading-snug">{t(`mixMaster.loudness.${loud.key}.blurb`)}</p>
+            <p className="text-[10px] text-white/30 mt-1 font-mono">{loud.spec}</p>
           </button>
         ))}
       </div>
@@ -204,11 +200,12 @@ function LoudnessPicker({ value, onChange }: { value: LoudnessKey; onChange: (v:
 function ReferenceUpload({
   file, onPick, onClear,
 }: { file: File | null; onPick: (f: File) => void; onClear: () => void }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div data-min-stars="5">
       <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">
-        Reference track <span className="text-white/25 normal-case font-medium">(optional — match its loudness)</span>
+        {t("mixMaster.referenceTrack")} <span className="text-white/25 normal-case font-medium">(optional — match its loudness)</span>
       </p>
       {file ? (
         <div className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5">
@@ -224,7 +221,7 @@ function ReferenceUpload({
           className="w-full rounded-xl border border-dashed border-white/[0.12] px-4 py-3 text-sm text-white/40 hover:text-white/70 hover:border-white/25 transition"
         >
           <Disc3 className="h-4 w-4 inline mr-2 -mt-0.5" />
-          Add a reference track — we'll match its loudness
+          {t("mixMaster.referenceHint")}
         </button>
       )}
       <input
@@ -248,6 +245,7 @@ function JobResult({
   kindLabel: string;
   onReset: () => void;
 }) {
+  const { t } = useTranslation();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [abSide, setAbSide] = useState<"before" | "after">("after");
   const [playing, setPlaying] = useState(false);
@@ -296,7 +294,7 @@ function JobResult({
       {/* A/B player */}
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-          <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Before / After</p>
+          <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("mixMaster.beforeAfter")}</p>
           <div className="flex items-center gap-3">
             <label data-min-stars="3" className="flex items-center gap-1.5 text-[11px] text-white/45 cursor-pointer select-none">
               <input
@@ -316,7 +314,7 @@ function JobResult({
                   abSide === "before" ? "bg-white/[0.12] text-white" : "text-white/40 hover:text-white/70"
                 }`}
               >
-                Before
+                {t("mixMaster.before")}
               </button>
               <button
                 type="button"
@@ -326,7 +324,7 @@ function JobResult({
                   abSide === "after" ? "bg-[#C9A84C]/25 text-[#f7dd7f]" : "text-white/40 hover:text-white/70"
                 }`}
               >
-                After
+                {t("mixMaster.after")}
               </button>
             </div>
           </div>
@@ -354,7 +352,7 @@ function JobResult({
           />
         </div>
         <p className="text-[11px] text-white/30 mt-2">
-          Listening to: <span className="text-white/60 font-semibold">{abSide === "before" ? "your original" : "the processed version"}</span>
+          {t("mixMaster.listeningTo")} <span className="text-white/60 font-semibold">{abSide === "before" ? "your original" : "the processed version"}</span>
           {loudnessMatch && inputLufs != null && outputLufs != null && (
             <> — level-matched ({abSide === "before" ? `before at ${(20 * Math.log10(gainBefore)).toFixed(1)} dB` : `after at ${(20 * Math.log10(gainAfter)).toFixed(1)} dB`}) so you're judging tone, not volume</>
           )}
@@ -368,7 +366,7 @@ function JobResult({
         <div data-min-stars="4" className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
           <div className="flex items-center gap-2 mb-3">
             <Gauge className="h-3.5 w-3.5 text-[#C9A84C]" />
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Master report</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("mixMaster.masterReport")}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
@@ -386,12 +384,12 @@ function JobResult({
           <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3">
             {typeof stats.inputLra === "number" && (
               <p className="text-[11px] text-white/30">
-                Dynamic range: <span className="text-white/55 font-mono">{stats.inputLra.toFixed(1)} LU</span>
+                {t("mixMaster.dynamicRange")}: <span className="text-white/55 font-mono">{stats.inputLra.toFixed(1)} LU</span>
               </p>
             )}
             {typeof stats.referenceLufs === "number" && (
               <p className="text-[11px] text-white/30">
-                Reference loudness: <span className="text-white/55 font-mono">{fmtLufs(stats.referenceLufs)}</span> <span className="text-white/25">(used as target)</span>
+                {t("mixMaster.referenceLoudness")}: <span className="text-white/55 font-mono">{fmtLufs(stats.referenceLufs)}</span> <span className="text-white/25">(used as target)</span>
               </p>
             )}
             {data.genre && (
@@ -410,12 +408,12 @@ function JobResult({
             Stems detected — {data.stemTypes.length}
           </p>
           <div className="flex flex-wrap gap-2">
-            {data.stemTypes.map((t, i) => (
+            {data.stemTypes.map((st, i) => (
               <span
                 key={i}
-                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${STEM_TYPE_META[t]?.chip ?? STEM_TYPE_META.other.chip}`}
+                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${STEM_TYPE_META[st]?.chip ?? STEM_TYPE_META.other.chip}`}
               >
-                {STEM_TYPE_META[t]?.label ?? t}
+                {t(`mixMaster.stemTypes.${st}`) ?? st}
               </span>
             ))}
           </div>
@@ -454,6 +452,7 @@ function JobResult({
 /* ── AI Master panel ──────────────────────────────────────────────── */
 
 function MasterPanel() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [file, setFile] = useState<File | null>(null);
@@ -495,8 +494,8 @@ function MasterPanel() {
 
   function pickFile(f: File | undefined) {
     if (!f) return;
-    if (!isAudioFile(f)) { setError("Please choose an audio file (WAV, MP3, AIFF, FLAC, M4A, OGG)."); return; }
-    if (f.size > MAX_FILE_BYTES) { setError("That file is over 100 MB — please use a smaller mix."); return; }
+    if (!isAudioFile(f)) { setError(t("mixMaster.errorAudioFile")); return; }
+    if (f.size > MAX_FILE_BYTES) { setError(t("mixMaster.errorFileTooLarge")); return; }
     if (beforeUrl) URL.revokeObjectURL(beforeUrl);
     setBeforeUrl(URL.createObjectURL(f));
     setFile(f);
@@ -532,7 +531,7 @@ function MasterPanel() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("mixMaster.errorNetwork"));
     }
   }
 
@@ -574,8 +573,8 @@ function MasterPanel() {
               </div>
             ) : (
               <div>
-                <p className="font-semibold text-white/70">Drop your finished mix here, or click to browse</p>
-                <p className="text-xs text-white/35 mt-1">WAV, MP3, AIFF, FLAC, M4A, OGG — up to 100 MB</p>
+                <p className="font-semibold text-white/70">{t("mixMaster.dropMixHint")}</p>
+                <p className="text-xs text-white/35 mt-1">{t("mixMaster.fileTypes")}</p>
               </div>
             )}
             <input ref={fileInputRef} type="file" accept={AUDIO_ACCEPT} className="hidden"
@@ -623,6 +622,7 @@ function MasterPanel() {
 /* ── AI Mix (stems) panel ─────────────────────────────────────────── */
 
 function MixPanel() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [stems, setStems] = useState<File[]>([]);
@@ -665,7 +665,7 @@ function MixPanel() {
   function addFiles(list: FileList | File[] | undefined) {
     if (!list) return;
     const incoming = Array.from(list).filter(isAudioFile);
-    if (incoming.length === 0) { setError("Those files aren't audio — use WAV, MP3, AIFF, FLAC, M4A or OGG."); return; }
+    if (incoming.length === 0) { setError(t("mixMaster.errorNotAudio")); return; }
     setStems((prev) => {
       const merged = [...prev, ...incoming].slice(0, MAX_STEMS);
       return merged;
@@ -707,7 +707,7 @@ function MixPanel() {
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
       setStatus("failed");
-      setError("Network error — please try again.");
+      setError(t("mixMaster.errorNetwork"));
     }
   }
 
@@ -745,7 +745,7 @@ function MixPanel() {
               }`}
             >
               <Upload className="h-7 w-7 text-white/30 mx-auto mb-2" />
-              <p className="font-semibold text-white/70 text-sm">Drop your stems here, or click to browse</p>
+              <p className="font-semibold text-white/70 text-sm">{t("mixMaster.dropStemsHint")}</p>
               <p className="text-xs text-white/35 mt-1">Vocals, drums, bass, keys… up to {MAX_STEMS} files, 100 MB each</p>
               <input
                 ref={fileInputRef}
@@ -760,8 +760,8 @@ function MixPanel() {
             {stems.length > 0 && (
               <div className="mt-3 space-y-2">
                 {stems.map((s, i) => {
-                  const t = detectStemTypeClient(s.name);
-                  const meta = STEM_TYPE_META[t];
+                  const stemType = detectStemTypeClient(s.name);
+                  const meta = STEM_TYPE_META[stemType];
                   return (
                     <div key={`${s.name}-${i}`} className="flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-3.5 py-2.5">
                       <FileAudio className="h-4 w-4 text-white/35 shrink-0" />
@@ -770,7 +770,7 @@ function MixPanel() {
                         {(s.size / 1024 / 1024).toFixed(1)} MB
                       </span>
                       <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-bold shrink-0 ${meta.chip}`}>
-                        {meta.label}
+                        {t(`mixMaster.stemTypes.${stemType}`)}
                       </span>
                       <button type="button" onClick={() => removeStem(i)} className="text-white/35 hover:text-white/80 transition shrink-0">
                         <X className="h-4 w-4" />
@@ -791,7 +791,7 @@ function MixPanel() {
           {/* Vocal level */}
           <div data-min-stars="3">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Vocal level</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("mixMaster.vocalLevel")}</p>
               <span className="text-xs font-mono text-[#f7dd7f]">
                 {vocalDb > 0 ? `+${vocalDb.toFixed(1)}` : vocalDb.toFixed(1)} dB
               </span>
@@ -806,8 +806,8 @@ function MixPanel() {
               className="w-full accent-[#C9A84C]"
             />
             <div className="flex justify-between text-[10px] text-white/30 mt-1">
-              <span>Buried (-6 dB)</span>
-              <span>Up front (+4 dB)</span>
+              <span>{t("mixMaster.vocalBuried")}</span>
+              <span>{t("mixMaster.vocalUpfront")}</span>
             </div>
           </div>
 
@@ -850,13 +850,14 @@ function MixPanel() {
 /* ── Page ─────────────────────────────────────────────────────────── */
 
 export default function MixMaster() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"master" | "mix">("master");
 
   return (
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-3xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("mixMaster.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -864,8 +865,8 @@ export default function MixMaster() {
             <AudioLines className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">AI Mix &amp; Master</h1>
-            <p className="text-sm text-white/45">Professional sound, no engineer required</p>
+            <h1 className="text-2xl font-black">{t("mixMaster.title")}</h1>
+            <p className="text-sm text-white/45">{t("mixMaster.subtitle")}</p>
           </div>
         </div>
 
@@ -873,10 +874,9 @@ export default function MixMaster() {
         <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
           <Info className="h-4 w-4 text-[#C9A84C]/70 shrink-0 mt-0.5" />
           <p className="text-xs text-white/55 leading-relaxed">
-            A real DSP pipeline — per-stem gain staging, EQ, compression, genre panning,
-            then a full mastering chain with true-peak limiting. It{" "}
-            <span className="text-white/80 font-semibold">assembles and polishes great recordings; it can't fix clipping, out-of-tune vocals, or a bad arrangement.</span>{" "}
-            Trust your ears on the loudness-matched A/B before you ship it.
+            {t("mixMaster.honestFraming")}{" "}
+            <span className="text-white/80 font-semibold">{t("mixMaster.honestFramingBold")}</span>{" "}
+            {t("mixMaster.honestFramingEnd")}
           </p>
         </div>
 
@@ -892,7 +892,7 @@ export default function MixMaster() {
             }`}
           >
             <SlidersHorizontal className="h-4 w-4" />
-            AI Master
+            {t("mixMaster.tabMaster")}
             <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${tab === "master" ? "bg-black/20" : "bg-white/[0.08] text-white/50"}`}>
               {MASTER_CREDIT_COST} VB
             </span>
@@ -907,7 +907,7 @@ export default function MixMaster() {
             }`}
           >
             <AudioWaveform className="h-4 w-4" />
-            AI Mix <span className="hidden sm:inline">· Stems</span>
+            {t("mixMaster.tabMix")} <span className="hidden sm:inline">{t("mixMaster.tabMixStems")}</span>
             <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${tab === "mix" ? "bg-black/20" : "bg-white/[0.08] text-white/50"}`}>
               {MIX_CREDIT_COST} VB
             </span>

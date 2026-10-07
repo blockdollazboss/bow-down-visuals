@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import {
   Shirt, Loader2, Download, AlertTriangle, CheckCircle2,
@@ -18,18 +19,18 @@ import { OutOfCredits } from "@/components/OutOfCredits";
 type ProductKey = "t-shirt" | "hoodie" | "cap" | "poster";
 type StyleKey = "streetwear" | "minimal" | "vintage" | "luxury-gold";
 
-const PRODUCTS: Array<{ key: ProductKey; label: string; blurb: string; baseCost: string; swatch: string }> = [
-  { key: "t-shirt", label: "T-Shirt", blurb: "Classic crew tee", baseCost: "$12.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#3b82f6 100%)" },
-  { key: "hoodie", label: "Hoodie", blurb: "Heavyweight pullover", baseCost: "$28.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#8b5cf6 100%)" },
-  { key: "cap", label: "Cap", blurb: "Snapback / dad hat", baseCost: "$15.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#f97316 100%)" },
-  { key: "poster", label: "Poster", blurb: '18"×24" matte print', baseCost: "$8.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#10b981 100%)" },
+const PRODUCTS: Array<{ key: ProductKey; baseCost: string; swatch: string }> = [
+  { key: "t-shirt", baseCost: "$12.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#3b82f6 100%)" },
+  { key: "hoodie", baseCost: "$28.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#8b5cf6 100%)" },
+  { key: "cap", baseCost: "$15.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#f97316 100%)" },
+  { key: "poster", baseCost: "$8.00 base", swatch: "linear-gradient(135deg,#1a1a1a 40%,#10b981 100%)" },
 ];
 
-const STYLES: Array<{ key: StyleKey; label: string; blurb: string; swatch: string }> = [
-  { key: "streetwear", label: "Streetwear", blurb: "Bold graphics, urban energy", swatch: "linear-gradient(135deg,#0a0a0a 40%,#ef4444 100%)" },
-  { key: "minimal", label: "Minimal", blurb: "Clean, subtle, timeless", swatch: "linear-gradient(135deg,#111 40%,#e5e5e5 100%)" },
-  { key: "vintage", label: "Vintage", blurb: "Retro, worn-in, classic", swatch: "linear-gradient(135deg,#0a0a0a 40%,#d97706 100%)" },
-  { key: "luxury-gold", label: "Luxury Gold", blurb: "Black & gold, premium", swatch: "linear-gradient(135deg,#0a0a0a 40%,#d4af37 100%)" },
+const STYLES: Array<{ key: StyleKey; swatch: string }> = [
+  { key: "streetwear", swatch: "linear-gradient(135deg,#0a0a0a 40%,#ef4444 100%)" },
+  { key: "minimal", swatch: "linear-gradient(135deg,#111 40%,#e5e5e5 100%)" },
+  { key: "vintage", swatch: "linear-gradient(135deg,#0a0a0a 40%,#d97706 100%)" },
+  { key: "luxury-gold", swatch: "linear-gradient(135deg,#0a0a0a 40%,#d4af37 100%)" },
 ];
 
 interface Mockup {
@@ -72,6 +73,7 @@ function fmt(cents: number | null | undefined): string {
 }
 
 export default function Merch() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
   const [tab, setTab] = useState<"design" | "store">("design");
@@ -140,7 +142,7 @@ export default function Merch() {
         return;
       }
       if (!res.ok || data.status !== "succeeded" || !data.mockups?.length) {
-        setError(data.error || data.message || "Could not generate the designs — no Visual Bucs were charged.");
+        setError(data.error || data.message || t("merch.errorGenerate"));
         return;
       }
       setMockups(data.mockups);
@@ -151,7 +153,7 @@ export default function Merch() {
       });
       if (typeof data.creditsRemaining === "number") setCreditsRemaining(data.creditsRemaining);
     } catch {
-      setError("Network error — please try again. No Visual Bucs were charged.");
+      setError(t("merch.errorNetwork"));
     } finally {
       setBusy(false);
     }
@@ -197,7 +199,7 @@ export default function Merch() {
   }
 
   async function deleteDesign(id: string) {
-    if (!window.confirm("Delete this design? This can't be undone.")) return;
+    if (!window.confirm(t("merch.confirmDelete"))) return;
     try {
       const res = await fetch(`/api/merch/designs/${id}`, { method: "DELETE" });
       if (res.ok) void loadStore();
@@ -211,9 +213,9 @@ export default function Merch() {
     try {
       const res = await fetch(`/api/merch/designs/${id}/order`, { method: "POST" });
       const data = await res.json();
-      setOrderMsg(data.message ?? "Checkout is coming soon.");
+      setOrderMsg(data.message ?? t("merch.checkoutSoon"));
     } catch {
-      setOrderMsg("Checkout is coming soon.");
+      setOrderMsg(t("merch.checkoutSoon"));
     }
   }
 
@@ -223,7 +225,7 @@ export default function Merch() {
     <div className="min-h-screen bg-black text-white">
       <main className="mx-auto max-w-4xl px-4 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-white/40 hover:text-white/70 mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {t("merch.back")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
@@ -231,8 +233,8 @@ export default function Merch() {
             <Shirt className="h-5 w-5" />
           </span>
           <div>
-            <h1 className="text-2xl font-black">Merch Designer</h1>
-            <p className="text-sm text-white/45">AI-designed merch for your brand — 300 Visual Bucs per design batch</p>
+            <h1 className="text-2xl font-black">{t("merch.title")}</h1>
+            <p className="text-sm text-white/45">{t("merch.subtitle")}</p>
           </div>
         </div>
 
@@ -240,19 +242,19 @@ export default function Merch() {
         <div className="mt-6 flex gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-1.5">
           {(
             [
-              { key: "design", label: "Design Studio", icon: Sparkles },
-              { key: "store", label: "My Store", icon: Store },
+              { key: "design", icon: Sparkles },
+              { key: "store", icon: Store },
             ] as const
-          ).map((t) => (
+          ).map((tabItem) => (
             <button
-              key={t.key}
+              key={tabItem.key}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setTab(tabItem.key)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-                tab === t.key ? "bg-primary text-black" : "text-white/50 hover:text-white"
+                tab === tabItem.key ? "bg-primary text-black" : "text-white/50 hover:text-white"
               }`}
             >
-              <t.icon className="h-4 w-4" /> {t.label}
+              <tabItem.icon className="h-4 w-4" /> {t(`merch.tabs.${tabItem.key}`)}
             </button>
           ))}
         </div>
@@ -272,7 +274,7 @@ export default function Merch() {
           <div className="mt-6 space-y-5">
             {/* Product picker */}
             <div>
-              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Product</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("merch.productLabel")}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {PRODUCTS.map((p) => (
                   <button
@@ -286,8 +288,8 @@ export default function Merch() {
                     }`}
                   >
                     <span className="block h-10 rounded-lg mb-2" style={{ background: p.swatch }} />
-                    <p className="font-bold text-white text-sm">{p.label}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{p.blurb}</p>
+                    <p className="font-bold text-white text-sm">{t(`merch.products.${p.key}.label`)}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{t(`merch.products.${p.key}.blurb`)}</p>
                     <p className="text-[11px] text-primary/80 mt-1 font-semibold">{p.baseCost}</p>
                   </button>
                 ))}
@@ -296,7 +298,7 @@ export default function Merch() {
 
             {/* Style picker */}
             <div>
-              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">Style</p>
+              <p className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2">{t("merch.styleLabel")}</p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {STYLES.map((s) => (
                   <button
@@ -310,8 +312,8 @@ export default function Merch() {
                     }`}
                   >
                     <span className="block h-10 rounded-lg mb-2" style={{ background: s.swatch }} />
-                    <p className="font-bold text-white text-sm">{s.label}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{s.blurb}</p>
+                    <p className="font-bold text-white text-sm">{t(`merch.styles.${s.key}.label`)}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{t(`merch.styles.${s.key}.blurb`)}</p>
                   </button>
                 ))}
               </div>
@@ -319,23 +321,23 @@ export default function Merch() {
 
             {/* Title + description */}
             <div>
-              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">Design title</label>
+              <label className="text-xs font-bold text-white/40 uppercase tracking-wider">{t("merch.designTitleLabel")}</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Shark King Tour Tee"
+                placeholder={t("merch.titlePlaceholder")}
                 maxLength={80}
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60"
               />
             </div>
             <div>
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider">
-                Describe your design <span className="text-white/25 normal-case font-normal">(AI handles the rest)</span>
+                {t("merch.describeLabel")} <span className="text-white/25 normal-case font-normal">{t("merch.describeHint")}</span>
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. A crowned shark with lightning, 'BOW DOWN' in bold gold letters underneath"
+                placeholder={t("merch.descriptionPlaceholder")}
                 maxLength={500}
                 rows={3}
                 className="mt-2 w-full rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3.5 text-white placeholder:text-white/25 outline-none focus:border-primary/60 resize-none"
@@ -347,18 +349,18 @@ export default function Merch() {
               disabled={!canGenerate}
               className="w-full rounded-2xl bg-primary px-6 py-4 font-bold text-black transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> Generate 2 mockups · 300 Visual Bucs</span>
+              <span className="inline-flex items-center gap-2"><Sparkles className="h-4 w-4" /> {t("merch.generateButton")}</span>
             </button>
             {creditsRemaining != null && (
-              <p className="text-center text-xs text-white/35">{creditsRemaining} Visual Bucs remaining</p>
+              <p className="text-center text-xs text-white/35">{t("merch.creditsRemaining", { count: creditsRemaining })}</p>
             )}
 
             {/* Progress */}
             {busy && (
               <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-10 text-center">
                 <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto mb-4" />
-                <p className="font-bold text-white">Designing your merch…</p>
-                <p className="text-sm text-white/40 mt-1">Rendering 2 product mockups — hang tight.</p>
+                <p className="font-bold text-white">{t("merch.designing")}</p>
+                <p className="text-sm text-white/40 mt-1">{t("merch.designingDetail")}</p>
               </div>
             )}
 
@@ -368,20 +370,20 @@ export default function Merch() {
                 <div className="flex items-center gap-2.5 rounded-xl border border-green-500/25 bg-green-500/5 px-4 py-3">
                   <CheckCircle2 className="h-5 w-5 text-green-400 shrink-0" />
                   <p className="text-sm font-semibold text-white/80">
-                    2 mockups ready{batchMeta ? <> — suggested retail {fmt(batchMeta.suggestedPriceCents)}</> : null}
+                    {t("merch.mockupsReady")}{batchMeta ? <> — {t("merch.suggestedRetail", { price: fmt(batchMeta.suggestedPriceCents) })}</> : null}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {mockups.map((m) => (
                     <div key={m.url} className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3">
-                      <img src={m.url} alt="Merch mockup" className="w-full rounded-xl aspect-square object-cover" />
+                      <img src={m.url} alt={t("merch.mockupAlt")} className="w-full rounded-xl aspect-square object-cover" />
                       <div className="mt-3 flex gap-2">
                         <a
                           href={m.url}
                           download="merch-mockup.png"
                           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-4 py-2.5 text-sm font-bold text-white hover:bg-white/[0.1] transition"
                         >
-                          <Download className="h-4 w-4" /> Download
+                          <Download className="h-4 w-4" /> {t("merch.download")}
                         </a>
                         <button
                           onClick={() => void saveToStore(m)}
@@ -389,7 +391,7 @@ export default function Merch() {
                           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-black hover:brightness-110 transition disabled:opacity-50"
                         >
                           {savedIds.has(m.url) ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                          {savedIds.has(m.url) ? "Saved" : "Save to store"}
+                          {savedIds.has(m.url) ? t("merch.saved") : t("merch.saveToStore")}
                         </button>
                       </div>
                     </div>
@@ -399,7 +401,7 @@ export default function Merch() {
                   onClick={() => { setMockups([]); setBatchMeta(null); setSavedIds(new Set()); }}
                   className="inline-flex items-center gap-2 rounded-2xl border border-white/[0.12] px-6 py-3.5 font-semibold text-white/70 hover:border-white/25 transition"
                 >
-                  <RefreshCw className="h-4 w-4" /> New batch
+                  <RefreshCw className="h-4 w-4" /> {t("merch.newBatch")}
                 </button>
               </div>
             )}
@@ -412,9 +414,8 @@ export default function Merch() {
             <div className="flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/[0.06] px-4 py-3">
               <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <p className="text-sm text-white/70">
-                <span className="font-bold text-white">Dropship model:</span> you design, manufacturers print &amp; ship
-                directly — Bow Down Visuals never touches inventory. Checkout is{" "}
-                <span className="font-bold text-primary">coming soon</span>; listing is free.
+                <span className="font-bold text-white">{t("merch.dropshipTitle")}</span> {t("merch.dropshipDesc")}{" "}
+                <span className="font-bold text-primary">{t("merch.comingSoon")}</span>{t("merch.dropshipEnd")}
               </p>
             </div>
 
@@ -428,20 +429,20 @@ export default function Merch() {
             {storeLoading && (
               <div className="text-center py-10">
                 <Loader2 className="h-6 w-6 text-primary animate-spin mx-auto mb-3" />
-                <p className="text-sm text-white/40">Loading your store…</p>
+                <p className="text-sm text-white/40">{t("merch.loadingStore")}</p>
               </div>
             )}
 
             {!storeLoading && designs.length === 0 && (
               <div className="rounded-2xl border border-dashed border-white/[0.12] px-6 py-12 text-center">
                 <Store className="h-8 w-8 text-white/25 mx-auto mb-3" />
-                <p className="font-bold text-white/70">No designs yet</p>
-                <p className="text-sm text-white/40 mt-1">Generate a batch in the Design Studio, then save your favorites here.</p>
+                <p className="font-bold text-white/70">{t("merch.noDesigns")}</p>
+                <p className="text-sm text-white/40 mt-1">{t("merch.noDesignsDetail")}</p>
                 <button
                   onClick={() => setTab("design")}
                   className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-black hover:brightness-110 transition"
                 >
-                  <Sparkles className="h-4 w-4" /> Start designing
+                  <Sparkles className="h-4 w-4" /> {t("merch.startDesigning")}
                 </button>
               </div>
             )}
@@ -475,7 +476,7 @@ export default function Merch() {
                         <input
                           value={priceInput}
                           onChange={(e) => setPriceEdits((p) => ({ ...p, [d.id]: e.target.value }))}
-                          placeholder="29.99"
+                          placeholder={t("merch.pricePlaceholder")}
                           inputMode="decimal"
                           className="w-20 bg-transparent text-sm font-bold text-white placeholder:text-white/25 outline-none"
                         />
@@ -485,27 +486,27 @@ export default function Merch() {
                         disabled={!validPrice}
                         className="rounded-xl bg-white/[0.06] px-4 py-2 text-sm font-bold text-white hover:bg-white/[0.1] transition disabled:opacity-40"
                       >
-                        Set price
+                        {t("merch.setPrice")}
                       </button>
                       {d.status === "draft" ? (
                         <button
                           onClick={() => void updateDesign(d.id, { status: "listed" })}
                           className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-black hover:brightness-110 transition"
                         >
-                          List for sale
+                          {t("merch.listForSale")}
                         </button>
                       ) : (
                         <button
                           onClick={() => void updateDesign(d.id, { status: "draft" })}
                           className="rounded-xl border border-white/[0.12] px-4 py-2 text-sm font-semibold text-white/70 hover:border-white/25 transition"
                         >
-                          Unlist
+                          {t("merch.unlist")}
                         </button>
                       )}
                       <button
                         onClick={() => void deleteDesign(d.id)}
                         className="rounded-xl p-2 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition"
-                        aria-label="Delete design"
+                        aria-label={t("merch.deleteDesign")}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -513,14 +514,14 @@ export default function Merch() {
 
                     {/* Margin readout */}
                     <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                      <span className="text-white/40">Base cost <span className="text-white/70 font-semibold">{fmt(d.base_cost_cents)}</span></span>
+                      <span className="text-white/40">{t("merch.baseCost")} <span className="text-white/70 font-semibold">{fmt(d.base_cost_cents)}</span></span>
                       {profit != null && (
                         <>
-                          <span className="text-white/40">Platform fee (future) <span className="text-white/70 font-semibold">{fmt(commission)}</span></span>
+                          <span className="text-white/40">{t("merch.platformFee")} <span className="text-white/70 font-semibold">{fmt(commission)}</span></span>
                           <span className={`font-bold ${profit >= 0 ? "text-green-300" : "text-red-300"}`}>
-                            Your profit {fmt(profit)}{" "}
+                            {t("merch.yourProfit")} {fmt(profit)}{" "}
                             <span className="font-normal opacity-70">
-                              ({priceCents > 0 ? Math.round((profit / priceCents) * 100) : 0}% margin)
+                              ({t("merch.marginPct", { pct: priceCents > 0 ? Math.round((profit / priceCents) * 100) : 0 })})
                             </span>
                           </span>
                         </>
@@ -532,7 +533,7 @@ export default function Merch() {
                         onClick={() => void orderIntent(d.id)}
                         className="mt-3 inline-flex items-center gap-2 rounded-xl border border-primary/40 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10 transition"
                       >
-                        <ShoppingBag className="h-4 w-4" /> Preview checkout
+                        <ShoppingBag className="h-4 w-4" /> {t("merch.previewCheckout")}
                       </button>
                     )}
                   </div>
@@ -542,8 +543,7 @@ export default function Merch() {
 
             {designs.length > 0 && (
               <p className="flex items-center gap-2 text-xs text-white/35">
-                <Pencil className="h-3.5 w-3.5" /> Prices and listing are free to change anytime. The 15% platform
-                fee only applies once checkout goes live.
+                <Pencil className="h-3.5 w-3.5" /> {t("merch.priceNote")}
               </p>
             )}
           </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,7 @@ function formatDate(iso: string) {
 }
 
 function CopyBtn({ text }: { text: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -77,6 +79,7 @@ interface AttachModalProps {
 }
 
 function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -118,7 +121,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
           }
         }
       } catch {
-        toast({ title: "Could not load projects", variant: "destructive" });
+        toast({ title: t("myClips.errorLoadProjects"), variant: "destructive" });
       } finally {
         setLoadingProjects(false);
       }
@@ -150,19 +153,19 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
       if (!res.ok || !json.success) {
         const errMsg = json.error ?? `Server error ${res.status}`;
         setAttachError(errMsg);
-        toast({ title: "Could not attach clip", description: errMsg, variant: "destructive" });
+        toast({ title: t("myClips.errorAttach"), description: errMsg, variant: "destructive" });
         return;
       }
       setAttachedInfo({ section: json.scene?.section ?? null, index: json.scene?.index ?? 0 });
       onSuccess(clip.id);
       toast({
-        title: "Clip attached — Clip Ready!",
-        description: `Attached to Scene ${json.scene?.index ?? ""}${json.scene?.section ? ` (${json.scene.section})` : ""}. Open the Video Editor to see it.`,
+        title: t("myClips.clipAttached"),
+        description: t("myClips.attachedDesc", { index: json.scene?.index ?? "", section: json.scene?.section ? ` (${json.scene.section})` : "" }),
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Unknown error";
       setAttachError(errMsg);
-      toast({ title: "Attach failed", description: errMsg, variant: "destructive" });
+      toast({ title: t("myClips.errorAttachFailed"), description: errMsg, variant: "destructive" });
     } finally {
       setAttaching(false);
     }
@@ -314,7 +317,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
                             {hasClip && (
                               <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-full px-1.5 py-0.5">
-                                Has clip
+                                {t("myClips.hasClip")}
                               </span>
                             )}
                             {selectedScene?.id === scene.id && <Check className="h-3.5 w-3.5 text-primary" />}
@@ -344,7 +347,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               onClick={onClose}
               className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
             >
-              Cancel
+              {t("myClips.cancel")}
             </button>
             <button
               onClick={handleAttach}
@@ -370,7 +373,7 @@ function AttachModal({ clip, onClose, getAccessToken, onSuccess }: AttachModalPr
               onClick={onClose}
               className="py-2.5 px-4 rounded-xl text-sm font-bold text-white/40 border border-white/[0.07] bg-white/[0.02] hover:text-white/70 transition-colors"
             >
-              Done
+              {t("myClips.done")}
             </button>
           </div>
         )}
@@ -389,6 +392,7 @@ function ClipCard({
   onDelete: (id: string) => void;
   onAttach: (clip: GeneratedClip) => void;
 }) {
+  const { t } = useTranslation();
   const [showPrompt, setShowPrompt] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -418,7 +422,7 @@ function ClipCard({
           </div>
           <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-400/10 border border-green-400/20 rounded-full px-2 py-0.5 shrink-0">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-            Ready
+            {t("myClips.ready")}
           </span>
         </div>
 
@@ -446,7 +450,7 @@ function ClipCard({
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-primary border border-primary/25 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-colors"
         >
           <Link2 className="h-3.5 w-3.5" />
-          Attach to Project Scene
+          {t("myClips.attachToScene")}
         </button>
 
         {/* Publish to showcase (opt-in) */}
@@ -490,7 +494,8 @@ function ClipCard({
 
 /* ─── Page ─────────────────────────────────────────────────────────────────── */
 export default function MyClips() {
-  usePageTitle("My Clips", "Your generated promo clips library.");
+  const { t } = useTranslation();
+  usePageTitle(t("myClips.pageTitle"), t("myClips.pageDescription"));
   const { getAccessToken } = useAuth();
   const { toast } = useToast();
 
@@ -527,9 +532,9 @@ export default function MyClips() {
         headers: { Authorization: `Bearer ${token ?? ""}` },
       });
       setClips((prev) => prev.filter((c) => c.id !== id));
-      toast({ title: "Clip deleted" });
+      toast({ title: t("myClips.clipDeleted") });
     } catch {
-      toast({ title: "Delete failed", variant: "destructive" });
+      toast({ title: t("myClips.errorDelete"), variant: "destructive" });
     }
   }
 
@@ -555,7 +560,7 @@ export default function MyClips() {
         {/* Header */}
         <Link href="/my-projects" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to My Projects
+          {t("myClips.backToProjects")}
         </Link>
 
         <div className="mb-8 flex items-center justify-between gap-4 flex-wrap">
@@ -611,7 +616,7 @@ export default function MyClips() {
             </div>
             <h2 className="text-lg font-bold text-white/60 mb-2">No clips yet</h2>
             <p className="text-sm text-white/30 mb-6 max-w-sm mx-auto">
-              Generated Runway clips auto-save here. Generate your first clip from the Scene Studio.
+              {t("myClips.noClipsHint")}
             </p>
             <Link href="/make-video">
               <Button className="gold-glow font-bold gap-2">
