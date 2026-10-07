@@ -1,3 +1,5 @@
+# Builds a signed release APK for sideloading. Triggered on pushes to main
+# touching the frontend or this workflow, or manually via workflow_dispatch.
 name: Build Android APK
 
 on:
