@@ -14,6 +14,7 @@ import type { SongStructure } from "@/lib/song-structure";
 import { SongSectionAnalysis } from "@/components/SongSectionAnalysis";
 import { MusicVideoTimeline } from "@/components/MusicVideoTimeline";
 import { OpenVideoEditorButton } from "@/components/OpenVideoEditorButton";
+import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareForReview";
 import type { SceneData } from "@/lib/scene-parser";
 import { deriveProjectContext } from "@/lib/prompt-improve";
 import { usePageTitle } from "@/hooks/use-page-title";
@@ -267,6 +268,24 @@ function ResultModal({
                 <SongSectionAnalysis analysis={localSongStructure} />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Client review (CapCut parity) — share the exported video for timestamped feedback */}
+        {existingExport?.final_video_url && (
+          <div className="px-6 pb-4 space-y-2">
+            <ShareForReviewButton
+              videoUrl={existingExport.final_video_url}
+              title={project.title}
+              sourceType="project_export"
+              sourceId={project.id}
+            />
+            <ReviewFeedbackBadge
+              videoUrl={existingExport.final_video_url}
+              sourceType="project_export"
+              sourceId={project.id}
+              projectId={project.id}
+            />
           </div>
         )}
 

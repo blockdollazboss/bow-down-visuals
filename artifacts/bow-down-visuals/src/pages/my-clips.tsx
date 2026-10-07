@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { PublishToShowcase } from "@/components/PublishToShowcase";
+import { ShareForReviewButton, ReviewFeedbackBadge } from "@/components/ShareForReview";
 
 interface GeneratedClip {
   id: string;
@@ -796,8 +797,40 @@ function ClipCard({
   onSeoScore: (clip: GeneratedClip) => void;
 }) {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const { confirmedFetch } = useConfirmedApi();
   const [showPrompt, setShowPrompt] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  async function handleExtractAudio() {
+    setExtracting(true);
+    try {
+      const res = await confirmedFetch("/api/extract-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: clip.video_url, format: "mp3" }),
+        overrideCost: 50,
+        overrideFeature: t("myClips.extractAudio"),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        throw new Error(data.error ?? t("myClips.extractAudioFailed"));
+      }
+      setAudioUrl(data.url);
+      toast({ title: t("myClips.extractAudioDone") });
+    } catch (err) {
+      toast({
+        title: t("myClips.extractAudioFailed"),
+        description:
+          err instanceof Error ? err.message : t("myClips.extractAudioRefunded"),
+      });
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] overflow-hidden">
@@ -865,12 +898,56 @@ function ClipCard({
           SEO Score <span className="text-white/30 font-normal">· 75</span>
         </button>
 
+        {/* Extract audio — pull the MP3 out of this clip */}
+        {audioUrl ? (
+          <a
+            href={audioUrl}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-green-400 border border-green-400/25 bg-green-400/5 hover:bg-green-400/10 hover:border-green-400/40 transition-colors"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {t("myClips.downloadMp3")}
+          </a>
+        ) : (
+          <button
+            onClick={handleExtractAudio}
+            disabled={extracting}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-sky-300 border border-sky-400/25 bg-sky-400/5 hover:bg-sky-400/10 hover:border-sky-400/40 transition-colors disabled:opacity-40"
+          >
+            {extracting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Film className="h-3.5 w-3.5" />
+            )}
+            {extracting ? t("myClips.extracting") : t("myClips.extractAudio")}{" "}
+            <span className="text-white/30 font-normal">· {t("myClips.extractAudioCost")}</span>
+          </button>
+        )}
+
         {/* Publish to showcase (opt-in) */}
         <PublishToShowcase
           mediaType="video"
           mediaUrl={clip.video_url}
           thumbnailUrl={clip.thumbnail_url}
           defaultTitle={clip.title || "My Runway Clip"}
+        />
+
+        {/* Client review link (CapCut parity) — free shareable feedback page */}
+        <ShareForReviewButton
+          videoUrl={clip.video_url}
+          title={clip.title || "My Runway Clip"}
+          sourceType="clip"
+          sourceId={clip.id}
+        />
+
+        {/* Creator feedback inbox — surfaces client comments on this clip */}
+        <ReviewFeedbackBadge
+          videoUrl={clip.video_url}
+          sourceType="clip"
+          sourceId={clip.id}
+          projectId={clip.project_id}
         />
 
         {/* Actions */}

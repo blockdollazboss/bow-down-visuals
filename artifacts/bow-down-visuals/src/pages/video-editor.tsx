@@ -61,6 +61,7 @@ import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
 import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
+import { AiCaptionSuite } from "@/components/editor/sections/AiCaptionSuite";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
 import { MusicStudio } from "@/components/editor/music/MusicStudio";
@@ -354,6 +355,36 @@ export default function VideoEditor() {
   const timelinePlayerRef = useRef<TimelinePlayerHandle>(null);
   /** Single shared video element driven imperatively by the effect below */
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  /* ── Deep-link initial seek (?t=seconds) ────────────────────────────────────
+   * From client review comments: /video-editor?project=<id>&t=42 opens the
+   * editor with the timeline parked at the reviewer's timestamp. Seeks once,
+   * after the project has loaded and the player handle is mounted. */
+  const initialSeekDone = useRef(false);
+  useEffect(() => {
+    if (initialSeekDone.current || loading || !project) return;
+    const tParam = new URLSearchParams(search).get("t");
+    const target = tParam != null ? Number(tParam) : NaN;
+    if (!Number.isFinite(target) || target <= 0) {
+      initialSeekDone.current = true;
+      return;
+    }
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      const player = timelinePlayerRef.current;
+      if (player) {
+        try { player.seekTo(Math.max(0, target)); } catch { /* player not ready */ }
+        initialSeekDone.current = true;
+        clearInterval(timer);
+      } else if (attempts > 40) {
+        initialSeekDone.current = true;
+        clearInterval(timer);
+      }
+    }, 250);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot deep link
+  }, [loading, project, search]);
 
   /* ── Load project ── */
   useEffect(() => {
@@ -1266,7 +1297,39 @@ export default function VideoEditor() {
                   )}
 
                   {tab === "captions" && (
-                    <CaptionsSection
+                    <>
+                      {/* ── AI Caption Suite (Wave 5): the single user-facing
+                          concept for captions — Generate → Style → Translate.
+                          Orchestrates /api/auto-captions, /api/caption-styler,
+                          /api/style-subtitles, /api/translate-captions. ── */}
+                      <AiCaptionSuite
+                        getAccessToken={getAccessToken}
+                        timelineVideos={scenes
+                          .filter((s) => s.demoClipUrl?.startsWith("http"))
+                          .map((s) => ({
+                            id: s.id,
+                            label: `Scene ${s.sceneNumber}${s.section ? ` — ${s.section}` : ""}`,
+                            url: s.demoClipUrl as string,
+                          }))}
+                        onPushToTimeline={(newLines) => {
+                          setSettings((prev) => ({
+                            ...prev,
+                            captions: {
+                              ...prev.captions,
+                              lines: [
+                                ...prev.captions.lines,
+                                ...newLines.map((l, i) => ({
+                                  id: `suite-${Date.now()}-${i}`,
+                                  startSec: l.startSec,
+                                  endSec: l.endSec,
+                                  text: l.text,
+                                })),
+                              ],
+                            },
+                          }));
+                        }}
+                      />
+                      <CaptionsSection
                       settings={settings}
                       setSettings={setSettings}
                       lyrics={lyricsForCaptions ?? undefined}
@@ -1278,6 +1341,7 @@ export default function VideoEditor() {
                       getAccessToken={getAccessToken}
                       visiblePresetIds={template.captionPresets}
                     />
+                    </>
                   )}
 
                   {tab === "effects" && (
@@ -1347,6 +1411,7 @@ export default function VideoEditor() {
                       masterCurrentTimeSec={previewEngineState?.currentTime ?? 0}
                       projectDurationSec={previewEngineState?.audioDuration ?? 0}
                       isSimple={isSimple}
+                      topic={songTitle || undefined}
                     />
                   )}
 
@@ -1667,6 +1732,11 @@ export default function VideoEditor() {
           selectedIdx={selectedIdx}
           setSelectedIdx={setSelectedIdx}
           onHeightChange={setDockHeight}
+          onReplaceClipVideo={(sceneId, url) =>
+            setScenes((prev) =>
+              prev.map((s) => (s.id === sceneId ? { ...s, demoClipUrl: url } : s)),
+            )
+          }
         />
       )}
     </div>

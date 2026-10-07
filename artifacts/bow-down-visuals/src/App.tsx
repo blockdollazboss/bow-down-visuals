@@ -53,6 +53,7 @@ import HookTemplates from "@/pages/templates/hooks";
 import CaptionPacks from "@/pages/templates/captions";
 import Showcase from "@/pages/showcase/index";
 import ShowcaseItemPage from "@/pages/showcase/item";
+import PlanPublic from "@/pages/plan-public";
 
 const Dashboard     = lazyWithRetry(() => import("@/pages/dashboard"));
 const ChooseArtist  = lazyWithRetry(() => import("@/pages/choose-artist"));
@@ -127,6 +128,7 @@ const BrandingShop = lazyWithRetry(() => import("@/pages/branding-shop"));
 const NfcCards = lazyWithRetry(() => import("@/pages/nfc-cards"));
 const JewelryShop = lazyWithRetry(() => import("@/pages/jewelry-shop"));
 const NfcCardProfile = lazyWithRetry(() => import("@/pages/nfc-card-profile"));
+const ReviewPage = lazyWithRetry(() => import("@/pages/review"));
 const Settings = lazyWithRetry(() => import("@/pages/settings"));
 const ThumbnailMaker = lazyWithRetry(() => import("@/pages/thumbnail-maker"));
 const Merch = lazyWithRetry(() => import("@/pages/merch"));
@@ -356,8 +358,9 @@ function AppShell() {
     } catch { /* noop */ }
   }, []);
   /* The video editor is a full-viewport studio surface — the marketing site
-   * footer doesn't belong under it. */
-  const hideFooter = location.startsWith("/video-editor");
+   * footer doesn't belong under it. Same for the client review page: it's a
+   * focused, premium client surface, not a marketing page. */
+  const hideFooter = location.startsWith("/video-editor") || location.startsWith("/review");
   /* Marketing pages (outside the sidebar layout) where Thy Cheat Code coaches
    * in-flow. Auth/legal/fan pages are excluded by the host itself. */
   const marketingCoachRoute = ["/pricing", "/shows", "/brand-deals", "/coach", "/academy"]
@@ -394,6 +397,7 @@ function AppShell() {
           <Route path="/templates/captions"><CaptionPacks /></Route>
           <Route path="/showcase"><Showcase /></Route>
           <Route path="/showcase/:slug"><ShowcaseItemPage /></Route>
+          <Route path="/plan/:slug"><PlanPublic /></Route>
           <Route path="/beta-access"><BetaAccess /></Route>
           <Route path="/contact"><Contact /></Route>
           <Route path="/terms"><Terms /></Route>
@@ -449,6 +453,8 @@ function AppShell() {
           <Route path="/jewelry-shop"><JewelryShop /></Route>
           {/* Public NFC smart-card profile (tap/QR destination) */}
           <Route path="/c/:slug"><NfcCardProfile /></Route>
+          {/* Public client review page (tokenized, no login) — the client's handshake with the product */}
+          <Route path="/review/:token"><ReviewPage /></Route>
 
           {/* Protected app pages — inside the sidebar layout */}
           {/* The video editor keeps its full-viewport studio surface. */}
