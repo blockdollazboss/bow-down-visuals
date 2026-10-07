@@ -13,16 +13,21 @@ import {
 import {
   Loader2, Sparkles, TrendingUp, Users, Eye, ChevronDown, Upload, Link2,
   Target, Crown, BarChart3, Pencil, CheckCircle2, AlertTriangle,
-  ArrowRight, Music2,
+  ArrowRight, Music2, Swords,
 } from "lucide-react";
 
 /* ─── Cross-Platform Analytics Hub ──────────────────────────────────────
    The social dashboard: TikTok, Instagram, YouTube, X in one place.
    (Complements /analytics, which covers site-internal connected-account stats.)
-   Tracking is free — only the AI Growth Plan costs credits (2 via
-   /api/analytics-hub/insights, charge-before-generation + refund on failure
-   handled server-side). All numbers live in localStorage (analytics-hub-v1)
-   and start EMPTY — no fake seeded data, ever. */
+   Tracking is free — only the AI Growth Plan (via /api/analytics-hub/insights)
+   and the Competitor Tracker (via /api/competitor-analysis) cost credits
+   (charge-before-generation + refund on failure handled server-side).
+   All numbers live in localStorage (analytics-hub-v1) and start EMPTY —
+   no fake seeded data, ever.
+
+   Tabs: "dashboard" holds the original hub sections; "competitor" holds the
+   Competitor Tracker panel. NO new page, NO new sidebar item — this file is
+   the only home for competitor analysis. */
 
 type PlatformKey = "tiktok" | "instagram" | "youtube" | "x";
 
@@ -48,6 +53,7 @@ type HubState = Record<PlatformKey, PlatformData>;
 
 const STORAGE_KEY = "analytics-hub-v1";
 const INSIGHT_COST = 2;
+const COMPETITOR_COST = 200;
 const MAX_HISTORY = 24;
 
 const PLATFORM_KEYS: PlatformKey[] = ["tiktok", "instagram", "youtube", "x"];
@@ -107,6 +113,24 @@ interface InsightsResult {
   recommendations?: string[];
   bestPlatform?: string;
   focusArea?: string;
+  creditsUsed?: number;
+  creditsRemaining?: number;
+  error?: string;
+  message?: string;
+}
+
+interface CompetitorResult {
+  competitorName?: string;
+  niche?: string;
+  contentPillars?: { pillar: string; whatTheyPost: string }[];
+  postingCadence?: { assessment: string; estimatedPostsPerWeek: number | null };
+  topFormats?: { format: string; whyItWorks: string }[];
+  strengths?: string[];
+  weaknesses?: string[];
+  opportunities?: { gap: string; howToExploit: string }[];
+  takeaways?: string[];
+  disclaimer?: string;
+  quickActions?: { label: string; href: string; hint: string }[];
   creditsUsed?: number;
   creditsRemaining?: number;
   error?: string;
@@ -176,6 +200,16 @@ export default function AnalyticsHub() {
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  /* ── Competitor Tracker tab state ─────────────────────────────── */
+  const [hubTab, setHubTab] = useState<"dashboard" | "competitor">("dashboard");
+  const [compName, setCompName] = useState("");
+  const [compUrl, setCompUrl] = useState("");
+  const [compNiche, setCompNiche] = useState("");
+  const [compNotes, setCompNotes] = useState("");
+  const [compResult, setCompResult] = useState<CompetitorResult | null>(null);
+  const [compLoading, setCompLoading] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
 
   /* Load persisted data once (client-side; SSR-free). */
   useEffect(() => {
@@ -347,6 +381,58 @@ export default function AnalyticsHub() {
     }
   }
 
+  async function analyzeCompetitor() {
+    if (compLoading || !user) return;
+    if (compName.trim().length < 2 && compUrl.trim().length < 4) {
+      setCompError(t("analyticsHub.competitor.needNameOrUrl"));
+      return;
+    }
+    if (compNiche.trim().length < 2) {
+      setCompError(t("analyticsHub.competitor.needNiche"));
+      return;
+    }
+    setCompLoading(true);
+    setCompError(null);
+    setOutOfCredits(false);
+    try {
+      const token = await getAccessToken();
+      const res = await confirmedFetch("/api/competitor-analysis", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          competitorName: compName.trim(),
+          channelUrl: compUrl.trim(),
+          niche: compNiche.trim(),
+          notes: compNotes.trim(),
+        }),
+      });
+      if (!res) return; // user cancelled the credit confirmation
+      const data = (await res.json().catch(() => ({}))) as CompetitorResult;
+      if (handlePaidFailure(res, data)) return;
+      if (
+        !res.ok ||
+        !Array.isArray(data.takeaways) ||
+        data.takeaways.length !== 3 ||
+        !Array.isArray(data.opportunities) ||
+        data.opportunities.length === 0
+      ) {
+        throw new Error(data.message || data.error || t("analyticsHub.competitor.errorFailed"));
+      }
+      setCompResult(data);
+      refreshProfile();
+      setTimeout(() => {
+        document.getElementById("competitor-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 100);
+    } catch (err) {
+      setCompError(err instanceof Error ? err.message : t("analyticsHub.competitor.errorFailed"));
+    } finally {
+      setCompLoading(false);
+    }
+  }
+
   const barData = PLATFORM_KEYS.map((key) => ({
     name: PLATFORMS[key].label,
     views: hub[key].stats.views30d,
@@ -392,6 +478,41 @@ export default function AnalyticsHub() {
             </a>
           )}
         </div>
+
+        {/* ── HUB TABS: My Dashboard | Competitor Tracker ─────────── */}
+        <div className="relative mt-8 flex justify-center" role="tablist" aria-label="Analytics Hub">
+          <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.03] p-1.5">
+            <button
+              role="tab"
+              aria-selected={hubTab === "dashboard"}
+              onClick={() => setHubTab("dashboard")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "dashboard"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabDashboard")}
+            </button>
+            <button
+              role="tab"
+              aria-selected={hubTab === "competitor"}
+              onClick={() => setHubTab("competitor")}
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition ${
+                hubTab === "competitor"
+                  ? "bg-primary text-black shadow-[0_2px_16px_rgba(212,175,55,0.4)]"
+                  : "text-white/60 hover:text-white"
+              }`}
+            >
+              <Swords className="h-4 w-4" aria-hidden="true" />
+              {t("analyticsHub.tabCompetitor")}
+            </button>
+          </div>
+        </div>
+
+        {hubTab === "dashboard" && (
+        <>
 
         {csvNote && (
           <div
@@ -768,6 +889,305 @@ export default function AnalyticsHub() {
           </Link>{" "}
           {t("analyticsHub.crossLinkSuffix")}
         </p>
+
+        </>
+        )}
+
+        {/* ── COMPETITOR TRACKER ─────────────────────────────────── */}
+        {hubTab === "competitor" && (
+        <div className="relative mt-6 overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-6 md:p-10">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+              <Swords className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-xl font-bold">{t("analyticsHub.competitor.title")}</h2>
+              <p className="text-sm text-white/45">{t("analyticsHub.competitor.subtitle")}</p>
+            </div>
+          </div>
+
+          {/* input form */}
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.nameLabel")}
+              </label>
+              <input
+                type="text"
+                value={compName}
+                onChange={(e) => setCompName(e.target.value)}
+                placeholder={t("analyticsHub.competitor.namePlaceholder")}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.urlLabel")}
+              </label>
+              <input
+                type="text"
+                value={compUrl}
+                onChange={(e) => setCompUrl(e.target.value)}
+                placeholder={t("analyticsHub.competitor.urlPlaceholder")}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.nicheLabel")}
+              </label>
+              <input
+                type="text"
+                value={compNiche}
+                onChange={(e) => setCompNiche(e.target.value)}
+                placeholder={t("analyticsHub.competitor.nichePlaceholder")}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.notesLabel")}
+              </label>
+              <input
+                type="text"
+                value={compNotes}
+                onChange={(e) => setCompNotes(e.target.value)}
+                placeholder={t("analyticsHub.competitor.notesPlaceholder")}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            {user ? (
+              <button
+                onClick={analyzeCompetitor}
+                disabled={compLoading}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-br from-[#f5d67b] via-primary to-[#8a6d1f] px-8 py-4 text-lg font-black text-black shadow-[0_4px_28px_rgba(212,175,55,0.4)] transition hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {compLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Swords className="h-6 w-6" aria-hidden="true" />
+                )}
+                {compLoading ? t("analyticsHub.competitor.analyzing") : t("analyticsHub.competitor.analyze")}
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-2xl border border-primary/50 bg-primary/10 px-8 py-4 text-lg font-bold text-primary transition hover:bg-primary hover:text-black"
+              >
+                <Swords className="h-6 w-6" aria-hidden="true" />
+                {t("analyticsHub.competitor.signIn")}
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            )}
+            <p className="mt-2.5 text-xs text-white/35">
+              {t("analyticsHub.competitor.costNote", { cost: COMPETITOR_COST })}
+            </p>
+            {outOfCredits && <div className="mx-auto mt-4 max-w-md"><OutOfCredits /></div>}
+            {compError && !outOfCredits && (
+              <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {compError}
+              </p>
+            )}
+          </div>
+
+          {/* results */}
+          {compResult && compResult.takeaways && (
+            <div id="competitor-results" className="mt-8">
+              <div className="rounded-2xl border border-white/10 bg-black/60 p-6">
+                <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                  <Swords className="h-3.5 w-3.5" aria-hidden="true" /> {t("analyticsHub.competitor.resultsTitle")}
+                </p>
+                <h3 className="font-display text-2xl font-black text-white">{compResult.competitorName}</h3>
+                {compResult.niche && <p className="mt-1 text-sm text-white/45">{compResult.niche}</p>}
+
+                {/* posting cadence */}
+                {compResult.postingCadence?.assessment && (
+                  <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                      {t("analyticsHub.competitor.cadenceTitle")}
+                      {compResult.postingCadence.estimatedPostsPerWeek !== null &&
+                        compResult.postingCadence.estimatedPostsPerWeek !== undefined && (
+                          <span className="ml-2 text-white/60">
+                            {t("analyticsHub.competitor.postsPerWeek", {
+                              count: compResult.postingCadence.estimatedPostsPerWeek,
+                            })}
+                          </span>
+                        )}
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-white/85">
+                      {compResult.postingCadence.assessment}
+                    </p>
+                  </div>
+                )}
+
+                {/* pillars + formats */}
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {compResult.contentPillars && compResult.contentPillars.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        {t("analyticsHub.competitor.pillarsTitle")}
+                      </p>
+                      <div className="space-y-2">
+                        {compResult.contentPillars.map((p, i) => (
+                          <div key={`pillar-${i}`} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                            <p className="text-sm font-bold text-white">{p.pillar}</p>
+                            <p className="mt-0.5 text-[13px] leading-relaxed text-white/55">{p.whatTheyPost}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {compResult.topFormats && compResult.topFormats.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                        {t("analyticsHub.competitor.formatsTitle")}
+                      </p>
+                      <div className="space-y-2">
+                        {compResult.topFormats.map((f, i) => (
+                          <div key={`format-${i}`} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                            <p className="text-sm font-bold text-white">{f.format}</p>
+                            <p className="mt-0.5 text-[13px] leading-relaxed text-white/55">{f.whyItWorks}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* strengths vs weaknesses */}
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {compResult.strengths && compResult.strengths.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-emerald-400/80">
+                        {t("analyticsHub.competitor.strengthsTitle")}
+                      </p>
+                      <ul className="space-y-1.5">
+                        {compResult.strengths.map((s, i) => (
+                          <li key={`str-${i}`} className="flex items-start gap-2 text-sm leading-relaxed text-white/75">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden="true" />
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {compResult.weaknesses && compResult.weaknesses.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-amber-400/80">
+                        {t("analyticsHub.competitor.weaknessesTitle")}
+                      </p>
+                      <ul className="space-y-1.5">
+                        {compResult.weaknesses.map((w, i) => (
+                          <li key={`weak-${i}`} className="flex items-start gap-2 text-sm leading-relaxed text-white/75">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" aria-hidden="true" />
+                            {w}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* opportunities — the gaps */}
+              {compResult.opportunities && compResult.opportunities.length > 0 && (
+                <>
+                  <p className="mb-3 mt-6 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary/80">
+                    <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                    {t("analyticsHub.competitor.opportunitiesTitle")}
+                  </p>
+                  <div className="grid gap-3">
+                    {compResult.opportunities.map((o, i) => (
+                      <div
+                        key={`opp-${i}`}
+                        className="rounded-2xl border border-primary/30 bg-primary/[0.06] p-4 transition hover:border-primary/60"
+                      >
+                        <p className="text-sm font-bold text-white">{o.gap}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-white/70">{o.howToExploit}</p>
+                        <Link
+                          href="/hooks"
+                          className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                        >
+                          {t("analyticsHub.competitor.exploit")}
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* takeaways */}
+              <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.takeawaysTitle")}
+              </p>
+              <div className="grid gap-3">
+                {compResult.takeaways.map((take, i) => (
+                  <div
+                    key={`take-${i}`}
+                    className="flex items-start gap-3.5 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/40"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-black text-primary">
+                      {i + 1}
+                    </span>
+                    <p className="pt-1 text-[15px] leading-relaxed text-white/90">{take}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* handoff chain → next steps */}
+              <p className="mb-3 mt-6 text-[11px] font-bold uppercase tracking-widest text-white/40">
+                {t("analyticsHub.competitor.nextStepsTitle")}
+              </p>
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {[
+                  { label: t("analyticsHub.competitor.actionIdeas"), hint: t("analyticsHub.competitor.actionIdeasHint"), href: "/hooks" },
+                  { label: t("analyticsHub.competitor.actionCaptions"), hint: t("analyticsHub.competitor.actionCaptionsHint"), href: "/hooks?tab=captions" },
+                  { label: t("analyticsHub.competitor.actionPreflight"), hint: t("analyticsHub.competitor.actionPreflightHint"), href: "/hooks?tab=preflight" },
+                ].map((a) => (
+                  <Link
+                    key={a.href + a.label}
+                    href={a.href}
+                    className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-primary/50"
+                  >
+                    <p className="flex items-center justify-between text-sm font-bold text-white">
+                      {a.label}
+                      <ArrowRight className="h-4 w-4 text-primary transition group-hover:translate-x-0.5" aria-hidden="true" />
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">{a.hint}</p>
+                  </Link>
+                ))}
+              </div>
+
+              {compResult.disclaimer && (
+                <p className="mt-6 text-center text-[11px] leading-relaxed text-white/30">
+                  {compResult.disclaimer}
+                </p>
+              )}
+
+              {user && (
+                <div className="mt-6 text-center">
+                  <button
+                    onClick={analyzeCompetitor}
+                    disabled={compLoading}
+                    className="inline-flex items-center gap-2 rounded-full border border-primary/40 px-5 py-2.5 text-sm font-bold text-primary transition hover:bg-primary hover:text-black disabled:opacity-50"
+                  >
+                    {compLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Swords className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {t("analyticsHub.competitor.rerun", { cost: COMPETITOR_COST })}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        )}
       </main>
 
 
