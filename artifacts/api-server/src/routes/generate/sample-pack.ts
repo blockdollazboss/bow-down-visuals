@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { execFile } from "child_process";
 import { promises as fs } from "fs";
 import { tmpdir } from "os";
@@ -271,19 +272,25 @@ router.post("/sample-pack/generate", requireAuth, async (req, res) => {
    POST /api/sample-pack/zip — free. Takes sample URLs, returns a ZIP.
    Stateless: the client already holds the URLs from the generate response.
 ───────────────────────────────────────────────────────────────────────────── */
+const samplePackZipSchema = z.object({
+  urls: z.array(z.string().startsWith("https://")).min(1).max(50),
+  packName: z.string().optional(),
+});
+
 router.post("/sample-pack/zip", requireAuth, async (req, res) => {
-  const { urls, packName } = (req.body ?? {}) as { urls?: unknown; packName?: unknown };
-  if (!Array.isArray(urls) || urls.length === 0 || urls.length > 50) {
-    res.status(400).json({ error: "Provide 1–50 sample URLs.", code: "bad_request" });
+  const parsed = samplePackZipSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      code: "bad_request",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
-  if (!urls.every((u) => typeof u === "string" && u.startsWith("https://"))) {
-    res.status(400).json({ error: "All URLs must be https strings.", code: "bad_request" });
-    return;
-  }
+  const { urls, packName } = parsed.data;
   // SSRF guard: only our own Supabase storage hosts.
   const supabaseHost = process.env["SUPABASE_URL"] ? new URL(process.env["SUPABASE_URL"]).host : "";
-  for (const u of urls as string[]) {
+  for (const u of urls) {
     try {
       const host = new URL(u).host;
       if (supabaseHost && host !== supabaseHost) {
@@ -302,7 +309,7 @@ router.post("/sample-pack/zip", requireAuth, async (req, res) => {
     await fs.mkdir(workDir, { recursive: true });
     // Download each sample.
     let idx = 0;
-    for (const u of urls as string[]) {
+    for (const u of urls) {
       idx += 1;
       const dl = await fetch(u, { signal: AbortSignal.timeout(60_000) });
       if (!dl.ok) throw new Error(`Download failed for sample ${idx} (${dl.status})`);
@@ -325,7 +332,7 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
       maxBuffer: 4 * 1024 * 1024,
     });
     const zipBuf = await fs.readFile(zipPath);
-    const safePack = typeof packName === "string" && packName.length > 0
+    const safePack = packName && packName.length > 0
       ? packName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 40)
       : "sample-pack";
     res.setHeader("Content-Type", "application/zip");

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { randomUUID } from "crypto";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
@@ -290,6 +291,15 @@ router.get("/stream-pack/catalog", (_req, res) => {
   });
 });
 
+/** Request-body validation for POST /stream-pack/generate.
+ * Shape-only: presence/domain rules (channelName required, known asset)
+ * stay in resolveStreamPackPlan so its 400 messages are unchanged. */
+const streamPackBodySchema = z.object({
+  channelName: z.string().optional(),
+  theme: z.string().optional(),
+  asset: z.string().optional(),
+});
+
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/stream-pack/generate
    Generates ONE asset (the frontend loops for a full bundle — one click,
@@ -301,9 +311,20 @@ router.get("/stream-pack/catalog", (_req, res) => {
    Failures charge nothing.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/stream-pack/generate", requireAuth, async (req, res) => {
+  /* Zod shape check first; resolveStreamPackPlan still owns the domain
+     rules (channelName required, known asset key) and its 400 messages. */
+  const parsed = streamPackBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
   let plan: StreamPackPlan;
   try {
-    plan = resolveStreamPackPlan(req.body as { channelName?: string; theme?: string; asset?: string });
+    plan = resolveStreamPackPlan(parsed.data);
   } catch (err: unknown) {
     res.status(400).json({ error: err instanceof Error ? err.message : "Invalid request" });
     return;

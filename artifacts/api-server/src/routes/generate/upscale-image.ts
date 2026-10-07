@@ -6,6 +6,7 @@ import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -35,6 +36,10 @@ const upload = multer({
       cb(new Error("Only image files are allowed"));
     }
   },
+});
+
+const upscaleImageSchema = z.object({
+  scale: z.enum(["2x", "4x"]),
 });
 
 /* ── Pure, testable helpers ─────────────────────────────────────────── */
@@ -76,11 +81,15 @@ export function buildImageFfmpegArgs(
  * refunded automatically (charged-but-failed paths hit the catch below).
  */
 router.post("/api/upscale/image", requireAuth, upload.single("image"), async (req, res) => {
-  const scale = (req.body?.scale as string) ?? "";
-  if (scale !== "2x" && scale !== "4x") {
-    res.status(400).json({ error: "INVALID_SCALE", message: "Scale must be '2x' or '4x'." });
+  const parsed = upscaleImageSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
+  const { scale } = parsed.data;
   if (!req.file) {
     res.status(400).json({ error: "No image file provided" });
     return;
@@ -117,7 +126,7 @@ router.post("/api/upscale/image", requireAuth, upload.single("image"), async (re
     throw err;
   }
 
-  const factor = SCALE_FACTORS[scale as ImageUpscaleFactor];
+  const factor = SCALE_FACTORS[scale];
   const workDir = await fs.mkdtemp(join(tmpdir(), "upscale-image-"));
   const jobId = randomUUID();
   const ext = (req.file.originalname.split(".").pop() ?? "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";

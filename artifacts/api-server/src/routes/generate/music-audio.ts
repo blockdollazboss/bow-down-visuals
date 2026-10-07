@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { recordGenerationHistory, markGenerationHistoryCharged } from "../../lib/payment-record";
 import { chargeCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -40,23 +41,51 @@ function clampLengthMs(raw: unknown): number {
   return Math.min(MAX_LENGTH_MS, Math.max(MIN_LENGTH_MS, ms));
 }
 
+/** Request-body validation for POST /generate-music-audio.
+ * `prompt` stays optional here because the route answers a missing prompt
+ * with its own 400 (`code: "missing_prompt"`) — kept unchanged below. */
+const generateMusicAudioSchema = z.object({
+  prompt: z.string().optional(),
+  lengthSeconds: z.number().optional(),
+  artistName: z.string().optional(),
+  songTitle: z.string().optional(),
+  artistVaultId: z.string().optional(),
+  /** Custom lyrics (Suno-style custom mode) — embedded into the music prompt. */
+  lyrics: z.string().optional(),
+  /** Force instrumental, no vocals. */
+  instrumental: z.boolean().optional(),
+  /** "male" | "female" | undefined — appended to the prompt as vocal direction. */
+  vocalGender: z.string().optional(),
+  /** 1 or 2 — generate two variants (Suno-style A/B). Costs 2x credits. */
+  variants: z.number().optional(),
+});
+
+/** Request-body validation for POST /generate-music-audio/extend.
+ * `originalAudioUrl`/`extendPrompt` stay optional here because the route
+ * answers missing values with its own 400 — kept unchanged below. */
+const extendMusicAudioSchema = z.object({
+  originalAudioUrl: z.string().optional(),
+  originalPrompt: z.string().optional(),
+  extendPrompt: z.string().optional(),
+  extendSeconds: z.number().optional(),
+  lyrics: z.string().optional(),
+  instrumental: z.boolean().optional(),
+  vocalGender: z.string().optional(),
+  songTitle: z.string().optional(),
+  artistName: z.string().optional(),
+});
+
 router.post("/generate-music-audio", requireAuth, async (req, res) => {
+  const parsed = generateMusicAudioSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const { prompt, lengthSeconds, artistName, songTitle, artistVaultId,
-    lyrics, instrumental, vocalGender, variants } = (req.body ?? {}) as {
-    prompt?: string;
-    lengthSeconds?: number;
-    artistName?: string;
-    songTitle?: string;
-    artistVaultId?: string;
-    /** Custom lyrics (Suno-style custom mode) — embedded into the music prompt. */
-    lyrics?: string;
-    /** Force instrumental, no vocals. */
-    instrumental?: boolean;
-    /** "male" | "female" | undefined — appended to the prompt as vocal direction. */
-    vocalGender?: string;
-    /** 1 or 2 — generate two variants (Suno-style A/B). Costs 2x credits. */
-    variants?: number;
-  };
+    lyrics, instrumental, vocalGender, variants } = parsed.data;
 
   if (!prompt || !prompt.trim()) {
     res.status(400).json({ error: "A music prompt is required.", code: "missing_prompt" });
@@ -288,18 +317,16 @@ async function crossfadeJoin(first: Buffer, second: Buffer): Promise<Buffer> {
 }
 
 router.post("/generate-music-audio/extend", requireAuth, async (req, res) => {
+  const parsed = extendMusicAudioSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const { originalAudioUrl, originalPrompt, extendPrompt, extendSeconds,
-    lyrics, instrumental, vocalGender, songTitle, artistName } = (req.body ?? {}) as {
-    originalAudioUrl?: string;
-    originalPrompt?: string;
-    extendPrompt?: string;
-    extendSeconds?: number;
-    lyrics?: string;
-    instrumental?: boolean;
-    vocalGender?: string;
-    songTitle?: string;
-    artistName?: string;
-  };
+    lyrics, instrumental, vocalGender, songTitle, artistName } = parsed.data;
 
   if (!originalAudioUrl?.trim() || !extendPrompt?.trim()) {
     res.status(400).json({ error: "originalAudioUrl and extendPrompt are required." });

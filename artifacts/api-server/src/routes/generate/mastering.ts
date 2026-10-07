@@ -6,6 +6,7 @@ import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -56,6 +57,12 @@ const upload = multer({
 });
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
+
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const masteringSchema = z.object({
+  preset: z.string().optional(),
+});
 
 export type MasteringJobStatus = "queued" | "processing" | "done" | "failed";
 
@@ -214,7 +221,8 @@ export async function runMasteringJob(job: MasteringJob, inputBuffer: Buffer, or
  * refunded automatically.
  */
 router.post("/mastering", requireAuth, upload.single("audio"), async (req: Request, res: Response) => {
-  const preset = resolveMasteringPreset(req.body?.preset);
+  const parsed = masteringSchema.safeParse(req.body ?? {});
+  const preset = parsed.success ? resolveMasteringPreset(parsed.data.preset) : null;
   if (!preset) {
     res.status(400).json({
       error: "INVALID_PRESET",

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
@@ -36,15 +37,15 @@ interface VaultInput {
 }
 
 interface BibleInput {
-  concept: string;
-  visualStyle: string;
-  colorPalette: string;
-  locations: string;
-  wardrobe: string;
-  propsNeeded: string;
-  cast: string;
-  mood: string;
-  doNotChange: string;
+  concept?: string;
+  visualStyle?: string;
+  colorPalette?: string;
+  locations?: string;
+  wardrobe?: string;
+  propsNeeded?: string;
+  cast?: string;
+  mood?: string;
+  doNotChange?: string;
 }
 
 function buildVaultContext(vault: VaultInput | null | undefined): string {
@@ -65,7 +66,7 @@ function buildVaultContext(vault: VaultInput | null | undefined): string {
 
 function buildBibleContext(bible: BibleInput | null | undefined): string {
   if (!bible) return "";
-  const has = (v: string) => v && v.trim().length > 0;
+  const has = (v: string | null | undefined) => !!v && v.trim().length > 0;
   const lines: string[] = ["\nPRODUCTION BIBLE (locked creative source of truth — every asset must match):"];
   if (has(bible.concept)) lines.push(`- Concept: ${bible.concept}`);
   if (has(bible.visualStyle)) lines.push(`- Visual style: ${bible.visualStyle}`);
@@ -87,12 +88,90 @@ function outOfCredits(res: any, required: number) {
   });
 }
 
+/* ── Request-body schemas ────────────────────────────────────────────── */
+/** .passthrough(): clients also send vaultId/id alongside the vault fields. */
+const vaultInputSchema = z.object({
+  artistType: z.string().nullish(),
+  artistDescription: z.string().nullish(),
+  visualStyle: z.string().nullish(),
+  hair: z.string().nullish(),
+  tattoos: z.string().nullish(),
+  jewelry: z.string().nullish(),
+  clothingStyle: z.string().nullish(),
+  brandColors: z.string().nullish(),
+  doNotChangeRules: z.string().nullish(),
+  consistencyPrompt: z.string().nullish(),
+  referenceImageUrl: z.string().nullish(),
+}).passthrough();
+
+const bibleInputSchema = z.object({
+  concept: z.string().optional(),
+  visualStyle: z.string().optional(),
+  colorPalette: z.string().optional(),
+  locations: z.string().optional(),
+  wardrobe: z.string().optional(),
+  propsNeeded: z.string().optional(),
+  cast: z.string().optional(),
+  mood: z.string().optional(),
+  doNotChange: z.string().optional(),
+}).passthrough();
+
+const bibleRouteSchema = z.object({
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  artistName: z.string().optional(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const storyboardRouteSchema = z.object({
+  songTitle: z.string().optional(),
+  bible: bibleInputSchema.nullish(),
+  shotCount: z.number().optional(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const preProductionImageSchema = z.object({
+  kind: z.enum(["startframe", "endframe", "asset"]),
+  category: z.string().optional(),
+  prompt: z.string().optional(),
+  shotDescription: z.string().optional(),
+  cameraAngle: z.string().optional(),
+  bible: bibleInputSchema.nullish(),
+  artistVault: vaultInputSchema.nullish(),
+});
+
+const preProductionPackSchema = z.object({
+  songTitle: z.string().optional(),
+  genre: z.string().optional(),
+  mood: z.string().optional(),
+  artistName: z.string().optional(),
+  artistVault: vaultInputSchema.nullish(),
+  artistVaultId: z.string().nullish(),
+  projectId: z.string().nullish(),
+  shotCount: z.number().optional(),
+  propCount: z.number().optional(),
+  ratio: z.string().default("720:1280"),
+});
+
+const packFinalizeSchema = z.object({
+  props: z.array(z.any()).optional(),
+  assets: z.array(z.any()).optional(),
+  propNameRefs: z.record(z.string(), z.array(z.string())).optional(),
+});
+
+function invalidBody(res: any, error: z.ZodError): void {
+  res.status(400).json({
+    error: "Invalid request.",
+    details: error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+  });
+}
+
 /* ── Generate a production bible ─────────────────────────────────────────── */
 router.post("/pre-production/bible", requireAuth, async (req, res) => {
-  const { songTitle, genre, mood, artistName, artistVault } = req.body as {
-    songTitle?: string; genre?: string; mood?: string; artistName?: string;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = bibleRouteSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { songTitle, genre, mood, artistName, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
@@ -149,10 +228,9 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly these keys:
 
 /* ── Generate a storyboard shot list from the bible ──────────────────────── */
 router.post("/pre-production/storyboard", requireAuth, async (req, res) => {
-  const { songTitle, bible, shotCount, artistVault } = req.body as {
-    songTitle?: string; bible?: BibleInput | null; shotCount?: number;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = storyboardRouteSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { songTitle, bible, shotCount, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < TEXT_CREDIT_COST) { outOfCredits(res, TEXT_CREDIT_COST); return; }
@@ -208,15 +286,9 @@ async function fetchReferenceImageBuffer(url: string): Promise<Buffer | null> {
 }
 
 router.post("/pre-production/image", requireAuth, async (req, res) => {
-  const { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault } = req.body as {
-    kind: "startframe" | "endframe" | "asset";
-    category?: string;
-    prompt?: string;
-    shotDescription?: string;
-    cameraAngle?: string;
-    bible?: BibleInput | null;
-    artistVault?: VaultInput | null;
-  };
+  const bodyParse = preProductionImageSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { kind, category, prompt, shotDescription, cameraAngle, bible, artistVault } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < IMAGE_CREDIT_COST) { outOfCredits(res, IMAGE_CREDIT_COST); return; }
@@ -333,10 +405,12 @@ async function generateStoryboardJson(prompt: string): Promise<PackShot[]> {
 }
 
 router.post("/pre-production/pack", requireAuth, async (req, res) => {
+  const bodyParse = preProductionPackSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
   const {
     songTitle, genre, mood, artistName, artistVault, artistVaultId,
     projectId, shotCount, propCount, ratio,
-  } = req.body as PackRequestBody;
+  } = bodyParse.data;
 
   const currentCredits = req.userCredits ?? 0;
   if (currentCredits < PACK_TEXT_CREDIT_COST) { outOfCredits(res, PACK_TEXT_CREDIT_COST); return; }
@@ -471,11 +545,9 @@ Return: { "props": [...], "ingredients": [...] }` }],
 /* ── Finalize: attach prop/asset images and lock everything in ───────────── */
 router.post("/pre-production/pack/:id/finalize", requireAuth, async (req, res) => {
   const id = String(req.params["id"]);
-  const { props, assets, propNameRefs } = req.body as {
-    props?: PackProp[];
-    assets?: PackAsset[];
-    propNameRefs?: Record<number, string[]>;
-  };
+  const bodyParse = packFinalizeSchema.safeParse(req.body ?? {});
+  if (!bodyParse.success) { invalidBody(res, bodyParse.error); return; }
+  const { props, assets, propNameRefs } = bodyParse.data;
 
   const rows = await db
     .select()

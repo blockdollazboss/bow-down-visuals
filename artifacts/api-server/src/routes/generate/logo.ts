@@ -1,20 +1,26 @@
 import { Router } from "express";
 import { randomUUID } from "crypto";
 import RunwayML from "@runwayml/sdk";
+import { z } from "zod";
 import { getOpenAI } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, LedgerWriteError } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
 import {
   resolveLogoPlan,
-  isLogoStyleKey,
   buildLogoPrompt,
   LOGO_PREMIUM_CREDIT_COST,
   LOGO_STANDARD_CREDIT_COST,
-  type LogoStyleKey,
 } from "./logo-pricing";
 
 const router = Router();
+
+const logoSchema = z.object({
+  brandName: z.string().trim().min(1),
+  style: z.enum(["luxury-gold", "gaming", "minimal", "mascot"]),
+  tagline: z.string().optional(),
+  model: z.enum(["premium", "standard"]).default("premium"),
+});
 
 const PREMIUM_CREDITS = Number(process.env["LOGO_PREMIUM_CREDITS"]) || LOGO_PREMIUM_CREDIT_COST;
 const STANDARD_CREDITS = Number(process.env["LOGO_STANDARD_CREDITS"]) || LOGO_STANDARD_CREDIT_COST;
@@ -54,25 +60,19 @@ async function uploadLogoImage(userId: string, buffer: Buffer, ext: string): Pro
    3b. Standard (Runway gen4_image, async): submit → track task → return taskId.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-logo", requireAuth, async (req, res) => {
-  const { brandName, style, tagline, model } = req.body as {
-    brandName?: string;
-    style?: string;
-    tagline?: string;
-    model?: string;
-  };
-
-  if (!brandName?.trim()) {
-    res.status(400).json({ error: "brandName is required" });
+  const parsed = logoSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
     return;
   }
-  if (!isLogoStyleKey(style)) {
-    res.status(400).json({ error: "style must be one of: luxury-gold, gaming, minimal, mascot" });
-    return;
-  }
+  const { brandName, style, tagline, model } = parsed.data;
 
   const plan = resolveLogoPlan({ model });
   const creditCost = plan.model === "premium" ? PREMIUM_CREDITS : STANDARD_CREDITS;
-  const prompt = buildLogoPrompt(brandName, style as LogoStyleKey, tagline);
+  const prompt = buildLogoPrompt(brandName, style, tagline);
 
   /* ── Credit pre-check — always enforced ── */
   const currentCredits = req.userCredits ?? 0;

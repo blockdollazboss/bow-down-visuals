@@ -4,6 +4,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { NextFunction, Request, Response, Router } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -447,7 +448,24 @@ router.get("/stems/:jobId", requireAuth, (req, res) => {
  * drums, bass, other } } with each 0–2. Free — the stems were already
  * paid for; this is a deterministic ffmpeg sum, not AI work.
  */
+
+/** Request-body validation for POST /stems/:jobId/remix.
+ * Shape-only: the 0–2 range rule stays in validateStemLevels so its 400
+ * message is unchanged. */
+const remixBodySchema = z.object({
+  levels: z.record(z.string(), z.number()).optional(),
+});
+
 router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
+  const parsed = remixBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
   const job = jobs.get(jobId);
   if (!job || job.userId !== req.userId) {
@@ -458,7 +476,7 @@ router.post("/stems/:jobId/remix", requireAuth, async (req, res) => {
     res.status(409).json({ error: "Stems are not ready yet — wait for the split to finish." });
     return;
   }
-  const levels = validateStemLevels(req.body?.levels);
+  const levels = validateStemLevels(parsed.data.levels);
   if (!levels) {
     res.status(400).json({
       error: "Invalid levels — each stem needs a number from 0 (muted) to 2 (+6dB).",

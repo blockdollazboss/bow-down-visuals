@@ -6,6 +6,7 @@ import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -24,6 +25,12 @@ const TARGET_HEIGHTS: Record<UpscaleTarget, number> = {
   "1080p": 1080,
   "4k": 2160,
 };
+
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const upscaleSchema = z.object({
+  target: z.enum(["1080p", "4k"]).optional(),
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -189,7 +196,8 @@ export async function runUpscaleJob(job: UpscaleJob, inputBuffer: Buffer, origin
  * Failed jobs are refunded automatically.
  */
 router.post("/api/upscale", requireAuth, upload.single("video"), async (req, res) => {
-  const target = (req.body?.target as string) ?? "";
+  const parsed = upscaleSchema.safeParse(req.body ?? {});
+  const target = parsed.success ? parsed.data.target : undefined;
   if (target !== "1080p" && target !== "4k") {
     res.status(400).json({ error: "INVALID_TARGET", message: "Target must be '1080p' or '4k'." });
     return;

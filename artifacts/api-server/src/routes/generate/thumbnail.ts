@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { randomUUID } from "crypto";
 import { toFile } from "openai";
@@ -66,6 +67,37 @@ interface VaultInput {
   consistencyPrompt?: string | null;
   referenceImageUrl?: string | null;
 }
+
+/** Request-body validation for POST /generate-thumbnail. All fields optional;
+ * the route applies its own fallbacks when they're absent. */
+const vaultInputSchema = z.object({
+  artistType: z.string().nullable().optional(),
+  artistDescription: z.string().nullable().optional(),
+  visualStyle: z.string().nullable().optional(),
+  hair: z.string().nullable().optional(),
+  tattoos: z.string().nullable().optional(),
+  jewelry: z.string().nullable().optional(),
+  clothingStyle: z.string().nullable().optional(),
+  brandColors: z.string().nullable().optional(),
+  doNotChangeRules: z.string().nullable().optional(),
+  consistencyPrompt: z.string().nullable().optional(),
+  referenceImageUrl: z.string().nullable().optional(),
+  /* Co-star linkage keys the client may also send (kept so they aren't stripped). */
+  vaultId: z.string().optional(),
+  id: z.string().optional(),
+});
+
+const thumbnailBodySchema = z.object({
+  artistName: z.string().optional(),
+  songTitle: z.string().optional(),
+  platform: z.string().optional(),
+  artStyle: z.string().optional(),
+  colorTheme: z.string().optional(),
+  mood: z.string().optional(),
+  featuredText: z.string().optional(),
+  specialRequests: z.string().optional(),
+  artistVault: vaultInputSchema.nullable().optional(),
+});
 
 function buildVaultContext(vault: VaultInput | null | undefined): string {
   if (!vault) return "";
@@ -216,11 +248,19 @@ async function generateThumbnailImage(
 }
 
 router.post("/generate-thumbnail", requireAuth, async (req, res) => {
+  const parsed = thumbnailBodySchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
   const {
     artistName, songTitle, platform, artStyle, colorTheme, mood, featuredText, specialRequests,
-  } = req.body as Record<string, string>;
+  } = parsed.data;
 
-  const artistVault = req.body.artistVault as VaultInput | null | undefined;
+  const artistVault = parsed.data.artistVault;
 
   const currentCredits = req.userCredits ?? 0;
   const isDev = process.env["NODE_ENV"] === "development";
@@ -245,7 +285,7 @@ Color Theme: ${colorTheme || "Black and gold"}
 Mood: ${mood || "Dark"}
 Featured Text: ${featuredText || "None"}
 ${specialRequests ? `Special Requests: ${specialRequests}` : ""}
-${buildVaultContext(artistVault)}${await buildCoStarContext((artistVault as Record<string, string | null | undefined> | null | undefined)?.["vaultId"] ?? (artistVault as Record<string, string | null | undefined> | null | undefined)?.["id"], req.userId)}
+${buildVaultContext(artistVault)}${await buildCoStarContext(artistVault?.vaultId ?? artistVault?.id, req.userId)}
 
 Return the output using EXACTLY these ## section headers in this order. Write detailed, actionable, AI-ready content for every section.
 

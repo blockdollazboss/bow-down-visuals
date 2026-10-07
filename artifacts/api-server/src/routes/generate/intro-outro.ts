@@ -8,6 +8,7 @@ import RunwayML from "@runwayml/sdk";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits as chargeCreditsAtomic, refundCredits, LedgerWriteError } from "../../lib/credits";
 import { getSupabaseAdmin } from "../../lib/supabase-admin";
+import { z } from "zod";
 import {
   buildIntroOutroPrompt,
   resolveIntroOutroCost,
@@ -41,6 +42,13 @@ export function __pendingIntroTaskCount() {
   return pendingIntroTasks.size;
 }
 
+const introOutroSchema = z.object({
+  channelName: z.string().trim().min(1),
+  type: z.enum(["intro", "outro"]),
+  tagline: z.string().optional(),
+  referenceImageUrl: z.string().nullable().optional(),
+});
+
 async function downloadToFile(url: string, dest: string): Promise<void> {
   const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`Download failed (${res.status}): ${url.slice(0, 80)}`);
@@ -58,7 +66,16 @@ function cleanup(f: string) {
    3. Submit 5s Seedance 2.5 job to Runway. 4. Track task — charge on SUCCEEDED.
 ───────────────────────────────────────────────────────────────────────────── */
 router.post("/generate-intro-outro", requireAuth, async (req, res) => {
-  const resolved = resolveIntroOutroRequest(req.body ?? {});
+  const parsed = introOutroSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const resolved = resolveIntroOutroRequest(parsed.data);
   if (!resolved.ok) {
     res.status(resolved.status).json({ error: resolved.error });
     return;

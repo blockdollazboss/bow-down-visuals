@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 import { promisify } from "util";
 import { Request, Response, Router, NextFunction } from "express";
+import { z } from "zod";
 import multer from "multer";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -378,19 +379,33 @@ export async function runMixJob(
 
 /* ── Shared request helpers ────────────────────────────────────────── */
 
-function parseCommonFields(req: Request): {
+/* Multer delivers body fields as strings — coerce the numeric knob.
+ * Genre/intensity/loudness enums are still resolved + reported by
+ * parseCommonFields below (keeps the existing INVALID_PARAMS messages). */
+const mixMasterBodySchema = z.object({
+  genre: z.string().optional(),
+  intensity: z.string().optional(),
+  loudness: z.string().optional(),
+  vocalLevelDb: z.coerce.number().optional(),
+});
+
+function parseCommonFields(body: z.infer<typeof mixMasterBodySchema> | undefined): {
   genre: MixMasterGenre;
   intensity: MixMasterIntensity;
   loudness: MixMasterLoudness;
   vocalLevelDb: number;
 } | { error: string } {
-  const genre = resolveGenre(req.body?.genre);
+  const genre = resolveGenre(body?.genre);
   if (!genre) return { error: "Genre must be one of: " + Object.keys(GENRE_PRESETS).join(", ") + "." };
-  const intensity = resolveIntensity(req.body?.intensity) ?? "balanced";
-  const loudness = resolveLoudness(req.body?.loudness) ?? "streaming";
-  const rawVocal = Number(req.body?.vocalLevelDb);
+  const intensity = resolveIntensity(body?.intensity) ?? "balanced";
+  const loudness = resolveLoudness(body?.loudness) ?? "streaming";
+  const rawVocal = Number(body?.vocalLevelDb);
   const vocalLevelDb = Number.isFinite(rawVocal) ? Math.min(4, Math.max(-6, rawVocal)) : 0;
   return { genre, intensity, loudness, vocalLevelDb };
+}
+
+function invalidBodyDetails(error: z.ZodError) {
+  return error.issues.map((i) => ({ field: i.path.join("."), message: i.message }));
 }
 
 async function chargeOr402(
@@ -480,7 +495,14 @@ router.post(
     const audio = files?.["audio"]?.[0];
     const reference = files?.["reference"]?.[0] ?? null;
 
-    const parsed = parseCommonFields(req);
+    const bodyParse = mixMasterBodySchema.safeParse(req.body ?? {});
+    if (!bodyParse.success) {
+      cleanupUploads(files?.["audio"]);
+      if (reference) cleanupUploads([reference]);
+      res.status(400).json({ error: "Invalid request.", details: invalidBodyDetails(bodyParse.error) });
+      return;
+    }
+    const parsed = parseCommonFields(bodyParse.data);
     if ("error" in parsed) {
       cleanupUploads(files?.["audio"]);
       if (reference) cleanupUploads([reference]);
@@ -572,7 +594,12 @@ router.post(
       res.status(status).json(body);
     };
 
-    const parsed = parseCommonFields(req);
+    const parsedBody = mixMasterBodySchema.safeParse(req.body ?? {});
+    if (!parsedBody.success) {
+      fail(400, { error: "Invalid request.", details: invalidBodyDetails(parsedBody.error) });
+      return;
+    }
+    const parsed = parseCommonFields(parsedBody.data);
     if ("error" in parsed) {
       fail(400, { error: "INVALID_PARAMS", message: parsed.error });
       return;

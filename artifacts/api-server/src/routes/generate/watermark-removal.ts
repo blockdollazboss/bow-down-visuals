@@ -6,6 +6,7 @@ import { join } from "path";
 import { promisify } from "util";
 import { NextFunction, Request, Response, Router } from "express";
 import multer from "multer";
+import { z } from "zod";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
 import {
@@ -98,6 +99,13 @@ const upload = multer({
       cb(new Error("Only video files are allowed"));
     }
   },
+});
+
+/* ── Request body validation (multipart: fields arrive as strings) ───── */
+
+const watermarkRemovalSchema = z.object({
+  preset: z.string().optional(),
+  custom: z.string().optional(),
 });
 
 /* ── Server-owned background jobs (in-memory; not tab-dependent) ───── */
@@ -215,11 +223,13 @@ export async function runWatermarkJob(job: WatermarkJob, inputBuffer: Buffer, or
  * Failed jobs are refunded automatically.
  */
 router.post("/api/watermark-removal", requireAuth, upload.single("video"), async (req, res) => {
+  const parsed = watermarkRemovalSchema.safeParse(req.body ?? {});
+  const body = parsed.success ? parsed.data : {};
   let custom: unknown = null;
-  if (typeof req.body?.custom === "string") {
-    try { custom = JSON.parse(req.body.custom); } catch { custom = null; }
+  if (typeof body.custom === "string") {
+    try { custom = JSON.parse(body.custom); } catch { custom = null; }
   }
-  const preset = (req.body?.preset as string) ?? "";
+  const preset = body.preset ?? "";
   const region = resolveRegion(preset, custom);
   if (!region) {
     res.status(400).json({
