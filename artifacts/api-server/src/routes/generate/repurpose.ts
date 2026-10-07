@@ -707,6 +707,168 @@ router.post(
   },
 );
 
+/* ── POST /api/repurpose — 200-credit text repurposer ───────────────────
+   Takes a videoUrl (auto-transcribed with Whisper) OR a raw transcript and
+   returns copy for 5 platforms in one shot: a 5-tweet X thread, a LinkedIn
+   post, an Instagram caption, a 30s TikTok script, and a blog post outline.
+   Refunds when transcription finds no speech or the model output is unusable. */
+
+export const REPURPOSE_TEXT_CREDITS =
+  Number(process.env["REPURPOSE_TEXT_CREDITS"]) || 200;
+
+const repurposeTextSchema = z
+  .object({
+    videoUrl: z.string().trim().min(1).max(2048).optional(),
+    transcript: z.string().trim().min(20).max(30000).optional(),
+    /** Optional tone hint, e.g. "witty", "professional" */
+    tone: z.string().trim().max(60).optional().default(""),
+  })
+  .refine((v) => !!v.videoUrl || !!v.transcript, {
+    message: "Provide either videoUrl or transcript.",
+  });
+
+const repurposeTextOutputSchema = z.object({
+  twitterThread: z.array(z.string()).min(5).max(5),
+  linkedinPost: z.string().min(1).max(5000),
+  instagramCaption: z.string().min(1).max(2200),
+  tiktokScript: z.string().min(1).max(3000),
+  blogOutline: z.array(z.string()).min(5).max(12),
+});
+
+const REPURPOSE_TEXT_SYSTEM_PROMPT = `You are a social-media repurposing expert. Repurpose the given source content into native copy for 5 platforms. Keep the core message and key facts faithful to the source.
+
+Rules:
+- twitterThread: EXACTLY 5 tweets, each <= 280 chars, prefixed "1/ ", "2/ ", etc. Hook in tweet 1, payoff spread across 2-4, CTA in tweet 5.
+- linkedinPost: professional post with a strong hook line, short paragraphs, and a question/CTA at the end.
+- instagramCaption: casual caption with 2-4 emojis and 8-12 hashtags (WITHOUT the # symbol) at the end.
+- tiktokScript: a 30-second TikTok/Reels script — spoken lines plus on-screen text cues in [brackets], with a hook in the first 3 seconds.
+- blogOutline: 5-8 H2-style section headlines forming a complete post outline.
+
+Return ONLY JSON:
+{"twitterThread": ["...", "...", "...", "...", "..."],
+ "linkedinPost": "...",
+ "instagramCaption": "...",
+ "tiktokScript": "...",
+ "blogOutline": ["...", "...", "..."]}`;
+
+router.post("/repurpose", publicApiLimiter, requireAuth, async (req: Request, res: Response) => {
+  const parsed = repurposeTextSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: "Invalid repurpose request.",
+      details: parsed.error.issues.map((i) => ({ field: i.path.join("."), message: i.message })),
+    });
+    return;
+  }
+
+  const balance = req.userCredits ?? 0;
+  if (balance < REPURPOSE_TEXT_CREDITS) {
+    res.status(402).json({
+      error: "out_of_credits",
+      message: "You're out of Visual Bucs — top up to repurpose content.",
+    });
+    return;
+  }
+  let creditsRemaining = balance;
+  try {
+    creditsRemaining = await chargeCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
+      action: "Content Repurposer — 5-platform text pack",
+    });
+  } catch (err) {
+    if (err instanceof OutOfCreditsError) {
+      res.status(402).json({
+        error: "out_of_credits",
+        message: "You're out of Visual Bucs — top up to repurpose content.",
+      });
+      return;
+    }
+    if (err instanceof LedgerWriteError) {
+      res.status(500).json({ error: "Could not record the Visual Buc charge. Please try again." });
+      return;
+    }
+    throw err;
+  }
+
+  const refundAndFail = async (status: number, error: string, message?: string) => {
+    try {
+      await refundCredits(req.userId!, REPURPOSE_TEXT_CREDITS, {
+        action: "Content Repurposer — Refund (text pack failed)",
+      });
+    } catch { /* refund logged inside refundCredits */ }
+    res.status(status).json({ error, ...(message ? { message } : {}) });
+  };
+
+  try {
+    let transcriptText: string;
+    if (parsed.data.transcript) {
+      transcriptText = parsed.data.transcript;
+    } else {
+      const videoUrl = parsed.data.videoUrl!;
+      let videoBuffer: Buffer;
+      try {
+        const resp = await fetch(videoUrl, { signal: AbortSignal.timeout(120_000) });
+        if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+        const ab = await resp.arrayBuffer();
+        if (ab.byteLength > VIDEO_MAX_BYTES) {
+          await refundAndFail(413, "FILE_TOO_LARGE", "This video exceeds the 80 MB limit.");
+          return;
+        }
+        videoBuffer = Buffer.from(ab);
+      } catch (err) {
+        logger.error({ err }, "[repurpose] text pack — failed to fetch videoUrl");
+        await refundAndFail(502, "VIDEO_FETCH_FAILED", "Could not download the video URL.");
+        return;
+      }
+      const { segments } = await transcribeVideoBuffer(videoBuffer, "video.mp4");
+      if (segments.length === 0) {
+        await refundAndFail(422, "NO_SPEECH", "No speech detected in this video — repurposing needs audio with talking.");
+        return;
+      }
+      transcriptText = buildTimestampedTranscript(segments);
+    }
+
+    const tone = parsed.data.tone ? `\n\nWrite everything in a ${parsed.data.tone} tone.` : "";
+    const raw = await callTextModel(
+      [
+        { role: "system", content: REPURPOSE_TEXT_SYSTEM_PROMPT },
+        { role: "user", content: `Repurpose this content:${tone}\n\n${transcriptText}` },
+      ],
+      4000,
+    );
+
+    let out: Record<string, unknown>;
+    try {
+      out = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      await refundAndFail(502, "REPURPOSE_FAILED", "The AI couldn't repurpose this content — you were not charged.");
+      return;
+    }
+    const validated = repurposeTextOutputSchema.safeParse(out);
+    if (!validated.success) {
+      await refundAndFail(502, "REPURPOSE_FAILED", "The AI couldn't repurpose this content — you were not charged.");
+      return;
+    }
+
+    res.json({
+      twitterThread: validated.data.twitterThread,
+      linkedinPost: validated.data.linkedinPost,
+      instagramCaption: validated.data.instagramCaption,
+      tiktokScript: validated.data.tiktokScript,
+      blogOutline: validated.data.blogOutline,
+      creditsUsed: REPURPOSE_TEXT_CREDITS,
+      creditsRemaining,
+    });
+  } catch (err) {
+    if (err instanceof OpenAI.APIError && (err.status === 429 || err.code === "insufficient_quota")) {
+      logger.warn({ err }, "[repurpose] text pack — provider rate limit");
+      await refundAndFail(503, "PROVIDER_BUSY", "The AI is catching its breath — try again in a moment.");
+      return;
+    }
+    logger.error({ err }, "[repurpose] text pack failed");
+    await refundAndFail(502, "REPURPOSE_FAILED", "Repurposing failed — you were not charged.");
+  }
+});
+
 /* ── GET /api/repurpose/jobs/:jobId — poll a clip or thumbnail job ─────── */
 router.get("/repurpose/jobs/:jobId", requireAuth, (req: Request, res: Response) => {
   const jobId = Array.isArray(req.params.jobId) ? req.params.jobId[0] : req.params.jobId;
