@@ -653,10 +653,10 @@ export function getWorkflow(type: HubProjectType): ProjectWorkflow {
 
 export const KIND_LABEL: Record<HubAssetKind, string> = {
   beat: "Beat", stems: "Stems", song: "Song", video: "Video",
-  clip: "Clip", thumbnail: "Thumbnail", image: "Image", script: "Script", sfx: "SFX", other: "Asset",
+  clip: "Clip", thumbnail: "Thumbnail", image: "Image", script: "Script", sfx: "SFX", hum: "Hum", other: "Asset",
 };
 
-export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip", "sfx"];
+export const AUDIO_KINDS: HubAssetKind[] = ["beat", "song", "stems", "clip", "sfx", "hum"];
 
 /* Where each finished asset naturally wants to go next. */
 export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]> = {
@@ -690,5 +690,6 @@ export const NEXT_STEPS: Record<HubAssetKind, { label: string; href: string }[]>
   ],
   script: [{ label: "Voice it", href: "/voiceover" }],
   sfx: [{ label: "Add character voices", href: "/voiceover" }],
+  hum: [{ label: "Turn it into a song", href: "/make-song?tab=hum" }],
   other: [],
 };
