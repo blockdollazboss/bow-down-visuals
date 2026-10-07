@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { Loader2, MapPin, Mail, Globe, ExternalLink, Music2, Quote, Trophy, Camera, Download } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /* ─── Public Press Kit ────────────────────────────────────────────────────
    The shareable EPK page at /press/:handle. No auth required — this is what
@@ -30,6 +31,7 @@ interface PressKit {
 export default function PublicPressKit() {
   const params = useParams<{ handle: string }>();
   const handle = params.handle ?? "";
+  const { t } = useTranslation();
   const [kit, setKit] = useState<PressKit | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -62,9 +64,9 @@ export default function PublicPressKit() {
     return (
       <div className="min-h-screen bg-black text-white">
         <div className="max-w-xl mx-auto px-5 py-32 text-center">
-          <h1 className="text-3xl font-bold mb-3">Press kit not found</h1>
-          <p className="text-white/50 mb-6">This press kit doesn't exist or isn't public.</p>
-          <Link href="/" className="text-[#d4af37] hover:underline">Back to home</Link>
+          <h1 className="text-3xl font-bold mb-3">{t("press-public.notFoundTitle")}</h1>
+          <p className="text-white/50 mb-6">{t("press-public.notFoundMessage")}</p>
+          <Link href="/" className="text-[#d4af37] hover:underline">{t("press-public.backHome")}</Link>
         </div>
 
       </div>
@@ -88,7 +90,7 @@ export default function PublicPressKit() {
             <img src={kit.photo_urls[0]} alt={kit.artist_name}
                  className="w-40 h-40 rounded-full object-cover mx-auto mb-6 border-2 border-[#d4af37]/60 shadow-[0_0_40px_rgba(212,175,55,0.25)]" />
           )}
-          <p className="text-xs uppercase tracking-[0.3em] text-[#d4af37] mb-2">Electronic Press Kit</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-[#d4af37] mb-2">{t("press-public.epkLabel")}</p>
           <h1 className="text-4xl md:text-5xl font-bold mb-2">{kit.artist_name}</h1>
           {kit.tagline && <p className="text-lg text-white/60 italic mb-3">{kit.tagline}</p>}
           <div className="flex items-center justify-center gap-4 text-sm text-white/50">
@@ -100,7 +102,7 @@ export default function PublicPressKit() {
         {/* bio */}
         {kit.bio && (
           <section className="mb-10 rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3">Bio</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3">{t("press-public.sections.bio")}</h2>
             <p className="text-white/80 leading-relaxed whitespace-pre-line">{kit.bio}</p>
           </section>
         )}
@@ -109,7 +111,7 @@ export default function PublicPressKit() {
         {kit.achievements.length > 0 && (
           <section className="mb-10">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3 flex items-center gap-2">
-              <Trophy className="h-4 w-4" /> Achievements
+              <Trophy className="h-4 w-4" /> {t("press-public.sections.achievements")}
             </h2>
             <ul className="grid md:grid-cols-2 gap-2">
               {kit.achievements.map((a, i) => (
@@ -123,7 +125,7 @@ export default function PublicPressKit() {
         {kit.press_quotes.length > 0 && (
           <section className="mb-10">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3 flex items-center gap-2">
-              <Quote className="h-4 w-4" /> Press
+              <Quote className="h-4 w-4" /> {t("press-public.sections.press")}
             </h2>
             <div className="grid md:grid-cols-2 gap-4">
               {kit.press_quotes.map((q, i) => (
@@ -140,7 +142,7 @@ export default function PublicPressKit() {
         {kit.top_tracks.length > 0 && (
           <section className="mb-10">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3 flex items-center gap-2">
-              <Music2 className="h-4 w-4" /> Top tracks
+              <Music2 className="h-4 w-4" /> {t("press-public.sections.topTracks")}
             </h2>
             <div className="rounded-2xl border border-white/10 overflow-hidden">
               {kit.top_tracks.map((t, i) => (
@@ -158,11 +160,11 @@ export default function PublicPressKit() {
         {kit.photo_urls.length > 1 && (
           <section className="mb-10">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-3 flex items-center gap-2">
-              <Camera className="h-4 w-4" /> Photos
+              <Camera className="h-4 w-4" /> {t("press-public.sections.photos")}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {kit.photo_urls.slice(1).map((u, i) => (
-                <img key={i} src={u} alt={`${kit.artist_name} photo ${i + 1}`}
+                <img key={i} src={u} alt={t("press-public.photoAlt", { name: kit.artist_name, index: i + 1 })}
                      className="aspect-square object-cover rounded-xl border border-white/10" />
               ))}
             </div>
@@ -171,7 +173,7 @@ export default function PublicPressKit() {
 
         {/* contact */}
         <section className="mb-10 rounded-2xl border border-[#d4af37]/30 bg-[#d4af37]/[0.05] p-6 md:p-8 text-center">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-4">Booking & Contact</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-4">{t("press-public.sections.bookingContact")}</h2>
           <div className="flex flex-wrap items-center justify-center gap-3">
             {kit.booking_email && (
               <a href={`mailto:${kit.booking_email}`}
@@ -182,7 +184,7 @@ export default function PublicPressKit() {
             {kit.website && (
               <a href={kit.website} target="_blank" rel="noreferrer"
                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-5 py-2.5 text-sm hover:border-[#d4af37]/50">
-                <Globe className="h-4 w-4" /> Website
+                <Globe className="h-4 w-4" /> {t("press-public.website")}
               </a>
             )}
             {socials.map((s) => (
@@ -197,9 +199,9 @@ export default function PublicPressKit() {
         <div className="text-center text-xs text-white/30 print:hidden">
           <button onClick={() => window.print()}
                   className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 hover:border-[#d4af37]/50 mb-3">
-            <Download className="h-3 w-3" /> Download as PDF
+            <Download className="h-3 w-3" /> {t("press-public.downloadPdf")}
           </button>
-          <p>Made with <Link href="/" className="text-[#d4af37] hover:underline">Bow Down Visuals</Link> — the content creator cheat code.</p>
+          <p>{t("press-public.madeWith")} <Link href="/" className="text-[#d4af37] hover:underline">Bow Down Visuals</Link> {t("press-public.cheatCodeTagline")}</p>
         </div>
       </main>
 

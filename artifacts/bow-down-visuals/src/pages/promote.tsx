@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 import { Link } from "wouter";
 import {
@@ -20,29 +21,28 @@ type ToneKey = "hype" | "professional" | "funny" | "luxury";
 
 interface ContentType {
   key: ContentTypeKey;
-  label: string;
-  blurb: string;
+  i18nKey: string;
 }
 
 const CONTENT_TYPES: ContentType[] = [
-  { key: "twitter", label: "X Post", blurb: "Punchy post built for reposts" },
-  { key: "instagram", label: "IG Caption", blurb: "Engaging caption + hashtags" },
-  { key: "tiktok", label: "TikTok Script", blurb: "Hook + beats, spoken style" },
-  { key: "email", label: "Email Blast", blurb: "Subject line + short body" },
-  { key: "banner", label: "Banner Headlines", blurb: "5 scroll-stoppers" },
-  { key: "ad", label: "Ad Copy", blurb: "Headlines + primary text" },
+  { key: "twitter", i18nKey: "twitter" },
+  { key: "instagram", i18nKey: "instagram" },
+  { key: "tiktok", i18nKey: "tiktok" },
+  { key: "email", i18nKey: "email" },
+  { key: "banner", i18nKey: "banner" },
+  { key: "ad", i18nKey: "ad" },
 ];
 
 interface Tone {
   key: ToneKey;
-  label: string;
+  i18nKey: string;
 }
 
 const TONES: Tone[] = [
-  { key: "hype", label: "Hype" },
-  { key: "professional", label: "Professional" },
-  { key: "funny", label: "Funny" },
-  { key: "luxury", label: "Luxury" },
+  { key: "hype", i18nKey: "hype" },
+  { key: "professional", i18nKey: "professional" },
+  { key: "funny", i18nKey: "funny" },
+  { key: "luxury", i18nKey: "luxury" },
 ];
 
 const CREDIT_COST = 100;
@@ -63,6 +63,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white placeholder:text-white/25 outline-none transition focus:border-primary/60 focus:ring-1 focus:ring-primary/40";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -76,10 +77,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         }
       }}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:border-primary/50 hover:text-white"
-      aria-label={`Copy ${label}`}
+      aria-label={t("promote.copyLabel", { label })}
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? t("promote.copied") : t("promote.copy")}
     </button>
   );
 }
@@ -98,6 +99,7 @@ function ResultBlock({ label, text }: { label: string; text: string }) {
 }
 
 export default function Promote() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const [featureKey, setFeatureKey] = useState(SITE_FEATURES[0]!.key);
   const [contentType, setContentType] = useState<ContentTypeKey>("twitter");
@@ -140,7 +142,7 @@ export default function Promote() {
         return;
       }
       if (!res.ok || (!data.title && !data.body)) {
-        throw new Error(data.message || data.error || "Promo generation failed — try again.");
+        throw new Error(data.message || data.error || t("promote.errorGenerationFailed"));
       }
       setResult(data);
       refreshProfile();
@@ -148,7 +150,7 @@ export default function Promote() {
         document.getElementById("promo-results")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
       }, 100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Promo generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("promote.errorGenerationFailed"));
     } finally {
       setLoading(false);
     }
@@ -174,21 +176,20 @@ export default function Promote() {
         <div className="relative mx-auto max-w-4xl px-5 md:px-8 pt-14 md:pt-20 pb-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <Megaphone className="h-3.5 w-3.5" />
-            Promo Content Generator
+            {t("promote.hero.badge")}
           </div>
           <h1 className="mt-6 text-4xl md:text-5xl font-extrabold tracking-tight">
-            Market every feature{" "}
+            {t("promote.hero.title")}{" "}
             <span className="bg-gradient-to-r from-amber-200 via-primary to-amber-200 bg-clip-text text-transparent">
-              like a launch
+              {t("promote.hero.titleAccent")}
             </span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-white/60">
-            Pick a feature, pick a format and tone — get ready-to-post copy with
-            hashtags and CTAs. {CREDIT_COST} Visual Buc per generation.
+            {t("promote.hero.subtitle", { cost: CREDIT_COST })}
           </p>
           <Link href="/features">
             <span className="mt-4 inline-flex cursor-pointer items-center gap-1.5 text-sm text-white/40 transition hover:text-primary">
-              <ArrowLeft className="h-4 w-4" /> Back to all features
+              <ArrowLeft className="h-4 w-4" /> {t("promote.hero.back")}
             </span>
           </Link>
         </div>
@@ -198,7 +199,7 @@ export default function Promote() {
         <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6 md:p-8">
           {/* Feature picker */}
           <label className="text-xs font-bold uppercase tracking-widest text-white/45">
-            Feature to promote
+            {t("promote.form.feature")}
           </label>
           <div className="mt-2 flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-gradient-to-br from-amber-400/25 to-yellow-600/10">
@@ -219,41 +220,41 @@ export default function Promote() {
 
           {/* Content type */}
           <label className="mt-7 block text-xs font-bold uppercase tracking-widest text-white/45">
-            Content type
+            {t("promote.form.contentType")}
           </label>
           <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {CONTENT_TYPES.map((t) => (
+            {CONTENT_TYPES.map((ct) => (
               <button
-                key={t.key}
-                onClick={() => setContentType(t.key)}
-                className={pill(contentType === t.key) + " text-left"}
+                key={ct.key}
+                onClick={() => setContentType(ct.key)}
+                className={pill(contentType === ct.key) + " text-left"}
               >
-                <div className="font-semibold">{t.label}</div>
-                <div className="mt-0.5 text-xs font-normal text-white/40">{t.blurb}</div>
+                <div className="font-semibold">{t(`promote.contentTypes.${ct.i18nKey}.label`)}</div>
+                <div className="mt-0.5 text-xs font-normal text-white/40">{t(`promote.contentTypes.${ct.i18nKey}.blurb`)}</div>
               </button>
             ))}
           </div>
 
           {/* Tone */}
           <label className="mt-7 block text-xs font-bold uppercase tracking-widest text-white/45">
-            Tone
+            {t("promote.form.tone")}
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
-            {TONES.map((t) => (
-              <button key={t.key} onClick={() => setTone(t.key)} className={pill(tone === t.key)}>
-                {t.label}
+            {TONES.map((tn) => (
+              <button key={tn.key} onClick={() => setTone(tn.key)} className={pill(tone === tn.key)}>
+                {t(`promote.tones.${tn.i18nKey}`)}
               </button>
             ))}
           </div>
 
           {/* Focus */}
           <label className="mt-7 block text-xs font-bold uppercase tracking-widest text-white/45">
-            Angle to emphasize <span className="normal-case text-white/30">(optional)</span>
+            {t("promote.form.angle")} <span className="normal-case text-white/30">{t("promote.form.optional")}</span>
           </label>
           <input
             value={focus}
             onChange={(e) => setFocus(e.target.value)}
-            placeholder="e.g. the 1-Visual Buc price, how fast it is, perfect for new artists…"
+            placeholder={t("promote.form.focusPlaceholder")}
             maxLength={300}
             className={`${inputClass} mt-2`}
           />
@@ -270,10 +271,10 @@ export default function Promote() {
             </div>
           ) : !user ? (
             <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center">
-              <p className="text-white/70">Sign in to generate promo content.</p>
+              <p className="text-white/70">{t("promote.signIn.message")}</p>
               <Link href="/login">
                 <span className="mt-3 inline-block cursor-pointer rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 px-6 py-2.5 text-sm font-bold text-black transition hover:brightness-110">
-                  Sign In
+                  {t("promote.signIn.cta")}
                 </span>
               </Link>
             </div>
@@ -285,11 +286,11 @@ export default function Promote() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Writing your promo…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("promote.generating")}
                 </>
               ) : (
                 <>
-                  <Sparkles className="h-4 w-4" /> Generate promo · {CREDIT_COST} Visual Buc
+                  <Sparkles className="h-4 w-4" /> {t("promote.generate", { cost: CREDIT_COST })}
                 </>
               )}
             </button>
@@ -301,32 +302,32 @@ export default function Promote() {
           <div id="promo-results" className="mt-8">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">
-                Your promo for <span className="text-primary">{feature.name}</span>
+                {t("promote.results.titlePrefix")} <span className="text-primary">{feature.name}</span>
               </h2>
               <button
                 onClick={generate}
                 disabled={loading}
                 className="text-sm font-semibold text-white/50 transition hover:text-primary disabled:opacity-50"
               >
-                Regenerate
+                {t("promote.results.regenerate")}
               </button>
             </div>
             <div className="space-y-4">
-              {result.title && <ResultBlock label="Headline" text={result.title} />}
-              {result.body && <ResultBlock label="Copy" text={result.body} />}
+              {result.title && <ResultBlock label={t("promote.results.headline")} text={result.title} />}
+              {result.body && <ResultBlock label={t("promote.results.copy")} text={result.body} />}
               {(result.extras ?? []).map((ex, i) => (
-                <ResultBlock key={i} label={`Alternate ${i + 1}`} text={ex} />
+                <ResultBlock key={i} label={t("promote.results.alternate", { n: i + 1 })} text={ex} />
               ))}
-              {result.cta && <ResultBlock label="Call to action" text={result.cta} />}
+              {result.cta && <ResultBlock label={t("promote.results.cta")} text={result.cta} />}
               {(result.hashtags ?? []).length > 0 && (
                 <div className="rounded-xl border border-white/10 bg-black/50 p-5">
                   <div className="mb-2.5 flex items-center justify-between gap-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-primary">
-                      <Hash className="h-3.5 w-3.5" /> Hashtags
+                      <Hash className="h-3.5 w-3.5" /> {t("promote.results.hashtags")}
                     </span>
                     <CopyButton
                       text={(result.hashtags ?? []).map((h) => `#${h}`).join(" ")}
-                      label="hashtags"
+                      label={t("promote.results.hashtags")}
                     />
                   </div>
                   <div className="flex flex-wrap gap-2">

@@ -6171,5 +6171,1730 @@
     "zipError": "Could not create the zip. Try again.",
     "zipping": "Zipping…",
     "downloadZip": "Download site (.zip)"
+  },
+  "mastering": {
+    "back": "Back",
+    "title": "AI Mastering",
+    "subtitle": "Release-ready masters from your mix — {{cost}} Visual Bucs",
+    "honestFraming": "A real DSP chain — subsonic cleanup, glue compression, sweetening EQ, stereo widening, then two-pass loudness normalization with true-peak limiting. It",
+    "honestFramingBold": "polishes a good mix; it can't fix a bad one.",
+    "honestFramingEnd": "Trust your ears on the A/B comparison before you ship it.",
+    "errorFailed": "Mastering failed — your Visual Bucs were refunded.",
+    "errorAudioFile": "Please choose an audio file (WAV, MP3, AIFF, FLAC, M4A, OGG).",
+    "errorFileTooLarge": "That file is over 100 MB — please use a smaller mix.",
+    "errorStartFailed": "Could not start mastering.",
+    "errorNetwork": "Network error — please try again.",
+    "dropHint": "Drop your mix here, or click to browse",
+    "fileTypes": "WAV, MP3, AIFF, FLAC, M4A, OGG — up to 100 MB",
+    "fileSize": "{{size}} MB — click to change",
+    "presetLabel": "Mastering preset",
+    "presets": {
+      "streaming": {
+        "label": "Streaming",
+        "blurb": "Spotify / Apple Music ready — clean and dynamic."
+      },
+      "club": {
+        "label": "Club",
+        "blurb": "Loud and punchy for big sound systems."
+      },
+      "radio": {
+        "label": "Radio",
+        "blurb": "Broadcast-friendly vocal presence."
+      },
+      "lofi": {
+        "label": "Lo-Fi",
+        "blurb": "Gentle, warm and dynamic with a soft top end."
+      }
+    },
+    "signInToMaster": "Sign in to master",
+    "masterButton": "Master my track — {{cost}} Visual Bucs",
+    "creditsRemaining": "{{count}} Visual Bucs remaining",
+    "statusUploading": "Uploading your mix…",
+    "statusQueued": "Queued — warming up the chain…",
+    "statusProcessing": "Mastering in progress…",
+    "processingDetail": "Analyzing loudness → two-pass normalization → rendering WAV + MP3. Safe to close this tab — the job runs on the server.",
+    "masterComplete": "Master complete — compare it against your original below.",
+    "beforeAfter": "Before / After",
+    "before": "Before",
+    "after": "After",
+    "listeningTo": "Listening to:",
+    "originalMix": "your original mix",
+    "masteredVersion": "the mastered version",
+    "positionPreserved": "— position is preserved when you flip.",
+    "loudnessReport": "Loudness report",
+    "mixLoudness": "Mix loudness",
+    "masterLoudness": "Master loudness",
+    "truePeakMix": "True peak (mix)",
+    "targetCeiling": "Target ceiling",
+    "dynamicRange": "Dynamic range (mix): {{value}} LU — preserved through the chain, not crushed.",
+    "downloadWav": "WAV (24-bit)",
+    "downloadMp3": "MP3 (320k)",
+    "masterAnother": "Master another track"
+  },
+  "release": {
+    "badge": "Thy Cheat Code's release tools",
+    "titlePrefix": "Release",
+    "titleSuffix": "Checklist",
+    "hero": "Drop day is won in the weeks before it. AI builds your week-by-week battle plan — distribution, playlists, teasers, press, pre-saves — then you check it off as you execute.",
+    "whatDropping": "What are you dropping?",
+    "types": {
+      "single": {
+        "label": "Single",
+        "blurb": "One track, one moment"
+      },
+      "ep": {
+        "label": "EP",
+        "blurb": "3–6 tracks"
+      },
+      "album": {
+        "label": "Album",
+        "blurb": "7+ tracks, a era"
+      }
+    },
+    "releaseTitle": "Release title",
+    "titlePlaceholder": "e.g. Bow Down Anthem",
+    "genreVibe": "Genre / vibe",
+    "optional": "(optional)",
+    "genrePlaceholder": "e.g. hip-hop, R&B…",
+    "releaseDate": "Release date",
+    "building": "Building your battle plan…",
+    "buildPlan": "Build my release plan",
+    "signInToBuild": "Sign in to build your release plan",
+    "costNote": "{{cost}} Visual Bucs per AI plan · checking off tasks is free · powered by Thy Cheat Code",
+    "tasksDone": "{{done}} of {{total}} tasks done",
+    "preSaveTitle": "Pre-save power move",
+    "rebuild": "Rebuild plan ({{cost}} Visual Bucs)",
+    "tools": {
+      "playlist-pitcher": "Open Playlist Pitcher",
+      "content-scheduler": "Open Content Scheduler",
+      "press-kit": "Open Press Kit Builder",
+      "cover-art": "Open Cover Art Generator",
+      "email-list": "Open Email List Builder"
+    },
+    "crossLinks": {
+      "p1": "Executing your plan? Pitch playlists with the",
+      "playlistPitcher": "Playlist Pitcher",
+      "p2": "and schedule your teasers with the",
+      "scheduler": "Content Scheduler",
+      "p3": "."
+    },
+    "error": {
+      "noTitle": "Give your release a title first — the plan is built around it.",
+      "noDate": "Pick a release date so the checklist can count backwards from it.",
+      "pastDate": "Release date must be in the future — a checklist for the past helps nobody.",
+      "planFailed": "Release plan failed — try again."
+    }
+  },
+  "outreach": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "fillRequired": "Fill in your name, niche, audience size, at least one platform, and the brand name.",
+    "kitFailed": "Outreach kit generation failed — try again.",
+    "heroBadge": "Thy Cheat Code's money tools",
+    "heroTitle": "Sponsorship",
+    "heroTitleAccent": "Outreach",
+    "heroDescription": "Stop waiting to be discovered. Tell us who you are and who you want to work with — AI writes the pitch email, the DM, and the follow-ups that actually get replies.",
+    "creatorProfile": "Your creator profile",
+    "creatorNameLabel": "Creator / artist name",
+    "creatorNamePlaceholder": "King Shark",
+    "nicheLabel": "Niche",
+    "nichePlaceholder": "Music",
+    "audienceLabel": "Audience size",
+    "audiencePlaceholder": "50K",
+    "platformsLabel": "Platforms",
+    "engagementLabel": "Engagement (optional)",
+    "engagementPlaceholder": "8% avg engagement",
+    "winsLabel": "Notable wins (optional)",
+    "winsPlaceholder": "1M streams on latest single",
+    "brandTitle": "The brand",
+    "brandNameLabel": "Brand name",
+    "brandNamePlaceholder": "Wave Energy",
+    "productLabel": "Product (optional)",
+    "productPlaceholder": "Wave Energy Drink",
+    "goalLabel": "Campaign goal (optional)",
+    "goalPlaceholder": "Launch to Gen Z",
+    "contactLabel": "Contact name (optional)",
+    "contactPlaceholder": "Alex Rivera",
+    "tipPrefix": "Tip: check the",
+    "tipMarketplace": "Sponsor Marketplace",
+    "tipSuffix": "for brands actively looking for creators — then pitch them here.",
+    "writingKit": "Writing your kit…",
+    "generateKit": "Generate outreach kit · {{cost}} credits",
+    "signInPrompt": "Sign in to generate your outreach kit.",
+    "pitchEmail": "Pitch email",
+    "dmVersion": "DM version",
+    "mediaKitSummary": "Media kit summary",
+    "followUpSequence": "Follow-up sequence",
+    "subjectPrefix": "Subject: ",
+    "followUpDay": "Day {{day}}",
+    "trackerTitle": "Outreach tracker",
+    "trackerFree": "· free",
+    "trackerEmpty": "No outreach tracked yet. Generate a kit and it lands here automatically.",
+    "remove": "Remove",
+    "statusSent": "Sent",
+    "statusFollowedUp": "Followed up",
+    "statusReplied": "Replied",
+    "statusBooked": "Booked"
+  },
+  "repurpose": {
+    "badge": "Content Repurposer",
+    "titlePrefix": "One video in,",
+    "titleSuffix": "content calendar out",
+    "hero": "Upload a video — AI watches it and builds a 10-piece pack: 3 auto-cut vertical clips, 3 AI thumbnails, 5 caption+hashtag sets, and platform-optimized descriptions for TikTok, Reels, Shorts, and X.",
+    "signInRequired": "Sign in to repurpose videos.",
+    "step1": {
+      "title": "Drop your video",
+      "blurb": "MP4, MOV, WebM · up to 80 MB",
+      "chooseFile": "Choose video file",
+      "fromCameraRoll": "From your camera roll or exports",
+      "orPasteUrl": "Or paste a video URL",
+      "urlPlaceholder": "https://… (from your project storage)",
+      "urlNote": "URLs must come from your project storage."
+    },
+    "building": "Building your pack…",
+    "repurposeButton": "Repurpose my video · {{credits}} credits",
+    "costNote": "{{pack}} Visual Bucs covers everything: transcription, AI analysis, 3 auto-cut clips, 3 AI thumbnails. Re-rolls are {{reroll}} Visual Buc each. Copying and downloading are free.",
+    "packReady": "pack pieces ready",
+    "renderingNote": "Clips and thumbnails are rendering in the background — close the tab, they'll be waiting.",
+    "clips": {
+      "title": "3 vertical clips",
+      "blurb": "Auto-cut 9:16 · ready for TikTok, Reels, Shorts",
+      "newMoments": "New moments · {{cost}}VB",
+      "cutFailed": "Cut failed",
+      "cutting": "Cutting…"
+    },
+    "thumbs": {
+      "title": "3 AI thumbnails",
+      "blurb": "9:16 covers for your clips",
+      "newConcepts": "New concepts · {{cost}}VB",
+      "genFailed": "Generation failed",
+      "painting": "Painting…",
+      "alt": "Thumbnail concept {{n}}"
+    },
+    "captions": {
+      "title": "5 caption + hashtag sets",
+      "blurb": "Ready to post — copy any set free"
+    },
+    "platforms": {
+      "title": "Platform descriptions",
+      "blurb": "Tuned for each algorithm",
+      "noDesc": "No description generated for this platform."
+    },
+    "download": "Download",
+    "copyAll": "Copy all",
+    "copy": "Copy",
+    "copied": "Copied",
+    "reroll": "Re-roll · {{cost}}VB",
+    "error": {
+      "copyFailed": "Couldn't copy to clipboard.",
+      "noSource": "Upload a video file or paste a video URL first.",
+      "repurposeFailed": "Repurposing failed — try again.",
+      "clipJobFailed": "Clip job lookup failed.",
+      "thumbJobFailed": "Thumbnail job lookup failed.",
+      "clipCuttingFailed": "Clip cutting failed. Your pack Visual Bucs cover the text outputs — clips can be re-cut from the video editor.",
+      "thumbFailed": "Thumbnail images failed to generate — the thumbnail prompts below still work with any image tool.",
+      "lostJobs": "Lost track of the background jobs — refresh to check.",
+      "rerollFailed": "Re-roll failed — try again.",
+      "thumbRerollFailed": "Thumbnail re-roll failed — try again."
+    }
+  },
+  "royalties": {
+    "eyebrow": "Royalty Tracker",
+    "titlePrefix": "Every stream. Every platform.",
+    "titleSuffix": "One dashboard.",
+    "subtitle": "Import your distributor CSVs and watch your catalog earn. The dashboard is free — only the AI earnings insights cost Visual Bucs.",
+    "signIn": "Sign in to track your royalties.",
+    "loading": "Loading your royalty dashboard…",
+    "free": "Free",
+    "totals": {
+      "earnings": "Total earnings",
+      "entries": "{{num}} entries tracked",
+      "streams": "Total streams",
+      "acrossPlatforms": "across all platforms",
+      "songs": "Songs earning",
+      "platforms": "{{num}} platforms reporting"
+    },
+    "insights": {
+      "title": "AI earnings insights",
+      "cost": "{{cost}} Visual Buc",
+      "analyze": "Analyze my earnings",
+      "needData": "Import some royalty data below first — I need numbers to analyze."
+    },
+    "monthlyTrend": "Monthly trend",
+    "perSong": "Per song",
+    "perPlatform": "Per platform",
+    "streams": "{{num}} streams",
+    "empty": {
+      "title": "No royalty data yet",
+      "desc": "Export a CSV from your distributor (DistroKid, TuneCore, CD Baby — they all export them) and paste it below. We'll do the rest."
+    },
+    "import": {
+      "title": "Import distributor CSV",
+      "desc": "We auto-detect common distributor columns (song, platform, period, streams, amount). Accepts MM/DD/YYYY or YYYY-MM-DD dates.",
+      "button": "Import entries",
+      "success": "Imported {{num}} entries.",
+      "warnings": "{{num}} row(s) skipped."
+    },
+    "platforms": {
+      "title": "Platform connections",
+      "desc1": "Spotify, Apple Music, and YouTube don't offer self-serve royalty APIs for indie artists — their auto-sync is honestly",
+      "comingSoon": "coming soon",
+      "desc2": ". CSV import works for everything today.",
+      "connected": "Connected{{account}}",
+      "notConnected": "Not connected",
+      "autoSyncSoon": "Auto-sync coming soon",
+      "connect": "Connect"
+    },
+    "payouts": {
+      "title": "Payout tracking",
+      "record": "Record payout",
+      "cancel": "Cancel",
+      "distributor": "Distributor",
+      "status": {
+        "expected": "expected",
+        "received": "received",
+        "partial": "partial",
+        "overdue": "overdue"
+      },
+      "periodStart": "Period start",
+      "periodEnd": "Period end",
+      "expectedAmount": "Expected amount",
+      "receivedAmount": "Received amount (optional)",
+      "save": "Save payout",
+      "empty": "No payouts recorded yet. Distributors usually pay 1–3 months after the reporting period.",
+      "expected": "Expected",
+      "received": "Received",
+      "statusExpected": "Expected",
+      "statusReceived": "Received",
+      "statusPartial": "Partial",
+      "statusOverdue": "Overdue"
+    },
+    "disclaimer": "Royalty figures come from your own imports — always reconcile against your distributor's official statements before making financial decisions. AI insights are analytical guidance, not financial advice.",
+    "error": {
+      "importFailed": "Import failed.",
+      "insightsFailed": "Insights failed — try again.",
+      "payoutRequired": "Distributor, period dates, and expected amount are required.",
+      "payoutSaveFailed": "Couldn't save that payout."
+    }
+  },
+  "mediaDetector": {
+    "badge": "AI Media Detector",
+    "titleStart": "Real or",
+    "titleAi": "AI?",
+    "titleEnd": "Know for sure.",
+    "subtitle": "Upload an image, video, or audio file — or paste a link — and get a forensic AI assessment: verdict, confidence score, and the exact tells it found.",
+    "costPerCheck": "{{cost}} Visual Bucs per check.",
+    "dropHint": "Drop files here or click to upload",
+    "fileTypes": "Images, video, audio — up to 25MB each. Batch supported.",
+    "urlPlaceholder": "…or paste an image URL",
+    "add": "Add",
+    "queueStatus": "{{count}} files · {{done}} checked",
+    "clearAll": "Clear all",
+    "checkAll": "Check all ({{cost}} Visual Bucs)",
+    "remove": "Remove",
+    "analyze": "Analyze · {{cost}} Visual Bucs",
+    "analyzing": "Analyzing for AI tells…",
+    "analyzingVideo": "Extracting frames, then analyzing…",
+    "retry": "Retry",
+    "emptyTitle": "Nothing to check yet",
+    "emptySubtitle": "Upload a file or paste a URL to run your first detection.",
+    "verdictAi": "Likely AI-Generated",
+    "verdictHuman": "Likely Human-Created",
+    "verdictUncertain": "Uncertain",
+    "detectedSignals": "Detected signals",
+    "pointsToAi": "points to AI",
+    "pointsToHuman": "points to human",
+    "errorOutOfCredits": "Out of Visual Bucs.",
+    "errorDetectionFailed": "Detection failed. Try again.",
+    "errorDetectionFailedShort": "Detection failed."
+  },
+  "playlistPitch": {
+    "copied": "Copied",
+    "copyLabel": "Copy {{label}}",
+    "copyAria": "Copy {{label}}",
+    "copyEmailLabel": "email",
+    "copyDmLabel": "DM",
+    "copyFollowUpLabel": "follow-up",
+    "statusSent": "Sent",
+    "statusPending": "Pending",
+    "statusAccepted": "Accepted",
+    "statusRejected": "Rejected",
+    "titleRequired": "Give your song a title first — the pitch is built around it.",
+    "kitFailed": "Pitch kit failed — try again.",
+    "trackerRequired": "Song title and playlist name are required for a tracker entry.",
+    "saveFailed": "Couldn't save that pitch — try again.",
+    "updateFailed": "Couldn't update that pitch.",
+    "heroBadge": "Playlist Pitcher",
+    "heroTitle": "Get Your Song",
+    "heroTitleAccent": "Playlisted",
+    "heroDescription": "AI analyzes your song, then writes a professional curator pitch — the email, the DM, and the follow-up. Pitching improves your odds; it never guarantees placement.",
+    "tabKit": "Pitch Kit",
+    "tabCurators": "Curators",
+    "tabTracker": "Tracker",
+    "tabTrackerCount": "Tracker ({{count}})",
+    "yourSong": "Your song",
+    "enterManually": "Enter manually",
+    "fromLibrary": "From my library ({{count}})",
+    "pickSong": "Pick a song…",
+    "untitledSong": "Untitled song",
+    "songTitlePlaceholder": "Song title *",
+    "artistNamePlaceholder": "Artist name",
+    "genrePlaceholder": "Genre (e.g. Alt R&B)",
+    "energyLabel": "Energy — {{energy}}",
+    "energyAria": "Song energy",
+    "energyChill": "Chill",
+    "energyBalanced": "Balanced",
+    "energyTurnt": "Turnt",
+    "advancedDetails": "Advanced details (optional)",
+    "moodPlaceholder": "Mood (e.g. late-night, confident)",
+    "tempoPlaceholder": "Tempo (e.g. 98 BPM)",
+    "descriptionPlaceholder": "What is the song about? Any story behind it?",
+    "lyricsPlaceholder": "Paste lyrics (optional — helps the AI nail the themes)",
+    "curatorNamePlaceholder": "Curator name (to personalize)",
+    "playlistNamePlaceholder": "Playlist name (to personalize)",
+    "writingKit": "Writing your pitch kit…",
+    "generateKit": "Generate pitch kit · {{cost}} credits",
+    "signInPrompt": "Sign in to generate a pitch kit.",
+    "songAnalysis": "Song analysis",
+    "statGenre": "Genre",
+    "statMood": "Mood",
+    "statEnergy": "Energy",
+    "statTempo": "Tempo feel",
+    "soundsLike": "Sounds like",
+    "playlistFit": "Playlist fit",
+    "pitchEmail": "Pitch email",
+    "subjectLabel": "Subject",
+    "bodyLabel": "Body",
+    "subjectPrefix": "Subject: ",
+    "dmVersion": "DM version",
+    "followUpTitle": "7-day follow-up",
+    "starterList": "Starter list.",
+    "curatorFallback": "Verify each curator's current submission guidelines before pitching. Never pay for guaranteed placements.",
+    "allGenres": "All genres",
+    "howToSubmit": "How to submit: ",
+    "addToTracker": "Add to tracker",
+    "noCurators": "No curators found for this genre yet.",
+    "pitchesCount": "pitches",
+    "acceptedCount": "accepted",
+    "logPitch": "Log a pitch",
+    "savePitch": "Save pitch",
+    "cancel": "Cancel",
+    "deletePitch": "Delete pitch",
+    "markStatus": "Mark {{status}}",
+    "noPitches": "No pitches logged yet. Generate a pitch kit, find a curator, and track every send right here — free forever."
+  },
+  "refundPolicy": {
+    "nav": {
+      "contactSupport": "Contact / Support"
+    },
+    "pageTitle": "Refund Policy",
+    "pageDescription": "Our refund policy for Visual Bucs and purchases.",
+    "title": "Refund Policy",
+    "lastUpdated": "Last updated: September 2026",
+    "whatWeSell": {
+      "title": "What We Sell",
+      "p1": "Bow Down Visuals sells ",
+      "strong": "digital AI creator Visual Bucs",
+      "p2": " — pre-purchased units used to generate videos, music, images, voiceovers, lip-synced videos, lyrics, thumbnails, caption sets, promo clips, and other digital creator content. All products are digital and delivered instantly upon Visual Buc use. No physical goods are sold or shipped."
+    },
+    "generalPolicy": {
+      "title": "Digital Products — General Policy",
+      "p1": "Because our products are digital and consumed immediately upon generation, ",
+      "strong": " all sales are generally final",
+      "p2": ". Once Visual Bucs have been used to generate content, those Visual Bucs cannot be refunded. Bonus Visual Bucs earned through referrals or promotions have no cash value and are non-refundable."
+    },
+    "whenWeRefund": {
+      "title": "When We Do Issue Refunds",
+      "intro": "We will issue a full or partial refund in the following situations:",
+      "technical": {
+        "title": "Technical failure:",
+        "desc": " Visual Bucs were deducted but no content was generated due to a platform error on our end."
+      },
+      "duplicate": {
+        "title": "Duplicate charge:",
+        "desc": " You were charged more than once for the same subscription period or purchase."
+      },
+      "unauthorized": {
+        "title": "Unauthorized charge:",
+        "desc": " You believe your account was accessed without your authorization."
+      },
+      "firstSub": {
+        "title": "Within 48 hours of first subscription:",
+        "desc": " If you subscribed and have not yet used any Visual Bucs, you may request a full refund within 48 hours of your first payment."
+      }
+    },
+    "cancellations": {
+      "title": "Subscription Cancellations",
+      "p1": "You may cancel your subscription at any time. Cancellation stops future billing; you retain access to your remaining Visual Bucs and subscription benefits through the end of the current billing period. ",
+      "strong": "Partial-month refunds are not issued for cancellations mid-cycle."
+    },
+    "howTo": {
+      "title": "How to Request a Refund",
+      "intro1": "To request a refund, contact us within ",
+      "strong": "7 days",
+      "intro2": " of the charge:",
+      "email": "Email: ",
+      "subject1": "Subject: ",
+      "subject2": "Refund Request — [your email]",
+      "include": "Include: date of charge, amount, and a brief description of the issue",
+      "response": "We aim to respond within 2 business days. Approved refunds are returned to your original payment method within 5–10 business days depending on your bank."
+    },
+    "questions": {
+      "title": "Questions?",
+      "p1": "Visit our ",
+      "contactLink": "Contact / Support page",
+      "p2": " or email "
+    }
+  },
+  "referrals": {
+    "error": {
+      "loadFailed": "Couldn't load referrals."
+    },
+    "shareText": "Join me on Bow Down Visuals — the AI studio for content creators. Sign up with my link and get {{reward}} free Visual Bucs to start!",
+    "titlePrefix": "Promoter",
+    "titleSuffix": "HQ",
+    "hero": {
+      "p1": "This is your job now. Climb the Kingpin ranks — more stars, bigger cut. New creators get",
+      "reward": "{{num}} free Visual Bucs",
+      "p2": ", and you earn up to",
+      "cut": "40% of everything they buy",
+      "p3": "for",
+      "days": "{{days}} days",
+      "p4": "."
+    },
+    "signup": {
+      "link": "Sign up",
+      "suffix": "to get your referral link."
+    },
+    "rank": {
+      "cut": "{{pct}}% cut on every active referral",
+      "notRanked": "Not ranked yet",
+      "firstStar": "Your first referral earns your first star",
+      "moreTo": "{{num}} more to",
+      "nextReward": "{{pct}}% + {{bonus}} VB bonus",
+      "top": "Top of the mountain. The Don."
+    },
+    "stats": {
+      "joined": "Creators joined",
+      "earning": "Earning now",
+      "earned": "Visual Bucs earned"
+    },
+    "link": {
+      "title": "Your referral link",
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "share": {
+      "title": "Share it"
+    },
+    "tracker": {
+      "title": "Your referrals",
+      "empty": "Nobody's joined through your link yet — share it above and they'll show up here.",
+      "creator": "Creator #{{n}}",
+      "joined": "Joined",
+      "earned": "+{{amount}} VB",
+      "earning": "Earning · {{days}}d left",
+      "ended": "Window ended"
+    },
+    "ladder": {
+      "title": "Kingpin ranks",
+      "you": "YOU",
+      "requirement": "{{min}}+ creators · {{pct}}% cut",
+      "bonus": "+{{bonus}} VB bonus",
+      "bonusClaimed": "✓{{bonus}} VB bonus claimed"
+    },
+    "footer": "You earn {{pct}}% of each referred creator's Visual Buc purchases, paid in Visual Bucs, for {{days}} days after they join. Payouts land automatically when they buy."
+  },
+  "randomizer": {
+    "badge": "Thy Cheat Code's dice",
+    "titlePrefix": "Content",
+    "titleSuffix": "Randomizer",
+    "hero": "Stuck staring at a blank page? Roll the dice for a free spark — or let GPT-6 cook up five fresh, made-for-you ideas for a single Visual Buc.",
+    "categoriesLabel": "Randomizer categories",
+    "categories": {
+      "video-ideas": {
+        "label": "Video Ideas",
+        "blurb": "Fresh concepts for your next music video or content drop."
+      },
+      "hooks": {
+        "label": "Hooks",
+        "blurb": "First-3-second openers that stop the scroll."
+      },
+      "thumbnails": {
+        "label": "Thumbnails",
+        "blurb": "High-click-through concepts for YouTube and beyond."
+      },
+      "song-concepts": {
+        "label": "Song Concepts",
+        "blurb": "Themes and angles worth writing your next track about."
+      },
+      "niche-picker": {
+        "label": "Niche Picker",
+        "blurb": "Positioning angles you could own as a creator."
+      },
+      "challenges": {
+        "label": "Challenges",
+        "blurb": "Forcing functions for output and growth."
+      }
+    },
+    "rollDice": "Roll the dice",
+    "freeForever": "Free forever — roll as much as you want",
+    "yourRoll": "Your roll",
+    "orDeeper": "or go deeper",
+    "cooking": "Cooking up ideas…",
+    "generateAi": "Generate 5 fresh with AI",
+    "signInToGenerate": "Sign in to generate with AI",
+    "costPerRoll": "{{cost}} Visual Buc per AI roll · powered by Thy Cheat Code",
+    "freshFromAi": "Fresh from the AI",
+    "reroll": "Re-roll ({{cost}} Visual Buc)",
+    "crossLink": {
+      "p1": "Like an idea? Ask",
+      "name": "Thy Cheat Code",
+      "p2": "in the chat bubble to turn it into a full plan."
+    },
+    "error": {
+      "aiRollFailed": "AI roll failed — try again."
+    }
+  },
+  "samples": {
+    "back": "Back",
+    "title": "Sample Pack Generator",
+    "subtitle": "Custom drum kits, loops & FX in your genre, BPM, and key — {{cost}} Visual Bucs for {{size}} samples",
+    "honesty": {
+      "p1": "Drums and FX are",
+      "synth": "synthesized with DSP",
+      "p2": "(labeled Synth); melodies and basslines are",
+      "ai": "AI-composed",
+      "p3": "(labeled AI). Every file is really rendered as a 44.1kHz WAV — nothing faked. Royalty-free: use them in your own productions."
+    },
+    "buildTitle": "Build your pack",
+    "genre": "Genre",
+    "genres": {
+      "trap": "Trap",
+      "hip-hop": "Hip-Hop",
+      "drill": "Drill",
+      "rnb": "R&B",
+      "afrobeats": "Afrobeats",
+      "house": "House",
+      "techno": "Techno",
+      "drum-and-bass": "Drum & Bass",
+      "lofi": "Lo-Fi",
+      "pop": "Pop"
+    },
+    "key": "Key",
+    "keyNote": "(melodies & bass follow this)",
+    "tempo": "Tempo",
+    "bpm": "{{bpm}} BPM",
+    "packSize": "Pack size",
+    "credits": "{{num}} Visual Bucs",
+    "sampleTypes": "Sample types",
+    "sampleTypesNote": "(leave empty for a balanced mix)",
+    "cooking": "Cooking your pack…",
+    "generate": "Generate pack · {{cost}} credits",
+    "signIn": "Sign in",
+    "signInSuffix": " to generate packs.",
+    "yourPack": "Your pack — {{num}} samples",
+    "creditsLeft": "{{num}} Visual Bucs left",
+    "zipping": "Zipping…",
+    "downloadZip": "Download pack ZIP",
+    "aiGenerated": "AI-generated",
+    "synthesized": "Synthesized",
+    "downloadWav": "Download WAV",
+    "licenseFallback": "Royalty-free — use in your own productions, no attribution required.",
+    "progress": {
+      "charging": "Charging Visual Bucs and warming up the studio…"
+    },
+    "error": {
+      "generationFailed": "Generation failed",
+      "zipFailed": "ZIP failed",
+      "zipDownloadFailed": "ZIP download failed"
+    }
+  },
+  "memberships": {
+    "badge": "Fan Clubs",
+    "titleStart": "Fan",
+    "titleAccent": "Memberships",
+    "subtitle": "Launch paid tiers for your biggest fans — exclusive content, early access, behind-the-scenes. Free to set up.",
+    "paymentsNotice": "Payments are coming soon — track members manually for now. No fake transactions, ever.",
+    "signInPrompt": "Sign in to build your fan club.",
+    "signIn": "Sign In",
+    "dismiss": "Dismiss",
+    "errorLoad": "Couldn't load your fan club — try again.",
+    "errorSaveTier": "Couldn't save the tier — try again.",
+    "errorDeleteTier": "Couldn't delete the tier — try again.",
+    "errorAddMember": "Couldn't add the member — try again.",
+    "errorUpdateMember": "Couldn't update the member — try again.",
+    "errorRemoveMember": "Couldn't remove the member — try again.",
+    "errorDuplicateMember": "That fan is already on this tier.",
+    "errorSuggester": "The AI suggester hiccuped — Visual Bucs were refunded, try again.",
+    "confirmDeleteTier": "Delete this tier and its tracked members? This can't be undone.",
+    "confirmRemoveMember": "Remove this member from tracking?",
+    "dashboardTitle": "Member Dashboard",
+    "activeMembers": "Active members",
+    "monthlyRevenue": "Monthly revenue",
+    "afterFee": "{{amount}} after 10% platform fee",
+    "churn": "Churn",
+    "pastDue": "Past due",
+    "tierStats": "{{count}} members · {{amount}}/mo",
+    "buildTier": "Build a Tier",
+    "editTier": "Edit Tier",
+    "tierNamePlaceholder": "Tier name (e.g. Gold Circle)",
+    "pricePlaceholder": "Price / month",
+    "descriptionPlaceholder": "What is this tier about? (optional)",
+    "perkPlaceholder": "Add a perk, then press Enter (e.g. Early access to every video)",
+    "addPerk": "Add",
+    "removePerk": "Remove perk",
+    "createTier": "Create Tier",
+    "saveTier": "Save Tier",
+    "cancel": "Cancel",
+    "editTierAria": "Edit tier",
+    "deleteTierAria": "Delete tier",
+    "perMonth": "/mo",
+    "tierOption": "{{name}} — {{price}}/mo",
+    "aiSuggesterTitle": "AI Tier Suggester",
+    "aiCost": "100 Visual Bucs",
+    "aiDescription": "Tell the AI your niche and it designs 3 tiers — names, prices, and concrete perks. Apply any suggestion straight into the tier builder.",
+    "nichePlaceholder": "Your niche (e.g. Music production)",
+    "audienceStarting": "starting",
+    "audienceGrowing": "growing",
+    "audienceEstablished": "established",
+    "suggestButton": "Suggest My Tiers",
+    "useTier": "Use This Tier",
+    "membersTitle": "Members",
+    "membersNote": "Add members manually while payment processing is coming soon.",
+    "pickTier": "Pick a tier…",
+    "fanPlaceholder": "Fan email or handle",
+    "addMember": "Add Member",
+    "statusActive": "Active",
+    "statusPastDue": "Past due",
+    "statusCanceled": "Canceled",
+    "removeMemberAria": "Remove member",
+    "memberMeta": "{{tier}} · {{price}}/mo · joined {{date}}",
+    "noMembers": "No members tracked yet."
+  },
+  "myProjects": {
+    "pageTitle": "My Projects",
+    "pageDescription": "All your songs, videos, and creative projects in one place.",
+    "heading": "My Projects",
+    "subheading": "Saved projects, unsaved drafts, and all your generated Runway clips — all in one place.",
+    "backToDashboard": "Back to Dashboard",
+    "tabProjects": "Projects",
+    "tabDrafts": "Drafts",
+    "tabClips": "Generated Clips",
+    "tabHistory": "Generation History",
+    "tryAgain": "Try again",
+    "noProjects": "No saved projects yet",
+    "noProjectsHint": "Generate content and click Save Project — it will appear here.",
+    "goToDashboard": "Go to Dashboard",
+    "noDrafts": "No drafts saved",
+    "noDraftsHint": "Drafts are saved automatically as you work. Start a project and your progress will appear here.",
+    "startProject": "Start a Project",
+    "draftsHint": "Drafts are auto-saved as you work. Click Recover to return to that project and pick up where you left off.",
+    "noClips": "No generated clips yet",
+    "noClipsHint": "Generate Runway clips in your music video project — they'll be saved here automatically.",
+    "clipsSaved": "{{count}} clips saved — auto-saved the moment each Runway job completes.",
+    "noHistory": "No generation history yet",
+    "noHistoryHint": "No generation history yet. Your AI generations will appear here after you create something.",
+    "startGenerating": "Start Generating",
+    "generationsLogged": "{{count}} generations logged — newest first.",
+    "failedLoadProjects": "Failed to load projects",
+    "failedLoadDrafts": "Failed to load drafts",
+    "failedLoadClips": "Failed to load clips",
+    "failedLoadHistory": "Failed to load generation history",
+    "failedDeleteProject": "Failed to delete project. Please try again.",
+    "failedDeleteDraft": "Failed to delete draft. Please try again.",
+    "failedDeleteClip": "Failed to delete clip. Please try again.",
+    "typeStartFromScratch": "Start from Scratch",
+    "typeVideoForMySong": "Video for My Song",
+    "typeRunwayClip": "Runway Video Clip",
+    "typeLipSyncClip": "Lip Sync Clip",
+    "typeThumbnail": "Thumbnail",
+    "typeLyrics": "Lyrics",
+    "typeVideoPlan": "Video Plan",
+    "typeScenePrompt": "Scene Prompt",
+    "typeCaptions": "Captions",
+    "typePromoClip": "Promo Clip",
+    "typeThumbnailPrompt": "Thumbnail Prompt",
+    "typeGeneration": "Generation",
+    "statusSaved": "Saved",
+    "statusSaveFailed": "Save Failed",
+    "statusGenerated": "Generated",
+    "visualBucsRefunded": "Visual Bucs Refunded",
+    "visualBucsUsed": "{{count}} Visual Bucs",
+    "previewClip": "Preview Clip",
+    "openProject": "Open Project",
+    "copyContent": "Copy Content",
+    "open": "Open",
+    "deleteProject": "Delete project",
+    "deleteProjectConfirm": "Delete \"{{title}}\"? This cannot be undone.",
+    "runwayClipsSaved": "{{count}} Runway clips saved",
+    "unsavedDraft": "Unsaved Draft",
+    "deleteDraftConfirm": "Delete this draft? This cannot be undone.",
+    "generatedContentIncluded": "Generated content included",
+    "downloadBackupJson": "Download Backup JSON",
+    "recover": "Recover",
+    "deleteClipConfirm": "Delete this clip? This cannot be undone.",
+    "openVideoUrl": "Open video URL",
+    "editor": "Editor",
+    "hidePrompt": "Hide prompt ▲",
+    "showPrompt": "Show prompt ▼",
+    "analysisFailed": "Analysis failed",
+    "analysisFailedRetry": "Analysis failed. Please try again.",
+    "copied": "Copied!",
+    "copyAll": "Copy All",
+    "analyzing": "Analyzing...",
+    "reanalyzeSections": "Re-analyze Sections",
+    "findHookVerses": "Find Hook & Verses",
+    "analysisComplete": "Analysis complete",
+    "noContentSaved": "No content saved."
+  },
+  "merch": {
+    "back": "Back",
+    "title": "Merch Designer",
+    "subtitle": "AI-designed merch for your brand — 300 Visual Bucs per design batch",
+    "tabs": {
+      "design": "Design Studio",
+      "store": "My Store"
+    },
+    "products": {
+      "t-shirt": {
+        "label": "T-Shirt",
+        "blurb": "Classic crew tee"
+      },
+      "hoodie": {
+        "label": "Hoodie",
+        "blurb": "Heavyweight pullover"
+      },
+      "cap": {
+        "label": "Cap",
+        "blurb": "Snapback / dad hat"
+      },
+      "poster": {
+        "label": "Poster",
+        "blurb": "18\"×24\" matte print"
+      }
+    },
+    "styles": {
+      "streetwear": {
+        "label": "Streetwear",
+        "blurb": "Bold graphics, urban energy"
+      },
+      "minimal": {
+        "label": "Minimal",
+        "blurb": "Clean, subtle, timeless"
+      },
+      "vintage": {
+        "label": "Vintage",
+        "blurb": "Retro, worn-in, classic"
+      },
+      "luxury-gold": {
+        "label": "Luxury Gold",
+        "blurb": "Black & gold, premium"
+      }
+    },
+    "productLabel": "Product",
+    "styleLabel": "Style",
+    "designTitleLabel": "Design title",
+    "titlePlaceholder": "e.g. Shark King Tour Tee",
+    "describeLabel": "Describe your design",
+    "describeHint": "(AI handles the rest)",
+    "descriptionPlaceholder": "e.g. A crowned shark with lightning, 'BOW DOWN' in bold gold letters underneath",
+    "generateButton": "Generate 2 mockups · 300 Visual Bucs",
+    "creditsRemaining": "{{count}} Visual Bucs remaining",
+    "designing": "Designing your merch…",
+    "designingDetail": "Rendering 2 product mockups — hang tight.",
+    "mockupsReady": "2 mockups ready",
+    "suggestedRetail": "suggested retail {{price}}",
+    "mockupAlt": "Merch mockup",
+    "download": "Download",
+    "saved": "Saved",
+    "saveToStore": "Save to store",
+    "newBatch": "New batch",
+    "dropshipTitle": "Dropship model:",
+    "dropshipDesc": "you design, manufacturers print & ship directly — Bow Down Visuals never touches inventory. Checkout is",
+    "comingSoon": "coming soon",
+    "dropshipEnd": "; listing is free.",
+    "loadingStore": "Loading your store…",
+    "noDesigns": "No designs yet",
+    "noDesignsDetail": "Generate a batch in the Design Studio, then save your favorites here.",
+    "startDesigning": "Start designing",
+    "pricePlaceholder": "29.99",
+    "setPrice": "Set price",
+    "listForSale": "List for sale",
+    "unlist": "Unlist",
+    "deleteDesign": "Delete design",
+    "baseCost": "Base cost",
+    "platformFee": "Platform fee (future)",
+    "yourProfit": "Your profit",
+    "marginPct": "{{pct}}% margin",
+    "previewCheckout": "Preview checkout",
+    "priceNote": "Prices and listing are free to change anytime. The 15% platform fee only applies once checkout goes live.",
+    "errorGenerate": "Could not generate the designs — no Visual Bucs were charged.",
+    "errorNetwork": "Network error — please try again. No Visual Bucs were charged.",
+    "confirmDelete": "Delete this design? This can't be undone.",
+    "checkoutSoon": "Checkout is coming soon."
+  },
+  "podcast": {
+    "episode": {
+      "descriptionPlaceholder": "Short description for your RSS feed (optional)",
+      "title": "Episode",
+      "titlePlaceholder": "Episode title — e.g. “How I blew up on TikTok”"
+    },
+    "errors": {
+      "coHostVoiceRequired": "Pick a co-host voice first.",
+      "copyFailed": "Couldn't copy to clipboard — use the download button instead.",
+      "generationFailed": "Podcast generation failed — try again.",
+      "hostVoiceRequired": "Pick a host voice first.",
+      "scriptRequired": "Paste your script first.",
+      "titleRequired": "Give your episode a title first.",
+      "topicRequired": "Give a topic first.",
+      "videoRequired": "Paste a video URL first.",
+      "voicesDifferent": "Host and co-host should be different voices."
+    },
+    "finishing": {
+      "musicBedLabel": "Intro / outro music bed",
+      "musicBedNote": "A generated ambient synth bed under the open and close — included free with the episode.",
+      "title": "Finishing touches"
+    },
+    "generate": {
+      "billedOnLength": "billed on actual audio length",
+      "creditsEstimate": "{{credits}} credits",
+      "featureName": "Generate Podcast",
+      "produceEpisode": "Produce episode",
+      "producing": "Producing your episode…",
+      "signIn": "Sign in",
+      "signInPrompt": "to produce episodes."
+    },
+    "hero": {
+      "badge": "AI Podcast Studio",
+      "subtitle": "Script, topic, or video in — finished episode out. AI hosts, intro/outro music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.",
+      "titleAccent": "produced by AI",
+      "titleStart": "Your show,"
+    },
+    "hosts": {
+      "coHostVoiceLabel": "Co-host voice",
+      "duo": "Duo",
+      "hostVoiceLabel": "Host voice",
+      "prefixHintAfter": "— or leave them off and paragraphs will alternate automatically.",
+      "prefixHintAnd": "and",
+      "prefixHintBefore": "Prefix script lines with",
+      "signIn": "Sign in",
+      "signInPrompt": "to browse the voice library.",
+      "solo": "Solo",
+      "title": "Hosts"
+    },
+    "modes": {
+      "scriptBlurb": "You write it — AI voices read it.",
+      "scriptLabel": "Script",
+      "topicBlurb": "AI writes the script, then voices it.",
+      "topicLabel": "Topic",
+      "videoBlurb": "Extract your video's audio as the episode.",
+      "videoLabel": "Video"
+    },
+    "result": {
+      "apple": "Apple Podcasts Connect",
+      "chapters": "Chapters",
+      "copied": "Copied",
+      "copyRss": "Copy RSS",
+      "creditsNote": "Used {{used}} Visual Bucs · {{remaining}} remaining.",
+      "downloadMp3": "Download MP3",
+      "durationApprox": "~{{duration}}",
+      "empty": "Your finished episode lands here — MP3, chapters, and a publish-ready RSS feed.",
+      "hostWord_one": "host",
+      "hostWord_other": "hosts",
+      "musicBedTag": "· music bed",
+      "publishFeed": "Publish feed",
+      "spotify": "Spotify for Podcasters",
+      "submitFeedAfter": "to go live.",
+      "submitFeedAnd": "and",
+      "submitFeedBefore": "Submit this feed to",
+      "title": "Your episode",
+      "viewScript": "View AI-written script"
+    },
+    "script": {
+      "creditsCost": "{{credits}} Visual Bucs",
+      "durationApprox": "~{{duration}}",
+      "placeholder": "Paste your episode script…\n\nTips:\n• # Headings become chapter markers\n• Dual-host: prefix lines with HOST: / COHOST:",
+      "wordsCount_one": "{{count}} word",
+      "wordsCount_other": "{{count}} words"
+    },
+    "startFrom": {
+      "title": "Start from"
+    },
+    "topic": {
+      "note": "AI writes an ~8–10 minute script for you (~{{credits}} Visual Bucs of audio). You can review the script after generation.",
+      "placeholder": "e.g. “5 monetization mistakes new creators make”"
+    },
+    "video": {
+      "note": "We extract your video's audio track and master it as the episode — your own recording, no AI voices. Billed on the actual audio length.",
+      "placeholder": "https://… — direct link to your video file"
+    },
+    "voicePicker": {
+      "error": "Couldn't load voices — check your connection and refresh.",
+      "loading": "Loading voices…",
+      "previewAria": "Preview {{name}}"
+    }
+  },
+  "presave": {
+    "artworkAlt": "{{title}} artwork",
+    "badge": "Pre-save",
+    "drops": "Drops {{date}}",
+    "errors": {
+      "loadFailed": "Couldn't load this release.",
+      "notFound": "This pre-save link doesn't exist."
+    },
+    "footer": "Released with Thy Cheat Code — the content creator cheat code.",
+    "loading": "Loading release…",
+    "platformsTitle": "Available everywhere on release day"
+  },
+  "press-kit": {
+    "backToDashboard": "Back to dashboard",
+    "confirmDelete": "Delete this press kit? This can't be undone.",
+    "confirmFeatureGenerate": "Press Kit Generator",
+    "confirmFeatureRefresh": "Press Kit Bio Refresh",
+    "copied": "Copied",
+    "copyLink": "Copy link",
+    "costNote": "The 300 Visual Bucs cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.",
+    "createTitle": "Create your press kit",
+    "delete": "Delete",
+    "description": "Generate a professional electronic press kit — AI-written bio, photos, top tracks, achievements, press quotes, and booking contact — published at your own shareable URL.",
+    "edit": "Edit",
+    "editTitle": "Edit press kit",
+    "emptyKits": "No press kits yet — create your first.",
+    "errors": {
+      "bioRefreshFailed": "Bio refresh failed.",
+      "generationFailed": "Generation failed.",
+      "missingHandleAndName": "Give your press kit a URL handle and an artist name.",
+      "network": "Network error — please try again.",
+      "saveFailed": "Save failed."
+    },
+    "form": {
+      "achievementsLabel": "Achievements (one per line)",
+      "addAchievement": "Add achievement",
+      "addQuote": "Add quote",
+      "addTrack": "Add track",
+      "artistName": "Artist name *",
+      "bioLabel": "Bio (free to edit)",
+      "bookingEmail": "Booking email",
+      "cancel": "Cancel",
+      "genre": "Genre",
+      "location": "Location",
+      "noneOption": "None — enter manually",
+      "photoTip": "Tip: pick an artist vault above to auto-fill its reference photo.",
+      "photoUrlsLabel": "Photo URLs (one per line)",
+      "publicCheckbox": "Public — anyone with the link can view this press kit",
+      "quotesLabel": "Press quotes",
+      "saveChanges": "Save changes (free)",
+      "socialUrl": "{{platform}} URL",
+      "tagline": "Tagline",
+      "tracksLabel": "Top tracks (title + link)",
+      "urlHandle": "URL handle *",
+      "vaultLabel": "Artist vault (bio source + photo)",
+      "website": "Website"
+    },
+    "generateKit_one": "Generate press kit · {{count}} Visual Buc",
+    "generateKit_other": "Generate press kit · {{count}} Visual Bucs",
+    "newPressKit": "New press kit",
+    "pdf": "PDF",
+    "placeholders": {
+      "achievement": "Headlined…",
+      "artistName": "Thy Cheat Code",
+      "bookingEmail": "book@example.com",
+      "genre": "Hip-hop",
+      "handle": "shark-king",
+      "location": "Atlanta, GA",
+      "photoUrls": "https://… (paste image URLs, or pick a vault above)",
+      "quote": "Quote…",
+      "source": "Source…",
+      "tagline": "The King Shark of content",
+      "trackTitle": "Track title…",
+      "url": "https://…"
+    },
+    "privateNote": "Private — only you can view",
+    "publicNote": "Public — anyone with the link can view",
+    "refreshBio_one": "Refresh bio · {{count}} Visual Buc",
+    "refreshBio_other": "Refresh bio · {{count}} Visual Bucs",
+    "sections": {
+      "achievements": "Achievements",
+      "bio": "Bio",
+      "photos": "Photos",
+      "press": "Press",
+      "topTracks": "Top tracks"
+    },
+    "title": "Press Kit Builder",
+    "tone": {
+      "bold": "Bold",
+      "luxury": "Luxury",
+      "playful": "Playful",
+      "professional": "Professional"
+    }
+  },
+  "press-public": {
+    "backHome": "Back to home",
+    "cheatCodeTagline": "— the content creator cheat code.",
+    "downloadPdf": "Download as PDF",
+    "epkLabel": "Electronic Press Kit",
+    "madeWith": "Made with",
+    "notFoundMessage": "This press kit doesn't exist or isn't public.",
+    "notFoundTitle": "Press kit not found",
+    "photoAlt": "{{name}} photo {{index}}",
+    "sections": {
+      "achievements": "Achievements",
+      "bio": "Bio",
+      "bookingContact": "Booking & Contact",
+      "photos": "Photos",
+      "press": "Press",
+      "topTracks": "Top tracks"
+    },
+    "website": "Website"
+  },
+  "pricing": {
+    "betaNotice": {
+      "cta": "Join the beta list for early access →",
+      "label": "Beta Notice:",
+      "text": "Bow Down Visuals is currently in beta. Payments are not live yet."
+    },
+    "bottomCta": {
+      "joinBeta": "Join Beta",
+      "text": "Beta members lock in the founding rate and get 100 bonus Visual Bucs on launch day.",
+      "title": "Get in early.",
+      "tryTools": "Try the Tools"
+    },
+    "cancelledBanner": {
+      "text": "Payment cancelled. No Visual Bucs were added."
+    },
+    "creditPacks": {
+      "buyButton": "Buy Visual Bucs",
+      "checkoutFailed": "Checkout failed. Please try again.",
+      "networkError": "Network error. Please try again.",
+      "packs": {
+        "10": {
+          "credits": "1,000 Visual Bucs",
+          "price": "$9"
+        },
+        "150": {
+          "credits": "15,000 Visual Bucs",
+          "price": "$99"
+        },
+        "50": {
+          "credits": "5,000 Visual Bucs",
+          "price": "$39"
+        },
+        "500": {
+          "credits": "50,000 Visual Bucs",
+          "price": "$249"
+        }
+      },
+      "processing": "Processing…",
+      "signInNote": "You must be signed in to purchase Visual Bucs.",
+      "subtitle": "Need extra Visual Bucs without a subscription? Top up anytime.",
+      "testModeLead": "Payments are currently in",
+      "testModeStrong": "test mode",
+      "testModeTail": ". No real money is charged.",
+      "title": "Test Visual Buc Packs"
+    },
+    "faq": {
+      "a1": "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly Visual Bucs balance.",
+      "a2": "Not yet. Bow Down Visuals is currently in beta. Payments are coming soon. Join the beta list now to lock in your founding rate and get early access when billing goes live.",
+      "a3": "Yes. Beta users can test selected tools with a starter Visual Bucs balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
+      "a4": "Yes — music video clip generation is a premium action and uses more Visual Bucs than standard text generation. The exact cost per clip will be confirmed at launch.",
+      "a5": "Yes. Once billing is live, you can upgrade, downgrade, or cancel any time from your account settings. No contracts. No cancellation fees.",
+      "a6": "AI song vocals and full beat generation are planned but not fully launched yet. Right now the platform creates professional lyrics, hooks, verses, AI music prompts, video treatments, and promo content — everything you need to direct and produce your release.",
+      "q1": "What are Visual Bucs?",
+      "q2": "Are payments live yet?",
+      "q3": "Can I use Bow Down Visuals during beta?",
+      "q4": "Do music video clips cost Visual Bucs?",
+      "q5": "Can I cancel later?",
+      "q6": "Does this make real songs with vocals yet?",
+      "title": "Frequently Asked Questions"
+    },
+    "hero": {
+      "disclaimer": "No free generations. No hidden compute charges. See the Visual Buc cost before you create.",
+      "kicker": "Pricing",
+      "subtitle": "Climb from Street Punk to Kingpin — the higher your rank, the more power, credits, automation, and control you unlock.",
+      "titleLine1": "Choose Your",
+      "titleLine2": "Rank",
+      "videoAriaLabel": "Thy Cheat Code leveling up"
+    },
+    "jsonLd": {
+      "description": "AI-powered creative studio for content creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
+      "offerCatalogName": "Bow Down Visuals Plans"
+    },
+    "pageDescription": "Choose your rank — six star-rated creator plans.",
+    "pageTitle": "Pricing",
+    "planCard": {
+      "bestFor": "Best for: {{bestFor}}",
+      "perMonth": "/month",
+      "wantedStarsAria": "{{stars}} out of 6 wanted stars"
+    },
+    "plans": {
+      "comingSoonNote": "Billing is not live yet. All plan buttons join the beta list.",
+      "crimeBoss": {
+        "badge": "Exclusive",
+        "bestFor": "High-volume creators",
+        "credits": "150,000 Visual Bucs monthly",
+        "cta": "Become a Crime Boss",
+        "features": {
+          "f1": "Everything in Shot Caller",
+          "f2": "Priority generation queue",
+          "f3": "4K output where supported",
+          "f4": "Early access to new AI models",
+          "f5": "Advanced cross-platform analytics",
+          "f6": "Exclusive Crime Boss templates & styles"
+        },
+        "name": "Crime Boss"
+      },
+      "gangster": {
+        "bestFor": "Serious full-time creators",
+        "credits": "25,000 Visual Bucs monthly",
+        "cta": "Become a Gangster",
+        "features": {
+          "f1": "Everything in Hustler",
+          "f2": "AI Lip Sync",
+          "f3": "AI mastering + stem separation",
+          "f4": "Advanced effects & transitions",
+          "f5": "Upscaling & watermark cleanup",
+          "f6": "Batch creative variations"
+        },
+        "name": "Gangster"
+      },
+      "hustler": {
+        "badge": "Most Popular",
+        "bestFor": "Active solo creators",
+        "credits": "10,000 Visual Bucs monthly",
+        "cta": "Rank Up to Hustler",
+        "features": {
+          "f1": "Everything in Street Punk",
+          "f2": "AI video clip generation",
+          "f3": "Full Video Editor access",
+          "f4": "Creator Vault + Photo Shoot",
+          "f5": "Artist Voice Lock",
+          "f6": "Character video references"
+        },
+        "name": "Hustler"
+      },
+      "kingpin": {
+        "badge": "Top Tier",
+        "bestFor": "Labels, agencies & power users",
+        "credits": "400,000 Visual Bucs monthly",
+        "cta": "Claim the Kingpin Crown",
+        "features": {
+          "f1": "Everything in Crime Boss",
+          "f2": "8K delivery where supported",
+          "f3": "Custom AI style training",
+          "f4": "White-label client deliverables",
+          "f5": "API access & automation",
+          "f6": "Dedicated account manager"
+        },
+        "name": "Kingpin"
+      },
+      "shotCaller": {
+        "bestFor": "Teams & creator brands",
+        "credits": "60,000 Visual Bucs monthly",
+        "cta": "Become a Shot Caller",
+        "features": {
+          "f1": "Everything in Gangster",
+          "f2": "Team workspace & member roles",
+          "f3": "Shared vaults & brand libraries",
+          "f4": "Review & approval workflow",
+          "f5": "Social scheduling & publishing",
+          "f6": "Bulk asset creation"
+        },
+        "name": "Shot Caller"
+      },
+      "streetPunk": {
+        "bestFor": "New creators",
+        "credits": "2,500 Visual Bucs monthly",
+        "cta": "Become a Street Punk",
+        "features": {
+          "f1": "AI Music Maker",
+          "f2": "Music video plans & treatments",
+          "f3": "Promo clip planning",
+          "f4": "Hook Studio + virality check",
+          "f5": "Thumbnail Maker & Logo Maker",
+          "f6": "Thy Cheat Code guided setup"
+        },
+        "name": "Street Punk"
+      }
+    },
+    "wantedMeter": {
+      "ariaLabel": "Preview rank",
+      "hint": "Hover the stars, then tap a level to jump to its plan",
+      "hoverLabel_one": "{{count}} Star — {{name}} · ${{price}}/mo",
+      "hoverLabel_other": "{{count}} Stars — {{name}} · ${{price}}/mo",
+      "starOption_one": "{{count}} star — {{name}} ${{price}}/month",
+      "starOption_other": "{{count}} stars — {{name}} ${{price}}/month"
+    }
+  },
+  "privacy": {
+    "contactSupport": "Contact / Support",
+    "lastUpdated": "Last updated: September 2026",
+    "pageDescription": "How Bow Down Visuals handles your data.",
+    "pageTitle": "Privacy Policy",
+    "section10ContactLink": "Contact page",
+    "section10Intro": "Privacy questions? Email",
+    "section10Middle": "or visit our",
+    "section10Title": "10. Contact",
+    "section1Body": "Bow Down Visuals operates a digital creator platform that provides AI-powered Visual Bucs for generating videos, music, images, voiceovers, lip-synced videos, lyrics, captions, thumbnails, promo clips, and related digital content. This policy explains how we collect, use, and protect your information.",
+    "section1Title": "1. Who We Are",
+    "section2Item1Body": "email address and password (hashed) when you register, or basic profile information from Google if you sign in with Google",
+    "section2Item1Label": "Account info:",
+    "section2Item2Body": "handled entirely by Stripe — we never store raw card data",
+    "section2Item2Label": "Billing info:",
+    "section2Item3Body": "Visual Buc usage, tool interactions, and generated content prompts",
+    "section2Item3Label": "Usage data:",
+    "section2Item4Body": "info you enter to personalize AI outputs (artist name, genre, style preferences)",
+    "section2Item4Label": "Artist profile data:",
+    "section2Item5Body": "referral codes used at signup and referral rewards earned",
+    "section2Item5Label": "Referral data:",
+    "section2Item6Body": "browser type, IP address, and session data for security and performance",
+    "section2Item6Label": "Technical data:",
+    "section2Title": "2. Information We Collect",
+    "section3Item1": "To operate and improve the platform",
+    "section3Item2": "To process payments and manage subscriptions",
+    "section3Item3": "To personalize AI-generated outputs to your artist profile",
+    "section3Item4": "To send account-related emails (receipts, security alerts)",
+    "section3Item5": "To comply with legal obligations",
+    "section3Title": "3. How We Use Your Information",
+    "section4Intro": "We do not sell your personal data. We share data only with:",
+    "section4Item1Body": "payment processing",
+    "section4Item1Label": "Stripe",
+    "section4Item2Body": "database and authentication",
+    "section4Item2Label": "Supabase",
+    "section4Item3Body": "if you sign in with Google (subject to Google's privacy policy)",
+    "section4Item3Label": "Google",
+    "section4Item4Body": "to fulfill generation requests (prompts may be processed by third-party AI APIs)",
+    "section4Item4Label": "AI providers",
+    "section4Item5": "Law enforcement when required by applicable law",
+    "section4Title": "4. Data Sharing",
+    "section5Body": "We use session cookies necessary for authentication. We do not run third-party ad trackers. Analytics, if used, are limited to aggregate usage data.",
+    "section5Title": "5. Cookies & Tracking",
+    "section6Body": "We retain your account data for as long as your account is active. You may request deletion at any time by contacting us. Billing records are retained as required by law.",
+    "section6Title": "6. Data Retention",
+    "section7Intro": "Depending on your location, you may have the right to access, correct, or delete your personal data. To exercise any of these rights, contact us at",
+    "section7Title": "7. Your Rights",
+    "section8Body": "We use industry-standard security measures including encrypted connections (HTTPS), hashed passwords, and row-level security on our database. No system is 100% secure; use a strong unique password for your account.",
+    "section8Title": "8. Security",
+    "section9Body": "We may update this policy from time to time. We'll notify you of material changes via email or an in-app notice.",
+    "section9Title": "9. Changes to This Policy",
+    "title": "Privacy Policy"
+  },
+  "promo-clip": {
+    "pageTitle": "Promo Clip Maker",
+    "pageDescription": "Turn any song into scroll-stopping promo clips for TikTok, Reels, and Shorts.",
+    "backToDashboard": "Back to Dashboard",
+    "creditBadge": "100 Visual Bucs",
+    "title": "Promo Clips",
+    "subtitle": "Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.",
+    "tags": {
+      "promo15": "15-Sec Promo",
+      "promo30": "30-Sec Promo",
+      "hookScript": "Hook Clip Script",
+      "onScreenText": "On-Screen Text",
+      "captions": "Captions",
+      "hashtags": "Hashtags",
+      "ctas": "CTAs",
+      "visualShots": "Visual Shots",
+      "clipTiming": "Clip Timing",
+      "thumbnailIdea": "Thumbnail Idea"
+    },
+    "modes": {
+      "fromProject": {
+        "title": "Start From Existing Project",
+        "desc": "Load a saved song or video project. We'll pull your lyrics, clips, and artist info automatically.",
+        "cta": "Select a project"
+      },
+      "fromScratch": {
+        "title": "Start From Scratch",
+        "desc": "Enter your artist details manually. Great for new projects or quick promo content.",
+        "cta": "Fill in details"
+      }
+    },
+    "changeMode": "Change mode",
+    "change": "Change",
+    "steps": {
+      "selectProject": "Select Your Project",
+      "choosePromoType": "Choose Promo Type",
+      "choosePlatform": "Choose Platform",
+      "artistTrack": "Artist & Track",
+      "soundStyle": "Sound & Style",
+      "campaign": "Campaign"
+    },
+    "clips": {
+      "count_one": "{{count}} clip",
+      "count_other": "{{count}} clips",
+      "lyrics": "lyrics"
+    },
+    "loadingProjects": "Loading your projects…",
+    "noProjects": "No saved projects found.",
+    "createProjectFirst": "Create a project first",
+    "searchPlaceholder": "Search by artist, song, or title…",
+    "noProjectsMatch": "No projects match your search.",
+    "promoTypes": {
+      "hookPromo": {
+        "label": "Hook Promo",
+        "desc": "Go viral with your hook"
+      },
+      "bestBarClip": {
+        "label": "Best Bar Clip",
+        "desc": "Showcase your hardest bar"
+      },
+      "releaseAnnouncement": {
+        "label": "Release Announcement",
+        "desc": "Drop announcement content"
+      },
+      "musicVideoTeaser": {
+        "label": "Music Video Teaser",
+        "desc": "Tease the visuals"
+      },
+      "behindTheSong": {
+        "label": "Behind The Song",
+        "desc": "Story behind the record"
+      },
+      "lyricsClip": {
+        "label": "Lyrics Clip",
+        "desc": "Lyric-forward content"
+      },
+      "countdownPost": {
+        "label": "Countdown Post",
+        "desc": "Build pre-release hype"
+      },
+      "streamingCta": {
+        "label": "Streaming CTA",
+        "desc": "Drive streams & saves"
+      }
+    },
+    "platforms": {
+      "tiktok": "TikTok",
+      "reels": "Reels",
+      "shorts": "Shorts",
+      "square": "Square",
+      "allPlatforms": "All Platforms"
+    },
+    "genres": {
+      "hipHop": "Hip Hop",
+      "drill": "Drill",
+      "trap": "Trap",
+      "rnb": "R&B",
+      "pop": "Pop",
+      "afrobeats": "Afrobeats",
+      "dancehall": "Dancehall",
+      "gospel": "Gospel",
+      "kidsMusic": "Kids Music",
+      "rock": "Rock",
+      "country": "Country",
+      "other": "Other"
+    },
+    "moods": {
+      "luxury": "Luxury",
+      "dark": "Dark",
+      "emotional": "Emotional",
+      "street": "Street",
+      "romantic": "Romantic",
+      "energetic": "Energetic",
+      "pain": "Pain",
+      "victory": "Victory",
+      "party": "Party",
+      "inspirational": "Inspirational",
+      "funny": "Funny",
+      "kidFriendly": "Kid-Friendly"
+    },
+    "goals": {
+      "buildHype": "Build hype before release",
+      "promoteSong": "Promote new song",
+      "pushMusicVideo": "Push music video",
+      "getStreams": "Get more streams",
+      "goViral": "Go viral with hook",
+      "promoteBrand": "Promote artist brand",
+      "announceReleaseDate": "Announce release date"
+    },
+    "clipsSelector": {
+      "title": "Clips for Promo Timeline",
+      "available": "{{count}} available",
+      "hint": "Select which clips to reference in the AI promo suggestions",
+      "clipFallback": "Clip {{n}}"
+    },
+    "advanced": {
+      "title": "Advanced Options",
+      "hookOverride": "Hook / Best Lyrics Override",
+      "hookOverrideHint": "Paste a specific hook or bar to focus the promo around. If blank, we'll pull from your project lyrics automatically.",
+      "hookPlaceholder": "Paste your hook or best bar here…",
+      "specialInstructions": "Special Instructions",
+      "instructionsPlaceholder": "Release date, content restrictions, cultural context, trending sounds to reference…",
+      "instructionsPlaceholderScratch": "Release date, content restrictions, cultural context, trending sounds to reference, platform-specific notes…"
+    },
+    "summary": {
+      "project": "Project:",
+      "clipsSelected_one": "{{count}} clip selected",
+      "clipsSelected_other": "{{count}} clips selected"
+    },
+    "costNote": "Uses 100 Visual Bucs",
+    "generate": "Generate Promo Pack",
+    "generating": "Building Promo Pack…",
+    "form": {
+      "artistName": "Artist Name",
+      "artistNamePlaceholder": "e.g. Lil Nova",
+      "songTitle": "Song Title",
+      "songTitlePlaceholder": "e.g. On My Way Up",
+      "genre": "Genre",
+      "selectGenre": "Select genre…",
+      "mood": "Mood",
+      "selectMood": "Select mood…",
+      "platform": "Platform",
+      "selectPlatform": "Select platform…",
+      "promoGoal": "Promo Goal",
+      "selectGoal": "Select goal…",
+      "songHook": "Song Hook / Best Lyrics",
+      "songHookPlaceholder": "Paste your hook, best bar, or the lyrics you want to build the promo around. The more specific, the better…",
+      "required": "Required",
+      "hookRequired": "Required — paste your hook or best bar"
+    },
+    "videoEditor": {
+      "title": "This project has video clips",
+      "desc": "Open the Video Editor to build your full promo timeline",
+      "open": "Open Video Editor"
+    },
+    "errorGenerationFailed": "Generation failed. Please try again."
+  },
+  "promote": {
+    "copyLabel": "Copy {{label}}",
+    "copy": "Copy",
+    "copied": "Copied",
+    "hero": {
+      "badge": "Promo Content Generator",
+      "title": "Market every feature",
+      "titleAccent": "like a launch",
+      "subtitle": "Pick a feature, pick a format and tone — get ready-to-post copy with hashtags and CTAs. {{cost}} Visual Buc per generation.",
+      "back": "Back to all features"
+    },
+    "form": {
+      "feature": "Feature to promote",
+      "contentType": "Content type",
+      "tone": "Tone",
+      "angle": "Angle to emphasize",
+      "optional": "(optional)",
+      "focusPlaceholder": "e.g. the 1-Visual Buc price, how fast it is, perfect for new artists…"
+    },
+    "contentTypes": {
+      "twitter": {
+        "label": "X Post",
+        "blurb": "Punchy post built for reposts"
+      },
+      "instagram": {
+        "label": "IG Caption",
+        "blurb": "Engaging caption + hashtags"
+      },
+      "tiktok": {
+        "label": "TikTok Script",
+        "blurb": "Hook + beats, spoken style"
+      },
+      "email": {
+        "label": "Email Blast",
+        "blurb": "Subject line + short body"
+      },
+      "banner": {
+        "label": "Banner Headlines",
+        "blurb": "5 scroll-stoppers"
+      },
+      "ad": {
+        "label": "Ad Copy",
+        "blurb": "Headlines + primary text"
+      }
+    },
+    "tones": {
+      "hype": "Hype",
+      "professional": "Professional",
+      "funny": "Funny",
+      "luxury": "Luxury"
+    },
+    "signIn": {
+      "message": "Sign in to generate promo content.",
+      "cta": "Sign In"
+    },
+    "generate": "Generate promo · {{cost}} Visual Buc",
+    "generating": "Writing your promo…",
+    "errorGenerationFailed": "Promo generation failed — try again.",
+    "results": {
+      "titlePrefix": "Your promo for",
+      "regenerate": "Regenerate",
+      "headline": "Headline",
+      "copy": "Copy",
+      "alternate": "Alternate {{n}}",
+      "cta": "Call to action",
+      "hashtags": "Hashtags"
+    }
+  },
+  "scheduler": {
+    "titlePrefix": "Content",
+    "titleSuffix": "Scheduler",
+    "signInPrompt": "Sign in to schedule posts across Instagram, TikTok, and Facebook.",
+    "signIn": "Sign in",
+    "badge": "Post everywhere from one calendar",
+    "hero": "Schedule video posts across Instagram Reels, TikTok, and Facebook. Server-side and restart-safe — your queue fires even with the tab closed.",
+    "perks": {
+      "free": "Drafts & browsing free",
+      "cost": "100 Visual Bucs per post to schedule",
+      "refund": "Cancel anytime = auto-refund"
+    },
+    "newPost": "New scheduled post",
+    "loading": "Loading your schedule…",
+    "noCaption": "No caption",
+    "tabs": {
+      "calendar": "Calendar",
+      "queue": "Queue ({{num}})",
+      "drafts": "Drafts ({{num}})",
+      "posted": "Posted"
+    },
+    "platforms": {
+      "instagram": {
+        "label": "Instagram",
+        "sub": "Reels"
+      },
+      "tiktok": {
+        "label": "TikTok",
+        "sub": "Video → your drafts"
+      },
+      "facebook": {
+        "label": "Facebook",
+        "sub": "Page video"
+      }
+    },
+    "niches": {
+      "music": "Music",
+      "gaming": "Gaming",
+      "comedy": "Comedy",
+      "fitness": "Fitness",
+      "beauty": "Beauty",
+      "tech": "Tech",
+      "education": "Education",
+      "lifestyle": "Lifestyle"
+    },
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "status": {
+      "posted": "Posted",
+      "failed": "Failed",
+      "canceled": "Canceled",
+      "posting": "Posting",
+      "scheduled": "Scheduled",
+      "draft": "Draft"
+    },
+    "bestTime": {
+      "title": "AI best-time suggestions",
+      "desc1": "Tell the AI your niche and rhythm — it suggests the smartest upcoming slots across your platforms. ",
+      "cost": "100 Visual Bucs",
+      "desc2": ", refunded automatically if the suggestion fails. Suggestions are guidance, not a guarantee.",
+      "niche": "Niche",
+      "postsPerWeek": "Posts / week",
+      "suggest": "Suggest times · 100 Visual Bucs",
+      "platforms": "Platforms",
+      "useSlot": "Use this slot"
+    },
+    "calendar": {
+      "prevMonth": "Previous month",
+      "today": "Today",
+      "nextMonth": "Next month",
+      "dayTitle": "Click to schedule · drop a post here to move it",
+      "postTitle": "{{datetime}} — drag to move, click to edit",
+      "more": "+{{num}} more",
+      "hint": "Click a future day to schedule · drag a post to another day to move it · click a post to edit or cancel."
+    },
+    "queue": {
+      "emptyTitle": "Queue is empty",
+      "emptyHint": "Schedule a post and it will wait here until it fires — no tab required.",
+      "postingNow": "posting now",
+      "editLabel": "Edit or reschedule",
+      "editTitle": "Edit / reschedule",
+      "cancelLabel": "Cancel (refunds Visual Bucs)",
+      "cancelTitle": "Cancel — Visual Bucs refunded"
+    },
+    "drafts": {
+      "emptyTitle": "No drafts",
+      "emptyHint": "Save a post as a draft while you perfect the caption — drafts are free.",
+      "schedule": "Schedule",
+      "deleteLabel": "Delete draft"
+    },
+    "posted": {
+      "emptyTitle": "Nothing posted yet",
+      "emptyHint": "Fired posts land here with per-platform results.",
+      "postedAt": "Posted {{datetime}}",
+      "updatedAt": "Updated {{datetime}}"
+    },
+    "composer": {
+      "close": "Close",
+      "newPost": "New scheduled post",
+      "scheduleDraft": "Schedule draft",
+      "editPost": "Edit scheduled post",
+      "changesInstant": "Changes save instantly.",
+      "costNote": "Scheduling costs 100 Visual Bucs per post — charged now, refunded automatically if you cancel.",
+      "video": "Video",
+      "noPreview": "Video attached — preview unavailable for stored media.",
+      "removeVideo": "Remove video",
+      "uploading": "Uploading…",
+      "uploadCta": "Click to upload your video",
+      "uploadNote": "MP4 / MOV · up to 80 MB · free to upload",
+      "caption": "Caption",
+      "captionPlaceholder": "Write your caption…",
+      "aiCaption": "AI caption · 100 Visual Bucs",
+      "aiCaptionTitle": "AI writes a hook for your caption · 100 Visual Bucs",
+      "hashtags": "Hashtags",
+      "platforms": "Platforms",
+      "tiktokNote": "TikTok's API delivers to your drafts inbox — you'll finish the post in TikTok. Instagram and Facebook publish directly.",
+      "accountLabel": "{{platform}} account",
+      "noAccount1": "No {{platform}} account connected. ",
+      "noAccountLink": "Connect one in Tools → Social",
+      "noAccount2": " to schedule here.",
+      "chooseAccount": "Choose account…",
+      "date": "Date",
+      "time": "Time",
+      "timezoneNote": "Times are in your timezone ({{tz}}). The server fires the post even with this tab closed.",
+      "saveChanges": "Save changes",
+      "scheduleButton": "Schedule · 100 Visual Bucs",
+      "saveDraft": "Save as free draft",
+      "unschedule": "Unschedule → move back to drafts (refunds 100 Visual Bucs)"
+    },
+    "confirm": {
+      "cancel": "Cancel this scheduled post? Your reserved Visual Bucs will be refunded."
+    },
+    "toast": {
+      "canceled": "Post canceled",
+      "deleted": "Post deleted",
+      "refunded": "{{num}} credit{{s}} refunded.",
+      "couldntCancel": "Couldn't cancel",
+      "cantMove": "Can't move it there",
+      "futureDate": "Pick a date in the future.",
+      "rescheduled": "Rescheduled",
+      "couldntReschedule": "Couldn't reschedule",
+      "bestTimeFailed": "Best-time failed",
+      "videoUploaded": "Video uploaded",
+      "readyToSchedule": "Ready to schedule.",
+      "noCaption": "The AI didn't return a caption.",
+      "aiCaptionFailed": "AI caption failed.",
+      "scheduled": "Scheduled",
+      "scheduledCost": "Scheduled · 100 Visual Bucs",
+      "scheduledDesc": "{{datetime}} — cancel anytime for a refund.",
+      "draftSaved": "Draft saved",
+      "draftsFree": "Drafts are free.",
+      "notEnoughCredits": "Not enough Visual Bucs — top up to schedule.",
+      "couldntSave": "Couldn't save the post.",
+      "couldntUnschedule": "Couldn't unschedule.",
+      "needsHosted": "Needs a hosted file",
+      "hostedDesc": "That asset lives only in this browser session — generate or upload a hosted video first."
+    },
+    "error": {
+      "videoOnly": "Please choose a video file — the auto-post pipelines publish video.",
+      "uploadFailed": "Upload failed.",
+      "noVideo": "Upload a video first.",
+      "noPlatform": "Pick at least one platform.",
+      "noAccount": "Pick a connected account for: {{platforms}}.",
+      "futureTime": "Pick a date and time at least a minute in the future."
+    }
   }
 }

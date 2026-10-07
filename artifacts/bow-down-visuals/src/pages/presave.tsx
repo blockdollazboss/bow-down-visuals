@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Disc3, Loader2, AlertTriangle, CalendarDays, Image as ImageIcon } from "lucide-react";
 import { platformLabel } from "@/lib/distribution";
 
@@ -18,6 +19,7 @@ interface PresaveRelease {
 }
 
 export default function PresaveLanding() {
+  const { t } = useTranslation();
   const [, params] = useRoute("/presave/:slug");
   const slug = params?.slug ?? "";
 
@@ -34,11 +36,11 @@ export default function PresaveLanding() {
           error?: string; message?: string;
         } & Partial<PresaveRelease>;
         if (!res.ok || !json.title) {
-          throw new Error(json.message || json.error || "This pre-save link doesn't exist.");
+          throw new Error(json.message || json.error || t("presave.errors.notFound"));
         }
         if (!cancelled) setData(json as PresaveRelease);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Couldn't load this release.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("presave.errors.loadFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -56,22 +58,22 @@ export default function PresaveLanding() {
         {loading ? (
           <p className="relative py-20 text-center text-sm text-white/40">
             <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-primary" />
-            Loading release…
+            {t("presave.loading")}
           </p>
         ) : error || !data ? (
           <div className="relative mx-auto mt-10 rounded-3xl border border-red-500/30 bg-red-500/10 p-10 text-center">
             <AlertTriangle className="mx-auto h-10 w-10 text-red-300" />
-            <p className="mt-4 text-sm text-red-200">{error ?? "This pre-save link doesn't exist."}</p>
+            <p className="mt-4 text-sm text-red-200">{error ?? t("presave.errors.notFound")}</p>
           </div>
         ) : (
           <div className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-b from-[#14100a] to-black p-8 text-center md:p-12">
             <p className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-primary">
-              <Disc3 className="h-3 w-3" aria-hidden="true" /> Pre-save
+              <Disc3 className="h-3 w-3" aria-hidden="true" /> {t("presave.badge")}
             </p>
             {data.artworkUrl ? (
               <img
                 src={data.artworkUrl}
-                alt={`${data.title} artwork`}
+                alt={t("presave.artworkAlt", { title: data.title })}
                 className="mx-auto h-56 w-56 rounded-3xl border border-white/10 object-cover shadow-2xl shadow-primary/20"
               />
             ) : (
@@ -83,13 +85,13 @@ export default function PresaveLanding() {
             <p className="mt-1 text-white/55">{data.artistName}</p>
             {data.releaseDate && (
               <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-sm text-white/60">
-                <CalendarDays className="h-4 w-4 text-primary" /> Drops {data.releaseDate}
+                <CalendarDays className="h-4 w-4 text-primary" /> {t("presave.drops", { date: data.releaseDate })}
               </p>
             )}
             {data.platforms.length > 0 && (
               <div className="mt-6">
                 <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-white/40">
-                  Available everywhere on release day
+                  {t("presave.platformsTitle")}
                 </p>
                 <div className="flex flex-wrap justify-center gap-1.5">
                   {data.platforms.map((p) => (
@@ -101,7 +103,7 @@ export default function PresaveLanding() {
               </div>
             )}
             <p className="mt-8 text-xs text-white/30">
-              Released with Thy Cheat Code — the content creator cheat code.
+              {t("presave.footer")}
             </p>
           </div>
         )}

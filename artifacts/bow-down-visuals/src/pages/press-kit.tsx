@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { slugifyHandle } from "@/lib/press-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
+import { useTranslation } from "react-i18next";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
    Electronic press kits (EPKs): artists generate an AI-written bio and
@@ -58,6 +59,7 @@ const inputCls =
 export default function PressKitBuilder() {
   const { user } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
+  const { t } = useTranslation();
   const [vaults, setVaults] = useState<Vault[]>([]);
   const [kits, setKits] = useState<PressKit[]>([]);
   const [selectedKit, setSelectedKit] = useState<PressKit | null>(null);
@@ -165,7 +167,7 @@ export default function PressKitBuilder() {
     setError(null);
     setOutOfCredits(false);
     if (!handle.trim() || !artistName.trim()) {
-      setError("Give your press kit a URL handle and an artist name.");
+      setError(t("press-kit.errors.missingHandleAndName"));
       return;
     }
     setGenerating(true);
@@ -175,7 +177,7 @@ export default function PressKitBuilder() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         overrideCost: FALLBACK_GENERATE_COST, // registry is stale at 1; backend + UI agree on 3
-        overrideFeature: "Press Kit Generator",
+        overrideFeature: t("press-kit.confirmFeatureGenerate"),
         body: JSON.stringify({
           handle: slugifyHandle(handle),
           artist_name: artistName.trim(),
@@ -198,12 +200,12 @@ export default function PressKitBuilder() {
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (!res.ok) { setError(data.message || data.error || "Generation failed."); return; }
+      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.generationFailed")); return; }
       const kit = data.kit as PressKit;
       setKits((k) => [kit, ...k]);
       loadKit(kit);
     } catch {
-      setError("Network error — please try again.");
+      setError(t("press-kit.errors.network"));
     } finally {
       setGenerating(false);
     }
@@ -239,13 +241,13 @@ export default function PressKitBuilder() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.message || data.error || "Save failed."); return; }
+      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.saveFailed")); return; }
       const kit = data.kit as PressKit;
       setKits((ks) => ks.map((k) => (k.id === kit.id ? kit : k)));
       setSelectedKit(kit);
       setEditing(false);
     } catch {
-      setError("Network error — please try again.");
+      setError(t("press-kit.errors.network"));
     } finally {
       setSaving(false);
     }
@@ -262,26 +264,26 @@ export default function PressKitBuilder() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         overrideCost: FALLBACK_REFRESH_COST, // not in the credit registry; backend charges 1
-        overrideFeature: "Press Kit Bio Refresh",
+        overrideFeature: t("press-kit.confirmFeatureRefresh"),
         body: JSON.stringify({ achievements: cleanList(achievements), tone }),
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = await res.json();
       if (res.status === 402) { setOutOfCredits(true); return; }
-      if (!res.ok) { setError(data.message || data.error || "Bio refresh failed."); return; }
+      if (!res.ok) { setError(data.message || data.error || t("press-kit.errors.bioRefreshFailed")); return; }
       const kit = data.kit as PressKit;
       setKits((ks) => ks.map((k) => (k.id === kit.id ? kit : k)));
       setSelectedKit(kit);
       setBio(kit.bio ?? "");
     } catch {
-      setError("Network error — please try again.");
+      setError(t("press-kit.errors.network"));
     } finally {
       setRefreshingBio(false);
     }
   }
 
   async function handleDelete() {
-    if (!selectedKit || !window.confirm("Delete this press kit? This can't be undone.")) return;
+    if (!selectedKit || !window.confirm(t("press-kit.confirmDelete"))) return;
     try {
       const res = await fetch(`/api/press-kit/${selectedKit.id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) return;
@@ -308,16 +310,15 @@ export default function PressKitBuilder() {
     <div className="min-h-screen bg-black text-white">
       <main className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white mb-6">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
+          <ArrowLeft className="h-4 w-4" /> {t("press-kit.backToDashboard")}
         </Link>
 
         <div className="flex items-center gap-3 mb-2">
           <Newspaper className="h-8 w-8 text-[#d4af37]" />
-          <h1 className="text-3xl md:text-4xl font-bold">Press Kit Builder</h1>
+          <h1 className="text-3xl md:text-4xl font-bold">{t("press-kit.title")}</h1>
         </div>
         <p className="text-white/50 mb-8 max-w-2xl">
-          Generate a professional electronic press kit — AI-written bio, photos, top tracks,
-          achievements, press quotes, and booking contact — published at your own shareable URL.
+          {t("press-kit.description")}
         </p>
 
         {outOfCredits && <OutOfCredits />}
@@ -329,7 +330,7 @@ export default function PressKitBuilder() {
           {/* kit list */}
           <aside>
             <Button onClick={resetForm} variant="outline" className="w-full mb-4 border-[#d4af37]/40 text-[#d4af37] hover:bg-[#d4af37]/10">
-              <Plus className="h-4 w-4 mr-2" /> New press kit
+              <Plus className="h-4 w-4 mr-2" /> {t("press-kit.newPressKit")}
             </Button>
             <div className="space-y-2">
               {kits.map((k) => (
@@ -347,7 +348,7 @@ export default function PressKitBuilder() {
                 </button>
               ))}
               {kits.length === 0 && (
-                <p className="text-sm text-white/30">No press kits yet — create your first.</p>
+                <p className="text-sm text-white/30">{t("press-kit.emptyKits")}</p>
               )}
             </div>
           </aside>
@@ -368,17 +369,17 @@ export default function PressKitBuilder() {
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={copyLink} className="border-white/15">
                       {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                      {copied ? "Copied" : "Copy link"}
+                      {copied ? t("press-kit.copied") : t("press-kit.copyLink")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={downloadPdf} className="border-white/15">
-                      <Download className="h-4 w-4 mr-1" /> PDF
+                      <Download className="h-4 w-4 mr-1" /> {t("press-kit.pdf")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)} className="border-white/15">
-                      <Pencil className="h-4 w-4 mr-1" /> Edit
+                      <Pencil className="h-4 w-4 mr-1" /> {t("press-kit.edit")}
                     </Button>
                     <Button size="sm" variant="outline" onClick={handleDelete}
                             className="border-red-500/30 text-red-300 hover:bg-red-500/10">
-                      <Trash2 className="h-4 w-4 mr-1" /> Delete
+                      <Trash2 className="h-4 w-4 mr-1" /> {t("press-kit.delete")}
                     </Button>
                   </div>
                 </div>
@@ -390,19 +391,19 @@ export default function PressKitBuilder() {
 
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37]">Bio</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37]">{t("press-kit.sections.bio")}</h3>
                     <div className="flex items-center gap-2">
                       <select value={tone} onChange={(e) => setTone(e.target.value)}
                               className="rounded-lg border border-white/10 bg-black px-2 py-1 text-xs text-white/70">
-                        <option value="professional">Professional</option>
-                        <option value="bold">Bold</option>
-                        <option value="playful">Playful</option>
-                        <option value="luxury">Luxury</option>
+                        <option value="professional">{t("press-kit.tone.professional")}</option>
+                        <option value="bold">{t("press-kit.tone.bold")}</option>
+                        <option value="playful">{t("press-kit.tone.playful")}</option>
+                        <option value="luxury">{t("press-kit.tone.luxury")}</option>
                       </select>
                       <Button size="sm" variant="outline" onClick={handleRefreshBio} disabled={refreshingBio}
                               className="border-white/15 text-xs">
                         {refreshingBio ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                        Refresh bio · {FALLBACK_REFRESH_COST} Visual Buc
+                        {t("press-kit.refreshBio", { count: FALLBACK_REFRESH_COST })}
                       </Button>
                     </div>
                   </div>
@@ -411,7 +412,7 @@ export default function PressKitBuilder() {
 
                 {selectedKit.achievements.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">Achievements</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">{t("press-kit.sections.achievements")}</h3>
                     <ul className="list-disc list-inside text-sm text-white/70 space-y-1">
                       {selectedKit.achievements.map((a, i) => <li key={i}>{a}</li>)}
                     </ul>
@@ -420,7 +421,7 @@ export default function PressKitBuilder() {
 
                 {selectedKit.press_quotes.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">Press</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">{t("press-kit.sections.press")}</h3>
                     <div className="space-y-3">
                       {selectedKit.press_quotes.map((q, i) => (
                         <blockquote key={i} className="border-l-2 border-[#d4af37]/50 pl-4 text-sm">
@@ -434,7 +435,7 @@ export default function PressKitBuilder() {
 
                 {selectedKit.top_tracks.length > 0 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">Top tracks</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">{t("press-kit.sections.topTracks")}</h3>
                     <div className="space-y-1">
                       {selectedKit.top_tracks.map((t, i) => (
                         <a key={i} href={t.url} target="_blank" rel="noreferrer"
@@ -449,7 +450,7 @@ export default function PressKitBuilder() {
 
                 {selectedKit.photo_urls.length > 1 && (
                   <div className="mb-6">
-                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">Photos</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[#d4af37] mb-2">{t("press-kit.sections.photos")}</h3>
                     <div className="grid grid-cols-3 gap-2">
                       {selectedKit.photo_urls.slice(1).map((u, i) => (
                         <img key={i} src={u} alt="" className="aspect-square object-cover rounded-lg border border-white/10" />
@@ -460,57 +461,57 @@ export default function PressKitBuilder() {
 
                 <div className="flex items-center gap-2 text-sm text-white/50">
                   {selectedKit.is_public ? <Eye className="h-4 w-4 text-green-400" /> : <EyeOff className="h-4 w-4 text-white/30" />}
-                  {selectedKit.is_public ? "Public — anyone with the link can view" : "Private — only you can view"}
+                  {selectedKit.is_public ? t("press-kit.publicNote") : t("press-kit.privateNote")}
                 </div>
               </div>
             ) : (
               /* ── create / edit form ── */
               <div className="space-y-6">
-                <h2 className="text-xl font-bold">{selectedKit ? "Edit press kit" : "Create your press kit"}</h2>
+                <h2 className="text-xl font-bold">{selectedKit ? t("press-kit.editTitle") : t("press-kit.createTitle")}</h2>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Artist vault (bio source + photo)</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.vaultLabel")}</label>
                     <select value={vaultId} onChange={(e) => setVaultId(e.target.value)} className={`${inputCls} bg-black`}>
-                      <option value="">None — enter manually</option>
+                      <option value="">{t("press-kit.form.noneOption")}</option>
                       {vaults.map((v) => <option key={v.id} value={v.id}>{v.artist_name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">URL handle *</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.urlHandle")}</label>
                     <div className="flex items-center gap-1">
                       <span className="text-white/30 text-sm">/press/</span>
                       <Input value={handle} onChange={(e) => setHandle(slugifyHandle(e.target.value))}
-                             placeholder="shark-king" className={inputCls} />
+                             placeholder={t("press-kit.placeholders.handle")} className={inputCls} />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Artist name *</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.artistName")}</label>
                     <Input value={artistName} onChange={(e) => setArtistName(e.target.value)}
-                           placeholder="Thy Cheat Code" className={inputCls} />
+                           placeholder={t("press-kit.placeholders.artistName")} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Tagline</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.tagline")}</label>
                     <Input value={tagline} onChange={(e) => setTagline(e.target.value)}
-                           placeholder="The King Shark of content" className={inputCls} />
+                           placeholder={t("press-kit.placeholders.tagline")} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Genre</label>
-                    <Input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder="Hip-hop" className={inputCls} />
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.genre")}</label>
+                    <Input value={genre} onChange={(e) => setGenre(e.target.value)} placeholder={t("press-kit.placeholders.genre")} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Location</label>
-                    <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Atlanta, GA" className={inputCls} />
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.location")}</label>
+                    <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("press-kit.placeholders.location")} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Booking email</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.bookingEmail")}</label>
                     <Input value={bookingEmail} onChange={(e) => setBookingEmail(e.target.value)}
-                           placeholder="book@example.com" className={inputCls} />
+                           placeholder={t("press-kit.placeholders.bookingEmail")} className={inputCls} />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-white/60 mb-1 block">Website</label>
+                    <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.website")}</label>
                     <Input value={website} onChange={(e) => setWebsite(e.target.value)}
-                           placeholder="https://…" className={inputCls} />
+                           placeholder={t("press-kit.placeholders.url")} className={inputCls} />
                   </div>
                 </div>
 
@@ -522,35 +523,35 @@ export default function PressKitBuilder() {
                     ["Spotify", spotify, setSpotify],
                   ].map(([label, val, set]) => (
                     <div key={label as string}>
-                      <label className="text-xs font-medium text-white/60 mb-1 block">{label as string} URL</label>
+                      <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.socialUrl", { platform: label as string })}</label>
                       <Input value={val as string} onChange={(e) => (set as (v: string) => void)(e.target.value)}
-                             placeholder="https://…" className={inputCls} />
+                             placeholder={t("press-kit.placeholders.url")} className={inputCls} />
                     </div>
                   ))}
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-white/60 mb-2 block">Achievements (one per line)</label>
+                  <label className="text-xs font-medium text-white/60 mb-2 block">{t("press-kit.form.achievementsLabel")}</label>
                   {achievements.map((a, i) => (
                     <div key={i} className="flex gap-2 mb-2">
                       <Input value={a} onChange={(e) => setAchievements((l) => l.map((x, j) => (j === i ? e.target.value : x)))}
-                             placeholder="Headlined…" className={inputCls} />
+                             placeholder={t("press-kit.placeholders.achievement")} className={inputCls} />
                       <Button size="sm" variant="ghost" onClick={() => setAchievements((l) => l.filter((_, j) => j !== i))}
                               className="text-white/40 hover:text-red-300 shrink-0"><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   ))}
                   <Button size="sm" variant="outline" onClick={() => setAchievements((l) => [...l, ""])}
-                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> Add achievement</Button>
+                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> {t("press-kit.form.addAchievement")}</Button>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-white/60 mb-2 block">Press quotes</label>
+                  <label className="text-xs font-medium text-white/60 mb-2 block">{t("press-kit.form.quotesLabel")}</label>
                   {quotes.map((q, i) => (
                     <div key={i} className="flex gap-2 mb-2">
-                      <Input value={q.quote} placeholder="Quote…"
+                      <Input value={q.quote} placeholder={t("press-kit.placeholders.quote")}
                              onChange={(e) => setQuotes((l) => l.map((x, j) => (j === i ? { ...x, quote: e.target.value } : x)))}
                              className={inputCls} />
-                      <Input value={q.source} placeholder="Source…"
+                      <Input value={q.source} placeholder={t("press-kit.placeholders.source")}
                              onChange={(e) => setQuotes((l) => l.map((x, j) => (j === i ? { ...x, source: e.target.value } : x)))}
                              className={`${inputCls} max-w-[160px]`} />
                       <Button size="sm" variant="ghost" onClick={() => setQuotes((l) => l.filter((_, j) => j !== i))}
@@ -558,17 +559,17 @@ export default function PressKitBuilder() {
                     </div>
                   ))}
                   <Button size="sm" variant="outline" onClick={() => setQuotes((l) => [...l, { quote: "", source: "" }])}
-                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> Add quote</Button>
+                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> {t("press-kit.form.addQuote")}</Button>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-white/60 mb-2 block">Top tracks (title + link)</label>
-                  {tracks.map((t, i) => (
+                  <label className="text-xs font-medium text-white/60 mb-2 block">{t("press-kit.form.tracksLabel")}</label>
+                  {tracks.map((track, i) => (
                     <div key={i} className="flex gap-2 mb-2">
-                      <Input value={t.title} placeholder="Track title…"
+                      <Input value={track.title} placeholder={t("press-kit.placeholders.trackTitle")}
                              onChange={(e) => setTracks((l) => l.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
                              className={inputCls} />
-                      <Input value={t.url} placeholder="https://…"
+                      <Input value={track.url} placeholder={t("press-kit.placeholders.url")}
                              onChange={(e) => setTracks((l) => l.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
                              className={inputCls} />
                       <Button size="sm" variant="ghost" onClick={() => setTracks((l) => l.filter((_, j) => j !== i))}
@@ -576,26 +577,26 @@ export default function PressKitBuilder() {
                     </div>
                   ))}
                   <Button size="sm" variant="outline" onClick={() => setTracks((l) => [...l, { title: "", url: "" }])}
-                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> Add track</Button>
+                          className="border-white/15 text-xs"><Plus className="h-3 w-3 mr-1" /> {t("press-kit.form.addTrack")}</Button>
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium text-white/60 mb-2 block">Photo URLs (one per line)</label>
+                  <label className="text-xs font-medium text-white/60 mb-2 block">{t("press-kit.form.photoUrlsLabel")}</label>
                   <Textarea value={photoUrls.join("\n")} onChange={(e) => setPhotoUrls(e.target.value.split("\n"))}
-                            placeholder="https://… (paste image URLs, or pick a vault above)" rows={3} className={inputCls} />
-                  <p className="text-xs text-white/30 mt-1">Tip: pick an artist vault above to auto-fill its reference photo.</p>
+                            placeholder={t("press-kit.placeholders.photoUrls")} rows={3} className={inputCls} />
+                  <p className="text-xs text-white/30 mt-1">{t("press-kit.form.photoTip")}</p>
                 </div>
 
                 {selectedKit && (
                   <>
                     <div>
-                      <label className="text-xs font-medium text-white/60 mb-1 block">Bio (free to edit)</label>
+                      <label className="text-xs font-medium text-white/60 mb-1 block">{t("press-kit.form.bioLabel")}</label>
                       <Textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={6} className={inputCls} />
                     </div>
                     <label className="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
                       <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)}
                              className="accent-[#d4af37] h-4 w-4" />
-                      Public — anyone with the link can view this press kit
+                      {t("press-kit.form.publicCheckbox")}
                     </label>
                   </>
                 )}
@@ -606,21 +607,21 @@ export default function PressKitBuilder() {
                       <Button onClick={handleSave} disabled={saving}
                               className="bg-[#d4af37] text-black hover:bg-[#e5c158] font-semibold">
                         {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Save changes (free)
+                        {t("press-kit.form.saveChanges")}
                       </Button>
-                      <Button variant="outline" onClick={() => setEditing(false)} className="border-white/15">Cancel</Button>
+                      <Button variant="outline" onClick={() => setEditing(false)} className="border-white/15">{t("press-kit.form.cancel")}</Button>
                     </>
                   ) : (
                     <Button onClick={handleGenerate} disabled={generating}
                             className="bg-[#d4af37] text-black hover:bg-[#e5c158] font-semibold">
                       {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                      Generate press kit · {FALLBACK_GENERATE_COST} Visual Bucs
+                      {t("press-kit.generateKit", { count: FALLBACK_GENERATE_COST })}
                     </Button>
                   )}
                 </div>
                 {!selectedKit && (
                   <p className="text-xs text-white/30">
-                    The 300 Visual Bucs cover the AI-written bio. Everything else — editing, sharing, PDF download — is free.
+                    {t("press-kit.costNote")}
                   </p>
                 )}
               </div>

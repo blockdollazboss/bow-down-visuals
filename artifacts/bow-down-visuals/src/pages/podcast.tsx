@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import {
   Podcast as PodcastIcon, Loader2, Play, Pause, Download, Rss,
   AlertTriangle, Sparkles, FileText, Timer, Copy, Check,
@@ -62,10 +63,10 @@ const pillClass = (active: boolean) =>
       : "bg-white/[0.03] text-white/60 border-white/10 hover:text-white hover:border-white/25"
   }`;
 
-const MODES: { key: PodcastMode; label: string; icon: typeof PenLine; blurb: string }[] = [
-  { key: "script", label: "Script", icon: PenLine, blurb: "You write it — AI voices read it." },
-  { key: "topic", label: "Topic", icon: Lightbulb, blurb: "AI writes the script, then voices it." },
-  { key: "video", label: "Video", icon: Video, blurb: "Extract your video's audio as the episode." },
+const MODES: { key: PodcastMode; labelKey: string; icon: typeof PenLine; blurbKey: string }[] = [
+  { key: "script", labelKey: "podcast.modes.scriptLabel", icon: PenLine, blurbKey: "podcast.modes.scriptBlurb" },
+  { key: "topic", labelKey: "podcast.modes.topicLabel", icon: Lightbulb, blurbKey: "podcast.modes.topicBlurb" },
+  { key: "video", labelKey: "podcast.modes.videoLabel", icon: Video, blurbKey: "podcast.modes.videoBlurb" },
 ];
 
 function VoicePicker({
@@ -81,6 +82,7 @@ function VoicePicker({
   onChange: (id: string) => void;
   label: string;
 }) {
+  const { t } = useTranslation();
   const [previewing, setPreviewing] = useState<string | null>(null);
 
   function togglePreview(v: Voice) {
@@ -104,10 +106,10 @@ function VoicePicker({
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">{label}</h3>
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-white/40">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading voices…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("podcast.voicePicker.loading")}
         </div>
       ) : voices.length === 0 ? (
-        <p className="text-sm text-white/40">Couldn't load voices — check your connection and refresh.</p>
+        <p className="text-sm text-white/40">{t("podcast.voicePicker.error")}</p>
       ) : (
         <div className="grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
           {voices.map((v) => (
@@ -127,7 +129,7 @@ function VoicePicker({
                 <button
                   onClick={() => togglePreview(v)}
                   className="rounded-full border border-white/15 p-2 text-white/60 transition hover:border-primary/50 hover:text-primary"
-                  aria-label={`Preview ${v.name}`}
+                  aria-label={t("podcast.voicePicker.previewAria", { name: v.name })}
                 >
                   {previewing === v.voice_id ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                 </button>
@@ -141,6 +143,7 @@ function VoicePicker({
 }
 
 export default function PodcastStudio() {
+  const { t } = useTranslation();
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { confirmedFetch } = useConfirmedApi();
 
@@ -198,14 +201,14 @@ export default function PodcastStudio() {
   }, [user]);
 
   function validate(): string | null {
-    if (!title.trim()) return "Give your episode a title first.";
-    if (mode === "script" && !script.trim()) return "Paste your script first.";
-    if (mode === "topic" && !topic.trim()) return "Give a topic first.";
-    if (mode === "video" && !videoUrl.trim()) return "Paste a video URL first.";
-    if (mode !== "video" && !hostVoiceId) return "Pick a host voice first.";
-    if (mode !== "video" && format === "dual" && !coHostVoiceId) return "Pick a co-host voice first.";
+    if (!title.trim()) return t("podcast.errors.titleRequired");
+    if (mode === "script" && !script.trim()) return t("podcast.errors.scriptRequired");
+    if (mode === "topic" && !topic.trim()) return t("podcast.errors.topicRequired");
+    if (mode === "video" && !videoUrl.trim()) return t("podcast.errors.videoRequired");
+    if (mode !== "video" && !hostVoiceId) return t("podcast.errors.hostVoiceRequired");
+    if (mode !== "video" && format === "dual" && !coHostVoiceId) return t("podcast.errors.coHostVoiceRequired");
     if (mode !== "video" && format === "dual" && coHostVoiceId === hostVoiceId)
-      return "Host and co-host should be different voices.";
+      return t("podcast.errors.voicesDifferent");
     return null;
   }
 
@@ -241,7 +244,7 @@ export default function PodcastStudio() {
           musicBed,
         }),
         overrideCost: estimate.credits,
-        overrideFeature: "Generate Podcast",
+        overrideFeature: t("podcast.generate.featureName"),
       });
       if (!res) return; // user cancelled the credit confirmation (finally resets state)
       const data = (await res.json().catch(() => ({}))) as GenerateResponse;
@@ -251,12 +254,12 @@ export default function PodcastStudio() {
         return;
       }
       if (!res.ok || !data.audioUrl) {
-        throw new Error(data.message || data.error || "Podcast generation failed — try again.");
+        throw new Error(data.message || data.error || t("podcast.errors.generationFailed"));
       }
       setResult(data);
       refreshProfile();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Podcast generation failed — try again.");
+      setError(err instanceof Error ? err.message : t("podcast.errors.generationFailed"));
     } finally {
       setGenerating(false);
     }
@@ -269,7 +272,7 @@ export default function PodcastStudio() {
         setRssCopied(true);
         setTimeout(() => setRssCopied(false), 2000);
       },
-      () => setError("Couldn't copy to clipboard — use the download button instead."),
+      () => setError(t("podcast.errors.copyFailed")),
     );
   }
 
@@ -285,7 +288,9 @@ export default function PodcastStudio() {
   }
 
   const creditsLabel =
-    mode === "video" ? "billed on actual audio length" : `${estimate.credits} credits`;
+    mode === "video"
+      ? t("podcast.generate.billedOnLength")
+      : t("podcast.generate.creditsEstimate", { credits: estimate.credits });
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -296,14 +301,13 @@ export default function PodcastStudio() {
         <div className="mb-8 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
             <PodcastIcon className="h-3.5 w-3.5" />
-            AI Podcast Studio
+            {t("podcast.hero.badge")}
           </div>
           <h1 className="text-3xl font-bold sm:text-4xl">
-            Your show, <span className="text-primary">produced by AI</span>
+            {t("podcast.hero.titleStart")} <span className="text-primary">{t("podcast.hero.titleAccent")}</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm text-white/55">
-            Script, topic, or video in — finished episode out. AI hosts, intro/outro
-            music, chapters, and a publish-ready RSS feed. 300 Visual Bucs per 10 minutes.
+            {t("podcast.hero.subtitle")}
           </p>
         </div>
 
@@ -327,13 +331,13 @@ export default function PodcastStudio() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <PodcastIcon className="h-4 w-4 text-primary" />
-                Episode
+                {t("podcast.episode.title")}
               </h2>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={200}
-                placeholder="Episode title — e.g. “How I blew up on TikTok”"
+                placeholder={t("podcast.episode.titlePlaceholder")}
                 className={inputClass}
               />
               <textarea
@@ -341,7 +345,7 @@ export default function PodcastStudio() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 maxLength={2000}
-                placeholder="Short description for your RSS feed (optional)"
+                placeholder={t("podcast.episode.descriptionPlaceholder")}
                 className={`${inputClass} mt-3 resize-y`}
               />
             </section>
@@ -350,20 +354,20 @@ export default function PodcastStudio() {
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Sparkles className="h-4 w-4 text-primary" />
-                Start from
+                {t("podcast.startFrom.title")}
               </h2>
               <div className="mb-4 flex flex-wrap gap-2">
                 {MODES.map((m) => (
                   <button key={m.key} onClick={() => setMode(m.key)} className={pillClass(mode === m.key)}>
                     <span className="inline-flex items-center gap-1.5">
                       <m.icon className="h-3.5 w-3.5" />
-                      {m.label}
+                      {t(m.labelKey)}
                     </span>
                   </button>
                 ))}
               </div>
               <p className="mb-3 text-xs text-white/35">
-                {MODES.find((m) => m.key === mode)?.blurb}
+                {t(MODES.find((m) => m.key === mode)?.blurbKey ?? "")}
               </p>
 
               {mode === "script" && (
@@ -371,15 +375,15 @@ export default function PodcastStudio() {
                   <div className="mb-2 flex items-center justify-end gap-4 text-xs text-white/45">
                     <span className="flex items-center gap-1">
                       <FileText className="h-3.5 w-3.5" />
-                      {estimate.wordCount} words
+                      {t("podcast.script.wordsCount", { count: estimate.wordCount })}
                     </span>
                     <span className="flex items-center gap-1">
                       <Timer className="h-3.5 w-3.5" />
-                      ~{formatDuration(estimate.estimatedSeconds)}
+                      {t("podcast.script.durationApprox", { duration: formatDuration(estimate.estimatedSeconds) })}
                     </span>
                     <span className="flex items-center gap-1 text-primary">
                       <VisualBucsIcon className="h-3.5 w-3.5" />
-                      {estimate.credits} Visual Bucs
+                      {t("podcast.script.creditsCost", { credits: estimate.credits })}
                     </span>
                   </div>
                   <textarea
@@ -387,11 +391,7 @@ export default function PodcastStudio() {
                     onChange={(e) => setScript(e.target.value)}
                     rows={10}
                     maxLength={MAX_SCRIPT_CHARS}
-                    placeholder={`Paste your episode script…
-
-Tips:
-• # Headings become chapter markers
-• Dual-host: prefix lines with HOST: / COHOST:`}
+                    placeholder={t("podcast.script.placeholder")}
                     className={`${inputClass} resize-y leading-relaxed`}
                   />
                 </>
@@ -403,11 +403,11 @@ Tips:
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
                     maxLength={300}
-                    placeholder="e.g. “5 monetization mistakes new creators make”"
+                    placeholder={t("podcast.topic.placeholder")}
                     className={inputClass}
                   />
                   <p className="mt-2 text-xs text-white/35">
-                    AI writes an ~8–10 minute script for you (~{estimateTopicModeCost().credits} Visual Bucs of audio). You can review the script after generation.
+                    {t("podcast.topic.note", { credits: estimateTopicModeCost().credits })}
                   </p>
                 </>
               )}
@@ -417,12 +417,11 @@ Tips:
                   <input
                     value={videoUrl}
                     onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://… — direct link to your video file"
+                    placeholder={t("podcast.video.placeholder")}
                     className={inputClass}
                   />
                   <p className="mt-2 text-xs text-white/35">
-                    We extract your video's audio track and master it as the episode —
-                    your own recording, no AI voices. Billed on the actual audio length.
+                    {t("podcast.video.note")}
                   </p>
                 </>
               )}
@@ -434,24 +433,24 @@ Tips:
                 <div className="flex items-center justify-between">
                   <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                     <Users className="h-4 w-4 text-primary" />
-                    Hosts
+                    {t("podcast.hosts.title")}
                   </h2>
                   <div className="flex gap-2">
                     <button onClick={() => setFormat("single")} className={pillClass(format === "single")}>
                       <span className="inline-flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5" /> Solo
+                        <User className="h-3.5 w-3.5" /> {t("podcast.hosts.solo")}
                       </span>
                     </button>
                     <button onClick={() => setFormat("dual")} className={pillClass(format === "dual")}>
                       <span className="inline-flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5" /> Duo
+                        <Users className="h-3.5 w-3.5" /> {t("podcast.hosts.duo")}
                       </span>
                     </button>
                   </div>
                 </div>
                 {!user ? (
                   <p className="text-sm text-white/40">
-                    <Link href="/login" className="text-primary underline">Sign in</Link> to browse the voice library.
+                    <Link href="/login" className="text-primary underline">{t("podcast.hosts.signIn")}</Link>{" "}{t("podcast.hosts.signInPrompt")}
                   </p>
                 ) : (
                   <>
@@ -460,7 +459,7 @@ Tips:
                       loading={voicesLoading}
                       value={hostVoiceId}
                       onChange={setHostVoiceId}
-                      label="Host voice"
+                      label={t("podcast.hosts.hostVoiceLabel")}
                     />
                     {format === "dual" && (
                       <>
@@ -469,12 +468,11 @@ Tips:
                           loading={voicesLoading}
                           value={coHostVoiceId}
                           onChange={setCoHostVoiceId}
-                          label="Co-host voice"
+                          label={t("podcast.hosts.coHostVoiceLabel")}
                         />
                         <p className="text-xs text-white/35">
-                          Prefix script lines with <span className="text-white/60">HOST:</span> and{" "}
-                          <span className="text-white/60">COHOST:</span> — or leave them off and
-                          paragraphs will alternate automatically.
+                          {t("podcast.hosts.prefixHintBefore")} <span className="text-white/60">HOST:</span> {t("podcast.hosts.prefixHintAnd")}{" "}
+                          <span className="text-white/60">COHOST:</span> {t("podcast.hosts.prefixHintAfter")}
                         </p>
                       </>
                     )}
@@ -487,7 +485,7 @@ Tips:
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-white/70">
                 <Music className="h-4 w-4 text-primary" />
-                Finishing touches
+                {t("podcast.finishing.title")}
               </h2>
               <label className="flex cursor-pointer items-start gap-3">
                 <input
@@ -497,9 +495,9 @@ Tips:
                   className="mt-1 h-4 w-4 accent-[#d4af37]"
                 />
                 <span>
-                  <span className="text-sm font-medium">Intro / outro music bed</span>
+                  <span className="text-sm font-medium">{t("podcast.finishing.musicBedLabel")}</span>
                   <span className="block text-xs text-white/35">
-                    A generated ambient synth bed under the open and close — included free with the episode.
+                    {t("podcast.finishing.musicBedNote")}
                   </span>
                 </span>
               </label>
@@ -514,18 +512,18 @@ Tips:
               {generating ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Producing your episode…
+                  {t("podcast.generate.producing")}
                 </>
               ) : (
                 <>
                   <PodcastIcon className="h-5 w-5" />
-                  Produce episode · {creditsLabel}
+                  {t("podcast.generate.produceEpisode")} · {creditsLabel}
                 </>
               )}
             </button>
             {!user && (
               <p className="text-center text-sm text-white/40">
-                <Link href="/login" className="text-primary underline">Sign in</Link> to produce episodes.
+                <Link href="/login" className="text-primary underline">{t("podcast.generate.signIn")}</Link>{" "}{t("podcast.generate.signInPrompt")}
               </p>
             )}
           </div>
@@ -534,14 +532,13 @@ Tips:
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-white/70">
-                Your episode
+                {t("podcast.result.title")}
               </h2>
               {!result ? (
                 <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
                   <PodcastIcon className="h-10 w-10 text-white/15" />
                   <p className="max-w-[220px] text-sm text-white/35">
-                    Your finished episode lands here — MP3, chapters, and a
-                    publish-ready RSS feed.
+                    {t("podcast.result.empty")}
                   </p>
                 </div>
               ) : (
@@ -549,10 +546,11 @@ Tips:
                   <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3 text-xs text-white/60">
                     <div className="font-medium text-white">{result.title}</div>
                     <div className="mt-1 capitalize">
-                      {result.mode} · {result.format} host{result.format === "dual" ? "s" : ""}
-                      {result.musicBed ? " · music bed" : ""}
+                      {t(`podcast.modes.${result.mode}Label`)} · {result.format === "dual" ? t("podcast.hosts.duo") : t("podcast.hosts.solo")}{" "}
+                      {t("podcast.result.hostWord", { count: result.format === "dual" ? 2 : 1 })}
+                      {result.musicBed ? ` ${t("podcast.result.musicBedTag")}` : ""}
                     </div>
-                    <div className="mt-1">~{formatDuration(result.durationSeconds ?? 0)}</div>
+                    <div className="mt-1">{t("podcast.result.durationApprox", { duration: formatDuration(result.durationSeconds ?? 0) })}</div>
                   </div>
 
                   <audio key={result.audioUrl} controls src={result.audioPlayUrl ?? result.audioUrl} className="w-full" />
@@ -563,13 +561,13 @@ Tips:
                     className="flex items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-2.5 text-sm font-medium transition hover:border-primary/50 hover:text-primary"
                   >
                     <Download className="h-4 w-4" />
-                    Download MP3
+                    {t("podcast.result.downloadMp3")}
                   </a>
 
                   {result.scriptUsed && (
                     <details className="rounded-xl border border-white/10 bg-black/40 p-3">
                       <summary className="cursor-pointer text-xs font-medium text-white/60">
-                        View AI-written script
+                        {t("podcast.result.viewScript")}
                       </summary>
                       <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-white/55">
                         {result.scriptUsed}
@@ -580,7 +578,7 @@ Tips:
                   {result.chapters && result.chapters.length > 0 && (
                     <div>
                       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                        Chapters
+                        {t("podcast.result.chapters")}
                       </h3>
                       <ul className="space-y-1">
                         {result.chapters.map((c, i) => (
@@ -596,11 +594,11 @@ Tips:
                   <div className="rounded-xl border border-white/10 bg-black/40 p-3">
                     <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/50">
                       <Rss className="h-3.5 w-3.5 text-primary" />
-                      Publish feed
+                      {t("podcast.result.publishFeed")}
                     </h3>
                     <p className="mb-3 text-xs leading-relaxed text-white/40">
-                      Submit this feed to <span className="text-white/60">Spotify for Podcasters</span> and{" "}
-                      <span className="text-white/60">Apple Podcasts Connect</span> to go live.
+                      {t("podcast.result.submitFeedBefore")} <span className="text-white/60">{t("podcast.result.spotify")}</span> {t("podcast.result.submitFeedAnd")}{" "}
+                      <span className="text-white/60">{t("podcast.result.apple")}</span> {t("podcast.result.submitFeedAfter")}
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -608,7 +606,7 @@ Tips:
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 px-3 py-2 text-xs font-medium transition hover:border-primary/50 hover:text-primary"
                       >
                         {rssCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                        {rssCopied ? "Copied" : "Copy RSS"}
+                        {rssCopied ? t("podcast.result.copied") : t("podcast.result.copyRss")}
                       </button>
                       <button
                         onClick={downloadRss}
@@ -621,7 +619,7 @@ Tips:
                   </div>
 
                   <p className="text-xs text-white/35">
-                    Used {result.creditsUsed} Visual Bucs · {result.creditsRemaining} remaining.
+                    {t("podcast.result.creditsNote", { used: result.creditsUsed, remaining: result.creditsRemaining })}
                   </p>
                 </div>
               )}

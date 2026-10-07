@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { MarketingBadge } from "@/components/MarketingBadge";
@@ -12,192 +13,25 @@ import { JsonLd, buildFaqJsonLd } from "@/components/seo/json-ld";
 import { usePageTitle } from "@/hooks/use-page-title";
 import { mediaUrl } from "@/lib/media-cdn";
 
-/* ─── data ─── */
-
-const PLANS = [
-  {
-    stars: 1,
-    name: "Street Punk",
-    streetTitle: "Street Punk",
-    price: 19,
-    period: "/month",
-    bestFor: "New creators",
-    credits: "2,500 Visual Bucs monthly",
-    featured: false,
-    badge: null,
-    cta: "Become a Street Punk",
-    features: [
-      "AI Music Maker",
-      "Music video plans & treatments",
-      "Promo clip planning",
-      "Hook Studio + virality check",
-      "Thumbnail Maker & Logo Maker",
-      "Thy Cheat Code guided setup",
-    ],
-  },
-  {
-    stars: 2,
-    name: "Hustler",
-    streetTitle: "Hustler",
-    price: 49,
-    period: "/month",
-    bestFor: "Active solo creators",
-    credits: "10,000 Visual Bucs monthly",
-    featured: true,
-    badge: "Most Popular",
-    cta: "Rank Up to Hustler",
-    features: [
-      "Everything in Street Punk",
-      "AI video clip generation",
-      "Full Video Editor access",
-      "Creator Vault + Photo Shoot",
-      "Artist Voice Lock",
-      "Character video references",
-    ],
-  },
-  {
-    stars: 3,
-    name: "Gangster",
-    streetTitle: "Gangster",
-    price: 99,
-    period: "/month",
-    bestFor: "Serious full-time creators",
-    credits: "25,000 Visual Bucs monthly",
-    featured: false,
-    badge: null,
-    cta: "Become a Gangster",
-    features: [
-      "Everything in Hustler",
-      "AI Lip Sync",
-      "AI mastering + stem separation",
-      "Advanced effects & transitions",
-      "Upscaling & watermark cleanup",
-      "Batch creative variations",
-    ],
-  },
-  {
-    stars: 4,
-    name: "Shot Caller",
-    streetTitle: "Shot Caller",
-    price: 199,
-    period: "/month",
-    bestFor: "Teams & creator brands",
-    credits: "60,000 Visual Bucs monthly",
-    featured: false,
-    badge: null,
-    cta: "Become a Shot Caller",
-    features: [
-      "Everything in Gangster",
-      "Team workspace & member roles",
-      "Shared vaults & brand libraries",
-      "Review & approval workflow",
-      "Social scheduling & publishing",
-      "Bulk asset creation",
-    ],
-  },
-  {
-    stars: 5,
-    name: "Crime Boss",
-    streetTitle: "Crime Boss",
-    price: 399,
-    period: "/month",
-    bestFor: "High-volume creators",
-    credits: "150,000 Visual Bucs monthly",
-    featured: false,
-    badge: "Exclusive",
-    cta: "Become a Crime Boss",
-    features: [
-      "Everything in Shot Caller",
-      "Priority generation queue",
-      "4K output where supported",
-      "Early access to new AI models",
-      "Advanced cross-platform analytics",
-      "Exclusive Crime Boss templates & styles",
-    ],
-  },
-  {
-    stars: 6,
-    name: "Kingpin",
-    streetTitle: "Kingpin",
-    price: 799,
-    period: "/month",
-    bestFor: "Labels, agencies & power users",
-    credits: "400,000 Visual Bucs monthly",
-    featured: false,
-    badge: "Top Tier",
-    cta: "Claim the Kingpin Crown",
-    features: [
-      "Everything in Crime Boss",
-      "8K delivery where supported",
-      "Custom AI style training",
-      "White-label client deliverables",
-      "API access & automation",
-      "Dedicated account manager",
-    ],
-  },
-];
-
-const CREDIT_PACKS = [
-  { credits: "1,000 Visual Bucs",  price: "$9",   packKey: "10"  },
-  { credits: "5,000 Visual Bucs",  price: "$39",  packKey: "50"  },
-  { credits: "15,000 Visual Bucs", price: "$99",  packKey: "150" },
-  { credits: "50,000 Visual Bucs", price: "$249", packKey: "500" },
-];
-
-const FAQ = [
-  {
-    q: "What are Visual Bucs?",
-    a: "Visual Bucs are used each time you run an AI generation — making a song, generating a video plan, creating promo clips, or producing music video clips. Each action draws from your monthly Visual Bucs balance.",
-  },
-  {
-    q: "Are payments live yet?",
-    a: "Not yet. Bow Down Visuals is currently in beta. Payments are coming soon. Join the beta list now to lock in your founding rate and get early access when billing goes live.",
-  },
-  {
-    q: "Can I use Bow Down Visuals during beta?",
-    a: "Yes. Beta users can test selected tools with a starter Visual Bucs balance. Sign up, explore the creator tools, and give us feedback. Full access opens with the paid launch.",
-  },
-  {
-    q: "Do music video clips cost Visual Bucs?",
-    a: "Yes — music video clip generation is a premium action and uses more Visual Bucs than standard text generation. The exact cost per clip will be confirmed at launch.",
-  },
-  {
-    q: "Can I cancel later?",
-    a: "Yes. Once billing is live, you can upgrade, downgrade, or cancel any time from your account settings. No contracts. No cancellation fees.",
-  },
-  {
-    q: "Does this make real songs with vocals yet?",
-    a: "AI song vocals and full beat generation are planned but not fully launched yet. Right now the platform creates professional lyrics, hooks, verses, AI music prompts, video treatments, and promo content — everything you need to direct and produce your release.",
-  },
-];
-
-const PRICING_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Bow Down Visuals",
-  applicationCategory: "MultimediaApplication",
-  operatingSystem: "Web",
-  description:
-    "AI-powered creative studio for content creators, offering subscription plans for song lyrics, music video treatments, promo clips, and thumbnails.",
-  offers: {
-    "@type": "OfferCatalog",
-    name: "Bow Down Visuals Plans",
-    itemListElement: PLANS.map((plan) => ({
-      "@type": "Offer",
-      name: plan.name,
-      price: String(plan.price),
-      priceCurrency: "USD",
-      description: plan.features.join(", "),
-      category: plan.bestFor,
-    })),
-  },
+type Plan = {
+  stars: number;
+  name: string;
+  price: number;
+  period: string;
+  bestFor: string;
+  credits: string;
+  featured: boolean;
+  badge: string | null;
+  cta: string;
+  features: string[];
 };
 
-const PRICING_FAQ_JSON_LD = buildFaqJsonLd(FAQ.map((f) => ({ q: f.q, a: f.a })));
+type CreditPack = { credits: string; price: string; packKey: string };
 
 /* ─── credit pack card ─── */
 
-function CreditPackCard({ pack }: { pack: { credits: string; price: string; packKey: string } }) {
+function CreditPackCard({ pack }: { pack: CreditPack }) {
+  const { t } = useTranslation();
   const { user, getAccessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -221,12 +55,12 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
       });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        setErrorMsg(data.error ?? "Checkout failed. Please try again.");
+        setErrorMsg(data.error ?? t("pricing.creditPacks.checkoutFailed"));
         return;
       }
       window.location.href = data.url;
     } catch {
-      setErrorMsg("Network error. Please try again.");
+      setErrorMsg(t("pricing.creditPacks.networkError"));
     } finally {
       setLoading(false);
     }
@@ -252,9 +86,9 @@ function CreditPackCard({ pack }: { pack: { credits: string; price: string; pack
         variant="luxury"
       >
         {loading ? (
-          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
+          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("pricing.creditPacks.processing")}</>
         ) : (
-          <><CreditCard className="h-3.5 w-3.5" /> Buy Visual Bucs</>
+          <><CreditCard className="h-3.5 w-3.5" /> {t("pricing.creditPacks.buyButton")}</>
         )}
       </Button>
     </div>
@@ -278,25 +112,27 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 /* ─── rank star meter ─── */
 
-function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
+function WantedMeter({ onSelect, plans }: { onSelect: (stars: number) => void; plans: Plan[] }) {
+  const { t } = useTranslation();
   const [hovered, setHovered] = useState<number | null>(null);
   return (
     <div className="flex flex-col items-center gap-3 mt-8">
       <div
         className="flex items-center gap-2"
         role="radiogroup"
-        aria-label="Preview rank"
+        aria-label={t("pricing.wantedMeter.ariaLabel")}
         onMouseLeave={() => setHovered(null)}
       >
         {([1, 2, 3, 4, 5, 6] as const).map((s) => {
           const lit = (hovered ?? 0) >= s;
+          const plan = plans[s - 1]!;
           return (
             <button
               key={s}
               type="button"
               role="radio"
               aria-checked={false}
-              aria-label={`${s} star${s > 1 ? "s" : ""} — ${PLANS[s - 1]!.name} $${PLANS[s - 1]!.price}/month`}
+              aria-label={t("pricing.wantedMeter.starOption", { count: s, name: plan.name, price: plan.price })}
               onMouseEnter={() => setHovered(s)}
               onFocus={() => setHovered(s)}
               onClick={() => onSelect(s)}
@@ -315,8 +151,8 @@ function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
       </div>
       <p className="text-sm text-white/40 font-medium h-5">
         {hovered
-          ? `${hovered} Star${hovered > 1 ? "s" : ""} — ${PLANS[hovered - 1]!.name} · $${PLANS[hovered - 1]!.price}/mo`
-          : "Hover the stars, then tap a level to jump to its plan"}
+          ? t("pricing.wantedMeter.hoverLabel", { count: hovered, name: plans[hovered - 1]!.name, price: plans[hovered - 1]!.price })
+          : t("pricing.wantedMeter.hint")}
       </p>
     </div>
   );
@@ -325,7 +161,167 @@ function WantedMeter({ onSelect }: { onSelect: (stars: number) => void }) {
 /* ─── page ─── */
 
 export default function Pricing() {
-  usePageTitle("Pricing", "Choose your rank — six star-rated creator plans.");
+  const { t } = useTranslation();
+  usePageTitle(t("pricing.pageTitle"), t("pricing.pageDescription"));
+
+  /* ─── data (inside component so t() re-renders on language change) ─── */
+
+  const PLANS: Plan[] = [
+    {
+      stars: 1,
+      name: t("pricing.plans.streetPunk.name"),
+      price: 19,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.streetPunk.bestFor"),
+      credits: t("pricing.plans.streetPunk.credits"),
+      featured: false,
+      badge: null,
+      cta: t("pricing.plans.streetPunk.cta"),
+      features: [
+        t("pricing.plans.streetPunk.features.f1"),
+        t("pricing.plans.streetPunk.features.f2"),
+        t("pricing.plans.streetPunk.features.f3"),
+        t("pricing.plans.streetPunk.features.f4"),
+        t("pricing.plans.streetPunk.features.f5"),
+        t("pricing.plans.streetPunk.features.f6"),
+      ],
+    },
+    {
+      stars: 2,
+      name: t("pricing.plans.hustler.name"),
+      price: 49,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.hustler.bestFor"),
+      credits: t("pricing.plans.hustler.credits"),
+      featured: true,
+      badge: t("pricing.plans.hustler.badge"),
+      cta: t("pricing.plans.hustler.cta"),
+      features: [
+        t("pricing.plans.hustler.features.f1"),
+        t("pricing.plans.hustler.features.f2"),
+        t("pricing.plans.hustler.features.f3"),
+        t("pricing.plans.hustler.features.f4"),
+        t("pricing.plans.hustler.features.f5"),
+        t("pricing.plans.hustler.features.f6"),
+      ],
+    },
+    {
+      stars: 3,
+      name: t("pricing.plans.gangster.name"),
+      price: 99,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.gangster.bestFor"),
+      credits: t("pricing.plans.gangster.credits"),
+      featured: false,
+      badge: null,
+      cta: t("pricing.plans.gangster.cta"),
+      features: [
+        t("pricing.plans.gangster.features.f1"),
+        t("pricing.plans.gangster.features.f2"),
+        t("pricing.plans.gangster.features.f3"),
+        t("pricing.plans.gangster.features.f4"),
+        t("pricing.plans.gangster.features.f5"),
+        t("pricing.plans.gangster.features.f6"),
+      ],
+    },
+    {
+      stars: 4,
+      name: t("pricing.plans.shotCaller.name"),
+      price: 199,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.shotCaller.bestFor"),
+      credits: t("pricing.plans.shotCaller.credits"),
+      featured: false,
+      badge: null,
+      cta: t("pricing.plans.shotCaller.cta"),
+      features: [
+        t("pricing.plans.shotCaller.features.f1"),
+        t("pricing.plans.shotCaller.features.f2"),
+        t("pricing.plans.shotCaller.features.f3"),
+        t("pricing.plans.shotCaller.features.f4"),
+        t("pricing.plans.shotCaller.features.f5"),
+        t("pricing.plans.shotCaller.features.f6"),
+      ],
+    },
+    {
+      stars: 5,
+      name: t("pricing.plans.crimeBoss.name"),
+      price: 399,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.crimeBoss.bestFor"),
+      credits: t("pricing.plans.crimeBoss.credits"),
+      featured: false,
+      badge: t("pricing.plans.crimeBoss.badge"),
+      cta: t("pricing.plans.crimeBoss.cta"),
+      features: [
+        t("pricing.plans.crimeBoss.features.f1"),
+        t("pricing.plans.crimeBoss.features.f2"),
+        t("pricing.plans.crimeBoss.features.f3"),
+        t("pricing.plans.crimeBoss.features.f4"),
+        t("pricing.plans.crimeBoss.features.f5"),
+        t("pricing.plans.crimeBoss.features.f6"),
+      ],
+    },
+    {
+      stars: 6,
+      name: t("pricing.plans.kingpin.name"),
+      price: 799,
+      period: t("pricing.planCard.perMonth"),
+      bestFor: t("pricing.plans.kingpin.bestFor"),
+      credits: t("pricing.plans.kingpin.credits"),
+      featured: false,
+      badge: t("pricing.plans.kingpin.badge"),
+      cta: t("pricing.plans.kingpin.cta"),
+      features: [
+        t("pricing.plans.kingpin.features.f1"),
+        t("pricing.plans.kingpin.features.f2"),
+        t("pricing.plans.kingpin.features.f3"),
+        t("pricing.plans.kingpin.features.f4"),
+        t("pricing.plans.kingpin.features.f5"),
+        t("pricing.plans.kingpin.features.f6"),
+      ],
+    },
+  ];
+
+  const CREDIT_PACKS: CreditPack[] = [
+    { credits: t("pricing.creditPacks.packs.10.credits"),  price: t("pricing.creditPacks.packs.10.price"),  packKey: "10"  },
+    { credits: t("pricing.creditPacks.packs.50.credits"),  price: t("pricing.creditPacks.packs.50.price"),  packKey: "50"  },
+    { credits: t("pricing.creditPacks.packs.150.credits"), price: t("pricing.creditPacks.packs.150.price"), packKey: "150" },
+    { credits: t("pricing.creditPacks.packs.500.credits"), price: t("pricing.creditPacks.packs.500.price"), packKey: "500" },
+  ];
+
+  const FAQ = [
+    { q: t("pricing.faq.q1"), a: t("pricing.faq.a1") },
+    { q: t("pricing.faq.q2"), a: t("pricing.faq.a2") },
+    { q: t("pricing.faq.q3"), a: t("pricing.faq.a3") },
+    { q: t("pricing.faq.q4"), a: t("pricing.faq.a4") },
+    { q: t("pricing.faq.q5"), a: t("pricing.faq.a5") },
+    { q: t("pricing.faq.q6"), a: t("pricing.faq.a6") },
+  ];
+
+  const PRICING_JSON_LD = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Bow Down Visuals",
+    applicationCategory: "MultimediaApplication",
+    operatingSystem: "Web",
+    description: t("pricing.jsonLd.description"),
+    offers: {
+      "@type": "OfferCatalog",
+      name: t("pricing.jsonLd.offerCatalogName"),
+      itemListElement: PLANS.map((plan) => ({
+        "@type": "Offer",
+        name: plan.name,
+        price: String(plan.price),
+        priceCurrency: "USD",
+        description: plan.features.join(", "),
+        category: plan.bestFor,
+      })),
+    },
+  };
+
+  const PRICING_FAQ_JSON_LD = buildFaqJsonLd(FAQ.map((f) => ({ q: f.q, a: f.a })));
+
   const [showCancelled, setShowCancelled] = useState(false);
   const [highlightedPlan, setHighlightedPlan] = useState<number | null>(null);
   const planRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -370,7 +366,7 @@ export default function Pricing() {
             <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex items-center justify-center gap-3">
               <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
               <span className="text-sm text-yellow-200/80">
-                Payment cancelled. No Visual Bucs were added.
+                {t("pricing.cancelledBanner.text")}
               </span>
               <button
                 onClick={() => setShowCancelled(false)}
@@ -387,12 +383,12 @@ export default function Pricing() {
           <div className="max-w-6xl mx-auto px-5 md:px-8 py-3 flex flex-col sm:flex-row items-center justify-center gap-2 text-center sm:text-left">
             <div className="flex items-center gap-2 shrink-0">
               <AlertCircle className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm font-bold text-primary">Beta Notice:</span>
+              <span className="text-sm font-bold text-primary">{t("pricing.betaNotice.label")}</span>
             </div>
             <span className="text-sm text-white/55">
-              Bow Down Visuals is currently in beta. Payments are not live yet.{" "}
+              {t("pricing.betaNotice.text")}{" "}
               <Link href="/beta-access" className="text-primary font-semibold hover:underline">
-                Join the beta list for early access →
+                {t("pricing.betaNotice.cta")}
               </Link>
             </span>
           </div>
@@ -401,7 +397,7 @@ export default function Pricing() {
         {/* ── HERO ── */}
         <section className="max-w-3xl mx-auto px-5 md:px-8 pt-16 pb-12 text-center">
           <MarketingBadge variant="kicker" className="mb-5 px-4 py-1.5">
-            Pricing
+            {t("pricing.hero.kicker")}
           </MarketingBadge>
           <div className="mx-auto mb-6 h-28 w-28 overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_32px_rgba(201,168,76,0.3)]">
             <video
@@ -410,23 +406,23 @@ export default function Pricing() {
               muted
               loop
               playsInline
-              aria-label="Thy Cheat Code leveling up"
+              aria-label={t("pricing.hero.videoAriaLabel")}
               className="h-full w-full object-cover"
             />
           </div>
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mb-5 leading-[0.92]">
-            Choose Your<br />
+            {t("pricing.hero.titleLine1")}<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-primary to-yellow-300">
-              Rank
+              {t("pricing.hero.titleLine2")}
             </span>
           </h1>
           <p className="text-white/50 text-xl max-w-2xl mx-auto leading-relaxed">
-            Climb from Street Punk to Kingpin — the higher your rank, the more power, credits, automation, and control you unlock.
+            {t("pricing.hero.subtitle")}
           </p>
           <p className="text-white/35 text-sm max-w-xl mx-auto mt-3">
-            No free generations. No hidden compute charges. See the Visual Buc cost before you create.
+            {t("pricing.hero.disclaimer")}
           </p>
-          <WantedMeter onSelect={jumpToPlan} />
+          <WantedMeter onSelect={jumpToPlan} plans={PLANS} />
         </section>
 
         {/* ── PLANS ── */}
@@ -463,7 +459,7 @@ export default function Pricing() {
                 {/* Plan header */}
                 <div className="mb-5 mt-1">
                   {/* Wanted stars */}
-                  <div className="flex items-center gap-1 mb-3" aria-label={`${plan.stars} out of 6 wanted stars`}>
+                  <div className="flex items-center gap-1 mb-3" aria-label={t("pricing.planCard.wantedStarsAria", { stars: plan.stars })}>
                     {([1, 2, 3, 4, 5, 6] as const).map((s) => (
                       <Star
                         key={s}
@@ -478,11 +474,11 @@ export default function Pricing() {
                   <h2 className="text-lg font-bold text-primary mb-0.5">
                     {plan.name}
                   </h2>
-                  <p className="text-xs text-white/35 font-medium mb-4">Best for: {plan.bestFor}</p>
+                  <p className="text-xs text-white/35 font-medium mb-4">{t("pricing.planCard.bestFor", { bestFor: plan.bestFor })}</p>
 
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-4xl font-black text-white">${plan.price}</span>
-                    <span className="text-white/35">/month</span>
+                    <span className="text-white/35">{plan.period}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Zap className="h-3 w-3 text-primary" />
@@ -523,22 +519,22 @@ export default function Pricing() {
           {/* Coming soon note */}
           <p className="text-center text-xs text-white/25 font-medium mt-6 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
-            Billing is not live yet. All plan buttons join the beta list.
+            {t("pricing.plans.comingSoonNote")}
           </p>
         </section>
 
         {/* ── TEST CREDIT PACKS ── */}
         <section id="credit-packs" className="scroll-mt-20 max-w-4xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="text-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">Test Visual Buc Packs</h2>
-            <p className="text-white/40 text-lg">Need extra Visual Bucs without a subscription? Top up anytime.</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight mb-3">{t("pricing.creditPacks.title")}</h2>
+            <p className="text-white/40 text-lg">{t("pricing.creditPacks.subtitle")}</p>
           </div>
 
           {/* Test mode notice */}
           <div className="flex items-center justify-center gap-2 mb-8 px-4 py-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.06] max-w-lg mx-auto">
             <AlertCircle className="h-4 w-4 text-yellow-400 shrink-0" />
             <span className="text-sm text-yellow-200/70">
-              Payments are currently in <strong className="text-yellow-300">test mode</strong>. No real money is charged.
+              {t("pricing.creditPacks.testModeLead")} <strong className="text-yellow-300">{t("pricing.creditPacks.testModeStrong")}</strong>{t("pricing.creditPacks.testModeTail")}
             </span>
           </div>
 
@@ -550,7 +546,7 @@ export default function Pricing() {
 
           <p className="text-center text-xs text-white/25 font-medium mt-5 flex items-center justify-center gap-1.5">
             <Lock className="h-3 w-3" />
-            You must be signed in to purchase Visual Bucs.
+            {t("pricing.creditPacks.signInNote")}
           </p>
         </section>
 
@@ -558,7 +554,7 @@ export default function Pricing() {
         <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 border-t border-white/[0.05]">
           <div className="flex items-center gap-3 mb-8 justify-center">
             <HelpCircle className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">Frequently Asked Questions</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">{t("pricing.faq.title")}</h2>
           </div>
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] px-6 md:px-8">
             {FAQ.map((item) => <FaqItem key={item.q} q={item.q} a={item.a} />)}
@@ -567,19 +563,19 @@ export default function Pricing() {
 
         {/* ── BOTTOM CTA ── */}
         <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 md:py-28 text-center border-t border-white/[0.05]">
-          <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">Get in early.</h2>
+          <h2 className="text-3xl font-semibold text-white tracking-tight mb-4">{t("pricing.bottomCta.title")}</h2>
           <p className="text-white/45 text-lg mb-8">
-            Beta members lock in the founding rate and get 100 bonus Visual Bucs on launch day.
+            {t("pricing.bottomCta.text")}
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <Link href="/beta-access">
               <Button size="lg" className="gold-glow font-bold px-10 h-12 gap-2">
-                <Sparkles className="h-4 w-4" /> Join Beta
+                <Sparkles className="h-4 w-4" /> {t("pricing.bottomCta.joinBeta")}
               </Button>
             </Link>
             <Link href="/dashboard">
               <Button size="lg" variant="outline" className="border-white/10 text-white/60 hover:text-white h-12 px-8 gap-2">
-                <Zap className="h-4 w-4" /> Try the Tools
+                <Zap className="h-4 w-4" /> {t("pricing.bottomCta.tryTools")}
               </Button>
             </Link>
           </div>

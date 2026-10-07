@@ -1,8 +1,10 @@
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useTiltOnHover } from "@/hooks/use-tilt-on-hover";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 function PolicyNav() {
+  const { t } = useTranslation();
   /* Same cursor-tilt + gold-glow treatment as the header brand mark. */
   const logoTilt = useTiltOnHover<HTMLAnchorElement>({ maxDeg: 8, maxShift: 6 });
 
@@ -12,90 +14,84 @@ function PolicyNav() {
         <Link href="/" ref={logoTilt} className="cursor-pointer inline-block rounded-lg">
           <img src={`${import.meta.env.BASE_URL}logo-static.webp`} alt="Bow Down Visuals" className="h-10 w-auto" />
         </Link>
-        <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">Contact / Support</Link>
+        <Link href="/contact" className="text-xs text-white/40 hover:text-primary transition-colors">{t("privacy.contactSupport")}</Link>
       </div>
     </header>
   );
 }
 
 export default function Privacy() {
-  usePageTitle("Privacy Policy", "How Bow Down Visuals handles your data.");
+  const { t } = useTranslation();
+  usePageTitle(t("privacy.pageTitle"), t("privacy.pageDescription"));
   return (
     <div className="min-h-screen bg-background">
       <PolicyNav />
       <main className="max-w-4xl mx-auto px-5 py-16"><div className="content-panel p-6 md:p-8">
-        <h1 className="text-3xl font-black text-white mb-2">Privacy Policy</h1>
-        <p className="text-white/30 text-sm mb-10">Last updated: September 2026</p>
+        <h1 className="text-3xl font-black text-white mb-2">{t("privacy.title")}</h1>
+        <p className="text-white/30 text-sm mb-10">{t("privacy.lastUpdated")}</p>
 
         <div className="prose prose-invert prose-sm max-w-none space-y-8 text-white/70 leading-relaxed">
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">1. Who We Are</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section1Title")}</h2>
             <p>
-              Bow Down Visuals operates a digital creator platform that provides AI-powered
-              Visual Bucs for generating videos, music, images, voiceovers, lip-synced videos,
-              lyrics, captions, thumbnails, promo clips, and related digital content. This
-              policy explains how we collect, use, and protect your information.
+              {t("privacy.section1Body")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">2. Information We Collect</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section2Title")}</h2>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-white/90">Account info:</strong> email address and password (hashed) when you register, or basic profile information from Google if you sign in with Google</li>
-              <li><strong className="text-white/90">Billing info:</strong> handled entirely by Stripe — we never store raw card data</li>
-              <li><strong className="text-white/90">Usage data:</strong> Visual Buc usage, tool interactions, and generated content prompts</li>
-              <li><strong className="text-white/90">Artist profile data:</strong> info you enter to personalize AI outputs (artist name, genre, style preferences)</li>
-              <li><strong className="text-white/90">Referral data:</strong> referral codes used at signup and referral rewards earned</li>
-              <li><strong className="text-white/90">Technical data:</strong> browser type, IP address, and session data for security and performance</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item1Label")}</strong>{" "}{t("privacy.section2Item1Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item2Label")}</strong>{" "}{t("privacy.section2Item2Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item3Label")}</strong>{" "}{t("privacy.section2Item3Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item4Label")}</strong>{" "}{t("privacy.section2Item4Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item5Label")}</strong>{" "}{t("privacy.section2Item5Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section2Item6Label")}</strong>{" "}{t("privacy.section2Item6Body")}</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">3. How We Use Your Information</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section3Title")}</h2>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>To operate and improve the platform</li>
-              <li>To process payments and manage subscriptions</li>
-              <li>To personalize AI-generated outputs to your artist profile</li>
-              <li>To send account-related emails (receipts, security alerts)</li>
-              <li>To comply with legal obligations</li>
+              <li>{t("privacy.section3Item1")}</li>
+              <li>{t("privacy.section3Item2")}</li>
+              <li>{t("privacy.section3Item3")}</li>
+              <li>{t("privacy.section3Item4")}</li>
+              <li>{t("privacy.section3Item5")}</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">4. Data Sharing</h2>
-            <p>We do not sell your personal data. We share data only with:</p>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section4Title")}</h2>
+            <p>{t("privacy.section4Intro")}</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-white/90">Stripe</strong> — payment processing</li>
-              <li><strong className="text-white/90">Supabase</strong> — database and authentication</li>
-              <li><strong className="text-white/90">Google</strong> — if you sign in with Google (subject to Google's privacy policy)</li>
-              <li><strong className="text-white/90">AI providers</strong> — to fulfill generation requests (prompts may be processed by third-party AI APIs)</li>
-              <li>Law enforcement when required by applicable law</li>
+              <li><strong className="text-white/90">{t("privacy.section4Item1Label")}</strong>{" — "}{t("privacy.section4Item1Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section4Item2Label")}</strong>{" — "}{t("privacy.section4Item2Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section4Item3Label")}</strong>{" — "}{t("privacy.section4Item3Body")}</li>
+              <li><strong className="text-white/90">{t("privacy.section4Item4Label")}</strong>{" — "}{t("privacy.section4Item4Body")}</li>
+              <li>{t("privacy.section4Item5")}</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">5. Cookies & Tracking</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section5Title")}</h2>
             <p>
-              We use session cookies necessary for authentication. We do not run third-party
-              ad trackers. Analytics, if used, are limited to aggregate usage data.
+              {t("privacy.section5Body")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">6. Data Retention</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section6Title")}</h2>
             <p>
-              We retain your account data for as long as your account is active. You may
-              request deletion at any time by contacting us. Billing records are retained
-              as required by law.
+              {t("privacy.section6Body")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">7. Your Rights</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section7Title")}</h2>
             <p>
-              Depending on your location, you may have the right to access, correct, or delete
-              your personal data. To exercise any of these rights, contact us at{" "}
+              {t("privacy.section7Intro")}{" "}
               <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
                 support@bowdownvisuals.com
               </a>.
@@ -103,30 +99,27 @@ export default function Privacy() {
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">8. Security</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section8Title")}</h2>
             <p>
-              We use industry-standard security measures including encrypted connections (HTTPS),
-              hashed passwords, and row-level security on our database. No system is 100% secure;
-              use a strong unique password for your account.
+              {t("privacy.section8Body")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">9. Changes to This Policy</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section9Title")}</h2>
             <p>
-              We may update this policy from time to time. We'll notify you of material changes
-              via email or an in-app notice.
+              {t("privacy.section9Body")}
             </p>
           </section>
 
           <section>
-            <h2 className="text-white font-bold text-lg mb-3">10. Contact</h2>
+            <h2 className="text-white font-bold text-lg mb-3">{t("privacy.section10Title")}</h2>
             <p>
-              Privacy questions? Email{" "}
+              {t("privacy.section10Intro")}{" "}
               <a href="mailto:support@bowdownvisuals.com" className="text-primary hover:underline">
                 support@bowdownvisuals.com
               </a>{" "}
-              or visit our <Link href="/contact" className="text-primary hover:underline">Contact page</Link>.
+              {t("privacy.section10Middle")} <Link href="/contact" className="text-primary hover:underline">{t("privacy.section10ContactLink")}</Link>.
             </p>
           </section>
         </div>

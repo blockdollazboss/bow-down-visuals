@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -57,30 +58,68 @@ interface FormValues {
 /* ─────────────────────────── OPTIONS ─────────────────────────── */
 
 const PROMO_TYPES = [
-  { id: "Hook Promo",                 label: "Hook Promo",             desc: "Go viral with your hook" },
-  { id: "Best Bar Clip",              label: "Best Bar Clip",          desc: "Showcase your hardest bar" },
-  { id: "Release Announcement",       label: "Release Announcement",   desc: "Drop announcement content" },
-  { id: "Music Video Teaser",         label: "Music Video Teaser",     desc: "Tease the visuals" },
-  { id: "Behind The Song",            label: "Behind The Song",        desc: "Story behind the record" },
-  { id: "Lyrics Clip",                label: "Lyrics Clip",            desc: "Lyric-forward content" },
-  { id: "Countdown Post",             label: "Countdown Post",         desc: "Build pre-release hype" },
-  { id: "Streaming Call-To-Action",   label: "Streaming CTA",          desc: "Drive streams & saves" },
+  { id: "Hook Promo",               i18nKey: "hookPromo" },
+  { id: "Best Bar Clip",            i18nKey: "bestBarClip" },
+  { id: "Release Announcement",     i18nKey: "releaseAnnouncement" },
+  { id: "Music Video Teaser",       i18nKey: "musicVideoTeaser" },
+  { id: "Behind The Song",          i18nKey: "behindTheSong" },
+  { id: "Lyrics Clip",              i18nKey: "lyricsClip" },
+  { id: "Countdown Post",           i18nKey: "countdownPost" },
+  { id: "Streaming Call-To-Action", i18nKey: "streamingCta" },
 ];
 
 const PLATFORMS = [
-  { id: "TikTok 9:16",            label: "TikTok",         aspect: "9:16" },
-  { id: "Instagram Reels 9:16",   label: "Reels",          aspect: "9:16" },
-  { id: "YouTube Shorts 9:16",    label: "Shorts",         aspect: "9:16" },
-  { id: "Square 1:1",             label: "Square",         aspect: "1:1" },
-  { id: "All Platforms",          label: "All Platforms",  aspect: "" },
+  { id: "TikTok 9:16",            i18nKey: "tiktok",       aspect: "9:16" },
+  { id: "Instagram Reels 9:16",   i18nKey: "reels",        aspect: "9:16" },
+  { id: "YouTube Shorts 9:16",    i18nKey: "shorts",       aspect: "9:16" },
+  { id: "Square 1:1",             i18nKey: "square",       aspect: "1:1" },
+  { id: "All Platforms",          i18nKey: "allPlatforms", aspect: "" },
 ];
 
-const PLATFORM_STRINGS = PLATFORMS.map((p) => p.aspect ? `${p.label} ${p.aspect}` : p.label);
-const PLATFORM_IDS     = PLATFORMS.map((p) => p.id);
+const PLATFORM_IDS = PLATFORMS.map((p) => p.id);
 
-const GENRES = ["Hip Hop","Drill","Trap","R&B","Pop","Afrobeats","Dancehall","Gospel","Kids Music","Rock","Country","Other"];
-const MOODS  = ["Luxury","Dark","Emotional","Street","Romantic","Energetic","Pain","Victory","Party","Inspirational","Funny","Kid-Friendly"];
-const GOALS  = ["Build hype before release","Promote new song","Push music video","Get more streams","Go viral with hook","Promote artist brand","Announce release date"];
+const GENRES = [
+  { id: "Hip Hop",    i18nKey: "hipHop" },
+  { id: "Drill",      i18nKey: "drill" },
+  { id: "Trap",       i18nKey: "trap" },
+  { id: "R&B",        i18nKey: "rnb" },
+  { id: "Pop",        i18nKey: "pop" },
+  { id: "Afrobeats",  i18nKey: "afrobeats" },
+  { id: "Dancehall",  i18nKey: "dancehall" },
+  { id: "Gospel",     i18nKey: "gospel" },
+  { id: "Kids Music", i18nKey: "kidsMusic" },
+  { id: "Rock",       i18nKey: "rock" },
+  { id: "Country",    i18nKey: "country" },
+  { id: "Other",      i18nKey: "other" },
+];
+const MOODS = [
+  { id: "Luxury",        i18nKey: "luxury" },
+  { id: "Dark",          i18nKey: "dark" },
+  { id: "Emotional",     i18nKey: "emotional" },
+  { id: "Street",        i18nKey: "street" },
+  { id: "Romantic",      i18nKey: "romantic" },
+  { id: "Energetic",     i18nKey: "energetic" },
+  { id: "Pain",          i18nKey: "pain" },
+  { id: "Victory",       i18nKey: "victory" },
+  { id: "Party",         i18nKey: "party" },
+  { id: "Inspirational", i18nKey: "inspirational" },
+  { id: "Funny",         i18nKey: "funny" },
+  { id: "Kid-Friendly",  i18nKey: "kidFriendly" },
+];
+const GOALS = [
+  { id: "Build hype before release", i18nKey: "buildHype" },
+  { id: "Promote new song",          i18nKey: "promoteSong" },
+  { id: "Push music video",          i18nKey: "pushMusicVideo" },
+  { id: "Get more streams",          i18nKey: "getStreams" },
+  { id: "Go viral with hook",        i18nKey: "goViral" },
+  { id: "Promote artist brand",      i18nKey: "promoteBrand" },
+  { id: "Announce release date",     i18nKey: "announceReleaseDate" },
+];
+
+const OUTPUT_TAGS = [
+  "promo15", "promo30", "hookScript", "onScreenText", "captions",
+  "hashtags", "ctas", "visualShots", "clipTiming", "thumbnailIdea",
+];
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   "Make a Song":       <Music  className="h-3.5 w-3.5" />,
@@ -181,7 +220,8 @@ function StyledSelect({ name, placeholder, options, ids, value, onChange }: {
 /* ─────────────────────────── PAGE ─────────────────────────── */
 
 export default function PromoClip() {
-  usePageTitle("Promo Clip Maker", "Turn any song into scroll-stopping promo clips for TikTok, Reels, and Shorts.");
+  const { t } = useTranslation();
+  usePageTitle(t("promo-clip.pageTitle"), t("promo-clip.pageDescription"));
   const { user, getAccessToken, refreshProfile } = useAuth();
   const { activeArtist } = useActiveArtist();
   const { confirmedFetch } = useConfirmedApi();
@@ -298,7 +338,7 @@ export default function PromoClip() {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      const msg = err instanceof Error ? err.message : t("promo-clip.errorGenerationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -336,7 +376,7 @@ export default function PromoClip() {
         document.getElementById("promo-result")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Generation failed. Please try again.";
+      const msg = err instanceof Error ? err.message : t("promo-clip.errorGenerationFailed");
       if (msg === "out_of_credits") { setOutOfCredits(true); refreshProfile(); }
       else setError(msg);
     } finally {
@@ -357,6 +397,22 @@ export default function PromoClip() {
 
   const projectClips = selectedProject ? getClips(selectedProject) : [];
   const canGenerate  = !!selectedProject && !!promoType && !!platform;
+
+  /* Translated display strings (ids stay English for the API) */
+  const platformStrings = PLATFORMS.map((p) => {
+    const label = t(`promo-clip.platforms.${p.i18nKey}`);
+    return p.aspect ? `${label} ${p.aspect}` : label;
+  });
+  const selectedPlatform = PLATFORMS.find((p) => p.id === platform);
+  const selectedPlatformLabel = selectedPlatform
+    ? selectedPlatform.aspect
+      ? `${t(`promo-clip.platforms.${selectedPlatform.i18nKey}`)} ${selectedPlatform.aspect}`
+      : t(`promo-clip.platforms.${selectedPlatform.i18nKey}`)
+    : platform;
+  const selectedPromoType = PROMO_TYPES.find((pt) => pt.id === promoType);
+  const selectedPromoTypeLabel = selectedPromoType
+    ? t(`promo-clip.promoTypes.${selectedPromoType.i18nKey}.label`)
+    : promoType;
 
   const projSaveMetadata: SaveMetadata | null = selectedProject
     ? {
@@ -385,7 +441,7 @@ export default function PromoClip() {
         {/* Breadcrumb */}
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors mb-8 group">
           <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Dashboard
+          {t("promo-clip.backToDashboard")}
         </Link>
 
         {/* Page header */}
@@ -394,17 +450,17 @@ export default function PromoClip() {
             <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
               <Film className="h-5 w-5 text-primary" />
             </div>
-            <MarketingBadge variant="muted">100 Visual Bucs</MarketingBadge>
+            <MarketingBadge variant="muted">{t("promo-clip.creditBadge")}</MarketingBadge>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-3">
-            Promo Clips
+            {t("promo-clip.title")}
           </h1>
           <p className="text-white/50 text-lg max-w-2xl">
-            Create TikTok, Reels, and YouTube Shorts ideas for your song. Scripts, captions, hashtags, and rollout plans included.
+            {t("promo-clip.subtitle")}
           </p>
           <div className="flex flex-wrap gap-2 mt-5">
-            {["15-Sec Promo","30-Sec Promo","Hook Clip Script","On-Screen Text","Captions","Hashtags","CTAs","Visual Shots","Clip Timing","Thumbnail Idea"].map((tag) => (
-              <span key={tag} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/35 px-3 py-1 rounded-full">{tag}</span>
+            {OUTPUT_TAGS.map((tag) => (
+              <span key={tag} className="text-xs bg-white/[0.04] border border-white/[0.07] text-white/35 px-3 py-1 rounded-full">{t(`promo-clip.tags.${tag}`)}</span>
             ))}
           </div>
         </div>
@@ -424,12 +480,12 @@ export default function PromoClip() {
               <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 group-hover:bg-primary/20 transition-colors">
                 <FolderOpen className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-black text-white mb-2">Start From Existing Project</h2>
+              <h2 className="text-xl font-black text-white mb-2">{t("promo-clip.modes.fromProject.title")}</h2>
               <p className="text-sm text-white/40 leading-relaxed mb-5">
-                Load a saved song or video project. We'll pull your lyrics, clips, and artist info automatically.
+                {t("promo-clip.modes.fromProject.desc")}
               </p>
               <div className="flex items-center gap-1.5 text-primary text-sm font-bold group-hover:gap-2.5 transition-all">
-                Select a project <ChevronRight className="h-4 w-4" />
+                {t("promo-clip.modes.fromProject.cta")} <ChevronRight className="h-4 w-4" />
               </div>
             </button>
 
@@ -442,12 +498,12 @@ export default function PromoClip() {
               <div className="h-12 w-12 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center mb-5 group-hover:border-white/20 transition-colors">
                 <Wand2 className="h-6 w-6 text-white/50 group-hover:text-white/80 transition-colors" />
               </div>
-              <h2 className="text-xl font-black text-white mb-2">Start From Scratch</h2>
+              <h2 className="text-xl font-black text-white mb-2">{t("promo-clip.modes.fromScratch.title")}</h2>
               <p className="text-sm text-white/40 leading-relaxed mb-5">
-                Enter your artist details manually. Great for new projects or quick promo content.
+                {t("promo-clip.modes.fromScratch.desc")}
               </p>
               <div className="flex items-center gap-1.5 text-white/40 text-sm font-bold group-hover:text-white/70 group-hover:gap-2.5 transition-all">
-                Fill in details <ChevronRight className="h-4 w-4" />
+                {t("promo-clip.modes.fromScratch.cta")} <ChevronRight className="h-4 w-4" />
               </div>
             </button>
 
@@ -465,12 +521,12 @@ export default function PromoClip() {
               onClick={() => switchMode("select")}
               className="inline-flex items-center gap-1.5 text-sm text-white/35 hover:text-white transition-colors"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Change mode
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("promo-clip.changeMode")}
             </button>
 
             {/* ── STEP 1: Select Project ── */}
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
-              <StepHeader number={1} label="Select Your Project" done={!!selectedProject} />
+              <StepHeader number={1} label={t("promo-clip.steps.selectProject")} done={!!selectedProject} />
 
               {/* ── COLLAPSED: project already selected ── */}
               {selectedProject ? (
@@ -487,11 +543,11 @@ export default function PromoClip() {
                       <span className="text-[10px] bg-white/[0.04] text-white/25 px-2 py-0.5 rounded-full">{selectedProject.project_type}</span>
                       {getClips(selectedProject).length > 0 && (
                         <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                          {getClips(selectedProject).length} clip{getClips(selectedProject).length !== 1 ? "s" : ""}
+                          {t("promo-clip.clips.count", { count: getClips(selectedProject).length })}
                         </span>
                       )}
                       {extractLyrics(selectedProject) && (
-                        <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">lyrics</span>
+                        <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">{t("promo-clip.clips.lyrics")}</span>
                       )}
                     </div>
                   </div>
@@ -500,20 +556,20 @@ export default function PromoClip() {
                     onClick={() => { setSelectedProject(null); setPromoType(""); setPlatform(""); setSelectedClipIds([]); }}
                     className="text-xs text-white/30 hover:text-white/70 transition-colors shrink-0 px-2 py-1 rounded-lg hover:bg-white/[0.05]"
                   >
-                    Change
+                    {t("promo-clip.change")}
                   </button>
                 </div>
               ) : projectsLoading ? (
                 <div className="flex items-center gap-2 text-white/35 py-6">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading your projects…
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("promo-clip.loadingProjects")}
                 </div>
               ) : projects.length === 0 ? (
                 <div className="text-center py-10">
                   <FolderOpen className="h-8 w-8 text-white/15 mx-auto mb-3" />
-                  <p className="text-white/35 text-sm mb-4">No saved projects found.</p>
+                  <p className="text-white/35 text-sm mb-4">{t("promo-clip.noProjects")}</p>
                   <Link href="/song-and-video">
                     <Button size="sm" variant="outline" className="border-white/10 text-white/50">
-                      Create a project first
+                      {t("promo-clip.createProjectFirst")}
                     </Button>
                   </Link>
                 </div>
@@ -524,7 +580,7 @@ export default function PromoClip() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/25" />
                     <input
                       type="text"
-                      placeholder="Search by artist, song, or title…"
+                      placeholder={t("promo-clip.searchPlaceholder")}
                       value={projectSearch}
                       onChange={(e) => setProjectSearch(e.target.value)}
                       className="w-full h-10 pl-10 pr-4 rounded-xl bg-white/[0.04] border border-white/[0.07] text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-primary/40 transition-colors"
@@ -534,7 +590,7 @@ export default function PromoClip() {
                   {/* Project grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
                     {filteredProjects.length === 0 ? (
-                      <p className="text-white/30 text-sm py-4 col-span-2">No projects match your search.</p>
+                      <p className="text-white/30 text-sm py-4 col-span-2">{t("promo-clip.noProjectsMatch")}</p>
                     ) : filteredProjects.map((p) => {
                       const clipCount = getClips(p).length;
                       return (
@@ -563,11 +619,11 @@ export default function PromoClip() {
                               <span className="text-[10px] bg-white/[0.04] text-white/25 px-2 py-0.5 rounded-full">{p.project_type}</span>
                               {clipCount > 0 && (
                                 <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                                  {clipCount} clip{clipCount !== 1 ? "s" : ""}
+                                  {t("promo-clip.clips.count", { count: clipCount })}
                                 </span>
                               )}
                               {extractLyrics(p) && (
-                                <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">lyrics</span>
+                                <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full">{t("promo-clip.clips.lyrics")}</span>
                               )}
                             </div>
                           </div>
@@ -582,13 +638,13 @@ export default function PromoClip() {
             {/* ── STEP 2: Promo Type — preset picks (2) ── */}
             {selectedProject && (
               <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
-                <StepHeader number={2} label="Choose Promo Type" done={!!promoType} />
+                <StepHeader number={2} label={t("promo-clip.steps.choosePromoType")} done={!!promoType} />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PROMO_TYPES.map((pt) => (
                     <ChipBtn
                       key={pt.id}
-                      label={pt.label}
-                      sub={pt.desc}
+                      label={t(`promo-clip.promoTypes.${pt.i18nKey}.label`)}
+                      sub={t(`promo-clip.promoTypes.${pt.i18nKey}.desc`)}
                       selected={promoType === pt.id}
                       onClick={() => { setPromoType(pt.id); setPlatform(""); }}
                     />
@@ -600,7 +656,7 @@ export default function PromoClip() {
             {/* ── STEP 3: Platform — preset picks (2) ── */}
             {selectedProject && promoType && (
               <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6" data-min-stars="2">
-                <StepHeader number={3} label="Choose Platform" done={!!platform} />
+                <StepHeader number={3} label={t("promo-clip.steps.choosePlatform")} done={!!platform} />
                 <div className="flex flex-wrap gap-2">
                   {PLATFORMS.map((p) => (
                     <button
@@ -613,7 +669,7 @@ export default function PromoClip() {
                           : "border-white/[0.08] bg-white/[0.02] text-white/50 hover:border-white/20 hover:text-white"
                       }`}
                     >
-                      {p.label}
+                      {t(`promo-clip.platforms.${p.i18nKey}`)}
                       {p.aspect && <span className="text-[10px] opacity-50 font-normal">{p.aspect}</span>}
                     </button>
                   ))}
@@ -630,15 +686,15 @@ export default function PromoClip() {
                   className="flex items-center justify-between w-full"
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-sm font-bold text-white/60 uppercase tracking-wider">Clips for Promo Timeline</span>
+                    <span className="text-sm font-bold text-white/60 uppercase tracking-wider">{t("promo-clip.clipsSelector.title")}</span>
                     <MarketingBadge variant="free" className="text-[10px]">
-                      {projectClips.length} available
+                      {t("promo-clip.clipsSelector.available", { count: projectClips.length })}
                     </MarketingBadge>
                   </div>
                   {clipsOpen ? <ChevronUp className="h-4 w-4 text-white/25" /> : <ChevronDown className="h-4 w-4 text-white/25" />}
                 </button>
                 <p className="text-xs text-white/25 mt-1 mb-4">
-                  Select which clips to reference in the AI promo suggestions
+                  {t("promo-clip.clipsSelector.hint")}
                 </p>
 
                 {clipsOpen && (
@@ -670,7 +726,7 @@ export default function PromoClip() {
                           </div>
                           <div className="px-2.5 py-2">
                             <p className="text-[11px] text-white/40 truncate">
-                              {clip.location || clip.action || `Clip ${idx + 1}`}
+                              {clip.location || clip.action || t("promo-clip.clipsSelector.clipFallback", { n: idx + 1 })}
                             </p>
                           </div>
                           {picked && (
@@ -694,28 +750,28 @@ export default function PromoClip() {
                   onClick={() => setAdvancedOpen((v) => !v)}
                   className="flex items-center justify-between w-full px-5 py-4"
                 >
-                  <span className="text-xs font-bold text-white/35 uppercase tracking-wider">Advanced Options</span>
+                  <span className="text-xs font-bold text-white/35 uppercase tracking-wider">{t("promo-clip.advanced.title")}</span>
                   {advancedOpen ? <ChevronUp className="h-4 w-4 text-white/25" /> : <ChevronDown className="h-4 w-4 text-white/25" />}
                 </button>
                 {advancedOpen && (
                   <div className="px-6 pb-6 space-y-5 border-t border-white/[0.05] pt-5">
                     <div className="space-y-2">
-                      <FieldLabel>Hook / Best Lyrics Override</FieldLabel>
-                      <p className="text-xs text-white/25">Paste a specific hook or bar to focus the promo around. If blank, we'll pull from your project lyrics automatically.</p>
+                      <FieldLabel>{t("promo-clip.advanced.hookOverride")}</FieldLabel>
+                      <p className="text-xs text-white/25">{t("promo-clip.advanced.hookOverrideHint")}</p>
                       <textarea
                         value={hookOverride}
                         onChange={(e) => setHookOverride(e.target.value)}
-                        placeholder="Paste your hook or best bar here…"
+                        placeholder={t("promo-clip.advanced.hookPlaceholder")}
                         className={textareaClass + " w-full"}
                         style={{ minHeight: "90px" }}
                       />
                     </div>
                     <div className="space-y-2">
-                      <FieldLabel>Special Instructions</FieldLabel>
+                      <FieldLabel>{t("promo-clip.advanced.specialInstructions")}</FieldLabel>
                       <textarea
                         value={projSpecialInstructions}
                         onChange={(e) => setProjSpecialInstructions(e.target.value)}
-                        placeholder="Release date, content restrictions, cultural context, trending sounds to reference…"
+                        placeholder={t("promo-clip.advanced.instructionsPlaceholder")}
                         className={textareaClass + " w-full"}
                         style={{ minHeight: "70px" }}
                       />
@@ -729,19 +785,19 @@ export default function PromoClip() {
             {canGenerate && (
               <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-5 space-y-4">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                  <span className="text-white/40">Project:</span>
+                  <span className="text-white/40">{t("promo-clip.summary.project")}</span>
                   <span className="text-white font-semibold">
                     {selectedProject?.artist_name}
                     {selectedProject?.song_title ? ` — ${selectedProject.song_title}` : ""}
                   </span>
                   <span className="text-white/20">·</span>
-                  <span className="text-primary font-semibold">{promoType}</span>
+                  <span className="text-primary font-semibold">{selectedPromoTypeLabel}</span>
                   <span className="text-white/20">·</span>
-                  <span className="text-white/60">{platform}</span>
+                  <span className="text-white/60">{selectedPlatformLabel}</span>
                   {selectedClipIds.length > 0 && (
                     <>
                       <span className="text-white/20">·</span>
-                      <span className="text-blue-400 text-xs">{selectedClipIds.length} clip{selectedClipIds.length !== 1 ? "s" : ""} selected</span>
+                      <span className="text-blue-400 text-xs">{t("promo-clip.summary.clipsSelected", { count: selectedClipIds.length })}</span>
                     </>
                   )}
                 </div>
@@ -755,10 +811,10 @@ export default function PromoClip() {
                     style={{ height: "52px" }}
                   >
                     {loading
-                      ? <><Loader2 className="h-5 w-5 animate-spin" /> Building Promo Pack…</>
-                      : <><Megaphone className="h-5 w-5" /> Generate Promo Pack</>}
+                      ? <><Loader2 className="h-5 w-5 animate-spin" /> {t("promo-clip.generating")}</>
+                      : <><Megaphone className="h-5 w-5" /> {t("promo-clip.generate")}</>}
                   </Button>
-                  <p className="text-white/20 text-xs">Uses 100 Visual Bucs</p>
+                  <p className="text-white/20 text-xs">{t("promo-clip.costNote")}</p>
                 </div>
               </div>
             )}
@@ -776,7 +832,7 @@ export default function PromoClip() {
               onClick={() => switchMode("select")}
               className="inline-flex items-center gap-1.5 text-sm text-white/35 hover:text-white transition-colors"
             >
-              <ArrowLeft className="h-3.5 w-3.5" /> Change mode
+              <ArrowLeft className="h-3.5 w-3.5" /> {t("promo-clip.changeMode")}
             </button>
 
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6 md:p-8">
@@ -798,36 +854,40 @@ export default function PromoClip() {
 
                 {/* Step 1: Artist & Track */}
                 <div className="space-y-4">
-                  <StepHeader number={1} label="Artist & Track" />
+                  <StepHeader number={1} label={t("promo-clip.steps.artistTrack")} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                      <FieldLabel>Artist Name</FieldLabel>
+                      <FieldLabel>{t("promo-clip.form.artistName")}</FieldLabel>
                       <Input
                         {...register("artistName", { required: true })}
-                        placeholder="e.g. Lil Nova"
+                        placeholder={t("promo-clip.form.artistNamePlaceholder")}
                         className={inputClass + (errors.artistName ? " border-red-500/50" : "")}
                       />
-                      {errors.artistName && <p className="text-red-400 text-xs">Required</p>}
+                      {errors.artistName && <p className="text-red-400 text-xs">{t("promo-clip.form.required")}</p>}
                     </div>
                     <div className="space-y-2">
-                      <FieldLabel>Song Title</FieldLabel>
-                      <Input {...register("songTitle")} placeholder="e.g. On My Way Up" className={inputClass} />
+                      <FieldLabel>{t("promo-clip.form.songTitle")}</FieldLabel>
+                      <Input {...register("songTitle")} placeholder={t("promo-clip.form.songTitlePlaceholder")} className={inputClass} />
                     </div>
                   </div>
                 </div>
 
                 {/* Step 2: Sound & Style — style picks (2) */}
                 <div className="space-y-4">
-                  <StepHeader number={2} label="Sound & Style" />
+                  <StepHeader number={2} label={t("promo-clip.steps.soundStyle")} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                     <div className="space-y-2">
-                      <FieldLabel>Genre</FieldLabel>
-                      <StyledSelect name="genre" placeholder="Select genre…" options={GENRES}
+                      <FieldLabel>{t("promo-clip.form.genre")}</FieldLabel>
+                      <StyledSelect name="genre" placeholder={t("promo-clip.form.selectGenre")}
+                        options={GENRES.map((g) => t(`promo-clip.genres.${g.i18nKey}`))}
+                        ids={GENRES.map((g) => g.id)}
                         value={watched.genre} onChange={(v) => setValue("genre", v)} />
                     </div>
                     <div className="space-y-2">
-                      <FieldLabel>Mood</FieldLabel>
-                      <StyledSelect name="mood" placeholder="Select mood…" options={MOODS}
+                      <FieldLabel>{t("promo-clip.form.mood")}</FieldLabel>
+                      <StyledSelect name="mood" placeholder={t("promo-clip.form.selectMood")}
+                        options={MOODS.map((m) => t(`promo-clip.moods.${m.i18nKey}`))}
+                        ids={MOODS.map((m) => m.id)}
                         value={watched.mood} onChange={(v) => setValue("mood", v)} />
                     </div>
                   </div>
@@ -835,29 +895,31 @@ export default function PromoClip() {
 
                 {/* Step 3: Campaign — platform & goal preset picks (2); song hook is required input and stays visible */}
                 <div className="space-y-4">
-                  <StepHeader number={3} label="Campaign" />
+                  <StepHeader number={3} label={t("promo-clip.steps.campaign")} />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-min-stars="2">
                     <div className="space-y-2">
-                      <FieldLabel>Platform</FieldLabel>
-                      <StyledSelect name="platform" placeholder="Select platform…"
-                        options={PLATFORM_STRINGS} ids={PLATFORM_IDS}
+                      <FieldLabel>{t("promo-clip.form.platform")}</FieldLabel>
+                      <StyledSelect name="platform" placeholder={t("promo-clip.form.selectPlatform")}
+                        options={platformStrings} ids={PLATFORM_IDS}
                         value={watched.platform} onChange={(v) => setValue("platform", v)} />
                     </div>
                     <div className="space-y-2">
-                      <FieldLabel>Promo Goal</FieldLabel>
-                      <StyledSelect name="promoGoal" placeholder="Select goal…" options={GOALS}
+                      <FieldLabel>{t("promo-clip.form.promoGoal")}</FieldLabel>
+                      <StyledSelect name="promoGoal" placeholder={t("promo-clip.form.selectGoal")}
+                        options={GOALS.map((g) => t(`promo-clip.goals.${g.i18nKey}`))}
+                        ids={GOALS.map((g) => g.id)}
                         value={watched.promoGoal} onChange={(v) => setValue("promoGoal", v)} />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <FieldLabel>Song Hook / Best Lyrics</FieldLabel>
+                    <FieldLabel>{t("promo-clip.form.songHook")}</FieldLabel>
                     <Textarea
                       {...register("songHook", { required: true })}
-                      placeholder="Paste your hook, best bar, or the lyrics you want to build the promo around. The more specific, the better…"
+                      placeholder={t("promo-clip.form.songHookPlaceholder")}
                       className={textareaClass + (errors.songHook ? " border-red-500/50" : "")}
                       style={{ minHeight: "120px" }}
                     />
-                    {errors.songHook && <p className="text-red-400 text-xs">Required — paste your hook or best bar</p>}
+                    {errors.songHook && <p className="text-red-400 text-xs">{t("promo-clip.form.hookRequired")}</p>}
                   </div>
                 </div>
 
@@ -868,14 +930,14 @@ export default function PromoClip() {
                     onClick={() => setScratchAdvancedOpen((v) => !v)}
                     className="flex items-center justify-between w-full px-5 py-3.5"
                   >
-                    <span className="text-xs font-bold text-white/30 uppercase tracking-wider">Special Instructions</span>
+                    <span className="text-xs font-bold text-white/30 uppercase tracking-wider">{t("promo-clip.advanced.specialInstructions")}</span>
                     {scratchAdvancedOpen ? <ChevronUp className="h-4 w-4 text-white/25" /> : <ChevronDown className="h-4 w-4 text-white/25" />}
                   </button>
                   {scratchAdvancedOpen && (
                     <div className="px-5 pb-5 pt-4 border-t border-white/[0.05]">
                       <Textarea
                         {...register("specialInstructions")}
-                        placeholder="Release date, content restrictions, cultural context, trending sounds to reference, platform-specific notes…"
+                        placeholder={t("promo-clip.advanced.instructionsPlaceholderScratch")}
                         className={textareaClass + " w-full"}
                         style={{ minHeight: "80px" }}
                       />
@@ -893,10 +955,10 @@ export default function PromoClip() {
                     style={{ height: "52px" }}
                   >
                     {loading
-                      ? <><Loader2 className="h-5 w-5 animate-spin" /> Building Promo Pack…</>
-                      : <><Megaphone className="h-5 w-5" /> Generate Promo Pack</>}
+                      ? <><Loader2 className="h-5 w-5 animate-spin" /> {t("promo-clip.generating")}</>
+                      : <><Megaphone className="h-5 w-5" /> {t("promo-clip.generate")}</>}
                   </Button>
-                  <p className="text-white/20 text-xs">Uses 100 Visual Bucs</p>
+                  <p className="text-white/20 text-xs">{t("promo-clip.costNote")}</p>
                 </div>
 
               </form>
@@ -924,13 +986,13 @@ export default function PromoClip() {
             {mode === "from-project" && selectedProject && isVideoProject(selectedProject.project_type) && (
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div>
-                  <p className="text-sm font-semibold text-white">This project has video clips</p>
-                  <p className="text-xs text-white/35 mt-0.5">Open the Video Editor to build your full promo timeline</p>
+                  <p className="text-sm font-semibold text-white">{t("promo-clip.videoEditor.title")}</p>
+                  <p className="text-xs text-white/35 mt-0.5">{t("promo-clip.videoEditor.desc")}</p>
                 </div>
                 <OpenVideoEditorButton
                   projectId={selectedProject.id}
                   size="sm"
-                  label="Open Video Editor"
+                  label={t("promo-clip.videoEditor.open")}
                 />
               </div>
             )}
