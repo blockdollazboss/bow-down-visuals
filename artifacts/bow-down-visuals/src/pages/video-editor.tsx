@@ -59,6 +59,7 @@ import {
 import { OverlayLayer } from "@/components/OverlayLayer";
 import { ActiveOverlayEffects } from "@/components/ActiveOverlayEffects";
 import { ClipGeneratorSection } from "@/components/editor/sections/ClipGeneratorSection";
+import { ScreenRecorderPanel } from "@/components/editor/sections/ScreenRecorderPanel";
 import { CaptionsSection } from "@/components/editor/sections/CaptionsSection";
 import { EffectsSection } from "@/components/editor/sections/EffectsSection";
 import { ExportSection } from "@/components/editor/sections/ExportSection";
@@ -1215,6 +1216,15 @@ export default function VideoEditor() {
                               </button>
                             </div>
                           )}
+
+                          {/* ── Screen Recorder (CapCut parity): capture straight into the timeline. Free. ── */}
+                          <ScreenRecorderPanel
+                            scenes={scenes}
+                            setScenes={setScenes}
+                            projectId={projectId}
+                            getAccessToken={getAccessToken}
+                            onGoToTab={(t) => setTab(t)}
+                          />
 
                           <ClipGeneratorSection
                             scenes={scenes}
