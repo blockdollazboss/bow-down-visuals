@@ -273,6 +273,7 @@ router.use(voiceoverProRouter);
 router.use(brollSuggesterRouter);
 router.use(brandKitRouter);
 router.use(thumbnailAbRouter);
+router.use(stabilizeRouter);
 router.use(videoTitlesRouter);
 router.use(clipDescriptionsRouter);
 router.use(thumbnailTextRouter);
