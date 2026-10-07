@@ -48,7 +48,7 @@ export function LanguageSwitcher({ variant = "icon" }: { variant?: "icon" | "ful
         )}
       </Button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[170px] rounded-lg border border-white/10 bg-[#1a1a1a] p-1 shadow-xl">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[170px] rounded-lg border border-white/10 bg-[#1a1a1a] p-1 shadow-xl">
           {SUPPORTED_LANGUAGES.map((lang) => (
             <button
               key={lang.code}
