@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -10,6 +11,21 @@ import { stripeWebhookHandler } from "./lib/stripe-webhook";
 import { stagingGate } from "./lib/staging-gate";
 
 const app: Express = express();
+
+/**
+ * Global rate limiter: backstop for all routes.
+ * 300 requests per minute per IP — generous for real users,
+ * stops runaway scripts and hammering. Tighter per-route limits
+ * (publicApiLimiter: 30/min) apply on abuse-prone endpoints.
+ */
+const globalLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 300,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again in a minute." },
+});
+app.use(globalLimiter);
 
 app.use(
   pinoHttp({
@@ -30,7 +46,16 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://bowdownvisuals.com",
+    "https://www.bowdownvisuals.com",
+    "https://bow-down-visuals-staging.onrender.com",
+    "capacitor://localhost",
+    "http://localhost",
+  ],
+  credentials: true,
+}));
 
 // Stripe webhook MUST be registered before express.json() so the raw Buffer body is preserved.
 app.post(
@@ -39,7 +64,7 @@ app.post(
   stripeWebhookHandler,
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // Staging password wall. Active only when STAGING_PASSWORD is set
