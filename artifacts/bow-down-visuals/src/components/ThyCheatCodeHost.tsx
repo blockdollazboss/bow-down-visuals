@@ -81,7 +81,7 @@ export function ThyCheatCodeHost() {
         >
           <span className="flex h-7 w-7 items-center justify-center overflow-hidden border-2 border-[#C9A84C]/60">
             <video
-              src={mediaUrl("thy-cheat-code-idle.mp4")}
+              src={mediaUrl("thy-cheat-code-idle-8bit.mp4")}
               autoPlay
               muted
               loop
@@ -111,7 +111,7 @@ export function ThyCheatCodeHost() {
         <div className="flex items-start gap-4 p-5 sm:p-6">
           <div className="h-20 w-20 shrink-0 overflow-hidden border-4 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.25)]">
             <video
-              src={mediaUrl("thy-cheat-code-making.mp4")}
+              src={mediaUrl("thy-cheat-code-making-8bit.mp4")}
               autoPlay
               muted
               loop

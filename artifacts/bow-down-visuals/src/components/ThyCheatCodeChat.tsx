@@ -228,7 +228,7 @@ export function ThyCheatCodeChat() {
           className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#C9A84C] bg-black shadow-[0_0_24px_rgba(201,168,76,0.35)] transition-transform hover:scale-110 active:scale-95"
         >
           <video
-            src={mediaUrl("thy-cheat-code-idle.mp4")}
+            src={mediaUrl("thy-cheat-code-idle-8bit.mp4")}
             autoPlay
             muted
             loop
