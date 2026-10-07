@@ -31,6 +31,7 @@ export default function CoverArt() {
   const { user } = useAuth();
   const { addAsset } = useHubProject();
   const { confirmedFetch } = useConfirmedApi();
+  const [mode, setMode] = useState<"simple" | "custom">("simple");
   const [songTitle, setSongTitle] = useState("");
   const [artistName, setArtistName] = useState("");
   const [mood, setMood] = useState("");
@@ -42,6 +43,14 @@ export default function CoverArt() {
   const [history, setHistory] = useState<CoverArtResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [outOfCredits, setOutOfCredits] = useState(false);
+
+  /* One-click cover art presets */
+  const COVER_PRESETS = [
+    { label: "💎 Luxury Gold", style: "luxury-gold", mood: "luxurious and premium" },
+    { label: "🌙 Dark Moody", style: "dark-moody", mood: "dark and atmospheric" },
+    { label: "🎨 Vibrant Pop", style: "vibrant-pop", mood: "bold and energetic" },
+    { label: "🎬 Cinematic", style: "cinematic", mood: "epic and dramatic" },
+  ];
 
   const tierInfo = getCoverArtTier(tier);
   const canGenerate = songTitle.trim().length > 0 && artistName.trim().length > 0 && !generating;
@@ -130,6 +139,51 @@ export default function CoverArt() {
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           {/* ── Controls ── */}
           <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+            {/* Simple / Custom toggle */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setMode("simple")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  mode === "simple" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                Simple
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("custom")}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  mode === "custom" ? "bg-primary text-black" : "bg-white/5 text-white/60 hover:bg-white/10"
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+
+            {mode === "simple" && (
+              <div className="space-y-4">
+                <p className="text-sm text-white/60">Pick a vibe — one tap, done.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {COVER_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setStyle(preset.style);
+                        setMood(preset.mood);
+                      }}
+                      className="p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all text-center"
+                    >
+                      <span className="text-sm font-semibold">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mode === "custom" && (
+            <>
             <div>
               <label className="text-xs font-semibold uppercase tracking-wider text-white/40">{t("cover-art.song_title")}</label>
               <input
@@ -241,6 +295,8 @@ export default function CoverArt() {
             </button>
             {!user && (
               <p className="text-xs text-white/35 text-center">{t("cover-art.sign_in_to_generate_your_covers")}</p>
+            )}
+            </>
             )}
           </div>
 
