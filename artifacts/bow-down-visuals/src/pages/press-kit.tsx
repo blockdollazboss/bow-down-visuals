@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { slugifyHandle } from "@/lib/press-kit";
 import { useConfirmedApi } from "@/hooks/use-confirmed-api";
 import { useTranslation } from "react-i18next";
+import PressReleasePanel, { type PressReleaseKit } from "@/components/PressReleasePanel";
 
 /* ─── Press Kit Builder ───────────────────────────────────────────────────
    Electronic press kits (EPKs): artists generate an AI-written bio and
@@ -48,6 +49,7 @@ interface PressKit {
   top_tracks: Array<{ title: string; url: string }>;
   artist_vault_id?: string | null;
   is_public: boolean;
+  press_releases?: Array<{ id: string; headline: string; body: string; announcementType: string; social: string; createdAt: string }>;
 }
 
 const FALLBACK_GENERATE_COST = 3;
@@ -92,6 +94,14 @@ export default function PressKitBuilder() {
   const [outOfCredits, setOutOfCredits] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tone, setTone] = useState("professional");
+  const [activeTab, setActiveTab] = useState<"kit" | "release">("kit");
+
+  function handleReleaseKitUpdated(updated: PressReleaseKit) {
+    setKits((ks) => ks.map((k) => (k.id === updated.id ? { ...k, press_releases: updated.press_releases } : k)));
+    if (selectedKit?.id === updated.id) {
+      setSelectedKit({ ...selectedKit, press_releases: updated.press_releases });
+    }
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -317,10 +327,33 @@ export default function PressKitBuilder() {
           <Newspaper className="h-8 w-8 text-[#d4af37]" />
           <h1 className="text-3xl md:text-4xl font-bold">{t("press-kit.title")}</h1>
         </div>
-        <p className="text-white/50 mb-8 max-w-2xl">
+        <p className="text-white/50 mb-6 max-w-2xl">
           {t("press-kit.description")}
         </p>
 
+        {/* tabs */}
+        <div className="flex gap-2 mb-8">
+          {(["kit", "release"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab
+                  ? "bg-[#d4af37] text-black"
+                  : "border border-white/15 text-white/60 hover:text-white hover:border-white/30"
+              }`}
+            >
+              {t(`press-kit.tabs.${tab}`)}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "release" ? (
+          <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+            <PressReleasePanel kit={selectedKit} onKitUpdated={handleReleaseKitUpdated} />
+          </section>
+        ) : (
+        <>
         {outOfCredits && <OutOfCredits />}
         {error && (
           <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
@@ -628,6 +661,8 @@ export default function PressKitBuilder() {
             )}
           </section>
         </div>
+        </>
+        )}
       </main>
 
     </div>

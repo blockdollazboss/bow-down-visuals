@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod/v4";
 import { eq, and, desc } from "drizzle-orm";
-import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema } from "@workspace/db";
+import { db, pressKitsTable, artistVaultsTable, pressKitHandleSchema, pressKitReleaseSchema } from "@workspace/db";
 import { getOpenAI, getTextModel } from "../../lib/ai-clients";
 import { requireAuth } from "../../middlewares/require-auth";
 import { chargeCredits, refundCredits, OutOfCreditsError, LedgerWriteError } from "../../lib/credits";
@@ -63,6 +63,8 @@ const generatePressKitSchema = z.object({
 const updatePressKitSchema = generatePressKitSchema.partial().extend({
   bio: z.string().max(5000).optional(),
   is_public: z.boolean().optional(),
+  /** Saved press releases (from the Press Release Generator panel) — free to edit. */
+  press_releases: z.array(pressKitReleaseSchema).max(20).optional(),
 });
 
 const regenerateBioSchema = z.object({

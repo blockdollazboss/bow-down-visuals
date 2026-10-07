@@ -18,6 +18,26 @@ export interface PressKitQuote {
   source: string;
 }
 
+export interface PressKitRelease {
+  id: string;
+  headline: string;
+  /** Full formatted release text (headline, dateline, lede, body, boilerplate, contact). */
+  body: string;
+  announcementType: string;
+  /** 280-char social version. */
+  social: string;
+  createdAt: string;
+}
+
+export const pressKitReleaseSchema = z.object({
+  id: z.string().min(1).max(64),
+  headline: z.string().min(1).max(200),
+  body: z.string().min(1).max(20000),
+  announcementType: z.string().min(1).max(40),
+  social: z.string().min(1).max(320),
+  createdAt: z.string().min(1).max(40),
+});
+
 export const pressKitTrackSchema = z.object({
   title: z.string().min(1).max(120),
   url: z.string().url().max(500),
@@ -51,6 +71,8 @@ export const pressKitsTable = pgTable("press_kits", {
   /** Photo URLs pulled from the artist vault gallery. */
   photo_urls: jsonb("photo_urls").$type<string[]>().default([]),
   top_tracks: jsonb("top_tracks").$type<PressKitTrack[]>().default([]),
+  /** Saved press releases (from the Press Release Generator panel). */
+  press_releases: jsonb("press_releases").$type<PressKitRelease[]>().default([]),
   /** Artist vault this kit was built from (bio source + photos). */
   artist_vault_id: uuid("artist_vault_id"),
   is_public: boolean("is_public").notNull().default(true),
